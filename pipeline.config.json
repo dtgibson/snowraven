@@ -1,0 +1,27 @@
+{
+  "name": "snowraven",
+  "type": "web_app",
+  "entryPath": "new",
+  "repoURL": "https://github.com/dtgibson/snowraven",
+  "repoProvider": "github",
+  "frontend": "react-vite-tailwind",
+  "backend": "python-fastapi",
+  "emailProvider": null,
+  "smsProvider": null,
+  "deploymentTarget": null,
+  "createdAt": "2026-05-05T00:00:00Z",
+  "updatedAt": "2026-05-05T12:00:00Z",
+  "setupComplete": true,
+  "stack": {
+    "componentLibrary": "shadcn/ui",
+    "designTokens": "frontend/src/globals.css",
+    "brandSystem": "brand.md",
+    "testRunner": "vitest",
+    "cicd": "github-actions",
+    "environments": {
+      "dev": "main",
+      "staging": null,
+      "prod": null
+    }
+  }
+}

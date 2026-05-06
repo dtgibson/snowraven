@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 225 43% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 225 43% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 43% 7%;
+    --primary: 150 51% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 145 60% 96%;
+    --secondary-foreground: 150 51% 36%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 145 52% 94%;
+    --accent-foreground: 150 55% 23%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 150 51% 36%;
+    --radius: 0.5rem;
+    --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .dark {
+    --background: 225 43% 7%;
+    --foreground: 0 0% 98%;
+    --card: 225 43% 9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 225 43% 9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 150 51% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 30% 15%;
+    --secondary-foreground: 150 51% 70%;
+    --muted: 225 30% 15%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 150 30% 15%;
+    --accent-foreground: 150 51% 70%;
+    --destructive: 0 62.8% 40%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 225 30% 18%;
+    --input: 225 30% 18%;
+    --ring: 150 51% 42%;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 0.7s linear infinite;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+}

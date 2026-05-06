@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnowRaven</title>
+  <style>
+    :root {
+      --primary: #2D8653;
+      --primary-hover: #246b44;
+      --primary-fg: #ffffff;
+      --bg: #ffffff;
+      --fg: #0F1117;
+      --muted-bg: #F4F4F5;
+      --muted-fg: #71717A;
+      --accent-bg: #E8F5EE;
+      --border: #E4E4E7;
+      --error: #DC2626;
+      --error-bg: #FEF2F2;
+      --radius: 8px;
+      --font: -apple-system, 'Inter', system-ui, 'Segoe UI', sans-serif;
+      --mono: ui-monospace, 'Cascadia Code', 'Fira Code', Consolas, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--fg);
+      background: #f9fafb;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 64px 24px 80px;
+    }
+
+    /* ── Header ── */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .logo-icon {
+      color: var(--primary);
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+    }
+    .logo-name {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+      color: var(--fg);
+    }
+    .logo-name .accent { color: var(--primary); }
+
+    .tagline {
+      font-size: 14px;
+      color: var(--muted-fg);
+      margin-bottom: 40px;
+      letter-spacing: 0.01em;
+    }
+
+    /* ── Main card ── */
+    .card {
+      width: 100%;
+      max-width: 540px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    }
+
+    .field-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--fg);
+      margin-bottom: 8px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      height: 44px;
+      padding: 0 14px;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-family: var(--font);
+      color: var(--fg);
+      background: var(--bg);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      min-width: 0;
+    }
+    input[type="text"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(45, 134, 83, 0.12);
+    }
+    input[type="text"]::placeholder { color: #c0c0c6; }
+    input[type="text"].has-error { border-color: var(--error); }
+    input[type="text"].has-error:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1); }
+
+    .btn-primary {
+      height: 44px;
+      padding: 0 18px;
+      background: var(--primary);
+      color: var(--primary-fg);
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      font-family: var(--font);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.01em;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-primary:active:not(:disabled) { transform: scale(0.98); }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .error-banner {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 9px 13px;
+      background: var(--error-bg);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--error);
+    }
+    .error-banner.visible { display: flex; }
+    .error-banner svg { flex-shrink: 0; }
+
+    /* ── Divider ── */
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+
+    /* ── Output ── */
+    .output-section { display: none; }
+    .output-section.visible { display: block; }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .output-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted-fg);
+    }
+
+    .btn-copy {
+      height: 30px;
+      padding: 0 12px;
+      background: var(--accent-bg);
+      color: var(--primary);
+      border: 1.5px solid rgba(45, 134, 83, 0.18);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: var(--font);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      letter-spacing: 0.01em;
+    }
+    .btn-copy:hover { background: #d1eadb; border-color: rgba(45,134,83,0.3); }
+    .btn-copy.copied {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .output-pre {
+      background: var(--muted-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      font-family: var(--mono);
+      font-size: 13.5px;
+      line-height: 1.75;
+      color: var(--fg);
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* ── Loading spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 0.7s linear infinite; }
+
+    /* ── Footer ── */
+    .page-footer {
+      margin-top: 32px;
+      font-size: 12px;
+      color: #b0b0b8;
+      letter-spacing: 0.01em;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo">
+    <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 7h.01"/>
+      <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
+      <path d="m20 7 2 .5-2 .5"/>
+      <path d="M10 18v3"/>
+      <path d="M14 17.75V21"/>
+      <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
+    </svg>
+    <span class="logo-name">Snow<span class="accent">Raven</span></span>
+  </div>
+  <p class="tagline">Weather for your eBird checklists</p>
+
+  <div class="card">
+
+    <label class="field-label" for="checklist-input">eBird checklist ID or URL</label>
+    <div class="input-row">
+      <input
+        type="text"
+        id="checklist-input"
+        placeholder="S12345678 or https://ebird.org/checklist/S12345678"
+        aria-describedby="checklist-error"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="btn-primary" id="lookup-btn" onclick="handleLookup()">
+        <svg id="icon-search" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+        <svg id="icon-spin" class="spin" style="display:none" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+        <span id="btn-label">Get weather</span>
+      </button>
+    </div>
+
+    <div class="error-banner" id="checklist-error" role="alert">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span id="error-text">That doesn't look like a valid eBird checklist ID.</span>
+    </div>
+
+    <div class="output-section" id="output-section">
+      <hr class="section-divider" />
+      <div class="output-header">
+        <span class="output-eyebrow">Weather output</span>
+        <button class="btn-copy" id="copy-btn" onclick="copyOutput()" aria-label="Copy weather output to clipboard">
+          <svg id="copy-icon" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+          </svg>
+          <svg id="check-icon" style="display:none" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span id="copy-label">Copy</span>
+        </button>
+      </div>
+      <pre class="output-pre" id="output-pre"></pre>
+    </div>
+
+  </div>
+
+  <p class="page-footer">SnowRaven &middot; self-hosted weather for birders</p>
+
+  <script>
+    const SAMPLE = `☁️
+Overcast clouds
+Temperature: 54 - 55°F
+Wind: Light breeze - gentle breeze
+Wind Direction: W
+Cloud Cover: 100%
+Humidity: 86 - 92%
+Dew point: 51 - 52°F
+Sunrise: 6:08am
+Sunset: 8:03pm
+Weather generated by <a href="https://github.com/dtgibson/snowraven">SnowRaven</a>`;
+
+    let currentOutput = '';
+
+    function extractId(raw) {
+      const s = raw.trim().split('?')[0].replace(/\/+$/, '');
+      return s.includes('/') ? s.split('/').pop() : s;
+    }
+
+    function validId(id) { return /^S\d+$/.test(id); }
+
+    function setLoading(on) {
+      const btn = document.getElementById('lookup-btn');
+      btn.disabled = on;
+      document.getElementById('icon-search').style.display = on ? 'none' : '';
+      document.getElementById('icon-spin').style.display = on ? '' : 'none';
+      document.getElementById('btn-label').textContent = on ? 'Looking up…' : 'Get weather';
+    }
+
+    function clearError() {
+      document.getElementById('checklist-error').classList.remove('visible');
+      document.getElementById('checklist-input').classList.remove('has-error');
+    }
+
+    function showError(msg) {
+      document.getElementById('error-text').textContent = msg;
+      document.getElementById('checklist-error').classList.add('visible');
+      document.getElementById('checklist-input').classList.add('has-error');
+    }
+
+    async function handleLookup() {
+      clearError();
+      const raw = document.getElementById('checklist-input').value;
+      const id = extractId(raw);
+
+      if (!validId(id)) {
+        showError("That doesn’t look like a valid eBird checklist ID.");
+        return;
+      }
+
+      setLoading(true);
+      await new Promise(r => setTimeout(r, 1600)); // simulate network
+      setLoading(false);
+
+      currentOutput = SAMPLE;
+      document.getElementById('output-pre').textContent = SAMPLE;
+      document.getElementById('output-section').classList.add('visible');
+    }
+
+    async function copyOutput() {
+      if (!currentOutput) return;
+      try {
+        await navigator.clipboard.writeText(currentOutput);
+      } catch (_) {
+        const sel = window.getSelection();
+        const range = document.createRange();
+        range.selectNode(document.getElementById('output-pre'));
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+      const btn = document.getElementById('copy-btn');
+      document.getElementById('copy-icon').style.display = 'none';
+      document.getElementById('check-icon').style.display = '';
+      document.getElementById('copy-label').textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        document.getElementById('copy-icon').style.display = '';
+        document.getElementById('check-icon').style.display = 'none';
+        document.getElementById('copy-label').textContent = 'Copy';
+      }, 2000);
+    }
+
+    document.getElementById('checklist-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') handleLookup();
+    });
+  </script>
+</body>
+</html>
