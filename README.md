@@ -2,7 +2,9 @@
 
 Self-hosted weather lookup for eBird checklists. Paste an eBird checklist ID or URL and get a copy-and-pasteable historical weather summary for that time and location — temperature, wind, humidity, dew point, sunrise/sunset, and conditions.
 
-Compatible with the output format used by [raincrow.app](https://raincrow.app/).
+Compatible with the output format used by [raincrow.app](https://raincrow.app/). This is a self-hosted solution to retrieve weather data for many eBird checklists without rate limits. I believe it would be unethical to circumvent the rate limits of an online tool that is being generously made available to others for free; if the creator wishes to limit requests to five per day to keep the service broadly available, those wishes should be respected.
+
+If you like this, the idea and inspiration really came from someone else, so [why not buy the creator of raincrow.app a coffee?](https://ko-fi.com/parkerdavisaz)
 
 ---
 
