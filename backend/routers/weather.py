@@ -42,11 +42,11 @@ async def get_weather(checklist_id: str):
     except ValueError:
         obs_dt = datetime.strptime(raw_dt, "%Y-%m-%d").replace(tzinfo=tz)
 
-    num_hours = max(1, math.ceil(checklist["duration_hrs"]))
+    minute_offset = obs_dt.minute / 60 + obs_dt.second / 3600
+    num_hours = max(1, math.ceil(minute_offset + checklist["duration_hrs"]))
     timestamps = [
         int((obs_dt + timedelta(hours=h)).timestamp()) for h in range(num_hours)
     ]
-    print(f"[DEBUG] duration_hrs={checklist['duration_hrs']}, num_hours={num_hours}, obs_dt={obs_dt}, timestamps={timestamps}")
 
     try:
         hourly_responses = await asyncio.gather(
