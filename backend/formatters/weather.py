@@ -8,14 +8,16 @@ _tf = TimezoneFinder()
 BEAUFORT = [
     (1, "Calm"),
     (3, "Mostly calm"),
-    (7, "Light breeze"),
-    (12, "Gentle breeze"),
-    (18, "Moderate breeze"),
-    (24, "Fresh breeze"),
-    (31, "Strong breeze"),
-    (38, "Near gale"),
-    (math.inf, "Gale"),
+    (7, "Gentle breeze"),
+    (12, "Moderate breeze"),
+    (18, "Fresh breeze"),
+    (24, "Strong breeze"),
+    (31, "Near gale"),
+    (38, "Gale"),
+    (math.inf, "Strong gale"),
 ]
+
+_BEAUFORT_ORDER = {label: i for i, (_, label) in enumerate(BEAUFORT)}
 
 CARDINALS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
@@ -83,7 +85,10 @@ def format_weather(hourly_responses: list[dict], tz: ZoneInfo) -> str:
     dews = [r["data"][0]["dew_point"] for r in hourly_responses]
     wind_speeds = [r["data"][0]["wind_speed"] for r in hourly_responses]
 
-    wind_descs = list(dict.fromkeys(wind_description(w) for w in wind_speeds))
+    wind_descs = sorted(
+        dict.fromkeys(wind_description(w) for w in wind_speeds),
+        key=lambda d: _BEAUFORT_ORDER.get(d, 999),
+    )
     wind_str = " - ".join(wind_descs)
 
     owm_id = first["weather"][0]["id"]

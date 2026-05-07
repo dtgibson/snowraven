@@ -21,16 +21,16 @@ class TestWindDescription:
         assert wind_description(2) == "Mostly calm"
         assert wind_description(3) == "Mostly calm"
 
-    def test_light_breeze(self):
-        assert wind_description(4) == "Light breeze"
-        assert wind_description(7) == "Light breeze"
-
     def test_gentle_breeze(self):
-        assert wind_description(8) == "Gentle breeze"
-        assert wind_description(12) == "Gentle breeze"
+        assert wind_description(4) == "Gentle breeze"
+        assert wind_description(7) == "Gentle breeze"
+
+    def test_moderate_breeze(self):
+        assert wind_description(8) == "Moderate breeze"
+        assert wind_description(12) == "Moderate breeze"
 
     def test_gale(self):
-        assert wind_description(50) == "Gale"
+        assert wind_description(50) == "Strong gale"
 
 
 class TestCardinal:
@@ -159,10 +159,10 @@ class TestFormatWeather:
         assert "54 - 54°F" not in result
 
     def test_wind_range_across_hours(self):
-        r1 = self._make_response(wind_speed=5.0)   # Light breeze
-        r2 = self._make_response(wind_speed=10.0)  # Gentle breeze
+        r1 = self._make_response(wind_speed=5.0)   # Gentle breeze
+        r2 = self._make_response(wind_speed=10.0)  # Moderate breeze
         result = format_weather([r1, r2], TZ_ET)
-        assert "Light breeze - Gentle breeze" in result
+        assert "Gentle breeze - Moderate breeze" in result
 
     def test_west_cardinal(self):
         resp = self._make_response(wind_deg=270)
