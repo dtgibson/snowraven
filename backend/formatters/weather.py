@@ -87,9 +87,10 @@ def format_weather(hourly_responses: list[dict], tz: ZoneInfo) -> str:
     wind_str = " - ".join(wind_descs)
 
     owm_id = first["weather"][0]["id"]
-    condition = first["weather"][0]["description"].title()
+    condition = first["weather"][0]["description"].capitalize()
     emoji = condition_emoji(owm_id)
-    wind_dir = cardinal(first["wind_deg"])
+    wind_dirs = list(dict.fromkeys(cardinal(r["data"][0]["wind_deg"]) for r in hourly_responses))
+    wind_dir = " - ".join(wind_dirs)
     clouds = first["clouds"]
 
     sunrise = format_local_time(first["sunrise"], tz)

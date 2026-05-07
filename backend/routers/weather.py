@@ -46,6 +46,7 @@ async def get_weather(checklist_id: str):
     timestamps = [
         int((obs_dt + timedelta(hours=h)).timestamp()) for h in range(num_hours)
     ]
+    print(f"[DEBUG] duration_hrs={checklist['duration_hrs']}, num_hours={num_hours}, obs_dt={obs_dt}, timestamps={timestamps}")
 
     try:
         hourly_responses = await asyncio.gather(
