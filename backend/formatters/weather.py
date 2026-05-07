@@ -8,13 +8,13 @@ _tf = TimezoneFinder()
 BEAUFORT = [
     (1, "Calm"),
     (3, "Mostly calm"),
-    (7, "Gentle breeze"),
-    (12, "Moderate breeze"),
-    (18, "Fresh breeze"),
-    (24, "Strong breeze"),
-    (31, "Near gale"),
-    (38, "Gale"),
-    (math.inf, "Strong gale"),
+    (7, "Light breeze"),
+    (12, "Gentle breeze"),
+    (18, "Moderate breeze"),
+    (24, "Fresh breeze"),
+    (31, "Strong breeze"),
+    (38, "Near gale"),
+    (math.inf, "Gale"),
 ]
 
 _BEAUFORT_ORDER = {label: i for i, (_, label) in enumerate(BEAUFORT)}
@@ -96,7 +96,7 @@ def format_weather(hourly_responses: list[dict], tz: ZoneInfo) -> str:
     emoji = condition_emoji(owm_id)
     wind_dirs = list(dict.fromkeys(cardinal(r["data"][0]["wind_deg"]) for r in hourly_responses))
     wind_dir = " - ".join(wind_dirs)
-    clouds = first["clouds"]
+    clouds_list = [r["data"][0]["clouds"] for r in hourly_responses]
 
     sunrise = format_local_time(first["sunrise"], tz)
     sunset = format_local_time(first["sunset"], tz)
@@ -107,7 +107,7 @@ def format_weather(hourly_responses: list[dict], tz: ZoneInfo) -> str:
         f"Temperature: {format_range(temps, '°F')}\n"
         f"Wind: {wind_str}\n"
         f"Wind Direction: {wind_dir}\n"
-        f"Cloud Cover: {clouds}%\n"
+        f"Cloud Cover: {format_range(clouds_list, '%')}\n"
         f"Humidity: {format_range(humids, '%')}\n"
         f"Dew point: {format_range(dews, '°F')}\n"
         f"Sunrise: {sunrise}\n"
