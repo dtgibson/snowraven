@@ -7,7 +7,7 @@ _tf = TimezoneFinder()
 
 BEAUFORT = [
     (1, "Calm"),
-    (3, "Light air"),
+    (3, "Mostly calm"),
     (7, "Light breeze"),
     (12, "Gentle breeze"),
     (18, "Moderate breeze"),

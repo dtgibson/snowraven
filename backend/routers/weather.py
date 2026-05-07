@@ -1,5 +1,4 @@
 import asyncio
-import math
 import os
 import re
 from datetime import datetime, timedelta
@@ -42,11 +41,9 @@ async def get_weather(checklist_id: str):
     except ValueError:
         obs_dt = datetime.strptime(raw_dt, "%Y-%m-%d").replace(tzinfo=tz)
 
-    minute_offset = obs_dt.minute / 60 + obs_dt.second / 3600
-    num_hours = max(1, math.ceil(minute_offset + checklist["duration_hrs"]))
-    timestamps = [
-        int((obs_dt + timedelta(hours=h)).timestamp()) for h in range(num_hours)
-    ]
+    start_ts = int(obs_dt.timestamp())
+    end_ts = int((obs_dt + timedelta(hours=checklist["duration_hrs"])).timestamp())
+    timestamps = [start_ts] if end_ts == start_ts else [start_ts, end_ts]
 
     try:
         hourly_responses = await asyncio.gather(

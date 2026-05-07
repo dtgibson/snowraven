@@ -17,9 +17,9 @@ class TestWindDescription:
         assert wind_description(0) == "Calm"
         assert wind_description(1) == "Calm"
 
-    def test_light_air(self):
-        assert wind_description(2) == "Light air"
-        assert wind_description(3) == "Light air"
+    def test_mostly_calm(self):
+        assert wind_description(2) == "Mostly calm"
+        assert wind_description(3) == "Mostly calm"
 
     def test_light_breeze(self):
         assert wind_description(4) == "Light breeze"
