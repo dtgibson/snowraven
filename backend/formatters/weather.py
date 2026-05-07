@@ -60,7 +60,8 @@ def condition_emoji(owm_id: int) -> str:
 
 
 def format_range(values: list[float], unit: str = "") -> str:
-    lo, hi = round(min(values)), round(max(values))
+    rounded = [round(v) for v in values]
+    lo, hi = min(rounded), max(rounded)
     if lo == hi:
         return f"{lo}{unit}"
     return f"{lo} - {hi}{unit}"

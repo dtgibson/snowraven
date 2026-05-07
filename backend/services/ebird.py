@@ -23,19 +23,21 @@ async def fetch_checklist(checklist_id: str) -> dict:
         loc_id = data["locId"]
         lat = lng = None
 
-        # Attempt 1: hotspot/info (public hotspots only)
-        loc_resp = await client.get(
-            f"https://api.ebird.org/v2/ref/hotspot/info/{loc_id}",
+        # Primary: ref/region/info returns bounding box; use centre point.
+        # This matches raincrow's coordinate strategy exactly.
+        region_resp = await client.get(
+            f"https://api.ebird.org/v2/ref/region/info/{loc_id}",
             headers=headers,
             timeout=10.0,
         )
-        if loc_resp.status_code == 200 and loc_resp.content.strip():
-            loc_data = loc_resp.json()
-            lat = loc_data.get("lat")
-            lng = loc_data.get("lng")
+        if region_resp.status_code == 200 and region_resp.content.strip():
+            region_data = region_resp.json()
+            bounds = region_data.get("bounds") or {}
+            if all(k in bounds for k in ("minX", "maxX", "minY", "maxY")):
+                lat = (bounds["minY"] + bounds["maxY"]) / 2
+                lng = (bounds["minX"] + bounds["maxX"]) / 2
 
-        # Attempt 2: product/lists — returns array of checklist summaries with loc object.
-        # The loc object uses "latitude"/"longitude" keys (not "lat"/"lng").
+        # Fallback: product/lists — exact GPS pin from loc object
         if lat is None or lng is None:
             lists_resp = await client.get(
                 f"https://api.ebird.org/v2/product/lists/{loc_id}",
@@ -54,7 +56,7 @@ async def fetch_checklist(checklist_id: str) -> dict:
                     lat = loc_obj.get("lat") or loc_obj.get("latitude")
                     lng = loc_obj.get("lng") or loc_obj.get("longitude") or loc_obj.get("lon")
 
-        # Attempt 3: recent observations (last resort — works for public locations)
+        # Last resort: recent observations
         if lat is None or lng is None:
             obs_resp = await client.get(
                 f"https://api.ebird.org/v2/data/obs/{loc_id}/recent",
