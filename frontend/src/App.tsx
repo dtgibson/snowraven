@@ -43,16 +43,27 @@ export default function App() {
 
   const handleCopy = async () => {
     if (state.status !== 'success') return
-    try {
-      await navigator.clipboard.writeText(state.formatted)
-    } catch {
-      const el = document.getElementById('output-pre')
-      if (el) {
-        const range = document.createRange()
-        range.selectNode(el)
-        window.getSelection()?.removeAllRanges()
-        window.getSelection()?.addRange(range)
+
+    // Modern API — requires HTTPS or localhost
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(state.formatted)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+        return
+      } catch {
+        // fall through to legacy method
       }
+    }
+
+    // Legacy fallback — works over plain HTTP on local network
+    const el = document.getElementById('output-pre')
+    if (el) {
+      const range = document.createRange()
+      range.selectNode(el)
+      window.getSelection()?.removeAllRanges()
+      window.getSelection()?.addRange(range)
+      document.execCommand('copy')
     }
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
