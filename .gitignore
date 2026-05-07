@@ -9,9 +9,10 @@ frontend/dist/
 frontend/.vite/
 
 # Backend
-backend/__pycache__/
-backend/*.pyc
-backend/.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
 backend/venv/
 backend/.venv/
 
