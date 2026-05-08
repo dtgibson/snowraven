@@ -36,6 +36,15 @@ export default function App() {
         return
       }
       setState({ status: 'success', formatted: data.formatted })
+      try {
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(data.formatted)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+        }
+      } catch {
+        // clipboard unavailable — user can still click Copy
+      }
     } catch {
       setState({ status: 'error', message: 'Could not reach the server. Is the backend running?' })
     }
