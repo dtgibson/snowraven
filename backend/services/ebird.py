@@ -21,6 +21,7 @@ async def fetch_checklist(checklist_id: str) -> dict:
         data = resp.json()
 
         loc_id = data["locId"]
+        loc_name = data.get("locName", "")
         lat = lng = None
 
         # Primary: ref/region/info returns bounding box; use centre point.
@@ -32,6 +33,8 @@ async def fetch_checklist(checklist_id: str) -> dict:
         )
         if region_resp.status_code == 200 and region_resp.content.strip():
             region_data = region_resp.json()
+            if not loc_name:
+                loc_name = region_data.get("result") or region_data.get("name", "")
             bounds = region_data.get("bounds") or {}
             if all(k in bounds for k in ("minX", "maxX", "minY", "maxY")):
                 lat = (bounds["minY"] + bounds["maxY"]) / 2
@@ -49,10 +52,14 @@ async def fetch_checklist(checklist_id: str) -> dict:
                 lists_data = lists_resp.json()
                 if isinstance(lists_data, list) and lists_data:
                     loc_obj = lists_data[0].get("loc") or lists_data[0].get("location") or {}
+                    if not loc_name:
+                        loc_name = loc_obj.get("name", "")
                     lat = loc_obj.get("lat") or loc_obj.get("latitude")
                     lng = loc_obj.get("lng") or loc_obj.get("longitude") or loc_obj.get("lon")
                 elif isinstance(lists_data, dict):
                     loc_obj = lists_data.get("location") or lists_data.get("loc") or {}
+                    if not loc_name:
+                        loc_name = loc_obj.get("name", "")
                     lat = loc_obj.get("lat") or loc_obj.get("latitude")
                     lng = loc_obj.get("lng") or loc_obj.get("longitude") or loc_obj.get("lon")
 
@@ -75,6 +82,7 @@ async def fetch_checklist(checklist_id: str) -> dict:
 
     return {
         "obs_dt": data["obsDt"],
+        "loc_name": loc_name or loc_id,
         "lat": lat,
         "lng": lng,
         "duration_hrs": data.get("durationHrs") or 1,

@@ -8,6 +8,7 @@ client = TestClient(app)
 
 MOCK_CHECKLIST = {
     "obs_dt": "2024-05-01 06:30",
+    "loc_name": "Central Park",
     "lat": 40.7128,
     "lng": -74.0060,
     "duration_hrs": 1,
@@ -50,6 +51,25 @@ def test_successful_lookup(monkeypatch):
     assert "☁️" in data["formatted"]
     assert "SnowRaven" in data["formatted"]
     assert "Temperature:" in data["formatted"]
+    assert data["checklist_id"] == "S12345678"
+    assert data["loc_name"] == "Central Park"
+    assert data["obs_dt"] == "2024-05-01 06:30"
+
+
+def test_confirmation_fields_date_only(monkeypatch):
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    monkeypatch.setenv("OPENWEATHER_API_KEY", "test-key")
+    date_only_checklist = {**MOCK_CHECKLIST, "obs_dt": "2024-05-01"}
+    with (
+        patch("routers.weather.fetch_checklist", new=AsyncMock(return_value=date_only_checklist)),
+        patch("routers.weather.fetch_historical", new=AsyncMock(return_value=MOCK_OWM_RESPONSE)),
+    ):
+        resp = client.get("/weather/S12345678")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["obs_dt"] == "2024-05-01"
+    assert data["checklist_id"] == "S12345678"
+    assert data["loc_name"] == "Central Park"
 
 
 def test_checklist_not_found(monkeypatch):

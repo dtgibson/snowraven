@@ -49,6 +49,22 @@ Frontend dev server runs on port 5173 and proxies `/weather` and `/health` to po
 Builds the frontend into `frontend/dist/`, then starts uvicorn on port 1620.
 FastAPI serves the built frontend as static files — no separate web server needed.
 
+### Checklist Confirmation Header (complete — May 2026)
+
+A one-line confirmation displayed after a successful weather lookup, showing the resolved checklist ID, location name, and observation time — matching the raincrow.app format (e.g. `S334315671 / Berkeley Community Garden / 2026-05-07 17:26`).
+
+**What it does:**
+- Appears between the `<hr>` divider and the "Weather output" label on successful lookup
+- Displays `{checklist_id} / {loc_name} / {obs_dt}` in monospace, muted type
+- Location name sourced from `ref/region/info` response (`result` field), falling back to `product/lists` loc object `name`, then to `locId`
+- Not part of the copyable weather text block — display only
+
+**Key files changed:**
+- `backend/services/ebird.py` — added `loc_name` extraction with three-tier fallback
+- `backend/routers/weather.py` — added `checklist_id`, `loc_name`, `obs_dt` to response
+- `frontend/src/App.tsx` — extended `AppState` success type, added confirmation line to results UI
+- `backend/tests/test_weather_router.py` — updated mock, added assertions, added date-only test case
+
 ### List Comparer (complete — May 2026)
 
 A second tool added as a tab alongside the Weather lookup. Accepts two eBird
@@ -103,6 +119,9 @@ if you need a different port.
 FastAPI serves both the API and the built frontend static files. No nginx or
 separate static file server is needed for local/Pi deployment. For
 internet-facing installs, add a reverse proxy for HTTPS.
+
+**Location name is not in the eBird checklist view response**
+The `/v2/product/checklist/view/{id}` endpoint does not return `locName` as a top-level field. Location name is sourced from the `result` field of the `ref/region/info` response (primary coordinate path), or from `loc.name` in the `product/lists` response (fallback path), or falls back to `locId`. Use `.get()` with fallbacks — never `data["locName"]` directly.
 
 **Tab switching uses display toggling, not conditional rendering**
 The Weather and List Comparer tabs are both always mounted. Switching tabs

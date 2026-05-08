@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnowRaven — Checklist Confirmation Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #2D8653;
+      --foreground: #0F1117;
+      --muted-foreground: #71717A;
+      --border: #E4E4E7;
+      --muted: #F4F4F5;
+      --accent: #E8F5EE;
+      --font-sans: Inter, system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: #f9fafb;
+      color: var(--foreground);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 0;
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .logo-icon {
+      color: var(--primary);
+    }
+    .logo-text {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+    }
+    .logo-text span { color: var(--primary); }
+    .tagline {
+      font-size: 14px;
+      color: var(--muted-foreground);
+      margin-bottom: 28px;
+    }
+
+    /* Tab bar */
+    .tab-bar {
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      padding: 0 24px;
+    }
+    .tab-nav {
+      display: flex;
+      max-width: 880px;
+      width: 100%;
+    }
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--muted-foreground);
+      cursor: pointer;
+      margin-bottom: -1px;
+    }
+    .tab.active {
+      border-bottom-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Main content */
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 24px 24px;
+    }
+
+    /* Card */
+    .card {
+      width: 100%;
+      max-width: 540px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    }
+
+    .field-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .text-input {
+      flex: 1;
+      height: 44px;
+      padding: 0 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--foreground);
+      background: #fff;
+      outline: none;
+      min-width: 0;
+    }
+    .text-input:focus { border-color: var(--primary); }
+
+    .btn-primary {
+      height: 44px;
+      padding: 0 18px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-primary:hover { background: #256e45; }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+
+    /* NEW: Confirmation line */
+    .confirmation {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      margin-bottom: 14px;
+      letter-spacing: 0.01em;
+    }
+
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .output-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+    }
+
+    .btn-copy {
+      height: 30px;
+      padding: 0 12px;
+      background: var(--accent);
+      color: var(--primary);
+      border: 1.5px solid rgba(45,134,83,0.18);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .btn-copy:hover { background: #d4eddd; }
+
+    .output-pre {
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 20px;
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 13.5px;
+      line-height: 1.75;
+      color: var(--foreground);
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #b0b0b8;
+      padding: 0 24px 20px;
+      margin-top: auto;
+    }
+    footer a { color: inherit; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* Annotation callout */
+    .annotation {
+      width: 100%;
+      max-width: 540px;
+      margin-top: 20px;
+      background: #fffbeb;
+      border: 1.5px solid #fde68a;
+      border-radius: 8px;
+      padding: 14px 18px;
+      font-size: 13px;
+      color: #92400e;
+      line-height: 1.5;
+    }
+    .annotation strong { font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-row">
+      <svg class="logo-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 8C8 10 5.9 16.17 3.82 19.5c-1.8-1.2-2.5-3.5-1-6.5l1.5-2c2-3.5 5.5-5.5 9.5-5.5 1.3 0 2.5.3 3.5.9"/>
+        <path d="M14 9.5c1.5 1 2.5 2.5 3 4"/>
+        <circle cx="19" cy="6" r="3"/>
+        <path d="M3 3l18 18"/>
+      </svg>
+      <span class="logo-text">Snow<span>Raven</span></span>
+    </div>
+    <p class="tagline">Birding tools for your eBird workflow</p>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <nav class="tab-nav">
+      <button class="tab active">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+        </svg>
+        Weather
+      </button>
+      <button class="tab">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
+        </svg>
+        List Comparer
+      </button>
+    </nav>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <div class="card">
+      <label class="field-label" for="checklist-input">eBird checklist ID or URL</label>
+
+      <div class="input-row">
+        <input
+          id="checklist-input"
+          class="text-input"
+          type="text"
+          value="S334315671"
+          readonly
+        />
+        <button class="btn-primary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          Get weather
+        </button>
+      </div>
+
+      <hr />
+
+      <!-- NEW: Checklist confirmation line -->
+      <div class="confirmation">S334315671 / Berkeley Community Garden / 2026-05-07 17:26</div>
+
+      <div class="output-header">
+        <span class="output-label">Weather output</span>
+        <button class="btn-copy">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy
+        </button>
+      </div>
+
+      <pre class="output-pre">📅 Wed 7 May 2026 | ☀️ Clear
+🌡 56–61°F | 💧 72% RH | 🌫 DP 46°F
+🌬 W 8 mph (Gentle breeze) | 💨 Gusts to 13 mph
+🌅 Sunrise 6:08 AM | 🌇 Sunset 7:58 PM
+
+Weather data from OpenWeather</pre>
+    </div>
+
+    <!-- Design annotation -->
+    <div class="annotation">
+      <strong>New in this design:</strong> The confirmation line (highlighted above) appears between the divider and the "Weather output" label. It shows the resolved checklist ID, location name, and observation time in monospace — visually subordinate to the weather output but immediately readable. The monospace font gives it a "reference code" quality that suits the data.
+    </div>
+  </div>
+
+  <footer>
+    <a href="#">SnowRaven</a> · self-hosted birding tools
+  </footer>
+
+</body>
+</html>

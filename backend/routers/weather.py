@@ -56,4 +56,9 @@ async def get_weather(checklist_id: str):
         )
 
     formatted = format_weather(list(hourly_responses), tz)
-    return {"formatted": formatted}
+    return {
+        "formatted": formatted,
+        "checklist_id": checklist_id,
+        "loc_name": checklist["loc_name"],
+        "obs_dt": checklist["obs_dt"],
+    }

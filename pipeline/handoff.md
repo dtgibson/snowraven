@@ -1,44 +1,33 @@
-# Pipeline Handoff — ebird-list-comparer
+# Pipeline Handoff — checklist-confirmation
 
 **Status:** Complete  
-**Date:** 2026-05-07  
+**Date:** 2026-05-08  
 **Both sessions approved through Stage 9.**
 
 ---
 
 ## What was built
 
-A List Comparer tab integrated into SnowRaven. Users drag and drop two eBird
-backup CSV files to see a three-panel breakdown of which species they share and
-which are unique to each list. A summary bar shows five counts at a glance.
-A "Show all / Collapse" toggle expands all panels to full height for printing.
-
-All logic is client-side — no backend changes, no API calls.
+A one-line confirmation that appears after a successful weather lookup, showing the resolved checklist ID, location name, and observation time in the raincrow.app format (e.g. `S334315671 / Berkeley Community Garden / 2026-05-07 17:26`). The confirmation is display-only and does not affect the copyable weather text.
 
 ---
 
 ## Artifacts produced
 
 **Session 1 — Planning:**
-- `pipeline/ebird-list-comparer/strategic-brief.md`
-- `pipeline/ebird-list-comparer/prd.md`
-- `pipeline/ebird-list-comparer/schema.md`
-- `pipeline/ebird-list-comparer/design-spec.md`
-- `pipeline/ebird-list-comparer/design.html`
+- `pipeline/checklist-confirmation/strategic-brief.md`
+- `pipeline/checklist-confirmation/prd.md`
+- `pipeline/checklist-confirmation/schema.md`
+- `pipeline/checklist-confirmation/design-spec.md`
+- `pipeline/checklist-confirmation/design.html`
 
 **Session 2 — Implementation:**
-- `frontend/src/types.ts`
-- `frontend/src/lib/parseEbird.ts`
-- `frontend/src/lib/parseEbird.test.ts`
-- `frontend/src/lib/compare.ts`
-- `frontend/src/lib/compare.test.ts`
-- `frontend/src/components/DropZone.tsx`
-- `frontend/src/components/SpeciesPanel.tsx`
-- `frontend/src/components/ResultsView.tsx`
-- `frontend/src/components/ListComparer.tsx`
-- `frontend/src/App.tsx` (tab bar, comparer tab panel)
-- `CHANGELOG.md` (0.0.3 entry)
-- `frontend/package.json` (bumped to 0.0.3)
+- `backend/services/ebird.py` (added `loc_name` with three-tier fallback)
+- `backend/routers/weather.py` (added `checklist_id`, `loc_name`, `obs_dt` to response)
+- `frontend/src/App.tsx` (extended AppState, added confirmation line)
+- `backend/tests/test_weather_router.py` (updated mock, new assertions, date-only test)
+- `CHANGELOG.md` (0.0.4 entry)
+- `frontend/package.json` (bumped to 0.0.4)
 - `PRODUCT_CONTEXT.md` (updated)
 
 ---

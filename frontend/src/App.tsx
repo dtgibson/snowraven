@@ -5,7 +5,7 @@ import { ListComparer } from './components/ListComparer'
 type AppState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'success'; formatted: string }
+  | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
 
 type Tab = 'weather' | 'comparer'
@@ -39,7 +39,7 @@ export default function App() {
         setState({ status: 'error', message: data.detail ?? 'Something went wrong. Please try again.' })
         return
       }
-      setState({ status: 'success', formatted: data.formatted })
+      setState({ status: 'success', formatted: data.formatted, checklistId: data.checklist_id, locName: data.loc_name, obsDt: data.obs_dt })
       try {
         if (navigator.clipboard) {
           await navigator.clipboard.writeText(data.formatted)
@@ -270,6 +270,15 @@ export default function App() {
           {hasResult && (
             <>
               <hr style={{ border: 'none', borderTop: '1px solid #E4E4E7', margin: '24px 0' }} />
+              <div style={{
+                fontSize: 12,
+                color: '#71717A',
+                fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
+                marginBottom: 14,
+                letterSpacing: '0.01em',
+              }}>
+                {state.status === 'success' && `${state.checklistId} / ${state.locName} / ${state.obsDt}`}
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{
                   fontSize: 11,
