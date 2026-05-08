@@ -1,20 +1,35 @@
 # SnowRaven
 
-Self-hosted weather lookup for eBird checklists. Paste an eBird checklist ID or URL and get a copy-and-pasteable historical weather summary for that time and location — temperature, wind, humidity, dew point, sunrise/sunset, and conditions.
+Self-hosted birding tools for your eBird workflow.
+
+## Tools
+
+### Weather Lookup
+
+Paste an eBird checklist ID or URL and get a copy-and-pasteable historical weather summary for that time and location — temperature, wind, humidity, dew point, sunrise/sunset, and conditions.
 
 Compatible with the output format used by [raincrow.app](https://raincrow.app/). This is a self-hosted solution to retrieve weather data for many eBird checklists without rate limits. I feel it would be unethical to circumvent the rate limits of an online tool that is being generously made available to others for free; if the creator wishes to limit requests to five per day to keep the service broadly available, those wishes should be respected.
 
 If you like this, the idea and inspiration really came from someone else, so [why not buy the creator of raincrow.app a coffee?](https://ko-fi.com/parkerdavisaz)
 
----
-
-## How it works
+**How it works:**
 
 1. Paste a checklist ID (`S12345678`) or full URL (`https://ebird.org/checklist/S12345678`)
 2. Click **Get weather**
 3. Copy the formatted result and paste it into your checklist notes
 
 Weather data comes from the [OpenWeather One Call API 3.0](https://openweathermap.org/api/one-call-3) timemachine endpoint. Checklist metadata (date, location, duration) comes from the [eBird API](https://documenter.getpostman.com/view/664302/S1ENwy59).
+
+### List Comparer
+
+Upload two eBird backup CSV files to see which species you share with another birder and which are unique to each list. All processing happens in the browser — no data leaves your machine.
+
+**How it works:**
+
+1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)
+2. Drop both CSV files onto the List Comparer tab
+3. Click **Compare Lists** to see three sorted panels: species in both, species only in the first list, species only in the second
+4. Use **Show all** to expand all panels to full length for printing
 
 ---
 

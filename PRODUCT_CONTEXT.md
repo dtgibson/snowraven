@@ -49,6 +49,33 @@ Frontend dev server runs on port 5173 and proxies `/weather` and `/health` to po
 Builds the frontend into `frontend/dist/`, then starts uvicorn on port 1620.
 FastAPI serves the built frontend as static files — no separate web server needed.
 
+### List Comparer (complete — May 2026)
+
+A second tool added as a tab alongside the Weather lookup. Accepts two eBird
+backup CSV files and computes which species appear in both lists and which are
+unique to each. All logic is client-side — no network requests are made after
+the initial page load.
+
+**What it does:**
+- Persistent tab bar switches between "Weather" and "List Comparer" without page reload or state loss
+- Two drop zones accept eBird backup CSV files via drag-and-drop or click-to-browse
+- Parses the "Common Name" column; rejects files missing that column with a clear error
+- Excludes spuh entries (ending in " sp."), slash species (containing "/"), and hybrids (containing " x ")
+- Strips subspecies parentheticals so "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" count as the same species
+- Produces three alphabetically-sorted lists: in both, File A only, File B only
+- Summary bar shows five counts: total A, total B, both, A only, B only
+- "Show all / Collapse" toggle expands all three species panels to their full height for printing
+- "Compare new files" button resets to the upload state
+
+**Key files:**
+- `frontend/src/components/ListComparer.tsx` — top-level state manager (files, result, expanded)
+- `frontend/src/components/DropZone.tsx` — drag-and-drop + file picker with hover/error/loaded states
+- `frontend/src/components/ResultsView.tsx` — stats bar, three panels, toggle and reset buttons
+- `frontend/src/components/SpeciesPanel.tsx` — scrollable species list panel (collapses/expands via prop)
+- `frontend/src/lib/parseEbird.ts` — CSV parser (quoted fields, CRLF, exclusions, normalization)
+- `frontend/src/lib/compare.ts` — `compareSpecies(a, b)` pure function
+- `frontend/src/types.ts` — `FileData` and `ComparisonResult` types
+
 ## Key Decisions
 
 **eBird coordinate fallback strategy**
@@ -76,3 +103,14 @@ if you need a different port.
 FastAPI serves both the API and the built frontend static files. No nginx or
 separate static file server is needed for local/Pi deployment. For
 internet-facing installs, add a reverse proxy for HTTPS.
+
+**Tab switching uses display toggling, not conditional rendering**
+The Weather and List Comparer tabs are both always mounted. Switching tabs
+sets `display: none / flex` on each panel rather than unmounting the inactive
+component. This preserves state (loaded files, comparison result, weather
+output) when the user switches tabs and back.
+
+**List Comparer is entirely client-side**
+No backend changes were made for this feature. All CSV parsing, species
+normalization, and comparison logic runs in the browser. This keeps the
+backend simple and means the feature works even if the backend is unreachable.

@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnowRaven — Design Mockup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { height: 100%; }
+
+    body {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: #f9fafb;
+      color: #0F1117;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────── */
+    .site-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 0;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .logo-wordmark {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.6px;
+    }
+
+    .logo-wordmark span { color: #2D8653; }
+
+    .tagline {
+      font-size: 14px;
+      color: #71717A;
+      margin-bottom: 28px;
+    }
+
+    /* ── Tab bar ─────────────────────────────────────────── */
+    .tab-bar-wrap {
+      border-bottom: 1px solid #E4E4E7;
+      display: flex;
+      justify-content: center;
+      padding: 0 24px;
+    }
+
+    .tab-bar {
+      display: flex;
+      max-width: 880px;
+      width: 100%;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: none;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: #71717A;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab:hover { color: #0F1117; }
+    .tab.active { color: #2D8653; border-bottom-color: #2D8653; }
+
+    /* ── Main content ────────────────────────────────────── */
+    .main {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      padding: 40px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ── Weather tool ────────────────────────────────────── */
+    #view-weather {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #view-comparer {
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 540px;
+      background: #fff;
+      border: 1px solid #E4E4E7;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    }
+
+    .field-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .input-row { display: flex; gap: 8px; }
+
+    .text-input {
+      flex: 1;
+      height: 44px;
+      padding: 0 14px;
+      border: 1.5px solid #E4E4E7;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: inherit;
+      background: #fff;
+      outline: none;
+      min-width: 0;
+      transition: border-color 0.15s;
+    }
+
+    .text-input:focus { border-color: #2D8653; }
+
+    .btn-primary {
+      height: 44px;
+      padding: 0 18px;
+      background: #2D8653;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:hover { background: #256b44; }
+
+    /* ── List comparer — upload state ────────────────────── */
+    .comparer-upload {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .comparer-heading {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.4px;
+      margin-bottom: 6px;
+    }
+
+    .comparer-sub {
+      font-size: 14px;
+      color: #71717A;
+      line-height: 1.55;
+      margin-bottom: 28px;
+    }
+
+    .drop-zones {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .drop-zone {
+      border: 1.5px dashed #E4E4E7;
+      border-radius: 10px;
+      padding: 30px 20px 26px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      text-align: center;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .drop-zone:hover { border-color: #2D8653; background: #fafffe; }
+
+    .drop-zone.loaded {
+      border-style: solid;
+      border-color: #2D8653;
+      background: #E8F5EE;
+    }
+
+    .dz-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #71717A;
+    }
+
+    .dz-icon { color: #C4C4CE; }
+    .drop-zone.loaded .dz-icon { color: #2D8653; }
+
+    .dz-hint {
+      font-size: 13px;
+      color: #71717A;
+      line-height: 1.4;
+    }
+
+    .drop-zone.loaded .dz-hint {
+      font-weight: 500;
+      color: #1A5C38;
+    }
+
+    .btn-compare {
+      width: 100%;
+      height: 48px;
+      background: #2D8653;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    .btn-compare:hover { background: #256b44; }
+
+    .btn-compare:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: #2D8653;
+    }
+
+    /* ── List comparer — results state ───────────────────── */
+    .comparer-results {
+      width: 100%;
+      max-width: 880px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 16px;
+    }
+
+    .results-label {
+      font-size: 14px;
+      color: #71717A;
+    }
+
+    .results-label strong { font-weight: 600; color: #0F1117; }
+
+    .btn-reset {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 34px;
+      padding: 0 14px;
+      background: transparent;
+      color: #2D8653;
+      border: 1.5px solid rgba(45,134,83,0.22);
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-reset:hover { background: #E8F5EE; border-color: #2D8653; }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      border: 1px solid #E4E4E7;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      background: #fff;
+      padding: 18px 20px;
+      border-right: 1px solid #E4E4E7;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .stat:last-child { border-right: none; }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      line-height: 1;
+      color: #0F1117;
+    }
+
+    .stat-value.hi { color: #2D8653; }
+
+    .stat-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #71717A;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .panels {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .panel {
+      background: #fff;
+      border: 1px solid #E4E4E7;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 16px;
+      border-bottom: 1px solid #E4E4E7;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F1117;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .panel-badge {
+      flex-shrink: 0;
+      margin-left: 8px;
+      padding: 2px 8px;
+      background: #E8F5EE;
+      color: #2D8653;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 20px;
+    }
+
+    .panel-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    .panel-scroll::-webkit-scrollbar { width: 6px; }
+    .panel-scroll::-webkit-scrollbar-track { background: transparent; }
+    .panel-scroll::-webkit-scrollbar-thumb { background: #E4E4E7; border-radius: 3px; }
+
+    .species-item {
+      padding: 5px 16px;
+      font-size: 13px;
+      color: #0F1117;
+      line-height: 1.45;
+    }
+
+    .species-item:hover { background: #F9FAFB; }
+
+    /* ── Demo state toggle (mockup only) ─────────────────── */
+    .demo-toggle {
+      display: flex;
+      gap: 0;
+      background: #F4F4F5;
+      border: 1px solid #E4E4E7;
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 24px;
+      width: fit-content;
+    }
+
+    .demo-btn {
+      padding: 5px 14px;
+      border: none;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      background: transparent;
+      color: #71717A;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .demo-btn.active {
+      background: #fff;
+      color: #0F1117;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #b0b0b8;
+      padding: 0 24px 40px;
+    }
+
+    .footer a { color: inherit; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="site-header">
+    <div class="logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/>
+      </svg>
+      <span class="logo-wordmark">Snow<span>Raven</span></span>
+    </div>
+    <p class="tagline">Birding tools for your eBird workflow</p>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar-wrap">
+    <nav class="tab-bar" role="tablist">
+      <button class="tab active" id="tab-weather" role="tab" aria-selected="true" onclick="switchTab('weather')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+        </svg>
+        Weather
+      </button>
+      <button class="tab" id="tab-comparer" role="tab" aria-selected="false" onclick="switchTab('comparer')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
+        </svg>
+        List Comparer
+      </button>
+    </nav>
+  </div>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ── Weather view ── -->
+    <div id="view-weather">
+      <div class="card">
+        <label class="field-label" for="checklist-input">eBird checklist ID or URL</label>
+        <div class="input-row">
+          <input
+            id="checklist-input"
+            class="text-input"
+            type="text"
+            placeholder="S12345678 or https://ebird.org/checklist/S12345678"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="btn-primary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            </svg>
+            Get weather
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── List comparer view ── -->
+    <div id="view-comparer">
+
+      <!-- Mockup state toggle -->
+      <div class="demo-toggle" title="Mockup only — toggle between states">
+        <button class="demo-btn active" id="demo-upload" onclick="showState('upload')">Upload state</button>
+        <button class="demo-btn" id="demo-results" onclick="showState('results')">Results state</button>
+      </div>
+
+      <!-- Upload state -->
+      <div id="state-upload" class="comparer-upload">
+        <h1 class="comparer-heading">Compare two eBird life lists</h1>
+        <p class="comparer-sub">Drop your eBird backup CSV files below to see which birds you share and which are unique to each list.</p>
+
+        <div class="drop-zones">
+          <!-- Zone A — empty -->
+          <div class="drop-zone" tabindex="0" role="button" aria-label="Upload File A">
+            <span class="dz-label">File A</span>
+            <div class="dz-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <span class="dz-hint">Drop CSV here<br>or click to browse</span>
+          </div>
+
+          <!-- Zone B — loaded -->
+          <div class="drop-zone loaded" tabindex="0" role="button" aria-label="File B loaded">
+            <span class="dz-label">File B</span>
+            <div class="dz-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <span class="dz-hint">sarah_ebird_2024.csv</span>
+          </div>
+        </div>
+
+        <button class="btn-compare" disabled aria-disabled="true">
+          Compare Lists
+        </button>
+      </div>
+
+      <!-- Results state -->
+      <div id="state-results" class="comparer-results hidden">
+        <div class="results-header">
+          <p class="results-label">
+            Comparing <strong>dtgibson_ebird_2024.csv</strong> and <strong>sarah_ebird_2024.csv</strong>
+          </p>
+          <button class="btn-reset">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>
+            </svg>
+            Compare new files
+          </button>
+        </div>
+
+        <div class="stats-bar" role="region" aria-label="Comparison summary">
+          <div class="stat">
+            <span class="stat-value">847</span>
+            <span class="stat-label">dtgibson total</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">612</span>
+            <span class="stat-label">sarah total</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value hi">498</span>
+            <span class="stat-label">In both</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">349</span>
+            <span class="stat-label">dtgibson only</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">114</span>
+            <span class="stat-label">sarah only</span>
+          </div>
+        </div>
+
+        <div class="panels">
+          <!-- In Both -->
+          <div class="panel">
+            <div class="panel-head">
+              <span class="panel-title">In Both</span>
+              <span class="panel-badge">498</span>
+            </div>
+            <div class="panel-scroll">
+              <div class="species-item">American Crow</div>
+              <div class="species-item">American Goldfinch</div>
+              <div class="species-item">American Kestrel</div>
+              <div class="species-item">American Robin</div>
+              <div class="species-item">Baltimore Oriole</div>
+              <div class="species-item">Barn Swallow</div>
+              <div class="species-item">Belted Kingfisher</div>
+              <div class="species-item">Black-capped Chickadee</div>
+              <div class="species-item">Blue Jay</div>
+              <div class="species-item">Brown Creeper</div>
+              <div class="species-item">Canada Goose</div>
+              <div class="species-item">Cedar Waxwing</div>
+              <div class="species-item">Common Loon</div>
+              <div class="species-item">Common Yellowthroat</div>
+              <div class="species-item">Dark-eyed Junco</div>
+              <div class="species-item">Downy Woodpecker</div>
+              <div class="species-item">Eastern Bluebird</div>
+              <div class="species-item">Eastern Kingbird</div>
+              <div class="species-item">Eastern Phoebe</div>
+              <div class="species-item">Eastern Towhee</div>
+              <div class="species-item">European Starling</div>
+              <div class="species-item">Field Sparrow</div>
+              <div class="species-item">Great Blue Heron</div>
+              <div class="species-item">Great Crested Flycatcher</div>
+              <div class="species-item">Great Horned Owl</div>
+              <div class="species-item">Green Heron</div>
+              <div class="species-item">Hairy Woodpecker</div>
+              <div class="species-item">Hermit Thrush</div>
+              <div class="species-item">House Finch</div>
+              <div class="species-item">House Sparrow</div>
+              <div class="species-item">House Wren</div>
+              <div class="species-item">Indigo Bunting</div>
+              <div class="species-item">Killdeer</div>
+              <div class="species-item">Mallard</div>
+              <div class="species-item">Mourning Dove</div>
+              <div class="species-item">Northern Cardinal</div>
+              <div class="species-item">Northern Flicker</div>
+              <div class="species-item">Northern Mockingbird</div>
+              <div class="species-item">Ovenbird</div>
+              <div class="species-item">Pileated Woodpecker</div>
+              <div class="species-item">Red-tailed Hawk</div>
+              <div class="species-item">Red-winged Blackbird</div>
+              <div class="species-item">Ruby-throated Hummingbird</div>
+              <div class="species-item">Scarlet Tanager</div>
+              <div class="species-item">Song Sparrow</div>
+              <div class="species-item">Tree Swallow</div>
+              <div class="species-item">Tufted Titmouse</div>
+              <div class="species-item">White-breasted Nuthatch</div>
+              <div class="species-item">Wood Thrush</div>
+              <div class="species-item">Yellow Warbler</div>
+              <div class="species-item">Yellow-rumped Warbler</div>
+            </div>
+          </div>
+
+          <!-- dtgibson only -->
+          <div class="panel">
+            <div class="panel-head">
+              <span class="panel-title">dtgibson only</span>
+              <span class="panel-badge">349</span>
+            </div>
+            <div class="panel-scroll">
+              <div class="species-item">Acadian Flycatcher</div>
+              <div class="species-item">American Avocet</div>
+              <div class="species-item">American Bittern</div>
+              <div class="species-item">American White Pelican</div>
+              <div class="species-item">Black-billed Cuckoo</div>
+              <div class="species-item">Black-crowned Night-Heron</div>
+              <div class="species-item">Black-throated Blue Warbler</div>
+              <div class="species-item">Bobolink</div>
+              <div class="species-item">Bonaparte's Gull</div>
+              <div class="species-item">Broad-winged Hawk</div>
+              <div class="species-item">Canada Warbler</div>
+              <div class="species-item">Chimney Swift</div>
+              <div class="species-item">Chipping Sparrow</div>
+              <div class="species-item">Common Nighthawk</div>
+              <div class="species-item">Connecticut Warbler</div>
+              <div class="species-item">Double-crested Cormorant</div>
+              <div class="species-item">Dunlin</div>
+              <div class="species-item">Eastern Meadowlark</div>
+              <div class="species-item">Evening Grosbeak</div>
+              <div class="species-item">Fox Sparrow</div>
+              <div class="species-item">Golden-crowned Kinglet</div>
+              <div class="species-item">Grasshopper Sparrow</div>
+              <div class="species-item">Greater Yellowlegs</div>
+              <div class="species-item">Least Sandpiper</div>
+              <div class="species-item">Lesser Yellowlegs</div>
+              <div class="species-item">Lincoln's Sparrow</div>
+              <div class="species-item">Marsh Wren</div>
+              <div class="species-item">Merlin</div>
+              <div class="species-item">Nashville Warbler</div>
+              <div class="species-item">Northern Harrier</div>
+              <div class="species-item">Osprey</div>
+              <div class="species-item">Palm Warbler</div>
+              <div class="species-item">Peregrine Falcon</div>
+              <div class="species-item">Prairie Warbler</div>
+              <div class="species-item">Purple Finch</div>
+              <div class="species-item">Red Crossbill</div>
+              <div class="species-item">Ruddy Turnstone</div>
+              <div class="species-item">Rusty Blackbird</div>
+              <div class="species-item">Sandhill Crane</div>
+              <div class="species-item">Semipalmated Plover</div>
+              <div class="species-item">Semipalmated Sandpiper</div>
+              <div class="species-item">Short-eared Owl</div>
+              <div class="species-item">Sora</div>
+              <div class="species-item">Trumpeter Swan</div>
+              <div class="species-item">Virginia Rail</div>
+              <div class="species-item">Wilson's Snipe</div>
+              <div class="species-item">Yellow-bellied Sapsucker</div>
+              <div class="species-item">Yellow-billed Cuckoo</div>
+              <div class="species-item">Yellow-breasted Chat</div>
+            </div>
+          </div>
+
+          <!-- sarah only -->
+          <div class="panel">
+            <div class="panel-head">
+              <span class="panel-title">sarah only</span>
+              <span class="panel-badge">114</span>
+            </div>
+            <div class="panel-scroll">
+              <div class="species-item">Allen's Hummingbird</div>
+              <div class="species-item">Anna's Hummingbird</div>
+              <div class="species-item">Arctic Tern</div>
+              <div class="species-item">Black Oystercatcher</div>
+              <div class="species-item">Black Phoebe</div>
+              <div class="species-item">Brandt's Cormorant</div>
+              <div class="species-item">Brown Pelican</div>
+              <div class="species-item">Bushtit</div>
+              <div class="species-item">California Gull</div>
+              <div class="species-item">California Quail</div>
+              <div class="species-item">California Scrub-Jay</div>
+              <div class="species-item">California Thrasher</div>
+              <div class="species-item">California Towhee</div>
+              <div class="species-item">Cassin's Finch</div>
+              <div class="species-item">Chestnut-backed Chickadee</div>
+              <div class="species-item">Cinnamon Teal</div>
+              <div class="species-item">Common Murre</div>
+              <div class="species-item">Costa's Hummingbird</div>
+              <div class="species-item">Eurasian Wigeon</div>
+              <div class="species-item">Hermit Warbler</div>
+              <div class="species-item">Lawrence's Goldfinch</div>
+              <div class="species-item">Lazuli Bunting</div>
+              <div class="species-item">Lesser Goldfinch</div>
+              <div class="species-item">Lewis's Woodpecker</div>
+              <div class="species-item">Nuttall's Woodpecker</div>
+              <div class="species-item">Oak Titmouse</div>
+              <div class="species-item">Pacific Wren</div>
+              <div class="species-item">Pelagic Cormorant</div>
+              <div class="species-item">Phainopepla</div>
+              <div class="species-item">Pigeon Guillemot</div>
+              <div class="species-item">Purple Martin</div>
+              <div class="species-item">Red-shouldered Hawk</div>
+              <div class="species-item">Rhinoceros Auklet</div>
+              <div class="species-item">Snowy Plover</div>
+              <div class="species-item">Steller's Jay</div>
+              <div class="species-item">Surf Scoter</div>
+              <div class="species-item">Townsend's Warbler</div>
+              <div class="species-item">Varied Thrush</div>
+              <div class="species-item">Western Grebe</div>
+              <div class="species-item">Western Gull</div>
+              <div class="species-item">Western Meadowlark</div>
+              <div class="species-item">Western Sandpiper</div>
+              <div class="species-item">Wrentit</div>
+              <div class="species-item">Yellow-billed Magpie</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /view-comparer -->
+
+  </main>
+
+  <p class="footer">
+    <a href="https://github.com/dtgibson/snowraven">SnowRaven</a> · self-hosted birding tools
+  </p>
+
+  <script>
+    function switchTab(tab) {
+      const weatherView = document.getElementById('view-weather');
+      const comparerView = document.getElementById('view-comparer');
+      const tabWeather = document.getElementById('tab-weather');
+      const tabComparer = document.getElementById('tab-comparer');
+
+      if (tab === 'weather') {
+        weatherView.style.display = 'flex';
+        comparerView.style.display = 'none';
+        tabWeather.classList.add('active');
+        tabWeather.setAttribute('aria-selected', 'true');
+        tabComparer.classList.remove('active');
+        tabComparer.setAttribute('aria-selected', 'false');
+      } else {
+        weatherView.style.display = 'none';
+        comparerView.style.display = 'flex';
+        tabWeather.classList.remove('active');
+        tabWeather.setAttribute('aria-selected', 'false');
+        tabComparer.classList.add('active');
+        tabComparer.setAttribute('aria-selected', 'true');
+      }
+    }
+
+    function showState(state) {
+      const upload = document.getElementById('state-upload');
+      const results = document.getElementById('state-results');
+      const btnUpload = document.getElementById('demo-upload');
+      const btnResults = document.getElementById('demo-results');
+
+      if (state === 'upload') {
+        upload.classList.remove('hidden');
+        results.classList.add('hidden');
+        btnUpload.classList.add('active');
+        btnResults.classList.remove('active');
+      } else {
+        upload.classList.add('hidden');
+        results.classList.remove('hidden');
+        btnUpload.classList.remove('active');
+        btnResults.classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>
