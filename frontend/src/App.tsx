@@ -39,9 +39,17 @@ export default function App() {
       try {
         if (navigator.clipboard) {
           await navigator.clipboard.writeText(data.formatted)
-          setCopied(true)
-          setTimeout(() => setCopied(false), 2000)
+        } else {
+          const el = document.createElement('textarea')
+          el.value = data.formatted
+          el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+          document.body.appendChild(el)
+          el.select()
+          document.execCommand('copy')
+          document.body.removeChild(el)
         }
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
       } catch {
         // clipboard unavailable — user can still click Copy
       }
@@ -257,7 +265,17 @@ export default function App() {
       </div>
 
       <p style={{ marginTop: 32, fontSize: 12, color: '#b0b0b8' }}>
-        SnowRaven · self-hosted weather for birders
+        <a
+          href="https://github.com/dtgibson/snowraven"
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: 'inherit', textDecoration: 'none' }}
+          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+        >
+          SnowRaven
+        </a>
+        {' · self-hosted weather for birders'}
       </p>
     </div>
   )
