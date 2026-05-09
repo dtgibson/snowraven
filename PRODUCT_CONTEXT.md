@@ -92,6 +92,24 @@ the initial page load.
 - `frontend/src/lib/compare.ts` — `compareSpecies(a, b)` pure function
 - `frontend/src/types.ts` — `FileData` and `ComparisonResult` types
 
+### Update Script + In-App Update Check (complete — May 2026)
+
+Two small additions that make keeping SnowRaven current easy: a shell script for one-command updates, and a footer link that checks GitHub for a newer release on explicit user request only.
+
+**What it does:**
+- `update.sh` at the repo root: runs `git pull`, rebuilds the frontend, reinstalls backend deps, and restarts the systemd service if present — all in one command
+- If no systemd service exists (local Mac/Linux install), the script skips the restart step and prints a manual note instead; exits 0
+- `GET /version/check` backend endpoint: reads the current version from `frontend/package.json`, calls the GitHub releases API, and returns `{current, latest, up_to_date}`
+- Footer displays "SnowRaven · Self-hosted Birding Tools · Check For Updates" — clicking the link triggers one `/version/check` call and shows inline state (checking → up-to-date/available/error), which reverts automatically after a timeout
+- No passive network requests — the check fires only on explicit click; no `useEffect`, no polling
+
+**Key files:**
+- `update.sh` — one-command update script (chmod +x, fail-fast with `set -e` + `trap ERR`)
+- `backend/routers/version.py` — `/version/check` endpoint with 5s GitHub API timeout
+- `backend/tests/test_version_router.py` — 5 tests covering up-to-date, update-available, v-prefix stripping, missing file, unreachable GitHub
+- `frontend/src/App.tsx` — `UpdateStatus` discriminated union, `handleUpdateCheck` callback, footer JSX with five states
+- `frontend/vite.config.ts` — `/version` proxy added for dev server
+
 ## Key Decisions
 
 **eBird coordinate fallback strategy**
@@ -133,3 +151,14 @@ output) when the user switches tabs and back.
 No backend changes were made for this feature. All CSV parsing, species
 normalization, and comparison logic runs in the browser. This keeps the
 backend simple and means the feature works even if the backend is unreachable.
+
+**Version check is server-side by design**
+The `/version/check` endpoint calls GitHub from the backend, not the browser.
+This keeps the user's IP off GitHub's logs. The frontend just calls its own
+backend — no cross-origin requests. This also means the check works on
+local network installs where CORS would otherwise block a direct GitHub call.
+
+**Update script uses .venv/bin/pip explicitly**
+`update.sh` calls `.venv/bin/pip` rather than relying on a `pip` in PATH.
+This ensures the correct virtualenv is used regardless of the shell environment,
+which matters on Raspberry Pi where system Python is separate from the venv.
