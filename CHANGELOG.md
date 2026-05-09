@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.5] - 2026-05-08
+
+### Added
+- `update.sh` script: one command to pull, rebuild, and restart the app (`./update.sh` from the repo root)
+- "Check For Updates" link in the app footer: checks GitHub for a newer release on demand, showing version status inline (no passive network requests)
+- `/version/check` backend endpoint: server-side GitHub API check that keeps the client IP off GitHub
+
 ## [0.0.4] - 2026-05-08
 
 ### Added

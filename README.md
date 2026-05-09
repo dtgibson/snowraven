@@ -152,17 +152,10 @@ sudo journalctl -u snowraven -f
 
 ```bash
 cd ~/snowraven
-git pull
-
-# Rebuild the frontend
-cd frontend && npm ci && npm run build && cd ..
-
-# Reinstall backend dependencies (if requirements.txt changed)
-cd backend && .venv/bin/pip install -r requirements.txt && cd ..
-
-# Restart the service
-sudo systemctl restart snowraven
+./update.sh
 ```
+
+This pulls the latest code, rebuilds the frontend, updates backend dependencies, and restarts the service if it's managed by systemd. You can also check for available updates from the app's footer without leaving the browser.
 
 ---
 

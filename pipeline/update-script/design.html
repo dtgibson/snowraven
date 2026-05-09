@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnowRaven — Update Check Design</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary: #2D8653;
+      --foreground: #0F1117;
+      --muted-foreground: #71717A;
+      --border: #E4E4E7;
+      --muted: #F4F4F5;
+      --font-sans: Inter, system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: #f9fafb;
+      color: var(--foreground);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 0;
+    }
+    .logo-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .logo-text { font-size: 26px; font-weight: 700; letter-spacing: -0.6px; }
+    .logo-text span { color: var(--primary); }
+    .tagline { font-size: 14px; color: var(--muted-foreground); margin-bottom: 28px; }
+
+    .tab-bar { border-bottom: 1px solid var(--border); display: flex; justify-content: center; padding: 0 24px; }
+    .tab-nav { display: flex; max-width: 880px; width: 100%; }
+    .tab {
+      display: flex; align-items: center; gap: 6px;
+      padding: 10px 16px; border: none; border-bottom: 2px solid transparent;
+      background: none; font-family: var(--font-sans); font-size: 14px;
+      font-weight: 500; color: var(--muted-foreground); cursor: pointer; margin-bottom: -1px;
+    }
+    .tab.active { border-bottom-color: var(--primary); color: var(--primary); }
+
+    .content {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 24px 24px; flex: 1;
+    }
+
+    .card {
+      width: 100%; max-width: 540px; background: #fff;
+      border: 1px solid var(--border); border-radius: 12px; padding: 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    }
+    .field-label { display: block; font-size: 14px; font-weight: 500; margin-bottom: 8px; }
+    .input-row { display: flex; gap: 8px; }
+    .text-input {
+      flex: 1; height: 44px; padding: 0 14px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 14px; font-family: inherit; background: #fff; outline: none; min-width: 0;
+    }
+    .btn-primary {
+      height: 44px; padding: 0 18px; background: var(--primary); color: #fff;
+      border: none; border-radius: 8px; font-size: 14px; font-weight: 500;
+      font-family: inherit; cursor: pointer; display: flex; align-items: center;
+      gap: 6px; white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center; font-size: 12px; color: var(--muted-foreground);
+      padding: 0 24px 20px; margin-top: 24px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 6px; flex-wrap: wrap;
+    }
+    footer a { color: inherit; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .footer-divider { color: #d0d0d8; }
+
+    .update-btn {
+      background: none; border: none; padding: 0;
+      font-family: inherit; font-size: 12px;
+      color: var(--muted-foreground); cursor: pointer;
+    }
+    .update-btn:hover { text-decoration: underline; }
+
+    .result-up-to-date { color: var(--primary); }
+    .result-available   { color: #92400e; }
+    .result-error       { color: #b91c1c; }
+    .result-checking    { color: var(--muted-foreground); }
+
+    /* State reference grid */
+    .state-grid {
+      width: 100%; max-width: 540px; margin-top: 28px;
+      border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden; background: #fff;
+    }
+    .state-grid-header {
+      padding: 12px 18px; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted-foreground); border-bottom: 1px solid var(--border);
+      background: var(--muted);
+    }
+    .state-row {
+      display: flex; align-items: center; padding: 14px 18px;
+      gap: 16px; border-bottom: 1px solid var(--border); font-size: 12px;
+    }
+    .state-row:last-child { border-bottom: none; }
+    .state-label {
+      width: 110px; font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.06em;
+      color: #a0a0a8; flex-shrink: 0;
+    }
+    .state-footer {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--muted-foreground); font-size: 12px;
+    }
+    .state-footer a { color: inherit; text-decoration: none; }
+
+    .mono {
+      font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+      font-size: 11px; background: rgba(0,0,0,0.07);
+      padding: 1px 5px; border-radius: 3px;
+    }
+
+    .annotation {
+      width: 100%; max-width: 540px; margin-top: 20px;
+      background: #fffbeb; border: 1.5px solid #fde68a;
+      border-radius: 8px; padding: 14px 18px;
+      font-size: 13px; color: #92400e; line-height: 1.55;
+    }
+    .annotation strong { font-weight: 600; display: block; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo-row">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 8C8 10 5.9 16.17 3.82 19.5c-1.8-1.2-2.5-3.5-1-6.5l1.5-2c2-3.5 5.5-5.5 9.5-5.5 1.3 0 2.5.3 3.5.9"/>
+        <path d="M14 9.5c1.5 1 2.5 2.5 3 4"/>
+        <circle cx="19" cy="6" r="3"/>
+        <path d="M3 3l18 18"/>
+      </svg>
+      <span class="logo-text">Snow<span>Raven</span></span>
+    </div>
+    <p class="tagline">Birding tools for your eBird workflow</p>
+  </div>
+
+  <div class="tab-bar">
+    <nav class="tab-nav">
+      <button class="tab active">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+        Weather
+      </button>
+      <button class="tab">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/></svg>
+        List Comparer
+      </button>
+    </nav>
+  </div>
+
+  <div class="content">
+    <div class="card">
+      <label class="field-label">eBird checklist ID or URL</label>
+      <div class="input-row">
+        <input class="text-input" type="text" placeholder="S12345678 or https://ebird.org/checklist/S12345678" />
+        <button class="btn-primary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Get weather
+        </button>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <strong>Interactive demo — click "Check For Updates" in the footer below</strong>
+      Each click cycles through a different state: checking, up to date, update available, and error. The footer reverts to the link automatically after the result clears.
+    </div>
+
+    <!-- State reference grid -->
+    <div class="state-grid">
+      <div class="state-grid-header">All footer states</div>
+
+      <div class="state-row">
+        <span class="state-label">Default</span>
+        <div class="state-footer">
+          <a href="#">SnowRaven</a>
+          <span class="footer-divider">·</span>
+          Self-hosted Birding Tools
+          <span class="footer-divider">·</span>
+          <span>Check For Updates</span>
+        </div>
+      </div>
+
+      <div class="state-row">
+        <span class="state-label">Checking</span>
+        <div class="state-footer">
+          <a href="#">SnowRaven</a>
+          <span class="footer-divider">·</span>
+          Self-hosted Birding Tools
+          <span class="footer-divider">·</span>
+          <span class="result-checking">Checking…</span>
+        </div>
+      </div>
+
+      <div class="state-row">
+        <span class="state-label">Up to date</span>
+        <div class="state-footer">
+          <a href="#">SnowRaven</a>
+          <span class="footer-divider">·</span>
+          Self-hosted Birding Tools
+          <span class="footer-divider">·</span>
+          <span class="result-up-to-date">Up to date (v0.0.4)</span>
+        </div>
+      </div>
+
+      <div class="state-row">
+        <span class="state-label">Update available</span>
+        <div class="state-footer">
+          <a href="#">SnowRaven</a>
+          <span class="footer-divider">·</span>
+          Self-hosted Birding Tools
+          <span class="footer-divider">·</span>
+          <span class="result-available">v0.0.5 available — run <span class="mono">./update.sh</span></span>
+        </div>
+      </div>
+
+      <div class="state-row">
+        <span class="state-label">Error</span>
+        <div class="state-footer">
+          <a href="#">SnowRaven</a>
+          <span class="footer-divider">·</span>
+          Self-hosted Birding Tools
+          <span class="footer-divider">·</span>
+          <span class="result-error">Could not check for updates</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live interactive footer -->
+  <footer>
+    <a href="https://github.com/dtgibson/snowraven" target="_blank" rel="noreferrer"
+       onmouseenter="this.style.textDecoration='underline'"
+       onmouseleave="this.style.textDecoration='none'">SnowRaven</a>
+    <span class="footer-divider">·</span>
+    Self-hosted Birding Tools
+    <span class="footer-divider">·</span>
+    <span id="update-slot">
+      <button class="update-btn" id="update-btn">Check For Updates</button>
+    </span>
+  </footer>
+
+  <script>
+    var cycle = 0;
+    var busy = false;
+
+    document.getElementById('update-btn').addEventListener('click', runCheck);
+
+    function runCheck() {
+      if (busy) return;
+      busy = true;
+
+      var slot = document.getElementById('update-slot');
+      slot.innerHTML = '<span class="result-checking">Checking…</span>';
+
+      var pick = cycle % 3;
+      cycle++;
+
+      setTimeout(function() {
+        var html, duration;
+        if (pick === 0) {
+          html = '<span class="result-up-to-date">Up to date (v0.0.4)</span>';
+          duration = 4000;
+        } else if (pick === 1) {
+          html = '<span class="result-available">v0.0.5 available — run <span class="mono">./update.sh</span></span>';
+          duration = 8000;
+        } else {
+          html = '<span class="result-error">Could not check for updates</span>';
+          duration = 4000;
+        }
+        slot.innerHTML = html;
+
+        setTimeout(function() {
+          slot.innerHTML = '<button class="update-btn" id="update-btn">Check For Updates</button>';
+          document.getElementById('update-btn').addEventListener('click', runCheck);
+          busy = false;
+        }, duration);
+      }, 1200);
+    }
+  </script>
+
+</body>
+</html>

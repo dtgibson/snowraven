@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle } from 'lucide-react'
 import { ListComparer } from './components/ListComparer'
 
@@ -9,6 +9,13 @@ type AppState =
   | { status: 'error'; message: string }
 
 type Tab = 'weather' | 'comparer'
+
+type UpdateStatus =
+  | { kind: 'idle' }
+  | { kind: 'checking' }
+  | { kind: 'up-to-date'; current: string }
+  | { kind: 'available'; latest: string }
+  | { kind: 'error' }
 
 function extractChecklistId(raw: string): string {
   const s = raw.trim().replace(/\/+$/, '').split('?')[0]
@@ -24,6 +31,8 @@ export default function App() {
   const [input, setInput] = useState('')
   const [state, setState] = useState<AppState>({ status: 'idle' })
   const [copied, setCopied] = useState(false)
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
+  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleLookup = useCallback(async () => {
     const id = extractChecklistId(input)
@@ -88,6 +97,31 @@ export default function App() {
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const handleUpdateCheck = useCallback(async () => {
+    if (updateStatus.kind === 'checking') return
+    if (updateTimerRef.current) clearTimeout(updateTimerRef.current)
+    setUpdateStatus({ kind: 'checking' })
+    try {
+      const res = await fetch('/version/check')
+      const data = await res.json()
+      if (!res.ok) {
+        setUpdateStatus({ kind: 'error' })
+        updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
+        return
+      }
+      if (data.up_to_date) {
+        setUpdateStatus({ kind: 'up-to-date', current: data.current })
+        updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
+      } else {
+        setUpdateStatus({ kind: 'available', latest: data.latest })
+        updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 8000)
+      }
+    } catch {
+      setUpdateStatus({ kind: 'error' })
+      updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
+    }
+  }, [updateStatus.kind])
 
   const isLoading = state.status === 'loading'
   const hasError = state.status === 'error'
@@ -364,7 +398,40 @@ export default function App() {
         >
           SnowRaven
         </a>
-        {' · self-hosted birding tools'}
+        {' · Self-hosted Birding Tools · '}
+        {updateStatus.kind === 'idle' && (
+          <button
+            onClick={handleUpdateCheck}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              font: 'inherit',
+              color: '#b0b0b8',
+              cursor: 'pointer',
+              textDecoration: 'none',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+          >
+            Check For Updates
+          </button>
+        )}
+        {updateStatus.kind === 'checking' && (
+          <span style={{ color: '#71717A' }}>Checking…</span>
+        )}
+        {updateStatus.kind === 'up-to-date' && (
+          <span style={{ color: '#2D8653' }}>Up to date (v{updateStatus.current})</span>
+        )}
+        {updateStatus.kind === 'available' && (
+          <span style={{ color: '#92400e' }}>
+            v{updateStatus.latest} available — run{' '}
+            <code style={{ fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace' }}>./update.sh</code>
+          </span>
+        )}
+        {updateStatus.kind === 'error' && (
+          <span style={{ color: '#b91c1c' }}>Could not check for updates</span>
+        )}
       </p>
     </div>
   )
