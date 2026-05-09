@@ -1,16 +1,16 @@
 {
-  "activeFeature": null,
+  "activeFeature": "ebird-edit-link",
   "sessionNumber": 2,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/update-script/strategic-brief.md",
-    "pipeline/update-script/prd.md",
-    "pipeline/update-script/schema.md",
-    "pipeline/update-script/design-spec.md",
-    "pipeline/update-script/design.html"
+    "pipeline/ebird-edit-link/strategic-brief.md",
+    "pipeline/ebird-edit-link/prd.md",
+    "pipeline/ebird-edit-link/schema.md",
+    "pipeline/ebird-edit-link/design-spec.md",
+    "pipeline/ebird-edit-link/design.html"
   ],
-  "createdAt": "2026-05-08T01:10:00Z",
-  "updatedAt": "2026-05-08T02:45:00Z"
+  "createdAt": "2026-05-08T03:00:00Z",
+  "updatedAt": "2026-05-08T03:50:00Z"
 }

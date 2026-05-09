@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink } from 'lucide-react'
 import { ListComparer } from './components/ListComparer'
 
 type AppState =
@@ -304,14 +304,43 @@ export default function App() {
           {hasResult && (
             <>
               <hr style={{ border: 'none', borderTop: '1px solid #E4E4E7', margin: '24px 0' }} />
-              <div style={{
-                fontSize: 12,
-                color: '#71717A',
-                fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
-                marginBottom: 14,
-                letterSpacing: '0.01em',
-              }}>
-                {state.status === 'success' && `${state.checklistId} / ${state.locName} / ${state.obsDt}`}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+                <span style={{
+                  fontSize: 12,
+                  color: '#71717A',
+                  fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
+                  letterSpacing: '0.01em',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  minWidth: 0,
+                }}>
+                  {state.status === 'success' && `${state.checklistId} / ${state.locName} / ${state.obsDt}`}
+                </span>
+                {state.status === 'success' && (
+                  <a
+                    href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label="Edit this checklist on eBird (opens in new tab)"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: '#2D8653',
+                      textDecoration: 'none',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                  >
+                    Edit on eBird
+                    <ExternalLink size={11} strokeWidth={2.5} />
+                  </a>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{

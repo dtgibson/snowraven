@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.6] - 2026-05-08
+
+### Added
+- "Edit on eBird" link appears in the results area after a successful weather lookup, linking directly to the eBird edit page for that checklist (`https://ebird.org/edit/effort?subID=…`)
+
 ## [0.0.5] - 2026-05-08
 
 ### Added

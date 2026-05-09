@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>eBird Edit Link — Design Mockup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f9fafb;
+      color: #0F1117;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 40px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .logo-row svg { color: #2D8653; }
+    .logo-text { font-size: 26px; font-weight: 700; letter-spacing: -0.6px; }
+    .logo-text span { color: #2D8653; }
+    .tagline { font-size: 14px; color: #71717A; }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      border-bottom: 1px solid #E4E4E7;
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      max-width: 540px;
+      margin-bottom: 40px;
+    }
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #71717A;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      cursor: pointer;
+    }
+    .tab.active { color: #2D8653; border-bottom-color: #2D8653; }
+
+    /* ── Card ── */
+    .card {
+      width: 100%;
+      max-width: 540px;
+      background: #fff;
+      border: 1px solid #E4E4E7;
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .input-row { display: flex; gap: 8px; }
+
+    input {
+      flex: 1;
+      height: 44px;
+      padding: 0 14px;
+      border: 1.5px solid #E4E4E7;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      color: #0F1117;
+      background: #fff;
+      min-width: 0;
+    }
+    input:focus { outline: none; border-color: #2D8653; }
+
+    .btn-primary {
+      height: 44px;
+      padding: 0 18px;
+      background: #2D8653;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    hr { border: none; border-top: 1px solid #E4E4E7; margin: 24px 0; }
+
+    /* ── Confirmation row ── */
+    .confirmation-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .confirmation-text {
+      font-size: 12px;
+      color: #71717A;
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .edit-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #2D8653;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    .edit-link:hover { text-decoration: underline; }
+    .edit-link svg { flex-shrink: 0; }
+
+    /* ── Output header row ── */
+    .output-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .output-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #71717A;
+    }
+    .btn-copy {
+      height: 30px;
+      padding: 0 12px;
+      background: #E8F5EE;
+      color: #2D8653;
+      border: 1.5px solid rgba(45,134,83,0.18);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    pre {
+      background: #F4F4F5;
+      border: 1px solid #E4E4E7;
+      border-radius: 8px;
+      padding: 18px 20px;
+      font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+      font-size: 13.5px;
+      line-height: 1.75;
+      color: inherit;
+      white-space: pre;
+      overflow-x: auto;
+      margin: 0;
+    }
+
+    /* ── Annotation ── */
+    .annotation {
+      margin-top: 32px;
+      width: 100%;
+      max-width: 540px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: 13px;
+      color: #92400e;
+      line-height: 1.6;
+    }
+    .annotation strong { display: block; margin-bottom: 4px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-row">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 19-7z"/>
+      </svg>
+      <span class="logo-text">Snow<span>Raven</span></span>
+    </div>
+    <p class="tagline">Birding tools for your eBird workflow</p>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <div class="tab active">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+      </svg>
+      Weather
+    </div>
+    <div class="tab">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
+      </svg>
+      List Comparer
+    </div>
+  </div>
+
+  <!-- Card -->
+  <div class="card">
+    <label for="checklist-input">eBird checklist ID or URL</label>
+    <div class="input-row">
+      <input id="checklist-input" type="text" value="S243768491" readonly />
+      <button class="btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        Get weather
+      </button>
+    </div>
+
+    <hr />
+
+    <!-- NEW: Confirmation row with edit link -->
+    <div class="confirmation-row">
+      <span class="confirmation-text">S243768491 / Morro Bay State Park / 2026-05-07 07:15</span>
+      <a href="#" class="edit-link" aria-label="Edit this checklist on eBird (opens in new tab)">
+        Edit on eBird
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          <polyline points="15 3 21 3 21 9"/>
+          <line x1="10" y1="14" x2="21" y2="3"/>
+        </svg>
+      </a>
+    </div>
+
+    <!-- Output header -->
+    <div class="output-header">
+      <span class="output-label">Weather output</span>
+      <button class="btn-copy">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+        </svg>
+        Copy
+      </button>
+    </div>
+
+    <pre>🌤️ Partly cloudy
+🌡 54–61°F  💧 72–80%  🌊 58°F
+💨 W 8–12 mph (gentle breeze)
+🌅 6:04 AM  🌇 7:58 PM
+—
+Weather data via OpenWeatherMap</pre>
+  </div>
+
+  <!-- Design annotation -->
+  <div class="annotation">
+    <strong>Design note</strong>
+    The edit link sits flush-right on the confirmation row, paired with a small external-link icon. It uses SnowRaven green (#2D8653) to signal it's an action — consistent with the Copy button and primary button — and underlines on hover. Label is "Edit on eBird" (concise) rather than the longer "Edit checklist on eBird" to avoid crowding the confirmation text on narrow widths; the full descriptive label is in aria-label for accessibility.
+  </div>
+
+</body>
+</html>
