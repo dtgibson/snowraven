@@ -79,6 +79,20 @@ def test_version_check_missing_package_json(tmp_path, monkeypatch):
     assert response.status_code == 500
 
 
+def test_version_check_no_releases(tmp_path, monkeypatch):
+    pkg = tmp_path / "package.json"
+    pkg.write_text('{"version": "0.0.5"}')
+    monkeypatch.setattr("routers.version._PACKAGE_JSON", pkg)
+
+    with _patch_github("", status_code=404):
+        response = client.get("/version/check")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["up_to_date"] is True
+    assert data["current"] == "0.0.5"
+
+
 def test_version_check_github_unreachable(tmp_path, monkeypatch):
     pkg = tmp_path / "package.json"
     pkg.write_text('{"version": "0.0.4"}')

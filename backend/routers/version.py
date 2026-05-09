@@ -24,8 +24,16 @@ async def check_version():
                 headers={"Accept": "application/vnd.github.v3+json"},
                 timeout=5.0,
             )
+            if resp.status_code == 404:
+                # No releases published yet — treat as up to date
+                return {"current": current, "latest": current, "up_to_date": True}
             resp.raise_for_status()
             latest = resp.json()["tag_name"].lstrip("v")
+    except httpx.HTTPStatusError:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not reach GitHub to check for updates.",
+        )
     except Exception:
         raise HTTPException(
             status_code=503,
