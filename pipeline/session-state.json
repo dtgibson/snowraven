@@ -1,9 +1,9 @@
 {
-  "activeFeature": "ebird-edit-link",
+  "activeFeature": null,
   "sessionNumber": 2,
-  "currentStage": 8,
-  "lastCompletedStage": 7,
-  "lastCheckpointStatus": "in-progress",
+  "currentStage": null,
+  "lastCompletedStage": 9,
+  "lastCheckpointStatus": "approved",
   "confirmedArtifacts": [
     "pipeline/ebird-edit-link/strategic-brief.md",
     "pipeline/ebird-edit-link/prd.md",
@@ -12,5 +12,5 @@
     "pipeline/ebird-edit-link/design.html"
   ],
   "createdAt": "2026-05-08T03:00:00Z",
-  "updatedAt": "2026-05-08T03:50:00Z"
+  "updatedAt": "2026-05-08T04:00:00Z"
 }

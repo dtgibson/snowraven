@@ -92,6 +92,20 @@ the initial page load.
 - `frontend/src/lib/compare.ts` — `compareSpecies(a, b)` pure function
 - `frontend/src/types.ts` — `FileData` and `ComparisonResult` types
 
+### eBird Edit Link (complete — May 2026)
+
+After a successful weather lookup, an "Edit on eBird" link appears flush-right on the confirmation row (`S… / location / date`). Clicking it opens `https://ebird.org/edit/effort?subID={checklistId}` in a new tab, landing the user directly on the eBird edit page where they can paste the copied weather into the comment field.
+
+**What it does:**
+- Renders only in the success state — not visible during idle, loading, or error
+- Link is constructed from `state.checklistId`, which is server-validated as `/^S\d+$/` before the success state is ever reached
+- Opens in a new tab (`target="_blank"` + `rel="noreferrer"`) so the SnowRaven session is preserved
+- Uses `ExternalLink` icon from lucide-react (11px) to signal outbound navigation
+- Confirmation text truncates with ellipsis on narrow widths; link stays pinned right with `flexShrink: 0`
+
+**Key files changed:**
+- `frontend/src/App.tsx` — `ExternalLink` added to lucide import; confirmation `<div>` converted to flex row with link
+
 ### Update Script + In-App Update Check (complete — May 2026)
 
 Two small additions that make keeping SnowRaven current easy: a shell script for one-command updates, and a footer link that checks GitHub for a newer release on explicit user request only.
