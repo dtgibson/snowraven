@@ -9,6 +9,7 @@ decisions that all builders must follow.
 - Version is tracked in `frontend/package.json` (semver, patch increments for small features/fixes, minor for larger features)
 - `CHANGELOG.md` at the repo root must be updated with every version bump
 - **Always bump the version and update the changelog when adding a feature or fix**, even if the user does not ask
+- **Always create a matching GitHub release** after pushing a version bump: `gh release create v{version} --title "v{version}" --notes "..."` — the in-app update check depends on published releases
 
 ## Pipeline Overview
 
