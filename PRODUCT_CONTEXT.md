@@ -106,6 +106,39 @@ After a successful weather lookup, an "Edit on eBird" link appears flush-right o
 **Key files changed:**
 - `frontend/src/App.tsx` — `ExternalLink` added to lucide import; confirmation `<div>` converted to flex row with link
 
+### Life List (complete — May 2026)
+
+A third tab that accepts an eBird backup CSV (`MyEBirdData.csv`) and generates
+a full life list showing per-species media coverage — which species have been
+photographed, audio-recorded, and video-recorded via the Macaulay Library.
+
+**What it does:**
+- Drop zone accepts `MyEBirdData.csv` via drag-and-drop or click-to-browse
+- Parses one entry per unique species: Common Name, Scientific Name, Taxonomic Order, and the union of all ML Catalog Numbers across every observation row
+- Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `) — same rules as List Comparer
+- Strips the `ML` prefix from catalog numbers (e.g. `ML204818731` → `204818731`) and deduplicates
+- POSTs catalog IDs in batches of 25 to `POST /ml/media-types` on the backend, which proxies each ID to the Macaulay Library search API to determine its media type (Photo / Audio / Video)
+- Shows a batch progress indicator while the lookup runs ("Looking up media… batch 3 of 12")
+- Renders a species table with four status columns: Seen (always ✓), Photo, Audio, Video
+- If the ML API is unreachable, shows an error banner above the list; the list still renders with "—" for unknown media
+- Filter pills: All · No photo · No audio · No video (one active at a time)
+- Sort toggle: Taxonomic order (default, uses lowest `Taxonomic Order` value per species) · A–Z
+- Species count label: "312 species" or "47 of 312 species" when filtered
+- "Show all / Collapse" toggle expands the full list for printing
+- "Load new file" button resets to the upload state
+
+**Key files:**
+- `backend/routers/ml.py` — `POST /ml/media-types` proxy endpoint; queries ML search API per ID, returns `{catalog_id: mediaType}` map; 503 on failure
+- `backend/tests/test_ml_router.py` — 5 tests: valid lookup, missing ID omitted, unreachable API → 503, empty input, string catalogId in response
+- `backend/main.py` — ML router registered
+- `frontend/src/lib/parseLifeList.ts` — CSV parser producing `LifeListEntry[]`; reuses parseCSVLine and isExcluded patterns from parseEbird.ts
+- `frontend/src/lib/parseLifeList.test.ts` — 13 parser tests
+- `frontend/src/components/LifeList.tsx` — top-level component with idle/error/loading/ready state machine, inline drop zone, batch progress bar, controls row
+- `frontend/src/components/LifeListTable.tsx` — filtered/sorted species table with sticky header
+- `frontend/src/types.ts` — `MediaType`, `MediaFilter`, `SortOrder` types added
+- `frontend/src/App.tsx` — Life List tab added (display-toggle pattern)
+- `frontend/vite.config.ts` — `/ml` proxy added for dev server
+
 ### Update Script + In-App Update Check (complete — May 2026)
 
 Two small additions that make keeping SnowRaven current easy: a shell script for one-command updates, and a footer link that checks GitHub for a newer release on explicit user request only.
@@ -171,6 +204,29 @@ The `/version/check` endpoint calls GitHub from the backend, not the browser.
 This keeps the user's IP off GitHub's logs. The frontend just calls its own
 backend — no cross-origin requests. This also means the check works on
 local network installs where CORS would otherwise block a direct GitHub call.
+
+**ML API media type lookup requires a backend proxy**
+The Macaulay Library search API (`search.macaulaylibrary.org/api/v1/search`) blocks
+direct browser requests with a 403 when an `Origin` header is present. The backend
+proxy at `POST /ml/media-types` sends only numeric catalog IDs to the ML API — no
+user identity, no eBird credentials, no API key required.
+
+**Frontend controls batching; backend processes whatever it receives**
+The frontend sends catalog IDs in batches of 25 per POST request. This gives the
+progress indicator accurate "batch X of Y" feedback after each response. The backend
+processes all IDs it receives sequentially — one ML API call per catalog ID.
+
+**ML catalog numbers in CSV may carry an "ML" prefix**
+eBird's backup CSV stores catalog numbers as e.g. `ML204818731`. The parser strips
+the `ML` prefix with `replace(/^ML/i, '')` before storing or sending IDs. The backend
+normalizes IDs in API responses with `_normalize_id()` (strips non-digits) before
+comparing, so string/numeric/prefixed catalogId values all match correctly.
+
+**Life List drop zone is implemented inline, not via the DropZone component**
+The existing `DropZone` component is coupled to the `FileData` type (which contains
+a `species: Set<string>` field). Rather than retrofitting DropZone with generics,
+`LifeList.tsx` implements its own minimal drop zone inline. The patterns are similar
+but kept separate to avoid coupling unrelated features.
 
 **Update script uses .venv/bin/pip explicitly**
 `update.sh` calls `.venv/bin/pip` rather than relying on a `pip` in PATH.
