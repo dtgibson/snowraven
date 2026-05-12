@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Life List — Design Mockup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f9fafb;
+      color: #0F1117;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px 0;
+      flex-shrink: 0;
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .logo-text { font-size: 26px; font-weight: 700; letter-spacing: -0.6px; }
+    .logo-text span { color: #2D8653; }
+    .tagline { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      border-bottom: 1px solid #E4E4E7;
+      display: flex;
+      justify-content: center;
+      padding: 0 24px;
+      flex-shrink: 0;
+    }
+    nav { display: flex; max-width: 880px; width: 100%; }
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #71717A;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .tab.active { color: #2D8653; border-bottom-color: #2D8653; }
+
+    /* ── Tab panel ── */
+    .panel {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      flex-direction: column;
+      padding: 32px 24px 24px;
+      overflow: hidden;
+    }
+    .panel.active { display: flex; }
+
+    /* ── Life List panel ── */
+    .life-list-inner {
+      width: 100%;
+      max-width: 880px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Controls row */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    .filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .filter-btn {
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1.5px solid #E4E4E7;
+      background: #fff;
+      color: #71717A;
+      transition: all 0.12s;
+    }
+    .filter-btn.active {
+      background: #E8F5EE;
+      color: #2D8653;
+      border-color: rgba(45,134,83,0.25);
+    }
+    .right-controls { display: flex; align-items: center; gap: 10px; }
+    .count-label { font-size: 12px; color: #71717A; white-space: nowrap; }
+    .sort-group {
+      display: flex;
+      border: 1.5px solid #E4E4E7;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .sort-btn {
+      padding: 0 10px;
+      height: 28px;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: inherit;
+      border: none;
+      background: #fff;
+      color: #71717A;
+      cursor: pointer;
+    }
+    .sort-btn.active { background: #F4F4F5; color: #0F1117; }
+    .sort-btn + .sort-btn { border-left: 1.5px solid #E4E4E7; }
+
+    /* Table */
+    .table-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      border: 1px solid #E4E4E7;
+      border-radius: 10px;
+      background: #fff;
+    }
+    .table-wrap.expanded {
+      flex: none;
+      min-height: auto;
+      overflow-y: visible;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #F9FAFB;
+      border-bottom: 1px solid #E4E4E7;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #71717A;
+      white-space: nowrap;
+      z-index: 1;
+    }
+    thead th.media-col {
+      text-align: center;
+      width: 72px;
+    }
+    tbody tr { border-bottom: 1px solid #F4F4F5; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #FAFAFA; }
+    td { padding: 9px 14px; vertical-align: middle; }
+    td.species-name { font-weight: 500; color: #0F1117; }
+    td.sci-name {
+      font-size: 12px;
+      color: #9CA3AF;
+      font-style: italic;
+      padding-top: 0;
+      padding-bottom: 9px;
+      line-height: 1;
+    }
+    td.media-col { text-align: center; width: 72px; }
+
+    /* Two-line species cell */
+    .species-cell { display: flex; flex-direction: column; gap: 1px; }
+    .species-common { font-weight: 500; color: #0F1117; font-size: 13.5px; }
+    .species-sci { font-size: 11.5px; color: #9CA3AF; font-style: italic; }
+
+    /* Status indicators */
+    .check {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+    }
+    .check svg { display: block; }
+
+    /* ── Loading state ── */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 16px;
+      padding: 40px;
+    }
+    .loading-bar-track {
+      width: 280px;
+      height: 4px;
+      background: #E4E4E7;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .loading-bar-fill {
+      height: 100%;
+      width: 38%;
+      background: #2D8653;
+      border-radius: 2px;
+      transition: width 0.3s;
+    }
+    .loading-label { font-size: 13px; color: #71717A; }
+
+    /* ── Drop zone state ── */
+    .drop-zone {
+      border: 2px dashed #D1D5DB;
+      border-radius: 12px;
+      padding: 48px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      background: #fff;
+    }
+    .drop-zone:hover { border-color: #2D8653; background: #F0FBF4; }
+    .drop-zone-icon { color: #9CA3AF; margin-bottom: 12px; }
+    .drop-zone h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .drop-zone p { font-size: 13px; color: #71717A; }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #b0b0b8;
+      padding: 0 24px 20px;
+      flex-shrink: 0;
+    }
+
+    /* State switcher (demo only) */
+    .demo-switcher {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      display: flex;
+      gap: 6px;
+      z-index: 100;
+    }
+    .demo-btn {
+      padding: 6px 12px;
+      background: #0F1117;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      opacity: 0.75;
+    }
+    .demo-btn:hover { opacity: 1; }
+    .demo-btn.active { background: #2D8653; opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-row">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 19-7z"/>
+      </svg>
+      <span class="logo-text">Snow<span>Raven</span></span>
+    </div>
+    <p class="tagline">Birding tools for your eBird workflow</p>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <nav>
+      <button class="tab" onclick="setTab('weather')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+        Weather
+      </button>
+      <button class="tab" onclick="setTab('comparer')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/></svg>
+        List Comparer
+      </button>
+      <button class="tab active" id="tab-lifelist" onclick="setTab('lifelist')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+        Life List
+      </button>
+    </nav>
+  </div>
+
+  <!-- Life List panel -->
+  <div class="panel active" id="panel-lifelist">
+    <div class="life-list-inner">
+
+      <!-- DROP ZONE STATE -->
+      <div id="state-drop" style="display:none; flex:1; align-items:center; justify-content:center;">
+        <div style="width:100%; max-width:480px;">
+          <div class="drop-zone">
+            <div class="drop-zone-icon">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <h3>Drop your eBird backup file here</h3>
+            <p>Or click to browse — select <strong>MyEBirdData.csv</strong></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOADING STATE -->
+      <div id="state-loading" style="display:none; flex:1;">
+        <div class="loading-state">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="animation: spin 1.2s linear infinite">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+          <div class="loading-label">Looking up media… batch 4 of 11</div>
+          <div class="loading-bar-track">
+            <div class="loading-bar-fill" style="width:36%"></div>
+          </div>
+          <div style="font-size:12px; color:#9CA3AF;">283 species · checking Macaulay Library</div>
+        </div>
+      </div>
+
+      <!-- READY STATE -->
+      <div id="state-ready" style="display:flex; flex-direction:column; flex:1; min-height:0;">
+
+        <!-- Controls -->
+        <div class="controls">
+          <div class="filter-group">
+            <button class="filter-btn active" onclick="setFilter(this,'all')">All</button>
+            <button class="filter-btn" onclick="setFilter(this,'no-photo')">
+              <span style="display:inline-flex;align-items:center;gap:4px">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                No photo
+              </span>
+            </button>
+            <button class="filter-btn" onclick="setFilter(this,'no-audio')">
+              <span style="display:inline-flex;align-items:center;gap:4px">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                No audio
+              </span>
+            </button>
+            <button class="filter-btn" onclick="setFilter(this,'no-video')">
+              <span style="display:inline-flex;align-items:center;gap:4px">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                No video
+              </span>
+            </button>
+          </div>
+          <div class="right-controls">
+            <span class="count-label" id="count-label">312 species</span>
+            <div class="sort-group">
+              <button class="sort-btn active" id="sort-tax" onclick="setSort('tax')">Taxonomic</button>
+              <button class="sort-btn" id="sort-alpha" onclick="setSort('alpha')">A–Z</button>
+            </div>
+            <button id="expand-btn" onclick="toggleExpand()" style="height:28px;padding:0 10px;background:none;border:1.5px solid #E4E4E7;border-radius:6px;font-size:11px;font-weight:500;font-family:inherit;color:#71717A;cursor:pointer;">Show all</button>
+            <button onclick="setState('drop')" style="height:28px;padding:0 10px;background:none;border:1.5px solid #E4E4E7;border-radius:6px;font-size:11px;font-weight:500;font-family:inherit;color:#71717A;cursor:pointer;">Load new file</button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="min-width:200px">Species</th>
+                <th class="media-col">
+                  <span style="display:inline-flex;align-items:center;gap:4px">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Seen
+                  </span>
+                </th>
+                <th class="media-col">
+                  <span style="display:inline-flex;align-items:center;gap:4px">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                    Photo
+                  </span>
+                </th>
+                <th class="media-col">
+                  <span style="display:inline-flex;align-items:center;gap:4px">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                    Audio
+                  </span>
+                </th>
+                <th class="media-col">
+                  <span style="display:inline-flex;align-items:center;gap:4px">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                    Video
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="species-tbody">
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /state-ready -->
+    </div>
+  </div>
+
+  <!-- Other panels (placeholder) -->
+  <div class="panel" id="panel-weather" style="align-items:center;justify-content:center;">
+    <p style="color:#71717A;font-size:14px">Weather tab</p>
+  </div>
+  <div class="panel" id="panel-comparer" style="align-items:center;justify-content:center;">
+    <p style="color:#71717A;font-size:14px">List Comparer tab</p>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <a href="#" style="color:inherit;text-decoration:none">SnowRaven</a>
+    · Self-hosted Birding Tools · <span style="cursor:pointer" onmouseenter="this.style.textDecoration='underline'" onmouseleave="this.style.textDecoration='none'">Check For Updates</span>
+  </footer>
+
+  <!-- Demo state switcher -->
+  <div class="demo-switcher">
+    <button class="demo-btn" onclick="setState('drop')">Drop zone</button>
+    <button class="demo-btn" onclick="setState('loading')">Loading</button>
+    <button class="demo-btn active" onclick="setState('ready')">Ready</button>
+  </div>
+
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+var CHECK = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+var DASH  = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+
+var SPECIES = [
+  { name: 'Canada Goose',          sci: 'Branta canadensis',           photo: true,  audio: true,  video: false },
+  { name: 'Wood Duck',             sci: 'Aix sponsa',                  photo: true,  audio: false, video: false },
+  { name: 'Mallard',               sci: 'Anas platyrhynchos',          photo: true,  audio: true,  video: true  },
+  { name: 'Blue-winged Teal',      sci: 'Spatula discors',             photo: true,  audio: false, video: false },
+  { name: 'California Quail',      sci: 'Callipepla californica',      photo: true,  audio: true,  video: false },
+  { name: 'Pied-billed Grebe',     sci: 'Podilymbus podiceps',         photo: false, audio: false, video: false },
+  { name: 'Band-tailed Pigeon',    sci: 'Patagioenas fasciata',        photo: false, audio: false, video: false },
+  { name: 'Eurasian Collared-Dove',sci: 'Streptopelia decaocto',       photo: true,  audio: true,  video: false },
+  { name: 'Mourning Dove',         sci: 'Zenaida macroura',            photo: true,  audio: true,  video: false },
+  { name: 'Common Nighthawk',      sci: 'Chordeiles minor',            photo: false, audio: true,  video: false },
+  { name: "Vaux's Swift",          sci: 'Chaetura vauxi',              photo: false, audio: false, video: false },
+  { name: "Anna's Hummingbird",    sci: 'Calypte anna',                photo: true,  audio: true,  video: false },
+  { name: "Allen's Hummingbird",   sci: 'Selasphorus sasin',           photo: true,  audio: false, video: false },
+  { name: 'Sora',                  sci: 'Porzana carolina',            photo: false, audio: true,  video: false },
+  { name: 'American Coot',         sci: 'Fulica americana',            photo: true,  audio: false, video: false },
+  { name: 'Killdeer',              sci: 'Charadrius vociferus',        photo: true,  audio: true,  video: false },
+  { name: 'Long-billed Curlew',    sci: 'Numenius americanus',         photo: true,  audio: true,  video: false },
+  { name: 'Dunlin',                sci: 'Calidris alpina',             photo: false, audio: false, video: false },
+  { name: "Bonaparte's Gull",      sci: 'Chroicocephalus philadelphia',photo: false, audio: false, video: false },
+  { name: "Heermann's Gull",       sci: 'Larus heermanni',             photo: true,  audio: false, video: false },
+  { name: 'Western Gull',          sci: 'Larus occidentalis',          photo: true,  audio: false, video: false },
+  { name: 'Brandt\'s Cormorant',   sci: 'Urile penicillatus',          photo: true,  audio: false, video: false },
+  { name: 'Great Blue Heron',      sci: 'Ardea herodias',              photo: true,  audio: false, video: false },
+  { name: 'Great Egret',           sci: 'Ardea alba',                  photo: true,  audio: false, video: false },
+  { name: 'Snowy Egret',           sci: 'Egretta thula',               photo: true,  audio: false, video: false },
+  { name: 'Turkey Vulture',        sci: 'Cathartes aura',              photo: true,  audio: false, video: false },
+  { name: 'Osprey',                sci: 'Pandion haliaetus',           photo: true,  audio: false, video: false },
+  { name: "Cooper's Hawk",         sci: 'Accipiter cooperii',          photo: false, audio: false, video: false },
+  { name: 'Red-tailed Hawk',       sci: 'Buteo jamaicensis',           photo: true,  audio: true,  video: false },
+  { name: 'Barn Owl',              sci: 'Tyto alba',                   photo: false, audio: true,  video: false },
+  { name: 'Great Horned Owl',      sci: 'Bubo virginianus',            photo: false, audio: true,  video: false },
+  { name: 'Burrowing Owl',         sci: 'Athene cunicularia',          photo: true,  audio: true,  video: false },
+  { name: 'Belted Kingfisher',     sci: 'Megaceryle alcyon',           photo: true,  audio: false, video: false },
+  { name: 'Acorn Woodpecker',      sci: 'Melanerpes formicivorus',     photo: true,  audio: true,  video: false },
+  { name: 'Nuttall\'s Woodpecker', sci: 'Dryobates nuttallii',         photo: true,  audio: true,  video: false },
+  { name: 'American Kestrel',      sci: 'Falco sparverius',            photo: true,  audio: false, video: false },
+  { name: "Hutton's Vireo",        sci: 'Vireo huttoni',               photo: false, audio: true,  video: false },
+  { name: "Steller's Jay",         sci: 'Cyanocitta stelleri',         photo: true,  audio: true,  video: false },
+  { name: 'California Scrub-Jay',  sci: 'Aphelocoma californica',      photo: true,  audio: true,  video: false },
+  { name: 'American Crow',         sci: 'Corvus brachyrhynchos',       photo: true,  audio: false, video: false },
+  { name: 'Common Raven',          sci: 'Corvus corax',                photo: true,  audio: true,  video: false },
+  { name: 'Tree Swallow',          sci: 'Tachycineta bicolor',         photo: true,  audio: false, video: false },
+  { name: 'Barn Swallow',          sci: 'Hirundo rustica',             photo: true,  audio: false, video: false },
+  { name: 'Chestnut-backed Chickadee', sci: 'Poecile rufescens',       photo: true,  audio: true,  video: false },
+  { name: 'Oak Titmouse',          sci: 'Baeolophus inornatus',        photo: true,  audio: true,  video: false },
+  { name: 'Bushtit',               sci: 'Psaltriparus minimus',        photo: true,  audio: false, video: false },
+  { name: 'Red-breasted Nuthatch', sci: 'Sitta canadensis',            photo: false, audio: true,  video: false },
+  { name: 'Bewick\'s Wren',        sci: 'Thryomanes bewickii',         photo: true,  audio: true,  video: false },
+  { name: 'Marsh Wren',            sci: 'Cistothorus palustris',       photo: false, audio: true,  video: false },
+  { name: 'Ruby-crowned Kinglet',  sci: 'Corthylio calendula',         photo: false, audio: true,  video: false },
+];
+
+var currentFilter = 'all';
+
+function check(v) {
+  return v ? '<span class="check">' + CHECK + '</span>' : '<span class="check">' + DASH + '</span>';
+}
+
+function renderTable(filter) {
+  var rows = SPECIES.filter(function(s) {
+    if (filter === 'no-photo') return !s.photo;
+    if (filter === 'no-audio') return !s.audio;
+    if (filter === 'no-video') return !s.video;
+    return true;
+  });
+  var html = rows.map(function(s) {
+    return '<tr>' +
+      '<td><div class="species-cell"><span class="species-common">' + s.name + '</span><span class="species-sci">' + s.sci + '</span></div></td>' +
+      '<td class="media-col">' + check(true) + '</td>' +
+      '<td class="media-col">' + check(s.photo) + '</td>' +
+      '<td class="media-col">' + check(s.audio) + '</td>' +
+      '<td class="media-col">' + check(s.video) + '</td>' +
+      '</tr>';
+  }).join('');
+  document.getElementById('species-tbody').innerHTML = html;
+  var label = rows.length === SPECIES.length
+    ? SPECIES.length + ' species'
+    : rows.length + ' of ' + SPECIES.length + ' species';
+  document.getElementById('count-label').textContent = label;
+}
+
+function setFilter(btn, filter) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  renderTable(filter);
+}
+
+function setSort(s) {
+  document.getElementById('sort-tax').classList.toggle('active', s === 'tax');
+  document.getElementById('sort-alpha').classList.toggle('active', s === 'alpha');
+}
+
+function setState(s) {
+  document.getElementById('state-drop').style.display = s === 'drop' ? 'flex' : 'none';
+  document.getElementById('state-loading').style.display = s === 'loading' ? 'flex' : 'none';
+  document.getElementById('state-ready').style.display = s === 'ready' ? 'flex' : 'none';
+  document.querySelectorAll('.demo-btn').forEach(function(b) { b.classList.remove('active'); });
+  var map = { drop: 0, loading: 1, ready: 2 };
+  document.querySelectorAll('.demo-btn')[map[s]].classList.add('active');
+}
+
+function setTab(t) {
+  document.querySelectorAll('.tab').forEach(function(b) { b.classList.remove('active'); });
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  document.getElementById('tab-' + t).classList.add('active');
+  document.getElementById('panel-' + t).classList.add('active');
+}
+
+var expanded = false;
+function toggleExpand() {
+  expanded = !expanded;
+  var wrap = document.querySelector('.table-wrap');
+  var btn = document.getElementById('expand-btn');
+  var body = document.body;
+  if (expanded) {
+    wrap.classList.add('expanded');
+    body.style.overflow = 'auto';
+    body.style.height = 'auto';
+    btn.textContent = 'Collapse';
+    btn.style.color = '#2D8653';
+    btn.style.borderColor = 'rgba(45,134,83,0.25)';
+    btn.style.background = '#E8F5EE';
+  } else {
+    wrap.classList.remove('expanded');
+    body.style.overflow = 'hidden';
+    body.style.height = '100vh';
+    btn.textContent = 'Show all';
+    btn.style.color = '#71717A';
+    btn.style.borderColor = '#E4E4E7';
+    btn.style.background = 'none';
+  }
+}
+
+renderTable('all');
+</script>
+</body>
+</html>

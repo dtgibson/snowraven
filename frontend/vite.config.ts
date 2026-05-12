@@ -15,6 +15,7 @@ export default defineConfig({
       '/weather': 'http://localhost:1620',
       '/health': 'http://localhost:1620',
       '/version': 'http://localhost:1620',
+      '/ml': 'http://localhost:1620',
     },
   },
 })

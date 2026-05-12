@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from routers.ml import router as ml_router
 from routers.version import router as version_router
 from routers.weather import router as weather_router
 
@@ -21,6 +22,7 @@ app.add_middleware(
 
 app.include_router(weather_router)
 app.include_router(version_router)
+app.include_router(ml_router)
 
 
 @app.get("/health")

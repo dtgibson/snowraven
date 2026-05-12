@@ -1,16 +1,16 @@
 {
-  "activeFeature": null,
+  "activeFeature": "life-list",
   "sessionNumber": 2,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/ebird-edit-link/strategic-brief.md",
-    "pipeline/ebird-edit-link/prd.md",
-    "pipeline/ebird-edit-link/schema.md",
-    "pipeline/ebird-edit-link/design-spec.md",
-    "pipeline/ebird-edit-link/design.html"
+    "pipeline/life-list/strategic-brief.md",
+    "pipeline/life-list/prd.md",
+    "pipeline/life-list/schema.md",
+    "pipeline/life-list/design-spec.md",
+    "pipeline/life-list/design.html"
   ],
-  "createdAt": "2026-05-08T03:00:00Z",
-  "updatedAt": "2026-05-08T04:00:00Z"
+  "createdAt": "2026-05-10T00:00:00Z",
+  "updatedAt": "2026-05-12T02:30:00Z"
 }

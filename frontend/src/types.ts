@@ -10,3 +10,7 @@ export interface ComparisonResult {
   totalA: number
   totalB: number
 }
+
+export type MediaType = 'Photo' | 'Audio' | 'Video'
+export type MediaFilter = 'all' | 'no-photo' | 'no-audio' | 'no-video'
+export type SortOrder = 'taxonomic' | 'alpha'

@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.7] - 2026-05-12
+
+### Added
+- Life List tab: upload your eBird backup CSV to generate a full life list with per-species media coverage (Photo, Audio, Video)
+- Filter buttons to show only species missing a photo, audio recording, or video recording
+- Taxonomic order and A–Z sort options
+- "Show all / Collapse" toggle for full-page expansion (useful for printing)
+- Backend proxy at `POST /ml/media-types` querying the Macaulay Library search API to determine media types for submitted catalog IDs, with batch progress indicator during lookup
+
 ## [0.0.6] - 2026-05-08
 
 ### Added

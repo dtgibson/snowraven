@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List } from 'lucide-react'
 import { ListComparer } from './components/ListComparer'
+import { LifeList } from './components/LifeList'
 
 type AppState =
   | { status: 'idle' }
@@ -8,7 +9,7 @@ type AppState =
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
 
-type Tab = 'weather' | 'comparer'
+type Tab = 'weather' | 'comparer' | 'life-list'
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -193,6 +194,15 @@ export default function App() {
               <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
             </svg>
             List Comparer
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'life-list'}
+            style={tabStyle('life-list')}
+            onClick={() => setActiveTab('life-list')}
+          >
+            <List size={14} strokeWidth={2.5} aria-hidden="true" />
+            Life List
           </button>
         </nav>
       </div>
@@ -413,6 +423,21 @@ export default function App() {
         }}
       >
         <ListComparer />
+      </div>
+
+      {/* Life List tab content */}
+      <div
+        role="tabpanel"
+        style={{
+          display: activeTab === 'life-list' ? 'flex' : 'none',
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        <LifeList />
       </div>
 
       {/* Footer */}
