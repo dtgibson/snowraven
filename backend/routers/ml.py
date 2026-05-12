@@ -1,14 +1,34 @@
+import asyncio
+
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
 
-_ML_SEARCH = "https://search.macaulaylibrary.org/api/v1/search"
+_CDN = "https://cdn.download.ams.birds.cornell.edu/api/v2/asset"
 
 
-def _normalize_id(val: object) -> str:
-    return "".join(c for c in str(val) if c.isdigit())
+async def _detect_type(client: httpx.AsyncClient, catalog_id: str) -> tuple[str, str | None]:
+    """Return (catalog_id, mediaType) by probing CDN HEAD endpoints.
+
+    CDN URL patterns:
+      Photo  — /{id}/1200     → 200
+      Audio  — /{id}/mp3      → 200
+      Video  — /{id}/mp4/1280 → 200 (also serves /1200 as thumbnail)
+    """
+    mp3, mp4, img = await asyncio.gather(
+        client.head(f"{_CDN}/{catalog_id}/mp3"),
+        client.head(f"{_CDN}/{catalog_id}/mp4/1280"),
+        client.head(f"{_CDN}/{catalog_id}/1200"),
+    )
+    if mp3.status_code == 200:
+        return catalog_id, "Audio"
+    if mp4.status_code == 200:
+        return catalog_id, "Video"
+    if img.status_code == 200:
+        return catalog_id, "Photo"
+    return catalog_id, None
 
 
 class MediaTypesRequest(BaseModel):
@@ -28,19 +48,12 @@ async def get_media_types(body: MediaTypesRequest) -> MediaTypesResponse:
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            for catalog_id in body.catalog_ids:
-                resp = await client.get(
-                    _ML_SEARCH,
-                    params={"q": catalog_id, "mediaType": "all", "count": 5},
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                for item in data.get("results", []):
-                    if _normalize_id(item.get("catalogId")) == catalog_id:
-                        media_type = item.get("mediaType")
-                        if media_type:
-                            result[catalog_id] = media_type
-                        break
+            detections = await asyncio.gather(
+                *[_detect_type(client, cid) for cid in body.catalog_ids]
+            )
+            for catalog_id, media_type in detections:
+                if media_type is not None:
+                    result[catalog_id] = media_type
     except httpx.HTTPError:
         raise HTTPException(
             status_code=503,
