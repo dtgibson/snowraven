@@ -117,7 +117,7 @@ photographed, audio-recorded, and video-recorded via the Macaulay Library.
 - Parses one entry per unique species: Common Name, Scientific Name, Taxonomic Order, and the union of all ML Catalog Numbers across every observation row
 - Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `) — same rules as List Comparer
 - Strips the `ML` prefix from catalog numbers (e.g. `ML204818731` → `204818731`) and deduplicates
-- POSTs catalog IDs in batches of 25 to `POST /ml/media-types` on the backend, which proxies each ID to the Macaulay Library search API to determine its media type (Photo / Audio / Video)
+- POSTs catalog IDs in batches of 25 to `POST /ml/media-types` on the backend, which probes the Cornell CDN via HEAD requests to determine each asset's media type (Photo / Audio / Video)
 - Shows a batch progress indicator while the lookup runs ("Looking up media… batch 3 of 12")
 - Renders a species table with four status columns: Seen (always ✓), Photo, Audio, Video
 - If the ML API is unreachable, shows an error banner above the list; the list still renders with "—" for unknown media
@@ -205,16 +205,22 @@ This keeps the user's IP off GitHub's logs. The frontend just calls its own
 backend — no cross-origin requests. This also means the check works on
 local network installs where CORS would otherwise block a direct GitHub call.
 
-**ML API media type lookup requires a backend proxy**
-The Macaulay Library search API (`search.macaulaylibrary.org/api/v1/search`) blocks
-direct browser requests with a 403 when an `Origin` header is present. The backend
-proxy at `POST /ml/media-types` sends only numeric catalog IDs to the ML API — no
-user identity, no eBird credentials, no API key required.
+**Media type lookup uses Cornell CDN HEAD requests, not the ML search API**
+The Macaulay Library search API (`search.macaulaylibrary.org/api/v1/search`) does
+not support catalog ID lookup — the `q` parameter performs general text search and
+returns unrelated results. Media type is instead determined by probing the Cornell
+CDN directly with HEAD requests:
+- Photo:  `cdn.download.ams.birds.cornell.edu/api/v2/asset/{id}/1200`     → 200
+- Audio:  `cdn.download.ams.birds.cornell.edu/api/v2/asset/{id}/mp3`      → 200
+- Video:  `cdn.download.ams.birds.cornell.edu/api/v2/asset/{id}/mp4/1280` → 200
 
-**Frontend controls batching; backend processes whatever it receives**
+All IDs in a batch are processed concurrently via `asyncio.gather`. No API key
+required. No response body is parsed — only HTTP status codes are checked.
+
+**Frontend controls batching; backend processes all IDs in a batch concurrently**
 The frontend sends catalog IDs in batches of 25 per POST request. This gives the
-progress indicator accurate "batch X of Y" feedback after each response. The backend
-processes all IDs it receives sequentially — one ML API call per catalog ID.
+progress indicator accurate "batch X of Y" feedback after each response. Within
+each batch, the backend fans out all IDs in parallel via `asyncio.gather`.
 
 **ML catalog numbers in CSV may carry an "ML" prefix**
 eBird's backup CSV stores catalog numbers as e.g. `ML204818731`. The parser strips
