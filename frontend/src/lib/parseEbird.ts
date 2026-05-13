@@ -52,14 +52,28 @@ export function parseEbirdCSV(filename: string, content: string): FileData {
     throw new Error('INVALID_EBIRD')
   }
 
+  const taxOrderIdx = headers.findIndex(h => h === 'taxonomic order')
+
   const species = new Set<string>()
+  const taxOrder = new Map<string, number>()
+
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim()
     if (!line) continue
     const cols = parseCSVLine(line)
     const name = cols[commonNameIdx]?.trim().replace(/^"|"$/g, '')
-    if (name && !isExcluded(name)) species.add(normalizeSpeciesName(name))
+    if (!name || isExcluded(name)) continue
+    const normalized = normalizeSpeciesName(name)
+    species.add(normalized)
+
+    if (taxOrderIdx !== -1) {
+      const orderNum = parseFloat(cols[taxOrderIdx]?.trim().replace(/^"|"$/g, '') ?? '')
+      if (!isNaN(orderNum)) {
+        const existing = taxOrder.get(normalized)
+        taxOrder.set(normalized, existing === undefined ? orderNum : Math.min(existing, orderNum))
+      }
+    }
   }
 
-  return { filename, species }
+  return { filename, species, taxOrder }
 }

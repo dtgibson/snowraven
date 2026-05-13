@@ -1,6 +1,7 @@
 export interface FileData {
   filename: string
   species: Set<string>
+  taxOrder: Map<string, number>
 }
 
 export interface ComparisonResult {
@@ -9,6 +10,7 @@ export interface ComparisonResult {
   bOnly: string[]
   totalA: number
   totalB: number
+  taxOrder: Map<string, number>
 }
 
 export type MediaType = 'Photo' | 'Audio' | 'Video'

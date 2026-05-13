@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { parseEbirdCSV } from '../lib/parseEbird'
 import { compareSpecies } from '../lib/compare'
-import type { FileData, ComparisonResult } from '../types'
+import type { FileData, ComparisonResult, SortOrder } from '../types'
 import { DropZone } from './DropZone'
 import { ResultsView } from './ResultsView'
 
@@ -16,6 +16,7 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
   const [errorB, setErrorB] = useState<string | null>(null)
   const [result, setResult] = useState<ComparisonResult | null>(null)
   const [expanded, setExpanded] = useState(false)
+  const [sort, setSort] = useState<SortOrder>('taxonomic')
 
   const processFile = useCallback((slot: 'a' | 'b', filename: string, file: File) => {
     const setFile = slot === 'a' ? setFileA : setFileB
@@ -51,7 +52,7 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
 
   const handleCompare = () => {
     if (!fileA || !fileB) return
-    setResult(compareSpecies(fileA.species, fileB.species))
+    setResult(compareSpecies(fileA, fileB))
   }
 
   const handleReset = () => {
@@ -61,6 +62,7 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
     setErrorB(null)
     setResult(null)
     setExpanded(false)
+    setSort('taxonomic')
     onExpandedChange?.(false)
   }
 
@@ -91,6 +93,8 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
           onReset={handleReset}
           expanded={expanded}
           onToggleExpanded={handleToggleExpanded}
+          sort={sort}
+          onSortChange={setSort}
         />
       ) : (
         <div style={{ width: '100%', maxWidth: 600 }}>

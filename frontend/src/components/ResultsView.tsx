@@ -1,4 +1,4 @@
-import type { FileData, ComparisonResult } from '../types'
+import type { FileData, ComparisonResult, SortOrder } from '../types'
 import { SpeciesPanel } from './SpeciesPanel'
 
 interface ResultsViewProps {
@@ -8,11 +8,27 @@ interface ResultsViewProps {
   onReset: () => void
   expanded: boolean
   onToggleExpanded: () => void
+  sort: SortOrder
+  onSortChange: (s: SortOrder) => void
 }
 
-export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleExpanded }: ResultsViewProps) {
+function sortedSpecies(names: string[], order: Map<string, number>, sort: SortOrder): string[] {
+  if (sort === 'alpha') return names
+  return [...names].sort((a, b) => {
+    const oa = order.get(a) ?? Infinity
+    const ob = order.get(b) ?? Infinity
+    if (oa !== ob) return oa - ob
+    return a.localeCompare(b)
+  })
+}
+
+export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleExpanded, sort, onSortChange }: ResultsViewProps) {
   const nameA = fileA.filename
   const nameB = fileB.filename
+  const { taxOrder } = result
+  const displayBoth = sortedSpecies(result.both, taxOrder, sort)
+  const displayAOnly = sortedSpecies(result.aOnly, taxOrder, sort)
+  const displayBOnly = sortedSpecies(result.bOnly, taxOrder, sort)
 
   return (
     <div style={{
@@ -38,7 +54,30 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
           {' '}and{' '}
           <strong style={{ fontWeight: 600, color: '#0F1117' }}>{nameB}</strong>
         </p>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid #E4E4E7' }}>
+            {(['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
+              <button
+                key={s}
+                onClick={() => onSortChange(s)}
+                style={{
+                  height: 34,
+                  padding: '0 12px',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderLeft: i > 0 ? '1.5px solid #E4E4E7' : 'none',
+                  background: sort === s ? '#F4F4F5' : '#fff',
+                  color: sort === s ? '#0F1117' : '#71717A',
+                  whiteSpace: 'nowrap' as const,
+                }}
+              >
+                {s === 'taxonomic' ? 'Taxonomic' : 'A–Z'}
+              </button>
+            ))}
+          </div>
           <button
             onClick={onToggleExpanded}
             style={{
@@ -113,9 +152,9 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
         flex: expanded ? 'none' : 1,
         minHeight: expanded ? 'auto' : 0,
       }}>
-        <SpeciesPanel title="In Both" species={result.both} expanded={expanded} />
-        <SpeciesPanel title={`${nameA} only`} species={result.aOnly} expanded={expanded} />
-        <SpeciesPanel title={`${nameB} only`} species={result.bOnly} expanded={expanded} />
+        <SpeciesPanel title="In Both" species={displayBoth} expanded={expanded} />
+        <SpeciesPanel title={`${nameA} only`} species={displayAOnly} expanded={expanded} />
+        <SpeciesPanel title={`${nameB} only`} species={displayBOnly} expanded={expanded} />
       </div>
     </div>
   )

@@ -1,6 +1,9 @@
-import type { ComparisonResult } from '../types'
+import type { FileData, ComparisonResult } from '../types'
 
-export function compareSpecies(a: Set<string>, b: Set<string>): ComparisonResult {
+export function compareSpecies(fileA: FileData, fileB: FileData): ComparisonResult {
+  const { species: a, taxOrder: taxA } = fileA
+  const { species: b, taxOrder: taxB } = fileB
+
   const both: string[] = []
   const aOnly: string[] = []
 
@@ -23,5 +26,8 @@ export function compareSpecies(a: Set<string>, b: Set<string>): ComparisonResult
   aOnly.sort((x, y) => x.localeCompare(y))
   bOnly.sort((x, y) => x.localeCompare(y))
 
-  return { both, aOnly, bOnly, totalA: a.size, totalB: b.size }
+  // Merge: taxB first so taxA wins for any species in both files
+  const taxOrder = new Map<string, number>([...taxB, ...taxA])
+
+  return { both, aOnly, bOnly, totalA: a.size, totalB: b.size, taxOrder }
 }

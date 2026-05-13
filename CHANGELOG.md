@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.12] - 2026-05-12
+
+### Added
+- Taxonomic / A–Z sort control on the Life List Comparer tab, matching the sort control already present on the Media Life List tab
+
 ## [0.0.11] - 2026-05-12
 
 ### Fixed
