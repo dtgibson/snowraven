@@ -106,36 +106,42 @@ After a successful weather lookup, an "Edit on eBird" link appears flush-right o
 **Key files changed:**
 - `frontend/src/App.tsx` — `ExternalLink` added to lucide import; confirmation `<div>` converted to flex row with link
 
-### Life List (complete — May 2026)
+### Media Life List (complete — May 2026)
 
-A third tab that accepts an eBird backup CSV (`MyEBirdData.csv`) and generates
-a full life list showing per-species media coverage — which species have been
-photographed, audio-recorded, and video-recorded via the Macaulay Library.
+A third tab that generates a full life list showing per-species media coverage
+— which species have been photographed, audio-recorded, and video-recorded.
+Accepts two input formats, auto-detected from the CSV header.
+
+**Input formats (auto-detected — no user selection required):**
+- **Macaulay Library export (preferred):** Sign in to Macaulay Library → My Media → Save Spreadsheet. Columns: `Catalog Number` (or `ML Catalog Number`), `Common Name`, `Scientific Name`, `Format`. Media types are read directly from the CSV — no backend CDN lookup required. Results appear instantly.
+- **eBird backup CSV (secondary):** `MyEBirdData.csv` from the eBird account data download. Requires a backend batch lookup to determine media types per species via Cornell CDN HEAD requests.
 
 **What it does:**
-- Drop zone accepts `MyEBirdData.csv` via drag-and-drop or click-to-browse
-- Parses one entry per unique species: Common Name (parenthetical variants stripped, e.g. "Yellow-rumped Warbler (Myrtle)" → "Yellow-rumped Warbler"), Scientific Name, Taxonomic Order, and the union of all ML Catalog Numbers across every observation row
-- Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `) — same rules as List Comparer
-- Strips the `ML` prefix from catalog numbers (e.g. `ML204818731` → `204818731`) and deduplicates
-- POSTs catalog IDs in batches of 10 to `POST /ml/media-types` on the backend (500ms inter-batch delay), which probes the Cornell CDN via HEAD requests to determine each asset's media type (Photo / Audio / Video)
-- Shows a batch progress indicator while the lookup runs ("Looking up media… batch 3 of 12")
+- Upload screen shows two drop zones: a prominent primary zone for ML export (with download instructions) and a compact secondary zone for eBird backup CSV
+- Auto-detects file type by inspecting the CSV header: ML export if `catalog number`/`ml catalog number` + `format` columns present; eBird if `submission id` present; otherwise shows an error
+- Parses one entry per unique species; normalizes subspecies parentheticals (e.g. "Yellow-rumped Warbler (Myrtle)" → "Yellow-rumped Warbler")
+- Excludes spuh (` sp.`), slash species (`/`), hybrids (` x `), and soundscape entries
+- Strips the `ML` prefix from catalog numbers and deduplicates
+- **ML export path:** media types come from the `Format` column (Photo/Audio/Video) — client-side only, no network request
+- **eBird path:** POSTs catalog IDs in batches of 10 to `POST /ml/media-types` (500ms inter-batch delay); shows batch progress ("Looking up media… batch 3 of 12")
 - Renders a species table with four status columns: Seen (always ✓), Photo, Audio, Video
-- If the ML API is unreachable, shows an error banner above the list; the list still renders with "—" for unknown media
-- Filter pills: All · No photo · No audio · No video (one active at a time)
-- Sort toggle: Taxonomic order (default, uses lowest `Taxonomic Order` value per species) · A–Z
+- **Filter pills (7 total):** All · No photo · No audio · No video · Has photo · Has audio · Has video (one active at a time; negative filters are red, positive filters are green)
+- Sort toggle: Taxonomic (eBird input only, uses lowest Taxonomic Order value per species) · A–Z. Taxonomic button is hidden for ML export results (all entries have `taxonomicOrder: Infinity`).
 - Species count label: "312 species" or "47 of 312 species" when filtered
-- "Show all / Collapse" toggle expands the full list for printing; in expanded mode the page switches to a normal scrollable layout so the header and tabs scroll away rather than staying pinned
+- "Show all / Collapse" toggle expands the full list for printing
 - "Load new file" button resets to the upload state
 
 **Key files:**
-- `backend/routers/ml.py` — `POST /ml/media-types` proxy endpoint; queries ML search API per ID, returns `{catalog_id: mediaType}` map; 503 on failure
+- `backend/routers/ml.py` — `POST /ml/media-types` proxy endpoint; probes Cornell CDN via HEAD requests; `asyncio.Semaphore(8)` caps concurrency; 503 on failure
 - `backend/tests/test_ml_router.py` — 5 tests: valid lookup, missing ID omitted, unreachable API → 503, empty input, string catalogId in response
 - `backend/main.py` — ML router registered
-- `frontend/src/lib/parseLifeList.ts` — CSV parser producing `LifeListEntry[]`; reuses parseCSVLine and isExcluded patterns from parseEbird.ts
+- `frontend/src/lib/parseMLExport.ts` — ML export CSV parser: returns `{ entries, mediaMap }` from Macaulay Library export; client-side only; throws `INVALID_ML_EXPORT` on bad input
+- `frontend/src/lib/parseMLExport.test.ts` — 15 parser tests
+- `frontend/src/lib/parseLifeList.ts` — eBird backup CSV parser producing `LifeListEntry[]`
 - `frontend/src/lib/parseLifeList.test.ts` — 13 parser tests
-- `frontend/src/components/LifeList.tsx` — top-level component with idle/error/loading/ready state machine, inline drop zone, batch progress bar, controls row
-- `frontend/src/components/LifeListTable.tsx` — filtered/sorted species table with sticky header
-- `frontend/src/types.ts` — `MediaType`, `MediaFilter`, `SortOrder` types added
+- `frontend/src/components/LifeList.tsx` — top-level component: dual drop zones, file type auto-detection, idle/error/loading/ready state machine, controls row
+- `frontend/src/components/LifeListTable.tsx` — filtered/sorted species table; handles all 6 non-"all" filter cases including 3 positive filters
+- `frontend/src/types.ts` — `MediaType`, `MediaFilter` (includes positive filters), `SortOrder` types
 - `frontend/src/App.tsx` — Life List tab added (display-toggle pattern)
 - `frontend/vite.config.ts` — `/ml` proxy added for dev server
 
@@ -249,3 +255,21 @@ pattern: the child notifies the parent, the parent controls the layout mode.
 `update.sh` calls `.venv/bin/pip` rather than relying on a `pip` in PATH.
 This ensures the correct virtualenv is used regardless of the shell environment,
 which matters on Raspberry Pi where system Python is separate from the venv.
+
+**ML export is the preferred input; file type is auto-detected from header**
+Rather than asking the user to choose input format, `LifeList.tsx` inspects the
+CSV header row: if `catalog number` (or `ml catalog number`) + `format` columns
+are present, it's an ML export; if `submission id` is present, it's an eBird
+backup. Unknown headers get a clear error. The ML export path requires no backend
+call — all media types come directly from the `Format` column.
+
+**Taxonomic sort is hidden when it produces no meaningful ordering**
+ML export entries all receive `taxonomicOrder: Infinity` (the ML CSV has no
+taxonomic rank column). Showing the Taxonomic button would be misleading since
+Taxonomic and A–Z would produce the same output. The sort control conditionally
+renders only A–Z for ML export results; eBird results show both options.
+
+**Soundscape entries are excluded from ML export parsing**
+Macaulay Library exports include non-bird entries like "Soundscape" with no
+species name. These are excluded in `parseMLExport.ts` via an explicit check:
+`lower === 'soundscape'` in `isExcluded()`, alongside the standard spuh/slash/hybrid exclusions.
