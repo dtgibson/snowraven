@@ -407,7 +407,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
           {/* Sort control — Taxonomic hidden for ML export (no tax order available) */}
           <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid #E4E4E7' }}>
-            {(source === 'ml-export' ? ['alpha'] : ['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
+            {(source === 'ml-export' ? ['alpha'] as SortOrder[] : ['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
               <button
                 key={s}
                 onClick={() => setSort(s)}
