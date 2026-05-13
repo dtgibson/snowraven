@@ -1,20 +1,32 @@
 import { useRef, useState } from 'react'
-import { Upload, Loader2, AlertCircle, Camera, Mic, Video } from 'lucide-react'
+import { Upload, Download, Loader2, AlertCircle, Camera, Mic, Video, ChevronRight, Info } from 'lucide-react'
 import { parseLifeList } from '../lib/parseLifeList'
 import type { LifeListEntry } from '../lib/parseLifeList'
+import { parseMLExport } from '../lib/parseMLExport'
 import { LifeListTable } from './LifeListTable'
 import type { MediaFilter, SortOrder } from '../types'
 
 const BATCH_SIZE = 10
 
+type Source = 'ml-export' | 'ebird'
+
 type Phase =
   | { tag: 'idle' }
   | { tag: 'error'; message: string }
   | { tag: 'loading'; entries: LifeListEntry[]; batchCurrent: number; batchTotal: number }
-  | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string>; mlError: boolean }
+  | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string>; mlError: boolean; source: Source }
 
-function pillStyle(active: boolean): React.CSSProperties {
-  return {
+function detectFileType(text: string): 'ml-export' | 'ebird' | 'unknown' {
+  const firstLine = (text.split(/\r?\n/)[0] ?? '').toLowerCase()
+  const hasCatalogNumber = firstLine.includes('catalog number')
+  const hasFormat = firstLine.includes('format')
+  if (hasCatalogNumber && hasFormat) return 'ml-export'
+  if (firstLine.includes('submission id')) return 'ebird'
+  return 'unknown'
+}
+
+function pillStyle(active: 'none' | 'positive' | 'negative'): React.CSSProperties {
+  const base: React.CSSProperties = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,
@@ -25,10 +37,10 @@ function pillStyle(active: boolean): React.CSSProperties {
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
-    border: active ? '1.5px solid rgba(45,134,83,0.25)' : '1.5px solid #E4E4E7',
-    background: active ? '#E8F5EE' : '#fff',
-    color: active ? '#2D8653' : '#71717A',
   }
+  if (active === 'positive') return { ...base, border: '1.5px solid rgba(45,134,83,0.25)', background: '#E8F5EE', color: '#2D8653' }
+  if (active === 'negative') return { ...base, border: '1.5px solid rgba(239,68,68,0.3)', background: '#FEF2F2', color: '#DC2626' }
+  return { ...base, border: '1.5px solid #E4E4E7', background: '#fff', color: '#71717A' }
 }
 
 function ghostBtn(active = false): React.CSSProperties {
@@ -56,14 +68,14 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   const [filter, setFilter] = useState<MediaFilter>('all')
   const [sort, setSort] = useState<SortOrder>('taxonomic')
   const [expanded, setExpanded] = useState(false)
-  const [isDragging, setIsDragging] = useState(false)
+  const [draggingOver, setDraggingOver] = useState<'primary' | 'secondary' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const startMediaLookup = async (entries: LifeListEntry[]) => {
     const allIds = [...new Set(entries.flatMap(e => e.catalogIds))]
 
     if (allIds.length === 0) {
-      setPhase({ tag: 'ready', entries, mediaMap: {}, mlError: false })
+      setPhase({ tag: 'ready', entries, mediaMap: {}, mlError: false, source: 'ebird' })
       return
     }
 
@@ -88,10 +100,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ catalog_ids: batches[i] }),
         })
-        if (!res.ok) {
-          mlError = true
-          continue
-        }
+        if (!res.ok) { mlError = true; continue }
         const data = await res.json()
         Object.assign(mediaMap, data.media_types)
       } catch {
@@ -100,40 +109,45 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
       }
     }
 
-    setPhase({ tag: 'ready', entries, mediaMap, mlError })
+    setPhase({ tag: 'ready', entries, mediaMap, mlError, source: 'ebird' })
   }
 
   const processFile = async (file: File) => {
     try {
       const text = await file.text()
-      const entries = parseLifeList(text)
-      await startMediaLookup(entries)
+      const fileType = detectFileType(text)
+
+      if (fileType === 'ml-export') {
+        const { entries, mediaMap } = parseMLExport(text)
+        setSort('alpha')
+        setPhase({ tag: 'ready', entries, mediaMap, mlError: false, source: 'ml-export' })
+      } else if (fileType === 'ebird') {
+        const entries = parseLifeList(text)
+        await startMediaLookup(entries)
+      } else {
+        setPhase({
+          tag: 'error',
+          message: "This doesn't look like a Macaulay Library export or an eBird backup. Check you're uploading the right file.",
+        })
+      }
     } catch {
       setPhase({
         tag: 'error',
-        message:
-          "This doesn't look like an eBird backup file. Make sure you're uploading MyEBirdData.csv.",
+        message: "This doesn't look like a Macaulay Library export or an eBird backup. Check you're uploading the right file.",
       })
     }
   }
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDrop = (e: React.DragEvent, zone: 'primary' | 'secondary') => {
     e.preventDefault()
-    setIsDragging(true)
-  }
-  const handleDragLeave = () => setIsDragging(false)
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragging(false)
+    setDraggingOver(null)
     const file = e.dataTransfer.files[0]
     if (file) processFile(file)
   }
+
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      processFile(file)
-      e.target.value = ''
-    }
+    if (file) { processFile(file); e.target.value = '' }
   }
 
   const handleReset = () => {
@@ -152,14 +166,29 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     })
   }
 
-  // ── Drop zone (idle / error) ──────────────────────────────────────────────
+  // ── Upload screen (idle / error) ─────────────────────────────────────────
   if (phase.tag === 'idle' || phase.tag === 'error') {
+    const isPrimaryActive = draggingOver === 'primary'
+    const isSecondaryActive = draggingOver === 'secondary'
+
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
+        {phase.tag === 'error' && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '9px 13px', background: '#FEF2F2', borderRadius: 8,
+            fontSize: 13, color: '#DC2626', flexShrink: 0,
+          }}>
+            <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+            {phase.message}
+          </div>
+        )}
+
+        {/* Primary drop zone — ML export */}
         <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+          onDragOver={e => { e.preventDefault(); setDraggingOver('primary') }}
+          onDragLeave={() => setDraggingOver(null)}
+          onDrop={e => handleDrop(e, 'primary')}
           onClick={() => fileInputRef.current?.click()}
           style={{
             flex: 1,
@@ -167,45 +196,95 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 10,
-            border: `2px dashed ${isDragging ? '#2D8653' : '#E4E4E7'}`,
+            gap: 8,
+            border: `2px dashed ${isPrimaryActive ? '#2D8653' : '#2D8653'}`,
             borderRadius: 12,
-            background: isDragging ? '#E8F5EE' : '#fff',
+            background: isPrimaryActive ? '#E8F5EE' : '#fff',
             cursor: 'pointer',
-            transition: 'border-color 0.15s, background 0.15s',
+            transition: 'background 0.15s',
             padding: 40,
+            position: 'relative',
           }}
+          onMouseEnter={e => { if (!isPrimaryActive) (e.currentTarget as HTMLDivElement).style.background = '#F0FAF4' }}
+          onMouseLeave={e => { if (!isPrimaryActive) (e.currentTarget as HTMLDivElement).style.background = '#fff' }}
         >
-          <Upload
-            size={32}
-            strokeWidth={1.75}
-            style={{ color: isDragging ? '#2D8653' : '#9CA3AF' }}
-          />
-          <span style={{ fontSize: 15, fontWeight: 500, color: '#0F1117' }}>
-            Drop your eBird backup file here
+          {/* Recommended badge */}
+          <div style={{
+            position: 'absolute', top: 14, right: 14,
+            background: '#E8F5EE', color: '#2D8653',
+            fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
+            padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(45,134,83,0.2)',
+          }}>
+            Recommended
+          </div>
+
+          <div style={{
+            width: 48, height: 48, borderRadius: 12, background: '#E8F5EE',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Download size={22} strokeWidth={1.75} style={{ color: '#2D8653' }} />
+          </div>
+
+          <span style={{ fontSize: 15, fontWeight: 600, color: '#0F1117' }}>
+            Upload your Macaulay Library export
           </span>
-          <span style={{ fontSize: 13, color: '#71717A' }}>
-            Or click to browse — select MyEBirdData.csv
+          <span style={{ fontSize: 12, fontWeight: 500, color: '#2D8653' }}>
+            Instant results — no network lookups
           </span>
-          {phase.tag === 'error' && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              marginTop: 8,
-              padding: '9px 13px',
-              background: '#FEF2F2',
-              borderRadius: 6,
-              fontSize: 13,
-              color: '#DC2626',
-              maxWidth: 420,
-              textAlign: 'center',
-            }}>
-              <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-              {phase.message}
-            </div>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <Info size={12} strokeWidth={2} style={{ color: '#A1A1AA', flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: '#71717A' }}>
+              Sign in to Macaulay Library → My Media → Save Spreadsheet
+            </span>
+          </div>
+          <span style={{ fontSize: 12, color: '#71717A', marginTop: 2 }}>
+            Drop file here, or click to browse
+          </span>
         </div>
+
+        {/* Divider */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{ flex: 1, height: 1, background: '#E4E4E7' }} />
+          <span style={{ fontSize: 11, color: '#A1A1AA', whiteSpace: 'nowrap' }}>
+            or use your eBird backup
+          </span>
+          <div style={{ flex: 1, height: 1, background: '#E4E4E7' }} />
+        </div>
+
+        {/* Secondary drop zone — eBird CSV */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDraggingOver('secondary') }}
+          onDragLeave={() => setDraggingOver(null)}
+          onDrop={e => handleDrop(e, 'secondary')}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 14,
+            padding: '14px 18px',
+            border: `1.5px dashed ${isSecondaryActive ? '#A1A1AA' : '#E4E4E7'}`,
+            borderRadius: 10,
+            background: isSecondaryActive ? '#FAFAFA' : '#fff',
+            cursor: 'pointer',
+            transition: 'background 0.15s, border-color 0.15s',
+            flexShrink: 0,
+          }}
+          onMouseEnter={e => { if (!isSecondaryActive) (e.currentTarget as HTMLDivElement).style.background = '#FAFAFA' }}
+          onMouseLeave={e => { if (!isSecondaryActive) (e.currentTarget as HTMLDivElement).style.background = '#fff' }}
+        >
+          <div style={{
+            width: 36, height: 36, borderRadius: 8, background: '#F4F4F5',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Upload size={16} strokeWidth={1.75} style={{ color: '#71717A' }} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#0F1117' }}>MyEBirdData.csv</div>
+            <div style={{ fontSize: 11, color: '#71717A', marginTop: 2 }}>
+              Looks up media coverage online — may take a moment for large lists
+            </div>
+          </div>
+          <ChevronRight size={14} strokeWidth={2} style={{ color: '#D4D4D8', flexShrink: 0 }} />
+        </div>
+
         <input
           ref={fileInputRef}
           type="file"
@@ -223,13 +302,8 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     const progress = batchTotal > 0 ? batchCurrent / batchTotal : 0
     return (
       <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 16,
-        minHeight: 0,
+        flex: 1, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 16, minHeight: 0,
       }}>
         <Loader2 size={32} strokeWidth={2} className="spin" style={{ color: '#2D8653' }} />
         <span style={{ fontSize: 13, color: '#71717A' }}>
@@ -237,11 +311,8 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         </span>
         <div style={{ width: 280, height: 4, background: '#E4E4E7', borderRadius: 2 }}>
           <div style={{
-            width: `${progress * 100}%`,
-            height: '100%',
-            background: '#2D8653',
-            borderRadius: 2,
-            transition: 'width 0.3s ease',
+            width: `${progress * 100}%`, height: '100%',
+            background: '#2D8653', borderRadius: 2, transition: 'width 0.3s ease',
           }} />
         </div>
         <span style={{ fontSize: 12, color: '#9CA3AF' }}>
@@ -252,41 +323,44 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   }
 
   // ── Ready ─────────────────────────────────────────────────────────────────
-  const { entries, mediaMap, mlError } = phase
+  const { entries, mediaMap, mlError, source } = phase
 
   const filteredCount = entries.filter(entry => {
     if (filter === 'no-photo') return !entry.catalogIds.some(id => mediaMap[id] === 'Photo')
     if (filter === 'no-audio') return !entry.catalogIds.some(id => mediaMap[id] === 'Audio')
     if (filter === 'no-video') return !entry.catalogIds.some(id => mediaMap[id] === 'Video')
+    if (filter === 'has-photo') return entry.catalogIds.some(id => mediaMap[id] === 'Photo')
+    if (filter === 'has-audio') return entry.catalogIds.some(id => mediaMap[id] === 'Audio')
+    if (filter === 'has-video') return entry.catalogIds.some(id => mediaMap[id] === 'Video')
     return true
   }).length
 
-  const countLabel =
-    filter === 'all'
-      ? `${entries.length} species`
-      : `${filteredCount} of ${entries.length} species`
+  const countLabel = filter === 'all'
+    ? `${entries.length} species`
+    : `${filteredCount} of ${entries.length} species`
+
+  const pillActive = (f: MediaFilter): 'none' | 'positive' | 'negative' => {
+    if (filter !== f) return 'none'
+    if (f === 'all' || f.startsWith('has-')) return 'positive'
+    return 'negative'
+  }
+
+  const pillSep: React.CSSProperties = {
+    width: 1, height: 20, background: '#E4E4E7', flexShrink: 0, alignSelf: 'center',
+  }
 
   return (
     <div style={{
       flex: expanded ? 'none' : 1,
       minHeight: expanded ? 'auto' : 0,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 0,
+      display: 'flex', flexDirection: 'column', gap: 0,
     }}>
       {mlError && (
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '9px 13px',
-          background: '#FEF2F2',
-          border: '1px solid #FECACA',
-          borderRadius: 8,
-          fontSize: 13,
-          color: '#DC2626',
-          marginBottom: 12,
-          flexShrink: 0,
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 13px', background: '#FEF2F2',
+          border: '1px solid #FECACA', borderRadius: 8,
+          fontSize: 13, color: '#DC2626', marginBottom: 12, flexShrink: 0,
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           Couldn't reach the Macaulay Library. Media coverage may be incomplete.
@@ -295,52 +369,52 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
       {/* Controls row */}
       <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 12,
-        marginBottom: 14,
-        flexShrink: 0,
-        flexWrap: 'wrap',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        gap: 12, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap',
       }}>
-        {/* Left — filter pills */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button style={pillStyle(filter === 'all')} onClick={() => setFilter('all')}>
-            All
+        {/* Filter pills */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button style={pillStyle(pillActive('all'))} onClick={() => setFilter('all')}>All</button>
+
+          <div style={pillSep} />
+
+          <button style={pillStyle(pillActive('no-photo'))} onClick={() => setFilter('no-photo')}>
+            <Camera size={11} strokeWidth={2.5} />No photo
           </button>
-          <button style={pillStyle(filter === 'no-photo')} onClick={() => setFilter('no-photo')}>
-            <Camera size={11} strokeWidth={2.5} />
-            No photo
+          <button style={pillStyle(pillActive('no-audio'))} onClick={() => setFilter('no-audio')}>
+            <Mic size={11} strokeWidth={2.5} />No audio
           </button>
-          <button style={pillStyle(filter === 'no-audio')} onClick={() => setFilter('no-audio')}>
-            <Mic size={11} strokeWidth={2.5} />
-            No audio
+          <button style={pillStyle(pillActive('no-video'))} onClick={() => setFilter('no-video')}>
+            <Video size={11} strokeWidth={2.5} />No video
           </button>
-          <button style={pillStyle(filter === 'no-video')} onClick={() => setFilter('no-video')}>
-            <Video size={11} strokeWidth={2.5} />
-            No video
+
+          <div style={pillSep} />
+
+          <button style={pillStyle(pillActive('has-photo'))} onClick={() => setFilter('has-photo')}>
+            <Camera size={11} strokeWidth={2.5} />Has photo
+          </button>
+          <button style={pillStyle(pillActive('has-audio'))} onClick={() => setFilter('has-audio')}>
+            <Mic size={11} strokeWidth={2.5} />Has audio
+          </button>
+          <button style={pillStyle(pillActive('has-video'))} onClick={() => setFilter('has-video')}>
+            <Video size={11} strokeWidth={2.5} />Has video
           </button>
         </div>
 
-        {/* Right — count + sort + expand + reset */}
+        {/* Right controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <span style={{ fontSize: 12, color: '#71717A' }}>{countLabel}</span>
 
-          {/* Sort segmented control */}
+          {/* Sort control — Taxonomic hidden for ML export (no tax order available) */}
           <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid #E4E4E7' }}>
-            {(['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
+            {(source === 'ml-export' ? ['alpha'] : ['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
               <button
                 key={s}
                 onClick={() => setSort(s)}
                 style={{
-                  height: 28,
-                  padding: '0 10px',
-                  fontSize: 11,
-                  fontWeight: 500,
-                  fontFamily: 'inherit',
-                  cursor: 'pointer',
-                  border: 'none',
-                  borderLeft: i > 0 ? '1.5px solid #E4E4E7' : 'none',
+                  height: 28, padding: '0 10px', fontSize: 11, fontWeight: 500,
+                  fontFamily: 'inherit', cursor: 'pointer',
+                  border: 'none', borderLeft: i > 0 ? '1.5px solid #E4E4E7' : 'none',
                   background: sort === s ? '#F4F4F5' : '#fff',
                   color: sort === s ? '#0F1117' : '#71717A',
                 }}
@@ -353,10 +427,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
           <button style={ghostBtn(expanded)} onClick={handleToggleExpanded}>
             {expanded ? '↑ Collapse' : '↓ Show all'}
           </button>
-
-          <button style={ghostBtn()} onClick={handleReset}>
-            Load new file
-          </button>
+          <button style={ghostBtn()} onClick={handleReset}>Load new file</button>
         </div>
       </div>
 

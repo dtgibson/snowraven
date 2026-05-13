@@ -14,5 +14,5 @@ export interface ComparisonResult {
 }
 
 export type MediaType = 'Photo' | 'Audio' | 'Video'
-export type MediaFilter = 'all' | 'no-photo' | 'no-audio' | 'no-video'
+export type MediaFilter = 'all' | 'no-photo' | 'no-audio' | 'no-video' | 'has-photo' | 'has-audio' | 'has-video'
 export type SortOrder = 'taxonomic' | 'alpha'

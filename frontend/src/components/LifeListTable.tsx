@@ -29,6 +29,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, expanded }: Pro
     if (filter === 'no-photo') return !hasMedia(entry, mediaMap, 'Photo')
     if (filter === 'no-audio') return !hasMedia(entry, mediaMap, 'Audio')
     if (filter === 'no-video') return !hasMedia(entry, mediaMap, 'Video')
+    if (filter === 'has-photo') return hasMedia(entry, mediaMap, 'Photo')
+    if (filter === 'has-audio') return hasMedia(entry, mediaMap, 'Audio')
+    if (filter === 'has-video') return hasMedia(entry, mediaMap, 'Video')
     return true
   })
 

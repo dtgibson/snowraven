@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.14] - 2026-05-12
+
+### Added
+- Media Life List now accepts a Macaulay Library export CSV as a preferred offline input — instant results, no CDN lookups (sign in to Macaulay Library → My Media → Save Spreadsheet)
+- eBird backup CSV remains available as a secondary input; file type is auto-detected from the CSV header
+- Three new positive filter pills: Has photo, Has audio, Has video — alongside the existing No photo / No audio / No video filters
+- Soundscape entries from Macaulay Library exports are automatically excluded
+
 ## [0.0.13] - 2026-05-12
 
 ### Fixed
