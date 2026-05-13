@@ -117,7 +117,7 @@ photographed, audio-recorded, and video-recorded via the Macaulay Library.
 - Parses one entry per unique species: Common Name (parenthetical variants stripped, e.g. "Yellow-rumped Warbler (Myrtle)" → "Yellow-rumped Warbler"), Scientific Name, Taxonomic Order, and the union of all ML Catalog Numbers across every observation row
 - Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `) — same rules as List Comparer
 - Strips the `ML` prefix from catalog numbers (e.g. `ML204818731` → `204818731`) and deduplicates
-- POSTs catalog IDs in batches of 25 to `POST /ml/media-types` on the backend, which probes the Cornell CDN via HEAD requests to determine each asset's media type (Photo / Audio / Video)
+- POSTs catalog IDs in batches of 10 to `POST /ml/media-types` on the backend (500ms inter-batch delay), which probes the Cornell CDN via HEAD requests to determine each asset's media type (Photo / Audio / Video)
 - Shows a batch progress indicator while the lookup runs ("Looking up media… batch 3 of 12")
 - Renders a species table with four status columns: Seen (always ✓), Photo, Audio, Video
 - If the ML API is unreachable, shows an error banner above the list; the list still renders with "—" for unknown media
@@ -214,13 +214,17 @@ CDN directly with HEAD requests:
 - Audio:  `cdn.download.ams.birds.cornell.edu/api/v2/asset/{id}/mp3`      → 200
 - Video:  `cdn.download.ams.birds.cornell.edu/api/v2/asset/{id}/mp4/1280` → 200
 
-All IDs in a batch are processed concurrently via `asyncio.gather`. No API key
-required. No response body is parsed — only HTTP status codes are checked.
+Probing is Photo-first and sequential per ID (avoids 3× fan-out). All IDs in a batch
+are gathered via `asyncio.gather` but capped to 8 concurrent connections by a module-level
+`asyncio.Semaphore`. No API key required. No response body is parsed — only HTTP status
+codes are checked.
 
-**Frontend controls batching; backend processes all IDs in a batch concurrently**
-The frontend sends catalog IDs in batches of 25 per POST request. This gives the
-progress indicator accurate "batch X of Y" feedback after each response. Within
-each batch, the backend fans out all IDs in parallel via `asyncio.gather`.
+**Frontend controls batching; backend caps CDN concurrency with a semaphore**
+The frontend sends catalog IDs in batches of 10 per POST request (with a 500ms delay
+between batches). This gives the progress indicator accurate "batch X of Y" feedback
+after each response and keeps cumulative CDN request rate below rate-limit thresholds.
+Within each batch, the backend gathers all IDs concurrently but caps to 8 simultaneous
+CDN connections via `asyncio.Semaphore(8)`.
 
 **ML catalog numbers in CSV may carry an "ML" prefix**
 eBird's backup CSV stores catalog numbers as e.g. `ML204818731`. The parser strips
