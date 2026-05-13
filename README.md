@@ -6,7 +6,7 @@ Self-hosted birding tools for your eBird workflow.
 
 ### Weather Lookup
 
-Paste an eBird checklist ID or URL and get a copy-and-pasteable historical weather summary for that time and location — temperature, wind, humidity, dew point, sunrise/sunset, and conditions.
+Paste an eBird checklist ID or URL and get a formatted historical weather summary for that time and location — temperature, wind, humidity, dew point, sunrise/sunset, and conditions. The result is copied to your clipboard automatically, and a direct link to edit your checklist comment appears so you can paste it in straight away.
 
 Compatible with the output format used by [raincrow.app](https://raincrow.app/). This is a self-hosted solution to retrieve weather data for many eBird checklists without rate limits. I feel it would be unethical to circumvent the rate limits of an online tool that is being generously made available to others for free; if the creator wishes to limit requests to five per day to keep the service broadly available, those wishes should be respected.
 
@@ -15,19 +15,33 @@ If you like this, the idea and inspiration really came from someone else, so [wh
 **How it works:**
 
 1. Paste a checklist ID (`S12345678`) or full URL (`https://ebird.org/checklist/S12345678`)
-2. Click **Get weather**
-3. Copy the formatted result and paste it into your checklist notes
+2. Click **Get weather** — the result copies to your clipboard automatically
+3. Click **Edit on eBird** to open your checklist comment field directly, then paste
 
 Weather data comes from the [OpenWeather One Call API 3.0](https://openweathermap.org/api/one-call-3) timemachine endpoint. Checklist metadata (date, location, duration) comes from the [eBird API](https://documenter.getpostman.com/view/664302/S1ENwy59).
 
-### List Comparer
+### Media Life List
+
+Upload your eBird backup CSV to see your complete life list with media coverage from the Macaulay Library — which species you've photographed, audio-recorded, and video-recorded. Filter by missing media type to find target species for your next outing.
+
+**How it works:**
+
+1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)
+2. Drop `MyEBirdData.csv` onto the Media Life List tab
+3. Your life list loads with ✓ / — indicators for Photo, Audio, and Video per species
+4. Use the filter buttons to show only species missing a photo, audio recording, or video
+5. Use **Show all** to expand the full list for printing
+
+Media coverage is looked up via the Macaulay Library. No API key is required. Only numeric catalog IDs from your CSV are sent — no personal information.
+
+### Life List Comparer
 
 Upload two eBird backup CSV files to see which species you share with another birder and which are unique to each list. All processing happens in the browser — no data leaves your machine.
 
 **How it works:**
 
 1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)
-2. Drop both CSV files onto the List Comparer tab
+2. Drop both CSV files onto the Life List Comparer tab
 3. Click **Compare Lists** to see three sorted panels: species in both, species only in the first list, species only in the second
 4. Use **Show all** to expand all panels to full length for printing
 
@@ -211,4 +225,4 @@ If you expose SnowRaven to the internet (not just your local network), put a rev
 
 ## Attribution
 
-Weather data: [OpenWeather](https://openweathermap.org/) · Checklist data: [eBird](https://ebird.org/) · Inspired by [raincrow.app](https://raincrow.app/)
+Weather data: [OpenWeather](https://openweathermap.org/) · Checklist and media data: [eBird](https://ebird.org/) / [Macaulay Library](https://www.macaulaylibrary.org/) · Inspired by [raincrow.app](https://raincrow.app/)
