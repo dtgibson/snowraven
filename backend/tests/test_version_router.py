@@ -13,7 +13,7 @@ def _mock_github_response(tag_name: str, status_code: int = 200):
     mock_resp.json.return_value = {"tag_name": tag_name}
     mock_resp.raise_for_status = MagicMock()
     if status_code >= 400:
-        from httpx import HTTPStatusError, Request, Response
+        from httpx import HTTPStatusError
         mock_resp.raise_for_status.side_effect = HTTPStatusError(
             "error", request=MagicMock(), response=MagicMock()
         )
