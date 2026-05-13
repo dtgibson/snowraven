@@ -1,39 +1,31 @@
-# Bug Brief — ML API Response Structure Mismatch
+# Bug Brief — Life List Species Count Inflated
 
 **Date:** 2026-05-12
-**Severity:** High — Life List media lookup completely broken for all users
+**Severity:** Medium — incorrect species count and duplicate rows in Life List
 
 ## What's broken
 
-The Life List tab always shows the "Couldn't reach the Macaulay Library" error
-banner after loading a CSV. Media coverage columns show "—" for every species.
+The Life List tab shows more species than the List Comparer for the same CSV file.
+Species with subspecies parentheticals in the Common Name column (e.g.
+"Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)") appear
+as separate entries in the Life List but are correctly merged into one in the
+List Comparer.
 
 ## Root cause
 
-The Macaulay Library search API returns:
-```json
-{"results": {"count": 0, "content": [{"catalogId": "...", "mediaType": "Photo", ...}]}}
+`parseEbird.ts` applies `normalizeSpeciesName()` before keying species into its
+set, stripping anything from `(` onward:
+```
+"Yellow-rumped Warbler (Myrtle)" → "Yellow-rumped Warbler"
 ```
 
-The backend (`backend/routers/ml.py`) assumed:
-```json
-{"results": [{"catalogId": "...", "mediaType": "Photo", ...}]}
-```
-
-`data.get("results", [])` returns the inner dict. Iterating over a dict yields
-its keys (`"count"`, `"content"`). The line `item.get("catalogId")` raises
-`AttributeError` because strings don't have `.get()`. This exception is not caught
-by `except httpx.HTTPError`, so FastAPI returns a 500. The frontend sees a non-2xx
-response, sets `mlError = True`, and displays the error banner.
-
-## Confirmed via
-
-Direct curl against the ML API confirmed the actual response shape and that the
-API is reachable from the backend host.
+`parseLifeList.ts` uses the raw Common Name as the `speciesMap` key. Two
+rows with the same base species but different parentheticals produce two
+separate `LifeListEntry` objects.
 
 ## Fix scope
 
-- `backend/routers/ml.py` — change `data.get("results", [])` to
-  `data.get("results", {}).get("content", [])`
-- `backend/tests/test_ml_router.py` — update mock response format to match
-  actual API structure in all tests
+- `frontend/src/lib/parseLifeList.ts` — add `normalizeSpeciesName()` and apply
+  it to the Common Name before keying the speciesMap
+- `frontend/src/lib/parseLifeList.test.ts` — add a test for parenthetical
+  normalization

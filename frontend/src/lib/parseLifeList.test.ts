@@ -17,6 +17,17 @@ describe('parseLifeList', () => {
     expect(result[0].commonName).toBe('American Robin')
   })
 
+  it('merges subspecies parenthetical variants into one entry', () => {
+    const result = parseLifeList(csv(
+      'Yellow-rumped Warbler (Myrtle),Setophaga coronata,15100,ML111111',
+      'Yellow-rumped Warbler (Audubon\'s),Setophaga coronata,15100,ML222222',
+    ))
+    expect(result).toHaveLength(1)
+    expect(result[0].commonName).toBe('Yellow-rumped Warbler')
+    expect(result[0].catalogIds).toContain('111111')
+    expect(result[0].catalogIds).toContain('222222')
+  })
+
   it('unions catalog IDs across multiple rows for same species', () => {
     const result = parseLifeList(csv(
       'American Robin,Turdus migratorius,15550,ML111111',

@@ -34,6 +34,12 @@ function isExcluded(name: string): boolean {
   return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
 }
 
+function normalizeSpeciesName(name: string): string {
+  const parenIdx = name.indexOf('(')
+  if (parenIdx === -1) return name
+  return name.slice(0, parenIdx).trim()
+}
+
 function parseCatalogIds(raw: string): string[] {
   if (!raw.trim()) return []
   return raw
@@ -71,8 +77,9 @@ export function parseLifeList(text: string): LifeListEntry[] {
     if (!line) continue
     const cols = parseCSVLine(line)
 
-    const commonName = col(cols, commonNameIdx)
-    if (!commonName || isExcluded(commonName)) continue
+    const rawName = col(cols, commonNameIdx)
+    if (!rawName || isExcluded(rawName)) continue
+    const commonName = normalizeSpeciesName(rawName)
 
     const rawTaxOrder = col(cols, taxonomicOrderIdx)
     const taxOrder =
