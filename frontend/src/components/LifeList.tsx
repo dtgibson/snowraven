@@ -5,7 +5,7 @@ import type { LifeListEntry } from '../lib/parseLifeList'
 import { LifeListTable } from './LifeListTable'
 import type { MediaFilter, SortOrder } from '../types'
 
-const BATCH_SIZE = 25
+const BATCH_SIZE = 10
 
 type Phase =
   | { tag: 'idle' }
@@ -79,6 +79,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
     for (let i = 0; i < batches.length; i++) {
       if (i > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500))
         setPhase(p => p.tag === 'loading' ? { ...p, batchCurrent: i + 1 } : p)
       }
       try {
@@ -89,13 +90,13 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         })
         if (!res.ok) {
           mlError = true
-          break
+          continue
         }
         const data = await res.json()
         Object.assign(mediaMap, data.media_types)
       } catch {
         mlError = true
-        break
+        continue
       }
     }
 
