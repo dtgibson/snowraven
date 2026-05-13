@@ -114,7 +114,7 @@ photographed, audio-recorded, and video-recorded via the Macaulay Library.
 
 **What it does:**
 - Drop zone accepts `MyEBirdData.csv` via drag-and-drop or click-to-browse
-- Parses one entry per unique species: Common Name, Scientific Name, Taxonomic Order, and the union of all ML Catalog Numbers across every observation row
+- Parses one entry per unique species: Common Name (parenthetical variants stripped, e.g. "Yellow-rumped Warbler (Myrtle)" → "Yellow-rumped Warbler"), Scientific Name, Taxonomic Order, and the union of all ML Catalog Numbers across every observation row
 - Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `) — same rules as List Comparer
 - Strips the `ML` prefix from catalog numbers (e.g. `ML204818731` → `204818731`) and deduplicates
 - POSTs catalog IDs in batches of 25 to `POST /ml/media-types` on the backend, which probes the Cornell CDN via HEAD requests to determine each asset's media type (Photo / Audio / Video)
