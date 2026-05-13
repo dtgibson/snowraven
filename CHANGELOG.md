@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.10] - 2026-05-12
+
+### Changed
+- Tab order is now Weather, Media Life List, Life List Comparer
+- "Life List" tab renamed to "Media Life List"
+- "List Comparer" tab renamed to "Life List Comparer"
+
 ## [0.0.9] - 2026-05-12
 
 ### Fixed

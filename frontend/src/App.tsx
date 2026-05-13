@@ -186,6 +186,15 @@ export default function App() {
           </button>
           <button
             role="tab"
+            aria-selected={activeTab === 'life-list'}
+            style={tabStyle('life-list')}
+            onClick={() => setActiveTab('life-list')}
+          >
+            <List size={14} strokeWidth={2.5} aria-hidden="true" />
+            Media Life List
+          </button>
+          <button
+            role="tab"
             aria-selected={activeTab === 'comparer'}
             style={tabStyle('comparer')}
             onClick={() => setActiveTab('comparer')}
@@ -193,16 +202,7 @@ export default function App() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
             </svg>
-            List Comparer
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'life-list'}
-            style={tabStyle('life-list')}
-            onClick={() => setActiveTab('life-list')}
-          >
-            <List size={14} strokeWidth={2.5} aria-hidden="true" />
-            Life List
+            Life List Comparer
           </button>
         </nav>
       </div>
