@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(git -C \"/Users/dtgibson/Library/Mobile Documents/com~apple~CloudDocs/Programming/weft.build/SnowRaven\" status)",
+      "Bash(git -C \"/Users/dtgibson/Library/Mobile Documents/com~apple~CloudDocs/Programming/weft.build/SnowRaven\" diff)",
+      "Bash(git -C \"/Users/dtgibson/Library/Mobile Documents/com~apple~CloudDocs/Programming/weft.build/SnowRaven\" log --oneline -5)",
+      "Bash(git -C \"/Users/dtgibson/Library/Mobile Documents/com~apple~CloudDocs/Programming/weft.build/SnowRaven\" add frontend/src/App.tsx)",
+      "Bash(git -C '/Users/dtgibson/Library/Mobile Documents/com~apple~CloudDocs/Programming/weft.build/SnowRaven' commit -m ' *)",
+      "Bash(git -C \"/Users/dtgibson/Library/Mobile Documents/com~apple~CloudDocs/Programming/weft.build/SnowRaven\" push)"
+    ]
+  }
+}

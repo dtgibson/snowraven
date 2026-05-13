@@ -80,7 +80,7 @@ the initial page load.
 - Strips subspecies parentheticals so "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" count as the same species
 - Produces three alphabetically-sorted lists: in both, File A only, File B only
 - Summary bar shows five counts: total A, total B, both, A only, B only
-- "Show all / Collapse" toggle expands all three species panels to their full height for printing
+- "Show all / Collapse" toggle expands all three species panels to their full height for printing; in expanded mode the page switches to a normal scrollable layout so the header and tabs scroll away rather than staying pinned
 - "Compare new files" button resets to the upload state
 
 **Key files:**
@@ -124,7 +124,7 @@ photographed, audio-recorded, and video-recorded via the Macaulay Library.
 - Filter pills: All · No photo · No audio · No video (one active at a time)
 - Sort toggle: Taxonomic order (default, uses lowest `Taxonomic Order` value per species) · A–Z
 - Species count label: "312 species" or "47 of 312 species" when filtered
-- "Show all / Collapse" toggle expands the full list for printing
+- "Show all / Collapse" toggle expands the full list for printing; in expanded mode the page switches to a normal scrollable layout so the header and tabs scroll away rather than staying pinned
 - "Load new file" button resets to the upload state
 
 **Key files:**
@@ -233,6 +233,13 @@ The existing `DropZone` component is coupled to the `FileData` type (which conta
 a `species: Set<string>` field). Rather than retrofitting DropZone with generics,
 `LifeList.tsx` implements its own minimal drop zone inline. The patterns are similar
 but kept separate to avoid coupling unrelated features.
+
+**Expanded view switches the outer layout, not internal scroll**
+When "Show all" is active, `App.tsx` switches from `height: 100vh; overflow: hidden`
+to `minHeight: 100vh` (no clip), and the active tab panel drops its `overflowY: auto`
+constraint. This lets the whole page scroll naturally so the header scrolls away.
+Any future tab with an expand toggle should follow the `onExpandedChange` callback
+pattern: the child notifies the parent, the parent controls the layout mode.
 
 **Update script uses .venv/bin/pip explicitly**
 `update.sh` calls `.venv/bin/pip` rather than relying on a `pip` in PATH.

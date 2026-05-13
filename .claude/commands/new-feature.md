@@ -1,4 +1,4 @@
-<!-- framework-version: 1.3.0 -->
+<!-- framework-version: 1.5.0 -->
 <!-- managed: true -->
 
 # /new-feature
@@ -39,25 +39,43 @@ pipeline run.
 2. `product-brief.md`
 3. `CLAUDE.md`
 4. `PRODUCT_CONTEXT.md`
-5. `pipeline/session-state.json` — if it exists
+5. `ROADMAP.md` — if it exists, read the Up Next section
+6. `pipeline/session-state.json` — if it exists
 
 **Then check session state:**
 
+Before doing anything else, check `session-state.json` for any
+active or paused session across any lane. The Orchestrator enforces
+the single-active-session rule — if a paused or active session
+exists in any lane (feature, maintain, or fix), surface it and
+require an explicit choice before proceeding.
+
 If `session-state.json` exists and `activeFeature` is set:
-- A feature is already in progress
-- Check `lastCompletedStage` and `lastCheckpointStatus`
-- If `lastCheckpointStatus` is `"paused"` or `"in-progress"`:
-  Resume from where it left off — do not restart
-- Tell the user what was already completed and what comes next
+- A session is already in progress in some lane
+- Check `sessionType`, `lastCompletedStage` and `lastCheckpointStatus`
+- If `lastCheckpointStatus` is `"paused"` or `"in-progress"` and
+  `sessionType` is `"feature"`: resume the feature session
+- If `lastCheckpointStatus` is `"paused"` and `sessionType` is
+  `"maintain"` or `"fix"`: surface the cross-lane conflict to the
+  user before starting a new feature session
 - Do not re-run completed stages
 
 If `session-state.json` does not exist or `activeFeature` is null:
 - This is a fresh feature start
-- Ask the user what feature they want to build
-- As soon as the user provides a feature name or description,
-  immediately write `session-state.json` with:
+- Check whether `ROADMAP.md` exists and has items in "Up Next"
+- **If ROADMAP.md has items in Up Next:**
+  Reference the first item rather than asking from scratch. Open with
+  something like: "Your roadmap suggests starting with [feature 1].
+  Want to go there, or is there something else you'd like to build
+  first?" This applies on the very first feature run and on every
+  subsequent one — always acknowledge the roadmap before asking.
+- **If ROADMAP.md does not exist or Up Next is empty:**
+  Ask the user what feature they want to build.
+- As soon as the user confirms a feature to build, immediately write
+  `session-state.json` with:
   - `activeFeature` set to the feature name
   - `sessionNumber: 1`
+  - `sessionType: "feature"`
   - `currentStage: 1`
   - `lastCompletedStage: 0`
   - `lastCheckpointStatus: "in-progress"`
@@ -66,10 +84,8 @@ If `session-state.json` does not exist or `activeFeature` is null:
   Write this file BEFORE invoking The Strategist. This ensures the
   VS Code panel updates to show Stage 1 immediately.
 
-**One feature at a time.** If a different feature is marked active
-in session-state.json and is not yet complete, surface this before
-starting a new one. Do not overwrite an in-progress feature without
-explicit user confirmation.
+**One session at a time across all lanes.** If any session is active
+or paused in session-state.json, resolve it before starting a new one.
 
 ---
 

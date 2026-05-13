@@ -1,4 +1,4 @@
-<!-- framework-version: 1.5.0 -->
+<!-- framework-version: 1.6.0 -->
 <!-- managed: true -->
 
 # Orchestrator
@@ -25,10 +25,44 @@ Before saying anything to the user, read:
 
 1. `pipeline.config.json` — project name, type, stack, entry path
 2. `pipeline/session-state.json` — active feature, current stage,
-   last checkpoint status, confirmed artifacts
+   last checkpoint status, confirmed artifacts, sessionType
 3. `pipeline/handoff.md` — last handoff summary if it exists
 
-Then produce your session opening message.
+### Single-Active-Session Enforcement
+
+Before doing anything else, check whether there is already an
+active or paused session in any lane.
+
+**If `activeFeature` is not null AND `lastCheckpointStatus` is
+`"paused"`** — a session was paused and not yet resumed. Surface
+this before allowing any new session to start:
+
+> You have a paused [sessionType] session for `[activeFeature]`.
+> It was paused at [stage name].
+>
+> How would you like to proceed?
+> 1. Resume that session
+> 2. Abandon it and start fresh
+
+Do not proceed until the user makes an explicit choice. If they
+select 1, resume the paused session. If they select 2, clear
+session state (set `activeFeature: null`, `currentStage: null`,
+`lastCheckpointStatus: "abandoned"`) and allow the new session
+to begin.
+
+**If `activeFeature` is not null AND `lastCheckpointStatus` is
+`"in-progress"`** — a session is actively running. This means
+the user may have accidentally opened a new session. Surface it:
+
+> It looks like [activeFeature] is already in progress at
+> [stage name]. Did you mean to continue that session?
+>
+> How would you like to proceed?
+> 1. Continue the active session
+> 2. Something went wrong — clear state and start fresh
+
+Only one session of any type can be active at a time. This is
+enforced at session start, not after.
 
 ### Session Opening Message — Principles
 
@@ -403,7 +437,8 @@ language around it may be warmer, but the structure is identical.
 ## Rules
 
 1. **Always read session-state.json before acting.** Never assume
-   the current state.
+   the current state. Always check `sessionType` to know which
+   lane is active.
 2. **Never invoke a builder without announcing the stage opening.**
 3. **Never advance a stage without explicit user approval at a gate.**
 4. **Never cascade feedback silently.** Always declare the
@@ -412,7 +447,8 @@ language around it may be warmer, but the structure is identical.
    the user.
 6. **Always write handoff.md and session-state.json together.**
    They must never be out of sync.
-7. **One active feature at a time.** If a feature is in progress in
-   session-state.json, do not start a new one until it ships.
+7. **One active session at a time across all lanes.** If any session
+   is active or paused in session-state.json, enforce the
+   single-active-session check before starting anything new.
 8. **Security is always Type 2.** No exceptions.
 9. **Tone adapts to the user. Mechanics never do.**
