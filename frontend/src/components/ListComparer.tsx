@@ -5,7 +5,11 @@ import type { FileData, ComparisonResult } from '../types'
 import { DropZone } from './DropZone'
 import { ResultsView } from './ResultsView'
 
-export function ListComparer() {
+interface ListComparerProps {
+  onExpandedChange?: (expanded: boolean) => void
+}
+
+export function ListComparer({ onExpandedChange }: ListComparerProps) {
   const [fileA, setFileA] = useState<FileData | null>(null)
   const [fileB, setFileB] = useState<FileData | null>(null)
   const [errorA, setErrorA] = useState<string | null>(null)
@@ -57,6 +61,15 @@ export function ListComparer() {
     setErrorB(null)
     setResult(null)
     setExpanded(false)
+    onExpandedChange?.(false)
+  }
+
+  const handleToggleExpanded = () => {
+    setExpanded(prev => {
+      const next = !prev
+      onExpandedChange?.(next)
+      return next
+    })
   }
 
   const canCompare = fileA !== null && fileB !== null
@@ -77,7 +90,7 @@ export function ListComparer() {
           result={result}
           onReset={handleReset}
           expanded={expanded}
-          onToggleExpanded={() => setExpanded(e => !e)}
+          onToggleExpanded={handleToggleExpanded}
         />
       ) : (
         <div style={{ width: '100%', maxWidth: 600 }}>

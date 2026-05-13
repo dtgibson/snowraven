@@ -47,7 +47,11 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function LifeList() {
+interface LifeListProps {
+  onExpandedChange?: (expanded: boolean) => void
+}
+
+export function LifeList({ onExpandedChange }: LifeListProps) {
   const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
   const [filter, setFilter] = useState<MediaFilter>('all')
   const [sort, setSort] = useState<SortOrder>('taxonomic')
@@ -136,6 +140,15 @@ export function LifeList() {
     setFilter('all')
     setSort('taxonomic')
     setExpanded(false)
+    onExpandedChange?.(false)
+  }
+
+  const handleToggleExpanded = () => {
+    setExpanded(prev => {
+      const next = !prev
+      onExpandedChange?.(next)
+      return next
+    })
   }
 
   // ── Drop zone (idle / error) ──────────────────────────────────────────────
@@ -336,7 +349,7 @@ export function LifeList() {
             ))}
           </div>
 
-          <button style={ghostBtn(expanded)} onClick={() => setExpanded(e => !e)}>
+          <button style={ghostBtn(expanded)} onClick={handleToggleExpanded}>
             {expanded ? '↑ Collapse' : '↓ Show all'}
           </button>
 

@@ -29,6 +29,7 @@ function isValidId(id: string): boolean {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('weather')
+  const [isExpanded, setIsExpanded] = useState(false)
   const [input, setInput] = useState('')
   const [state, setState] = useState<AppState>({ status: 'idle' })
   const [copied, setCopied] = useState(false)
@@ -148,13 +149,12 @@ export default function App() {
 
   return (
     <div style={{
-      height: '100vh',
+      ...(isExpanded ? { minHeight: '100vh' } : { height: '100vh', overflow: 'hidden' }),
       background: '#f9fafb',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: 'var(--font-sans)',
       color: '#0F1117',
-      overflow: 'hidden',
     }}>
 
       {/* Header */}
@@ -177,7 +177,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'weather'}
             style={tabStyle('weather')}
-            onClick={() => setActiveTab('weather')}
+            onClick={() => { setActiveTab('weather'); setIsExpanded(false) }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
@@ -188,7 +188,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'life-list'}
             style={tabStyle('life-list')}
-            onClick={() => setActiveTab('life-list')}
+            onClick={() => { setActiveTab('life-list'); setIsExpanded(false) }}
           >
             <List size={14} strokeWidth={2.5} aria-hidden="true" />
             Media Life List
@@ -197,7 +197,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'comparer'}
             style={tabStyle('comparer')}
-            onClick={() => setActiveTab('comparer')}
+            onClick={() => { setActiveTab('comparer'); setIsExpanded(false) }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
@@ -415,14 +415,12 @@ export default function App() {
         role="tabpanel"
         style={{
           display: activeTab === 'comparer' ? 'flex' : 'none',
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
+          ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
           flexDirection: 'column',
           padding: '40px 24px 24px',
         }}
       >
-        <ListComparer />
+        <ListComparer onExpandedChange={setIsExpanded} />
       </div>
 
       {/* Life List tab content */}
@@ -430,14 +428,12 @@ export default function App() {
         role="tabpanel"
         style={{
           display: activeTab === 'life-list' ? 'flex' : 'none',
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
+          ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
           flexDirection: 'column',
           padding: '40px 24px 24px',
         }}
       >
-        <LifeList />
+        <LifeList onExpandedChange={setIsExpanded} />
       </div>
 
       {/* Footer */}
