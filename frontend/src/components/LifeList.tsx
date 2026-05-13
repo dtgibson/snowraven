@@ -138,7 +138,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     }
   }
 
-  const handleDrop = (e: React.DragEvent, zone: 'primary' | 'secondary') => {
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setDraggingOver(null)
     const file = e.dataTransfer.files[0]
@@ -188,7 +188,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         <div
           onDragOver={e => { e.preventDefault(); setDraggingOver('primary') }}
           onDragLeave={() => setDraggingOver(null)}
-          onDrop={e => handleDrop(e, 'primary')}
+          onDrop={e => handleDrop(e)}
           onClick={() => fileInputRef.current?.click()}
           style={{
             flex: 1,
@@ -255,7 +255,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         <div
           onDragOver={e => { e.preventDefault(); setDraggingOver('secondary') }}
           onDragLeave={() => setDraggingOver(null)}
-          onDrop={e => handleDrop(e, 'secondary')}
+          onDrop={e => handleDrop(e)}
           onClick={() => fileInputRef.current?.click()}
           style={{
             display: 'flex', alignItems: 'center', gap: 14,
