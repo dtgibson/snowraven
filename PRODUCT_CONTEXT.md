@@ -76,7 +76,7 @@ the initial page load.
 - Persistent tab bar switches between "Weather" and "List Comparer" without page reload or state loss
 - Two drop zones accept eBird backup CSV files via drag-and-drop or click-to-browse
 - Parses the "Common Name" column; rejects files missing that column with a clear error
-- Excludes spuh entries (ending in " sp."), slash species (containing "/"), and hybrids (containing " x ")
+- Excludes spuh entries (ending in " sp."), slash species (containing "/"), and hybrids (containing " x "); soundscape entries are included
 - Strips subspecies parentheticals so "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" count as the same species
 - Produces three alphabetically-sorted lists: in both, File A only, File B only
 - Summary bar shows five counts: total A, total B, both, A only, B only
@@ -120,11 +120,17 @@ Accepts two input formats, auto-detected from the CSV header.
 - Upload screen shows two drop zones: a prominent primary zone for ML export (with download instructions) and a compact secondary zone for eBird backup CSV
 - Auto-detects file type by inspecting the CSV header: ML export if `catalog number`/`ml catalog number` + `format` columns present; eBird if `submission id` present; otherwise shows an error
 - Parses one entry per unique species; normalizes subspecies parentheticals (e.g. "Yellow-rumped Warbler (Myrtle)" → "Yellow-rumped Warbler")
-- Excludes spuh (` sp.`), slash species (`/`), hybrids (` x `), and soundscape entries
+- Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `); soundscape entries are included as first-class rows
 - Strips the `ML` prefix from catalog numbers and deduplicates
 - **ML export path:** media types come from the `Format` column (Photo/Audio/Video) — client-side only, no network request
 - **eBird path:** POSTs catalog IDs in batches of 10 to `POST /ml/media-types` (500ms inter-batch delay); shows batch progress ("Looking up media… batch 3 of 12")
-- Renders a species table with four status columns: Seen (always ✓), Photo, Audio, Video
+- Renders a table with four columns: Entries, Photo, Audio, Video (no always-✓ "Media" column)
+- Photo, Audio, and Video columns show a count of individual media items (integer in green); zero shows a dash
+- Non-zero counts are clickable links — open Macaulay Library catalog filtered by species (taxon code), media type, and personal userId in a new tab
+- `SpeciesLinks` favicon icons appear after each common name linking to eBird and Birds of the World species pages
+- User ID parsed from ML export filename (`ML__DATE_USERID.csv`) and appended to all catalog links; warning shown if filename was renamed
+- Taxon codes fetched via `POST /taxonomy/codes` after file load; ML links use `taxonCode=acowoo` parameter for accurate personal filtering
+- All four column headers are clickable sort controls; clicking sorts by that column, clicking again reverses; count columns default to descending (highest first)
 - **Filter pills (7 total):** All · No photo · No audio · No video · Has photo · Has audio · Has video (one active at a time; negative filters are red, positive filters are green)
 - Sort toggle: Taxonomic (eBird input only, uses lowest Taxonomic Order value per species) · A–Z. Taxonomic button is hidden for ML export results (all entries have `taxonomicOrder: Infinity`).
 - Species count label: "312 species" or "47 of 312 species" when filtered
@@ -144,6 +150,32 @@ Accepts two input formats, auto-detected from the CSV header.
 - `frontend/src/types.ts` — `MediaType`, `MediaFilter` (includes positive filters), `SortOrder` types
 - `frontend/src/App.tsx` — Life List tab added (display-toggle pattern)
 - `frontend/vite.config.ts` — `/ml` proxy added for dev server
+
+### Species Links (complete — May 2026)
+
+Inline eBird and Birds of the World favicon icons appear after every species common name in the
+Media Life List and all three Life List Comparer panels. Clicking either icon opens that species'
+page on the respective site in a new tab. Icons appear once taxon codes are resolved; rows with
+no code (soundscapes, pre-fetch) show nothing.
+
+**What it does:**
+- `SpeciesLinks` component renders two 14×14 favicon `<img>` elements inside `<a target="_blank" rel="noreferrer">` tags
+- eBird link: `https://ebird.org/species/{speciesCode}` — opens species account page with maps, photos, recent sightings
+- BOW link: `https://birdsoftheworld.org/bow/species/{speciesCode}/cur/introduction` — opens full ornithological account
+- Favicons loaded from `ebird.org/favicon.ico` and `birdsoftheworld.org/favicon.ico`; `onError` hides failed loads
+- Icons at 75% opacity at rest, full opacity on hover
+- In `LifeListTable`: `taxonMap` already available — codes passed directly to `SpeciesLinks` per row
+- In `SpeciesPanel` (used by List Comparer): `taxonMap?: Record<string, string>` prop added; `ResultsView` threads it to all three panels
+- In `ListComparer`: `taxonMap` state added; `fetchTaxonCodes` called fire-and-forget after `compareSpecies()` completes
+
+**Key files:**
+- `frontend/src/components/SpeciesLinks.tsx` — new shared inline component
+- `frontend/src/components/LifeListTable.tsx` — `SpeciesLinks` added after common name
+- `frontend/src/components/SpeciesPanel.tsx` — `taxonMap` prop added; `SpeciesLinks` per row
+- `frontend/src/components/ResultsView.tsx` — `taxonMap` prop threaded to all three `SpeciesPanel` instances
+- `frontend/src/components/ListComparer.tsx` — `taxonMap` state, `fetchTaxonCodes`, cleared on reset
+- `backend/routers/taxonomy.py` — `POST /taxonomy/codes`; eBird taxonomy fetch + in-memory cache
+- `frontend/vite.config.ts` — `/taxonomy` proxy added for dev server
 
 ### Update Script + In-App Update Check (complete — May 2026)
 
@@ -263,13 +295,42 @@ are present, it's an ML export; if `submission id` is present, it's an eBird
 backup. Unknown headers get a clear error. The ML export path requires no backend
 call — all media types come directly from the `Format` column.
 
-**Taxonomic sort is hidden when it produces no meaningful ordering**
-ML export entries all receive `taxonomicOrder: Infinity` (the ML CSV has no
-taxonomic rank column). Showing the Taxonomic button would be misleading since
-Taxonomic and A–Z would produce the same output. The sort control conditionally
-renders only A–Z for ML export results; eBird results show both options.
+**Column-header sorting replaced the standalone sort button**
+The table is sorted by clicking column headers (Entries, Photo, Audio, Video).
+Clicking a new column sorts by that column with its natural default direction
+(name: A–Z ascending; counts: highest-first descending). Clicking the active
+column toggles direction. The standalone A–Z button and taxonomic sort are gone.
+`SortOrder` in `types.ts` is replaced by `SortState { column, dir }`.
 
-**Soundscape entries are excluded from ML export parsing**
-Macaulay Library exports include non-bird entries like "Soundscape" with no
-species name. These are excluded in `parseMLExport.ts` via an explicit check:
-`lower === 'soundscape'` in `isExcluded()`, alongside the standard spuh/slash/hybrid exclusions.
+**Soundscape entries are included in ML export parsing**
+Macaulay Library exports include non-species entries like "Soundscape" with no
+scientific name. These pass through `parseMLExport.ts` as first-class entries — the
+`isExcluded()` function only excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `).
+Soundscape entries appear in the table with an empty scientific name cell and respond
+to the standard filter pills (e.g. "Has audio") like any other entry.
+
+**ML media links use taxon code + userId parameters for personal filtering**
+ML catalog links are formed as `search.macaulaylibrary.org/catalog?mediaType=photo&taxonCode=acowoo&userId=USER1234567`.
+The `taxonCode` parameter (not `taxaName`) is required for accurate per-species filtering.
+The `userId` is parsed from the ML export filename via regex `^ML__.*_([A-Za-z0-9]+)\.csv$` — the default
+ML filename format encodes the user's ID. If the filename was renamed, userId cannot be parsed and a
+warning banner is shown; links fall back to `taxaName` without userId. When a taxon code is not yet
+available (fetch pending), links also fall back to `taxaName`.
+
+**Taxon codes are fetched from eBird taxonomy API and cached in process memory**
+`POST /taxonomy/codes` accepts `[{commonName, scientificName}]` and returns `{codes: {commonName: speciesCode}}`.
+On first call, the backend fetches the full eBird taxonomy (`api.ebird.org/v2/ref/taxonomy/ebird?fmt=json&cat=species`)
+and builds two in-memory dicts: `_by_sci` (sciName → code) and `_by_com` (comName → code). Subsequent calls are
+instant. Scientific name is tried first; common name is the fallback. Pass `scientificName: ''` to force common-name
+lookup (used by `ListComparer` which has names but no sci names). Graceful degradation: any error returns `{codes: {}}`.
+
+**`SpeciesLinks` is a shared inline component; renders null for soundscapes**
+`SpeciesLinks` accepts `speciesCode: string | undefined` and renders two favicon links (eBird + BOW) when the code
+is truthy, or `null` when falsy. This means soundscape entries, pre-fetch rows, and species not found in taxonomy
+all silently show no icons — no broken state. Favicons are loaded from the live sites; `onError` hides any that
+fail to load. Both `<a>` elements carry `rel="noreferrer"` to prevent tab-napping.
+
+**ListComparer taxonomy fetch is fire-and-forget after comparison**
+After `compareSpecies()` runs, `ListComparer` calls `fetchTaxonCodes` with the union of all species names from
+`both`, `aOnly`, and `bOnly`. The comparison result is shown immediately; icons appear a moment later. On reset,
+`taxonMap` is cleared to `{}` so stale codes do not bleed into the next comparison.
