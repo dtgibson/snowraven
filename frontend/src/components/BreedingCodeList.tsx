@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Upload, AlertCircle } from 'lucide-react'
 import { parseBreedingCodes } from '../lib/parseBreedingCodes'
-import type { BreedingData } from '../lib/parseBreedingCodes'
+import type { BreedingData, BreedingEntry } from '../lib/parseBreedingCodes'
 import { BREEDING_CODE_MAP, TIER_COLORS } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
 import type { BreedingSortState } from '../types'
@@ -71,7 +71,25 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
   const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc' })
   const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
+  const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const fetchTaxonCodes = async (entries: BreedingEntry[]) => {
+    try {
+      const res = await fetch('/taxonomy/codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })),
+        }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setTaxonMap(data.codes ?? {})
+    } catch {
+      // silently fail — links will be absent
+    }
+  }
 
   const processFile = (file: File) => {
     file.text().then(text => {
@@ -87,6 +105,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         setPhase({ tag: 'ready', data })
         setFilter('all')
         setSort({ column: 'name', dir: 'asc' })
+        if (data.entries.length > 0) fetchTaxonCodes(data.entries)
       } catch {
         setPhase({
           tag: 'error',
@@ -115,6 +134,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
     setFilter('all')
     setSort({ column: 'name', dir: 'asc' })
     setExpanded(false)
+    setTaxonMap({})
     onExpandedChange?.(false)
   }
 
@@ -276,6 +296,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         onSortChange={setSort}
         filter={filter}
         expanded={expanded}
+        taxonMap={taxonMap}
       />
     </div>
   )

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { BREEDING_CODE_MAP, TIER_COLORS } from '../lib/breedingCodes'
 import type { BreedingEntry } from '../lib/parseBreedingCodes'
 import type { BreedingSortState, SortDir } from '../types'
+import { SpeciesLinks } from './SpeciesLinks'
 
 interface Props {
   entries: BreedingEntry[]
@@ -10,6 +11,7 @@ interface Props {
   onSortChange: (next: BreedingSortState) => void
   filter: string
   expanded: boolean
+  taxonMap: Record<string, string>
 }
 
 const TIER_LABELS: Record<number, string> = {
@@ -19,7 +21,7 @@ const TIER_LABELS: Record<number, string> = {
   1: 'Possible',
 }
 
-export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, expanded }: Props) {
+export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, expanded, taxonMap }: Props) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
   const filtered = filter === 'all'
@@ -110,8 +112,8 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   zIndex: 3,
                   textAlign: 'left',
                   padding: '10px 12px',
-                  width: 190,
-                  minWidth: 190,
+                  width: 220,
+                  minWidth: 220,
                   color: sort.column === 'name' ? '#0F1117' : '#71717A',
                   boxShadow: 'inset 0 -1px 0 #E4E4E7, 1px 0 0 #E4E4E7',
                 }}
@@ -152,21 +154,30 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                 >
                   <td style={{
                     padding: '9px 12px',
-                    fontSize: 13.5,
-                    fontWeight: 500,
-                    color: '#0F1117',
                     position: 'sticky',
                     left: 0,
                     background: rowBg,
                     zIndex: 1,
                     boxShadow: '1px 0 0 #E4E4E7',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: 190,
+                    width: 220,
+                    minWidth: 220,
+                    maxWidth: 220,
                     borderTop: '1px solid #F4F4F5',
+                    verticalAlign: 'middle',
                   }}>
-                    {entry.commonName}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 500, color: '#0F1117', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {entry.commonName}
+                        </span>
+                        <SpeciesLinks speciesCode={taxonMap[entry.commonName]} />
+                      </div>
+                      {entry.scientificName && (
+                        <span style={{ fontSize: 11.5, color: '#9CA3AF', fontStyle: 'italic' }}>
+                          {entry.scientificName}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   {codesPresent.map(code => {
                     const count = entry.codes[code] ?? 0

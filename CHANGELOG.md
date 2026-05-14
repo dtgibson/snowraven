@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.22] - 2026-05-14
+
+### Changed
+- Breeding Codes tab now shows species names in the same format as the Media List — common name with clickable eBird and Birds of the World favicon links, scientific name in italics below
+
 ## [0.0.21] - 2026-05-14
 
 ### Changed
