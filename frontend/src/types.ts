@@ -14,7 +14,14 @@ export interface ComparisonResult {
 }
 
 export type MediaType = 'Photo' | 'Audio' | 'Video'
-export type MediaFilter = 'all' | 'no-photo' | 'no-audio' | 'no-video' | 'has-photo' | 'has-audio' | 'has-video'
+export type MediaDimensionState = 'has' | 'no' | null
+export interface MediaFilterState {
+  photo: MediaDimensionState
+  audio: MediaDimensionState
+  video: MediaDimensionState
+}
+export const MEDIA_FILTER_CLEAR: MediaFilterState = { photo: null, audio: null, video: null }
+export type BreedingFilterSet = Set<string>
 export type SortOrder = 'taxonomic' | 'alpha'
 export type SortColumn = 'name' | 'photo' | 'audio' | 'video'
 export type SortDir = 'asc' | 'desc'
@@ -28,4 +35,3 @@ export interface BreedingSortState {
   column: BreedingSortColumn
   dir: SortDir
 }
-export type BreedingFilter = string

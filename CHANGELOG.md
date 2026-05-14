@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.23] - 2026-05-14
+
+### Changed
+- Filter pills on the Media List and Breeding Codes tabs now support multi-select with AND logic
+- Media List: selecting "No photo" and "No audio" simultaneously shows only species missing both; selecting the opposite pill for the same dimension (e.g. "Has photo" while "No photo" is active) auto-replaces the conflicting selection; clicking an active pill deselects it
+- Breeding Codes: multiple code pills can be active at once; the table shows only species with recorded observations for every selected code; clicking an active pill removes it from the filter
+- "All" pill resets to unfiltered on both tabs; species count label reflects the AND result of all active filters
+
 ## [0.0.22] - 2026-05-14
 
 ### Changed

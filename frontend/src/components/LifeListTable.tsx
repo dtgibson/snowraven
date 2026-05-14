@@ -1,12 +1,12 @@
 import { Camera, Mic, Video, Minus } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
-import type { MediaFilter, SortColumn, SortDir, SortState } from '../types'
+import type { MediaFilterState, SortColumn, SortDir, SortState } from '../types'
 import { SpeciesLinks } from './SpeciesLinks'
 
 interface Props {
   entries: LifeListEntry[]
   mediaMap: Record<string, string>
-  filter: MediaFilter
+  filter: MediaFilterState
   sort: SortState
   onSortChange: (next: SortState) => void
   userId: string | null
@@ -53,12 +53,12 @@ const iconCell: React.CSSProperties = {
 
 export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, expanded }: Props) {
   const filtered = entries.filter(entry => {
-    if (filter === 'no-photo') return !hasMedia(entry, mediaMap, 'Photo')
-    if (filter === 'no-audio') return !hasMedia(entry, mediaMap, 'Audio')
-    if (filter === 'no-video') return !hasMedia(entry, mediaMap, 'Video')
-    if (filter === 'has-photo') return hasMedia(entry, mediaMap, 'Photo')
-    if (filter === 'has-audio') return hasMedia(entry, mediaMap, 'Audio')
-    if (filter === 'has-video') return hasMedia(entry, mediaMap, 'Video')
+    if (filter.photo === 'has' && !hasMedia(entry, mediaMap, 'Photo')) return false
+    if (filter.photo === 'no' && hasMedia(entry, mediaMap, 'Photo')) return false
+    if (filter.audio === 'has' && !hasMedia(entry, mediaMap, 'Audio')) return false
+    if (filter.audio === 'no' && hasMedia(entry, mediaMap, 'Audio')) return false
+    if (filter.video === 'has' && !hasMedia(entry, mediaMap, 'Video')) return false
+    if (filter.video === 'no' && hasMedia(entry, mediaMap, 'Video')) return false
     return true
   })
 

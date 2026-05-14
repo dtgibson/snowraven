@@ -1,11 +1,17 @@
 {
-  "activeFeature": "breeding-codes-empty-and-color",
-  "sessionNumber": 1,
-  "sessionType": "fix",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
+  "activeFeature": "multi-select-filter-pills",
+  "sessionNumber": 2,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
   "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": [],
-  "createdAt": "2026-05-14T00:00:00Z",
-  "updatedAt": "2026-05-14T10:50:00Z"
+  "confirmedArtifacts": [
+    "pipeline/multi-select-filter-pills/strategic-brief.md",
+    "pipeline/multi-select-filter-pills/prd.md",
+    "pipeline/multi-select-filter-pills/schema.md",
+    "pipeline/multi-select-filter-pills/design-spec.md",
+    "pipeline/multi-select-filter-pills/design.html"
+  ],
+  "createdAt": "2026-05-14T12:05:00Z",
+  "updatedAt": "2026-05-14T14:50:00Z"
 }

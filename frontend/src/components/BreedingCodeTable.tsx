@@ -9,7 +9,7 @@ interface Props {
   codesPresent: string[]
   sort: BreedingSortState
   onSortChange: (next: BreedingSortState) => void
-  filter: string
+  filter: Set<string>
   expanded: boolean
   taxonMap: Record<string, string>
 }
@@ -24,9 +24,9 @@ const TIER_LABELS: Record<number, string> = {
 export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, expanded, taxonMap }: Props) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
-  const filtered = filter === 'all'
+  const filtered = filter.size === 0
     ? entries
-    : entries.filter(e => (e.codes[filter] ?? 0) > 0)
+    : entries.filter(e => [...filter].every(code => (e.codes[code] ?? 0) > 0))
 
   const sorted = [...filtered].sort((a, b) => {
     if (sort.column === 'name') {

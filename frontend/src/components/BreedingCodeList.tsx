@@ -67,7 +67,7 @@ function ghostBtn(active = false): React.CSSProperties {
 
 export function BreedingCodeList({ onExpandedChange }: Props) {
   const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
-  const [filter, setFilter] = useState<string>('all')
+  const [filter, setFilter] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc' })
   const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
@@ -103,7 +103,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
           return
         }
         setPhase({ tag: 'ready', data })
-        setFilter('all')
+        setFilter(new Set())
         setSort({ column: 'name', dir: 'asc' })
         if (data.entries.length > 0) fetchTaxonCodes(data.entries)
       } catch {
@@ -131,7 +131,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
 
   const handleReset = () => {
     setPhase({ tag: 'idle' })
-    setFilter('all')
+    setFilter(new Set())
     setSort({ column: 'name', dir: 'asc' })
     setExpanded(false)
     setTaxonMap({})
@@ -225,11 +225,11 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
     )
   }
 
-  const filteredCount = filter === 'all'
+  const filteredCount = filter.size === 0
     ? entries.length
-    : entries.filter(e => (e.codes[filter] ?? 0) > 0).length
+    : entries.filter(e => [...filter].every(code => (e.codes[code] ?? 0) > 0)).length
 
-  const countLabel = filter === 'all'
+  const countLabel = filter.size === 0
     ? `${entries.length} species`
     : `${filteredCount} of ${entries.length} species`
 
@@ -252,22 +252,29 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
               height: 30, padding: '0 12px', borderRadius: 6,
               fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
               cursor: 'pointer',
-              border: filter === 'all' ? '1.5px solid rgba(45,134,83,0.25)' : '1.5px solid #E4E4E7',
-              background: filter === 'all' ? '#E8F5EE' : '#fff',
-              color: filter === 'all' ? '#2D8653' : '#71717A',
+              border: filter.size === 0 ? '1.5px solid rgba(45,134,83,0.25)' : '1.5px solid #E4E4E7',
+              background: filter.size === 0 ? '#E8F5EE' : '#fff',
+              color: filter.size === 0 ? '#2D8653' : '#71717A',
             }}
-            onClick={() => setFilter('all')}
+            onClick={() => setFilter(new Set())}
           >
             All
           </button>
           {codesPresent.map(code => {
             const def = BREEDING_CODE_MAP.get(code)!
-            const active = filter === code
+            const active = filter.has(code)
             return (
               <button
                 key={code}
                 style={codePillStyle(def.tier, active)}
-                onClick={() => setFilter(active ? 'all' : code)}
+                onClick={() => {
+                  setFilter(prev => {
+                    const next = new Set(prev)
+                    if (next.has(code)) next.delete(code)
+                    else next.add(code)
+                    return next
+                  })
+                }}
                 title={def.label}
               >
                 <div style={{

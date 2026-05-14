@@ -4,7 +4,8 @@ import { parseLifeList } from '../lib/parseLifeList'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport } from '../lib/parseMLExport'
 import { LifeListTable } from './LifeListTable'
-import type { MediaFilter, SortState } from '../types'
+import type { MediaFilterState, SortState } from '../types'
+import { MEDIA_FILTER_CLEAR } from '../types'
 
 const BATCH_SIZE = 10
 
@@ -42,6 +43,7 @@ function pillStyle(active: 'none' | 'positive' | 'negative'): React.CSSPropertie
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
+    whiteSpace: 'nowrap' as const,
   }
   if (active === 'positive') return { ...base, border: '1.5px solid rgba(45,134,83,0.25)', background: '#E8F5EE', color: '#2D8653' }
   if (active === 'negative') return { ...base, border: '1.5px solid rgba(239,68,68,0.3)', background: '#FEF2F2', color: '#DC2626' }
@@ -70,7 +72,7 @@ interface LifeListProps {
 
 export function LifeList({ onExpandedChange }: LifeListProps) {
   const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
-  const [filter, setFilter] = useState<MediaFilter>('all')
+  const [filter, setFilter] = useState<MediaFilterState>(MEDIA_FILTER_CLEAR)
   const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc' })
   const [expanded, setExpanded] = useState(false)
   const [mlUserId, setMlUserId] = useState<string | null>(null)
@@ -178,7 +180,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
   const handleReset = () => {
     setPhase({ tag: 'idle' })
-    setFilter('all')
+    setFilter(MEDIA_FILTER_CLEAR)
     setSort({ column: 'name', dir: 'asc' })
     setExpanded(false)
     setMlUserId(null)
@@ -353,24 +355,30 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   // ── Ready ─────────────────────────────────────────────────────────────────
   const { entries, mediaMap, mlError, source } = phase
 
+  const isFilterClear = !filter.photo && !filter.audio && !filter.video
+
   const filteredCount = entries.filter(entry => {
-    if (filter === 'no-photo') return !entry.catalogIds.some(id => mediaMap[id] === 'Photo')
-    if (filter === 'no-audio') return !entry.catalogIds.some(id => mediaMap[id] === 'Audio')
-    if (filter === 'no-video') return !entry.catalogIds.some(id => mediaMap[id] === 'Video')
-    if (filter === 'has-photo') return entry.catalogIds.some(id => mediaMap[id] === 'Photo')
-    if (filter === 'has-audio') return entry.catalogIds.some(id => mediaMap[id] === 'Audio')
-    if (filter === 'has-video') return entry.catalogIds.some(id => mediaMap[id] === 'Video')
+    const photo = entry.catalogIds.some(id => mediaMap[id] === 'Photo')
+    const audio = entry.catalogIds.some(id => mediaMap[id] === 'Audio')
+    const video = entry.catalogIds.some(id => mediaMap[id] === 'Video')
+    if (filter.photo === 'has' && !photo) return false
+    if (filter.photo === 'no' && photo) return false
+    if (filter.audio === 'has' && !audio) return false
+    if (filter.audio === 'no' && audio) return false
+    if (filter.video === 'has' && !video) return false
+    if (filter.video === 'no' && video) return false
     return true
   }).length
 
-  const countLabel = filter === 'all'
+  const countLabel = isFilterClear
     ? `${entries.length} species`
     : `${filteredCount} of ${entries.length} species`
 
-  const pillActive = (f: MediaFilter): 'none' | 'positive' | 'negative' => {
-    if (filter !== f) return 'none'
-    if (f === 'all' || f.startsWith('has-')) return 'positive'
-    return 'negative'
+  function toggleDimension(dim: 'photo' | 'audio' | 'video', val: 'has' | 'no') {
+    setFilter(prev => {
+      if (prev[dim] === val) return { ...prev, [dim]: null }
+      return { ...prev, [dim]: val }
+    })
   }
 
   const pillSep: React.CSSProperties = {
@@ -414,29 +422,29 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
       }}>
         {/* Filter pills */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button style={pillStyle(pillActive('all'))} onClick={() => setFilter('all')}>All</button>
+          <button style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => setFilter(MEDIA_FILTER_CLEAR)}>All</button>
 
           <div style={pillSep} />
 
-          <button style={pillStyle(pillActive('no-photo'))} onClick={() => setFilter('no-photo')}>
+          <button style={pillStyle(filter.photo === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('photo', 'no')}>
             <Camera size={11} strokeWidth={2.5} />No photo
           </button>
-          <button style={pillStyle(pillActive('no-audio'))} onClick={() => setFilter('no-audio')}>
+          <button style={pillStyle(filter.audio === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('audio', 'no')}>
             <Mic size={11} strokeWidth={2.5} />No audio
           </button>
-          <button style={pillStyle(pillActive('no-video'))} onClick={() => setFilter('no-video')}>
+          <button style={pillStyle(filter.video === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('video', 'no')}>
             <Video size={11} strokeWidth={2.5} />No video
           </button>
 
           <div style={pillSep} />
 
-          <button style={pillStyle(pillActive('has-photo'))} onClick={() => setFilter('has-photo')}>
+          <button style={pillStyle(filter.photo === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('photo', 'has')}>
             <Camera size={11} strokeWidth={2.5} />Has photo
           </button>
-          <button style={pillStyle(pillActive('has-audio'))} onClick={() => setFilter('has-audio')}>
+          <button style={pillStyle(filter.audio === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('audio', 'has')}>
             <Mic size={11} strokeWidth={2.5} />Has audio
           </button>
-          <button style={pillStyle(pillActive('has-video'))} onClick={() => setFilter('has-video')}>
+          <button style={pillStyle(filter.video === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('video', 'has')}>
             <Video size={11} strokeWidth={2.5} />Has video
           </button>
         </div>
