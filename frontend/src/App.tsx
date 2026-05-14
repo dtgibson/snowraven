@@ -187,12 +187,21 @@ export default function App() {
           </button>
           <button
             role="tab"
+            aria-selected={activeTab === 'breeding-codes'}
+            style={tabStyle('breeding-codes')}
+            onClick={() => { setActiveTab('breeding-codes'); setIsExpanded(false) }}
+          >
+            <Dna size={14} strokeWidth={2.5} aria-hidden="true" />
+            Breeding Codes
+          </button>
+          <button
+            role="tab"
             aria-selected={activeTab === 'life-list'}
             style={tabStyle('life-list')}
             onClick={() => { setActiveTab('life-list'); setIsExpanded(false) }}
           >
             <List size={14} strokeWidth={2.5} aria-hidden="true" />
-            Media Life List
+            Media List
           </button>
           <button
             role="tab"
@@ -204,15 +213,6 @@ export default function App() {
               <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
             </svg>
             Life List Comparer
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'breeding-codes'}
-            style={tabStyle('breeding-codes')}
-            onClick={() => { setActiveTab('breeding-codes'); setIsExpanded(false) }}
-          >
-            <Dna size={14} strokeWidth={2.5} aria-hidden="true" />
-            Breeding Codes
           </button>
         </nav>
       </div>

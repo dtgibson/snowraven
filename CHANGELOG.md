@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.21] - 2026-05-14
+
+### Changed
+- Tab order is now Weather, Breeding Codes, Media List, Life List Comparer
+- "Media Life List" tab renamed to "Media List"
+- README updated to match current tab order and names, and to include the Breeding Codes tool
+
 ## [0.0.20] - 2026-05-14
 
 ### Fixed

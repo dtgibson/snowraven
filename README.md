@@ -20,7 +20,22 @@ If you like this, the idea and inspiration really came from someone else, so [wh
 
 Weather data comes from the [OpenWeather One Call API 3.0](https://openweathermap.org/api/one-call-3) timemachine endpoint. Checklist metadata (date, location, duration) comes from the [eBird API](https://documenter.getpostman.com/view/664302/S1ENwy59).
 
-### Media Life List
+### Breeding Codes
+
+Upload your eBird backup CSV to see every species you've recorded a breeding code for, displayed as a matrix across all 23 eBird breeding codes. Each cell shows how many times you've recorded that code for that species, with colors following eBird's four-tier system — darkest for Confirmed, lightest for Possible. All processing happens in the browser — no data leaves your machine.
+
+**How it works:**
+
+1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)
+2. Drop `MyEBirdData.csv` onto the Breeding Codes tab
+3. Your breeding code matrix loads — one row per species, one column per code
+4. Click any column header to sort by that code's count; click the species column to sort alphabetically
+5. Use the filter pills above the table to focus on a single breeding code
+6. A legend at the bottom maps tier colors to their categories and codes
+
+Slash species, hybrids, and `sp.` entries are excluded. Subspecies parentheticals (e.g. "Yellow-rumped Warbler (Myrtle)") are merged into the parent species entry.
+
+### Media List
 
 Upload your Macaulay Library export or eBird backup CSV to see your complete life list with media coverage — which species you've photographed, audio-recorded, and video-recorded. Each species name links directly to its eBird account and Birds of the World page. Filter by missing or present media type to find target species for your next outing.
 
@@ -31,7 +46,7 @@ Upload your Macaulay Library export or eBird backup CSV to see your complete lif
 
 **How it works:**
 
-1. Drop either file onto the Media Life List tab — the format is detected automatically
+1. Drop either file onto the Media List tab — the format is detected automatically
 2. Your life list loads with a count of photos, audio recordings, and videos per species
 3. Click any count to open that species' personal media on the Macaulay Library in a new tab
 4. Click the eBird or Birds of the World icon next to a species name to open its species account
