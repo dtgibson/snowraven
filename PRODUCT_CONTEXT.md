@@ -177,6 +177,37 @@ no code (soundscapes, pre-fetch) show nothing.
 - `backend/routers/taxonomy.py` — `POST /taxonomy/codes`; eBird taxonomy fetch + in-memory cache
 - `frontend/vite.config.ts` — `/taxonomy` proxy added for dev server
 
+### Breeding Code List (complete — May 2026)
+
+A fourth tab that parses an eBird backup CSV and renders a species-by-breeding-code
+matrix. Each cell shows a count of how many times that species was observed with that
+code, rendered as a tier-colored circle. Entirely client-side — no backend changes.
+
+**What it does:**
+- Drop zone accepts `MyEBirdData.csv` (eBird backup); drag-and-drop or click-to-browse
+- Parser extracts the `Breeding Code` column; specific error if the column is absent from the CSV
+- Empty state (column present but no rows with valid codes) shows a non-error message
+- 23 eBird breeding codes across four tiers: Confirmed highest (NY NE FS FY CF FL ON UN DD), Confirmed also (NB CN), Probable (PE B A N C T P M S9 S7), Possible (S H F)
+- Only codes present in the loaded data appear as columns and filter pills (canonical order: confirmed → possible, left to right)
+- Per-cell count circle: 28px, tier background color (4=`#3B0764` → 1=`#C084FC`), white 11px bold text; empty cells are truly blank — no dash or placeholder
+- Species name column: sticky-left (`position: sticky; left: 0`), 190px, with a right-edge shadow separator
+- Table wrapper `overflow-x: auto` allows horizontal scroll when many codes are present
+- All columns sortable: species name defaults asc (A–Z); code columns default desc (highest count first); ties broken alphabetically
+- Active sort column shows ↑/↓ indicator in `#2D8653`; inactive columns muted
+- Filter pills row: "All" pill + one pill per code present, each with a 14px tier-colored dot; clicking a pill shows only species with ≥1 entry for that code; clicking the active pill resets to All
+- Species count label: "8 species" (all) or "3 of 8 species" (filtered)
+- Legend at the bottom of the table card maps tier colors to categories and codes
+- "Show all / Collapse" and "Load new file" controls match the Media Life List pattern
+- Spuh (` sp.`), slash species, and hybrids (` x `) excluded; subspecies parentheticals normalized to parent species name
+
+**Key files:**
+- `frontend/src/lib/breedingCodes.ts` — 23 code definitions (`code`, `label`, `tier`), `BREEDING_CODE_MAP`, `TIER_COLORS`
+- `frontend/src/lib/parseBreedingCodes.ts` — CSV parser returning `{ entries, codesPresent, hasBreedingCodeColumn }`
+- `frontend/src/lib/parseBreedingCodes.test.ts` — 15 tests covering parsing, exclusions, normalization, and error cases
+- `frontend/src/components/BreedingCodeList.tsx` — top-level component: drop zone, phase state machine (idle/error/ready), filter pills, controls row
+- `frontend/src/components/BreedingCodeTable.tsx` — species-by-code matrix with sticky column, sortable headers, circles, legend
+- `frontend/src/types.ts` — `BreedingSortColumn`, `BreedingSortState`, `BreedingFilter` added
+
 ### Update Script + In-App Update Check (complete — May 2026)
 
 Two small additions that make keeping SnowRaven current easy: a shell script for one-command updates, and a footer link that checks GitHub for a newer release on explicit user request only.
@@ -329,6 +360,24 @@ lookup (used by `ListComparer` which has names but no sci names). Graceful degra
 is truthy, or `null` when falsy. This means soundscape entries, pre-fetch rows, and species not found in taxonomy
 all silently show no icons — no broken state. Favicons are loaded from the live sites; `onError` hides any that
 fail to load. Both `<a>` elements carry `rel="noreferrer"` to prevent tab-napping.
+
+**Breeding code sort column is typed as `string`, not a discriminated union**
+`BreedingSortColumn` is `string` rather than `'name' | BreedingCodeDef['code']` because the set of
+active code columns is dynamic — determined at parse time from the CSV. Using `string` is correct here;
+the valid values are enforced at the call sites where headers are rendered.
+
+**`hasBreedingCodeColumn` flag distinguishes two empty states**
+`parseBreedingCodes` returns `{ hasBreedingCodeColumn: boolean }` to distinguish "file has no Breeding Code
+column at all" (user probably uploaded the wrong file) from "file has the column but no rows with valid codes"
+(user hasn't entered breeding codes yet). These produce different UI messages: the former is an error banner;
+the latter is a neutral empty state. Without this flag both cases would look like generic parse failures.
+
+**Breeding code parser utilities are not shared with other parsers**
+`parseCSVLine`, `isExcluded`, and `normalizeSpeciesName` exist in both `parseLifeList.ts` / `parseMLExport.ts`
+and `parseBreedingCodes.ts`. Extracting them to a shared module was considered and rejected — it would create
+a dependency between unrelated features on a utility whose behavior may need to diverge. Each parser owns its
+own copy, matching the pattern established by the Life List drop zone being implemented inline rather than via
+the shared DropZone component.
 
 **ListComparer taxonomy fetch is fire-and-forget after comparison**
 After `compareSpecies()` runs, `ListComparer` calls `fetchTaxonCodes` with the union of all species names from

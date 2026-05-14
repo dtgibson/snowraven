@@ -1,17 +1,17 @@
 {
-  "activeFeature": null,
+  "activeFeature": "breeding-codes",
   "sessionNumber": 2,
   "sessionType": "feature",
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "currentStage": 9,
+  "lastCompletedStage": 8,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/species-links/strategic-brief.md",
-    "pipeline/species-links/prd.md",
-    "pipeline/species-links/schema.md",
-    "pipeline/species-links/design-spec.md",
-    "pipeline/species-links/design.html"
+    "pipeline/breeding-codes/strategic-brief.md",
+    "pipeline/breeding-codes/prd.md",
+    "pipeline/breeding-codes/schema.md",
+    "pipeline/breeding-codes/design-spec.md",
+    "pipeline/breeding-codes/design.html"
   ],
-  "createdAt": "2026-05-13T21:50:00Z",
-  "updatedAt": "2026-05-13T22:55:00Z"
+  "createdAt": "2026-05-14T00:00:00Z",
+  "updatedAt": "2026-05-14T10:15:00Z"
 }
