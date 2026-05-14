@@ -131,7 +131,7 @@ Accepts two input formats, auto-detected from the CSV header.
 - User ID parsed from ML export filename (`ML__DATE_USERID.csv`) and appended to all catalog links; warning shown if filename was renamed
 - Taxon codes fetched via `POST /taxonomy/codes` after file load; ML links use `taxonCode=acowoo` parameter for accurate personal filtering
 - All four column headers are clickable sort controls; clicking sorts by that column, clicking again reverses; count columns default to descending (highest first)
-- **Filter pills (7 total):** All · No photo · No audio · No video · Has photo · Has audio · Has video (one active at a time; negative filters are red, positive filters are green)
+- **Filter pills (7 total):** All · No photo · No audio · No video · Has photo · Has audio · Has video — multi-select with AND logic; each media dimension (photo/audio/video) is tracked independently; selecting "Has photo" while "No photo" is active auto-replaces it; clicking an active pill deselects it; "All" resets all dimensions; negative active pills are red, positive are green; multiple pills can be active simultaneously
 - Sort toggle: Taxonomic (eBird input only, uses lowest Taxonomic Order value per species) · A–Z. Taxonomic button is hidden for ML export results (all entries have `taxonomicOrder: Infinity`).
 - Species count label: "312 species" or "47 of 312 species" when filtered
 - "Show all / Collapse" toggle expands the full list for printing
@@ -194,7 +194,7 @@ code, rendered as a tier-colored circle. Entirely client-side — no backend cha
 - Table wrapper `overflow-x: auto` allows horizontal scroll when many codes are present
 - All columns sortable: species name defaults asc (A–Z); code columns default desc (highest count first); ties broken alphabetically
 - Active sort column shows ↑/↓ indicator in `#2D8653`; inactive columns muted
-- Filter pills row: "All" pill + one pill per code present, each with a 14px tier-colored dot; clicking a pill shows only species with ≥1 entry for that code; clicking the active pill resets to All
+- Filter pills row: "All" pill + one pill per code present, each with a 14px tier-colored dot — multi-select with AND logic; multiple code pills can be active simultaneously; the table shows only species that have ≥1 recorded observation for every active code; clicking an active pill removes it from the filter; "All" resets to unfiltered
 - Species count label: "8 species" (all) or "3 of 8 species" (filtered)
 - Legend at the bottom of the table card maps tier colors to categories and codes
 - "Show all / Collapse" and "Load new file" controls match the Media Life List pattern
