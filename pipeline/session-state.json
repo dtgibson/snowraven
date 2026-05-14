@@ -1,10 +1,10 @@
 {
-  "activeFeature": "breeding-codes",
+  "activeFeature": null,
   "sessionNumber": 2,
   "sessionType": "feature",
-  "currentStage": 9,
-  "lastCompletedStage": 8,
-  "lastCheckpointStatus": "in-progress",
+  "currentStage": null,
+  "lastCompletedStage": 9,
+  "lastCheckpointStatus": "approved",
   "confirmedArtifacts": [
     "pipeline/breeding-codes/strategic-brief.md",
     "pipeline/breeding-codes/prd.md",
@@ -13,5 +13,5 @@
     "pipeline/breeding-codes/design.html"
   ],
   "createdAt": "2026-05-14T00:00:00Z",
-  "updatedAt": "2026-05-14T10:15:00Z"
+  "updatedAt": "2026-05-14T10:20:00Z"
 }
