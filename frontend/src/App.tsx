@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna } from 'lucide-react'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
+import { BreedingCodeList } from './components/BreedingCodeList'
 
 type AppState =
   | { status: 'idle' }
@@ -9,7 +10,7 @@ type AppState =
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
 
-type Tab = 'weather' | 'comparer' | 'life-list'
+type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes'
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -203,6 +204,15 @@ export default function App() {
               <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
             </svg>
             Life List Comparer
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'breeding-codes'}
+            style={tabStyle('breeding-codes')}
+            onClick={() => { setActiveTab('breeding-codes'); setIsExpanded(false) }}
+          >
+            <Dna size={14} strokeWidth={2.5} aria-hidden="true" />
+            Breeding Codes
           </button>
         </nav>
       </div>
@@ -434,6 +444,19 @@ export default function App() {
         }}
       >
         <LifeList onExpandedChange={setIsExpanded} />
+      </div>
+
+      {/* Breeding Codes tab content */}
+      <div
+        role="tabpanel"
+        style={{
+          display: activeTab === 'breeding-codes' ? 'flex' : 'none',
+          ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        <BreedingCodeList onExpandedChange={setIsExpanded} />
       </div>
 
       {/* Footer */}

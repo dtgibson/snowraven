@@ -22,3 +22,10 @@ export interface SortState {
   column: SortColumn
   dir: SortDir
 }
+
+export type BreedingSortColumn = string
+export interface BreedingSortState {
+  column: BreedingSortColumn
+  dir: SortDir
+}
+export type BreedingFilter = string

@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.18] - 2026-05-14
+
+### Added
+- **Breeding Codes tab** — upload your eBird backup (`MyEBirdData.csv`) to see a matrix of all species you've recorded breeding codes for, with columns for each of the 23 eBird breeding codes (Confirmed → Possible, left to right)
+- Each cell shows a colored circle with the count of times that code was recorded for that species; colors follow eBird's four-tier system (darkest purple = confirmed, lightest = possible)
+- All 23 columns are sortable by clicking the header; clicking a code column sorts by count descending, ties broken alphabetically
+- Filter pills above the table let you focus on any single breeding code, hiding all other species
+- A legend at the bottom of the table maps tier colors to their categories and codes
+- Species with slashes, hybrids, and `sp.` categories are excluded; subspecies parentheticals are merged into the parent species entry
+
 ## [0.0.17] - 2026-05-13
 
 ### Added
