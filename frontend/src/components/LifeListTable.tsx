@@ -8,6 +8,7 @@ interface Props {
   filter: MediaFilter
   sort: SortState
   onSortChange: (next: SortState) => void
+  userId: string | null
   expanded: boolean
 }
 
@@ -27,8 +28,9 @@ function countMedia(
   return entry.catalogIds.filter(id => mediaMap[id] === type).length
 }
 
-function mlUrl(commonName: string, type: 'Photo' | 'Audio' | 'Video'): string {
-  return `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(commonName)}&mediaType=${type}`
+function mlUrl(commonName: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null): string {
+  const base = `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(commonName)}&mediaType=${type.toLowerCase()}`
+  return userId ? `${base}&userId=${userId}` : base
 }
 
 const iconCell: React.CSSProperties = {
@@ -37,7 +39,7 @@ const iconCell: React.CSSProperties = {
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, expanded }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, expanded }: Props) {
   const filtered = entries.filter(entry => {
     if (filter === 'no-photo') return !hasMedia(entry, mediaMap, 'Photo')
     if (filter === 'no-audio') return !hasMedia(entry, mediaMap, 'Audio')
@@ -173,7 +175,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, e
                   <div style={iconCell}>
                     {photoCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Photo')}
+                          href={mlUrl(entry.commonName, 'Photo', userId)}
                           target="_blank"
                           rel="noreferrer"
                           style={countLinkStyle}
@@ -187,7 +189,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, e
                   <div style={iconCell}>
                     {audioCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Audio')}
+                          href={mlUrl(entry.commonName, 'Audio', userId)}
                           target="_blank"
                           rel="noreferrer"
                           style={countLinkStyle}
@@ -201,7 +203,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, e
                   <div style={iconCell}>
                     {videoCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Video')}
+                          href={mlUrl(entry.commonName, 'Video', userId)}
                           target="_blank"
                           rel="noreferrer"
                           style={countLinkStyle}

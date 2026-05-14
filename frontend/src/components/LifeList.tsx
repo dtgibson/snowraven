@@ -16,6 +16,11 @@ type Phase =
   | { tag: 'loading'; entries: LifeListEntry[]; batchCurrent: number; batchTotal: number }
   | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string>; mlError: boolean; source: Source }
 
+function parseMLUserId(filename: string): string | null {
+  const match = filename.match(/^ML__.*_([A-Za-z0-9]+)\.csv$/i)
+  return match ? match[1] : null
+}
+
 function detectFileType(text: string): 'ml-export' | 'ebird' | 'unknown' {
   const firstLine = (text.split(/\r?\n/)[0] ?? '').toLowerCase()
   const hasCatalogNumber = firstLine.includes('catalog number')
@@ -68,6 +73,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   const [filter, setFilter] = useState<MediaFilter>('all')
   const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc' })
   const [expanded, setExpanded] = useState(false)
+  const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [draggingOver, setDraggingOver] = useState<'primary' | 'secondary' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -119,6 +125,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
       if (fileType === 'ml-export') {
         const { entries, mediaMap } = parseMLExport(text)
+        setMlUserId(parseMLUserId(file.name))
         setPhase({ tag: 'ready', entries, mediaMap, mlError: false, source: 'ml-export' })
       } else if (fileType === 'ebird') {
         const entries = parseLifeList(text)
@@ -154,6 +161,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     setFilter('all')
     setSort({ column: 'name', dir: 'asc' })
     setExpanded(false)
+    setMlUserId(null)
     onExpandedChange?.(false)
   }
 
@@ -322,7 +330,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   }
 
   // ── Ready ─────────────────────────────────────────────────────────────────
-  const { entries, mediaMap, mlError } = phase
+  const { entries, mediaMap, mlError, source } = phase
 
   const filteredCount = entries.filter(entry => {
     if (filter === 'no-photo') return !entry.catalogIds.some(id => mediaMap[id] === 'Photo')
@@ -363,6 +371,18 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           Couldn't reach the Macaulay Library. Media coverage may be incomplete.
+        </div>
+      )}
+
+      {source === 'ml-export' && mlUserId === null && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 13px', background: '#FFFBEB',
+          border: '1px solid #FDE68A', borderRadius: 8,
+          fontSize: 13, color: '#92400E', marginBottom: 12, flexShrink: 0,
+        }}>
+          <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+          Media links could not be personalised — the CSV filename was not in the default Macaulay Library format. Links will open the general catalog search instead.
         </div>
       )}
 
@@ -417,6 +437,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         filter={filter}
         sort={sort}
         onSortChange={setSort}
+        userId={mlUserId}
         expanded={expanded}
       />
     </div>
