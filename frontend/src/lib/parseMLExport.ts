@@ -29,8 +29,7 @@ function col(cols: string[], idx: number): string {
 }
 
 function isExcluded(name: string): boolean {
-  const lower = name.toLowerCase()
-  return lower === 'soundscape' || name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
+  return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
 }
 
 function normalizeSpeciesName(name: string): string {

@@ -18,6 +18,14 @@ function hasMedia(
   return entry.catalogIds.some(id => mediaMap[id] === type)
 }
 
+function countMedia(
+  entry: LifeListEntry,
+  mediaMap: Record<string, string>,
+  type: 'Photo' | 'Audio' | 'Video'
+): number {
+  return entry.catalogIds.filter(id => mediaMap[id] === type).length
+}
+
 const iconCell: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
@@ -72,10 +80,10 @@ export function LifeListTable({ entries, mediaMap, filter, sort, expanded }: Pro
               color: '#71717A',
               minWidth: 200,
             }}>
-              Species
+              Entries
             </th>
             {([
-              ['Seen', <Eye size={11} strokeWidth={2.5} />],
+              ['Media', <Eye size={11} strokeWidth={2.5} />],
               ['Photo', <Camera size={11} strokeWidth={2.5} />],
               ['Audio', <Mic size={11} strokeWidth={2.5} />],
               ['Video', <Video size={11} strokeWidth={2.5} />],
@@ -100,9 +108,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, expanded }: Pro
         </thead>
         <tbody>
           {sorted.map((entry, idx) => {
-            const photo = hasMedia(entry, mediaMap, 'Photo')
-            const audio = hasMedia(entry, mediaMap, 'Audio')
-            const video = hasMedia(entry, mediaMap, 'Video')
+            const photoCount = countMedia(entry, mediaMap, 'Photo')
+            const audioCount = countMedia(entry, mediaMap, 'Audio')
+            const videoCount = countMedia(entry, mediaMap, 'Video')
             return (
               <tr
                 key={entry.commonName}
@@ -127,22 +135,22 @@ export function LifeListTable({ entries, mediaMap, filter, sort, expanded }: Pro
                 </td>
                 <td style={{ width: 72, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
-                    {photo
-                      ? <Check size={16} strokeWidth={2.5} style={{ color: '#2D8653' }} />
+                    {photoCount > 0
+                      ? <span style={{ fontSize: 13, fontWeight: 600, color: '#2D8653' }}>{photoCount}</span>
                       : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
                   </div>
                 </td>
                 <td style={{ width: 72, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
-                    {audio
-                      ? <Check size={16} strokeWidth={2.5} style={{ color: '#2D8653' }} />
+                    {audioCount > 0
+                      ? <span style={{ fontSize: 13, fontWeight: 600, color: '#2D8653' }}>{audioCount}</span>
                       : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
                   </div>
                 </td>
                 <td style={{ width: 72, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
-                    {video
-                      ? <Check size={16} strokeWidth={2.5} style={{ color: '#2D8653' }} />
+                    {videoCount > 0
+                      ? <span style={{ fontSize: 13, fontWeight: 600, color: '#2D8653' }}>{videoCount}</span>
                       : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
                   </div>
                 </td>

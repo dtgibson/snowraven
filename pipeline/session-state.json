@@ -1,17 +1,17 @@
 {
-  "activeFeature": null,
+  "activeFeature": "media-life-list-improvements",
   "sessionNumber": 2,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/ml-export-upload/strategic-brief.md",
-    "pipeline/ml-export-upload/prd.md",
-    "pipeline/ml-export-upload/schema.md",
-    "pipeline/ml-export-upload/design-spec.md",
-    "pipeline/ml-export-upload/design.html"
+    "pipeline/media-life-list-improvements/strategic-brief.md",
+    "pipeline/media-life-list-improvements/prd.md",
+    "pipeline/media-life-list-improvements/schema.md",
+    "pipeline/media-life-list-improvements/design-spec.md",
+    "pipeline/media-life-list-improvements/design.html"
   ],
-  "createdAt": "2026-05-12T20:25:00Z",
-  "updatedAt": "2026-05-13T04:30:00Z"
+  "createdAt": "2026-05-13T17:00:00Z",
+  "updatedAt": "2026-05-13T19:26:00Z"
 }

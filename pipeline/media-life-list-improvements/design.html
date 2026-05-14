@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Media Life List Improvements</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    background: #F4F4F5;
+    color: #0F1117;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* App shell */
+  .app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    max-width: 960px;
+    margin: 0 auto;
+    box-shadow: 0 0 0 1px #E4E4E7;
+  }
+
+  /* Header */
+  .header {
+    padding: 14px 24px;
+    border-bottom: 1px solid #E4E4E7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    background: #fff;
+  }
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header-title svg { color: #2D8653; }
+  .header-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0F1117;
+    letter-spacing: -0.2px;
+  }
+
+  /* Tab bar */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #E4E4E7;
+    flex-shrink: 0;
+    background: #fff;
+    padding: 0 24px;
+    gap: 0;
+  }
+  .tab {
+    padding: 11px 16px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #71717A;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .tab.active {
+    color: #2D8653;
+    border-bottom-color: #2D8653;
+    font-weight: 600;
+  }
+
+  /* Tab content */
+  .tab-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 24px;
+    min-height: 0;
+    gap: 14px;
+  }
+
+  /* Controls row */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    gap: 12px;
+  }
+  .controls-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .species-count {
+    font-size: 13px;
+    color: #71717A;
+    font-weight: 500;
+  }
+  .filter-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    padding: 4px 11px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: #fff;
+    color: #71717A;
+    user-select: none;
+    transition: all 0.12s;
+  }
+  .pill.active-all {
+    background: #E8F5EE;
+    border-color: transparent;
+    color: #2D8653;
+  }
+  .controls-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .sort-group {
+    display: flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1.5px solid #E4E4E7;
+  }
+  .sort-btn {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: #fff;
+    color: #71717A;
+    white-space: nowrap;
+  }
+  .sort-btn.active {
+    background: #F4F4F5;
+    color: #0F1117;
+  }
+  .sort-btn + .sort-btn {
+    border-left: 1.5px solid #E4E4E7;
+  }
+  .expand-btn {
+    height: 32px;
+    padding: 0 12px;
+    background: transparent;
+    color: #2D8653;
+    border: 1.5px solid rgba(45,134,83,0.25);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* Table */
+  .table-wrap {
+    border: 1px solid #E4E4E7;
+    border-radius: 10px;
+    background: #fff;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  thead tr {
+    position: sticky;
+    top: 0;
+    background: #F9FAFB;
+    box-shadow: inset 0 -1px 0 #E4E4E7;
+  }
+  th {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #71717A;
+  }
+  th.species-col { text-align: left; min-width: 220px; }
+  th.media-col { width: 72px; text-align: center; }
+  .th-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  tbody tr {
+    border-bottom: 1px solid #F4F4F5;
+    transition: background 0.08s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #FAFAFA; }
+  td {
+    padding: 9px 14px;
+    vertical-align: middle;
+  }
+  td.species-cell { }
+  .species-name {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #0F1117;
+    display: block;
+  }
+  .sci-name {
+    font-size: 11.5px;
+    color: #9CA3AF;
+    font-style: italic;
+    display: block;
+    margin-top: 1px;
+  }
+  td.icon-cell { width: 72px; text-align: center; }
+  .icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* NEW: count number */
+  .media-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2D8653;
+    line-height: 1;
+  }
+
+  /* dash for zero */
+  .dash {
+    display: inline-block;
+    width: 14px;
+    height: 2px;
+    background: #D1D5DB;
+    border-radius: 1px;
+    vertical-align: middle;
+  }
+
+  /* check for "has media" column */
+  .check { color: #2D8653; }
+
+  /* annotation callout */
+  .callouts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 0 2px;
+    flex-shrink: 0;
+  }
+  .callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #F0FAF4;
+    border: 1px solid #C6E8D5;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #1A5C38;
+  }
+  .callout-num {
+    width: 20px;
+    height: 20px;
+    background: #2D8653;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .callout-text strong { font-weight: 600; }
+
+  /* highlight a row for annotation */
+  tr.highlight-row td { background: #FFFBEB !important; }
+  tr.soundscape-row td { background: #F0FAF4 !important; }
+
+  /* Footer */
+  .footer {
+    padding: 10px 24px;
+    border-top: 1px solid #E4E4E7;
+    font-size: 12px;
+    color: #9CA3AF;
+    text-align: center;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><circle cx="18" cy="6" r="3"/>
+      </svg>
+      <span class="header-name">SnowRaven</span>
+    </div>
+    <span style="font-size:12px;color:#9CA3AF;">v0.0.15</span>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabs">
+    <div class="tab">Weather</div>
+    <div class="tab active">Media Life List</div>
+    <div class="tab">Life List Comparer</div>
+  </div>
+
+  <!-- Tab content -->
+  <div class="tab-content">
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="controls-left">
+        <span class="species-count">248 species</span>
+        <div class="filter-pills">
+          <span class="pill active-all">All</span>
+          <span class="pill">No photo</span>
+          <span class="pill">No audio</span>
+          <span class="pill">No video</span>
+          <span class="pill">Has photo</span>
+          <span class="pill">Has audio</span>
+          <span class="pill">Has video</span>
+        </div>
+      </div>
+      <div class="controls-right">
+        <div class="sort-group">
+          <button class="sort-btn active">A–Z</button>
+          <button class="sort-btn">Taxonomic</button>
+        </div>
+        <button class="expand-btn">↓ Show all</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="species-col">Entries</th>
+            <!-- CHANGE 1: "Seen" → "Media" -->
+            <th class="media-col">
+              <div class="th-inner">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                Media
+              </div>
+            </th>
+            <th class="media-col">
+              <div class="th-inner">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3L14.5 4z"/><circle cx="12" cy="13" r="3"/></svg>
+                Photo
+              </div>
+            </th>
+            <th class="media-col">
+              <div class="th-inner">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+                Audio
+              </div>
+            </th>
+            <th class="media-col">
+              <div class="th-inner">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                Video
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="species-cell">
+              <span class="species-name">American Robin</span>
+              <span class="sci-name">Turdus migratorius</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <!-- CHANGE 2: counts instead of checkmarks -->
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">12</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">3</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+          </tr>
+          <tr>
+            <td class="species-cell">
+              <span class="species-name">Belted Kingfisher</span>
+              <span class="sci-name">Megaceryle alcyon</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">4</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">1</span></div></td>
+          </tr>
+          <tr>
+            <td class="species-cell">
+              <span class="species-name">Black-capped Chickadee</span>
+              <span class="sci-name">Poecile atricapillus</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">8</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">2</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+          </tr>
+          <tr>
+            <td class="species-cell">
+              <span class="species-name">Cooper's Hawk</span>
+              <span class="sci-name">Accipiter cooperii</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">2</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+          </tr>
+          <tr>
+            <td class="species-cell">
+              <span class="species-name">Great Blue Heron</span>
+              <span class="sci-name">Ardea herodias</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">15</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">1</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">2</span></div></td>
+          </tr>
+          <tr>
+            <td class="species-cell">
+              <span class="species-name">House Finch</span>
+              <span class="sci-name">Haemorhous mexicanus</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">6</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">4</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+          </tr>
+          <tr>
+            <td class="species-cell">
+              <span class="species-name">Song Sparrow</span>
+              <span class="sci-name">Melospiza melodia</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">5</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">9</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+          </tr>
+          <!-- CHANGE 3: Soundscape row now included -->
+          <tr class="soundscape-row">
+            <td class="species-cell">
+              <span class="species-name">Soundscape</span>
+              <span class="sci-name" style="font-style:normal;color:#9CA3AF;font-size:11px;">Macaulay Library recording</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">7</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+          </tr>
+          <tr>
+            <td class="species-cell">
+              <span class="species-name">White-breasted Nuthatch</span>
+              <span class="sci-name">Sitta carolinensis</span>
+            </td>
+            <td class="icon-cell"><div class="icon-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            </div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">4</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="media-count">1</span></div></td>
+            <td class="icon-cell"><div class="icon-wrap"><span class="dash"></span></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Design callouts -->
+    <div class="callouts">
+      <div class="callout">
+        <div class="callout-num">1</div>
+        <div class="callout-text"><strong>"Seen" renamed to "Media"</strong> — the column header now accurately describes audio-only entries. Icon and per-row checkmark are unchanged.</div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">2</div>
+        <div class="callout-text"><strong>Counts instead of checkmarks</strong> — Photo, Audio, and Video cells show the number of individual items. Zero stays as a dash, keeping the visual language consistent.</div>
+      </div>
+      <div class="callout">
+        <div class="callout-num">3</div>
+        <div class="callout-text"><strong>Soundscape entries included</strong> — the highlighted row shows a Soundscape entry from the Macaulay Library export. It behaves like any other row: filterable, sortable, counted.</div>
+      </div>
+    </div>
+
+  </div><!-- /tab-content -->
+
+  <div class="footer">SnowRaven · Self-hosted Birding Tools</div>
+</div>
+
+</body>
+</html>

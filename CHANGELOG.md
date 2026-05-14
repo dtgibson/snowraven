@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.15] - 2026-05-13
+
+### Changed
+- Photo, Audio, and Video columns in the Media Life List now show a count of individual media items per species instead of a checkmark (dash for zero)
+- "Seen" column header renamed to "Media" — accurate for audio-only entries
+- "Species" column header renamed to "Entries" — accurate for non-species items such as soundscapes
+- Soundscape entries from Macaulay Library exports are no longer excluded — they appear in the list like any other entry
+
 ## [0.0.14] - 2026-05-12
 
 ### Added

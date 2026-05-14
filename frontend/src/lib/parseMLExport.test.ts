@@ -105,9 +105,11 @@ describe('parseMLExport', () => {
     expect(entries[0].catalogIds).toContain('111111')
   })
 
-  it('excludes soundscape entries', () => {
-    const { entries } = parseMLExport(csv('111111,Soundscape,,Audio'))
-    expect(entries).toHaveLength(0)
+  it('includes soundscape entries', () => {
+    const { entries, mediaMap } = parseMLExport(csv('111111,Soundscape,,Audio'))
+    expect(entries).toHaveLength(1)
+    expect(entries[0].commonName).toBe('Soundscape')
+    expect(mediaMap['111111']).toBe('Audio')
   })
 
   it('throws INVALID_ML_EXPORT when required columns are missing', () => {
