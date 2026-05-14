@@ -22,28 +22,35 @@ Weather data comes from the [OpenWeather One Call API 3.0](https://openweatherma
 
 ### Media Life List
 
-Upload your eBird backup CSV to see your complete life list with media coverage from the Macaulay Library — which species you've photographed, audio-recorded, and video-recorded. Filter by missing media type to find target species for your next outing.
+Upload your Macaulay Library export or eBird backup CSV to see your complete life list with media coverage — which species you've photographed, audio-recorded, and video-recorded. Each species name links directly to its eBird account and Birds of the World page. Filter by missing or present media type to find target species for your next outing.
+
+**Two input formats (auto-detected — no selection required):**
+
+- **Macaulay Library export (recommended):** Sign in at [macaulaylibrary.org](https://www.macaulaylibrary.org/), go to **My Media**, and click **Save Spreadsheet**. Media types are read directly from the file — instant results, no network lookups.
+- **eBird backup CSV:** Export from [ebird.org/downloadMyData](https://ebird.org/downloadMyData). Media coverage is looked up from the Macaulay Library in batches with a progress indicator. No API key required — only numeric catalog IDs are sent.
 
 **How it works:**
 
-1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)
-2. Drop `MyEBirdData.csv` onto the Media Life List tab
-3. Your life list loads with ✓ / — indicators for Photo, Audio, and Video per species
-4. Use the filter buttons to show only species missing a photo, audio recording, or video
-5. Use **Show all** to expand the full list for printing
-
-Media coverage is looked up via the Macaulay Library. No API key is required. Only numeric catalog IDs from your CSV are sent — no personal information.
+1. Drop either file onto the Media Life List tab — the format is detected automatically
+2. Your life list loads with a count of photos, audio recordings, and videos per species
+3. Click any count to open that species' personal media on the Macaulay Library in a new tab
+4. Click the eBird or Birds of the World icon next to a species name to open its species account
+5. Use the filter pills to show species missing (or having) a photo, audio recording, or video
+6. Click any column header to sort by name, photo count, audio count, or video count
+7. Use **Show all** to expand the full list for printing
 
 ### Life List Comparer
 
-Upload two eBird backup CSV files to see which species you share with another birder and which are unique to each list. All processing happens in the browser — no data leaves your machine.
+Upload two eBird backup CSV files to see which species you share with another birder and which are unique to each list. Each species name links directly to its eBird account and Birds of the World page. All processing happens in the browser — no data leaves your machine.
 
 **How it works:**
 
 1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)
 2. Drop both CSV files onto the Life List Comparer tab
-3. Click **Compare Lists** to see three sorted panels: species in both, species only in the first list, species only in the second
-4. Use **Show all** to expand all panels to full length for printing
+3. Click **Compare Lists** to see three panels: species in both, species only in the first list, species only in the second
+4. Click the eBird or Birds of the World icon next to a species name to open its species account
+5. Use the **Taxonomic / A–Z** toggle to switch between eBird taxonomic order and alphabetical
+6. Use **Show all** to expand all panels to full length for printing
 
 ---
 
