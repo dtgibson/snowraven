@@ -148,6 +148,18 @@ describe('parseBreedingCodes', () => {
     expect(names).toContain('American Robin')
   })
 
+  it('parses codes stored with the eBird label suffix (e.g. "CN Carrying Nesting Material")', () => {
+    const { entries, codesPresent } = parseBreedingCodes(csv(
+      'S1,Rock Pigeon,Columba livia,1853,CN Carrying Nesting Material',
+      'S2,American Robin,Turdus migratorius,340,NY Nest with Young',
+    ))
+    expect(entries).toHaveLength(2)
+    expect(entries.find(e => e.commonName === 'Rock Pigeon')?.codes['CN']).toBe(1)
+    expect(entries.find(e => e.commonName === 'American Robin')?.codes['NY']).toBe(1)
+    expect(codesPresent).toContain('CN')
+    expect(codesPresent).toContain('NY')
+  })
+
   it('returns an empty entries array when no rows have valid codes', () => {
     const { entries, hasBreedingCodeColumn } = parseBreedingCodes(csv(
       'S1,American Robin,Turdus migratorius,340,',

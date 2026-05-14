@@ -103,7 +103,8 @@ export function parseBreedingCodes(content: string): BreedingData {
 
     const name = normalizeSpeciesName(rawName)
     const sciName = sciNameIdx !== -1 ? (cols[sciNameIdx]?.trim() ?? '') : ''
-    const code = cols[breedingCodeIdx]?.trim() ?? ''
+    const rawCode = cols[breedingCodeIdx]?.trim() ?? ''
+    const code = rawCode.split(/\s+/)[0] ?? ''
 
     if (!code || !BREEDING_CODE_MAP.has(code)) continue
 
