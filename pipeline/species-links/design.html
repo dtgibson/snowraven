@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Species Links — Design Mockup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F4F4F5;
+      color: #0F1117;
+      padding: 40px 32px;
+      min-height: 100vh;
+    }
+
+    h2 {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #71717A;
+      margin-bottom: 14px;
+    }
+
+    .section { margin-bottom: 40px; }
+
+    /* ── Media Life List Table ── */
+    .table-card {
+      border: 1px solid #E4E4E7;
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    thead tr {
+      background: #F9FAFB;
+      box-shadow: inset 0 -1px 0 #E4E4E7;
+    }
+
+    th {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #71717A;
+      padding: 10px 14px;
+      text-align: left;
+      user-select: none;
+    }
+
+    th.center { text-align: center; width: 80px; }
+    th.active { color: #0F1117; }
+
+    tbody tr { border-bottom: 1px solid #F4F4F5; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #FAFAFA; }
+
+    td { padding: 9px 14px; vertical-align: middle; }
+
+    .name-cell {
+      display: flex;
+      align-items: center;
+    }
+
+    .common-name {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #0F1117;
+    }
+
+    .sci-name {
+      font-size: 11.5px;
+      color: #9CA3AF;
+      font-style: italic;
+      margin-top: 1px;
+    }
+
+    .species-links {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .species-links a {
+      display: inline-flex;
+      align-items: center;
+      opacity: 0.75;
+      transition: opacity 0.12s;
+      border-radius: 2px;
+    }
+
+    .species-links a:hover { opacity: 1; }
+
+    .species-links img {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    .count-link {
+      font-size: 13px;
+      font-weight: 600;
+      color: #2D8653;
+      text-decoration: none;
+      display: block;
+      text-align: center;
+    }
+
+    .count-link:hover { text-decoration: underline; }
+
+    .dash { color: #D1D5DB; display: flex; justify-content: center; }
+
+    /* ── Comparer panels ── */
+    .panels {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .panel {
+      border: 1px solid #E4E4E7;
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      padding: 13px 18px;
+      border-bottom: 1px solid #E4E4E7;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F1117;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 8px;
+    }
+
+    .panel-count {
+      flex-shrink: 0;
+      padding: 2px 8px;
+      background: #E8F5EE;
+      color: #2D8653;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 20px;
+    }
+
+    .panel ul {
+      list-style: none;
+      padding: 6px 0;
+    }
+
+    .panel li {
+      padding: 5px 18px;
+      font-size: 13.5px;
+      color: #0F1117;
+      line-height: 1.45;
+      border-bottom: 1px solid #E4E4E7;
+      display: flex;
+      align-items: center;
+    }
+
+    .panel li:last-child { border-bottom: none; }
+
+    /* ── Annotation callouts ── */
+    .callout {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #78350F;
+      margin-top: 12px;
+      line-height: 1.55;
+    }
+
+    .callout strong { font-weight: 600; }
+
+    /* ── No-code state ── */
+    .no-links-row .name-cell { opacity: 0.65; }
+  </style>
+</head>
+<body>
+
+  <!-- ── SECTION 1: Media Life List ── -->
+  <div class="section">
+    <h2>Media Life List — Species Links in table rows</h2>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th class="active">Entries ↑</th>
+            <th class="center">📷 Photo</th>
+            <th class="center">🎙 Audio</th>
+            <th class="center">🎬 Video</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Row with taxon code — links shown -->
+          <tr>
+            <td>
+              <div style="display:flex;flex-direction:column;gap:1px;">
+                <div class="name-cell">
+                  <span class="common-name">Acorn Woodpecker</span>
+                  <span class="species-links">
+                    <a href="https://ebird.org/species/acowoo" target="_blank" rel="noreferrer">
+                      <img src="https://ebird.org/favicon.ico" alt="" />
+                    </a>
+                    <a href="https://birdsoftheworld.org/bow/species/acowoo/cur/introduction" target="_blank" rel="noreferrer">
+                      <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+                    </a>
+                  </span>
+                </div>
+                <span class="sci-name">Melanerpes formicivorus</span>
+              </div>
+            </td>
+            <td><a class="count-link" href="#">12</a></td>
+            <td><a class="count-link" href="#">4</a></td>
+            <td><div class="dash"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></div></td>
+          </tr>
+
+          <!-- Row with taxon code — links shown -->
+          <tr>
+            <td>
+              <div style="display:flex;flex-direction:column;gap:1px;">
+                <div class="name-cell">
+                  <span class="common-name">American Robin</span>
+                  <span class="species-links">
+                    <a href="https://ebird.org/species/amerob" target="_blank" rel="noreferrer">
+                      <img src="https://ebird.org/favicon.ico" alt="" />
+                    </a>
+                    <a href="https://birdsoftheworld.org/bow/species/amerob/cur/introduction" target="_blank" rel="noreferrer">
+                      <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+                    </a>
+                  </span>
+                </div>
+                <span class="sci-name">Turdus migratorius</span>
+              </div>
+            </td>
+            <td><a class="count-link" href="#">7</a></td>
+            <td><div class="dash"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></div></td>
+            <td><div class="dash"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></div></td>
+          </tr>
+
+          <!-- Row with taxon code — links shown -->
+          <tr>
+            <td>
+              <div style="display:flex;flex-direction:column;gap:1px;">
+                <div class="name-cell">
+                  <span class="common-name">Anna's Hummingbird</span>
+                  <span class="species-links">
+                    <a href="https://ebird.org/species/annhum" target="_blank" rel="noreferrer">
+                      <img src="https://ebird.org/favicon.ico" alt="" />
+                    </a>
+                    <a href="https://birdsoftheworld.org/bow/species/annhum/cur/introduction" target="_blank" rel="noreferrer">
+                      <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+                    </a>
+                  </span>
+                </div>
+                <span class="sci-name">Calypte anna</span>
+              </div>
+            </td>
+            <td><a class="count-link" href="#">3</a></td>
+            <td><a class="count-link" href="#">1</a></td>
+            <td><a class="count-link" href="#">2</a></td>
+          </tr>
+
+          <!-- Soundscape row — no links -->
+          <tr class="no-links-row">
+            <td>
+              <div style="display:flex;flex-direction:column;gap:1px;">
+                <div class="name-cell">
+                  <span class="common-name">Soundscape</span>
+                  <!-- no SpeciesLinks rendered — speciesCode is undefined -->
+                </div>
+                <span class="sci-name" style="font-style:normal;color:#C4B5A0;">ambient recording</span>
+              </div>
+            </td>
+            <td><div class="dash"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></div></td>
+            <td><a class="count-link" href="#">6</a></td>
+            <td><div class="dash"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <strong>Icons appear after taxon codes load</strong> — usually within 1–2 seconds of the ML export being parsed.
+      Soundscape rows never receive icons. Icons are 14×14 px, 75% opacity at rest, full opacity on hover.
+      If a favicon fails to load, the &lt;img&gt; hides itself — no broken placeholder.
+    </div>
+  </div>
+
+  <!-- ── SECTION 2: Life List Comparer ── -->
+  <div class="section">
+    <h2>Life List Comparer — Species Links in panel rows</h2>
+    <div class="panels">
+
+      <!-- In Both -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">In Both</span>
+          <span class="panel-count">3</span>
+        </div>
+        <ul>
+          <li>
+            American Robin
+            <span class="species-links">
+              <a href="https://ebird.org/species/amerob" target="_blank" rel="noreferrer">
+                <img src="https://ebird.org/favicon.ico" alt="" />
+              </a>
+              <a href="https://birdsoftheworld.org/bow/species/amerob/cur/introduction" target="_blank" rel="noreferrer">
+                <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+              </a>
+            </span>
+          </li>
+          <li>
+            Anna's Hummingbird
+            <span class="species-links">
+              <a href="https://ebird.org/species/annhum" target="_blank" rel="noreferrer">
+                <img src="https://ebird.org/favicon.ico" alt="" />
+              </a>
+              <a href="https://birdsoftheworld.org/bow/species/annhum/cur/introduction" target="_blank" rel="noreferrer">
+                <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+              </a>
+            </span>
+          </li>
+          <li>
+            Steller's Jay
+            <span class="species-links">
+              <a href="https://ebird.org/species/stejay" target="_blank" rel="noreferrer">
+                <img src="https://ebird.org/favicon.ico" alt="" />
+              </a>
+              <a href="https://birdsoftheworld.org/bow/species/stejay/cur/introduction" target="_blank" rel="noreferrer">
+                <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+              </a>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- A Only -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">dave.csv only</span>
+          <span class="panel-count">2</span>
+        </div>
+        <ul>
+          <li>
+            Acorn Woodpecker
+            <span class="species-links">
+              <a href="https://ebird.org/species/acowoo" target="_blank" rel="noreferrer">
+                <img src="https://ebird.org/favicon.ico" alt="" />
+              </a>
+              <a href="https://birdsoftheworld.org/bow/species/acowoo/cur/introduction" target="_blank" rel="noreferrer">
+                <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+              </a>
+            </span>
+          </li>
+          <li>
+            California Scrub-Jay
+            <span class="species-links">
+              <a href="https://ebird.org/species/cassja" target="_blank" rel="noreferrer">
+                <img src="https://ebird.org/favicon.ico" alt="" />
+              </a>
+              <a href="https://birdsoftheworld.org/bow/species/cassja/cur/introduction" target="_blank" rel="noreferrer">
+                <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+              </a>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- B Only -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">friend.csv only</span>
+          <span class="panel-count">2</span>
+        </div>
+        <ul>
+          <li>
+            Bald Eagle
+            <span class="species-links">
+              <a href="https://ebird.org/species/baleag" target="_blank" rel="noreferrer">
+                <img src="https://ebird.org/favicon.ico" alt="" />
+              </a>
+              <a href="https://birdsoftheworld.org/bow/species/baleag/cur/introduction" target="_blank" rel="noreferrer">
+                <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+              </a>
+            </span>
+          </li>
+          <li>
+            Snowy Owl
+            <span class="species-links">
+              <a href="https://ebird.org/species/snoowl1" target="_blank" rel="noreferrer">
+                <img src="https://ebird.org/favicon.ico" alt="" />
+              </a>
+              <a href="https://birdsoftheworld.org/bow/species/snoowl1/cur/introduction" target="_blank" rel="noreferrer">
+                <img src="https://birdsoftheworld.org/favicon.ico" alt="" />
+              </a>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+    <div class="callout">
+      <strong>Icons appear after the comparison taxonomy fetch resolves</strong> — fired immediately after Compare Lists is clicked.
+      The comparison result is shown instantly; icons appear a moment later as codes arrive.
+      Resetting the comparison clears the taxon map, so old icons never bleed into a new comparison.
+    </div>
+  </div>
+
+  <!-- ── SECTION 3: Design spec summary ── -->
+  <div class="section">
+    <h2>Component Spec</h2>
+    <div class="callout" style="background:#F0FDF4;border-color:#BBF7D0;color:#14532D;">
+      <strong>SpeciesLinks</strong> — renders when speciesCode is truthy, returns null otherwise.<br><br>
+      Wrapper: <code>display:inline-flex; align-items:center; gap:5px; margin-left:6px; vertical-align:middle</code><br>
+      Icons: <code>14×14px img</code> inside <code>a[target=_blank][rel=noreferrer]</code><br>
+      Error handling: <code>onError → img.style.display='none'</code><br>
+      Hover: icon opacity 0.75 → 1.0<br><br>
+      eBird link: <code>https://ebird.org/species/{speciesCode}</code><br>
+      BOW link: <code>https://birdsoftheworld.org/bow/species/{speciesCode}/cur/introduction</code><br>
+      eBird favicon: <code>https://ebird.org/favicon.ico</code><br>
+      BOW favicon: <code>https://birdsoftheworld.org/favicon.ico</code>
+    </div>
+  </div>
+
+</body>
+</html>

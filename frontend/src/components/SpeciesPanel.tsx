@@ -1,10 +1,13 @@
+import { SpeciesLinks } from './SpeciesLinks'
+
 interface SpeciesPanelProps {
   title: string
   species: string[]
   expanded?: boolean
+  taxonMap?: Record<string, string>
 }
 
-export function SpeciesPanel({ title, species, expanded = false }: SpeciesPanelProps) {
+export function SpeciesPanel({ title, species, expanded = false, taxonMap = {} }: SpeciesPanelProps) {
   return (
     <div style={{
       border: '1px solid #E4E4E7',
@@ -72,9 +75,12 @@ export function SpeciesPanel({ title, species, expanded = false }: SpeciesPanelP
                 color: '#0F1117',
                 lineHeight: 1.45,
                 borderBottom: '1px solid #E4E4E7',
+                display: 'flex',
+                alignItems: 'center',
               }}
             >
               {name}
+              <SpeciesLinks speciesCode={taxonMap[name]} />
             </li>
           ))
         )}

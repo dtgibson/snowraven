@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.17] - 2026-05-13
+
+### Added
+- eBird and Birds of the World favicon links appear inline next to every species name in the Media Life List and all three Life List Comparer panels — clicking either icon opens that species' page on the respective site in a new tab
+- Links appear automatically once taxon codes are resolved; species with no code (soundscapes, pending fetch) show no icons
+
+### Fixed
+- Macaulay Library media links now filter to your personal media — the user ID is parsed from the default ML export filename (`ML__DATE_USERID.csv`) and appended to all catalog links
+- Media links now use the taxon code parameter (`taxonCode=acowoo`) instead of the species name parameter for accurate personal media filtering; requires the eBird taxonomy lookup introduced in this release
+- A warning banner is shown when the ML export filename has been renamed and the user ID cannot be parsed
+
 ## [0.0.16] - 2026-05-13
 
 ### Changed

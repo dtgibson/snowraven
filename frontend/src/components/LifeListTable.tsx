@@ -1,6 +1,7 @@
 import { Camera, Mic, Video, Minus } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import type { MediaFilter, SortColumn, SortDir, SortState } from '../types'
+import { SpeciesLinks } from './SpeciesLinks'
 
 interface Props {
   entries: LifeListEntry[]
@@ -175,9 +176,12 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
               >
                 <td style={{ padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 500, color: '#0F1117' }}>
-                      {entry.commonName}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 500, color: '#0F1117' }}>
+                        {entry.commonName}
+                      </span>
+                      <SpeciesLinks speciesCode={taxonMap[entry.commonName]} />
+                    </div>
                     <span style={{ fontSize: 11.5, color: '#9CA3AF', fontStyle: 'italic' }}>
                       {entry.scientificName}
                     </span>

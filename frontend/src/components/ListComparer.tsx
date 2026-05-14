@@ -17,6 +17,7 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
   const [result, setResult] = useState<ComparisonResult | null>(null)
   const [expanded, setExpanded] = useState(false)
   const [sort, setSort] = useState<SortOrder>('taxonomic')
+  const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
 
   const processFile = useCallback((slot: 'a' | 'b', filename: string, file: File) => {
     const setFile = slot === 'a' ? setFileA : setFileB
@@ -50,9 +51,26 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
     reader.readAsText(file)
   }, [])
 
+  const fetchTaxonCodes = async (names: string[]) => {
+    try {
+      const res = await fetch('/taxonomy/codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ species: names.map(n => ({ commonName: n, scientificName: '' })) }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setTaxonMap(data.codes ?? {})
+    } catch {
+      // silently fail — icons simply won't appear
+    }
+  }
+
   const handleCompare = () => {
     if (!fileA || !fileB) return
-    setResult(compareSpecies(fileA, fileB))
+    const compResult = compareSpecies(fileA, fileB)
+    setResult(compResult)
+    fetchTaxonCodes([...compResult.both, ...compResult.aOnly, ...compResult.bOnly])
   }
 
   const handleReset = () => {
@@ -63,6 +81,7 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
     setResult(null)
     setExpanded(false)
     setSort('taxonomic')
+    setTaxonMap({})
     onExpandedChange?.(false)
   }
 
@@ -95,6 +114,7 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
           onToggleExpanded={handleToggleExpanded}
           sort={sort}
           onSortChange={setSort}
+          taxonMap={taxonMap}
         />
       ) : (
         <div style={{ width: '100%', maxWidth: 600 }}>

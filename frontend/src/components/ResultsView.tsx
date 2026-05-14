@@ -10,6 +10,7 @@ interface ResultsViewProps {
   onToggleExpanded: () => void
   sort: SortOrder
   onSortChange: (s: SortOrder) => void
+  taxonMap: Record<string, string>
 }
 
 function sortedSpecies(names: string[], order: Map<string, number>, sort: SortOrder): string[] {
@@ -22,7 +23,7 @@ function sortedSpecies(names: string[], order: Map<string, number>, sort: SortOr
   })
 }
 
-export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleExpanded, sort, onSortChange }: ResultsViewProps) {
+export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleExpanded, sort, onSortChange, taxonMap }: ResultsViewProps) {
   const nameA = fileA.filename
   const nameB = fileB.filename
   const { taxOrder } = result
@@ -152,9 +153,9 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
         flex: expanded ? 'none' : 1,
         minHeight: expanded ? 'auto' : 0,
       }}>
-        <SpeciesPanel title="In Both" species={displayBoth} expanded={expanded} />
-        <SpeciesPanel title={`${nameA} only`} species={displayAOnly} expanded={expanded} />
-        <SpeciesPanel title={`${nameB} only`} species={displayBOnly} expanded={expanded} />
+        <SpeciesPanel title="In Both" species={displayBoth} expanded={expanded} taxonMap={taxonMap} />
+        <SpeciesPanel title={`${nameA} only`} species={displayAOnly} expanded={expanded} taxonMap={taxonMap} />
+        <SpeciesPanel title={`${nameB} only`} species={displayBOnly} expanded={expanded} taxonMap={taxonMap} />
       </div>
     </div>
   )
