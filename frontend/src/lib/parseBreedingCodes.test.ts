@@ -132,6 +132,22 @@ describe('parseBreedingCodes', () => {
     expect(entries[0].commonName).toBe('American Robin')
   })
 
+  it('correctly parses a row where a quoted field before the breeding code contains an embedded newline', () => {
+    // If a quoted field that appears before the breeding code column spans
+    // multiple lines, a line-split parser truncates the row and the breeding
+    // code (at a later column index) is never reached. Use a minimal header
+    // where Location (index 2) precedes Breeding Code (index 3).
+    const text = [
+      'Submission ID,Common Name,Location,Breeding Code',
+      'S1,Song Sparrow,"River\nTrail",NY',
+      'S2,American Robin,Garden,S',
+    ].join('\n')
+    const { entries } = parseBreedingCodes(text)
+    const names = entries.map(e => e.commonName)
+    expect(names).toContain('Song Sparrow')
+    expect(names).toContain('American Robin')
+  })
+
   it('returns an empty entries array when no rows have valid codes', () => {
     const { entries, hasBreedingCodeColumn } = parseBreedingCodes(csv(
       'S1,American Robin,Turdus migratorius,340,',

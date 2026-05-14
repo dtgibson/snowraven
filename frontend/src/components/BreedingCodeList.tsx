@@ -152,9 +152,9 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            border: `2px dashed ${draggingOver ? '#7C3AED' : '#E4E4E7'}`,
+            border: `2px dashed ${draggingOver ? '#2D8653' : '#E4E4E7'}`,
             borderRadius: 12,
-            background: draggingOver ? 'rgba(124,58,237,0.04)' : '#fff',
+            background: draggingOver ? 'rgba(45,134,83,0.04)' : '#fff',
             cursor: 'pointer',
             transition: 'background 0.15s, border-color 0.15s',
             padding: 40,
@@ -164,10 +164,10 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         >
           <div style={{
             width: 48, height: 48, borderRadius: 12,
-            background: 'rgba(124,58,237,0.08)',
+            background: 'rgba(45,134,83,0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Upload size={22} strokeWidth={1.75} style={{ color: '#7C3AED' }} />
+            <Upload size={22} strokeWidth={1.75} style={{ color: '#2D8653' }} />
           </div>
           <span style={{ fontSize: 15, fontWeight: 600, color: '#0F1117' }}>
             Upload your eBird backup

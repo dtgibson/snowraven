@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.19] - 2026-05-14
+
+### Fixed
+- Breeding Codes tab now correctly reads breeding codes from eBird backup files that contain quoted fields with embedded newlines (e.g. multi-line observation notes entered before the breeding code column)
+- Drop zone upload icon is now green, matching the rest of the app
+
 ## [0.0.18] - 2026-05-14
 
 ### Added

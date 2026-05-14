@@ -12,23 +12,59 @@ export interface BreedingData {
   hasBreedingCodeColumn: boolean
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = []
+// Full CSV parser that correctly handles quoted fields containing embedded
+// newlines — which occur in eBird's Observation Details and Checklist
+// Comments columns. The previous line-split approach broke whenever a row
+// preceding a breeding-code entry had multi-line notes.
+function parseCSV(content: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
   let field = ''
   let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') { field += '"'; i++ }
-      else inQuotes = !inQuotes
-    } else if (char === ',' && !inQuotes) {
-      result.push(field); field = ''
-    } else {
-      field += char
+  // Strip UTF-8 BOM if present
+  let i = content.charCodeAt(0) === 0xFEFF ? 1 : 0
+
+  while (i < content.length) {
+    const ch = content[i]
+
+    if (ch === '"') {
+      if (inQuotes && content[i + 1] === '"') {
+        field += '"'
+        i += 2
+      } else {
+        inQuotes = !inQuotes
+        i++
+      }
+      continue
     }
+
+    if (ch === ',' && !inQuotes) {
+      row.push(field)
+      field = ''
+      i++
+      continue
+    }
+
+    if ((ch === '\r' || ch === '\n') && !inQuotes) {
+      if (ch === '\r' && content[i + 1] === '\n') i++
+      row.push(field)
+      field = ''
+      rows.push(row)
+      row = []
+      i++
+      continue
+    }
+
+    field += ch
+    i++
   }
-  result.push(field)
-  return result
+
+  if (field || row.length > 0) {
+    row.push(field)
+    rows.push(row)
+  }
+
+  return rows
 }
 
 function isExcluded(name: string): boolean {
@@ -41,13 +77,10 @@ function normalizeSpeciesName(name: string): string {
 }
 
 export function parseBreedingCodes(content: string): BreedingData {
-  const lines = content.split(/\r?\n/)
-  const headerLine = lines[0]?.trim()
-  if (!headerLine) throw new Error('INVALID_EBIRD')
+  const rows = parseCSV(content)
+  if (rows.length === 0) throw new Error('INVALID_EBIRD')
 
-  const headers = parseCSVLine(headerLine).map(h =>
-    h.trim().toLowerCase().replace(/^"|"$/g, '')
-  )
+  const headers = rows[0].map(h => h.trim().toLowerCase())
 
   const commonNameIdx = headers.findIndex(h => h === 'common name')
   if (commonNameIdx === -1) throw new Error('INVALID_EBIRD')
@@ -61,19 +94,16 @@ export function parseBreedingCodes(content: string): BreedingData {
 
   const entryMap = new Map<string, BreedingEntry>()
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-    const cols = parseCSVLine(line)
+  for (let i = 1; i < rows.length; i++) {
+    const cols = rows[i]
+    if (cols.length === 1 && cols[0].trim() === '') continue
 
-    const rawName = cols[commonNameIdx]?.trim().replace(/^"|"$/g, '') ?? ''
+    const rawName = cols[commonNameIdx]?.trim() ?? ''
     if (!rawName || isExcluded(rawName)) continue
 
     const name = normalizeSpeciesName(rawName)
-    const sciName = sciNameIdx !== -1
-      ? (cols[sciNameIdx]?.trim().replace(/^"|"$/g, '') ?? '')
-      : ''
-    const code = cols[breedingCodeIdx]?.trim().replace(/^"|"$/g, '') ?? ''
+    const sciName = sciNameIdx !== -1 ? (cols[sciNameIdx]?.trim() ?? '') : ''
+    const code = cols[breedingCodeIdx]?.trim() ?? ''
 
     if (!code || !BREEDING_CODE_MAP.has(code)) continue
 
