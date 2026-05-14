@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Media List Links and Sorting</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    background: #F4F4F5;
+    color: #0F1117;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    max-width: 960px;
+    margin: 0 auto;
+    box-shadow: 0 0 0 1px #E4E4E7;
+  }
+
+  .header {
+    padding: 14px 24px;
+    border-bottom: 1px solid #E4E4E7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    background: #fff;
+  }
+  .header-title { display: flex; align-items: center; gap: 8px; }
+  .header-name { font-size: 15px; font-weight: 700; color: #0F1117; letter-spacing: -0.2px; }
+  .raven { color: #2D8653; font-size: 18px; }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #E4E4E7;
+    flex-shrink: 0;
+    background: #fff;
+    padding: 0 24px;
+  }
+  .tab {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #71717A;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .tab.active { color: #0F1117; border-bottom-color: #2D8653; font-weight: 600; }
+
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 24px;
+    min-height: 0;
+    gap: 0;
+  }
+
+  /* Controls row */
+  .controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: #fff;
+    color: #71717A;
+  }
+  .pill.active-pos { border-color: rgba(45,134,83,0.25); background: #E8F5EE; color: #2D8653; }
+  .pill.active-neg { border-color: rgba(239,68,68,0.3); background: #FEF2F2; color: #DC2626; }
+
+  .pill-sep { width: 1px; height: 20px; background: #E4E4E7; flex-shrink: 0; align-self: center; }
+
+  .right-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .count-label { font-size: 12px; color: #71717A; }
+
+  .ghost-btn {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: none;
+    color: #71717A;
+    white-space: nowrap;
+  }
+
+  /* Table */
+  .table-wrap {
+    border: 1px solid #E4E4E7;
+    border-radius: 10px;
+    background: #fff;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  thead tr {
+    position: sticky;
+    top: 0;
+    background: #F9FAFB;
+    box-shadow: inset 0 -1px 0 #E4E4E7;
+  }
+
+  /* Sortable column header */
+  .col-header {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #71717A;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .col-header:hover { color: #3F3F46; }
+  .col-header.active { color: #0F1117; }
+
+  .col-header-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sort-arrow {
+    font-size: 10px;
+    color: #2D8653;
+    font-style: normal;
+  }
+
+  .col-entries { text-align: left; min-width: 200px; }
+  .col-media-count { width: 80px; text-align: center; }
+
+  tbody tr {
+    border-bottom: 1px solid #F4F4F5;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #FAFAFA; }
+
+  td { padding: 9px 14px; vertical-align: middle; }
+
+  .entry-name { font-size: 13.5px; font-weight: 500; color: #0F1117; }
+  .entry-sci { font-size: 11.5px; color: #9CA3AF; font-style: italic; margin-top: 1px; }
+
+  .cell-center { display: flex; justify-content: center; align-items: center; }
+
+  /* Count link */
+  .count-link {
+    font-size: 13px;
+    font-weight: 600;
+    color: #2D8653;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .count-link:hover { text-decoration: underline; }
+
+  /* Dash */
+  .dash { color: #D1D5DB; font-size: 16px; line-height: 1; }
+
+  /* Callout annotations */
+  .annotations {
+    margin-top: 32px;
+    padding: 20px 24px;
+    background: #F9FAFB;
+    border-top: 1px solid #E4E4E7;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .annotation {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 13px;
+    color: #3F3F46;
+  }
+  .annotation-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #2D8653;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .annotation strong { color: #0F1117; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">
+      <span class="raven">◈</span>
+      <span class="header-name">SnowRaven</span>
+    </div>
+    <span style="font-size:12px;color:#A1A1AA;">v0.0.16</span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab">Weather</div>
+    <div class="tab active">Media Life List</div>
+    <div class="tab">Life List Comparer</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Controls row -->
+    <div class="controls">
+      <!-- Filter pills -->
+      <div class="pills">
+        <button class="pill active-pos">All</button>
+        <div class="pill-sep"></div>
+        <button class="pill">📷 No photo</button>
+        <button class="pill">🎙 No audio</button>
+        <button class="pill">🎬 No video</button>
+        <div class="pill-sep"></div>
+        <button class="pill">📷 Has photo</button>
+        <button class="pill">🎙 Has audio</button>
+        <button class="pill">🎬 Has video</button>
+      </div>
+
+      <!-- Right controls — no sort button group -->
+      <div class="right-controls">
+        <span class="count-label">7 entries</span>
+        <button class="ghost-btn">↓ Show all</button>
+        <button class="ghost-btn">Load new file</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <!-- Callout 1: Sortable column headers with sort indicators -->
+            <th class="col-header col-entries active" title="Sort by name">
+              <div class="col-header-inner">
+                Entries
+                <em class="sort-arrow">↑</em><!-- 1 -->
+              </div>
+            </th>
+            <th class="col-header col-media-count" title="Sort by photo count">
+              <div class="col-header-inner">
+                📷 Photo
+              </div>
+            </th>
+            <th class="col-header col-media-count" title="Sort by audio count">
+              <div class="col-header-inner">
+                🎙 Audio
+              </div>
+            </th>
+            <th class="col-header col-media-count" title="Sort by video count">
+              <div class="col-header-inner">
+                🎬 Video
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="entry-name">American Robin</div>
+              <div class="entry-sci">Turdus migratorius</div>
+            </td>
+            <td><div class="cell-center">
+              <!-- Callout 2: Count as clickable link -->
+              <a class="count-link" href="#" onclick="return false;">7</a>
+            </div></td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">3</a>
+            </div></td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="entry-name">Black-capped Chickadee</div>
+              <div class="entry-sci">Poecile atricapillus</div>
+            </td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">2</a>
+            </div></td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="entry-name">Cedar Waxwing</div>
+              <div class="entry-sci">Bombycilla cedrorum</div>
+            </td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">4</a>
+            </div></td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">1</a>
+            </div></td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">1</a>
+            </div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="entry-name">Dark-eyed Junco</div>
+              <div class="entry-sci">Junco hyemalis</div>
+            </td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">2</a>
+            </div></td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="entry-name">House Finch</div>
+              <div class="entry-sci">Haemorhous mexicanus</div>
+            </td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">1</a>
+            </div></td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+          </tr>
+          <!-- Callout 3: Soundscape row — no scientific name -->
+          <tr>
+            <td>
+              <div class="entry-name">Soundscape</div>
+              <div class="entry-sci"></div>
+            </td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">5</a>
+            </div></td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+          </tr>
+          <tr>
+            <td>
+              <div class="entry-name">Yellow Warbler</div>
+              <div class="entry-sci">Setophaga petechia</div>
+            </td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">12</a>
+            </div></td>
+            <td><div class="cell-center">
+              <a class="count-link" href="#" onclick="return false;">4</a>
+            </div></td>
+            <td><div class="cell-center">
+              <span class="dash">—</span>
+            </div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /content -->
+
+</div><!-- /app -->
+
+<!-- Design annotations -->
+<div class="annotations">
+  <div class="annotation">
+    <div class="annotation-num">1</div>
+    <div>
+      <strong>Sortable column headers.</strong> All four column headers (Entries, Photo, Audio, Video) are clickable sort triggers. The active sort column is shown in dark ink with a green arrow indicator (↑ ascending / ↓ descending). Inactive headers are muted and show no indicator. Clicking a new column sorts by that column; clicking the active column toggles direction. Default on load: Entries ↑ (A–Z). Photo/Audio/Video default to ↓ (highest first) on first click.
+    </div>
+  </div>
+  <div class="annotation">
+    <div class="annotation-num">2</div>
+    <div>
+      <strong>Count links.</strong> Non-zero counts render as anchor elements in the same green / bold style as before. At rest: no underline. On hover: underline appears. Clicking opens Macaulay Library catalog search filtered by species and media type in a new tab (<code>target="_blank"</code>). Zero counts remain a dash — no link. The "Media" (✓) column is gone; the sort button group is gone.
+    </div>
+  </div>
+  <div class="annotation">
+    <div class="annotation-num">3</div>
+    <div>
+      <strong>Soundscape row.</strong> Carries no scientific name — the cell is visually empty below the common name. Counts and links work normally: clicking "5" on the Soundscape audio cell links to the ML search for "Soundscape" + Audio.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

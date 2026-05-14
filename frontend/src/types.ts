@@ -15,4 +15,9 @@ export interface ComparisonResult {
 
 export type MediaType = 'Photo' | 'Audio' | 'Video'
 export type MediaFilter = 'all' | 'no-photo' | 'no-audio' | 'no-video' | 'has-photo' | 'has-audio' | 'has-video'
-export type SortOrder = 'taxonomic' | 'alpha'
+export type SortColumn = 'name' | 'photo' | 'audio' | 'video'
+export type SortDir = 'asc' | 'desc'
+export interface SortState {
+  column: SortColumn
+  dir: SortDir
+}

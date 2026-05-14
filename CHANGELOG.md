@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.16] - 2026-05-13
+
+### Changed
+- Photo, Audio, and Video counts in the Media Life List are now clickable links — clicking a count opens the Macaulay Library catalog filtered by that species and media type in a new tab
+- Column headers (Entries, Photo, Audio, Video) are now clickable sort controls; clicking a header sorts by that column, clicking again reverses direction
+- Removed the "Media" (always-✓) column — redundant since every entry in the list has media
+- Removed the standalone A–Z sort button — replaced by column-header sorting
+
 ## [0.0.15] - 2026-05-13
 
 ### Changed

@@ -4,7 +4,7 @@ import { parseLifeList } from '../lib/parseLifeList'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport } from '../lib/parseMLExport'
 import { LifeListTable } from './LifeListTable'
-import type { MediaFilter, SortOrder } from '../types'
+import type { MediaFilter, SortState } from '../types'
 
 const BATCH_SIZE = 10
 
@@ -66,7 +66,7 @@ interface LifeListProps {
 export function LifeList({ onExpandedChange }: LifeListProps) {
   const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
   const [filter, setFilter] = useState<MediaFilter>('all')
-  const [sort, setSort] = useState<SortOrder>('taxonomic')
+  const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc' })
   const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState<'primary' | 'secondary' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -119,7 +119,6 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
       if (fileType === 'ml-export') {
         const { entries, mediaMap } = parseMLExport(text)
-        setSort('alpha')
         setPhase({ tag: 'ready', entries, mediaMap, mlError: false, source: 'ml-export' })
       } else if (fileType === 'ebird') {
         const entries = parseLifeList(text)
@@ -153,7 +152,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   const handleReset = () => {
     setPhase({ tag: 'idle' })
     setFilter('all')
-    setSort('taxonomic')
+    setSort({ column: 'name', dir: 'asc' })
     setExpanded(false)
     onExpandedChange?.(false)
   }
@@ -323,7 +322,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   }
 
   // ── Ready ─────────────────────────────────────────────────────────────────
-  const { entries, mediaMap, mlError, source } = phase
+  const { entries, mediaMap, mlError } = phase
 
   const filteredCount = entries.filter(entry => {
     if (filter === 'no-photo') return !entry.catalogIds.some(id => mediaMap[id] === 'Photo')
@@ -405,25 +404,6 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <span style={{ fontSize: 12, color: '#71717A' }}>{countLabel}</span>
 
-          {/* Sort control — Taxonomic hidden for ML export (no tax order available) */}
-          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid #E4E4E7' }}>
-            {(source === 'ml-export' ? ['alpha'] as SortOrder[] : ['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
-              <button
-                key={s}
-                onClick={() => setSort(s)}
-                style={{
-                  height: 28, padding: '0 10px', fontSize: 11, fontWeight: 500,
-                  fontFamily: 'inherit', cursor: 'pointer',
-                  border: 'none', borderLeft: i > 0 ? '1.5px solid #E4E4E7' : 'none',
-                  background: sort === s ? '#F4F4F5' : '#fff',
-                  color: sort === s ? '#0F1117' : '#71717A',
-                }}
-              >
-                {s === 'taxonomic' ? 'Taxonomic' : 'A–Z'}
-              </button>
-            ))}
-          </div>
-
           <button style={ghostBtn(expanded)} onClick={handleToggleExpanded}>
             {expanded ? '↑ Collapse' : '↓ Show all'}
           </button>
@@ -436,6 +416,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         mediaMap={mediaMap}
         filter={filter}
         sort={sort}
+        onSortChange={setSort}
         expanded={expanded}
       />
     </div>

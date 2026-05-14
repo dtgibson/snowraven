@@ -1,12 +1,13 @@
-import { Eye, Camera, Mic, Video, Check, Minus } from 'lucide-react'
+import { Camera, Mic, Video, Minus } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
-import type { MediaFilter, SortOrder } from '../types'
+import type { MediaFilter, SortColumn, SortDir, SortState } from '../types'
 
 interface Props {
   entries: LifeListEntry[]
   mediaMap: Record<string, string>
   filter: MediaFilter
-  sort: SortOrder
+  sort: SortState
+  onSortChange: (next: SortState) => void
   expanded: boolean
 }
 
@@ -26,13 +27,17 @@ function countMedia(
   return entry.catalogIds.filter(id => mediaMap[id] === type).length
 }
 
+function mlUrl(commonName: string, type: 'Photo' | 'Audio' | 'Video'): string {
+  return `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(commonName)}&mediaType=${type}`
+}
+
 const iconCell: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, expanded }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, expanded }: Props) {
   const filtered = entries.filter(entry => {
     if (filter === 'no-photo') return !hasMedia(entry, mediaMap, 'Photo')
     if (filter === 'no-audio') return !hasMedia(entry, mediaMap, 'Audio')
@@ -44,14 +49,49 @@ export function LifeListTable({ entries, mediaMap, filter, sort, expanded }: Pro
   })
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sort === 'alpha') return a.commonName.localeCompare(b.commonName)
-    const aFin = isFinite(a.taxonomicOrder)
-    const bFin = isFinite(b.taxonomicOrder)
-    if (aFin && bFin) return a.taxonomicOrder - b.taxonomicOrder
-    if (aFin) return -1
-    if (bFin) return 1
+    const dirMult = sort.dir === 'asc' ? 1 : -1
+    if (sort.column === 'name') {
+      return dirMult * a.commonName.localeCompare(b.commonName)
+    }
+    const type = sort.column === 'photo' ? 'Photo' : sort.column === 'audio' ? 'Audio' : 'Video'
+    const diff = dirMult * (countMedia(a, mediaMap, type) - countMedia(b, mediaMap, type))
+    if (diff !== 0) return diff
     return a.commonName.localeCompare(b.commonName)
   })
+
+  function handleHeaderClick(column: SortColumn) {
+    if (sort.column === column) {
+      onSortChange({ column, dir: sort.dir === 'asc' ? 'desc' : 'asc' })
+    } else {
+      const defaultDir: SortDir = column === 'name' ? 'asc' : 'desc'
+      onSortChange({ column, dir: defaultDir })
+    }
+  }
+
+  function sortIndicator(column: SortColumn) {
+    if (sort.column !== column) return null
+    return (
+      <span style={{ fontSize: 10, color: '#2D8653', marginLeft: 2 }}>
+        {sort.dir === 'asc' ? '↑' : '↓'}
+      </span>
+    )
+  }
+
+  const thBase: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    cursor: 'pointer',
+    userSelect: 'none',
+  }
+
+  const countLinkStyle: React.CSSProperties = {
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#2D8653',
+    textDecoration: 'none',
+  }
 
   return (
     <div style={{
@@ -70,37 +110,38 @@ export function LifeListTable({ entries, mediaMap, filter, sort, expanded }: Pro
             background: '#F9FAFB',
             boxShadow: 'inset 0 -1px 0 #E4E4E7',
           }}>
-            <th style={{
-              padding: '10px 14px',
-              textAlign: 'left',
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              color: '#71717A',
-              minWidth: 200,
-            }}>
-              Entries
+            <th
+              onClick={() => handleHeaderClick('name')}
+              style={{
+                ...thBase,
+                padding: '10px 14px',
+                textAlign: 'left',
+                minWidth: 200,
+                color: sort.column === 'name' ? '#0F1117' : '#71717A',
+              }}
+            >
+              Entries{sortIndicator('name')}
             </th>
             {([
-              ['Media', <Eye size={11} strokeWidth={2.5} />],
-              ['Photo', <Camera size={11} strokeWidth={2.5} />],
-              ['Audio', <Mic size={11} strokeWidth={2.5} />],
-              ['Video', <Video size={11} strokeWidth={2.5} />],
-            ] as [string, React.ReactNode][]).map(([label, icon]) => (
-              <th key={label} style={{
-                padding: '10px 14px',
-                width: 72,
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                color: '#71717A',
-                textAlign: 'center',
-              }}>
+              ['Photo', 'photo', <Camera size={11} strokeWidth={2.5} />],
+              ['Audio', 'audio', <Mic size={11} strokeWidth={2.5} />],
+              ['Video', 'video', <Video size={11} strokeWidth={2.5} />],
+            ] as [string, SortColumn, React.ReactNode][]).map(([label, col, icon]) => (
+              <th
+                key={label}
+                onClick={() => handleHeaderClick(col)}
+                style={{
+                  ...thBase,
+                  padding: '10px 14px',
+                  width: 80,
+                  textAlign: 'center',
+                  color: sort.column === col ? '#0F1117' : '#71717A',
+                }}
+              >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                   {icon}
                   {label}
+                  {sortIndicator(col)}
                 </div>
               </th>
             ))}
@@ -128,29 +169,45 @@ export function LifeListTable({ entries, mediaMap, filter, sort, expanded }: Pro
                     </span>
                   </div>
                 </td>
-                <td style={{ width: 72, padding: '9px 14px', verticalAlign: 'middle' }}>
-                  <div style={iconCell}>
-                    <Check size={16} strokeWidth={2.5} style={{ color: '#2D8653' }} />
-                  </div>
-                </td>
-                <td style={{ width: 72, padding: '9px 14px', verticalAlign: 'middle' }}>
+                <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
                     {photoCount > 0
-                      ? <span style={{ fontSize: 13, fontWeight: 600, color: '#2D8653' }}>{photoCount}</span>
+                      ? <a
+                          href={mlUrl(entry.commonName, 'Photo')}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={countLinkStyle}
+                          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                        >{photoCount}</a>
                       : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
                   </div>
                 </td>
-                <td style={{ width: 72, padding: '9px 14px', verticalAlign: 'middle' }}>
+                <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
                     {audioCount > 0
-                      ? <span style={{ fontSize: 13, fontWeight: 600, color: '#2D8653' }}>{audioCount}</span>
+                      ? <a
+                          href={mlUrl(entry.commonName, 'Audio')}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={countLinkStyle}
+                          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                        >{audioCount}</a>
                       : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
                   </div>
                 </td>
-                <td style={{ width: 72, padding: '9px 14px', verticalAlign: 'middle' }}>
+                <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
                     {videoCount > 0
-                      ? <span style={{ fontSize: 13, fontWeight: 600, color: '#2D8653' }}>{videoCount}</span>
+                      ? <a
+                          href={mlUrl(entry.commonName, 'Video')}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={countLinkStyle}
+                          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                        >{videoCount}</a>
                       : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
                   </div>
                 </td>

@@ -1,17 +1,17 @@
 {
-  "activeFeature": "media-life-list-improvements",
+  "activeFeature": "media-list-links-and-sorting",
   "sessionNumber": 2,
   "sessionType": "feature",
   "currentStage": 8,
   "lastCompletedStage": 7,
   "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/media-life-list-improvements/strategic-brief.md",
-    "pipeline/media-life-list-improvements/prd.md",
-    "pipeline/media-life-list-improvements/schema.md",
-    "pipeline/media-life-list-improvements/design-spec.md",
-    "pipeline/media-life-list-improvements/design.html"
+    "pipeline/media-list-links-and-sorting/strategic-brief.md",
+    "pipeline/media-list-links-and-sorting/prd.md",
+    "pipeline/media-list-links-and-sorting/schema.md",
+    "pipeline/media-list-links-and-sorting/design-spec.md",
+    "pipeline/media-list-links-and-sorting/design.html"
   ],
-  "createdAt": "2026-05-13T17:00:00Z",
-  "updatedAt": "2026-05-13T19:26:00Z"
+  "createdAt": "2026-05-13T19:35:00Z",
+  "updatedAt": "2026-05-13T20:27:00Z"
 }
