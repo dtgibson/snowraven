@@ -9,6 +9,7 @@ interface Props {
   sort: SortState
   onSortChange: (next: SortState) => void
   userId: string | null
+  taxonMap: Record<string, string>
   expanded: boolean
 }
 
@@ -28,8 +29,18 @@ function countMedia(
   return entry.catalogIds.filter(id => mediaMap[id] === type).length
 }
 
-function mlUrl(commonName: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null): string {
-  const base = `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(commonName)}&mediaType=${type.toLowerCase()}`
+function mlUrl(
+  commonName: string,
+  type: 'Photo' | 'Audio' | 'Video',
+  userId: string | null,
+  taxonCode: string | undefined
+): string {
+  const mediaType = type.toLowerCase()
+  if (taxonCode) {
+    const base = `https://search.macaulaylibrary.org/catalog?mediaType=${mediaType}&taxonCode=${taxonCode}`
+    return userId ? `${base}&userId=${userId}` : base
+  }
+  const base = `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(commonName)}&mediaType=${mediaType}`
   return userId ? `${base}&userId=${userId}` : base
 }
 
@@ -39,7 +50,7 @@ const iconCell: React.CSSProperties = {
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, expanded }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, expanded }: Props) {
   const filtered = entries.filter(entry => {
     if (filter === 'no-photo') return !hasMedia(entry, mediaMap, 'Photo')
     if (filter === 'no-audio') return !hasMedia(entry, mediaMap, 'Audio')
@@ -154,6 +165,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
             const photoCount = countMedia(entry, mediaMap, 'Photo')
             const audioCount = countMedia(entry, mediaMap, 'Audio')
             const videoCount = countMedia(entry, mediaMap, 'Video')
+            const taxonCode = taxonMap[entry.commonName]
             return (
               <tr
                 key={entry.commonName}
@@ -175,7 +187,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {photoCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Photo', userId)}
+                          href={mlUrl(entry.commonName, 'Photo', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
                           style={countLinkStyle}
@@ -189,7 +201,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {audioCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Audio', userId)}
+                          href={mlUrl(entry.commonName, 'Audio', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
                           style={countLinkStyle}
@@ -203,7 +215,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {videoCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Video', userId)}
+                          href={mlUrl(entry.commonName, 'Video', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
                           style={countLinkStyle}

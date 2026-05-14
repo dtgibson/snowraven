@@ -74,8 +74,26 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc' })
   const [expanded, setExpanded] = useState(false)
   const [mlUserId, setMlUserId] = useState<string | null>(null)
+  const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [draggingOver, setDraggingOver] = useState<'primary' | 'secondary' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const fetchTaxonCodes = async (entries: LifeListEntry[]) => {
+    try {
+      const res = await fetch('/taxonomy/codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })),
+        }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setTaxonMap(data.codes ?? {})
+    } catch {
+      // silently fail — links will use taxaName fallback
+    }
+  }
 
   const startMediaLookup = async (entries: LifeListEntry[]) => {
     const allIds = [...new Set(entries.flatMap(e => e.catalogIds))]
@@ -116,6 +134,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     }
 
     setPhase({ tag: 'ready', entries, mediaMap, mlError, source: 'ebird' })
+    fetchTaxonCodes(entries)
   }
 
   const processFile = async (file: File) => {
@@ -127,6 +146,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         const { entries, mediaMap } = parseMLExport(text)
         setMlUserId(parseMLUserId(file.name))
         setPhase({ tag: 'ready', entries, mediaMap, mlError: false, source: 'ml-export' })
+        fetchTaxonCodes(entries)
       } else if (fileType === 'ebird') {
         const entries = parseLifeList(text)
         await startMediaLookup(entries)
@@ -162,6 +182,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     setSort({ column: 'name', dir: 'asc' })
     setExpanded(false)
     setMlUserId(null)
+    setTaxonMap({})
     onExpandedChange?.(false)
   }
 
@@ -438,6 +459,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         sort={sort}
         onSortChange={setSort}
         userId={mlUserId}
+        taxonMap={taxonMap}
         expanded={expanded}
       />
     </div>
