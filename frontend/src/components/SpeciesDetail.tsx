@@ -143,12 +143,12 @@ export function SpeciesDetail() {
   const selectorRef = useRef<HTMLDivElement>(null)
   const dropdownListRef = useRef<HTMLDivElement>(null)
 
-  // Reset comment state when species changes
-  useEffect(() => {
+  const selectSpecies = (name: string | null) => {
+    setSelectedSpecies(name)
     setCommentFilter('')
     setCommentSort('newest')
     setShowAllComments(false)
-  }, [selectedSpecies])
+  }
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -160,6 +160,27 @@ export function SpeciesDetail() {
     document.addEventListener('mousedown', onPointerDown)
     return () => document.removeEventListener('mousedown', onPointerDown)
   }, [])
+
+  const fetchTaxonData = async (obs: ObservationEntry[]) => {
+    try {
+      const seen = new Map<string, string>()
+      for (const o of obs) {
+        if (!seen.has(o.commonName)) seen.set(o.commonName, o.scientificName)
+      }
+      const species = [...seen.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
+      const res = await fetch('/taxonomy/codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ species }),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setTaxonOrders(data.orders ?? {})
+      setTaxonMap(data.codes ?? {})
+    } catch {
+      // silently fail — selector usable in A–Z; ML links omit taxonCode
+    }
+  }
 
   // Auto-load from stored files
   useEffect(() => {
@@ -215,33 +236,12 @@ export function SpeciesDetail() {
     return () => { cancelled = true }
   }, [])
 
-  const fetchTaxonData = async (obs: ObservationEntry[]) => {
-    try {
-      const seen = new Map<string, string>()
-      for (const o of obs) {
-        if (!seen.has(o.commonName)) seen.set(o.commonName, o.scientificName)
-      }
-      const species = [...seen.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
-      const res = await fetch('/taxonomy/codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ species }),
-      })
-      if (!res.ok) return
-      const data = await res.json()
-      setTaxonOrders(data.orders ?? {})
-      setTaxonMap(data.codes ?? {})
-    } catch {
-      // silently fail — selector usable in A–Z; ML links omit taxonCode
-    }
-  }
-
   const processFile = (file: File) => {
     file.text().then(text => {
       try {
         const observations = parseEbirdObservations(text)
         setPhase({ tag: 'ready', observations, mediaMap: new Map(), hasML: false, userId: null })
-        setSelectedSpecies(null)
+        selectSpecies(null)
         setSelectorQuery('')
         fetchTaxonData(observations)
       } catch {
@@ -266,7 +266,7 @@ export function SpeciesDetail() {
 
   const handleReset = () => {
     setPhase({ tag: 'idle' })
-    setSelectedSpecies(null)
+    selectSpecies(null)
     setSelectorQuery('')
     setDropdownOpen(false)
     setTaxonOrders({})
@@ -560,7 +560,7 @@ export function SpeciesDetail() {
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => {
-                      setSelectedSpecies(name)
+                      selectSpecies(name)
                       setSelectorQuery('')
                       setDropdownOpen(false)
                     }}
