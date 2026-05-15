@@ -42,3 +42,11 @@ export const TIER_COLORS: Record<1 | 2 | 3 | 4, string> = {
   2: '#9333EA',
   1: '#C084FC',
 }
+
+export type BreedingCategory = 'confirmed' | 'probable' | 'possible'
+
+export const CATEGORY_CODES: Record<BreedingCategory, Set<string>> = {
+  confirmed: new Set(BREEDING_CODES.filter(d => d.tier >= 3).map(d => d.code)),
+  probable:  new Set(BREEDING_CODES.filter(d => d.tier === 2).map(d => d.code)),
+  possible:  new Set(BREEDING_CODES.filter(d => d.tier === 1).map(d => d.code)),
+}

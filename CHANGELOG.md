@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.26] - 2026-05-15
+
+### Added
+- **Breeding code category filters** — three new filter pills on the Breeding Codes tab: Confirmed, Probable, and Possible; each selects all codes in that eBird evidence category with one click
+- Category filter logic: OR within category (any matching code qualifies the species), AND across active categories and individual code filters
+- Multiple categories can be active simultaneously; "All" clears both category and individual code filters
+- Category pills hidden when no codes from that category appear in the loaded data
+- `BreedingCategory` type and `CATEGORY_CODES` constant added to `breedingCodes.ts`, derived programmatically from tier assignments
+
 ## [0.0.25] - 2026-05-15
 
 ### Added

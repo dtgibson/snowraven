@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Upload, AlertCircle, Loader2, FileCheck } from 'lucide-react'
 import { parseBreedingCodes } from '../lib/parseBreedingCodes'
 import type { BreedingData, BreedingEntry } from '../lib/parseBreedingCodes'
-import { BREEDING_CODE_MAP, TIER_COLORS } from '../lib/breedingCodes'
+import { BREEDING_CODE_MAP, TIER_COLORS, CATEGORY_CODES } from '../lib/breedingCodes'
+import type { BreedingCategory } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
 import type { BreedingSortState, StoredFileInfo } from '../types'
 
@@ -50,6 +51,28 @@ function codePillStyle(tier: 1 | 2 | 3 | 4, active: boolean): React.CSSPropertie
   }
 }
 
+function categoryPillStyle(cat: BreedingCategory, active: boolean): React.CSSProperties {
+  const base: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center',
+    height: 30, padding: '0 12px', borderRadius: 6,
+    fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+    cursor: 'pointer', border: '1.5px solid transparent', background: 'none',
+  }
+  if (!active) return { ...base, borderColor: '#E4E4E7', background: '#fff', color: '#71717A' }
+  const styles: Record<BreedingCategory, React.CSSProperties> = {
+    confirmed: { background: 'rgba(59,7,100,0.08)',   borderColor: 'rgba(59,7,100,0.3)',   color: '#3B0764' },
+    probable:  { background: 'rgba(147,51,234,0.08)', borderColor: 'rgba(147,51,234,0.3)', color: '#7E22CE' },
+    possible:  { background: 'rgba(192,132,252,0.15)', borderColor: 'rgba(192,132,252,0.5)', color: '#7E22CE' },
+  }
+  return { ...base, ...styles[cat] }
+}
+
+const CATEGORY_META: { key: BreedingCategory; label: string }[] = [
+  { key: 'confirmed', label: 'Confirmed' },
+  { key: 'probable',  label: 'Probable' },
+  { key: 'possible',  label: 'Possible' },
+]
+
 function ghostBtn(active = false): React.CSSProperties {
   return {
     height: 28,
@@ -69,6 +92,7 @@ function ghostBtn(active = false): React.CSSProperties {
 export function BreedingCodeList({ onExpandedChange }: Props) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<Set<string>>(new Set())
+  const [categoryFilter, setCategoryFilter] = useState<Set<BreedingCategory>>(new Set())
   const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
   const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
@@ -133,6 +157,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         }
         setPhase({ tag: 'ready', data })
         setFilter(new Set())
+        setCategoryFilter(new Set())
         setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
         if (data.entries.length > 0) fetchTaxonCodes(data.entries)
       } catch {
@@ -161,6 +186,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
   const handleReset = () => {
     setPhase({ tag: 'idle' })
     setFilter(new Set())
+    setCategoryFilter(new Set())
     setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
     setExpanded(false)
     setTaxonMap({})
@@ -264,11 +290,22 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
     )
   }
 
-  const filteredCount = filter.size === 0
-    ? entries.length
-    : entries.filter(e => [...filter].every(code => (e.codes[code] ?? 0) > 0)).length
+  const categoryFilteredEntries = categoryFilter.size === 0
+    ? entries
+    : entries.filter(e => {
+        for (const cat of categoryFilter) {
+          if (![...CATEGORY_CODES[cat]].some(code => (e.codes[code] ?? 0) > 0)) return false
+        }
+        return true
+      })
 
-  const countLabel = filter.size === 0
+  const filteredCount = (categoryFilter.size === 0 && filter.size === 0)
+    ? entries.length
+    : categoryFilteredEntries.filter(e =>
+        filter.size === 0 || [...filter].every(code => (e.codes[code] ?? 0) > 0)
+      ).length
+
+  const countLabel = (categoryFilter.size === 0 && filter.size === 0)
     ? `${entries.length} species`
     : `${filteredCount} of ${entries.length} species`
 
@@ -291,14 +328,36 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
               height: 30, padding: '0 12px', borderRadius: 6,
               fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
               cursor: 'pointer',
-              border: filter.size === 0 ? '1.5px solid rgba(45,134,83,0.25)' : '1.5px solid #E4E4E7',
-              background: filter.size === 0 ? '#E8F5EE' : '#fff',
-              color: filter.size === 0 ? '#2D8653' : '#71717A',
+              border: filter.size === 0 && categoryFilter.size === 0 ? '1.5px solid rgba(45,134,83,0.25)' : '1.5px solid #E4E4E7',
+              background: filter.size === 0 && categoryFilter.size === 0 ? '#E8F5EE' : '#fff',
+              color: filter.size === 0 && categoryFilter.size === 0 ? '#2D8653' : '#71717A',
             }}
-            onClick={() => setFilter(new Set())}
+            onClick={() => { setFilter(new Set()); setCategoryFilter(new Set()) }}
           >
             All
           </button>
+          {CATEGORY_META
+            .filter(({ key }) => [...CATEGORY_CODES[key]].some(code => codesPresent.includes(code)))
+            .map(({ key, label }) => {
+              const active = categoryFilter.has(key)
+              return (
+                <button
+                  key={key}
+                  style={categoryPillStyle(key, active)}
+                  onClick={() => {
+                    setCategoryFilter(prev => {
+                      const next = new Set(prev)
+                      if (next.has(key)) next.delete(key)
+                      else next.add(key)
+                      return next
+                    })
+                  }}
+                >
+                  {label}
+                </button>
+              )
+            })
+          }
           {codesPresent.map(code => {
             const def = BREEDING_CODE_MAP.get(code)!
             const active = filter.has(code)
@@ -383,7 +442,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
       </div>
 
       <BreedingCodeTable
-        entries={entries}
+        entries={categoryFilteredEntries}
         codesPresent={codesPresent}
         sort={sort}
         onSortChange={setSort}
