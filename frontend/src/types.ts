@@ -47,3 +47,15 @@ export interface StoredFilesStatus {
   ebird: StoredFileInfo | null
   ml: StoredFileInfo | null
 }
+
+export interface ObservationEntry {
+  submissionId: string
+  commonName: string
+  scientificName: string
+  date: string           // YYYY-MM-DD
+  location: string
+  count: number | null   // null for "X" / presence-only
+  breedingCode: string | null
+  speciesComments: string
+  catalogIds: string[]
+}

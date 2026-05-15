@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen } from 'lucide-react'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
 import { Settings } from './components/Settings'
+import { SpeciesDetail } from './components/SpeciesDetail'
 
 type AppState =
   | { status: 'idle' }
@@ -11,7 +12,7 @@ type AppState =
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
 
-type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes' | 'settings'
+type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes' | 'species-detail' | 'settings'
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -214,6 +215,15 @@ export default function App() {
               <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
             </svg>
             Life List Comparer
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'species-detail'}
+            style={tabStyle('species-detail')}
+            onClick={() => { setActiveTab('species-detail'); setIsExpanded(false) }}
+          >
+            <BookOpen size={14} strokeWidth={2.5} aria-hidden="true" />
+            Species Detail
           </button>
           <button
             role="tab"
@@ -475,6 +485,22 @@ export default function App() {
         }}
       >
         <BreedingCodeList onExpandedChange={setIsExpanded} />
+      </div>
+
+      {/* Species Detail tab content */}
+      <div
+        role="tabpanel"
+        className="sr-panel"
+        style={{
+          display: activeTab === 'species-detail' ? 'flex' : 'none',
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto' as const,
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        <SpeciesDetail />
       </div>
 
       {/* Settings tab content */}

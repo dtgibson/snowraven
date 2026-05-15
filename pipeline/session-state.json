@@ -1,17 +1,17 @@
 {
-  "activeFeature": null,
+  "activeFeature": "species-detail",
   "sessionNumber": 2,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/dark-mode/strategic-brief.md",
-    "pipeline/dark-mode/prd.md",
-    "pipeline/dark-mode/schema.md",
-    "pipeline/dark-mode/design-spec.md",
-    "pipeline/dark-mode/design.html"
+    "pipeline/species-detail/strategic-brief.md",
+    "pipeline/species-detail/prd.md",
+    "pipeline/species-detail/schema.md",
+    "pipeline/species-detail/design-spec.md",
+    "pipeline/species-detail/design.html"
   ],
-  "createdAt": "2026-05-15T09:00:00Z",
-  "updatedAt": "2026-05-15T12:30:00Z"
+  "createdAt": "2026-05-15T13:00:00Z",
+  "updatedAt": "2026-05-15T14:15:00Z"
 }

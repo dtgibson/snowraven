@@ -1,0 +1,109 @@
+import type { ObservationEntry } from '../types'
+
+// Full CSV parser handling quoted fields with embedded newlines.
+// Follows the same character-level approach required by all eBird CSV parsers
+// in this project — line-splitting breaks on multi-line quoted fields.
+function parseCSV(content: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = []
+  let field = ''
+  let inQuotes = false
+  let i = content.charCodeAt(0) === 0xFEFF ? 1 : 0
+
+  while (i < content.length) {
+    const ch = content[i]
+
+    if (ch === '"') {
+      if (inQuotes && content[i + 1] === '"') {
+        field += '"'
+        i += 2
+      } else {
+        inQuotes = !inQuotes
+        i++
+      }
+      continue
+    }
+
+    if (ch === ',' && !inQuotes) {
+      row.push(field)
+      field = ''
+      i++
+      continue
+    }
+
+    if ((ch === '\r' || ch === '\n') && !inQuotes) {
+      if (ch === '\r' && content[i + 1] === '\n') i++
+      row.push(field)
+      field = ''
+      rows.push(row)
+      row = []
+      i++
+      continue
+    }
+
+    field += ch
+    i++
+  }
+
+  if (field || row.length > 0) {
+    row.push(field)
+    rows.push(row)
+  }
+
+  return rows
+}
+
+export function parseEbirdObservations(content: string): ObservationEntry[] {
+  const rows = parseCSV(content)
+  if (rows.length === 0) throw new Error('INVALID_EBIRD')
+
+  const headers = rows[0].map(h => h.trim().toLowerCase())
+
+  const submissionIdIdx       = headers.findIndex(h => h === 'submission id')
+  const commonNameIdx         = headers.findIndex(h => h === 'common name')
+  const sciNameIdx            = headers.findIndex(h => h === 'scientific name')
+  const dateIdx               = headers.findIndex(h => h === 'date')
+  const locationIdx           = headers.findIndex(h => h === 'location')
+  const countIdx              = headers.findIndex(h => h === 'count')
+  const breedingCodeIdx       = headers.findIndex(h => h === 'breeding code')
+  const speciesCommentsIdx    = headers.findIndex(h => h === 'species comments' || h === 'observation details')
+  const catalogNumbersIdx     = headers.findIndex(h => h === 'ml catalog numbers')
+
+  if (submissionIdIdx === -1 || commonNameIdx === -1 || dateIdx === -1) {
+    throw new Error('INVALID_EBIRD')
+  }
+
+  const entries: ObservationEntry[] = []
+
+  for (let i = 1; i < rows.length; i++) {
+    const cols = rows[i]
+    if (cols.length === 1 && cols[0].trim() === '') continue
+
+    const commonName = cols[commonNameIdx]?.trim() ?? ''
+    if (!commonName) continue
+
+    const submissionId    = cols[submissionIdIdx]?.trim() ?? ''
+    const scientificName  = sciNameIdx >= 0    ? (cols[sciNameIdx]?.trim() ?? '')          : ''
+    const date            = cols[dateIdx]?.trim() ?? ''
+    const location        = locationIdx >= 0   ? (cols[locationIdx]?.trim() ?? '')         : ''
+
+    const rawCount   = countIdx >= 0 ? (cols[countIdx]?.trim() ?? '') : ''
+    const countInt   = parseInt(rawCount, 10)
+    const count      = Number.isNaN(countInt) ? null : countInt
+
+    const rawCode     = breedingCodeIdx >= 0 ? (cols[breedingCodeIdx]?.trim() ?? '') : ''
+    const firstToken  = rawCode.split(/\s+/)[0] ?? ''
+    const breedingCode = firstToken || null
+
+    const speciesComments = speciesCommentsIdx >= 0 ? (cols[speciesCommentsIdx]?.trim() ?? '') : ''
+
+    const rawCatalog = catalogNumbersIdx >= 0 ? (cols[catalogNumbersIdx]?.trim() ?? '') : ''
+    const catalogIds = rawCatalog
+      ? rawCatalog.split(/[\s,]+/).map(id => id.replace(/^ML/i, '').trim()).filter(id => /^\d+$/.test(id))
+      : []
+
+    entries.push({ submissionId, commonName, scientificName, date, location, count, breedingCode, speciesComments, catalogIds })
+  }
+
+  return entries
+}

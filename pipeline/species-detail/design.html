@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Species Detail — SnowRaven Design</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #F9FAFB;
+  font-size: 14px;
+  color: #0F1117;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+svg { display: block; flex-shrink: 0; }
+
+/* ── App shell ── */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 840px;
+  margin: 0 auto;
+  background: #F9FAFB;
+}
+
+/* ── Header ── */
+.header {
+  background: #fff;
+  border-bottom: 1px solid #E4E4E7;
+  padding: 0 20px;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  height: 52px;
+  gap: 10px;
+}
+.header-logo {
+  width: 26px;
+  height: 26px;
+  background: #2D8653;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.header-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #0F1117;
+  letter-spacing: -0.01em;
+}
+.header-version {
+  font-size: 11px;
+  color: #A1A1AA;
+  font-weight: 500;
+  margin-left: 2px;
+  align-self: flex-end;
+  padding-bottom: 2px;
+}
+
+/* ── Tab bar ── */
+.tabs {
+  display: flex;
+  gap: 0;
+  background: #fff;
+  border-bottom: 1px solid #E4E4E7;
+  padding: 0 20px;
+  overflow-x: auto;
+}
+.tab {
+  font-size: 13px;
+  font-weight: 500;
+  color: #71717A;
+  padding: 10px 14px;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.tab:hover { color: #0F1117; }
+.tab.active {
+  color: #2D8653;
+  border-bottom-color: #2D8653;
+  font-weight: 600;
+}
+
+/* ── Main content ── */
+.main {
+  flex: 1;
+  padding: 20px;
+}
+
+/* ── Species selector ── */
+.selector-wrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+.selector-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #71717A;
+  margin-bottom: 6px;
+}
+.selector-input-wrap {
+  position: relative;
+}
+.selector-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 36px 0 38px;
+  border: 1.5px solid #E4E4E7;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #0F1117;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color 0.15s;
+}
+.selector-input.open {
+  border-color: #2D8653;
+  border-bottom-color: transparent;
+  border-radius: 8px 8px 0 0;
+}
+.selector-icon-left {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #71717A;
+}
+.selector-icon-right {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #A1A1AA;
+  transition: transform 0.15s;
+}
+.selector-icon-right.open { transform: translateY(-50%) rotate(180deg); }
+
+.selector-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1.5px solid #2D8653;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  z-index: 10;
+  max-height: 260px;
+  overflow-y: auto;
+  display: none;
+}
+.selector-dropdown.open { display: block; }
+
+.dropdown-search {
+  position: sticky;
+  top: 0;
+  padding: 8px 10px;
+  background: #fff;
+  border-bottom: 1px solid #F4F4F5;
+}
+.dropdown-search-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px 0 30px;
+  border: 1px solid #E4E4E7;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #0F1117;
+  background: #F9FAFB;
+  outline: none;
+}
+.dropdown-search-input:focus { border-color: #2D8653; }
+.dropdown-search-icon {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #A1A1AA;
+  pointer-events: none;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background 0.1s;
+  user-select: none;
+}
+.dropdown-item:hover { background: #F4F4F5; }
+.dropdown-item.selected {
+  background: #E8F5EE;
+}
+.dropdown-item-name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0F1117;
+  flex: 1;
+}
+.dropdown-item-sci {
+  font-size: 11px;
+  color: #A1A1AA;
+  font-style: italic;
+}
+.dropdown-item.selected .dropdown-item-name { color: #2D8653; }
+.dropdown-check { color: #2D8653; }
+
+/* ── Summary card ── */
+.summary-card {
+  background: #fff;
+  border: 1px solid #E4E4E7;
+  border-radius: 12px;
+  padding: 20px 22px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
+}
+.summary-names {
+  margin-bottom: 16px;
+}
+.summary-common {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0F1117;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.summary-scientific {
+  font-size: 14px;
+  font-style: italic;
+  color: #71717A;
+  margin-top: 3px;
+  font-weight: 400;
+}
+.summary-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.media-indicators {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.media-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: default;
+  border: 1.5px solid;
+  transition: none;
+  white-space: nowrap;
+}
+.media-btn.has {
+  background: #E8F5EE;
+  border-color: rgba(45,134,83,0.3);
+  color: #2D8653;
+}
+.media-btn.none {
+  background: #F9FAFB;
+  border-color: #E4E4E7;
+  color: #A1A1AA;
+}
+.breeding-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+}
+.breeding-pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Stats grid ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+/* ── Section card ── */
+.section-card {
+  background: #fff;
+  border: 1px solid #E4E4E7;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid #F4F4F5;
+}
+.section-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #E8F5EE;
+  color: #2D8653;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0F1117;
+}
+.section-body {
+  padding: 16px 18px;
+}
+
+/* ── Sightings stats ── */
+.sightings-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.stat-item {}
+.stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #A1A1AA;
+  margin-bottom: 4px;
+}
+.stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0F1117;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.stat-value.small {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.stat-value-link {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2D8653;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.stat-value-link:hover { text-decoration: underline; }
+.stat-value-link svg { align-self: center; }
+
+/* ── Media stats ── */
+.media-stat-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.media-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.media-type-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0F1117;
+  flex: 1;
+}
+.media-type-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: #F4F4F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #71717A;
+}
+.media-count-link {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #2D8653;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.media-count-link:hover { text-decoration: underline; }
+.media-count-zero {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #A1A1AA;
+}
+
+/* ── Breeding codes ── */
+.code-rows { display: flex; flex-direction: column; }
+.code-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid #F4F4F5;
+}
+.code-row:last-child { border-bottom: none; }
+.code-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.code-abbr {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Inter', monospace;
+  color: #0F1117;
+  min-width: 28px;
+}
+.code-label {
+  font-size: 13px;
+  color: #0F1117;
+  flex: 1;
+}
+.code-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: #71717A;
+  background: #F4F4F5;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+/* ── Show all button ── */
+.show-all-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 13px 18px;
+  border: none;
+  border-top: 1px solid #F4F4F5;
+  background: #FAFAFA;
+  font-size: 13px;
+  font-weight: 500;
+  color: #2D8653;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.show-all-btn:hover { background: #F0FAF4; }
+.comment-row.hidden { display: none; }
+
+/* ── Comments ── */
+.comments-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-bottom: 1px solid #F4F4F5;
+  background: #FAFAFA;
+}
+.comment-filter-input {
+  flex: 1;
+  height: 32px;
+  padding: 0 10px 0 30px;
+  border: 1.5px solid #E4E4E7;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #0F1117;
+  background: #fff;
+  outline: none;
+}
+.comment-filter-input:focus { border-color: #2D8653; }
+.comment-filter-wrap {
+  position: relative;
+  flex: 1;
+}
+.comment-filter-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #A1A1AA;
+}
+.sort-toggle {
+  display: inline-flex;
+  border: 1.5px solid rgba(45,134,83,0.25);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.sort-btn {
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sort-btn.active {
+  background: #E8F5EE;
+  color: #2D8653;
+}
+.sort-btn.inactive {
+  background: transparent;
+  color: #71717A;
+}
+.sort-btn-divider {
+  width: 1px;
+  background: rgba(45,134,83,0.25);
+  height: 32px;
+  flex-shrink: 0;
+}
+.comment-count {
+  font-size: 12px;
+  color: #A1A1AA;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.comment-rows { }
+.comment-row {
+  padding: 14px 18px;
+  border-bottom: 1px solid #F4F4F5;
+}
+.comment-row:last-child { border-bottom: none; }
+.comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.comment-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0F1117;
+}
+.comment-sep {
+  font-size: 12px;
+  color: #D4D4D8;
+}
+.comment-location {
+  font-size: 12px;
+  color: #71717A;
+}
+.comment-text {
+  font-size: 13.5px;
+  color: #0F1117;
+  line-height: 1.55;
+}
+
+/* ── Empty states ── */
+.prompt-state {
+  text-align: center;
+  padding: 56px 32px;
+  color: #A1A1AA;
+}
+.prompt-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #F4F4F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  color: #C4C4CE;
+}
+.prompt-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #71717A;
+}
+.prompt-sub {
+  font-size: 13px;
+  color: #A1A1AA;
+  margin-top: 4px;
+}
+
+/* ── Annotations (design notes) ── */
+.annotation {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #FFFBEB;
+  border-radius: 8px;
+  border: 1px solid #FDE68A;
+}
+.annotation-mark { font-size: 11px; font-weight: 700; color: #92400E; flex-shrink: 0; padding-top: 1px; }
+.annotation-text { font-size: 12px; color: #78350F; line-height: 1.5; }
+
+/* ── Variant panels ── */
+.panel-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #71717A;
+  margin: 32px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E4E4E7;
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-logo">
+        <!-- Snowflake mark -->
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+          <line x1="7.5" y1="1" x2="7.5" y2="14" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="1" y1="7.5" x2="14" y2="7.5" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="2.9" y1="2.9" x2="12.1" y2="12.1" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="12.1" y1="2.9" x2="2.9" y2="12.1" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="7.5" cy="3.5" r="1.2" fill="white"/>
+          <circle cx="7.5" cy="11.5" r="1.2" fill="white"/>
+          <circle cx="3.5" cy="7.5" r="1.2" fill="white"/>
+          <circle cx="11.5" cy="7.5" r="1.2" fill="white"/>
+        </svg>
+      </div>
+      <span class="header-title">SnowRaven</span>
+      <span class="header-version">v0.0.30</span>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabs">
+    <span class="tab">Media Life List</span>
+    <span class="tab">Life List</span>
+    <span class="tab">Breeding Codes</span>
+    <span class="tab active">Species Detail</span>
+    <span class="tab">Settings</span>
+  </div>
+
+  <!-- Main content -->
+  <div class="main">
+
+    <!-- ──────────── PANEL A: Species selected (happy path) ──────────── -->
+    <div class="panel-label">View — species selected</div>
+
+    <!-- Species selector -->
+    <div class="selector-wrap">
+      <div class="selector-input-wrap" onclick="toggleDropdown()">
+        <span class="selector-icon-left">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input class="selector-input open" id="selectorInput" type="text" value="American Robin" readonly placeholder="Search species…" />
+        <span class="selector-icon-right open" id="selectorChevron">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </div>
+
+      <!-- Dropdown (shown open for this panel) -->
+      <div class="selector-dropdown open" id="dropdown">
+        <div class="dropdown-search" style="position:relative;">
+          <span class="dropdown-search-icon" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);color:#A1A1AA;pointer-events:none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </span>
+          <input class="dropdown-search-input" type="text" placeholder="Filter species…" />
+        </div>
+        <div class="dropdown-item">
+          <span class="dropdown-item-name">American Goldfinch</span>
+          <span class="dropdown-item-sci">Spinus tristis</span>
+        </div>
+        <div class="dropdown-item selected">
+          <span class="dropdown-check">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+          <span class="dropdown-item-name">American Robin</span>
+          <span class="dropdown-item-sci">Turdus migratorius</span>
+        </div>
+        <div class="dropdown-item">
+          <span class="dropdown-item-name">Bald Eagle</span>
+          <span class="dropdown-item-sci">Haliaeetus leucocephalus</span>
+        </div>
+        <div class="dropdown-item">
+          <span class="dropdown-item-name">Baltimore Oriole</span>
+          <span class="dropdown-item-sci">Icterus galbula</span>
+        </div>
+        <div class="dropdown-item">
+          <span class="dropdown-item-name">Black-capped Chickadee</span>
+          <span class="dropdown-item-sci">Poecile atricapillus</span>
+        </div>
+        <div class="dropdown-item">
+          <span class="dropdown-item-name">Canada Goose</span>
+          <span class="dropdown-item-sci">Branta canadensis</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary card -->
+    <div class="summary-card">
+      <div class="summary-names">
+        <div class="summary-common">American Robin</div>
+        <div class="summary-scientific">Turdus migratorius</div>
+      </div>
+      <div class="summary-meta">
+        <!-- Media indicators -->
+        <div class="media-indicators">
+          <button class="media-btn has">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Photo
+          </button>
+          <button class="media-btn has">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            Audio
+          </button>
+          <button class="media-btn none">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+            Video
+          </button>
+        </div>
+
+        <!-- Highest breeding category pill (Confirmed = tier 4) -->
+        <span class="breeding-pill" style="background: rgba(59,7,100,0.08); color: #3B0764; border: 1px solid rgba(59,7,100,0.2);">
+          <span class="breeding-pill-dot" style="background: #3B0764;"></span>
+          Confirmed
+        </span>
+      </div>
+    </div>
+
+    <!-- Stats grid: Sightings + Media Stats -->
+    <div class="stats-grid">
+
+      <!-- Sightings -->
+      <div class="section-card" style="margin-bottom:0;">
+        <div class="section-head">
+          <div class="section-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </div>
+          <span class="section-title">Sightings</span>
+        </div>
+        <div class="section-body">
+          <div class="sightings-grid">
+            <div class="stat-item">
+              <div class="stat-label">Total</div>
+              <div class="stat-value">47</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">Personal best</div>
+              <a href="https://ebird.org/checklist/S123456789" class="stat-value-link" target="_blank">
+                34
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">First seen</div>
+              <a href="https://ebird.org/checklist/S11223344" class="stat-value-link" style="font-size:14px;letter-spacing:-0.01em;" target="_blank">
+                3 March 2014
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            </div>
+            <div class="stat-item">
+              <div class="stat-label">Last seen</div>
+              <a href="https://ebird.org/checklist/S987654321" class="stat-value-link" style="font-size:14px;letter-spacing:-0.01em;" target="_blank">
+                12 April 2026
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Media Stats -->
+      <div class="section-card" style="margin-bottom:0;">
+        <div class="section-head">
+          <div class="section-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <span class="section-title">Media</span>
+        </div>
+        <div class="section-body">
+          <div class="media-stat-rows">
+            <div class="media-stat-row">
+              <div class="media-type-label">
+                <div class="media-type-icon">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </div>
+                Photos
+              </div>
+              <a href="#" class="media-count-link">
+                12
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            </div>
+            <div class="media-stat-row">
+              <div class="media-type-label">
+                <div class="media-type-icon">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                </div>
+                Audio
+              </div>
+              <a href="#" class="media-count-link">
+                3
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              </a>
+            </div>
+            <div class="media-stat-row">
+              <div class="media-type-label">
+                <div class="media-type-icon">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+                </div>
+                Video
+              </div>
+              <span class="media-count-zero">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Breeding codes section -->
+    <div class="section-card" style="margin-top:14px;">
+      <div class="section-head">
+        <div class="section-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22V12"/><path d="M12 12C12 12 7 9.5 7 6a5 5 0 0 1 10 0c0 3.5-5 6-5 6z"/><path d="M8 20h8"/></svg>
+        </div>
+        <span class="section-title">Breeding Codes</span>
+      </div>
+      <div class="section-body" style="padding-top:4px;padding-bottom:4px;">
+        <div class="code-rows">
+          <div class="code-row">
+            <span class="code-dot" style="background:#3B0764;"></span>
+            <span class="code-abbr">CF</span>
+            <span class="code-label">Carrying Food</span>
+            <span class="code-count">4 times</span>
+          </div>
+          <div class="code-row">
+            <span class="code-dot" style="background:#3B0764;"></span>
+            <span class="code-abbr">ON</span>
+            <span class="code-label">Occupied Nest</span>
+            <span class="code-count">2 times</span>
+          </div>
+          <div class="code-row">
+            <span class="code-dot" style="background:#6B21A8;"></span>
+            <span class="code-abbr">NB</span>
+            <span class="code-label">Nest Building</span>
+            <span class="code-count">6 times</span>
+          </div>
+          <div class="code-row">
+            <span class="code-dot" style="background:#9333EA;"></span>
+            <span class="code-abbr">T</span>
+            <span class="code-label">Territory defense</span>
+            <span class="code-count">3 times</span>
+          </div>
+          <div class="code-row">
+            <span class="code-dot" style="background:#C084FC;"></span>
+            <span class="code-abbr">S</span>
+            <span class="code-label">Singing male</span>
+            <span class="code-count">11 times</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comments section -->
+    <div class="section-card">
+      <div class="section-head">
+        <div class="section-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <span class="section-title">Comments</span>
+      </div>
+
+      <!-- Controls -->
+      <div class="comments-controls">
+        <div class="comment-filter-wrap">
+          <span class="comment-filter-icon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </span>
+          <input class="comment-filter-input" type="text" placeholder="Filter comments…" />
+        </div>
+        <div class="sort-toggle">
+          <button class="sort-btn active">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            Newest
+          </button>
+          <div class="sort-btn-divider"></div>
+          <button class="sort-btn inactive">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            Oldest
+          </button>
+        </div>
+        <span class="comment-count">12 comments</span>
+      </div>
+
+      <!-- Comment rows (first 10 visible; extras hidden until "Show all") -->
+      <div class="comment-rows" id="commentRows">
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">12 April 2026</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Riverside Park, Minneapolis MN</span>
+          </div>
+          <div class="comment-text">Three birds foraging on the lawn shortly after dawn. One had a worn primary — possibly a second-year bird. Song noticeably louder than yesterday.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">7 March 2026</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Eloise Butler Wildflower Garden</span>
+          </div>
+          <div class="comment-text">First robin of spring for this patch — heard before seen, singing from the canopy. No other individuals spotted during the hour-long visit.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">14 June 2025</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Theodore Wirth Park</span>
+          </div>
+          <div class="comment-text">Female carrying a beakful of earthworms toward the back of the park. Nest presumed nearby but not located. CF code entered.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">22 May 2025</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Minnehaha Falls Regional Park</span>
+          </div>
+          <div class="comment-text">Nest visible from path about 8 feet up in a box elder fork. At least 3 nestlings observed during one feeding visit.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">3 April 2025</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Loring Park, Minneapolis</span>
+          </div>
+          <div class="comment-text">Loose flock of ~20, many with fresh orange-brick bellies. Early spring arrival pulse — unusually large number for this site.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">18 October 2024</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Wood Lake Nature Center</span>
+          </div>
+          <div class="comment-text">Late season bird, still present at the lake edge at 5pm. Likely a lingering individual rather than a migrant — no others seen.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">2 June 2024</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Bassett Creek Valley Regional Trail</span>
+          </div>
+          <div class="comment-text">Singing male from a high perch for most of the morning — territory defense against a second male that moved through around 7am.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">15 May 2024</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Elm Creek Park Reserve</span>
+          </div>
+          <div class="comment-text">Carrying nesting material into a dense spruce near the trailhead. Nest site appeared to be about 12 feet up on a sheltered branch.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">9 April 2024</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Lake Harriet, Minneapolis</span>
+          </div>
+          <div class="comment-text">34 individuals counted along the south shore path — personal best for this species. Most were foraging, a few bathing at the lake edge.</div>
+        </div>
+        <div class="comment-row">
+          <div class="comment-meta">
+            <span class="comment-date">14 March 2024</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Crow-Hassan Park Reserve</span>
+          </div>
+          <div class="comment-text">First of the year for this patch. Single bird, full song, belly already deep brick orange. About two weeks earlier than my average first date.</div>
+        </div>
+        <!-- Hidden extras — shown when "Show all" is clicked -->
+        <div class="comment-row hidden" id="extraComments">
+          <div class="comment-meta">
+            <span class="comment-date">22 November 2023</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Minnehaha Falls Regional Park</span>
+          </div>
+          <div class="comment-text">One bird still present near the lower creek, foraging in the leaf litter. Exceptional date — latest I've recorded this species at this site.</div>
+        </div>
+        <div class="comment-row hidden extra-comment">
+          <div class="comment-meta">
+            <span class="comment-date">3 March 2014</span>
+            <span class="comment-sep">·</span>
+            <span class="comment-location">Theodore Wirth Park</span>
+          </div>
+          <div class="comment-text">First ever robin entry — single bird singing from a birch snag early in the morning. Lifer for my eBird account.</div>
+        </div>
+      </div>
+
+      <!-- Show all button -->
+      <button class="show-all-btn" id="showAllBtn" onclick="showAllComments()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        Show all 12 comments
+      </button>
+    </div>
+
+    <!-- ──────────── PANEL B: No species selected ──────────── -->
+    <div class="panel-label">State — no species selected yet</div>
+
+    <div class="selector-wrap" style="margin-bottom:16px;">
+      <div class="selector-input-wrap">
+        <span class="selector-icon-left">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input class="selector-input" type="text" placeholder="Choose a species…" readonly style="color:#A1A1AA;" />
+        <span class="selector-icon-right">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <div class="section-card" style="margin-bottom:28px;">
+      <div class="prompt-state">
+        <div class="prompt-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <div class="prompt-text">Choose a species to see your history with it</div>
+        <div class="prompt-sub">All statistics are calculated from your loaded eBird backup.</div>
+      </div>
+    </div>
+
+    <!-- ──────────── PANEL C: No ML export loaded (media state) ──────────── -->
+    <div class="panel-label">State — eBird loaded, no ML export</div>
+
+    <div class="section-card" style="margin-bottom:28px;">
+      <div class="section-head">
+        <div class="section-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <span class="section-title">Media</span>
+      </div>
+      <div class="section-body" style="display:flex;align-items:flex-start;gap:10px;color:#71717A;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:1px;flex-shrink:0;color:#A1A1AA;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span style="font-size:13px;line-height:1.5;">Load your ML export in Settings to see photo, audio, and video counts.</span>
+      </div>
+    </div>
+
+    <!-- ──────────── PANEL D: Upload state (no eBird backup) ──────────── -->
+    <div class="panel-label">State — no eBird backup loaded</div>
+
+    <div class="section-card" style="margin-bottom:28px;">
+      <div style="padding:32px 24px;text-align:center;">
+        <div style="width:48px;height:48px;border-radius:12px;background:#E8F5EE;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;color:#2D8653;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div style="font-size:15px;font-weight:600;color:#0F1117;margin-bottom:6px;">Upload your eBird backup</div>
+        <div style="font-size:13px;color:#71717A;line-height:1.5;max-width:320px;margin:0 auto 18px;">Drop your <code style="font-size:12px;background:#F4F4F5;padding:1px 5px;border-radius:4px;color:#0F1117;">MyEBirdData.csv</code> file here, or click to browse. You can also save it in Settings so it loads automatically.</div>
+        <div style="width:100%;border:2px dashed #D4D4D8;border-radius:10px;padding:28px;display:flex;flex-direction:column;align-items:center;gap:8px;background:#FAFAFA;cursor:pointer;transition:background 0.15s;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#C4C4CE" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <span style="font-size:13px;color:#A1A1AA;">Drop CSV here or click to browse</span>
+        </div>
+        <div style="font-size:12px;color:#A1A1AA;margin-top:12px;line-height:1.5;">The ML export is optional — add it in Settings to see media statistics.</div>
+      </div>
+    </div>
+
+    <div class="annotation">
+      <span class="annotation-mark">NOTE</span>
+      <span class="annotation-text">The species selector supports type-to-filter (shown in the open dropdown above). Taxonomic order is applied as soon as the POST /taxonomy/codes response arrives — the list is immediately usable in A–Z order while that request is pending.</span>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+function toggleDropdown() {
+  const input = document.getElementById('selectorInput');
+  const chevron = document.getElementById('selectorChevron');
+  const dropdown = document.getElementById('dropdown');
+  const isOpen = dropdown.classList.contains('open');
+  if (isOpen) {
+    dropdown.classList.remove('open');
+    input.classList.remove('open');
+    chevron.classList.remove('open');
+  } else {
+    dropdown.classList.add('open');
+    input.classList.add('open');
+    chevron.classList.add('open');
+  }
+}
+
+// Close on outside click
+document.addEventListener('click', function(e) {
+  const wrap = document.querySelector('.selector-wrap');
+  if (!wrap.contains(e.target)) {
+    document.getElementById('dropdown').classList.remove('open');
+    document.getElementById('selectorInput').classList.remove('open');
+    document.getElementById('selectorChevron').classList.remove('open');
+  }
+});
+
+// Show all comments
+function showAllComments() {
+  document.querySelectorAll('.comment-row.hidden').forEach(row => {
+    row.classList.remove('hidden');
+  });
+  document.getElementById('showAllBtn').style.display = 'none';
+}
+
+// Sort toggle
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.sort-btn').forEach(b => {
+      b.classList.remove('active');
+      b.classList.add('inactive');
+    });
+    this.classList.remove('inactive');
+    this.classList.add('active');
+  });
+});
+
+// Dropdown item selection
+document.querySelectorAll('.dropdown-item').forEach(item => {
+  item.addEventListener('click', function() {
+    document.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+    this.classList.add('selected');
+    const name = this.querySelector('.dropdown-item-name');
+    if (name) {
+      document.getElementById('selectorInput').value = name.textContent;
+    }
+  });
+});
+</script>
+</body>
+</html>

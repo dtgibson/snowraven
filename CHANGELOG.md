@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.30] - 2026-05-15
+
+### Added
+- **Species Detail tab** — per-species drill-down from your eBird backup; select any species to see your full history with it
+- Summary card: common name, scientific name, Photo/Audio/Video media indicators (filled when media exists in ML export), and a highest-tier breeding evidence pill (Confirmed/Probable/Possible)
+- Sightings section: total observation count, first seen date, last seen date, and personal best count — all linked to their eBird checklists
+- Media statistics: Photo, Audio, and Video counts linked to the Macaulay Library catalog filtered by species and media type; requires ML export loaded in Settings
+- Breeding codes breakdown: every unique code recorded for the species with tier-colored dot, abbreviation, label, and count; sorted by tier then canonical order
+- Comments archive: all species-level field notes from your eBird backup, sortable (newest/oldest) and filterable by keyword; first 10 shown with "Show all N" button; each date links to its checklist
+- Auto-loads from stored eBird backup in Settings; shows upload drop zone as fallback when no file is stored
+- Species selector is taxonomically sorted (fire-and-forget fetch); immediately usable in A–Z order while taxonomy resolves
+- `parseEbirdObservations` parser: character-level CSV parser handling quoted fields with embedded newlines and commas; reads both "Species Comments" and "Observation Details" column names
+
 ## [0.0.29] - 2026-05-15
 
 ### Added
