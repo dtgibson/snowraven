@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-18 versions shipped. Last shipped: **Multi-select filter pills** — filter pills on the Media List and Breeding Codes tabs now support AND multi-select; selecting "No photo" + "No audio" shows only species missing both; selecting two breeding codes shows only species with both codes recorded.
+19 versions shipped. Last shipped: **Taxonomic sort** — A–Z / Taxonomic toggle added to the Media List and Breeding Codes tabs; works with both ML export and eBird CSV; column-header sorts preserve the A–Z vs Taxonomic preference as a tiebreaker; ML export drop zone copy fixed.
 
-Previously: **Species links** — eBird and Birds of the World favicon icons inline next to every species name in the Media Life List and Life List Comparer, plus personalised ML media links using taxon codes and user ID from the export filename.
+Previously: **Multi-select filter pills** — filter pills on the Media List and Breeding Codes tabs now support AND multi-select; selecting "No photo" + "No audio" shows only species missing both; selecting two breeding codes shows only species with both codes recorded.
 
 ---
 

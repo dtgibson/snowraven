@@ -129,10 +129,10 @@ Accepts two input formats, auto-detected from the CSV header.
 - Non-zero counts are clickable links — open Macaulay Library catalog filtered by species (taxon code), media type, and personal userId in a new tab
 - `SpeciesLinks` favicon icons appear after each common name linking to eBird and Birds of the World species pages
 - User ID parsed from ML export filename (`ML__DATE_USERID.csv`) and appended to all catalog links; warning shown if filename was renamed
-- Taxon codes fetched via `POST /taxonomy/codes` after file load; ML links use `taxonCode=acowoo` parameter for accurate personal filtering
+- Taxon codes and taxon order numbers fetched via `POST /taxonomy/codes` after file load; ML links use `taxonCode=acowoo` parameter for accurate personal filtering; taxon orders power the Taxonomic sort for ML export results
 - All four column headers are clickable sort controls; clicking sorts by that column, clicking again reverses; count columns default to descending (highest first)
 - **Filter pills (7 total):** All · No photo · No audio · No video · Has photo · Has audio · Has video — multi-select with AND logic; each media dimension (photo/audio/video) is tracked independently; selecting "Has photo" while "No photo" is active auto-replaces it; clicking an active pill deselects it; "All" resets all dimensions; negative active pills are red, positive are green; multiple pills can be active simultaneously
-- Sort toggle: Taxonomic (eBird input only, uses lowest Taxonomic Order value per species) · A–Z. Taxonomic button is hidden for ML export results (all entries have `taxonomicOrder: Infinity`).
+- Sort toggle: A–Z / Taxonomic — available for both ML export and eBird CSV inputs. For eBird CSV, uses the Taxonomic Order field parsed from the CSV directly; for ML export, uses taxon order numbers from the `POST /taxonomy/codes` response (same fetch that supplies taxon codes). Species not found in taxonomy sort last. The toggle persists as a tiebreaker when sorting by Photo/Audio/Video count columns.
 - Species count label: "312 species" or "47 of 312 species" when filtered
 - "Show all / Collapse" toggle expands the full list for printing
 - "Load new file" button resets to the upload state
@@ -192,8 +192,9 @@ code, rendered as a tier-colored circle. Entirely client-side — no backend cha
 - Per-cell count circle: 28px, tier background color (4=`#3B0764` → 1=`#C084FC`), white 11px bold text; empty cells are truly blank — no dash or placeholder
 - Species name column: sticky-left (`position: sticky; left: 0`), 190px, with a right-edge shadow separator
 - Table wrapper `overflow-x: auto` allows horizontal scroll when many codes are present
-- All columns sortable: species name defaults asc (A–Z); code columns default desc (highest count first); ties broken alphabetically
+- All columns sortable: species name defaults asc (A–Z); code columns default desc (highest count first); ties broken by the active name sort mode (A–Z or Taxonomic)
 - Active sort column shows ↑/↓ indicator in `#2D8653`; inactive columns muted
+- A–Z / Taxonomic toggle: defaults to A–Z; Taxonomic orders species by eBird taxon number (fetched from `POST /taxonomy/codes`); unranked species sort last; toggle preserved as tiebreaker when sorting by any code column
 - Filter pills row: "All" pill + one pill per code present, each with a 14px tier-colored dot — multi-select with AND logic; multiple code pills can be active simultaneously; the table shows only species that have ≥1 recorded observation for every active code; clicking an active pill removes it from the filter; "All" resets to unfiltered
 - Species count label: "8 species" (all) or "3 of 8 species" (filtered)
 - Legend at the bottom of the table card maps tier colors to categories and codes
@@ -326,12 +327,8 @@ are present, it's an ML export; if `submission id` is present, it's an eBird
 backup. Unknown headers get a clear error. The ML export path requires no backend
 call — all media types come directly from the `Format` column.
 
-**Column-header sorting replaced the standalone sort button**
-The table is sorted by clicking column headers (Entries, Photo, Audio, Video).
-Clicking a new column sorts by that column with its natural default direction
-(name: A–Z ascending; counts: highest-first descending). Clicking the active
-column toggles direction. The standalone A–Z button and taxonomic sort are gone.
-`SortOrder` in `types.ts` is replaced by `SortState { column, dir }`.
+**Sort architecture: column-header sort + A–Z / Taxonomic name toggle**
+Column headers (Entries, Photo, Audio, Video; breeding code columns) are clickable sort controls. An A–Z / Taxonomic toggle button on each tab controls how the name column sorts. The two are independent: clicking a count column header preserves the active nameSortMode as a tiebreaker via `{ ...sort, column, dir }` spread in `handleHeaderClick`. `SortState` has three fields: `column`, `dir`, and `nameSortMode: 'az' | 'taxonomic'`. Always spread `{ ...sort }` when changing column or dir — never replace the whole object, or the nameSortMode preference is lost.
 
 **Soundscape entries are included in ML export parsing**
 Macaulay Library exports include non-species entries like "Soundscape" with no
@@ -383,3 +380,9 @@ the shared DropZone component.
 After `compareSpecies()` runs, `ListComparer` calls `fetchTaxonCodes` with the union of all species names from
 `both`, `aOnly`, and `bOnly`. The comparison result is shown immediately; icons appear a moment later. On reset,
 `taxonMap` is cleared to `{}` so stale codes do not bleed into the next comparison.
+
+**`/taxonomy/codes` returns taxon orders alongside species codes — no new endpoint**
+The `POST /taxonomy/codes` response was extended to include `orders: {commonName: taxonOrder}` alongside `codes`. The backend builds a third in-memory dict `_by_order` (comName.lower() → int taxonOrder) from the eBird taxonomy fetch. No new endpoint or additional network call is needed. Codes and sort orders arrive in a single response, keeping the fetch atomic. Graceful degradation: any fetch error returns `{codes: {}, orders: {}}`.
+
+**Taxonomic sort for ML export uses the taxonomy fetch fallback**
+ML export entries have `taxonomicOrder: Infinity` (no order field in the CSV). `getOrder()` in `LifeListTable` returns `entry.taxonomicOrder` if finite (eBird CSV path), otherwise falls back to `taxonOrders[commonName] ?? Infinity` from the taxonomy fetch. This makes taxonomic sort available for both input formats without source-specific branching in the sort logic itself. Species absent from the taxonomy sort last on both paths.

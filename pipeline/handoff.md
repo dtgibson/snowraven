@@ -1,38 +1,42 @@
-# Pipeline Handoff — Multi-Select Filter Pills (v0.0.23)
+# Pipeline Handoff — Taxonomic Sort (v0.0.24)
 
-**Date:** 2026-05-14
+**Date:** 2026-05-15
 **Status:** Complete — both sessions done
 
 ---
 
 ## What was built
 
-Filter pills on the Media List and Breeding Codes tabs now support multi-select with AND logic.
+An A–Z / Taxonomic sort toggle was added to the **Media List** and **Breeding Codes** tabs, matching the toggle already present on the Life List Comparer. Users can switch between alphabetical and eBird taxonomic ordering on any tab that shows a species list.
 
-On the Media List, each media dimension (photo, audio, video) is tracked independently. You can select "No photo" and "No audio" simultaneously to find species missing coverage on both fronts. Selecting the opposite pill for the same dimension (e.g. "Has photo" while "No photo" is active) auto-replaces the conflicting selection in a single click. Clicking an active pill deselects it. "All" resets everything.
-
-On the Breeding Codes tab, multiple code pills can be active at once. The table shows only species with recorded observations for every selected code — selecting NY + CF filters to species where both codes appear. Clicking an active pill removes it from the filter.
-
-Entirely frontend — no backend changes.
+Key details:
+- Works for **both ML export and eBird CSV** on the Media List (prior to this feature the toggle was absent for ML export)
+- Taxonomic order for ML export entries comes from the `/taxonomy/codes` fetch response — no new endpoint or extra network call
+- Column-header sorts (Photo/Audio/Video counts; breeding code columns) preserve the A–Z vs Taxonomic preference as a tiebreaker
+- Species not found in the eBird taxonomy sort last on both input paths
+- ML export drop zone copy fixed: "Instant results — species links and taxonomic sort load in the background" (was inaccurate "no network lookups")
 
 ---
 
 ## Artifacts
 
 **Session 1 — Planning:**
-- `pipeline/multi-select-filter-pills/strategic-brief.md`
-- `pipeline/multi-select-filter-pills/prd.md`
-- `pipeline/multi-select-filter-pills/schema.md`
-- `pipeline/multi-select-filter-pills/design-spec.md`
-- `pipeline/multi-select-filter-pills/design.html`
+- `pipeline/taxonomic-sort/strategic-brief.md`
+- `pipeline/taxonomic-sort/prd.md`
+- `pipeline/taxonomic-sort/schema.md`
+- `pipeline/taxonomic-sort/design-spec.md`
+- `pipeline/taxonomic-sort/design.html`
 
 **Session 2 — Implementation:**
-- `frontend/src/types.ts` (modified — MediaFilterState, BreedingFilterSet)
-- `frontend/src/components/LifeList.tsx` (modified — multi-select state and pills)
-- `frontend/src/components/LifeListTable.tsx` (modified — AND filter logic)
-- `frontend/src/components/BreedingCodeList.tsx` (modified — Set-based multi-select)
-- `frontend/src/components/BreedingCodeTable.tsx` (modified — AND filter logic)
+- `backend/routers/taxonomy.py` (modified — `_by_order` dict; `orders` in response)
+- `backend/tests/test_taxonomy_router.py` (new — 5 tests)
+- `frontend/src/types.ts` (modified — `NameSortMode`; `nameSortMode` on both sort state types)
+- `frontend/src/components/LifeList.tsx` (modified — `taxonOrders` state; sort toggle; drop zone copy)
+- `frontend/src/components/LifeListTable.tsx` (modified — `getOrder()`, `nameCompare()`, tiebreaker)
+- `frontend/src/components/BreedingCodeList.tsx` (modified — `taxonOrders` state; sort toggle)
+- `frontend/src/components/BreedingCodeTable.tsx` (modified — `nameCompare()`, tiebreaker)
 - `CHANGELOG.md` (modified)
+- `frontend/package.json` (version → 0.0.24)
 - `PRODUCT_CONTEXT.md` (modified)
 - `DECISIONS.md` (modified)
 - `ROADMAP.md` (modified)
@@ -41,4 +45,4 @@ Entirely frontend — no backend changes.
 
 ## Next feature
 
-Run `/new-feature` to start the next feature.
+Run `/new-feature` to start the next feature. The roadmap suggests **Print / export view** as the next item.
