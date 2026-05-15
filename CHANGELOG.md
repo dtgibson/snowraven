@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.27] - 2026-05-15
+
+### Added
+- **API key settings** — new "API Keys" section on the Settings tab lets you enter, save, and manage your eBird and OpenWeather API keys directly in the UI
+- Keys are written to `backend/.env` and take effect immediately — no server restart required
+- Saved keys display masked by default (`••••••••••••••••`) with a Show/Hide toggle
+- Inline "Add key" / "Update" edit mode with Enter-to-save and Cancel; Save button disabled until input has content
+- "Clear" removes a key from `.env`, `os.environ`, and the UI
+- `GET/POST/DELETE /settings/keys/{ebird|openweather}` backend endpoints backed by `python-dotenv`; unknown slots return 404, blank values return 400
+- 11 new backend tests covering all key endpoints
+
 ## [0.0.26] - 2026-05-15
 
 ### Added
