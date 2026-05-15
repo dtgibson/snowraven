@@ -62,7 +62,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
   function sortIndicator(col: string) {
     if (sort.column !== col) return null
     return (
-      <span style={{ fontSize: 10, color: '#2D8653', marginLeft: 2 }}>
+      <span style={{ fontSize: 10, color: 'var(--sr-accent)', marginLeft: 2 }}>
         {sort.dir === 'asc' ? '↑' : '↓'}
       </span>
     )
@@ -85,16 +85,16 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     userSelect: 'none',
     position: 'sticky',
     top: 0,
-    background: '#F9FAFB',
-    boxShadow: 'inset 0 -1px 0 #E4E4E7',
+    background: 'var(--sr-bg)',
+    boxShadow: 'inset 0 -1px 0 var(--sr-border)',
     zIndex: 2,
   }
 
   return (
     <div style={{
-      border: '1px solid #E4E4E7',
+      border: '1px solid var(--sr-border)',
       borderRadius: 10,
-      background: '#fff',
+      background: 'var(--sr-surface)',
       flex: expanded ? 'none' : 1,
       minHeight: expanded ? 'auto' : 0,
       display: 'flex',
@@ -125,8 +125,8 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   padding: '10px 12px',
                   width: 220,
                   minWidth: 220,
-                  color: sort.column === 'name' ? '#0F1117' : '#71717A',
-                  boxShadow: 'inset 0 -1px 0 #E4E4E7, 1px 0 0 #E4E4E7',
+                  color: sort.column === 'name' ? 'var(--sr-text)' : 'var(--sr-text-muted)',
+                  boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)',
                 }}
               >
                 Species{sortIndicator('name')}
@@ -144,7 +144,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                       padding: '10px 0',
                       width: 44,
                       minWidth: 44,
-                      color: sort.column === code ? '#0F1117' : '#71717A',
+                      color: sort.column === code ? 'var(--sr-text)' : 'var(--sr-text-muted)',
                     }}
                   >
                     {code}{sortIndicator(code)}
@@ -156,7 +156,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
           <tbody>
             {sorted.map(entry => {
               const isHovered = hoveredRow === entry.commonName
-              const rowBg = isHovered ? '#FAFAFA' : '#fff'
+              const rowBg = isHovered ? 'var(--sr-surface-faint)' : 'var(--sr-surface)'
               return (
                 <tr
                   key={entry.commonName}
@@ -169,22 +169,22 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     left: 0,
                     background: rowBg,
                     zIndex: 1,
-                    boxShadow: '1px 0 0 #E4E4E7',
+                    boxShadow: '1px 0 0 var(--sr-border)',
                     width: 220,
                     minWidth: 220,
                     maxWidth: 220,
-                    borderTop: '1px solid #F4F4F5',
+                    borderTop: '1px solid var(--sr-border-subtle)',
                     verticalAlign: 'middle',
                   }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ fontSize: 13.5, fontWeight: 500, color: '#0F1117', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--sr-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {entry.commonName}
                         </span>
                         <SpeciesLinks speciesCode={taxonMap[entry.commonName]} />
                       </div>
                       {entry.scientificName && (
-                        <span style={{ fontSize: 11.5, color: '#9CA3AF', fontStyle: 'italic' }}>
+                        <span style={{ fontSize: 11.5, color: 'var(--sr-text-gray)', fontStyle: 'italic' }}>
                           {entry.scientificName}
                         </span>
                       )}
@@ -201,7 +201,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                           verticalAlign: 'middle',
                           padding: '6px 0',
                           background: rowBg,
-                          borderTop: '1px solid #F4F4F5',
+                          borderTop: '1px solid var(--sr-border-subtle)',
                         }}
                       >
                         {count > 0 && (
@@ -232,8 +232,8 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
       </div>
 
       <div style={{
-        background: '#FAFAFA',
-        borderTop: '1px solid #F4F4F5',
+        background: 'var(--sr-surface-faint)',
+        borderTop: '1px solid var(--sr-border-subtle)',
         padding: '12px 16px',
         display: 'flex',
         flexWrap: 'wrap',
@@ -246,7 +246,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
               width: 18, height: 18, borderRadius: '50%',
               background: TIER_COLORS[tier], flexShrink: 0,
             }} />
-            <span style={{ fontSize: 11, color: '#71717A' }}>
+            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>
               {TIER_LABELS[tier]}: {tierGroups.get(tier)!.join(' ')}
             </span>
           </div>

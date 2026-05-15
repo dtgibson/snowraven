@@ -103,7 +103,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
   function sortIndicator(column: SortColumn) {
     if (sort.column !== column) return null
     return (
-      <span style={{ fontSize: 10, color: '#2D8653', marginLeft: 2 }}>
+      <span style={{ fontSize: 10, color: 'var(--sr-accent)', marginLeft: 2 }}>
         {sort.dir === 'asc' ? '↑' : '↓'}
       </span>
     )
@@ -121,15 +121,15 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
   const countLinkStyle: React.CSSProperties = {
     fontSize: 13,
     fontWeight: 600,
-    color: '#2D8653',
+    color: 'var(--sr-accent)',
     textDecoration: 'none',
   }
 
   return (
     <div style={{
-      border: '1px solid #E4E4E7',
+      border: '1px solid var(--sr-border)',
       borderRadius: 10,
-      background: '#fff',
+      background: 'var(--sr-surface)',
       flex: expanded ? 'none' : 1,
       minHeight: expanded ? 'auto' : 0,
       overflowY: expanded ? 'visible' : 'auto',
@@ -139,8 +139,8 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
           <tr style={{
             position: 'sticky',
             top: 0,
-            background: '#F9FAFB',
-            boxShadow: 'inset 0 -1px 0 #E4E4E7',
+            background: 'var(--sr-bg)',
+            boxShadow: 'inset 0 -1px 0 var(--sr-border)',
           }}>
             <th
               onClick={() => handleHeaderClick('name')}
@@ -149,7 +149,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 padding: '10px 14px',
                 textAlign: 'left',
                 minWidth: 200,
-                color: sort.column === 'name' ? '#0F1117' : '#71717A',
+                color: sort.column === 'name' ? 'var(--sr-text)' : 'var(--sr-text-muted)',
               }}
             >
               Entries{sortIndicator('name')}
@@ -167,7 +167,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   padding: '10px 14px',
                   width: 80,
                   textAlign: 'center',
-                  color: sort.column === col ? '#0F1117' : '#71717A',
+                  color: sort.column === col ? 'var(--sr-text)' : 'var(--sr-text-muted)',
                 }}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -188,19 +188,19 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
             return (
               <tr
                 key={entry.commonName}
-                style={{ borderBottom: idx < sorted.length - 1 ? '1px solid #F4F4F5' : 'none' }}
-                onMouseEnter={e => (e.currentTarget.style.background = '#FAFAFA')}
+                style={{ borderBottom: idx < sorted.length - 1 ? '1px solid var(--sr-border-subtle)' : 'none' }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-surface-faint)')}
                 onMouseLeave={e => (e.currentTarget.style.background = '')}
               >
                 <td style={{ padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 500, color: '#0F1117' }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--sr-text)' }}>
                         {entry.commonName}
                       </span>
                       <SpeciesLinks speciesCode={taxonMap[entry.commonName]} />
                     </div>
-                    <span style={{ fontSize: 11.5, color: '#9CA3AF', fontStyle: 'italic' }}>
+                    <span style={{ fontSize: 11.5, color: 'var(--sr-text-gray)', fontStyle: 'italic' }}>
                       {entry.scientificName}
                     </span>
                   </div>
@@ -216,7 +216,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{photoCount}</a>
-                      : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
+                      : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
                   </div>
                 </td>
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
@@ -230,7 +230,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{audioCount}</a>
-                      : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
+                      : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
                   </div>
                 </td>
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
@@ -244,7 +244,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{videoCount}</a>
-                      : <Minus size={16} strokeWidth={2.5} style={{ color: '#D1D5DB' }} />}
+                      : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
                   </div>
                 </td>
               </tr>

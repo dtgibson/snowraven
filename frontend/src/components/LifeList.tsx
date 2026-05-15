@@ -46,9 +46,9 @@ function pillStyle(active: 'none' | 'positive' | 'negative'): React.CSSPropertie
     cursor: 'pointer',
     whiteSpace: 'nowrap' as const,
   }
-  if (active === 'positive') return { ...base, border: '1.5px solid rgba(45,134,83,0.25)', background: '#E8F5EE', color: '#2D8653' }
-  if (active === 'negative') return { ...base, border: '1.5px solid rgba(239,68,68,0.3)', background: '#FEF2F2', color: '#DC2626' }
-  return { ...base, border: '1.5px solid #E4E4E7', background: '#fff', color: '#71717A' }
+  if (active === 'positive') return { ...base, border: '1.5px solid var(--sr-accent-border)', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)' }
+  if (active === 'negative') return { ...base, border: '1.5px solid var(--sr-error-overlay)', background: 'var(--sr-error-bg)', color: 'var(--sr-error)' }
+  return { ...base, border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
 }
 
 function ghostBtn(active = false): React.CSSProperties {
@@ -60,9 +60,9 @@ function ghostBtn(active = false): React.CSSProperties {
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
-    border: active ? '1.5px solid rgba(45,134,83,0.25)' : '1.5px solid #E4E4E7',
-    background: active ? '#E8F5EE' : 'none',
-    color: active ? '#2D8653' : '#71717A',
+    border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
+    background: active ? 'var(--sr-accent-bg)' : 'none',
+    color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
     whiteSpace: 'nowrap' as const,
   }
 }
@@ -235,7 +235,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   if (phase.tag === 'loading-saved') {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: '#2D8653' }} />
+        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
       </div>
     )
   }
@@ -250,8 +250,8 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         {phase.tag === 'error' && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '9px 13px', background: '#FEF2F2', borderRadius: 8,
-            fontSize: 13, color: '#DC2626', flexShrink: 0,
+            padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
+            fontSize: 13, color: 'var(--sr-error)', flexShrink: 0,
           }}>
             <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
             {phase.message}
@@ -271,58 +271,58 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            border: `2px dashed ${isPrimaryActive ? '#2D8653' : '#2D8653'}`,
+            border: `2px dashed var(--sr-accent)`,
             borderRadius: 12,
-            background: isPrimaryActive ? '#E8F5EE' : '#fff',
+            background: isPrimaryActive ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
             cursor: 'pointer',
             transition: 'background 0.15s',
             padding: 40,
             position: 'relative',
           }}
-          onMouseEnter={e => { if (!isPrimaryActive) (e.currentTarget as HTMLDivElement).style.background = '#F0FAF4' }}
-          onMouseLeave={e => { if (!isPrimaryActive) (e.currentTarget as HTMLDivElement).style.background = '#fff' }}
+          onMouseEnter={e => { if (!isPrimaryActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-accent-bg-hover)' }}
+          onMouseLeave={e => { if (!isPrimaryActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
         >
           {/* Recommended badge */}
           <div style={{
             position: 'absolute', top: 14, right: 14,
-            background: '#E8F5EE', color: '#2D8653',
+            background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)',
             fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
-            padding: '3px 8px', borderRadius: 4, border: '1px solid rgba(45,134,83,0.2)',
+            padding: '3px 8px', borderRadius: 4, border: '1px solid var(--sr-accent-border)',
           }}>
             Recommended
           </div>
 
           <div style={{
-            width: 48, height: 48, borderRadius: 12, background: '#E8F5EE',
+            width: 48, height: 48, borderRadius: 12, background: 'var(--sr-accent-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Download size={22} strokeWidth={1.75} style={{ color: '#2D8653' }} />
+            <Download size={22} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
           </div>
 
-          <span style={{ fontSize: 15, fontWeight: 600, color: '#0F1117' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--sr-text)' }}>
             Upload your Macaulay Library export
           </span>
-          <span style={{ fontSize: 12, fontWeight: 500, color: '#2D8653' }}>
+          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--sr-accent)' }}>
             Instant results — species links and taxonomic sort load in the background
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-            <Info size={12} strokeWidth={2} style={{ color: '#A1A1AA', flexShrink: 0 }} />
-            <span style={{ fontSize: 12, color: '#71717A' }}>
+            <Info size={12} strokeWidth={2} style={{ color: 'var(--sr-text-disabled)', flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>
               Sign in to Macaulay Library → My Media → Save Spreadsheet
             </span>
           </div>
-          <span style={{ fontSize: 12, color: '#71717A', marginTop: 2 }}>
+          <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginTop: 2 }}>
             Drop file here, or click to browse
           </span>
         </div>
 
         {/* Divider */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <div style={{ flex: 1, height: 1, background: '#E4E4E7' }} />
-          <span style={{ fontSize: 11, color: '#A1A1AA', whiteSpace: 'nowrap' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
+          <span style={{ fontSize: 11, color: 'var(--sr-text-disabled)', whiteSpace: 'nowrap' }}>
             or use your eBird backup
           </span>
-          <div style={{ flex: 1, height: 1, background: '#E4E4E7' }} />
+          <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
         </div>
 
         {/* Secondary drop zone — eBird CSV */}
@@ -334,29 +334,29 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
           style={{
             display: 'flex', alignItems: 'center', gap: 14,
             padding: '14px 18px',
-            border: `1.5px dashed ${isSecondaryActive ? '#A1A1AA' : '#E4E4E7'}`,
+            border: `1.5px dashed ${isSecondaryActive ? 'var(--sr-text-disabled)' : 'var(--sr-border)'}`,
             borderRadius: 10,
-            background: isSecondaryActive ? '#FAFAFA' : '#fff',
+            background: isSecondaryActive ? 'var(--sr-surface-faint)' : 'var(--sr-surface)',
             cursor: 'pointer',
             transition: 'background 0.15s, border-color 0.15s',
             flexShrink: 0,
           }}
-          onMouseEnter={e => { if (!isSecondaryActive) (e.currentTarget as HTMLDivElement).style.background = '#FAFAFA' }}
-          onMouseLeave={e => { if (!isSecondaryActive) (e.currentTarget as HTMLDivElement).style.background = '#fff' }}
+          onMouseEnter={e => { if (!isSecondaryActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface-faint)' }}
+          onMouseLeave={e => { if (!isSecondaryActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
         >
           <div style={{
-            width: 36, height: 36, borderRadius: 8, background: '#F4F4F5',
+            width: 36, height: 36, borderRadius: 8, background: 'var(--sr-surface-subtle)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <Upload size={16} strokeWidth={1.75} style={{ color: '#71717A' }} />
+            <Upload size={16} strokeWidth={1.75} style={{ color: 'var(--sr-text-muted)' }} />
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#0F1117' }}>MyEBirdData.csv</div>
-            <div style={{ fontSize: 11, color: '#71717A', marginTop: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>MyEBirdData.csv</div>
+            <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 2 }}>
               Looks up media coverage online — may take a moment for large lists
             </div>
           </div>
-          <ChevronRight size={14} strokeWidth={2} style={{ color: '#D4D4D8', flexShrink: 0 }} />
+          <ChevronRight size={14} strokeWidth={2} style={{ color: 'var(--sr-gray-400)', flexShrink: 0 }} />
         </div>
 
         <input
@@ -379,17 +379,17 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         flex: 1, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 16, minHeight: 0,
       }}>
-        <Loader2 size={32} strokeWidth={2} className="spin" style={{ color: '#2D8653' }} />
-        <span style={{ fontSize: 13, color: '#71717A' }}>
+        <Loader2 size={32} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
+        <span style={{ fontSize: 13, color: 'var(--sr-text-muted)' }}>
           Looking up media… batch {batchCurrent} of {batchTotal}
         </span>
-        <div style={{ width: 280, height: 4, background: '#E4E4E7', borderRadius: 2 }}>
+        <div style={{ width: 280, height: 4, background: 'var(--sr-border)', borderRadius: 2 }}>
           <div style={{
             width: `${progress * 100}%`, height: '100%',
-            background: '#2D8653', borderRadius: 2, transition: 'width 0.3s ease',
+            background: 'var(--sr-accent)', borderRadius: 2, transition: 'width 0.3s ease',
           }} />
         </div>
-        <span style={{ fontSize: 12, color: '#9CA3AF' }}>
+        <span style={{ fontSize: 12, color: 'var(--sr-text-gray)' }}>
           {entries.length} species · checking Macaulay Library
         </span>
       </div>
@@ -426,7 +426,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   }
 
   const pillSep: React.CSSProperties = {
-    width: 1, height: 20, background: '#E4E4E7', flexShrink: 0, alignSelf: 'center',
+    width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center',
   }
 
   function sortToggleBtn(active: boolean): React.CSSProperties {
@@ -434,8 +434,8 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
       height: 30,
       padding: '0 13px',
       border: 'none',
-      background: active ? '#2D8653' : '#fff',
-      color: active ? '#fff' : '#71717A',
+      background: active ? 'var(--sr-accent-bg)' : 'transparent',
+      color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
       fontSize: 12,
       fontWeight: 500,
       fontFamily: 'inherit',
@@ -453,9 +453,9 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
       {mlError && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 13px', background: '#FEF2F2',
-          border: '1px solid #FECACA', borderRadius: 8,
-          fontSize: 13, color: '#DC2626', marginBottom: 12, flexShrink: 0,
+          padding: '9px 13px', background: 'var(--sr-error-bg)',
+          border: '1px solid var(--sr-error-border)', borderRadius: 8,
+          fontSize: 13, color: 'var(--sr-error)', marginBottom: 12, flexShrink: 0,
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           Couldn't reach the Macaulay Library. Media coverage may be incomplete.
@@ -465,9 +465,9 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
       {source === 'ml-export' && mlUserId === null && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 13px', background: '#FFFBEB',
-          border: '1px solid #FDE68A', borderRadius: 8,
-          fontSize: 13, color: '#92400E', marginBottom: 12, flexShrink: 0,
+          padding: '9px 13px', background: 'var(--sr-warning-bg)',
+          border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
+          fontSize: 13, color: 'var(--sr-warning)', marginBottom: 12, flexShrink: 0,
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           Media links could not be personalised — the CSV filename was not in the default Macaulay Library format. Links will open the general catalog search instead.
@@ -510,9 +510,9 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
           <div style={pillSep} />
 
           {/* A–Z / Taxonomic sort toggle */}
-          <div style={{ display: 'inline-flex', border: '1.5px solid #E4E4E7', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+          <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
             <button
-              style={{ ...sortToggleBtn(sort.nameSortMode === 'az'), borderRight: '1.5px solid #E4E4E7' }}
+              style={{ ...sortToggleBtn(sort.nameSortMode === 'az'), borderRight: '1.5px solid var(--sr-accent-border)' }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
             >
               A–Z
@@ -528,17 +528,17 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
         {/* Right controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <span style={{ fontSize: 12, color: '#71717A' }}>{countLabel}</span>
+          <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
           {savedFileInfo && (
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               height: 28, padding: '0 10px',
-              background: '#E8F5EE', border: '1.5px solid rgba(45,134,83,0.25)',
+              background: 'var(--sr-accent-bg)', border: '1.5px solid var(--sr-accent-border)',
               borderRadius: 6, flexShrink: 0,
             }}>
-              <FileCheck size={12} strokeWidth={2} style={{ color: '#2D8653', flexShrink: 0 }} />
+              <FileCheck size={12} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
               <span style={{
-                fontSize: 11, fontWeight: 500, color: '#2D8653',
+                fontSize: 11, fontWeight: 500, color: 'var(--sr-accent)',
                 maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 {savedFileInfo.filename}

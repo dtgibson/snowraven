@@ -137,12 +137,12 @@ export default function App() {
     gap: 6,
     padding: '10px 16px',
     border: 'none',
-    borderBottom: `2px solid ${activeTab === tab ? '#2D8653' : 'transparent'}`,
+    borderBottom: `2px solid ${activeTab === tab ? 'var(--sr-accent)' : 'transparent'}`,
     background: 'none',
     fontFamily: 'var(--font-sans)',
     fontSize: 14,
     fontWeight: 500,
-    color: activeTab === tab ? '#2D8653' : '#71717A',
+    color: activeTab === tab ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
     cursor: 'pointer',
     marginBottom: -1,
     transition: 'color 0.15s, border-color 0.15s',
@@ -152,28 +152,28 @@ export default function App() {
   return (
     <div style={{
       ...(isExpanded ? { minHeight: '100vh' } : { height: '100vh', overflow: 'hidden' }),
-      background: '#f9fafb',
+      background: 'var(--sr-bg)',
       display: 'flex',
       flexDirection: 'column',
       fontFamily: 'var(--font-sans)',
-      color: '#0F1117',
+      color: 'var(--sr-text)',
     }}>
 
       {/* Header */}
       <div className="sr-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <Bird size={30} strokeWidth={1.75} style={{ color: '#2D8653' }} />
+          <Bird size={30} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
           <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.6px' }}>
-            Snow<span style={{ color: '#2D8653' }}>Raven</span>
+            Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
           </span>
         </div>
-        <p style={{ fontSize: 14, color: '#71717A', marginBottom: 28 }}>
+        <p style={{ fontSize: 14, color: 'var(--sr-text-muted)', marginBottom: 28 }}>
           Birding tools for your eBird workflow
         </p>
       </div>
 
       {/* Tab bar */}
-      <div style={{ borderBottom: '1px solid #E4E4E7', display: 'flex', justifyContent: 'center', padding: '0 24px', flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ borderBottom: '1px solid var(--sr-border)', display: 'flex', justifyContent: 'center', padding: '0 24px', flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <nav style={{ display: 'flex', maxWidth: 880, width: '100%' }} role="tablist">
           <button
             role="tab"
@@ -247,12 +247,12 @@ export default function App() {
         <div className="sr-card" style={{
           width: '100%',
           maxWidth: 540,
-          background: '#fff',
-          border: '1px solid #E4E4E7',
+          background: 'var(--sr-surface)',
+          border: '1px solid var(--sr-border)',
           borderRadius: 12,
           padding: 32,
           boxSizing: 'border-box' as const,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
+          boxShadow: 'var(--sr-card-shadow)',
         }}>
           <label
             htmlFor="checklist-input"
@@ -276,12 +276,12 @@ export default function App() {
                 flex: 1,
                 height: 44,
                 padding: '0 14px',
-                border: `1.5px solid ${hasError ? '#DC2626' : '#E4E4E7'}`,
+                border: `1.5px solid ${hasError ? 'var(--sr-error)' : 'var(--sr-border)'}`,
                 borderRadius: 8,
                 fontSize: 14,
                 fontFamily: 'inherit',
                 color: 'inherit',
-                background: '#fff',
+                background: 'var(--sr-surface)',
                 outline: 'none',
                 minWidth: 0,
               }}
@@ -292,7 +292,7 @@ export default function App() {
               style={{
                 height: 44,
                 padding: '0 18px',
-                background: '#2D8653',
+                background: 'var(--sr-accent)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: 8,
@@ -325,10 +325,10 @@ export default function App() {
                 gap: 8,
                 marginTop: 10,
                 padding: '9px 13px',
-                background: '#FEF2F2',
+                background: 'var(--sr-error-bg)',
                 borderRadius: 6,
                 fontSize: 13,
-                color: '#DC2626',
+                color: 'var(--sr-error)',
               }}
             >
               <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
@@ -338,11 +338,11 @@ export default function App() {
 
           {hasResult && (
             <>
-              <hr style={{ border: 'none', borderTop: '1px solid #E4E4E7', margin: '24px 0' }} />
+              <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
                 <span style={{
                   fontSize: 12,
-                  color: '#71717A',
+                  color: 'var(--sr-text-muted)',
                   fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
                   letterSpacing: '0.01em',
                   overflow: 'hidden',
@@ -364,7 +364,7 @@ export default function App() {
                       gap: 4,
                       fontSize: 12,
                       fontWeight: 500,
-                      color: '#2D8653',
+                      color: 'var(--sr-accent)',
                       textDecoration: 'none',
                       whiteSpace: 'nowrap',
                       flexShrink: 0,
@@ -383,7 +383,7 @@ export default function App() {
                   fontWeight: 600,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase' as const,
-                  color: '#71717A',
+                  color: 'var(--sr-text-muted)',
                 }}>
                   Weather output
                 </span>
@@ -393,9 +393,9 @@ export default function App() {
                   style={{
                     height: 30,
                     padding: '0 12px',
-                    background: copied ? '#2D8653' : '#E8F5EE',
-                    color: copied ? '#fff' : '#2D8653',
-                    border: `1.5px solid ${copied ? '#2D8653' : 'rgba(45,134,83,0.18)'}`,
+                    background: copied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)',
+                    color: copied ? '#fff' : 'var(--sr-accent)',
+                    border: `1.5px solid ${copied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`,
                     borderRadius: 6,
                     fontSize: 12,
                     fontWeight: 500,
@@ -415,8 +415,8 @@ export default function App() {
               <pre
                 id="output-pre"
                 style={{
-                  background: '#F4F4F5',
-                  border: '1px solid #E4E4E7',
+                  background: 'var(--sr-surface-subtle)',
+                  border: '1px solid var(--sr-border)',
                   borderRadius: 8,
                   padding: '18px 20px',
                   fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
@@ -494,7 +494,7 @@ export default function App() {
       </div>
 
       {/* Footer */}
-      <p style={{ textAlign: 'center', fontSize: 12, color: '#b0b0b8', padding: '0 24px 20px', flexShrink: 0 }}>
+      <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
         <a
           href="https://github.com/dtgibson/snowraven"
           target="_blank"
@@ -514,7 +514,7 @@ export default function App() {
               border: 'none',
               padding: 0,
               font: 'inherit',
-              color: '#b0b0b8',
+              color: 'var(--sr-text-footer)',
               cursor: 'pointer',
               textDecoration: 'none',
             }}
@@ -525,19 +525,19 @@ export default function App() {
           </button>
         )}
         {updateStatus.kind === 'checking' && (
-          <span style={{ color: '#71717A' }}>Checking…</span>
+          <span style={{ color: 'var(--sr-text-muted)' }}>Checking…</span>
         )}
         {updateStatus.kind === 'up-to-date' && (
-          <span style={{ color: '#2D8653' }}>Up to date (v{updateStatus.current})</span>
+          <span style={{ color: 'var(--sr-accent)' }}>Up to date (v{updateStatus.current})</span>
         )}
         {updateStatus.kind === 'available' && (
-          <span style={{ color: '#92400e' }}>
+          <span style={{ color: 'var(--sr-warning)' }}>
             v{updateStatus.latest} available — run{' '}
             <code style={{ fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace' }}>./update.sh</code>
           </span>
         )}
         {updateStatus.kind === 'error' && (
-          <span style={{ color: '#b91c1c' }}>Could not check for updates</span>
+          <span style={{ color: 'var(--sr-error)' }}>Could not check for updates</span>
         )}
       </p>
     </div>

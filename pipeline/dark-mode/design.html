@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dark Mode — Design Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: #EEEEF0;
+    color: #0F1117;
+    min-height: 100vh;
+    padding: 40px 24px 60px;
+  }
+
+  /* ── Page header ── */
+  .page-title {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .page-title h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: #0F1117;
+    margin-bottom: 6px;
+  }
+  .page-title p {
+    font-size: 14px;
+    color: #71717A;
+  }
+
+  /* ── Split frame ── */
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1160px;
+    margin: 0 auto 48px;
+  }
+  @media (max-width: 800px) {
+    .split { grid-template-columns: 1fr; }
+  }
+
+  .frame-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #71717A;
+    margin-bottom: 10px;
+    padding-left: 2px;
+  }
+
+  /* ── App frame (light) ── */
+  .app-frame {
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.08);
+  }
+
+  /* LIGHT THEME */
+  .light .app-frame { background: #F9FAFB; }
+
+  .light .app-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 0;
+    background: #F9FAFB;
+  }
+  .light .app-logo {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  }
+  .light .app-logo-bird { color: #2D8653; }
+  .light .app-logo-text {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.4px; color: #0F1117;
+  }
+  .light .app-logo-text span { color: #2D8653; }
+  .light .app-tagline { font-size: 13px; color: #71717A; margin-bottom: 20px; }
+
+  .light .tab-bar {
+    border-bottom: 1px solid #E4E4E7;
+    display: flex;
+    padding: 0 16px;
+    background: #F9FAFB;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .light .tab-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 10px 14px;
+    border: none; border-bottom: 2px solid transparent;
+    background: none; font-family: inherit; font-size: 13px; font-weight: 500;
+    color: #71717A; cursor: pointer; white-space: nowrap; margin-bottom: -1px;
+  }
+  .light .tab-btn.active { color: #2D8653; border-bottom-color: #2D8653; }
+
+  .light .tab-content {
+    padding: 28px 20px;
+    background: #F9FAFB;
+    min-height: 380px;
+  }
+
+  /* Settings content — light */
+  .light .settings-section { margin-bottom: 24px; }
+  .light .section-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .light .section-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: #71717A; white-space: nowrap;
+  }
+  .light .section-line { flex: 1; height: 1px; background: #E4E4E7; }
+
+  .light .settings-card {
+    border: 1px solid #E4E4E7; border-radius: 10px;
+    background: #fff; overflow: hidden;
+  }
+  .light .settings-row {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  }
+  .light .settings-row + .settings-row { border-top: 1px solid #F4F4F5; }
+
+  .light .row-icon {
+    width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .light .row-icon.green { background: #E8F5EE; color: #2D8653; }
+  .light .row-icon.gray { background: #F4F4F5; color: #A1A1AA; }
+
+  .light .row-label { font-size: 13.5px; font-weight: 600; color: #0F1117; }
+  .light .row-sub { font-size: 13px; color: #A1A1AA; margin-top: 2px; }
+
+  /* Appearance toggle — light */
+  .appearance-toggle {
+    display: flex; gap: 4px;
+    padding: 3px;
+    background: #F4F4F5;
+    border-radius: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .toggle-opt {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 500;
+    border: none; cursor: pointer; font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+  .light .toggle-opt { background: transparent; color: #71717A; }
+  .light .toggle-opt.active {
+    background: #fff;
+    color: #2D8653;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  /* Consent prompt — light */
+  .consent-prompt {
+    margin: 0 16px 14px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .light .consent-prompt {
+    background: #F0FAF4;
+    border: 1px solid rgba(45,134,83,0.2);
+    color: #0F1117;
+  }
+  .consent-prompt p { color: inherit; }
+  .consent-btns { display: flex; gap: 8px; }
+  .consent-btn {
+    padding: 5px 12px; border-radius: 6px;
+    font-size: 12px; font-weight: 500; font-family: inherit;
+    cursor: pointer; white-space: nowrap;
+  }
+  .light .consent-btn.primary {
+    background: #2D8653; color: #fff; border: none;
+  }
+  .light .consent-btn.secondary {
+    background: transparent; color: #71717A;
+    border: 1px solid #E4E4E7;
+  }
+
+  .light .settings-footer {
+    font-size: 12px; color: #A1A1AA; margin-top: 8px; line-height: 1.5;
+    padding: 0 2px;
+  }
+
+  /* DARK THEME */
+  .dark .app-frame { background: #09090B; }
+
+  .dark .app-header {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 32px 24px 0; background: #09090B;
+  }
+  .dark .app-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .dark .app-logo-bird { color: #34D399; }
+  .dark .app-logo-text { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; color: #F4F4F5; }
+  .dark .app-logo-text span { color: #34D399; }
+  .dark .app-tagline { font-size: 13px; color: #A1A1AA; margin-bottom: 20px; }
+
+  .dark .tab-bar {
+    border-bottom: 1px solid #27272A;
+    display: flex; padding: 0 16px; background: #09090B;
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+  }
+  .dark .tab-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 10px 14px;
+    border: none; border-bottom: 2px solid transparent;
+    background: none; font-family: inherit; font-size: 13px; font-weight: 500;
+    color: #71717A; cursor: pointer; white-space: nowrap; margin-bottom: -1px;
+  }
+  .dark .tab-btn.active { color: #34D399; border-bottom-color: #34D399; }
+
+  .dark .tab-content {
+    padding: 28px 20px; background: #09090B; min-height: 380px;
+  }
+
+  .dark .settings-section { margin-bottom: 24px; }
+  .dark .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .dark .section-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: #52525B; white-space: nowrap;
+  }
+  .dark .section-line { flex: 1; height: 1px; background: #27272A; }
+
+  .dark .settings-card {
+    border: 1px solid #27272A; border-radius: 10px;
+    background: #18181B; overflow: hidden;
+  }
+  .dark .settings-row {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  }
+  .dark .settings-row + .settings-row { border-top: 1px solid #1F1F23; }
+
+  .dark .row-icon {
+    width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dark .row-icon.green { background: #052E16; color: #34D399; }
+  .dark .row-icon.gray { background: #27272A; color: #52525B; }
+
+  .dark .row-label { font-size: 13.5px; font-weight: 600; color: #F4F4F5; }
+  .dark .row-sub { font-size: 13px; color: #52525B; margin-top: 2px; }
+
+  .dark .toggle-opt { background: transparent; color: #71717A; }
+  .dark .toggle-opt.active {
+    background: #27272A;
+    color: #34D399;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+  .dark .appearance-toggle { background: #1C1C1F; }
+
+  .dark .consent-prompt {
+    background: #052E16;
+    border: 1px solid rgba(52,211,153,0.2);
+    color: #F4F4F5;
+  }
+  .dark .consent-btn.primary {
+    background: #34D399; color: #052E16; border: none; font-weight: 600;
+  }
+  .dark .consent-btn.secondary {
+    background: transparent; color: #A1A1AA;
+    border: 1px solid #27272A;
+  }
+
+  .dark .settings-footer { font-size: 12px; color: #52525B; margin-top: 8px; line-height: 1.5; padding: 0 2px; }
+
+  /* ── Weather card preview ── */
+  .weather-section {
+    max-width: 1160px;
+    margin: 0 auto 48px;
+  }
+  .weather-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 800px) { .weather-split { grid-template-columns: 1fr; } }
+
+  .weather-card-wrap {
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.08);
+    padding: 28px 20px;
+  }
+  .weather-card-wrap.light-bg { background: #F9FAFB; }
+  .weather-card-wrap.dark-bg { background: #09090B; }
+
+  .weather-card {
+    border-radius: 12px; padding: 24px;
+    border: 1px solid; max-width: 440px; margin: 0 auto;
+  }
+  .weather-card.light-card {
+    background: #fff; border-color: #E4E4E7;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  }
+  .weather-card.dark-card {
+    background: #18181B; border-color: #27272A;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  }
+
+  .wc-label { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+  .wc-label.light-text { color: #0F1117; }
+  .wc-label.dark-text { color: #F4F4F5; }
+
+  .wc-input-row { display: flex; gap: 8px; margin-bottom: 20px; }
+  .wc-input {
+    flex: 1; height: 42px; padding: 0 12px; border-radius: 8px;
+    font-size: 13px; font-family: inherit;
+  }
+  .wc-input.light-input {
+    border: 1.5px solid #E4E4E7; background: #fff; color: #0F1117;
+  }
+  .wc-input.dark-input {
+    border: 1.5px solid #27272A; background: #27272A; color: #F4F4F5;
+  }
+  .wc-btn {
+    height: 42px; padding: 0 16px; border-radius: 8px; border: none;
+    font-size: 13px; font-weight: 500; font-family: inherit;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .wc-btn.light-btn { background: #2D8653; color: #fff; }
+  .wc-btn.dark-btn { background: #34D399; color: #052E16; }
+
+  .wc-divider { height: 1px; margin: 16px 0; }
+  .wc-divider.light-divider { background: #E4E4E7; }
+  .wc-divider.dark-divider { background: #27272A; }
+
+  .wc-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px; gap: 12px;
+  }
+  .wc-meta-id { font-size: 11px; font-family: monospace; }
+  .wc-meta-id.light-id { color: #71717A; }
+  .wc-meta-id.dark-id { color: #A1A1AA; }
+  .wc-edit-link { font-size: 12px; font-weight: 500; white-space: nowrap; text-decoration: none; }
+  .wc-edit-link.light-link { color: #2D8653; }
+  .wc-edit-link.dark-link { color: #34D399; }
+
+  .wc-output-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 8px;
+  }
+  .wc-output-label.light-ol { color: #71717A; }
+  .wc-output-label.dark-ol { color: #52525B; }
+
+  .wc-pre {
+    border-radius: 8px; padding: 14px 16px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 12px; line-height: 1.7; white-space: pre;
+    border: 1px solid;
+  }
+  .wc-pre.light-pre { background: #F4F4F5; border-color: #E4E4E7; color: #0F1117; }
+  .wc-pre.dark-pre { background: #27272A; border-color: #3F3F46; color: #D4D4D8; }
+
+  /* ── Consent flow detail ── */
+  .consent-section {
+    max-width: 680px;
+    margin: 0 auto 48px;
+  }
+  .consent-demo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 700px) { .consent-demo { grid-template-columns: 1fr; } }
+
+  .consent-card {
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 32px rgba(0,0,0,0.08);
+  }
+  .consent-card-inner { padding: 20px; }
+  .consent-card-inner.light-inner { background: #F9FAFB; }
+  .consent-card-inner.dark-inner { background: #09090B; }
+
+  /* ── Interactive demo ── */
+  .demo-note {
+    max-width: 1160px;
+    margin: 0 auto 20px;
+    text-align: center;
+  }
+  .demo-note p { font-size: 13px; color: #71717A; }
+  .demo-note .demo-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #2D8653; color: #fff;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+    padding: 3px 10px; border-radius: 99px; margin-bottom: 8px;
+  }
+
+  .interactive-section {
+    max-width: 480px;
+    margin: 0 auto 0;
+  }
+  .interactive-frame {
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12), 0 8px 32px rgba(0,0,0,0.12);
+    transition: background 0.2s;
+  }
+  .interactive-frame.is-light { background: #F9FAFB; }
+  .interactive-frame.is-dark { background: #09090B; }
+
+  .interactive-frame .i-header {
+    padding: 28px 20px 0; display: flex; flex-direction: column; align-items: center;
+  }
+  .i-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .i-logo-text { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
+  .i-tagline { font-size: 13px; margin-bottom: 18px; }
+
+  .i-tabs {
+    display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    padding: 0 16px;
+    border-bottom-width: 1px; border-bottom-style: solid;
+  }
+  .i-tab {
+    display: flex; align-items: center; gap: 5px;
+    padding: 9px 12px; border: none; border-bottom: 2px solid transparent;
+    background: none; font-size: 12.5px; font-weight: 500;
+    font-family: inherit; cursor: pointer; white-space: nowrap; margin-bottom: -1px;
+  }
+
+  .i-content { padding: 20px; min-height: 280px; }
+
+  .i-section { margin-bottom: 20px; }
+  .i-sec-hdr { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .i-sec-lbl {
+    font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; white-space: nowrap;
+  }
+  .i-sec-line { flex: 1; height: 1px; }
+
+  .i-card { border-radius: 10px; border-width: 1px; border-style: solid; overflow: hidden; }
+  .i-row { display: flex; align-items: center; gap: 10px; padding: 13px 14px; }
+  .i-row + .i-row { border-top-width: 1px; border-top-style: solid; }
+  .i-icon { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .i-lbl { font-size: 13px; font-weight: 600; }
+  .i-sub { font-size: 12px; margin-top: 1px; }
+
+  .i-toggle { display: flex; gap: 3px; padding: 3px; border-radius: 7px; margin-left: auto; flex-shrink: 0; }
+  .i-opt {
+    padding: 4px 10px; border-radius: 5px; border: none; cursor: pointer;
+    font-size: 11.5px; font-weight: 500; font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .i-consent {
+    margin: 0 14px 12px; padding: 10px 12px; border-radius: 8px;
+    font-size: 12px; line-height: 1.5; border-width: 1px; border-style: solid;
+    display: none; flex-direction: column; gap: 8px;
+  }
+  .i-consent.visible { display: flex; }
+  .i-cbtn { display: flex; gap: 6px; }
+  .i-cb {
+    padding: 5px 10px; border-radius: 5px; font-size: 11.5px; font-weight: 500;
+    font-family: inherit; cursor: pointer; white-space: nowrap; border: 1px solid;
+  }
+
+  /* Light interactive */
+  .is-light .i-logo-text { color: #0F1117; }
+  .is-light .i-logo-text span { color: #2D8653; }
+  .is-light .i-logo svg { color: #2D8653; }
+  .is-light .i-tagline { color: #71717A; }
+  .is-light .i-tabs { border-bottom-color: #E4E4E7; background: #F9FAFB; }
+  .is-light .i-tab { color: #71717A; }
+  .is-light .i-tab.active { color: #2D8653; border-bottom-color: #2D8653; }
+  .is-light .i-content { background: #F9FAFB; }
+  .is-light .i-sec-lbl { color: #71717A; }
+  .is-light .i-sec-line { background: #E4E4E7; }
+  .is-light .i-card { background: #fff; border-color: #E4E4E7; }
+  .is-light .i-row + .i-row { border-top-color: #F4F4F5; }
+  .is-light .i-icon.green { background: #E8F5EE; color: #2D8653; }
+  .is-light .i-icon.gray { background: #F4F4F5; color: #A1A1AA; }
+  .is-light .i-lbl { color: #0F1117; }
+  .is-light .i-sub { color: #A1A1AA; }
+  .is-light .i-toggle { background: #F4F4F5; }
+  .is-light .i-opt { background: transparent; color: #71717A; }
+  .is-light .i-opt.active { background: #fff; color: #2D8653; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .is-light .i-consent { background: #F0FAF4; border-color: rgba(45,134,83,0.2); color: #0F1117; }
+  .is-light .i-cb.primary { background: #2D8653; color: #fff; border-color: transparent; }
+  .is-light .i-cb.secondary { background: transparent; color: #71717A; border-color: #E4E4E7; }
+
+  /* Dark interactive */
+  .is-dark .i-logo-text { color: #F4F4F5; }
+  .is-dark .i-logo-text span { color: #34D399; }
+  .is-dark .i-logo svg { color: #34D399; }
+  .is-dark .i-tagline { color: #A1A1AA; }
+  .is-dark .i-tabs { border-bottom-color: #27272A; background: #09090B; }
+  .is-dark .i-tab { color: #71717A; }
+  .is-dark .i-tab.active { color: #34D399; border-bottom-color: #34D399; }
+  .is-dark .i-content { background: #09090B; }
+  .is-dark .i-sec-lbl { color: #52525B; }
+  .is-dark .i-sec-line { background: #27272A; }
+  .is-dark .i-card { background: #18181B; border-color: #27272A; }
+  .is-dark .i-row + .i-row { border-top-color: #1F1F23; }
+  .is-dark .i-icon.green { background: #052E16; color: #34D399; }
+  .is-dark .i-icon.gray { background: #27272A; color: #52525B; }
+  .is-dark .i-lbl { color: #F4F4F5; }
+  .is-dark .i-sub { color: #52525B; }
+  .is-dark .i-toggle { background: #1C1C1F; }
+  .is-dark .i-opt { background: transparent; color: #71717A; }
+  .is-dark .i-opt.active { background: #27272A; color: #34D399; box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+  .is-dark .i-consent { background: #052E16; border-color: rgba(52,211,153,0.2); color: #F4F4F5; }
+  .is-dark .i-cb.primary { background: #34D399; color: #052E16; border-color: transparent; font-weight: 600; }
+  .is-dark .i-cb.secondary { background: transparent; color: #A1A1AA; border-color: #27272A; }
+</style>
+</head>
+<body>
+
+<div class="page-title">
+  <h1>Dark Mode — Design Mockup</h1>
+  <p>Stage 4 artifact · Session 1 · SnowRaven</p>
+</div>
+
+<!-- ── Split: light vs dark app frame ── -->
+<div class="split">
+
+  <!-- LIGHT -->
+  <div>
+    <div class="frame-label">Light theme</div>
+    <div class="app-frame">
+      <div class="light">
+        <div class="app-header">
+          <div class="app-logo">
+            <svg class="app-logo-bird" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7.99c-3.37-.01-5.95 1.55-8 4.01-2.05-2.46-4.63-4.02-8-4.01"/><path d="M6 12C4.38 13.37 3 15.34 3 19h18c0-3.66-1.38-5.63-3-7"/><path d="M12 12V6"/><path d="M9 9l3-3 3 3"/></svg>
+            <span class="app-logo-text">Snow<span>Raven</span></span>
+          </div>
+          <div class="app-tagline">Birding tools for your eBird workflow</div>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+            Weather
+          </button>
+          <button class="tab-btn">🧬 Breeding Codes</button>
+          <button class="tab-btn">📋 Media List</button>
+          <button class="tab-btn">↔ Life List</button>
+          <button class="tab-btn active">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            Settings
+          </button>
+        </div>
+        <div class="tab-content">
+          <!-- Appearance section -->
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-label">Appearance</span>
+              <div class="section-line"></div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-row">
+                <div class="row-icon green">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="row-label">Theme</div>
+                  <div class="row-sub">Follows your system setting</div>
+                </div>
+                <div class="appearance-toggle">
+                  <button class="toggle-opt active">System</button>
+                  <button class="toggle-opt">Light</button>
+                  <button class="toggle-opt">Dark</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- API Keys section -->
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-label">API Keys</span>
+              <div class="section-line"></div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-row">
+                <div class="row-icon green">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="row-label">eBird API Key</div>
+                  <div class="row-sub" style="font-family:monospace;font-size:12px;letter-spacing:2px">••••••••••••••••</div>
+                </div>
+                <button class="toggle-opt active" style="font-size:11px">Hide</button>
+              </div>
+              <div class="settings-row">
+                <div class="row-icon gray">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="row-label">OpenWeather API Key</div>
+                  <div class="row-sub">Not configured</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DARK -->
+  <div>
+    <div class="frame-label">Dark theme</div>
+    <div class="app-frame">
+      <div class="dark">
+        <div class="app-header">
+          <div class="app-logo">
+            <svg class="app-logo-bird" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7.99c-3.37-.01-5.95 1.55-8 4.01-2.05-2.46-4.63-4.02-8-4.01"/><path d="M6 12C4.38 13.37 3 15.34 3 19h18c0-3.66-1.38-5.63-3-7"/><path d="M12 12V6"/><path d="M9 9l3-3 3 3"/></svg>
+            <span class="app-logo-text">Snow<span>Raven</span></span>
+          </div>
+          <div class="app-tagline">Birding tools for your eBird workflow</div>
+        </div>
+        <div class="tab-bar">
+          <button class="tab-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+            Weather
+          </button>
+          <button class="tab-btn">🧬 Breeding Codes</button>
+          <button class="tab-btn">📋 Media List</button>
+          <button class="tab-btn">↔ Life List</button>
+          <button class="tab-btn active">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            Settings
+          </button>
+        </div>
+        <div class="tab-content">
+          <!-- Appearance — dark, showing consent prompt -->
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-label">Appearance</span>
+              <div class="section-line"></div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-row">
+                <div class="row-icon green">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="row-label">Theme</div>
+                  <div class="row-sub">Dark mode active</div>
+                </div>
+                <div class="appearance-toggle">
+                  <button class="toggle-opt">System</button>
+                  <button class="toggle-opt">Light</button>
+                  <button class="toggle-opt active">Dark</button>
+                </div>
+              </div>
+              <!-- Consent prompt shown -->
+              <div class="consent-prompt">
+                <p>Your preference will be saved in this browser's local storage — on this device only. Nothing is sent to the server.</p>
+                <div class="consent-btns">
+                  <button class="consent-btn primary">Save preference</button>
+                  <button class="consent-btn secondary">This session only</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- API Keys — dark -->
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-label">API Keys</span>
+              <div class="section-line"></div>
+            </div>
+            <div class="settings-card">
+              <div class="settings-row">
+                <div class="row-icon green">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="row-label">eBird API Key</div>
+                  <div class="row-sub" style="font-family:monospace;font-size:12px;letter-spacing:2px">••••••••••••••••</div>
+                </div>
+                <button class="toggle-opt" style="font-size:11px;color:#34D399">Hide</button>
+              </div>
+              <div class="settings-row">
+                <div class="row-icon gray">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                </div>
+                <div style="flex:1">
+                  <div class="row-label">OpenWeather API Key</div>
+                  <div class="row-sub">Not configured</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Weather tab comparison ── -->
+<div class="weather-section">
+  <div style="margin-bottom:10px"><div class="frame-label" style="max-width:1160px;margin:0 auto">Weather tab — both themes</div></div>
+  <div class="weather-split">
+    <div class="weather-card-wrap light-bg">
+      <div class="weather-card light-card">
+        <div class="wc-label light-text">eBird checklist ID or URL</div>
+        <div class="wc-input-row">
+          <input class="wc-input light-input" value="S227461890" readonly />
+          <button class="wc-btn light-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Get weather
+          </button>
+        </div>
+        <div class="wc-divider light-divider"></div>
+        <div class="wc-meta">
+          <span class="wc-meta-id light-id">S227461890 / Berkeley Community Garden / 2026-05-07 17:26</span>
+          <a class="wc-edit-link light-link">Edit on eBird ↗</a>
+        </div>
+        <div class="wc-output-label light-ol">Weather output</div>
+        <pre class="wc-pre light-pre">🌤️ Partly cloudy
+🌡️ 61–66°F  💧 67–71%  🌬️ 8–12 mph WSW
+🌅 6:14 AM  🌇 8:06 PM</pre>
+      </div>
+    </div>
+    <div class="weather-card-wrap dark-bg">
+      <div class="weather-card dark-card">
+        <div class="wc-label dark-text">eBird checklist ID or URL</div>
+        <div class="wc-input-row">
+          <input class="wc-input dark-input" value="S227461890" readonly />
+          <button class="wc-btn dark-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Get weather
+          </button>
+        </div>
+        <div class="wc-divider dark-divider"></div>
+        <div class="wc-meta">
+          <span class="wc-meta-id dark-id">S227461890 / Berkeley Community Garden / 2026-05-07 17:26</span>
+          <a class="wc-edit-link dark-link">Edit on eBird ↗</a>
+        </div>
+        <div class="wc-output-label dark-ol">Weather output</div>
+        <pre class="wc-pre dark-pre">🌤️ Partly cloudy
+🌡️ 61–66°F  💧 67–71%  🌬️ 8–12 mph WSW
+🌅 6:14 AM  🌇 8:06 PM</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Interactive demo ── -->
+<div class="demo-note" style="margin-top:48px">
+  <div class="demo-badge">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    Interactive
+  </div>
+  <p>Try the toggle — click System, Light, or Dark to see the consent flow in action.</p>
+</div>
+<div class="interactive-section">
+  <div class="interactive-frame is-light" id="iFrame">
+    <div class="i-header">
+      <div class="i-logo">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M22 7.99c-3.37-.01-5.95 1.55-8 4.01-2.05-2.46-4.63-4.02-8-4.01"/><path d="M6 12C4.38 13.37 3 15.34 3 19h18c0-3.66-1.38-5.63-3-7"/><path d="M12 12V6"/><path d="M9 9l3-3 3 3"/></svg>
+        <span class="i-logo-text">Snow<span>Raven</span></span>
+      </div>
+      <div class="i-tagline">Birding tools for your eBird workflow</div>
+    </div>
+    <div class="i-tabs">
+      <button class="i-tab">☁️ Weather</button>
+      <button class="i-tab">🧬 Breeding</button>
+      <button class="i-tab">📋 Media</button>
+      <button class="i-tab">↔ Life List</button>
+      <button class="i-tab active">⚙ Settings</button>
+    </div>
+    <div class="i-content">
+      <div class="i-section">
+        <div class="i-sec-hdr">
+          <span class="i-sec-lbl">Appearance</span>
+          <div class="i-sec-line"></div>
+        </div>
+        <div class="i-card">
+          <div class="i-row">
+            <div class="i-icon green">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="i-lbl">Theme</div>
+              <div class="i-sub" id="iSub">Follows your system setting</div>
+            </div>
+            <div class="i-toggle" id="iToggle">
+              <button class="i-opt active" onclick="selectTheme('system')">System</button>
+              <button class="i-opt" onclick="selectTheme('light')">Light</button>
+              <button class="i-opt" onclick="selectTheme('dark')">Dark</button>
+            </div>
+          </div>
+          <div class="i-consent" id="iConsent">
+            <p>Your preference will be saved in this browser's local storage — on this device only. Nothing is sent to the server.</p>
+            <div class="i-cbtn">
+              <button class="i-cb primary" onclick="saveConsent()">Save preference</button>
+              <button class="i-cb secondary" onclick="sessionOnly()">This session only</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="i-section">
+        <div class="i-sec-hdr">
+          <span class="i-sec-lbl">API Keys</span>
+          <div class="i-sec-line"></div>
+        </div>
+        <div class="i-card">
+          <div class="i-row">
+            <div class="i-icon green">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="i-lbl">eBird API Key</div>
+              <div class="i-sub" style="font-family:monospace;font-size:11px;letter-spacing:2px">••••••••••••••••</div>
+            </div>
+          </div>
+          <div class="i-row">
+            <div class="i-icon gray">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            </div>
+            <div style="flex:1">
+              <div class="i-lbl">OpenWeather API Key</div>
+              <div class="i-sub">Not configured</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var frame = document.getElementById('iFrame');
+  var opts = document.querySelectorAll('#iToggle .i-opt');
+  var consent = document.getElementById('iConsent');
+  var sub = document.getElementById('iSub');
+  var hasConsented = false;
+  var currentPref = 'system';
+
+  var subText = {
+    system: 'Follows your system setting',
+    light: 'Always light',
+    dark: 'Dark mode active'
+  };
+
+  function selectTheme(pref) {
+    currentPref = pref;
+    opts.forEach(function(o) { o.classList.remove('active'); });
+    var idx = ['system','light','dark'].indexOf(pref);
+    if (idx >= 0) opts[idx].classList.add('active');
+
+    // Apply theme
+    frame.className = 'interactive-frame ' + (pref === 'dark' ? 'is-dark' : 'is-light');
+
+    sub.textContent = subText[pref];
+
+    if (pref === 'system') {
+      consent.classList.remove('visible');
+      hasConsented = false;
+    } else if (!hasConsented) {
+      consent.classList.add('visible');
+    }
+  }
+
+  function saveConsent() {
+    hasConsented = true;
+    consent.classList.remove('visible');
+  }
+
+  function sessionOnly() {
+    consent.classList.remove('visible');
+  }
+</script>
+
+</body>
+</html>

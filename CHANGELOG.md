@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.29] - 2026-05-15
+
+### Added
+- **Dark mode** — full dark theme with automatic OS preference detection; no flash of the wrong theme on load
+- Theme preference toggle in Settings → Appearance: System / Light / Dark
+- Consent-gated `localStorage` persistence — theme is applied immediately when selected; a prompt asks whether to save the preference or keep it for this session only; once consent is given, future changes are silent
+- Complete `--sr-*` CSS custom property token system in `globals.css` covering structural, text, border, accent, error, warning, tier, and shadow values for both themes
+- Anti-flash inline script in `index.html` applies `data-theme` before first paint using stored preference or OS media query
+- `src/lib/theme.ts` — `applyTheme()` and `readStoredPreference()` utilities with private-browsing-safe localStorage access
+- Dark palette: zinc-based backgrounds (`#09090B` page, `#18181B` surface), `#34D399` emerald accent for better contrast on dark surfaces, lightened purple tier colours for breeding code badges
+
 ## [0.0.28] - 2026-05-15
 
 ### Fixed

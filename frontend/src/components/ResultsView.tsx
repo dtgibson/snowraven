@@ -49,14 +49,14 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
         gap: 16,
         flexShrink: 0,
       }}>
-        <p style={{ fontSize: 14, color: '#71717A', margin: 0 }}>
+        <p style={{ fontSize: 14, color: 'var(--sr-text-muted)', margin: 0 }}>
           Comparing{' '}
-          <strong style={{ fontWeight: 600, color: '#0F1117' }}>{nameA}</strong>
+          <strong style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{nameA}</strong>
           {' '}and{' '}
-          <strong style={{ fontWeight: 600, color: '#0F1117' }}>{nameB}</strong>
+          <strong style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{nameB}</strong>
         </p>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
-          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid #E4E4E7' }}>
+          <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }}>
             {(['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
               <button
                 key={s}
@@ -69,9 +69,9 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
                   fontFamily: 'inherit',
                   cursor: 'pointer',
                   border: 'none',
-                  borderLeft: i > 0 ? '1.5px solid #E4E4E7' : 'none',
-                  background: sort === s ? '#F4F4F5' : '#fff',
-                  color: sort === s ? '#0F1117' : '#71717A',
+                  borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
+                  background: sort === s ? 'var(--sr-accent-bg)' : 'transparent',
+                  color: sort === s ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                   whiteSpace: 'nowrap' as const,
                 }}
               >
@@ -87,9 +87,9 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
               gap: 6,
               height: 34,
               padding: '0 14px',
-              background: expanded ? '#E8F5EE' : 'transparent',
-              color: '#2D8653',
-              border: '1.5px solid rgba(45,134,83,0.22)',
+              background: expanded ? 'var(--sr-accent-bg)' : 'transparent',
+              color: 'var(--sr-accent)',
+              border: '1.5px solid var(--sr-accent-border)',
               borderRadius: 6,
               fontSize: 13,
               fontWeight: 500,
@@ -109,8 +109,8 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
               height: 34,
               padding: '0 14px',
               background: 'transparent',
-              color: '#2D8653',
-              border: '1.5px solid rgba(45,134,83,0.22)',
+              color: 'var(--sr-accent)',
+              border: '1.5px solid var(--sr-accent-border)',
               borderRadius: 6,
               fontSize: 13,
               fontWeight: 500,
@@ -131,7 +131,7 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(5, 1fr)',
-          border: '1px solid #E4E4E7',
+          border: '1px solid var(--sr-border)',
           borderRadius: 10,
           overflow: 'hidden',
           marginBottom: 20,
@@ -169,9 +169,9 @@ function Stat({ value, label, highlight = false, isLast = false }: {
 }) {
   return (
     <div style={{
-      background: '#fff',
+      background: 'var(--sr-surface)',
       padding: '18px 20px',
-      borderRight: isLast ? 'none' : '1px solid #E4E4E7',
+      borderRight: isLast ? 'none' : '1px solid var(--sr-border)',
       display: 'flex',
       flexDirection: 'column',
       gap: 5,
@@ -182,7 +182,7 @@ function Stat({ value, label, highlight = false, isLast = false }: {
         fontWeight: 600,
         letterSpacing: '-0.5px',
         lineHeight: 1,
-        color: highlight ? '#2D8653' : '#0F1117',
+        color: highlight ? 'var(--sr-accent)' : 'var(--sr-text)',
       }}>
         {value}
       </span>
@@ -191,7 +191,7 @@ function Stat({ value, label, highlight = false, isLast = false }: {
         fontWeight: 600,
         textTransform: 'uppercase' as const,
         letterSpacing: '0.08em',
-        color: '#71717A',
+        color: 'var(--sr-text-muted)',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',

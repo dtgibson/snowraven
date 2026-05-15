@@ -1,11 +1,17 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
-  "confirmedArtifacts": [],
-  "createdAt": "2026-05-15T08:20:00Z",
-  "updatedAt": "2026-05-15T08:48:00Z"
+  "activeFeature": "dark-mode",
+  "sessionNumber": 2,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
+  "confirmedArtifacts": [
+    "pipeline/dark-mode/strategic-brief.md",
+    "pipeline/dark-mode/prd.md",
+    "pipeline/dark-mode/schema.md",
+    "pipeline/dark-mode/design-spec.md",
+    "pipeline/dark-mode/design.html"
+  ],
+  "createdAt": "2026-05-15T09:00:00Z",
+  "updatedAt": "2026-05-15T11:45:00Z"
 }

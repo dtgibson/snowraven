@@ -37,10 +37,10 @@ export const BREEDING_CODES: BreedingCodeDef[] = [
 export const BREEDING_CODE_MAP = new Map(BREEDING_CODES.map(d => [d.code, d]))
 
 export const TIER_COLORS: Record<1 | 2 | 3 | 4, string> = {
-  4: '#3B0764',
-  3: '#6B21A8',
-  2: '#9333EA',
-  1: '#C084FC',
+  4: 'var(--sr-tier-4)',
+  3: 'var(--sr-tier-3)',
+  2: 'var(--sr-tier-2)',
+  1: 'var(--sr-tier-1)',
 }
 
 export type BreedingCategory = 'confirmed' | 'probable' | 'possible'

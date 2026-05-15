@@ -32,22 +32,14 @@ function codePillStyle(tier: 1 | 2 | 3 | 4, active: boolean): React.CSSPropertie
     border: '1.5px solid transparent',
     background: 'none',
   }
-  if (!active) return { ...base, borderColor: '#E4E4E7', background: '#fff', color: '#71717A' }
-  const tierRgb: Record<number, string> = {
-    4: '59,7,100',
-    3: '107,33,168',
-    2: '147,51,234',
-    1: '192,132,252',
-  }
-  const rgb = tierRgb[tier]
+  if (!active) return { ...base, borderColor: 'var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
   const bgAlpha = tier === 1 ? 0.15 : 0.08
   const borderAlpha = tier === 1 ? 0.5 : 0.3
-  const color = tier >= 3 ? TIER_COLORS[tier] : '#7E22CE'
   return {
     ...base,
-    background: `rgba(${rgb},${bgAlpha})`,
-    borderColor: `rgba(${rgb},${borderAlpha})`,
-    color,
+    background: `rgba(var(--sr-tier-${tier}-rgb),${bgAlpha})`,
+    borderColor: `rgba(var(--sr-tier-${tier}-rgb),${borderAlpha})`,
+    color: `var(--sr-tier-${tier})`,
   }
 }
 
@@ -58,11 +50,11 @@ function categoryPillStyle(cat: BreedingCategory, active: boolean): React.CSSPro
     fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
     cursor: 'pointer', border: '1.5px solid transparent', background: 'none',
   }
-  if (!active) return { ...base, borderColor: '#E4E4E7', background: '#fff', color: '#71717A' }
+  if (!active) return { ...base, borderColor: 'var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
   const styles: Record<BreedingCategory, React.CSSProperties> = {
-    confirmed: { background: 'rgba(59,7,100,0.08)',   borderColor: 'rgba(59,7,100,0.3)',   color: '#3B0764' },
-    probable:  { background: 'rgba(147,51,234,0.08)', borderColor: 'rgba(147,51,234,0.3)', color: '#7E22CE' },
-    possible:  { background: 'rgba(192,132,252,0.15)', borderColor: 'rgba(192,132,252,0.5)', color: '#7E22CE' },
+    confirmed: { background: 'rgba(var(--sr-tier-4-rgb),0.08)', borderColor: 'rgba(var(--sr-tier-4-rgb),0.3)', color: 'var(--sr-tier-4)' },
+    probable:  { background: 'rgba(var(--sr-tier-2-rgb),0.08)', borderColor: 'rgba(var(--sr-tier-2-rgb),0.3)', color: 'var(--sr-tier-2)' },
+    possible:  { background: 'rgba(var(--sr-tier-1-rgb),0.15)', borderColor: 'rgba(var(--sr-tier-1-rgb),0.5)', color: 'var(--sr-tier-2)' },
   }
   return { ...base, ...styles[cat] }
 }
@@ -82,9 +74,9 @@ function ghostBtn(active = false): React.CSSProperties {
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
-    border: active ? '1.5px solid rgba(45,134,83,0.25)' : '1.5px solid #E4E4E7',
-    background: active ? '#E8F5EE' : 'none',
-    color: active ? '#2D8653' : '#71717A',
+    border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
+    background: active ? 'var(--sr-accent-bg)' : 'none',
+    color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
     whiteSpace: 'nowrap' as const,
   }
 }
@@ -206,7 +198,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
   if (phase.tag === 'loading-saved') {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: '#2D8653' }} />
+        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
       </div>
     )
   }
@@ -217,8 +209,8 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         {phase.tag === 'error' && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            padding: '9px 13px', background: '#FEF2F2', borderRadius: 8,
-            fontSize: 13, color: '#DC2626', flexShrink: 0,
+            padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
+            fontSize: 13, color: 'var(--sr-error)', flexShrink: 0,
           }}>
             <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
             {phase.message}
@@ -237,27 +229,27 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            border: `2px dashed ${draggingOver ? '#2D8653' : '#E4E4E7'}`,
+            border: `2px dashed ${draggingOver ? 'var(--sr-accent)' : 'var(--sr-border)'}`,
             borderRadius: 12,
-            background: draggingOver ? 'rgba(45,134,83,0.04)' : '#fff',
+            background: draggingOver ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
             cursor: 'pointer',
             transition: 'background 0.15s, border-color 0.15s',
             padding: 40,
           }}
-          onMouseEnter={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = '#FAFAFA' }}
-          onMouseLeave={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = '#fff' }}
+          onMouseEnter={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface-faint)' }}
+          onMouseLeave={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
         >
           <div style={{
             width: 48, height: 48, borderRadius: 12,
-            background: 'rgba(45,134,83,0.08)',
+            background: 'var(--sr-accent-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <Upload size={22} strokeWidth={1.75} style={{ color: '#2D8653' }} />
+            <Upload size={22} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
           </div>
-          <span style={{ fontSize: 15, fontWeight: 600, color: '#0F1117' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--sr-text)' }}>
             Upload your eBird backup
           </span>
-          <span style={{ fontSize: 12, color: '#71717A', marginTop: 2 }}>
+          <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginTop: 2 }}>
             MyEBirdData.csv · Drop file here, or click to browse
           </span>
         </div>
@@ -279,10 +271,10 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
   if (entries.length === 0) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <span style={{ fontSize: 14, color: '#71717A' }}>No species with breeding codes found in this file.</span>
+        <span style={{ fontSize: 14, color: 'var(--sr-text-muted)' }}>No species with breeding codes found in this file.</span>
         <button
           onClick={handleReset}
-          style={{ height: 32, padding: '0 14px', borderRadius: 6, border: '1.5px solid #E4E4E7', background: '#fff', color: '#71717A', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}
+          style={{ height: 32, padding: '0 14px', borderRadius: 6, border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}
         >
           Load new file
         </button>
@@ -328,9 +320,9 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
               height: 30, padding: '0 12px', borderRadius: 6,
               fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
               cursor: 'pointer',
-              border: filter.size === 0 && categoryFilter.size === 0 ? '1.5px solid rgba(45,134,83,0.25)' : '1.5px solid #E4E4E7',
-              background: filter.size === 0 && categoryFilter.size === 0 ? '#E8F5EE' : '#fff',
-              color: filter.size === 0 && categoryFilter.size === 0 ? '#2D8653' : '#71717A',
+              border: filter.size === 0 && categoryFilter.size === 0 ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
+              background: filter.size === 0 && categoryFilter.size === 0 ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+              color: filter.size === 0 && categoryFilter.size === 0 ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
             }}
             onClick={() => { setFilter(new Set()); setCategoryFilter(new Set()) }}
           >
@@ -384,16 +376,16 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
             )
           })}
 
-          <div style={{ width: 1, height: 20, background: '#E4E4E7', flexShrink: 0, alignSelf: 'center' }} />
+          <div style={{ width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center' }} />
 
           {/* A–Z / Taxonomic sort toggle */}
-          <div style={{ display: 'inline-flex', border: '1.5px solid #E4E4E7', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+          <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
             <button
               style={{
                 height: 30, padding: '0 13px', border: 'none',
-                borderRight: '1.5px solid #E4E4E7',
-                background: sort.nameSortMode === 'az' ? '#2D8653' : '#fff',
-                color: sort.nameSortMode === 'az' ? '#fff' : '#71717A',
+                borderRight: '1.5px solid var(--sr-accent-border)',
+                background: sort.nameSortMode === 'az' ? 'var(--sr-accent-bg)' : 'transparent',
+                color: sort.nameSortMode === 'az' ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                 fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
               }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
@@ -403,8 +395,8 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
             <button
               style={{
                 height: 30, padding: '0 13px', border: 'none',
-                background: sort.nameSortMode === 'taxonomic' ? '#2D8653' : '#fff',
-                color: sort.nameSortMode === 'taxonomic' ? '#fff' : '#71717A',
+                background: sort.nameSortMode === 'taxonomic' ? 'var(--sr-accent-bg)' : 'transparent',
+                color: sort.nameSortMode === 'taxonomic' ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                 fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
               }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
@@ -415,17 +407,17 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <span style={{ fontSize: 12, color: '#71717A' }}>{countLabel}</span>
+          <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
           {savedFileInfo && (
             <div style={{
               display: 'inline-flex', alignItems: 'center', gap: 5,
               height: 28, padding: '0 10px',
-              background: '#E8F5EE', border: '1.5px solid rgba(45,134,83,0.25)',
+              background: 'var(--sr-accent-bg)', border: '1.5px solid var(--sr-accent-border)',
               borderRadius: 6, flexShrink: 0,
             }}>
-              <FileCheck size={12} strokeWidth={2} style={{ color: '#2D8653', flexShrink: 0 }} />
+              <FileCheck size={12} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
               <span style={{
-                fontSize: 11, fontWeight: 500, color: '#2D8653',
+                fontSize: 11, fontWeight: 500, color: 'var(--sr-accent)',
                 maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 {savedFileInfo.filename}

@@ -36,8 +36,19 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
   const hasError = error !== null
   const isActive = isLoaded || isDragging || (isHovered && !hasError)
 
-  const borderColor = hasError ? '#FECACA' : isActive ? '#2D8653' : '#E4E4E7'
-  const background = hasError ? '#FEF2F2' : isLoaded || isDragging ? '#E8F5EE' : isHovered ? '#fafffd' : '#F4F4F5'
+  const borderColor = hasError
+    ? 'var(--sr-error-muted)'
+    : isActive
+      ? 'var(--sr-accent)'
+      : 'var(--sr-border)'
+
+  const background = hasError
+    ? 'var(--sr-error-bg)'
+    : isLoaded || isDragging
+      ? 'var(--sr-accent-bg)'
+      : isHovered
+        ? 'var(--sr-accent-surface)'
+        : 'var(--sr-surface-subtle)'
 
   return (
     <div
@@ -86,7 +97,7 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
         fontWeight: 700,
         textTransform: 'uppercase' as const,
         letterSpacing: '0.08em',
-        color: isLoaded ? '#2D8653' : '#71717A',
+        color: isLoaded ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
       }}>
         {label}
       </span>
@@ -94,17 +105,17 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
       {isLoaded ? (
         <CheckIcon />
       ) : hasError ? (
-        <UploadIcon color="#FCA5A5" />
+        <UploadIcon color="var(--sr-error-muted)" />
       ) : (
-        <UploadIcon color={isHovered || isDragging ? '#2D8653' : '#C4C4CE'} />
+        <UploadIcon color={isHovered || isDragging ? 'var(--sr-accent)' : 'var(--sr-border-medium)'} />
       )}
 
       {isLoaded && (
         <>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#2D8653', wordBreak: 'break-all' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-accent)', wordBreak: 'break-all' }}>
             {file.filename}
           </span>
-          <span style={{ fontSize: 12, color: 'rgba(45,134,83,0.7)' }}>
+          <span style={{ fontSize: 12, color: 'var(--sr-accent-border-strong)' }}>
             {file.species.size} species found
           </span>
         </>
@@ -112,13 +123,13 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
 
       {!isLoaded && !hasError && (
         <>
-          <span style={{ fontSize: 14, fontWeight: 500, color: '#0F1117' }}>Drop file here</span>
-          <span style={{ fontSize: 13, color: '#71717A' }}>or click to browse</span>
+          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--sr-text)' }}>Drop file here</span>
+          <span style={{ fontSize: 13, color: 'var(--sr-text-muted)' }}>or click to browse</span>
         </>
       )}
 
       {hasError && (
-        <p role="alert" aria-live="assertive" style={{ fontSize: 12, color: '#DC2626', maxWidth: 220, margin: 0 }}>
+        <p role="alert" aria-live="assertive" style={{ fontSize: 12, color: 'var(--sr-error)', maxWidth: 220, margin: 0 }}>
           {error}
         </p>
       )}
@@ -138,7 +149,7 @@ function UploadIcon({ color }: { color: string }) {
 
 function CheckIcon() {
   return (
-    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#2D8653" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="20 6 9 17 4 12"/>
     </svg>
   )

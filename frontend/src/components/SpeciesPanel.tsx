@@ -10,16 +10,16 @@ interface SpeciesPanelProps {
 export function SpeciesPanel({ title, species, expanded = false, taxonMap = {} }: SpeciesPanelProps) {
   return (
     <div style={{
-      border: '1px solid #E4E4E7',
+      border: '1px solid var(--sr-border)',
       borderRadius: 10,
       overflow: expanded ? 'visible' : 'hidden',
       display: 'flex',
       flexDirection: 'column',
-      background: '#fff',
+      background: 'var(--sr-surface)',
     }}>
       <div style={{
         padding: '13px 18px',
-        borderBottom: '1px solid #E4E4E7',
+        borderBottom: '1px solid var(--sr-border)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -28,7 +28,7 @@ export function SpeciesPanel({ title, species, expanded = false, taxonMap = {} }
         <span style={{
           fontSize: 13,
           fontWeight: 600,
-          color: '#0F1117',
+          color: 'var(--sr-text)',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
@@ -39,8 +39,8 @@ export function SpeciesPanel({ title, species, expanded = false, taxonMap = {} }
         <span style={{
           flexShrink: 0,
           padding: '2px 8px',
-          background: '#E8F5EE',
-          color: '#2D8653',
+          background: 'var(--sr-accent-bg)',
+          color: 'var(--sr-accent)',
           fontSize: 11,
           fontWeight: 600,
           borderRadius: 20,
@@ -62,7 +62,7 @@ export function SpeciesPanel({ title, species, expanded = false, taxonMap = {} }
         aria-label={`${title} — ${species.length} species`}
       >
         {species.length === 0 ? (
-          <li style={{ padding: '32px 18px', fontSize: 13, color: '#71717A', textAlign: 'center' }}>
+          <li style={{ padding: '32px 18px', fontSize: 13, color: 'var(--sr-text-muted)', textAlign: 'center' }}>
             No species
           </li>
         ) : (
@@ -72,9 +72,9 @@ export function SpeciesPanel({ title, species, expanded = false, taxonMap = {} }
               style={{
                 padding: '5px 18px',
                 fontSize: 13.5,
-                color: '#0F1117',
+                color: 'var(--sr-text)',
                 lineHeight: 1.45,
-                borderBottom: '1px solid #E4E4E7',
+                borderBottom: '1px solid var(--sr-border-subtle)',
                 display: 'flex',
                 alignItems: 'center',
               }}

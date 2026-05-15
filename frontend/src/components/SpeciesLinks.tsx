@@ -22,6 +22,7 @@ export function SpeciesLinks({ speciesCode }: SpeciesLinksProps) {
       >
         <img
           src="https://ebird.org/favicon.ico"
+          className="sr-favicon"
           width={14}
           height={14}
           style={{ display: 'block' }}
@@ -38,6 +39,7 @@ export function SpeciesLinks({ speciesCode }: SpeciesLinksProps) {
       >
         <img
           src="https://birdsoftheworld.org/favicon.ico"
+          className="sr-favicon"
           width={14}
           height={14}
           style={{ display: 'block' }}

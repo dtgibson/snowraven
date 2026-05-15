@@ -123,11 +123,11 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
             fontWeight: 600,
             letterSpacing: '-0.4px',
             marginBottom: 6,
-            color: '#0F1117',
+            color: 'var(--sr-text)',
           }}>
             Compare two eBird life lists
           </h1>
-          <p style={{ fontSize: 14, color: '#71717A', lineHeight: 1.55, marginBottom: 28 }}>
+          <p style={{ fontSize: 14, color: 'var(--sr-text-muted)', lineHeight: 1.55, marginBottom: 28 }}>
             Drop your eBird backup CSV files below to see which birds you share and which are unique to each list.
           </p>
 
@@ -153,7 +153,7 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
             style={{
               width: '100%',
               height: 48,
-              background: '#2D8653',
+              background: 'var(--sr-accent)',
               color: '#fff',
               border: 'none',
               borderRadius: 8,
