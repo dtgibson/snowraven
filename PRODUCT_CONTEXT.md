@@ -246,6 +246,44 @@ Two small additions that make keeping SnowRaven current easy: a shell script for
 - `frontend/src/App.tsx` — `UpdateStatus` discriminated union, `handleUpdateCheck` callback, footer JSX with five states
 - `frontend/vite.config.ts` — `/version` proxy added for dev server
 
+### API Key Settings (complete — May 2026)
+
+An "API Keys" section added above "Default Files" on the Settings tab. Users can enter, save, and manage their eBird and OpenWeather API keys directly in the UI, without editing `.env` files by hand.
+
+**What it does:**
+- Two rows — eBird API Key and OpenWeather API Key — each with "Add key" / "Update", "Clear", and Show/Hide controls
+- Keys are written to `backend/.env` via `python-dotenv` and applied to `os.environ` immediately — no server restart required
+- Saved keys display as `••••••••••••••••` by default; "Show" reveals the value, "Hide" re-masks it
+- "Add key" / "Update" expands an inline edit area with a monospace text input; Save is disabled until the field has content; Enter key submits
+- "Clear" removes the key from `.env`, `os.environ`, and the UI
+- Keys load on Settings tab mount alongside file status via a parallel fetch to `/settings/keys`
+- Error messages shown inline below the row on save or delete failure
+
+**Key files:**
+- `backend/routers/apikeys.py` — `GET/POST/DELETE /settings/keys/{ebird|openweather}`; `KEY_MAP` allowlist; `python-dotenv` `get_key`/`set_key`/`unset_key`; writes to `backend/.env`
+- `backend/tests/test_apikeys_router.py` — 11 tests using `monkeypatch` + `tmp_path` to isolate `.env`
+- `backend/main.py` — apikeys router registered
+- `frontend/src/components/Settings.tsx` — `KeyRow` component, `ApiKeyStatus` interface, per-slot state (visible/editing/input/saving/error), handlers
+
+### Breeding Code Category Filters (complete — May 2026)
+
+Three category filter pills — Confirmed, Probable, and Possible — added to the Breeding Codes tab filter row. Each pill selects all codes in that eBird evidence category with one click. Individual code pills remain fully functional alongside them.
+
+**What it does:**
+- "Confirmed" pill selects all tier 3 + 4 codes (NY NE FS FY CF FL ON UN DD NB CN) — any species with at least one of these qualifies
+- "Probable" pill selects all tier 2 codes (PE B A N C T P M S7)
+- "Possible" pill selects all tier 1 codes (S H F)
+- Filter logic: OR within each active category, AND across active categories and individual code pills
+- Multiple categories can be active simultaneously
+- "All" clears both category filters and individual code filters
+- A category pill is hidden when none of its member codes appear in the loaded data
+- Category pills are text-only (no tier dot) and appear between "All" and the individual code pills
+
+**Key files:**
+- `frontend/src/lib/breedingCodes.ts` — `BreedingCategory` type and `CATEGORY_CODES` constant added (derived programmatically from `BREEDING_CODES` tier field)
+- `frontend/src/lib/breedingCodes.test.ts` — 8 tests covering category membership, disjointness, and full coverage
+- `frontend/src/components/BreedingCodeList.tsx` — `categoryFilter` state, `categoryPillStyle`, `CATEGORY_META`, updated filter predicate, `categoryFilteredEntries` passed to `BreedingCodeTable`
+
 ## Key Decisions
 
 **eBird coordinate fallback strategy**
