@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.25] - 2026-05-15
+
+### Added
+- **Settings tab** — new rightmost tab for managing persistent default files; upload your eBird backup and ML export once and they load automatically every session
+- eBird backup stored server-side; Breeding Codes tab auto-loads it on every page visit — no more re-uploading
+- ML export stored server-side; Media List tab auto-loads it on every page visit with full taxonomic sort and species links
+- Each stored file shows its original filename and upload date; a green chip in the data tab toolbar confirms when a saved default is active
+- "Upload new" replaces the stored default in Settings; uploading directly within a tab is session-only and leaves the saved default untouched
+- "Clear" removes a stored file from the server; the corresponding tab returns to its manual upload state on next page load
+- `GET/POST/DELETE /settings/files/{ebird|ml}` backend endpoints with `.csv` validation, 50 MB size limit, and fixed server-side filenames (path traversal safe)
+- `data/` directory at project root created on first upload; added to `.gitignore`
+- `python-multipart` dependency added to support multipart file uploads
+
 ## [0.0.24] - 2026-05-14
 
 ### Added

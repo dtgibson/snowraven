@@ -1,13 +1,14 @@
-import { useRef, useState } from 'react'
-import { Upload, AlertCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Upload, AlertCircle, Loader2, FileCheck } from 'lucide-react'
 import { parseBreedingCodes } from '../lib/parseBreedingCodes'
 import type { BreedingData, BreedingEntry } from '../lib/parseBreedingCodes'
 import { BREEDING_CODE_MAP, TIER_COLORS } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
-import type { BreedingSortState } from '../types'
+import type { BreedingSortState, StoredFileInfo } from '../types'
 
 type Phase =
   | { tag: 'idle' }
+  | { tag: 'loading-saved' }
   | { tag: 'error'; message: string }
   | { tag: 'ready'; data: BreedingData }
 
@@ -66,13 +67,14 @@ function ghostBtn(active = false): React.CSSProperties {
 }
 
 export function BreedingCodeList({ onExpandedChange }: Props) {
-  const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
+  const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<Set<string>>(new Set())
   const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
   const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
+  const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchTaxonCodes = async (entries: BreedingEntry[]) => {
@@ -92,6 +94,31 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
       // silently fail — links absent, sort falls back to A–Z
     }
   }
+
+  useEffect(() => {
+    let cancelled = false
+    async function autoLoad() {
+      try {
+        const statusRes = await fetch('/settings/files')
+        if (!statusRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
+        const status = await statusRes.json()
+        if (!status.ebird) { setPhase({ tag: 'idle' }); return }
+        const fileRes = await fetch('/settings/files/ebird')
+        if (!fileRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
+        const text = await fileRes.text()
+        if (cancelled) return
+        const data = parseBreedingCodes(text)
+        if (!data.hasBreedingCodeColumn) { setPhase({ tag: 'idle' }); return }
+        setSavedFileInfo(status.ebird)
+        setPhase({ tag: 'ready', data })
+        if (data.entries.length > 0) fetchTaxonCodes(data.entries)
+      } catch {
+        if (!cancelled) setPhase({ tag: 'idle' })
+      }
+    }
+    autoLoad()
+    return () => { cancelled = true }
+  }, [])
 
   const processFile = (file: File) => {
     file.text().then(text => {
@@ -138,6 +165,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
     setExpanded(false)
     setTaxonMap({})
     setTaxonOrders({})
+    setSavedFileInfo(null)
     onExpandedChange?.(false)
   }
 
@@ -147,6 +175,14 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
       onExpandedChange?.(next)
       return next
     })
+  }
+
+  if (phase.tag === 'loading-saved') {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: '#2D8653' }} />
+      </div>
+    )
   }
 
   if (phase.tag === 'idle' || phase.tag === 'error') {
@@ -321,10 +357,28 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <span style={{ fontSize: 12, color: '#71717A' }}>{countLabel}</span>
+          {savedFileInfo && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              height: 28, padding: '0 10px',
+              background: '#E8F5EE', border: '1.5px solid rgba(45,134,83,0.25)',
+              borderRadius: 6, flexShrink: 0,
+            }}>
+              <FileCheck size={12} strokeWidth={2} style={{ color: '#2D8653', flexShrink: 0 }} />
+              <span style={{
+                fontSize: 11, fontWeight: 500, color: '#2D8653',
+                maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {savedFileInfo.filename}
+              </span>
+            </div>
+          )}
           <button style={ghostBtn(expanded)} onClick={handleToggleExpanded}>
             {expanded ? '↑ Collapse' : '↓ Show all'}
           </button>
-          <button style={ghostBtn()} onClick={handleReset}>Load new file</button>
+          <button style={ghostBtn()} onClick={handleReset}>
+            {savedFileInfo ? 'Load different file' : 'Load new file'}
+          </button>
         </div>
       </div>
 

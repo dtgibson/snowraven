@@ -21,3 +21,6 @@ backend/.venv/
 
 # macOS
 .DS_Store
+
+# Uploaded user data files (server-side storage)
+data/

@@ -17,6 +17,7 @@ export default defineConfig({
       '/version': 'http://localhost:1620',
       '/ml': 'http://localhost:1620',
       '/taxonomy': 'http://localhost:1620',
+      '/settings': 'http://localhost:1620',
     },
   },
 })

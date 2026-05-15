@@ -38,3 +38,12 @@ export interface BreedingSortState {
   dir: SortDir
   nameSortMode: NameSortMode
 }
+
+export interface StoredFileInfo {
+  filename: string
+  uploadedAt: string
+}
+export interface StoredFilesStatus {
+  ebird: StoredFileInfo | null
+  ml: StoredFileInfo | null
+}

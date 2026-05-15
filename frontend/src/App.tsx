@@ -3,6 +3,7 @@ import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink,
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
+import { Settings } from './components/Settings'
 
 type AppState =
   | { status: 'idle' }
@@ -10,7 +11,7 @@ type AppState =
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
 
-type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes'
+type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes' | 'settings'
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -213,6 +214,18 @@ export default function App() {
               <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
             </svg>
             Life List Comparer
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'settings'}
+            style={tabStyle('settings')}
+            onClick={() => { setActiveTab('settings'); setIsExpanded(false) }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            Settings
           </button>
         </nav>
       </div>
@@ -457,6 +470,21 @@ export default function App() {
         }}
       >
         <BreedingCodeList onExpandedChange={setIsExpanded} />
+      </div>
+
+      {/* Settings tab content */}
+      <div
+        role="tabpanel"
+        style={{
+          display: activeTab === 'settings' ? 'flex' : 'none',
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto' as const,
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        <Settings />
       </div>
 
       {/* Footer */}

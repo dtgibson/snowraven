@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
-import { Upload, Download, Loader2, AlertCircle, Camera, Mic, Video, ChevronRight, Info } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Upload, Download, Loader2, AlertCircle, Camera, Mic, Video, ChevronRight, Info, FileCheck } from 'lucide-react'
 import { parseLifeList } from '../lib/parseLifeList'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport } from '../lib/parseMLExport'
 import { LifeListTable } from './LifeListTable'
-import type { MediaFilterState, SortState } from '../types'
+import type { MediaFilterState, SortState, StoredFileInfo } from '../types'
 import { MEDIA_FILTER_CLEAR } from '../types'
 
 const BATCH_SIZE = 10
@@ -13,6 +13,7 @@ type Source = 'ml-export' | 'ebird'
 
 type Phase =
   | { tag: 'idle' }
+  | { tag: 'loading-saved' }
   | { tag: 'error'; message: string }
   | { tag: 'loading'; entries: LifeListEntry[]; batchCurrent: number; batchTotal: number }
   | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string>; mlError: boolean; source: Source }
@@ -71,13 +72,14 @@ interface LifeListProps {
 }
 
 export function LifeList({ onExpandedChange }: LifeListProps) {
-  const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
+  const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<MediaFilterState>(MEDIA_FILTER_CLEAR)
   const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
   const [expanded, setExpanded] = useState(false)
   const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
+  const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
   const [draggingOver, setDraggingOver] = useState<'primary' | 'secondary' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -98,6 +100,35 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
       // silently fail — links fall back to taxaName, sort falls back to A–Z
     }
   }
+
+  useEffect(() => {
+    let cancelled = false
+    async function autoLoad() {
+      try {
+        const statusRes = await fetch('/settings/files')
+        if (!statusRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
+        const status = await statusRes.json()
+        if (!status.ml) { setPhase({ tag: 'idle' }); return }
+        const fileRes = await fetch('/settings/files/ml')
+        if (!fileRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
+        const text = await fileRes.text()
+        if (cancelled) return
+        const fileType = detectFileType(text)
+        if (fileType !== 'ml-export') { setPhase({ tag: 'idle' }); return }
+        const { entries, mediaMap } = parseMLExport(text)
+        if (!cancelled) {
+          setMlUserId(parseMLUserId(status.ml.filename))
+          setSavedFileInfo(status.ml)
+          setPhase({ tag: 'ready', entries, mediaMap, mlError: false, source: 'ml-export' })
+          fetchTaxonCodes(entries)
+        }
+      } catch {
+        if (!cancelled) setPhase({ tag: 'idle' })
+      }
+    }
+    autoLoad()
+    return () => { cancelled = true }
+  }, [])
 
   const startMediaLookup = async (entries: LifeListEntry[]) => {
     const allIds = [...new Set(entries.flatMap(e => e.catalogIds))]
@@ -188,6 +219,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     setMlUserId(null)
     setTaxonMap({})
     setTaxonOrders({})
+    setSavedFileInfo(null)
     onExpandedChange?.(false)
   }
 
@@ -197,6 +229,15 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
       onExpandedChange?.(next)
       return next
     })
+  }
+
+  // ── Auto-loading saved file ───────────────────────────────────────────────
+  if (phase.tag === 'loading-saved') {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: '#2D8653' }} />
+      </div>
+    )
   }
 
   // ── Upload screen (idle / error) ─────────────────────────────────────────
@@ -488,11 +529,28 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         {/* Right controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <span style={{ fontSize: 12, color: '#71717A' }}>{countLabel}</span>
-
+          {savedFileInfo && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              height: 28, padding: '0 10px',
+              background: '#E8F5EE', border: '1.5px solid rgba(45,134,83,0.25)',
+              borderRadius: 6, flexShrink: 0,
+            }}>
+              <FileCheck size={12} strokeWidth={2} style={{ color: '#2D8653', flexShrink: 0 }} />
+              <span style={{
+                fontSize: 11, fontWeight: 500, color: '#2D8653',
+                maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {savedFileInfo.filename}
+              </span>
+            </div>
+          )}
           <button style={ghostBtn(expanded)} onClick={handleToggleExpanded}>
             {expanded ? '↑ Collapse' : '↓ Show all'}
           </button>
-          <button style={ghostBtn()} onClick={handleReset}>Load new file</button>
+          <button style={ghostBtn()} onClick={handleReset}>
+            {savedFileInfo ? 'Load different file' : 'Load new file'}
+          </button>
         </div>
       </div>
 
