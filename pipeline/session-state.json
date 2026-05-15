@@ -1,10 +1,10 @@
 {
-  "activeFeature": "dark-mode",
+  "activeFeature": null,
   "sessionNumber": 2,
-  "sessionType": "feature",
-  "currentStage": 9,
-  "lastCompletedStage": 8,
-  "lastCheckpointStatus": "in-progress",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 9,
+  "lastCheckpointStatus": "approved",
   "confirmedArtifacts": [
     "pipeline/dark-mode/strategic-brief.md",
     "pipeline/dark-mode/prd.md",
@@ -13,5 +13,5 @@
     "pipeline/dark-mode/design.html"
   ],
   "createdAt": "2026-05-15T09:00:00Z",
-  "updatedAt": "2026-05-15T12:00:00Z"
+  "updatedAt": "2026-05-15T12:30:00Z"
 }
