@@ -451,7 +451,7 @@ export function SpeciesDetail() {
     )
   }
 
-  const { observations, mediaMap, hasML, userId } = phase
+  const { observations, hasML, userId } = phase
   const speciesTaxonCode = selectedSpecies ? taxonMap[selectedSpecies] : undefined
 
   // ── Ready state ────────────────────────────────────────────────────────
