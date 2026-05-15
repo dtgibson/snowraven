@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-20 versions shipped. Last shipped: **Settings tab** — upload your eBird backup and ML export once; they load automatically in the Breeding Codes and Media List tabs on every visit, with a saved-file indicator and one-click swap for session-only use.
+24 versions shipped. Last shipped: **Dark mode** — full dark theme with automatic OS preference detection; no flash of the wrong theme on load; consent-gated localStorage so nothing is written to the browser without explicit approval.
 
-Previously: **Taxonomic sort** — A–Z / Taxonomic toggle added to the Media List and Breeding Codes tabs; works with both ML export and eBird CSV; column-header sorts preserve the A–Z vs Taxonomic preference as a tiebreaker.
+Previously: **Breeding code category filters** — three filter pills (Confirmed, Probable, Possible) on the Breeding Codes tab let you see all species in an eBird evidence category with one click, composing naturally with individual code filters.
 
 ---
 
@@ -24,5 +24,4 @@ Previously: **Taxonomic sort** — A–Z / Taxonomic toggle added to the Media L
 
 ## On the Horizon
 
-- Dark mode
 - Localisation for non-US date/time formats

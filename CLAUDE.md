@@ -47,6 +47,14 @@ cd frontend && npm run dev
 cd backend && python -m pytest tests/ -v
 ```
 
+### Colors and theming
+
+- **All colors must use `var(--sr-*)` CSS custom properties** — no hardcoded hex or RGB values in any component file
+- The full token palette lives in `frontend/src/globals.css`: `:root` (light) and `[data-theme="dark"]` (dark)
+- When inline styles need rgba() with a dynamic alpha, use the RGB triplet pattern: `rgba(var(--sr-tier-4-rgb), 0.08)`
+- New tokens go in both `:root` and `[data-theme="dark"]` before use
+- The `data-theme` attribute on `<html>` is set by the anti-flash script in `index.html` and updated by `applyTheme()` in `src/lib/theme.ts`
+
 ### Production build
 ```
 ./start.sh

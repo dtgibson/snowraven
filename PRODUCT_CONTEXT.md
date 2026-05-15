@@ -162,7 +162,7 @@ no code (soundscapes, pre-fetch) show nothing.
 - `SpeciesLinks` component renders two 14×14 favicon `<img>` elements inside `<a target="_blank" rel="noreferrer">` tags
 - eBird link: `https://ebird.org/species/{speciesCode}` — opens species account page with maps, photos, recent sightings
 - BOW link: `https://birdsoftheworld.org/bow/species/{speciesCode}/cur/introduction` — opens full ornithological account
-- Favicons loaded from `ebird.org/favicon.ico` and `birdsoftheworld.org/favicon.ico`; `onError` hides failed loads
+- Favicons loaded from `ebird.org/favicon.ico` and `birdsoftheworld.org/favicon.ico`; `onError` hides failed loads; carry `className="sr-favicon"` for dark-mode CSS filter treatment
 - Icons at 75% opacity at rest, full opacity on hover
 - In `LifeListTable`: `taxonMap` already available — codes passed directly to `SpeciesLinks` per row
 - In `SpeciesPanel` (used by List Comparer): `taxonMap?: Record<string, string>` prop added; `ResultsView` threads it to all three panels
@@ -264,6 +264,26 @@ An "API Keys" section added above "Default Files" on the Settings tab. Users can
 - `backend/tests/test_apikeys_router.py` — 11 tests using `monkeypatch` + `tmp_path` to isolate `.env`
 - `backend/main.py` — apikeys router registered
 - `frontend/src/components/Settings.tsx` — `KeyRow` component, `ApiKeyStatus` interface, per-slot state (visible/editing/input/saving/error), handlers
+
+### Dark Mode (complete — May 2026)
+
+Full dark theme with automatic OS preference detection, no flash of the wrong theme on load, and a consent-gated localStorage preference stored only after explicit user approval.
+
+**What it does:**
+- Settings → Appearance section (above API Keys) has a three-option toggle: System / Light / Dark. Default is System — follows OS preference, writes nothing to the browser.
+- Anti-flash inline `<script>` in `index.html` reads `sr-theme` from localStorage (or falls back to `prefers-color-scheme`) and sets `data-theme` on `<html>` synchronously before first paint — no white flash for dark-mode users.
+- Consent flow: selecting Light or Dark applies the theme immediately, then shows an inline prompt ("Save preference" writes to localStorage; "This session only" dismisses without writing). Once consent has been given for this browser, future Light/Dark changes are silent. Selecting System removes `sr-theme` from localStorage and shows no prompt.
+- All component colors use `var(--sr-*)` CSS custom properties — no hardcoded hex in any component file. `:root` defines the light palette; `[data-theme="dark"]` overrides all tokens for dark.
+- Dark palette: zinc-based backgrounds (`#09090B` page, `#18181B` surface), `#34D399` emerald accent (better contrast than the light-mode green on dark surfaces), lightened purple tier colors for breeding code badges.
+- `--sr-tier-N-rgb` variables hold RGB triplets for use in `rgba(var(--sr-tier-N-rgb), alpha)` inline styles where dynamic alpha is needed.
+- External favicons in `SpeciesLinks` carry `className="sr-favicon"`; `globals.css` applies `filter: brightness(0) invert(1); opacity: 0.65` in dark mode to keep them visible.
+
+**Key files:**
+- `frontend/index.html` — anti-flash inline script
+- `frontend/src/globals.css` — complete `--sr-*` token system for both themes, plus `.sr-favicon` dark mode rule
+- `frontend/src/lib/theme.ts` — `applyTheme(pref)` and `readStoredPreference()` with private-browsing-safe localStorage access
+- `frontend/src/components/Settings.tsx` — `AppearanceRow` component with consent flow
+- All other component files — colors migrated to `var(--sr-*)` tokens
 
 ### Breeding Code Category Filters (complete — May 2026)
 
