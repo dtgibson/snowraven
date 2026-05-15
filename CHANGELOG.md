@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.28] - 2026-05-15
+
+### Fixed
+- **Mobile tab bar** — tabs no longer clip off the right edge of the screen on iPhone; the tab bar now scrolls horizontally so all tabs are reachable without rotating the device
+- Reduced top padding on the header and tab content panels on small screens (≤640px) to make better use of vertical space
+- Reduced weather card inner padding on small screens
+
 ## [0.0.27] - 2026-05-15
 
 ### Added

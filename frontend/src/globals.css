@@ -67,3 +67,9 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
 }
+
+@media (max-width: 640px) {
+  .sr-header { padding-top: 24px !important; }
+  .sr-panel  { padding-top: 20px !important; padding-bottom: 16px !important; }
+  .sr-card   { padding: 20px !important; }
+}

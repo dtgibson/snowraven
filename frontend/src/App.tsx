@@ -160,7 +160,7 @@ export default function App() {
     }}>
 
       {/* Header */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
+      <div className="sr-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Bird size={30} strokeWidth={1.75} style={{ color: '#2D8653' }} />
           <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.6px' }}>
@@ -173,7 +173,7 @@ export default function App() {
       </div>
 
       {/* Tab bar */}
-      <div style={{ borderBottom: '1px solid #E4E4E7', display: 'flex', justifyContent: 'center', padding: '0 24px', flexShrink: 0 }}>
+      <div style={{ borderBottom: '1px solid #E4E4E7', display: 'flex', justifyContent: 'center', padding: '0 24px', flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <nav style={{ display: 'flex', maxWidth: 880, width: '100%' }} role="tablist">
           <button
             role="tab"
@@ -233,6 +233,7 @@ export default function App() {
       {/* Weather tab content */}
       <div
         role="tabpanel"
+        className="sr-panel"
         style={{
           display: activeTab === 'weather' ? 'flex' : 'none',
           flex: 1,
@@ -243,13 +244,14 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <div style={{
+        <div className="sr-card" style={{
           width: '100%',
           maxWidth: 540,
           background: '#fff',
           border: '1px solid #E4E4E7',
           borderRadius: 12,
           padding: 32,
+          boxSizing: 'border-box' as const,
           boxShadow: '0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)',
         }}>
           <label
@@ -436,6 +438,7 @@ export default function App() {
       {/* List Comparer tab content */}
       <div
         role="tabpanel"
+        className="sr-panel"
         style={{
           display: activeTab === 'comparer' ? 'flex' : 'none',
           ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
@@ -449,6 +452,7 @@ export default function App() {
       {/* Life List tab content */}
       <div
         role="tabpanel"
+        className="sr-panel"
         style={{
           display: activeTab === 'life-list' ? 'flex' : 'none',
           ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
@@ -462,6 +466,7 @@ export default function App() {
       {/* Breeding Codes tab content */}
       <div
         role="tabpanel"
+        className="sr-panel"
         style={{
           display: activeTab === 'breeding-codes' ? 'flex' : 'none',
           ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
@@ -475,6 +480,7 @@ export default function App() {
       {/* Settings tab content */}
       <div
         role="tabpanel"
+        className="sr-panel"
         style={{
           display: activeTab === 'settings' ? 'flex' : 'none',
           flex: 1,
