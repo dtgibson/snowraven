@@ -62,6 +62,14 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Implications:** `KEY_MAP` is the single source of truth for which keys the UI can manage. Adding a new key (e.g. a future third API) requires one entry in `KEY_MAP` and a new `KeyRow` in `Settings.tsx`. The GET endpoint returns actual key values (not masked) — this is by design since the frontend handles masking; rely on CORS + local-only deployment rather than server-side redaction.
 
+## eBird backup "species comments" column is named "Observation Details" — 2026-05-15
+
+**Discovery:** The per-species notes field in the eBird backup CSV (`MyEBirdData.csv`) is named `Observation Details`, not `Species Comments`. The initial `parseEbirdObservations` parser looked for `species comments` and found nothing, so every species showed zero comments.
+
+**Fix:** `speciesCommentsIdx` now matches both `h === 'species comments' || h === 'observation details'`. Tests cover both column names.
+
+**Implications:** Always inspect actual eBird export data before writing column-name lookups. Do not assume the UI label matches the CSV header — the field is labelled "Species Comments" in the eBird UI but exported as "Observation Details". The dual-match pattern is the correct approach for any column that eBird may rename between export versions.
+
 ## Category filters pre-filter entries before passing to BreedingCodeTable — 2026-05-15
 
 **Decision:** Category filter logic runs in `BreedingCodeList` before passing `categoryFilteredEntries` to `BreedingCodeTable`. `BreedingCodeTable` continues to apply the individual code `filter` on top of whatever entries it receives.

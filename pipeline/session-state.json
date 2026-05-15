@@ -2,8 +2,8 @@
   "activeFeature": "species-detail",
   "sessionNumber": 2,
   "sessionType": "feature",
-  "currentStage": 8,
-  "lastCompletedStage": 7,
+  "currentStage": 9,
+  "lastCompletedStage": 8,
   "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
     "pipeline/species-detail/strategic-brief.md",
@@ -13,5 +13,5 @@
     "pipeline/species-detail/design.html"
   ],
   "createdAt": "2026-05-15T13:00:00Z",
-  "updatedAt": "2026-05-15T14:15:00Z"
+  "updatedAt": "2026-05-15T14:55:00Z"
 }
