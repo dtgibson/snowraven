@@ -1,17 +1,17 @@
 {
-  "activeFeature": null,
+  "activeFeature": "taxonomic-sort",
   "sessionNumber": 2,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/multi-select-filter-pills/strategic-brief.md",
-    "pipeline/multi-select-filter-pills/prd.md",
-    "pipeline/multi-select-filter-pills/schema.md",
-    "pipeline/multi-select-filter-pills/design-spec.md",
-    "pipeline/multi-select-filter-pills/design.html"
+    "pipeline/taxonomic-sort/strategic-brief.md",
+    "pipeline/taxonomic-sort/prd.md",
+    "pipeline/taxonomic-sort/schema.md",
+    "pipeline/taxonomic-sort/design-spec.md",
+    "pipeline/taxonomic-sort/design.html"
   ],
-  "createdAt": "2026-05-14T12:05:00Z",
-  "updatedAt": "2026-05-14T22:05:00Z"
+  "createdAt": "2026-05-14T22:15:00Z",
+  "updatedAt": "2026-05-14T23:30:00Z"
 }

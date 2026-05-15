@@ -68,10 +68,11 @@ function ghostBtn(active = false): React.CSSProperties {
 export function BreedingCodeList({ onExpandedChange }: Props) {
   const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
   const [filter, setFilter] = useState<Set<string>>(new Set())
-  const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc' })
+  const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
   const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
+  const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchTaxonCodes = async (entries: BreedingEntry[]) => {
@@ -86,8 +87,9 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
       if (!res.ok) return
       const data = await res.json()
       setTaxonMap(data.codes ?? {})
+      setTaxonOrders(data.orders ?? {})
     } catch {
-      // silently fail — links will be absent
+      // silently fail — links absent, sort falls back to A–Z
     }
   }
 
@@ -104,7 +106,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         }
         setPhase({ tag: 'ready', data })
         setFilter(new Set())
-        setSort({ column: 'name', dir: 'asc' })
+        setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
         if (data.entries.length > 0) fetchTaxonCodes(data.entries)
       } catch {
         setPhase({
@@ -132,9 +134,10 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
   const handleReset = () => {
     setPhase({ tag: 'idle' })
     setFilter(new Set())
-    setSort({ column: 'name', dir: 'asc' })
+    setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
     setExpanded(false)
     setTaxonMap({})
+    setTaxonOrders({})
     onExpandedChange?.(false)
   }
 
@@ -285,6 +288,35 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
               </button>
             )
           })}
+
+          <div style={{ width: 1, height: 20, background: '#E4E4E7', flexShrink: 0, alignSelf: 'center' }} />
+
+          {/* A–Z / Taxonomic sort toggle */}
+          <div style={{ display: 'inline-flex', border: '1.5px solid #E4E4E7', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+            <button
+              style={{
+                height: 30, padding: '0 13px', border: 'none',
+                borderRight: '1.5px solid #E4E4E7',
+                background: sort.nameSortMode === 'az' ? '#2D8653' : '#fff',
+                color: sort.nameSortMode === 'az' ? '#fff' : '#71717A',
+                fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
+              }}
+              onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
+            >
+              A–Z
+            </button>
+            <button
+              style={{
+                height: 30, padding: '0 13px', border: 'none',
+                background: sort.nameSortMode === 'taxonomic' ? '#2D8653' : '#fff',
+                color: sort.nameSortMode === 'taxonomic' ? '#fff' : '#71717A',
+                fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
+              }}
+              onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
+            >
+              Taxonomic
+            </button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -304,6 +336,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         filter={filter}
         expanded={expanded}
         taxonMap={taxonMap}
+        taxonOrders={taxonOrders}
       />
     </div>
   )

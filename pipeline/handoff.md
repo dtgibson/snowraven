@@ -1,4 +1,4 @@
-# Pipeline Handoff — Breeding Code List (v0.0.18)
+# Pipeline Handoff — Multi-Select Filter Pills (v0.0.23)
 
 **Date:** 2026-05-14
 **Status:** Complete — both sessions done
@@ -7,31 +7,35 @@
 
 ## What was built
 
-A fourth tab in SnowRaven that accepts an eBird backup CSV (`MyEBirdData.csv`) and renders a species-by-breeding-code matrix. Each cell shows a count of how many times a species was observed with that code, displayed as a tier-colored circle (darkest purple = confirmed, lightest = possible). Columns are sortable by clicking headers and filter pills let the user focus on any single breeding code.
+Filter pills on the Media List and Breeding Codes tabs now support multi-select with AND logic.
 
-Entirely client-side — no backend changes.
+On the Media List, each media dimension (photo, audio, video) is tracked independently. You can select "No photo" and "No audio" simultaneously to find species missing coverage on both fronts. Selecting the opposite pill for the same dimension (e.g. "Has photo" while "No photo" is active) auto-replaces the conflicting selection in a single click. Clicking an active pill deselects it. "All" resets everything.
+
+On the Breeding Codes tab, multiple code pills can be active at once. The table shows only species with recorded observations for every selected code — selecting NY + CF filters to species where both codes appear. Clicking an active pill removes it from the filter.
+
+Entirely frontend — no backend changes.
 
 ---
 
 ## Artifacts
 
 **Session 1 — Planning:**
-- `pipeline/breeding-codes/strategic-brief.md`
-- `pipeline/breeding-codes/prd.md`
-- `pipeline/breeding-codes/schema.md`
-- `pipeline/breeding-codes/design-spec.md`
-- `pipeline/breeding-codes/design.html`
+- `pipeline/multi-select-filter-pills/strategic-brief.md`
+- `pipeline/multi-select-filter-pills/prd.md`
+- `pipeline/multi-select-filter-pills/schema.md`
+- `pipeline/multi-select-filter-pills/design-spec.md`
+- `pipeline/multi-select-filter-pills/design.html`
 
 **Session 2 — Implementation:**
-- `frontend/src/lib/breedingCodes.ts`
-- `frontend/src/lib/parseBreedingCodes.ts`
-- `frontend/src/lib/parseBreedingCodes.test.ts`
-- `frontend/src/components/BreedingCodeTable.tsx`
-- `frontend/src/components/BreedingCodeList.tsx`
-- `frontend/src/App.tsx` (modified)
-- `frontend/src/types.ts` (modified)
+- `frontend/src/types.ts` (modified — MediaFilterState, BreedingFilterSet)
+- `frontend/src/components/LifeList.tsx` (modified — multi-select state and pills)
+- `frontend/src/components/LifeListTable.tsx` (modified — AND filter logic)
+- `frontend/src/components/BreedingCodeList.tsx` (modified — Set-based multi-select)
+- `frontend/src/components/BreedingCodeTable.tsx` (modified — AND filter logic)
 - `CHANGELOG.md` (modified)
 - `PRODUCT_CONTEXT.md` (modified)
+- `DECISIONS.md` (modified)
+- `ROADMAP.md` (modified)
 
 ---
 

@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Taxonomic Sort — Design Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 14px;
+    color: #0F1117;
+    background: #F9FAFB;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px 0;
+  }
+  .app-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .app-logo svg { color: #2D8653; }
+  .app-logo-text { font-size: 26px; font-weight: 700; letter-spacing: -0.6px; }
+  .app-logo-text span { color: #2D8653; }
+  .app-tagline { font-size: 14px; color: #71717A; margin-bottom: 28px; }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    border-bottom: 1px solid #E4E4E7;
+    display: flex;
+    justify-content: center;
+    padding: 0 24px;
+    background: #fff;
+  }
+  .tab-nav { display: flex; max-width: 960px; width: 100%; }
+  .tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: #71717A;
+    cursor: pointer;
+    margin-bottom: -1px;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn.active { color: #2D8653; border-bottom-color: #2D8653; }
+
+  /* ── Tab panels ── */
+  .tab-panel {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    padding: 28px 24px 32px;
+    max-width: 984px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .tab-panel.active { display: flex; }
+
+  /* ── Controls row ── */
+  .controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .left-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .right-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── Filter pills ── */
+  .pills-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .pill-sep { width: 1px; height: 20px; background: #E4E4E7; flex-shrink: 0; align-self: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 30px; padding: 0 12px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 500; font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: #fff; color: #71717A;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+    white-space: nowrap; user-select: none;
+  }
+  .pill:hover { background: #F4F4F5; }
+  .pill.active-all { border-color: rgba(45,134,83,0.25); background: #E8F5EE; color: #2D8653; }
+  .pill.active-pos { border-color: rgba(45,134,83,0.25); background: #E8F5EE; color: #2D8653; }
+  .pill.active-neg { border-color: rgba(239,68,68,0.3); background: #FEF2F2; color: #DC2626; }
+
+  /* ── Sort toggle (segmented button group) ── */
+  .sort-toggle {
+    display: inline-flex;
+    border: 1.5px solid #E4E4E7;
+    border-radius: 6px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .sort-btn {
+    height: 30px; padding: 0 13px;
+    border: none;
+    border-right: 1.5px solid #E4E4E7;
+    background: #fff;
+    font-size: 12px; font-weight: 500; font-family: inherit;
+    color: #71717A;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap; user-select: none;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .sort-btn:last-child { border-right: none; }
+  .sort-btn.active { background: #2D8653; color: #fff; }
+  .sort-btn:hover:not(.active) { background: #F4F4F5; }
+  .sort-btn svg { flex-shrink: 0; }
+
+  /* ── Count label + ghost buttons ── */
+  .count-label { font-size: 12px; color: #71717A; }
+  .ghost-btn {
+    height: 28px; padding: 0 10px;
+    border-radius: 6px;
+    font-size: 11px; font-weight: 500; font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: none; color: #71717A;
+    white-space: nowrap;
+    transition: background 0.1s;
+  }
+  .ghost-btn:hover { background: #F4F4F5; }
+
+  /* ── Table card ── */
+  .table-card {
+    border: 1px solid #E4E4E7;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+  }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  thead tr {
+    position: sticky; top: 0;
+    background: #F9FAFB;
+    box-shadow: inset 0 -1px 0 #E4E4E7;
+  }
+  th {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: #71717A;
+    padding: 10px 14px;
+    cursor: pointer; user-select: none;
+    white-space: nowrap;
+  }
+  th.name-col { text-align: left; min-width: 220px; }
+  th.count-col { text-align: center; width: 80px; }
+  th.sort-active { color: #2D8653; }
+  th.bc-name-col {
+    text-align: left; width: 220px; min-width: 220px;
+    position: sticky; left: 0;
+    background: #F9FAFB;
+    box-shadow: inset 0 -1px 0 #E4E4E7, 1px 0 0 #E4E4E7;
+    z-index: 2;
+  }
+  th.code-col { text-align: center; width: 44px; min-width: 44px; }
+
+  tbody tr { border-bottom: 1px solid #F4F4F5; transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #FAFAFA; }
+
+  td { padding: 9px 14px; vertical-align: middle; }
+
+  .species-cell { display: flex; flex-direction: column; gap: 1px; }
+  .species-name { font-size: 13.5px; font-weight: 500; color: #0F1117; display: flex; align-items: center; gap: 6px; }
+  .species-sci { font-size: 11.5px; color: #9CA3AF; font-style: italic; }
+  .favicon-links { display: inline-flex; align-items: center; gap: 5px; margin-left: 2px; }
+  .favicon-link { opacity: 0.72; display: inline-flex; align-items: center; }
+  .favicon-link:hover { opacity: 1; }
+  .favicon-img { width: 14px; height: 14px; display: block; }
+
+  .count-cell { text-align: center; }
+  .count-link { font-size: 13px; font-weight: 600; color: #2D8653; text-decoration: none; }
+  .count-link:hover { text-decoration: underline; }
+  .count-dash { color: #D1D5DB; }
+
+  /* ── Breeding codes table ── */
+  .bc-sticky-td {
+    position: sticky; left: 0;
+    background: #fff; z-index: 1;
+    box-shadow: 1px 0 0 #E4E4E7;
+    width: 220px; min-width: 220px; max-width: 220px;
+    border-top: 1px solid #F4F4F5;
+    padding: 9px 12px;
+  }
+  tbody tr:hover .bc-sticky-td { background: #FAFAFA; }
+  .bc-circle {
+    width: 28px; height: 28px; border-radius: 50%;
+    color: #fff; font-size: 11px; font-weight: 700; letter-spacing: -0.3px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .bc-td { text-align: center; border-top: 1px solid #F4F4F5; padding: 6px 0; }
+
+  /* bc filter pills */
+  .bc-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 12px;
+    border-radius: 6px;
+    font-size: 12px; font-weight: 500; font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: #fff; color: #71717A;
+    transition: background 0.1s, border-color 0.1s;
+    white-space: nowrap; user-select: none;
+  }
+  .bc-pill:hover { background: #F4F4F5; }
+  .bc-pill.active-all { border-color: rgba(45,134,83,0.25); background: #E8F5EE; color: #2D8653; }
+  .bc-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Legend */
+  .legend {
+    background: #FAFAFA; border-top: 1px solid #F4F4F5;
+    padding: 12px 16px;
+    display: flex; flex-wrap: wrap; gap: 16px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
+  .legend-label { font-size: 11px; color: #71717A; }
+
+  /* ── Annotation bubble ── */
+  .annotation {
+    display: inline-flex; align-items: flex-start; gap: 8px;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px; color: #92400E;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  .annotation svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Footer ── */
+  .app-footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 11px;
+    color: #9CA3AF;
+    border-top: 1px solid #F4F4F5;
+    margin-top: auto;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── App Header ── -->
+<div class="app-header">
+  <div class="app-logo">
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+    </svg>
+    <span class="app-logo-text">Snow<span>Raven</span></span>
+  </div>
+  <div class="app-tagline">Self-hosted birding tools</div>
+</div>
+
+<!-- ── Tab bar ── -->
+<div class="tab-bar">
+  <nav class="tab-nav">
+    <button class="tab-btn" onclick="switchTab('weather')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/></svg>
+      Weather
+    </button>
+    <button class="tab-btn" onclick="switchTab('comparer')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18"/><rect x="14" y="3" width="7" height="18"/></svg>
+      List Comparer
+    </button>
+    <button class="tab-btn active" onclick="switchTab('medialist')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      Media Life List
+    </button>
+    <button class="tab-btn" onclick="switchTab('breeding')">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Breeding Codes
+    </button>
+  </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     MEDIA LIFE LIST TAB
+════════════════════════════════════════════════════ -->
+<div class="tab-panel active" id="panel-medialist">
+
+  <!-- Annotation -->
+  <div class="annotation">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span><strong>New:</strong> A–Z / Taxonomic sort toggle added to the controls row. Toggle is available for both ML export and eBird CSV sources. Taxonomic ordering uses eBird's official species sequence — click to see it in action below.</span>
+  </div>
+
+  <!-- Controls row -->
+  <div class="controls-row">
+    <div class="left-controls">
+
+      <!-- Filter pills -->
+      <div class="pills-group" id="ml-pills">
+        <button class="pill active-all" onclick="mlPill(this,'all')">All</button>
+        <button class="pill" onclick="mlPill(this,'no-photo')">No photo</button>
+        <button class="pill" onclick="mlPill(this,'no-audio')">No audio</button>
+        <button class="pill" onclick="mlPill(this,'no-video')">No video</button>
+        <button class="pill" onclick="mlPill(this,'has-photo')">Has photo</button>
+        <button class="pill" onclick="mlPill(this,'has-audio')">Has audio</button>
+        <button class="pill" onclick="mlPill(this,'has-video')">Has video</button>
+      </div>
+
+      <div class="pill-sep"></div>
+
+      <!-- Sort toggle — NEW -->
+      <div class="sort-toggle" id="ml-sort-toggle">
+        <button class="sort-btn" onclick="mlSort('az')" id="ml-btn-az">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+          A–Z
+        </button>
+        <button class="sort-btn active" onclick="mlSort('taxonomic')" id="ml-btn-tax">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6l0 0M3 12l0 0M3 18l0 0"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
+          Taxonomic
+        </button>
+      </div>
+
+    </div>
+    <div class="right-controls">
+      <span class="count-label" id="ml-count">12 species</span>
+      <button class="ghost-btn">Show all</button>
+      <button class="ghost-btn">Load new file</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="name-col">Species</th>
+            <th class="count-col" id="ml-th-entries">Entries ↓</th>
+            <th class="count-col" id="ml-th-photo">Photo ↓</th>
+            <th class="count-col" id="ml-th-audio">Audio ↓</th>
+            <th class="count-col" id="ml-th-video">Video</th>
+          </tr>
+        </thead>
+        <tbody id="ml-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     BREEDING CODES TAB
+════════════════════════════════════════════════════ -->
+<div class="tab-panel" id="panel-breeding">
+
+  <!-- Annotation -->
+  <div class="annotation">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span><strong>New:</strong> A–Z / Taxonomic sort toggle added to Breeding Codes. Code-column sorts remain available independently — clicking a code column re-sorts by count; the toggle determines how species with equal counts are ordered.</span>
+  </div>
+
+  <!-- Controls row -->
+  <div class="controls-row">
+    <div class="left-controls">
+
+      <!-- Filter pills (breeding codes) -->
+      <div class="pills-group">
+        <button class="bc-pill active-all" onclick="bcAllPill(this)">All</button>
+        <button class="bc-pill" onclick="bcPill(this)">
+          <span class="bc-dot" style="background:#3B0764;"></span> NY
+        </button>
+        <button class="bc-pill" onclick="bcPill(this)">
+          <span class="bc-dot" style="background:#3B0764;"></span> NE
+        </button>
+        <button class="bc-pill" onclick="bcPill(this)">
+          <span class="bc-dot" style="background:#3B0764;"></span> CF
+        </button>
+        <button class="bc-pill" onclick="bcPill(this)">
+          <span class="bc-dot" style="background:#7E22CE;"></span> B
+        </button>
+        <button class="bc-pill" onclick="bcPill(this)">
+          <span class="bc-dot" style="background:#7E22CE;"></span> A
+        </button>
+        <button class="bc-pill" onclick="bcPill(this)">
+          <span class="bc-dot" style="background:#C084FC;"></span> H
+        </button>
+      </div>
+
+      <div class="pill-sep"></div>
+
+      <!-- Sort toggle — NEW -->
+      <div class="sort-toggle" id="bc-sort-toggle">
+        <button class="sort-btn active" onclick="bcSort('az')" id="bc-btn-az">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+          A–Z
+        </button>
+        <button class="sort-btn" onclick="bcSort('taxonomic')" id="bc-btn-tax">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
+          Taxonomic
+        </button>
+      </div>
+
+    </div>
+    <div class="right-controls">
+      <span class="count-label" id="bc-count">10 species</span>
+      <button class="ghost-btn">Show all</button>
+      <button class="ghost-btn">Load new file</button>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="bc-name-col">Species</th>
+            <th class="code-col" style="cursor:pointer" onclick="bcColSort('NY')">NY</th>
+            <th class="code-col" style="cursor:pointer" onclick="bcColSort('NE')">NE</th>
+            <th class="code-col" style="cursor:pointer" onclick="bcColSort('CF')">CF</th>
+            <th class="code-col" style="cursor:pointer" onclick="bcColSort('B')">B</th>
+            <th class="code-col" style="cursor:pointer" onclick="bcColSort('A')">A</th>
+            <th class="code-col" style="cursor:pointer" onclick="bcColSort('H')">H</th>
+          </tr>
+        </thead>
+        <tbody id="bc-tbody"></tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#3B0764;"></div>
+        <span class="legend-label">Confirmed (NY NE CF FL)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#7E22CE;"></div>
+        <span class="legend-label">Probable (B A P M)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#C084FC;"></div>
+        <span class="legend-label">Possible (H S F)</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Footer ── -->
+<div class="app-footer">SnowRaven · Self-hosted Birding Tools · <a href="#" style="color:#2D8653;text-decoration:none;">Check For Updates</a></div>
+
+
+<script>
+/* ══════════════════════════════════════════════
+   DATA
+══════════════════════════════════════════════ */
+
+const mlData = [
+  // { name, sci, taxOrder, entries, photo, audio, video }
+  { name: 'Canada Goose',       sci: 'Branta canadensis',    taxOrder: 60,    entries: 47, photo: 31, audio: 8,  video: 2 },
+  { name: 'Wood Duck',          sci: 'Aix sponsa',           taxOrder: 230,   entries: 12, photo: 9,  audio: 0,  video: 1 },
+  { name: 'Green-winged Teal',  sci: 'Anas crecca',          taxOrder: 600,   entries: 8,  photo: 6,  audio: 0,  video: 0 },
+  { name: 'Ring-necked Duck',   sci: 'Aythya collaris',      taxOrder: 750,   entries: 5,  photo: 4,  audio: 0,  video: 0 },
+  { name: 'Bald Eagle',         sci: 'Haliaeetus leucocephalus', taxOrder: 3640, entries: 23, photo: 19, audio: 0, video: 3 },
+  { name: 'Red-tailed Hawk',    sci: 'Buteo jamaicensis',    taxOrder: 3890,  entries: 34, photo: 28, audio: 4,  video: 1 },
+  { name: 'Belted Kingfisher',  sci: 'Megaceryle alcyon',    taxOrder: 9760,  entries: 19, photo: 12, audio: 7,  video: 0 },
+  { name: 'Downy Woodpecker',   sci: 'Dryobates pubescens',  taxOrder: 11090, entries: 41, photo: 35, audio: 6,  video: 2 },
+  { name: 'American Robin',     sci: 'Turdus migratorius',   taxOrder: 27616, entries: 58, photo: 44, audio: 14, video: 5 },
+  { name: 'Yellow Warbler',     sci: 'Setophaga petechia',   taxOrder: 29610, entries: 27, photo: 21, audio: 12, video: 0 },
+  { name: 'Song Sparrow',       sci: 'Melospiza melodia',    taxOrder: 31200, entries: 39, photo: 30, audio: 16, video: 1 },
+  { name: 'American Goldfinch', sci: 'Spinus tristis',       taxOrder: 32700, entries: 22, photo: 18, audio: 3,  video: 0 },
+]
+
+const bcData = [
+  // { name, sci, taxOrder, NY, NE, CF, B, A, H }
+  { name: 'Canada Goose',      sci: 'Branta canadensis',       taxOrder: 60,    NY:2, NE:1, CF:3, B:0, A:0, H:0 },
+  { name: 'Wood Duck',         sci: 'Aix sponsa',              taxOrder: 230,   NY:1, NE:2, CF:0, B:1, A:0, H:0 },
+  { name: 'Red-tailed Hawk',   sci: 'Buteo jamaicensis',       taxOrder: 3890,  NY:0, NE:0, CF:0, B:2, A:1, H:3 },
+  { name: 'Downy Woodpecker',  sci: 'Dryobates pubescens',     taxOrder: 11090, NY:1, NE:0, CF:1, B:2, A:4, H:2 },
+  { name: 'Tree Swallow',      sci: 'Tachycineta bicolor',     taxOrder: 17620, NY:3, NE:2, CF:0, B:1, A:2, H:1 },
+  { name: 'American Robin',    sci: 'Turdus migratorius',      taxOrder: 27616, NY:4, NE:3, CF:2, B:3, A:5, H:1 },
+  { name: 'Yellow Warbler',    sci: 'Setophaga petechia',      taxOrder: 29610, NY:0, NE:1, CF:0, B:3, A:6, H:4 },
+  { name: 'Common Yellowthroat',sci:'Geothlypis trichas',      taxOrder: 30100, NY:0, NE:0, CF:0, B:1, A:3, H:2 },
+  { name: 'Song Sparrow',      sci: 'Melospiza melodia',       taxOrder: 31200, NY:3, NE:1, CF:1, B:4, A:7, H:3 },
+  { name: 'Red-winged Blackbird',sci:'Agelaius phoeniceus',    taxOrder: 31780, NY:2, NE:3, CF:2, B:5, A:4, H:2 },
+]
+
+const TIER_COLORS = { NY:'#3B0764', NE:'#3B0764', CF:'#3B0764', B:'#7E22CE', A:'#7E22CE', H:'#C084FC' }
+
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+
+let mlSortMode = 'taxonomic'   // 'az' | 'taxonomic'
+let mlColSort  = null          // null | 'entries' | 'photo' | 'audio' | 'video'
+let mlColDir   = 'desc'
+
+let bcSortMode = 'az'
+let bcColSort  = null
+let bcColDir   = 'desc'
+
+/* ══════════════════════════════════════════════
+   TAB SWITCHING
+══════════════════════════════════════════════ */
+
+function switchTab(id) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+  const panels = { weather:'panel-weather', comparer:'panel-comparer', medialist:'panel-medialist', breeding:'panel-breeding' }
+  const panelEl = document.getElementById(panels[id])
+  if (panelEl) panelEl.classList.add('active')
+  event.currentTarget.classList.add('active')
+}
+
+/* ══════════════════════════════════════════════
+   MEDIA LIFE LIST
+══════════════════════════════════════════════ */
+
+function mlSort(mode) {
+  mlSortMode = mode
+  mlColSort = null  // clicking toggle clears column sort
+  document.getElementById('ml-btn-az').classList.toggle('active', mode === 'az')
+  document.getElementById('ml-btn-tax').classList.toggle('active', mode === 'taxonomic')
+  // Reset column headers
+  ;['entries','photo','audio','video'].forEach(c => {
+    const th = document.getElementById('ml-th-' + c)
+    if (th) { th.classList.remove('sort-active'); th.textContent = c.charAt(0).toUpperCase() + c.slice(1) + (c === 'video' ? '' : ' ↓') }
+  })
+  renderML()
+}
+
+function mlColSortFn(col) {
+  if (mlColSort === col) {
+    mlColDir = mlColDir === 'desc' ? 'asc' : 'desc'
+  } else {
+    mlColSort = col
+    mlColDir = 'desc'
+  }
+  ;['entries','photo','audio','video'].forEach(c => {
+    const th = document.getElementById('ml-th-' + c)
+    if (!th) return
+    if (c === col) {
+      th.classList.add('sort-active')
+      th.textContent = c.charAt(0).toUpperCase() + c.slice(1) + (mlColDir === 'desc' ? ' ↓' : ' ↑')
+    } else {
+      th.classList.remove('sort-active')
+      th.textContent = c.charAt(0).toUpperCase() + c.slice(1)
+    }
+  })
+  renderML()
+}
+
+// Wire up column header clicks
+window.addEventListener('DOMContentLoaded', () => {
+  const thMap = { 'ml-th-entries': 'entries', 'ml-th-photo': 'photo', 'ml-th-audio': 'audio', 'ml-th-video': 'video' }
+  Object.entries(thMap).forEach(([id, col]) => {
+    const th = document.getElementById(id)
+    if (th) th.onclick = () => mlColSortFn(col)
+  })
+  renderML()
+  renderBC()
+})
+
+function mlPill(btn, mode) {
+  if (mode === 'all') {
+    document.querySelectorAll('#ml-pills .pill').forEach(p => p.classList.remove('active-all','active-pos','active-neg'))
+    btn.classList.add('active-all')
+  } else {
+    document.getElementById && document.querySelectorAll('#ml-pills .pill')[0].classList.remove('active-all')
+    const isPos = mode.startsWith('has')
+    if (btn.classList.contains(isPos ? 'active-pos' : 'active-neg')) {
+      btn.classList.remove('active-pos','active-neg')
+    } else {
+      btn.classList.toggle(isPos ? 'active-pos' : 'active-neg')
+    }
+  }
+}
+
+function getSortedML() {
+  const rows = [...mlData]
+  const nameSort = (a, b) => {
+    if (mlSortMode === 'taxonomic') return a.taxOrder - b.taxOrder
+    return a.name.localeCompare(b.name)
+  }
+  if (!mlColSort) {
+    rows.sort(nameSort)
+  } else {
+    const key = { entries: 'entries', photo: 'photo', audio: 'audio', video: 'video' }[mlColSort]
+    rows.sort((a, b) => {
+      const diff = b[key] - a[key]
+      if (diff !== 0) return mlColDir === 'desc' ? diff : -diff
+      return nameSort(a, b)
+    })
+  }
+  return rows
+}
+
+function renderML() {
+  const tbody = document.getElementById('ml-tbody')
+  const rows = getSortedML()
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>
+        <div class="species-cell">
+          <div class="species-name">
+            ${r.name}
+            <span class="favicon-links">
+              <a href="#" class="favicon-link" title="eBird">
+                <img src="https://ebird.org/favicon.ico" class="favicon-img" onerror="this.style.display='none'" />
+              </a>
+              <a href="#" class="favicon-link" title="Birds of the World">
+                <img src="https://birdsoftheworld.org/favicon.ico" class="favicon-img" onerror="this.style.display='none'" />
+              </a>
+            </span>
+          </div>
+          <div class="species-sci">${r.sci}</div>
+        </div>
+      </td>
+      <td class="count-cell">${r.entries > 0 ? `<a href="#" class="count-link">${r.entries}</a>` : '<span class="count-dash">—</span>'}</td>
+      <td class="count-cell">${r.photo > 0 ? `<a href="#" class="count-link">${r.photo}</a>` : '<span class="count-dash">—</span>'}</td>
+      <td class="count-cell">${r.audio > 0 ? `<a href="#" class="count-link">${r.audio}</a>` : '<span class="count-dash">—</span>'}</td>
+      <td class="count-cell">${r.video > 0 ? `<a href="#" class="count-link">${r.video}</a>` : '<span class="count-dash">—</span>'}</td>
+    </tr>
+  `).join('')
+}
+
+/* ══════════════════════════════════════════════
+   BREEDING CODES
+══════════════════════════════════════════════ */
+
+function bcSort(mode) {
+  bcSortMode = mode
+  bcColSort = null
+  document.getElementById('bc-btn-az').classList.toggle('active', mode === 'az')
+  document.getElementById('bc-btn-tax').classList.toggle('active', mode === 'taxonomic')
+  renderBC()
+}
+
+function bcColSort(col) {
+  if (bcColSort === col) {
+    bcColDir = bcColDir === 'desc' ? 'asc' : 'desc'
+  } else {
+    bcColSort = col
+    bcColDir = 'desc'
+  }
+  renderBC()
+}
+
+function bcAllPill(btn) {
+  document.querySelectorAll('.bc-pill').forEach(p => p.classList.remove('active-all'))
+  btn.classList.add('active-all')
+}
+function bcPill(btn) {
+  document.querySelectorAll('.bc-pill')[0].classList.remove('active-all')
+  btn.classList.toggle('active-all')
+}
+
+function getSortedBC() {
+  const rows = [...bcData]
+  const nameSort = (a, b) => {
+    if (bcSortMode === 'taxonomic') return a.taxOrder - b.taxOrder
+    return a.name.localeCompare(b.name)
+  }
+  if (!bcColSort) {
+    rows.sort(nameSort)
+  } else {
+    rows.sort((a, b) => {
+      const diff = b[bcColSort] - a[bcColSort]
+      if (diff !== 0) return bcColDir === 'desc' ? diff : -diff
+      return nameSort(a, b)
+    })
+  }
+  return rows
+}
+
+function renderBC() {
+  const tbody = document.getElementById('bc-tbody')
+  const rows = getSortedBC()
+  const codes = ['NY','NE','CF','B','A','H']
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td class="bc-sticky-td">
+        <div class="species-cell">
+          <div class="species-name" style="font-size:13px;">${r.name}</div>
+          <div class="species-sci">${r.sci}</div>
+        </div>
+      </td>
+      ${codes.map(c => `
+        <td class="bc-td">
+          ${r[c] > 0
+            ? `<span class="bc-circle" style="background:${TIER_COLORS[c]};">${r[c]}</span>`
+            : ''}
+        </td>
+      `).join('')}
+    </tr>
+  `).join('')
+}
+</script>
+</body>
+</html>

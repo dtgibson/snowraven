@@ -12,6 +12,7 @@ interface Props {
   filter: Set<string>
   expanded: boolean
   taxonMap: Record<string, string>
+  taxonOrders: Record<string, number>
 }
 
 const TIER_LABELS: Record<number, string> = {
@@ -21,30 +22,40 @@ const TIER_LABELS: Record<number, string> = {
   1: 'Possible',
 }
 
-export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, expanded, taxonMap }: Props) {
+export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, expanded, taxonMap, taxonOrders }: Props) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
   const filtered = filter.size === 0
     ? entries
     : entries.filter(e => [...filter].every(code => (e.codes[code] ?? 0) > 0))
 
+  function nameCompare(a: BreedingEntry, b: BreedingEntry): number {
+    if (sort.nameSortMode === 'taxonomic') {
+      const aOrder = taxonOrders[a.commonName] ?? Infinity
+      const bOrder = taxonOrders[b.commonName] ?? Infinity
+      const diff = aOrder - bOrder
+      if (diff !== 0) return diff
+    }
+    return a.commonName.localeCompare(b.commonName)
+  }
+
   const sorted = [...filtered].sort((a, b) => {
     if (sort.column === 'name') {
-      const cmp = a.commonName.localeCompare(b.commonName)
+      const cmp = nameCompare(a, b)
       return sort.dir === 'asc' ? cmp : -cmp
     }
     const aCount = a.codes[sort.column] ?? 0
     const bCount = b.codes[sort.column] ?? 0
     if (aCount !== bCount) return sort.dir === 'desc' ? bCount - aCount : aCount - bCount
-    return a.commonName.localeCompare(b.commonName)
+    return nameCompare(a, b)
   })
 
   function handleHeaderClick(col: string) {
     if (sort.column === col) {
-      onSortChange({ column: col, dir: sort.dir === 'asc' ? 'desc' : 'asc' })
+      onSortChange({ ...sort, dir: sort.dir === 'asc' ? 'desc' : 'asc' })
     } else {
       const defaultDir: SortDir = col === 'name' ? 'asc' : 'desc'
-      onSortChange({ column: col, dir: defaultDir })
+      onSortChange({ ...sort, column: col, dir: defaultDir })
     }
   }
 

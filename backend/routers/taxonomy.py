@@ -9,13 +9,14 @@ router = APIRouter()
 # Module-level cache: populated on first request, reused for the lifetime of
 # the process. The eBird taxonomy updates ~once a year with the Clements
 # checklist revision; restarting the app is sufficient to pick up changes.
-_by_sci: dict[str, str] = {}   # sciName.lower() -> speciesCode
-_by_com: dict[str, str] = {}   # comName.lower() -> speciesCode
+_by_sci: dict[str, str] = {}    # sciName.lower() -> speciesCode
+_by_com: dict[str, str] = {}    # comName.lower() -> speciesCode
+_by_order: dict[str, int] = {}  # comName.lower() -> taxonOrder
 _loaded = False
 
 
 async def _ensure_loaded() -> None:
-    global _by_sci, _by_com, _loaded
+    global _by_sci, _by_com, _by_order, _loaded
     if _loaded:
         return
 
@@ -36,10 +37,13 @@ async def _ensure_loaded() -> None:
             continue
         sci = taxon.get("sciName", "").lower()
         com = taxon.get("comName", "").lower()
+        order = taxon.get("taxonOrder")
         if sci:
             _by_sci[sci] = code
         if com:
             _by_com[com] = code
+            if order is not None:
+                _by_order[com] = int(order)
 
     _loaded = True
 
@@ -58,13 +62,18 @@ async def get_species_codes(req: CodesRequest) -> dict:
     try:
         await _ensure_loaded()
     except Exception:
-        # Taxonomy unavailable — return empty map; frontend falls back to taxaName links.
-        return {"codes": {}}
+        # Taxonomy unavailable — return empty maps; frontend falls back gracefully.
+        return {"codes": {}, "orders": {}}
 
     codes: dict[str, str] = {}
+    orders: dict[str, int] = {}
     for item in req.species:
-        code = _by_sci.get(item.scientificName.lower()) or _by_com.get(item.commonName.lower())
+        com_lower = item.commonName.lower()
+        code = _by_sci.get(item.scientificName.lower()) or _by_com.get(com_lower)
         if code:
             codes[item.commonName] = code
+        order = _by_order.get(com_lower)
+        if order is not None:
+            orders[item.commonName] = order
 
-    return {"codes": codes}
+    return {"codes": codes, "orders": orders}

@@ -23,15 +23,18 @@ export interface MediaFilterState {
 export const MEDIA_FILTER_CLEAR: MediaFilterState = { photo: null, audio: null, video: null }
 export type BreedingFilterSet = Set<string>
 export type SortOrder = 'taxonomic' | 'alpha'
+export type NameSortMode = 'az' | 'taxonomic'
 export type SortColumn = 'name' | 'photo' | 'audio' | 'video'
 export type SortDir = 'asc' | 'desc'
 export interface SortState {
   column: SortColumn
   dir: SortDir
+  nameSortMode: NameSortMode
 }
 
 export type BreedingSortColumn = string
 export interface BreedingSortState {
   column: BreedingSortColumn
   dir: SortDir
+  nameSortMode: NameSortMode
 }

@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.0.24] - 2026-05-14
+
+### Added
+- **Taxonomic sort** — A–Z / Taxonomic toggle added to the Media List and Breeding Codes tabs, matching the Life List Comparer
+- Media List: both ML export and eBird CSV sources support taxonomic sort; species missing from the taxonomy fetch sort last
+- Breeding Codes: A–Z is the default; switching to Taxonomic orders species by eBird taxon number, with A–Z fallback for ties
+- Column-header sorts (count columns in Breeding Codes; Photo/Audio/Video in Media List) use the name sort mode as a tiebreaker, so the A–Z vs Taxonomic preference is preserved when sorting by any column
+- `/taxonomy/codes` backend endpoint extended to return `orders: {commonName: taxonOrder}` alongside existing `codes` — no additional network call
+
+### Fixed
+- ML export drop zone copy updated from "Instant results — no network lookups" to "Instant results — species links and taxonomic sort load in the background" (the previous copy was inaccurate since taxonomy lookups do fire after upload)
+
 ## [0.0.23] - 2026-05-14
 
 ### Changed

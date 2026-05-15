@@ -73,10 +73,11 @@ interface LifeListProps {
 export function LifeList({ onExpandedChange }: LifeListProps) {
   const [phase, setPhase] = useState<Phase>({ tag: 'idle' })
   const [filter, setFilter] = useState<MediaFilterState>(MEDIA_FILTER_CLEAR)
-  const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc' })
+  const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
   const [expanded, setExpanded] = useState(false)
   const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
+  const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [draggingOver, setDraggingOver] = useState<'primary' | 'secondary' | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -92,8 +93,9 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
       if (!res.ok) return
       const data = await res.json()
       setTaxonMap(data.codes ?? {})
+      setTaxonOrders(data.orders ?? {})
     } catch {
-      // silently fail — links will use taxaName fallback
+      // silently fail — links fall back to taxaName, sort falls back to A–Z
     }
   }
 
@@ -181,10 +183,11 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   const handleReset = () => {
     setPhase({ tag: 'idle' })
     setFilter(MEDIA_FILTER_CLEAR)
-    setSort({ column: 'name', dir: 'asc' })
+    setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
     setExpanded(false)
     setMlUserId(null)
     setTaxonMap({})
+    setTaxonOrders({})
     onExpandedChange?.(false)
   }
 
@@ -259,7 +262,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
             Upload your Macaulay Library export
           </span>
           <span style={{ fontSize: 12, fontWeight: 500, color: '#2D8653' }}>
-            Instant results — no network lookups
+            Instant results — species links and taxonomic sort load in the background
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
             <Info size={12} strokeWidth={2} style={{ color: '#A1A1AA', flexShrink: 0 }} />
@@ -385,6 +388,21 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     width: 1, height: 20, background: '#E4E4E7', flexShrink: 0, alignSelf: 'center',
   }
 
+  function sortToggleBtn(active: boolean): React.CSSProperties {
+    return {
+      height: 30,
+      padding: '0 13px',
+      border: 'none',
+      background: active ? '#2D8653' : '#fff',
+      color: active ? '#fff' : '#71717A',
+      fontSize: 12,
+      fontWeight: 500,
+      fontFamily: 'inherit',
+      cursor: 'pointer',
+      whiteSpace: 'nowrap' as const,
+    }
+  }
+
   return (
     <div style={{
       flex: expanded ? 'none' : 1,
@@ -447,6 +465,24 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
           <button style={pillStyle(filter.video === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('video', 'has')}>
             <Video size={11} strokeWidth={2.5} />Has video
           </button>
+
+          <div style={pillSep} />
+
+          {/* A–Z / Taxonomic sort toggle */}
+          <div style={{ display: 'inline-flex', border: '1.5px solid #E4E4E7', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+            <button
+              style={{ ...sortToggleBtn(sort.nameSortMode === 'az'), borderRight: '1.5px solid #E4E4E7' }}
+              onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
+            >
+              A–Z
+            </button>
+            <button
+              style={sortToggleBtn(sort.nameSortMode === 'taxonomic')}
+              onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
+            >
+              Taxonomic
+            </button>
+          </div>
         </div>
 
         {/* Right controls */}
@@ -468,6 +504,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         onSortChange={setSort}
         userId={mlUserId}
         taxonMap={taxonMap}
+        taxonOrders={taxonOrders}
         expanded={expanded}
       />
     </div>

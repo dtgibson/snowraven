@@ -11,6 +11,7 @@ interface Props {
   onSortChange: (next: SortState) => void
   userId: string | null
   taxonMap: Record<string, string>
+  taxonOrders: Record<string, number>
   expanded: boolean
 }
 
@@ -51,7 +52,7 @@ const iconCell: React.CSSProperties = {
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, expanded }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, expanded }: Props) {
   const filtered = entries.filter(entry => {
     if (filter.photo === 'has' && !hasMedia(entry, mediaMap, 'Photo')) return false
     if (filter.photo === 'no' && hasMedia(entry, mediaMap, 'Photo')) return false
@@ -62,23 +63,40 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
     return true
   })
 
-  const sorted = [...filtered].sort((a, b) => {
-    const dirMult = sort.dir === 'asc' ? 1 : -1
-    if (sort.column === 'name') {
-      return dirMult * a.commonName.localeCompare(b.commonName)
+  // Returns the taxon order for an entry. For eBird CSV the parsed taxonomicOrder
+  // is finite and used directly; for ML export (Infinity) and any gaps, falls back
+  // to the fetch result. Species not found in either sort last (Infinity).
+  function getOrder(entry: LifeListEntry): number {
+    if (entry.taxonomicOrder !== Infinity) return entry.taxonomicOrder
+    return taxonOrders[entry.commonName] ?? Infinity
+  }
+
+  function nameCompare(a: LifeListEntry, b: LifeListEntry): number {
+    if (sort.nameSortMode === 'taxonomic') {
+      const diff = getOrder(a) - getOrder(b)
+      if (diff !== 0) return diff
     }
-    const type = sort.column === 'photo' ? 'Photo' : sort.column === 'audio' ? 'Audio' : 'Video'
-    const diff = dirMult * (countMedia(a, mediaMap, type) - countMedia(b, mediaMap, type))
-    if (diff !== 0) return diff
     return a.commonName.localeCompare(b.commonName)
+  }
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sort.column === 'name') {
+      const cmp = nameCompare(a, b)
+      return sort.dir === 'asc' ? cmp : -cmp
+    }
+    const dirMult = sort.dir === 'asc' ? 1 : -1
+    const type = sort.column === 'photo' ? 'Photo' : sort.column === 'audio' ? 'Audio' : 'Video'
+    const diff = countMedia(a, mediaMap, type) - countMedia(b, mediaMap, type)
+    if (diff !== 0) return dirMult * diff
+    return nameCompare(a, b)
   })
 
   function handleHeaderClick(column: SortColumn) {
     if (sort.column === column) {
-      onSortChange({ column, dir: sort.dir === 'asc' ? 'desc' : 'asc' })
+      onSortChange({ ...sort, dir: sort.dir === 'asc' ? 'desc' : 'asc' })
     } else {
       const defaultDir: SortDir = column === 'name' ? 'asc' : 'desc'
-      onSortChange({ column, dir: defaultDir })
+      onSortChange({ ...sort, column, dir: defaultDir })
     }
   }
 
