@@ -62,6 +62,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Implications:** Any future filter surface with multiple independent dimensions should use an object (one key per dimension) rather than a string union. Any filter surface that allows selecting from an open-ended set of values should use `Set<string>`.
 
+## Settings Tab: fixed-filename storage and loading-saved phase — 2026-05-15
+
+**Decision:** Server-side files use fixed on-disk names (`ebird-backup.csv`, `ml-export.csv`); the client-supplied filename is stored in `metadata.json` for display only and never used to construct a path.
+**Rationale:** Eliminates path traversal risk entirely — the upload destination is a constant, not derived from user input.
+**Implications:** Any new stored file type follows the same pattern: fixed name in `data/`, original name in `metadata.json`. The metadata sidecar always lives at `data/metadata.json`; add new keys to it rather than creating separate sidecar files.
+
+**Decision:** `BreedingCodeList` and `LifeList` initialize to `{ tag: 'loading-saved' }`, not `{ tag: 'idle' }`.
+**Rationale:** Without this, the upload zone briefly flashes before the auto-load fetch completes, which is jarring when a stored default exists.
+**Implications:** Any future tab that checks for a stored default on mount must start in `loading-saved`. Clearing `savedFileInfo` in `handleReset` is required so a subsequent manual upload doesn't show a stale indicator.
+
 ## ML export as preferred input for Media Life List — 2026-05-12
 
 **Decision:** Offer the Macaulay Library "My Media" CSV export as the primary input method for the Media Life List, with the eBird backup CSV as a secondary fallback. Input type is auto-detected from the CSV header — no user selection required.

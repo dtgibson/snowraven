@@ -40,7 +40,7 @@ cd backend && uvicorn main:app --reload --port 1620
 # Terminal 2 — frontend
 cd frontend && npm run dev
 ```
-Frontend dev server runs on port 5173 and proxies `/weather` and `/health` to port 1620.
+Frontend dev server runs on port 5173 and proxies `/weather`, `/health`, `/version`, `/ml`, `/taxonomy`, and `/settings` to port 1620.
 
 **Running in production:**
 ```
@@ -208,6 +208,25 @@ code, rendered as a tier-colored circle. Entirely client-side — no backend cha
 - `frontend/src/components/BreedingCodeList.tsx` — top-level component: drop zone, phase state machine (idle/error/ready), filter pills, controls row
 - `frontend/src/components/BreedingCodeTable.tsx` — species-by-code matrix with sticky column, sortable headers, circles, legend
 - `frontend/src/types.ts` — `BreedingSortColumn`, `BreedingSortState`, `BreedingFilter` added
+
+### Settings Tab (complete — May 2026)
+
+A Settings tab (rightmost in the tab bar) where users upload and persistently store their eBird backup CSV and ML export on the server filesystem. Stored files auto-load in the Breeding Codes and Media List tabs on every page visit, eliminating repeated uploads between sessions.
+
+**What it does:**
+- Two file management sections: eBird Backup (for Breeding Codes) and ML Export (for Media List) — each shows stored filename + upload date, or an empty "No file saved" state
+- Upload sends `multipart/form-data` POST; validated server-side (`.csv` extension only, 50 MB limit)
+- Clear button removes the stored file from disk and clears metadata; disabled when no file is stored
+- On app mount, Breeding Codes and Media List tabs start in `loading-saved` phase (spinner, no upload zone flash), auto-fetch their stored file, parse it, and enter the ready state automatically
+- A green chip in the data tab toolbar shows the stored filename when auto-load succeeded; "Load different file" returns to idle without touching the server file
+- Uploading directly through a tab's own upload UI is session-only — the server default is untouched and restores on next page load
+
+**Key files:**
+- `backend/routers/settings.py` — 7 endpoints: `GET /settings/files`, `POST/GET/DELETE /settings/files/ebird`, `POST/GET/DELETE /settings/files/ml`; writes to fixed paths in `data/`
+- `backend/tests/test_settings_router.py` — 9 tests using `monkeypatch` + `tmp_path` to isolate filesystem
+- `frontend/src/components/Settings.tsx` — new Settings tab component with `FileRow` sub-component
+- `frontend/src/components/BreedingCodeList.tsx` — `loading-saved` phase added, auto-load `useEffect`, `savedFileInfo` state and indicator chip
+- `frontend/src/components/LifeList.tsx` — same pattern; `userId` parsed from stored metadata filename field
 
 ### Update Script + In-App Update Check (complete — May 2026)
 
@@ -383,6 +402,12 @@ After `compareSpecies()` runs, `ListComparer` calls `fetchTaxonCodes` with the u
 
 **`/taxonomy/codes` returns taxon orders alongside species codes — no new endpoint**
 The `POST /taxonomy/codes` response was extended to include `orders: {commonName: taxonOrder}` alongside `codes`. The backend builds a third in-memory dict `_by_order` (comName.lower() → int taxonOrder) from the eBird taxonomy fetch. No new endpoint or additional network call is needed. Codes and sort orders arrive in a single response, keeping the fetch atomic. Graceful degradation: any fetch error returns `{codes: {}, orders: {}}`.
+
+**Server-side file storage uses fixed on-disk filenames; client filename in metadata only**
+`data/ebird-backup.csv` and `data/ml-export.csv` are the fixed on-disk paths regardless of what the user uploads. The original filename is stored in `data/metadata.json` (`{"ebird": {"filename": "...", "uploadedAt": "..."}, "ml": ...}`) for display only — never used to construct a file path. This eliminates path traversal risk entirely. `data/` is gitignored. `DATA_DIR` is resolved from `__file__` in `settings.py` (three `.parent` hops) so the path is correct regardless of CWD when uvicorn starts. Any future stored file type should follow the same fixed-filename + metadata sidecar pattern.
+
+**`loading-saved` is the initial phase for tabs that auto-load from stored files**
+`BreedingCodeList` and `LifeList` initialize to `{ tag: 'loading-saved' }` rather than `{ tag: 'idle' }`. Without this, the upload zone flashes on screen before the auto-load check completes. The phase shows a spinner and transitions to `ready` on success or `idle` on failure / no stored file. Any future tab that checks for a stored default on mount must follow this same initial-state pattern.
 
 **Taxonomic sort for ML export uses the taxonomy fetch fallback**
 ML export entries have `taxonomicOrder: Infinity` (no order field in the CSV). `getOrder()` in `LifeListTable` returns `entry.taxonomicOrder` if finite (eBird CSV path), otherwise falls back to `taxonOrders[commonName] ?? Infinity` from the taxonomy fetch. This makes taxonomic sort available for both input formats without source-specific branching in the sort logic itself. Species absent from the taxonomy sort last on both paths.

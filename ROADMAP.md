@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-19 versions shipped. Last shipped: **Taxonomic sort** — A–Z / Taxonomic toggle added to the Media List and Breeding Codes tabs; works with both ML export and eBird CSV; column-header sorts preserve the A–Z vs Taxonomic preference as a tiebreaker; ML export drop zone copy fixed.
+20 versions shipped. Last shipped: **Settings tab** — upload your eBird backup and ML export once; they load automatically in the Breeding Codes and Media List tabs on every visit, with a saved-file indicator and one-click swap for session-only use.
 
-Previously: **Multi-select filter pills** — filter pills on the Media List and Breeding Codes tabs now support AND multi-select; selecting "No photo" + "No audio" shows only species missing both; selecting two breeding codes shows only species with both codes recorded.
+Previously: **Taxonomic sort** — A–Z / Taxonomic toggle added to the Media List and Breeding Codes tabs; works with both ML export and eBird CSV; column-header sorts preserve the A–Z vs Taxonomic preference as a tiebreaker.
 
 ---
 
