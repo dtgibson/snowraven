@@ -67,6 +67,14 @@ Upload two eBird backup CSV files to see which species you share with another bi
 5. Use the **Taxonomic / A–Z** toggle to switch between eBird taxonomic order and alphabetical
 6. Use **Show all** to expand all panels to full length for printing
 
+### Settings
+
+The Settings tab lets you configure API keys and save default files so they load automatically each session.
+
+**API keys:** Enter your eBird and OpenWeather API keys directly in the app. Keys are saved to the server's `.env` file and take effect immediately — no restart needed. Saved keys are masked by default with a Show/Hide toggle.
+
+**Default files:** Upload your eBird backup CSV and Macaulay Library export once and they'll load automatically whenever you open the Breeding Codes or Media List tab.
+
 ---
 
 ## Prerequisites
@@ -112,6 +120,10 @@ cd snowraven
 ```
 
 ### 3. Configure API keys
+
+The easiest way is through the app itself. Once the service is running (step 6), open SnowRaven in your browser, go to the **Settings** tab, and enter your keys there. They save to the server's `.env` file immediately.
+
+If you prefer to set them before first run:
 
 ```bash
 cp .env.example .env
@@ -200,12 +212,18 @@ This pulls the latest code, rebuilds the frontend, updates backend dependencies,
 ```bash
 git clone https://github.com/dtgibson/snowraven.git
 cd snowraven
+./start.sh
+```
+
+Open `http://localhost:1620`, then go to the **Settings** tab to enter your API keys. They'll be saved to `backend/.env` automatically.
+
+Alternatively, set the keys before starting:
+
+```bash
 cp .env.example .env
 # Edit .env and add your API keys
 ./start.sh
 ```
-
-Open `http://localhost:1620`.
 
 ---
 
