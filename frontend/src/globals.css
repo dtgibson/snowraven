@@ -193,8 +193,15 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
 }
 
+.sr-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
   .sr-panel  { padding-top: 20px !important; padding-bottom: 16px !important; }
   .sr-card   { padding: 20px !important; }
+  .sr-two-col { grid-template-columns: 1fr; }
 }

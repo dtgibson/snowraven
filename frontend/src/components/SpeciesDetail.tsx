@@ -6,6 +6,7 @@ import {
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
 import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
+import { SpeciesLinks } from './SpeciesLinks'
 import type { ObservationEntry, MediaType, StoredFileInfo } from '../types'
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -124,7 +125,11 @@ function StatValueLink({ value, submissionId, small }: { value: string; submissi
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function SpeciesDetail() {
+interface Props {
+  onExpandedChange?: (expanded: boolean) => void
+}
+
+export function SpeciesDetail({ onExpandedChange }: Props) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -138,10 +143,19 @@ export function SpeciesDetail() {
   const [commentSort, setCommentSort] = useState<'newest' | 'oldest'>('newest')
   const [showAllComments, setShowAllComments] = useState(false)
 
+  const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const selectorRef = useRef<HTMLDivElement>(null)
   const dropdownListRef = useRef<HTMLDivElement>(null)
+
+  const handleToggleExpanded = () => {
+    setExpanded(prev => {
+      const next = !prev
+      onExpandedChange?.(next)
+      return next
+    })
+  }
 
   const selectSpecies = (name: string | null) => {
     setSelectedSpecies(name)
@@ -272,6 +286,8 @@ export function SpeciesDetail() {
     setTaxonOrders({})
     setTaxonMap({})
     setSavedFileInfo(null)
+    setExpanded(false)
+    onExpandedChange?.(false)
   }
 
   // ── Derived data ───────────────────────────────────────────────────────
@@ -313,11 +329,18 @@ export function SpeciesDetail() {
     const last = sorted[sorted.length - 1]
     let bestCount = -Infinity
     let bestObs: ObservationEntry | null = null
+    let individualSum = 0
+    let hasNumericCount = false
     for (const o of speciesObs) {
-      if (o.count !== null && o.count > bestCount) { bestCount = o.count; bestObs = o }
+      if (o.count !== null) {
+        if (o.count > bestCount) { bestCount = o.count; bestObs = o }
+        individualSum += o.count
+        hasNumericCount = true
+      }
     }
     return {
       total: speciesObs.length,
+      totalIndividuals: hasNumericCount ? individualSum : null,
       firstObs: first,
       lastObs: last,
       bestObs,
@@ -456,7 +479,11 @@ export function SpeciesDetail() {
 
   // ── Ready state ────────────────────────────────────────────────────────
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, gap: 0 }}>
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 0,
+      flex: expanded ? 'none' : 1,
+      minHeight: expanded ? 'auto' : 0,
+    }}>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
@@ -482,9 +509,23 @@ export function SpeciesDetail() {
         >
           Load different file
         </button>
-        <span style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginLeft: 'auto' }}>
-          {sortedSpeciesList.length} species
-        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={handleToggleExpanded}
+            style={{
+              height: 30, padding: '0 12px', borderRadius: 6,
+              border: `1.5px solid ${expanded ? 'var(--sr-accent-border)' : 'var(--sr-border)'}`,
+              background: expanded ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+              color: expanded ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+              fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            {expanded ? '↑ Collapse' : '↓ Show all'}
+          </button>
+          <span style={{ fontSize: 12, color: 'var(--sr-text-disabled)' }}>
+            {sortedSpeciesList.length} species
+          </span>
+        </div>
       </div>
 
       {/* Species selector */}
@@ -622,11 +663,12 @@ export function SpeciesDetail() {
           <SectionCard>
             <div style={{ padding: '20px 22px 18px' }}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2, color: 'var(--sr-text)' }}>
+                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2, color: 'var(--sr-text)', wordBreak: 'break-word' }}>
                   {selectedSpecies}
                 </div>
-                <div style={{ fontSize: 14, fontStyle: 'italic', color: 'var(--sr-text-muted)', marginTop: 3 }}>
-                  {sciNameMap.get(selectedSpecies)}
+                <div style={{ fontSize: 14, fontStyle: 'italic', color: 'var(--sr-text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, wordBreak: 'break-word' }}>
+                  <span>{sciNameMap.get(selectedSpecies)}</span>
+                  <SpeciesLinks speciesCode={speciesTaxonCode} />
                 </div>
               </div>
 
@@ -684,7 +726,7 @@ export function SpeciesDetail() {
           </SectionCard>
 
           {/* Sightings + Media two-column grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="sr-two-col">
 
             {/* Sightings */}
             <SectionCard>
@@ -692,12 +734,22 @@ export function SpeciesDetail() {
               <div style={{ padding: '16px 18px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <StatLabel>Total</StatLabel>
+                    <StatLabel>Checklists</StatLabel>
                     <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>
                       {sightingsStats.total}
                     </div>
                   </div>
                   <div>
+                    <StatLabel>Individuals</StatLabel>
+                    {sightingsStats.totalIndividuals !== null ? (
+                      <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>
+                        {sightingsStats.totalIndividuals}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--sr-text-disabled)' }}>—</div>
+                    )}
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
                     <StatLabel>Personal best</StatLabel>
                     {sightingsStats.bestObs ? (
                       <StatValueLink value={String(sightingsStats.bestCount)} submissionId={sightingsStats.bestObs.submissionId} />

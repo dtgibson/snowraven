@@ -1,11 +1,11 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "activeFeature": "species-detail-mobile",
+  "sessionNumber": 1,
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [],
-  "createdAt": "2026-05-15T13:00:00Z",
-  "updatedAt": "2026-05-15T15:05:00Z"
+  "createdAt": "2026-05-15T15:10:00Z",
+  "updatedAt": "2026-05-15T16:50:00Z"
 }

@@ -493,14 +493,12 @@ export default function App() {
         className="sr-panel"
         style={{
           display: activeTab === 'species-detail' ? 'flex' : 'none',
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto' as const,
+          ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
           flexDirection: 'column',
           padding: '40px 24px 24px',
         }}
       >
-        <SpeciesDetail />
+        <SpeciesDetail onExpandedChange={setIsExpanded} />
       </div>
 
       {/* Settings tab content */}
