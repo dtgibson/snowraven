@@ -8,7 +8,7 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-24 versions shipped. Last shipped: **Dark mode** — full dark theme with automatic OS preference detection; no flash of the wrong theme on load; consent-gated localStorage so nothing is written to the browser without explicit approval.
+26 versions shipped. Last shipped: **Species Detail extended** — subspecies merge toggle, spuh/slash toggle, top locations card, interactive sighting map with checklist popups, and embedded Macaulay Library media grid.
 
 Previously: **Breeding code category filters** — three filter pills (Confirmed, Probable, Possible) on the Breeding Codes tab let you see all species in an eBird evidence category with one click, composing naturally with individual code filters.
 
@@ -25,3 +25,4 @@ Previously: **Breeding code category filters** — three filter pills (Confirmed
 ## On the Horizon
 
 - Localisation for non-US date/time formats
+- **iOS / iPadOS / macOS App Store app** — Capacitor wrapper around the existing React codebase; all backend logic rewritten in TypeScript using native HTTP (no CORS restrictions); API keys stored in iOS Keychain via user-supplied credentials (no keys baked in); all data tabs ship unchanged; weather lookup and ML media lookup move fully client-side; Pi deployment remains the self-hosted path
