@@ -1,10 +1,10 @@
 {
-  "activeFeature": "species-detail-extended",
+  "activeFeature": null,
   "sessionNumber": 2,
-  "sessionType": "feature",
-  "currentStage": 8,
-  "lastCompletedStage": 7,
-  "lastCheckpointStatus": "in-progress",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 9,
+  "lastCheckpointStatus": "approved",
   "confirmedArtifacts": [
     "pipeline/species-detail-extended/strategic-brief.md",
     "pipeline/species-detail-extended/prd.md",
@@ -13,5 +13,5 @@
     "pipeline/species-detail-extended/design.html"
   ],
   "createdAt": "2026-05-15T17:05:00Z",
-  "updatedAt": "2026-05-15T21:55:00Z"
+  "updatedAt": "2026-05-15T22:05:00Z"
 }

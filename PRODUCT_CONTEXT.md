@@ -287,27 +287,33 @@ Full dark theme with automatic OS preference detection, no flash of the wrong th
 
 ### Species Detail (complete — May 2026)
 
-A fifth data tab that shows a complete per-species view from the user's eBird backup. Select any species from a taxonomically-sorted dropdown to see sighting history, media coverage, breeding code breakdown, and an archive of all species-level field notes. Entirely frontend — no new backend endpoints.
+A fifth data tab that shows a complete per-species view from the user's eBird backup. Select any species from a taxonomically-sorted dropdown to see sighting history, media coverage, breeding code breakdown, field notes, top locations, a sighting map, and embedded media. Entirely frontend — no new backend endpoints.
 
 **What it does:**
 - Auto-loads from the stored eBird backup in Settings on mount; shows an upload drop zone as fallback when no file is stored (`loading-saved` pattern)
 - If an ML export is also stored, loads it in parallel for media data
 - Searchable species selector: type to filter by common or scientific name; list sorts taxonomically after a fire-and-forget `POST /taxonomy/codes` fetch (immediately usable A–Z while fetch is pending)
+- **Subspecies toggle** — toolbar `ToggleSwitch` ("Show subspecies") defaults to OFF (merged). In merge mode all subspecies variants (e.g. "Yellow-rumped Warbler (Myrtle)" + "(Audubon's)") are collapsed to the parent name; all statistics, codes, locations, comments, and map pins aggregate across every matching subspecies. Toggling ON switches to exact-name mode; selection resets when switching from merge→show since the normalized name may not exist as an exact entry.
+- **Spuh/slash toggle** — second `ToggleSwitch` ("Show sp./slash") defaults to OFF (hidden). Hides entries where `name.endsWith(' sp.')` or `name.includes('/')`.
 - **Summary card:** species common name (large heading), scientific name (italic) with inline eBird + Birds of the World favicon links (via `SpeciesLinks`), three media indicator buttons (Photo/Audio/Video — filled when ML export is loaded and that type has catalog items, grey when absent, "unavailable" when no ML loaded), and a breeding category pill (Confirmed/Probable/Possible based on highest-tier code recorded — absent when no codes)
 - **Sightings section:** two totals — Checklists (count of eBird entries) and Individuals (sum of numeric counts; "—" when all counts are X/presence-only); first seen (link to checklist), last seen (link), personal best count (link); Sightings and Media cards sit in a `.sr-two-col` responsive grid (2-column on desktop, 1-column at ≤640px)
 - **Media statistics:** Photo/Audio/Video counts as links to Macaulay Library catalog filtered by species + media type + userId; "Load ML export in Settings" message when no ML loaded
 - **Breeding codes:** each unique code recorded for the species, with tier-colored dot, abbreviation, full label, and count; sorted tier 4→1 then canonical order; "No breeding codes recorded" empty state
+- **Top locations:** ranked list (by observation count) of every unique location; top 10 shown by default with "Show all N locations" / "Show top 10" expand-collapse; locations with a valid `/^L\d+$/` ID link to `ebird.org/loc/{id}` (works for both public hotspots and personal locations); invalid or missing IDs render as plain text
+- **Sighting locations map:** interactive Leaflet/OpenStreetMap map; one marker per unique lat/lng pair among the selected species' observations; bounds auto-fit on species change (single coordinate → `setView` zoom 12, multiple → `fitBounds` with 30px padding); each marker opens a Popup listing up to 6 dated checklist links ("+N more" overflow label); map hidden when no coordinates are available; 380px tall on desktop, 300px on ≤640px
 - **Comments archive:** all non-empty per-species field notes from the eBird backup; sortable (newest/oldest); filterable by keyword (case-insensitive); first 10 shown with "Show all N comments" expand button; each date is a link to the corresponding checklist
+- **Embedded recent media:** when ML export is loaded and the species has catalog items, the most recently uploaded Photo, Audio, and/or Video (numerically highest catalog ID = most recently uploaded) is embedded via `macaulaylibrary.org/asset/{id}/embed` iframe; responsive 3-column CSS grid (`repeat(3, minmax(0, 1fr))`), 280px tall on desktop, full-width 360px on mobile; `scrolling="no"` + `overflow: hidden` suppress iframe scrollbars; section appears at the very bottom of the detail view
 - **Show all / Collapse** toolbar button follows the `onExpandedChange` pattern: toggles full-height layout for mobile viewing and printing
 - Switching species instantly replaces all sections (all data already parsed client-side)
-- `submissionId` values validated against `/^S\d+$/` before use in any `href` attribute
+- `submissionId` values validated against `/^S\d+$/` before use in any `href` attribute; catalog IDs validated against `/^\d+$/`; location IDs validated against `/^L\d+$/`
 
 **Key files:**
-- `frontend/src/lib/parseEbirdObservations.ts` — character-level CSV parser (same pattern as `parseBreedingCodes.ts`); one `ObservationEntry` per CSV row; no deduplication; no subspecies normalization (NFR-05); reads "Observation Details" or "Species Comments" column for per-species notes; throws `INVALID_EBIRD` if required columns missing
-- `frontend/src/lib/parseEbirdObservations.test.ts` — 18 tests
-- `frontend/src/components/SpeciesDetail.tsx` — full tab component; `Phase` discriminated union (`loading-saved | idle | error | ready`); inline sub-components `SectionCard`, `SectionHead`, `StatLabel`, `StatValueLink`; `selectSpecies()` helper resets comment state alongside species state to avoid setState-in-effect
-- `frontend/src/types.ts` — `ObservationEntry` interface added
-- `frontend/src/App.tsx` — `'species-detail'` added to `Tab` union; tab button and panel added between Life List Comparer and Settings
+- `frontend/src/lib/parseEbirdObservations.ts` — character-level CSV parser; one `ObservationEntry` per CSV row; reads Location ID, Latitude, Longitude columns in addition to all prior fields; throws `INVALID_EBIRD` if required columns missing
+- `frontend/src/lib/parseEbirdObservations.test.ts` — 24 tests
+- `frontend/src/components/SpeciesDetail.tsx` — full tab component; `Phase` discriminated union (`loading-saved | idle | error | ready`); inline sub-components `SectionCard`, `SectionHead`, `StatLabel`, `StatValueLink`, `ToggleSwitch`, `MapBoundsFitter`; `CoordMarker` type for grouped marker sightings; Leaflet icon CDN patch at module level
+- `frontend/src/types.ts` — `ObservationEntry` now includes `locationId`, `latitude`, `longitude`
+- `frontend/src/globals.css` — `.sr-map-container`, `.sr-media-grid` (CSS grid 3-col), `.sr-media-item`, `.sr-media-iframe` with responsive overrides
+- `frontend/src/App.tsx` — `'species-detail'` tab (unchanged structure)
 
 ### Breeding Code Category Filters (complete — May 2026)
 
@@ -484,6 +490,21 @@ After `compareSpecies()` runs, `ListComparer` calls `fetchTaxonCodes` with the u
 
 **`/taxonomy/codes` returns taxon orders alongside species codes — no new endpoint**
 The `POST /taxonomy/codes` response was extended to include `orders: {commonName: taxonOrder}` alongside `codes`. The backend builds a third in-memory dict `_by_order` (comName.lower() → int taxonOrder) from the eBird taxonomy fetch. No new endpoint or additional network call is needed. Codes and sort orders arrive in a single response, keeping the fetch atomic. Graceful degradation: any fetch error returns `{codes: {}, orders: {}}`.
+
+**Subspecies merge defaults to ON; toggling to show-subspecies resets the species selection**
+In the Species Detail tab, merged view is the default (`mergeSubspecies: true`). This is consistent with how all other tabs (Life List, List Comparer, Breeding Codes) normalize parentheticals. When switching from merge→show, the selection is cleared because the merged parent name (e.g. "Yellow-rumped Warbler") may not exist as an exact entry in show-subspecies mode. When switching from show→merge, the current selected name is normalized and kept selected. Both toggles reset to their defaults when a new file is loaded or "Load different file" is clicked.
+
+**Location links use `/loc/` not `/hotspot/` on eBird**
+`ebird.org/loc/{locationId}` works for all eBird location IDs (both public hotspots and personal locations). `ebird.org/hotspot/{locationId}` returns an error for personal/private locations. Always use `/loc/` for location ID links.
+
+**Leaflet map marker icons require a CDN patch in Vite builds**
+Vite's asset hashing breaks Leaflet's default mechanism for resolving marker icon URLs (it walks `_getIconUrl` which relies on a `data-url` import trick that Vite doesn't replicate). Fix: delete `_getIconUrl` from `L.Icon.Default.prototype` (requires `// eslint-disable-next-line @typescript-eslint/no-explicit-any`) then call `L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl })` pointing to the unpkg CDN for the matching Leaflet version. This must run at module level, not inside a component or effect.
+
+**Leaflet popup inline styles use hardcoded hex for link colors**
+CSS variables (`var(--sr-*)`) are not reliably inherited inside Leaflet popup DOM, which is rendered outside the React tree by Leaflet itself. Popup link colors use `#2D8653` (the light-mode accent) directly. This is a known limitation — acceptable given the popup is a small secondary UI element and the app's threat model doesn't require dark-mode support inside popups.
+
+**Media grid uses CSS grid `repeat(3, minmax(0, 1fr))` instead of flex**
+Flexbox `flex: 1` on media items causes a single item to stretch to full width, making a lone photo embed look awkward (wide + constrained height). CSS grid with three equal fixed columns means one item takes 1/3 width, two items take 2/3, three items fill all columns — proportional regardless of item count. Mobile overrides to `grid-template-columns: 1fr` (single column, taller iframes). `scrolling="no"` + `overflow: hidden` on the iframe suppress any scrollbars the embedded content would otherwise produce.
 
 **Server-side file storage uses fixed on-disk filenames; client filename in metadata only**
 `data/ebird-backup.csv` and `data/ml-export.csv` are the fixed on-disk paths regardless of what the user uploads. The original filename is stored in `data/metadata.json` (`{"ebird": {"filename": "...", "uploadedAt": "..."}, "ml": ...}`) for display only — never used to construct a file path. This eliminates path traversal risk entirely. `data/` is gitignored. `DATA_DIR` is resolved from `__file__` in `settings.py` (three `.parent` hops) so the path is correct regardless of CWD when uvicorn starts. Any future stored file type should follow the same fixed-filename + metadata sidecar pattern.
