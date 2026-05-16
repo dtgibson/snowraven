@@ -67,13 +67,37 @@ Upload two eBird backup CSV files to see which species you share with another bi
 5. Use the **Taxonomic / A–Z** toggle to switch between eBird taxonomic order and alphabetical
 6. Use **Show all** to expand all panels to full length for printing
 
+### Species Detail
+
+Upload your eBird backup CSV to explore your complete history with any species — sighting stats, breeding codes, field notes, your most-visited locations, a map of all observation coordinates, and embedded media from Macaulay Library. Select any species from the searchable dropdown and every section updates instantly. All processing happens in the browser — no data leaves your machine.
+
+**How it works:**
+
+1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData) (or save it as a default in Settings so it loads automatically)
+2. Select a species from the dropdown — type to search by common or scientific name
+3. The **Summary card** shows your media coverage (Photo/Audio/Video) and highest breeding evidence category for that species
+4. The **Sightings card** shows checklist count, total individuals, personal best, and first/last seen dates — each linked to the original checklist
+5. **Breeding Codes** lists every code you've recorded with tier color, abbreviation, and count
+6. **Top Locations** ranks where you've found the species most often, with links to each location on eBird
+7. The **map** plots every observation coordinate — click any pin to see the checklist dates recorded at that spot
+8. **Comments** archives all your per-species field notes, filterable by keyword and sortable by date
+9. **Recent Media** embeds your most recently uploaded photo, audio recording, and video directly from Macaulay Library (requires ML export loaded in Settings)
+
+**Toolbar options:**
+
+- **Show subspecies** — off by default (subspecies variants are merged into the parent species). Toggle on to split "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" into separate entries with separate stats.
+- **Show sp./slash** — off by default (uncertain identifications are hidden). Toggle on to include sp. and slash species in the selector.
+- **Show all / Collapse** — expands the full detail view to page height for printing or extended browsing.
+
+If your ML export is also saved in Settings, media counts in the Summary card become active and the Recent Media section appears automatically.
+
 ### Settings
 
 The Settings tab lets you configure API keys and save default files so they load automatically each session.
 
 **API keys:** Enter your eBird and OpenWeather API keys directly in the app. Keys are saved to the server's `.env` file and take effect immediately — no restart needed. Saved keys are masked by default with a Show/Hide toggle.
 
-**Default files:** Upload your eBird backup CSV and Macaulay Library export once and they'll load automatically whenever you open the Breeding Codes or Media List tab.
+**Default files:** Upload your eBird backup CSV and Macaulay Library export once and they'll load automatically whenever you open the Breeding Codes, Media List, or Species Detail tab.
 
 ---
 
