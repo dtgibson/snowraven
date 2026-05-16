@@ -293,11 +293,12 @@ A fifth data tab that shows a complete per-species view from the user's eBird ba
 - Auto-loads from the stored eBird backup in Settings on mount; shows an upload drop zone as fallback when no file is stored (`loading-saved` pattern)
 - If an ML export is also stored, loads it in parallel for media data
 - Searchable species selector: type to filter by common or scientific name; list sorts taxonomically after a fire-and-forget `POST /taxonomy/codes` fetch (immediately usable A–Z while fetch is pending)
-- **Summary card:** species common name (large heading), scientific name (italic), three media indicator buttons (Photo/Audio/Video — filled when ML export is loaded and that type has catalog items, grey when absent, "unavailable" when no ML loaded), and a breeding category pill (Confirmed/Probable/Possible based on highest-tier code recorded — absent when no codes)
-- **Sightings section:** total observation count, first seen (link to that checklist), last seen (link), personal best count (link); "—" when all counts are "X"/presence-only
+- **Summary card:** species common name (large heading), scientific name (italic) with inline eBird + Birds of the World favicon links (via `SpeciesLinks`), three media indicator buttons (Photo/Audio/Video — filled when ML export is loaded and that type has catalog items, grey when absent, "unavailable" when no ML loaded), and a breeding category pill (Confirmed/Probable/Possible based on highest-tier code recorded — absent when no codes)
+- **Sightings section:** two totals — Checklists (count of eBird entries) and Individuals (sum of numeric counts; "—" when all counts are X/presence-only); first seen (link to checklist), last seen (link), personal best count (link); Sightings and Media cards sit in a `.sr-two-col` responsive grid (2-column on desktop, 1-column at ≤640px)
 - **Media statistics:** Photo/Audio/Video counts as links to Macaulay Library catalog filtered by species + media type + userId; "Load ML export in Settings" message when no ML loaded
 - **Breeding codes:** each unique code recorded for the species, with tier-colored dot, abbreviation, full label, and count; sorted tier 4→1 then canonical order; "No breeding codes recorded" empty state
 - **Comments archive:** all non-empty per-species field notes from the eBird backup; sortable (newest/oldest); filterable by keyword (case-insensitive); first 10 shown with "Show all N comments" expand button; each date is a link to the corresponding checklist
+- **Show all / Collapse** toolbar button follows the `onExpandedChange` pattern: toggles full-height layout for mobile viewing and printing
 - Switching species instantly replaces all sections (all data already parsed client-side)
 - `submissionId` values validated against `/^S\d+$/` before use in any `href` attribute
 
