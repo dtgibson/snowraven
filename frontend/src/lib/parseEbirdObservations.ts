@@ -64,6 +64,9 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
   const sciNameIdx            = headers.findIndex(h => h === 'scientific name')
   const dateIdx               = headers.findIndex(h => h === 'date')
   const locationIdx           = headers.findIndex(h => h === 'location')
+  const locationIdIdx         = headers.findIndex(h => h === 'location id')
+  const latitudeIdx           = headers.findIndex(h => h === 'latitude')
+  const longitudeIdx          = headers.findIndex(h => h === 'longitude')
   const countIdx              = headers.findIndex(h => h === 'count')
   const breedingCodeIdx       = headers.findIndex(h => h === 'breeding code')
   const speciesCommentsIdx    = headers.findIndex(h => h === 'species comments' || h === 'observation details')
@@ -86,6 +89,14 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
     const scientificName  = sciNameIdx >= 0    ? (cols[sciNameIdx]?.trim() ?? '')          : ''
     const date            = cols[dateIdx]?.trim() ?? ''
     const location        = locationIdx >= 0   ? (cols[locationIdx]?.trim() ?? '')         : ''
+    const locationId      = locationIdIdx >= 0 ? (cols[locationIdIdx]?.trim() ?? '')       : ''
+
+    const rawLat  = latitudeIdx >= 0  ? (cols[latitudeIdx]?.trim() ?? '')  : ''
+    const rawLng  = longitudeIdx >= 0 ? (cols[longitudeIdx]?.trim() ?? '') : ''
+    const latNum  = parseFloat(rawLat)
+    const lngNum  = parseFloat(rawLng)
+    const latitude  = rawLat  && !Number.isNaN(latNum)  ? latNum  : null
+    const longitude = rawLng  && !Number.isNaN(lngNum)  ? lngNum  : null
 
     const rawCount   = countIdx >= 0 ? (cols[countIdx]?.trim() ?? '') : ''
     const countInt   = parseInt(rawCount, 10)
@@ -102,7 +113,7 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
       ? rawCatalog.split(/[\s,]+/).map(id => id.replace(/^ML/i, '').trim()).filter(id => /^\d+$/.test(id))
       : []
 
-    entries.push({ submissionId, commonName, scientificName, date, location, count, breedingCode, speciesComments, catalogIds })
+    entries.push({ submissionId, commonName, scientificName, date, location, locationId, latitude, longitude, count, breedingCode, speciesComments, catalogIds })
   }
 
   return entries

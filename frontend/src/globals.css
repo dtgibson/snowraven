@@ -199,9 +199,36 @@ h1, h2, h3, h4, h5, h6 {
   gap: 14px;
 }
 
+.sr-map-container {
+  height: 380px;
+  width: 100%;
+}
+
+.sr-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.sr-media-item {
+  min-width: 0;
+}
+
+.sr-media-iframe {
+  height: 280px;
+  border: 0;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
   .sr-panel  { padding-top: 20px !important; padding-bottom: 16px !important; }
   .sr-card   { padding: 20px !important; }
   .sr-two-col { grid-template-columns: 1fr; }
+  .sr-map-container { height: 300px; }
+  .sr-media-grid { grid-template-columns: 1fr; }
+  .sr-media-iframe { height: 360px; }
 }

@@ -54,6 +54,9 @@ export interface ObservationEntry {
   scientificName: string
   date: string           // YYYY-MM-DD
   location: string
+  locationId: string
+  latitude: number | null
+  longitude: number | null
   count: number | null   // null for "X" / presence-only
   breedingCode: string | null
   speciesComments: string

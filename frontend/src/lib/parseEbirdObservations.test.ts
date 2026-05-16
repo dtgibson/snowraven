@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { parseEbirdObservations } from './parseEbirdObservations'
 
-const HEADERS = 'Submission ID,Common Name,Scientific Name,Date,Location,Count,Breeding Code,Species Comments,ML Catalog Numbers'
+const HEADERS = 'Submission ID,Common Name,Scientific Name,Date,Location,Count,Breeding Code,Species Comments,ML Catalog Numbers,Location ID,Latitude,Longitude'
 
 function makeRow(overrides: Partial<{
   submissionId: string
@@ -13,6 +13,9 @@ function makeRow(overrides: Partial<{
   breedingCode: string
   speciesComments: string
   catalogNumbers: string
+  locationId: string
+  latitude: string
+  longitude: string
 }>): string {
   const r = {
     submissionId:    overrides.submissionId    ?? 'S12345678',
@@ -24,9 +27,13 @@ function makeRow(overrides: Partial<{
     breedingCode:    overrides.breedingCode    ?? '',
     speciesComments: overrides.speciesComments ?? '',
     catalogNumbers:  overrides.catalogNumbers  ?? '',
+    locationId:      overrides.locationId      ?? 'L12345',
+    latitude:        overrides.latitude        ?? '44.9778',
+    longitude:       overrides.longitude       ?? '-93.2650',
   }
   return [r.submissionId, r.commonName, r.scientificName, r.date, r.location,
-          r.count, r.breedingCode, r.speciesComments, r.catalogNumbers].join(',')
+          r.count, r.breedingCode, r.speciesComments, r.catalogNumbers,
+          r.locationId, r.latitude, r.longitude].join(',')
 }
 
 describe('parseEbirdObservations', () => {
@@ -39,6 +46,9 @@ describe('parseEbirdObservations', () => {
     expect(entries[0].scientificName).toBe('Turdus migratorius')
     expect(entries[0].date).toBe('2024-04-09')
     expect(entries[0].location).toBe('Lake Harriet')
+    expect(entries[0].locationId).toBe('L12345')
+    expect(entries[0].latitude).toBe(44.9778)
+    expect(entries[0].longitude).toBe(-93.265)
     expect(entries[0].count).toBe(5)
     expect(entries[0].breedingCode).toBeNull()
     expect(entries[0].speciesComments).toBe('')
@@ -160,5 +170,38 @@ describe('parseEbirdObservations', () => {
     const csv = HEADERS + '\r\n' + makeRow({}) + '\r\n'
     const entries = parseEbirdObservations(csv)
     expect(entries).toHaveLength(1)
+  })
+
+  it('parses locationId from Location ID column', () => {
+    const csv = [HEADERS, makeRow({ locationId: 'L987654' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].locationId).toBe('L987654')
+  })
+
+  it('defaults locationId to empty string when column is absent', () => {
+    const csv = 'Submission ID,Common Name,Date\nS1,American Robin,2024-04-09'
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].locationId).toBe('')
+  })
+
+  it('parses latitude and longitude as numbers', () => {
+    const csv = [HEADERS, makeRow({ latitude: '37.7749', longitude: '-122.4194' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].latitude).toBeCloseTo(37.7749)
+    expect(entries[0].longitude).toBeCloseTo(-122.4194)
+  })
+
+  it('sets latitude and longitude to null when non-numeric', () => {
+    const csv = [HEADERS, makeRow({ latitude: '', longitude: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].latitude).toBeNull()
+    expect(entries[0].longitude).toBeNull()
+  })
+
+  it('sets latitude and longitude to null when columns are absent', () => {
+    const csv = 'Submission ID,Common Name,Date\nS1,American Robin,2024-04-09'
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].latitude).toBeNull()
+    expect(entries[0].longitude).toBeNull()
   })
 })

@@ -1,13 +1,26 @@
+import 'leaflet/dist/leaflet.css'
+import L from 'leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Upload, AlertCircle, Loader2, FileCheck, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
+  MapPin, Play,
 } from 'lucide-react'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
 import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
 import { SpeciesLinks } from './SpeciesLinks'
 import type { ObservationEntry, MediaType, StoredFileInfo } from '../types'
+
+// Leaflet marker icon patch for Vite asset handling
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+delete (L.Icon.Default.prototype as any)._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+})
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -16,6 +29,12 @@ type Phase =
   | { tag: 'idle' }
   | { tag: 'error'; message: string }
   | { tag: 'ready'; observations: ObservationEntry[]; mediaMap: Map<string, MediaType>; hasML: boolean; userId: string | null }
+
+type CoordMarker = {
+  lat: number
+  lng: number
+  sightings: { submissionId: string; date: string }[]
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -41,9 +60,17 @@ function mlCatalogLink(mediaType: MediaType, taxonCode: string | undefined, user
   return url
 }
 
-const BREEDING_CODE_CANONICAL_ORDER = new Map(BREEDING_CODES.map((d, i) => [d.code, i]))
+function normalizeSpeciesName(name: string): string {
+  return name.replace(/\s*\([^)]*\)\s*$/, '').trim()
+}
 
+function isSpuhOrSlash(name: string): boolean {
+  return name.endsWith(' sp.') || name.includes('/')
+}
+
+const BREEDING_CODE_CANONICAL_ORDER = new Map(BREEDING_CODES.map((d, i) => [d.code, i]))
 const COMMENTS_PAGE = 10
+const LOCATION_ID_RE = /^L\d+$/
 
 // ── Sub-components (inline) ────────────────────────────────────────────────
 
@@ -123,6 +150,52 @@ function StatValueLink({ value, submissionId, small }: { value: string; submissi
   )
 }
 
+function ToggleSwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        height: 30, padding: '0 10px 0 8px', borderRadius: 6,
+        border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 500,
+        color: 'var(--sr-text-muted)',
+      }}
+    >
+      <div style={{
+        width: 28, height: 16, borderRadius: 8, flexShrink: 0, position: 'relative',
+        background: checked ? 'var(--sr-accent)' : 'var(--sr-gray-400)',
+        transition: 'background 0.15s',
+      }}>
+        <div style={{
+          width: 12, height: 12, borderRadius: '50%',
+          background: 'white',
+          position: 'absolute', top: 2,
+          left: checked ? 14 : 2,
+          transition: 'left 0.15s',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+        }} />
+      </div>
+      {label}
+    </button>
+  )
+}
+
+function MapBoundsFitter({ coordinates }: { coordinates: [number, number][] }) {
+  const map = useMap()
+  useEffect(() => {
+    if (coordinates.length === 0) return
+    if (coordinates.length === 1) {
+      map.setView(coordinates[0], 12)
+    } else {
+      map.fitBounds(coordinates, { padding: [30, 30] })
+    }
+  }, [map, coordinates])
+  return null
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 interface Props {
@@ -139,9 +212,13 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
   const [selectorQuery, setSelectorQuery] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
 
+  const [mergeSubspecies, setMergeSubspecies] = useState(true)
+  const [showSpuh, setShowSpuh] = useState(false)
+
   const [commentFilter, setCommentFilter] = useState('')
   const [commentSort, setCommentSort] = useState<'newest' | 'oldest'>('newest')
   const [showAllComments, setShowAllComments] = useState(false)
+  const [showAllLocations, setShowAllLocations] = useState(false)
 
   const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
@@ -162,6 +239,25 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
     setCommentFilter('')
     setCommentSort('newest')
     setShowAllComments(false)
+    setShowAllLocations(false)
+  }
+
+  const handleToggleMerge = () => {
+    if (!mergeSubspecies) {
+      if (selectedSpecies) setSelectedSpecies(normalizeSpeciesName(selectedSpecies))
+    } else {
+      selectSpecies(null)
+    }
+    setShowAllLocations(false)
+    setMergeSubspecies(prev => !prev)
+  }
+
+  const handleToggleSpuh = () => {
+    const nextShowSpuh = !showSpuh
+    if (!nextShowSpuh && selectedSpecies && isSpuhOrSlash(selectedSpecies)) {
+      selectSpecies(null)
+    }
+    setShowSpuh(nextShowSpuh)
   }
 
   // Close dropdown on outside click
@@ -257,6 +353,7 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
         setPhase({ tag: 'ready', observations, mediaMap: new Map(), hasML: false, userId: null })
         selectSpecies(null)
         setSelectorQuery('')
+        setMergeSubspecies(true)
         fetchTaxonData(observations)
       } catch {
         setPhase({ tag: 'error', message: "This doesn't look like an eBird backup CSV. Check you're uploading MyEBirdData.csv." })
@@ -286,6 +383,7 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
     setTaxonOrders({})
     setTaxonMap({})
     setSavedFileInfo(null)
+    setMergeSubspecies(true)
     setExpanded(false)
     onExpandedChange?.(false)
   }
@@ -294,32 +392,50 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
 
   const { sciNameMap, sortedSpeciesList } = useMemo(() => {
     if (phase.tag !== 'ready') return { sciNameMap: new Map<string, string>(), sortedSpeciesList: [] }
-    const seen = new Map<string, string>()
+
+    const seen = new Map<string, string>()   // name → first sci name
+    const orders = new Map<string, number>() // name → min taxon order
+
     for (const o of phase.observations) {
-      if (!seen.has(o.commonName)) seen.set(o.commonName, o.scientificName)
+      const key = mergeSubspecies ? normalizeSpeciesName(o.commonName) : o.commonName
+      if (!seen.has(key)) seen.set(key, o.scientificName)
+      const order = taxonOrders[o.commonName.toLowerCase()] ?? taxonOrders[key.toLowerCase()] ?? Infinity
+      const current = orders.get(key) ?? Infinity
+      if (order < current) orders.set(key, order)
     }
+
     const sorted = [...seen.keys()].sort((a, b) => {
-      const oa = taxonOrders[a.toLowerCase()] ?? Infinity
-      const ob = taxonOrders[b.toLowerCase()] ?? Infinity
+      const oa = orders.get(a) ?? Infinity
+      const ob = orders.get(b) ?? Infinity
       if (oa !== ob) return oa - ob
       return a.localeCompare(b)
     })
+
     return { sciNameMap: seen, sortedSpeciesList: sorted }
-  }, [phase, taxonOrders])
+  }, [phase, taxonOrders, mergeSubspecies])
+
+  // Apply spuh/slash filter
+  const displaySpeciesList = useMemo(
+    () => showSpuh ? sortedSpeciesList : sortedSpeciesList.filter(name => !isSpuhOrSlash(name)),
+    [sortedSpeciesList, showSpuh]
+  )
 
   const filteredSpeciesList = useMemo(() => {
     const q = selectorQuery.trim().toLowerCase()
-    if (!q) return sortedSpeciesList
-    return sortedSpeciesList.filter(name => {
+    if (!q) return displaySpeciesList
+    return displaySpeciesList.filter(name => {
       if (name.toLowerCase().includes(q)) return true
       return (sciNameMap.get(name) ?? '').toLowerCase().includes(q)
     })
-  }, [sortedSpeciesList, selectorQuery, sciNameMap])
+  }, [displaySpeciesList, selectorQuery, sciNameMap])
 
   const speciesObs = useMemo((): ObservationEntry[] => {
     if (phase.tag !== 'ready' || !selectedSpecies) return []
+    if (mergeSubspecies) {
+      return phase.observations.filter(o => normalizeSpeciesName(o.commonName) === selectedSpecies)
+    }
     return phase.observations.filter(o => o.commonName === selectedSpecies)
-  }, [phase, selectedSpecies])
+  }, [phase, selectedSpecies, mergeSubspecies])
 
   // Sightings stats
   const sightingsStats = useMemo(() => {
@@ -365,6 +481,22 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
     return counts
   }, [speciesObs, phase])
 
+  // Highest catalog ID per media type (for embedded media)
+  const recentMediaIds = useMemo(() => {
+    const result: Record<MediaType, string | null> = { Photo: null, Audio: null, Video: null }
+    if (phase.tag !== 'ready') return result
+    for (const o of speciesObs) {
+      for (const id of o.catalogIds) {
+        if (!/^\d+$/.test(id)) continue
+        const type = phase.mediaMap.get(id)
+        if (!type) continue
+        const current = result[type]
+        if (!current || Number(id) > Number(current)) result[type] = id
+      }
+    }
+    return result
+  }, [speciesObs, phase])
+
   // Highest breeding category pill
   const breedingPill = useMemo(() => {
     let bestTier = 0
@@ -395,6 +527,46 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
       })
   }, [speciesObs])
 
+  // Locations list sorted by count desc
+  const locationsSorted = useMemo(() => {
+    const counts = new Map<string, { count: number; locationId: string }>()
+    for (const o of speciesObs) {
+      const existing = counts.get(o.location)
+      if (existing) {
+        existing.count++
+      } else {
+        counts.set(o.location, { count: 1, locationId: o.locationId })
+      }
+    }
+    return [...counts.entries()]
+      .map(([location, { count, locationId }]) => ({ location, count, locationId }))
+      .sort((a, b) => b.count !== a.count ? b.count - a.count : a.location.localeCompare(b.location))
+  }, [speciesObs])
+
+  // Map markers: one per unique lat/lng, with all sightings at that coordinate
+  const coordMarkers = useMemo((): CoordMarker[] => {
+    const markerMap = new Map<string, CoordMarker>()
+    for (const o of speciesObs) {
+      if (o.latitude === null || o.longitude === null) continue
+      const key = `${o.latitude},${o.longitude}`
+      const existing = markerMap.get(key)
+      if (existing) {
+        existing.sightings.push({ submissionId: o.submissionId, date: o.date })
+      } else {
+        markerMap.set(key, { lat: o.latitude, lng: o.longitude, sightings: [{ submissionId: o.submissionId, date: o.date }] })
+      }
+    }
+    for (const m of markerMap.values()) {
+      m.sightings.sort((a, b) => b.date.localeCompare(a.date))
+    }
+    return [...markerMap.values()]
+  }, [speciesObs])
+
+  const uniqueCoords = useMemo(
+    (): [number, number][] => coordMarkers.map(m => [m.lat, m.lng] as [number, number]),
+    [coordMarkers]
+  )
+
   // Comments
   const allComments = useMemo(() => {
     const base = speciesObs.filter(o => o.speciesComments.trim() !== '')
@@ -407,6 +579,19 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
     const q = commentFilter.toLowerCase()
     return sorted.filter(o => o.speciesComments.toLowerCase().includes(q))
   }, [speciesObs, commentSort, commentFilter])
+
+  // Taxon code for selected species (merge-mode aware)
+  const speciesTaxonCode = useMemo(() => {
+    if (!selectedSpecies) return undefined
+    const direct = taxonMap[selectedSpecies]
+    if (direct) return direct
+    if (mergeSubspecies) {
+      for (const [key, code] of Object.entries(taxonMap)) {
+        if (normalizeSpeciesName(key) === selectedSpecies) return code
+      }
+    }
+    return undefined
+  }, [selectedSpecies, taxonMap, mergeSubspecies])
 
   // ── Selector input display value ─────────────────────────────────────
   const selectorDisplayValue = dropdownOpen
@@ -475,7 +660,6 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
   }
 
   const { observations, hasML, userId } = phase
-  const speciesTaxonCode = selectedSpecies ? taxonMap[selectedSpecies] : undefined
 
   // ── Ready state ────────────────────────────────────────────────────────
   return (
@@ -509,6 +693,8 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
         >
           Load different file
         </button>
+        <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
+        <ToggleSwitch label="Show sp./slash" checked={showSpuh} onChange={handleToggleSpuh} />
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={handleToggleExpanded}
@@ -523,7 +709,7 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
             {expanded ? '↑ Collapse' : '↓ Show all'}
           </button>
           <span style={{ fontSize: 12, color: 'var(--sr-text-disabled)' }}>
-            {sortedSpeciesList.length} species
+            {displaySpeciesList.length} species
           </span>
         </div>
       </div>
@@ -859,6 +1045,126 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
             </div>
           </SectionCard>
 
+          {/* Top Locations */}
+          <SectionCard>
+            <SectionHead icon={<MapPin size={14} strokeWidth={2.2} />} title="Top Locations" />
+            <div style={{ padding: locationsSorted.length ? '4px 18px' : '16px 18px' }}>
+              {locationsSorted.length === 0 ? (
+                <span style={{ fontSize: 13, color: 'var(--sr-text-muted)' }}>No location data found.</span>
+              ) : (
+                <>
+                  {(showAllLocations ? locationsSorted : locationsSorted.slice(0, 10)).map(({ location, locationId, count }, idx) => {
+                    const isHotspot = LOCATION_ID_RE.test(locationId)
+                    const visibleCount = showAllLocations ? locationsSorted.length : Math.min(locationsSorted.length, 10)
+                    return (
+                      <div key={`${locationId || location}-${idx}`} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 0',
+                        borderBottom: idx < visibleCount - 1 ? '1px solid var(--sr-border-subtle)' : 'none',
+                      }}>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-disabled)', minWidth: 22, flexShrink: 0, textAlign: 'right' }}>
+                          {idx + 1}.
+                        </span>
+                        {isHotspot ? (
+                          <a
+                            href={`https://ebird.org/loc/${locationId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: 13, color: 'var(--sr-accent)', flex: 1, textDecoration: 'none' }}
+                            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                          >
+                            {location}
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: 13, color: 'var(--sr-text)', flex: 1 }}>{location}</span>
+                        )}
+                        <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          {count} {count === 1 ? 'sighting' : 'sightings'}
+                        </span>
+                      </div>
+                    )
+                  })}
+
+                  {locationsSorted.length > 10 && (
+                    <button
+                      onClick={() => setShowAllLocations(prev => !prev)}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        width: '100%', padding: '13px 18px',
+                        border: 'none', borderTop: '1px solid var(--sr-border-subtle)',
+                        background: 'var(--sr-surface-faint)',
+                        fontSize: 13, fontWeight: 500, color: 'var(--sr-accent)',
+                        fontFamily: 'inherit', cursor: 'pointer',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-accent-bg)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-faint)')}
+                    >
+                      <ChevronDown
+                        size={13}
+                        strokeWidth={2.5}
+                        style={{ transform: showAllLocations ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+                      />
+                      {showAllLocations ? 'Show top 10' : `Show all ${locationsSorted.length} locations`}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </SectionCard>
+
+          {/* Sighting Locations Map */}
+          {coordMarkers.length > 0 && (
+            <SectionCard>
+              <SectionHead icon={<MapPin size={14} strokeWidth={2.2} />} title="Sighting Locations" />
+              <div className="sr-map-container">
+                <MapContainer
+                  center={uniqueCoords[0] ?? [0, 0]}
+                  zoom={5}
+                  style={{ height: '100%', width: '100%' }}
+                  scrollWheelZoom={false}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  {coordMarkers.map(m => (
+                    <Marker key={`${m.lat},${m.lng}`} position={[m.lat, m.lng]}>
+                      <Popup>
+                        <div style={{ fontSize: 13, lineHeight: 1.7, minWidth: 120 }}>
+                          {m.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
+                            <div key={`${submissionId}-${i}`}>
+                              {SUBMISSION_ID_RE.test(submissionId) ? (
+                                <a
+                                  href={`https://ebird.org/checklist/${submissionId}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ color: '#2D8653', textDecoration: 'none' }}
+                                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                                >
+                                  {formatDate(date)}
+                                </a>
+                              ) : (
+                                <span>{formatDate(date)}</span>
+                              )}
+                            </div>
+                          ))}
+                          {m.sightings.length > 6 && (
+                            <div style={{ color: '#888', marginTop: 2, fontSize: 12 }}>
+                              +{m.sightings.length - 6} more
+                            </div>
+                          )}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                  <MapBoundsFitter coordinates={uniqueCoords} />
+                </MapContainer>
+              </div>
+            </SectionCard>
+          )}
+
           {/* Comments */}
           <SectionCard>
             <SectionHead icon={<MessageSquare size={14} strokeWidth={2.2} />} title="Comments" />
@@ -979,10 +1285,43 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
             )}
           </SectionCard>
 
+          {/* Recent Media — at bottom, only when ML is loaded and species has ≥1 catalog item */}
+          {hasML && (['Photo', 'Audio', 'Video'] as MediaType[]).some(t => recentMediaIds[t] !== null) && (
+            <SectionCard>
+              <SectionHead icon={<Play size={14} strokeWidth={2.2} />} title="Recent Media" />
+              <div style={{ padding: '16px 18px' }}>
+                <div className="sr-media-grid">
+                  {(['Photo', 'Audio', 'Video'] as MediaType[]).map(type => {
+                    const id = recentMediaIds[type]
+                    if (!id) return null
+                    return (
+                      <div key={type} className="sr-media-item">
+                        <div style={{
+                          fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
+                          letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 8,
+                        }}>
+                          {type}
+                        </div>
+                        <iframe
+                          src={`https://macaulaylibrary.org/asset/${id}/embed`}
+                          title={`Most recent ${type} of ${selectedSpecies}`}
+                          loading="lazy"
+                          allowFullScreen
+                          scrolling="no"
+                          className="sr-media-iframe"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </SectionCard>
+          )}
+
         </div>
       )}
 
-      {/* Unused observations warning suppression */}
+      {/* Suppress unused-variable warning for observations */}
       <span style={{ display: 'none' }}>{observations.length}</span>
     </div>
   )
