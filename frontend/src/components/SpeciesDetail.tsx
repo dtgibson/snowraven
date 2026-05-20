@@ -70,7 +70,7 @@ function isSpuhOrSlash(name: string): boolean {
 
 const BREEDING_CODE_CANONICAL_ORDER = new Map(BREEDING_CODES.map((d, i) => [d.code, i]))
 const COMMENTS_PAGE = 10
-const LOCATION_ID_RE = /^L\d+$/
+
 
 // ── Sub-components (inline) ────────────────────────────────────────────────
 
@@ -1054,7 +1054,6 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
               ) : (
                 <>
                   {(showAllLocations ? locationsSorted : locationsSorted.slice(0, 10)).map(({ location, locationId, count }, idx) => {
-                    const isHotspot = LOCATION_ID_RE.test(locationId)
                     const visibleCount = showAllLocations ? locationsSorted.length : Math.min(locationsSorted.length, 10)
                     return (
                       <div key={`${locationId || location}-${idx}`} style={{
@@ -1065,20 +1064,7 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
                         <span style={{ fontSize: 11, color: 'var(--sr-text-disabled)', minWidth: 22, flexShrink: 0, textAlign: 'right' }}>
                           {idx + 1}.
                         </span>
-                        {isHotspot ? (
-                          <a
-                            href={`https://ebird.org/loc/${locationId}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ fontSize: 13, color: 'var(--sr-accent)', flex: 1, textDecoration: 'none' }}
-                            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                          >
-                            {location}
-                          </a>
-                        ) : (
-                          <span style={{ fontSize: 13, color: 'var(--sr-text)', flex: 1 }}>{location}</span>
-                        )}
+                        <span style={{ fontSize: 13, color: 'var(--sr-text)', flex: 1 }}>{location}</span>
                         <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {count} {count === 1 ? 'sighting' : 'sightings'}
                         </span>
