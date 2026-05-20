@@ -494,8 +494,8 @@ The `POST /taxonomy/codes` response was extended to include `orders: {commonName
 **Subspecies merge defaults to ON; toggling to show-subspecies resets the species selection**
 In the Species Detail tab, merged view is the default (`mergeSubspecies: true`). This is consistent with how all other tabs (Life List, List Comparer, Breeding Codes) normalize parentheticals. When switching from merge→show, the selection is cleared because the merged parent name (e.g. "Yellow-rumped Warbler") may not exist as an exact entry in show-subspecies mode. When switching from show→merge, the current selected name is normalized and kept selected. Both toggles reset to their defaults when a new file is loaded or "Load different file" is clicked.
 
-**Location links use `/loc/` not `/hotspot/` on eBird**
-`ebird.org/loc/{locationId}` works for all eBird location IDs (both public hotspots and personal locations). `ebird.org/hotspot/{locationId}` returns an error for personal/private locations. Always use `/loc/` for location ID links.
+**Top Locations renders all location names as plain text — no links**
+Private eBird locations have no public-facing page; `ebird.org/loc/{id}` and `ebird.org/hotspot/{id}` both fail for personal locations. The eBird CSV export uses the same `L\d+` ID format for public hotspots and personal locations, so they cannot be distinguished without an API call. Location names are rendered as plain text throughout. Do not add location hyperlinks without a reliable way to distinguish public hotspots from private locations at parse time.
 
 **Leaflet map marker icons require a CDN patch in Vite builds**
 Vite's asset hashing breaks Leaflet's default mechanism for resolving marker icon URLs (it walks `_getIconUrl` which relies on a `data-url` import trick that Vite doesn't replicate). Fix: delete `_getIconUrl` from `L.Icon.Default.prototype` (requires `// eslint-disable-next-line @typescript-eslint/no-explicit-any`) then call `L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl })` pointing to the unpkg CDN for the matching Leaflet version. This must run at module level, not inside a component or effect.

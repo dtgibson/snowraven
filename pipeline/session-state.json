@@ -1,11 +1,11 @@
 {
-  "activeFeature": "location-links-broken",
+  "activeFeature": null,
   "sessionNumber": 1,
-  "sessionType": "fix",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "complete",
   "confirmedArtifacts": [],
   "createdAt": "2026-05-20T00:00:00Z",
-  "updatedAt": "2026-05-20T00:03:00Z"
+  "updatedAt": "2026-05-20T00:05:00Z"
 }
