@@ -5,10 +5,16 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Upload, AlertCircle, Loader2, FileCheck, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
-  MapPin, Play, Calendar,
+  MapPin, Play, Calendar, TrendingUp,
 } from 'lucide-react'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
+  Legend, ResponsiveContainer,
+} from 'recharts'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
+import type { MLExportRow } from '../lib/parseMLExport'
+import { buildGraphData } from '../lib/sightingsGraph'
 import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
 import { SpeciesLinks } from './SpeciesLinks'
 import type { ObservationEntry, MediaType, StoredFileInfo } from '../types'
@@ -28,7 +34,7 @@ type Phase =
   | { tag: 'loading-saved' }
   | { tag: 'idle' }
   | { tag: 'error'; message: string }
-  | { tag: 'ready'; observations: ObservationEntry[]; mediaMap: Map<string, MediaType>; hasML: boolean; userId: string | null }
+  | { tag: 'ready'; observations: ObservationEntry[]; mediaMap: Map<string, MediaType>; mlRows: MLExportRow[]; hasML: boolean; userId: string | null }
 
 type CoordMarker = {
   lat: number
@@ -196,6 +202,194 @@ function MapBoundsFitter({ coordinates }: { coordinates: [number, number][] }) {
   return null
 }
 
+// ── HeatmapLayer ───────────────────────────────────────────────────────────
+
+const heatLoaded = { current: false }
+
+function HeatmapLayer({ points, visible }: { points: [number, number, number][]; visible: boolean }) {
+  const map = useMap()
+  const layerRef = useRef<L.Layer | null>(null)
+
+  useEffect(() => {
+    if (!visible || points.length === 0) {
+      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
+      return
+    }
+    const apply = () => {
+      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      layerRef.current = (L as any).heatLayer(points, { radius: 25, blur: 15, maxZoom: 17 }).addTo(map)
+    }
+    if (heatLoaded.current) {
+      apply()
+    } else {
+      // leaflet.heat is a legacy IIFE that reads window.L — expose it before the dynamic import
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(window as any).L = L
+      import('leaflet.heat').then(() => { heatLoaded.current = true; apply() })
+    }
+    return () => {
+      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
+    }
+  }, [map, points, visible])
+
+  return null
+}
+
+// ── SightingsGraph ─────────────────────────────────────────────────────────
+
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+function formatPeriodLabel(key: string, useMonthly: boolean): string {
+  if (!useMonthly) return key
+  const [year, month] = key.split('-')
+  const m = parseInt(month, 10) - 1
+  return `${MONTH_ABBR[m] ?? ''} ${year}`
+}
+
+
+function GraphTooltip({ active, payload, label, useMonthly }: {
+  active?: boolean
+  payload?: Array<{ name: string; value: number; color: string }>
+  label?: string
+  useMonthly: boolean
+}) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{
+      background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
+      borderRadius: 8, padding: '9px 12px', fontSize: 12,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: 130,
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--sr-text)' }}>
+        {formatPeriodLabel(label ?? '', useMonthly)}
+      </div>
+      {payload.map(p => (
+        <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 3, alignItems: 'center' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sr-text-muted)' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
+            {p.name}
+          </span>
+          <span style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{p.value}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SightingsGraph({ obs, mlRows, hasML }: {
+  obs: ObservationEntry[]
+  mlRows: MLExportRow[]
+  hasML: boolean
+}) {
+  const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
+
+  const { data: rawData, useMonthly } = useMemo(() => buildGraphData(obs, mlRows), [obs, mlRows])
+
+  const displayData = useMemo(() => {
+    if (viewMode === 'per-period') return rawData
+    let ci = 0, cp = 0, ca = 0, cv = 0
+    return rawData.map(p => {
+      ci += p.individuals; cp += p.photo; ca += p.audio; cv += p.video
+      return { key: p.key, individuals: ci, photo: cp, audio: ca, video: cv }
+    })
+  }, [rawData, viewMode])
+
+  if (rawData.length < 2) return null
+
+  const axisLabel = viewMode === 'per-period'
+    ? (useMonthly ? 'Individuals per month' : 'Individuals per year')
+    : 'Cumulative individuals'
+
+  const btnBase: React.CSSProperties = {
+    padding: '5px 14px', border: 'none', borderRadius: 5, fontSize: 12,
+    fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
+  }
+  const btnActive: React.CSSProperties = {
+    ...btnBase, background: 'var(--sr-surface)', color: 'var(--sr-text)',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+  }
+  const btnInactive: React.CSSProperties = {
+    ...btnBase, background: 'transparent', color: 'var(--sr-text-muted)',
+  }
+
+  return (
+    <SectionCard>
+      <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Sightings Over Time" />
+      <div style={{ padding: '14px 18px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{axisLabel}</span>
+          <div style={{
+            display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)',
+            borderRadius: 7, padding: 2,
+          }}>
+            <button style={viewMode === 'per-period' ? btnActive : btnInactive} onClick={() => setViewMode('per-period')}>Per Year</button>
+            <button style={viewMode === 'cumulative' ? btnActive : btnInactive} onClick={() => setViewMode('cumulative')}>Cumulative</button>
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={220}>
+          <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
+            <XAxis
+              dataKey="key"
+              tickFormatter={k => formatPeriodLabel(k, useMonthly)}
+              tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
+              tickLine={false}
+              axisLine={false}
+              interval="preserveStartEnd"
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
+              tickLine={false}
+              axisLine={false}
+              allowDecimals={false}
+            />
+            <RechartsTooltip
+              content={<GraphTooltip useMonthly={useMonthly} />}
+              cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
+            />
+            <Legend
+              iconType="circle"
+              iconSize={7}
+              wrapperStyle={{ fontSize: 12, color: 'var(--sr-text-muted)', paddingTop: 8 }}
+            />
+            <Line
+              type="monotone" dataKey="individuals" name="Individuals"
+              stroke="var(--sr-graph-individuals)" strokeWidth={2.5}
+              dot={{ r: 3, fill: 'var(--sr-graph-individuals)', stroke: 'white', strokeWidth: 1.5 }}
+              activeDot={{ r: 4 }}
+            />
+            {hasML && (
+              <Line
+                type="monotone" dataKey="photo" name="Photo"
+                stroke="var(--sr-graph-photo)" strokeWidth={1.8} opacity={0.85}
+                dot={{ r: 2.5, fill: 'var(--sr-graph-photo)', stroke: 'white', strokeWidth: 1.5 }}
+                activeDot={{ r: 3.5 }}
+              />
+            )}
+            {hasML && (
+              <Line
+                type="monotone" dataKey="audio" name="Audio"
+                stroke="var(--sr-graph-audio)" strokeWidth={1.8} opacity={0.85}
+                dot={{ r: 2.5, fill: 'var(--sr-graph-audio)', stroke: 'white', strokeWidth: 1.5 }}
+                activeDot={{ r: 3.5 }}
+              />
+            )}
+            {hasML && (
+              <Line
+                type="monotone" dataKey="video" name="Video"
+                stroke="var(--sr-graph-video)" strokeWidth={1.8} opacity={0.85}
+                dot={{ r: 2.5, fill: 'var(--sr-graph-video)', stroke: 'white', strokeWidth: 1.5 }}
+                activeDot={{ r: 3.5 }}
+              />
+            )}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </SectionCard>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 export function SpeciesDetail() {
@@ -218,6 +412,7 @@ export function SpeciesDetail() {
   const [commentSort, setCommentSort] = useState<'newest' | 'oldest'>('newest')
   const [showAllComments, setShowAllComments] = useState(false)
   const [showAllLocations, setShowAllLocations] = useState(false)
+  const [mapMode, setMapMode] = useState<'pins' | 'heatmap'>('pins')
 
   const [draggingOver, setDraggingOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -230,6 +425,7 @@ export function SpeciesDetail() {
     setCommentSort('newest')
     setShowAllComments(false)
     setShowAllLocations(false)
+    setMapMode('pins')
   }
 
   const handleToggleMerge = () => {
@@ -309,6 +505,7 @@ export function SpeciesDetail() {
         const observations = parseEbirdObservations(ebirdText)
 
         let mediaMap = new Map<string, MediaType>()
+        let mlRows: MLExportRow[] = []
         let hasML = false
 
         if (mlRes?.ok) {
@@ -317,6 +514,7 @@ export function SpeciesDetail() {
             try {
               const mlResult = parseMLExport(mlText)
               mediaMap = new Map(Object.entries(mlResult.mediaMap) as [string, MediaType][])
+              mlRows = mlResult.rows
               hasML = true
             } catch {
               // ML parse failed — proceed without it
@@ -326,7 +524,7 @@ export function SpeciesDetail() {
 
         if (cancelled) return
         setSavedFileInfo(status.ebird)
-        setPhase({ tag: 'ready', observations, mediaMap, hasML, userId: mlUserId })
+        setPhase({ tag: 'ready', observations, mediaMap, mlRows, hasML, userId: mlUserId })
         fetchTaxonData(observations)
       } catch {
         if (!cancelled) setPhase({ tag: 'idle' })
@@ -340,7 +538,7 @@ export function SpeciesDetail() {
     file.text().then(text => {
       try {
         const observations = parseEbirdObservations(text)
-        setPhase({ tag: 'ready', observations, mediaMap: new Map(), hasML: false, userId: null })
+        setPhase({ tag: 'ready', observations, mediaMap: new Map(), mlRows: [], hasML: false, userId: null })
         selectSpecies(null)
         setSelectorQuery('')
         setMergeSubspecies(true)
@@ -552,6 +750,18 @@ export function SpeciesDetail() {
       .sort((a, b) => b.count !== a.count ? b.count - a.count : a.location.localeCompare(b.location))
   }, [speciesObs])
 
+  // ML rows filtered to selected species + date range (for graph overlay lines)
+  const speciesMlRows = useMemo((): MLExportRow[] => {
+    if (phase.tag !== 'ready' || !selectedSpecies) return []
+    return phase.mlRows.filter(r => {
+      const name = mergeSubspecies ? normalizeSpeciesName(r.commonName) : r.commonName
+      if (name !== selectedSpecies) return false
+      if (dateRange.from && r.date < dateRange.from) return false
+      if (dateRange.to && r.date > dateRange.to) return false
+      return true
+    })
+  }, [phase, selectedSpecies, mergeSubspecies, dateRange])
+
   // Map markers: one per unique lat/lng, with all sightings at that coordinate
   const coordMarkers = useMemo((): CoordMarker[] => {
     const markerMap = new Map<string, CoordMarker>()
@@ -573,6 +783,12 @@ export function SpeciesDetail() {
 
   const uniqueCoords = useMemo(
     (): [number, number][] => coordMarkers.map(m => [m.lat, m.lng] as [number, number]),
+    [coordMarkers]
+  )
+
+  // Heat layer points: [lat, lng, weight] — weight is observation count at location
+  const heatPoints = useMemo(
+    (): [number, number, number][] => coordMarkers.map(m => [m.lat, m.lng, m.sightings.length]),
     [coordMarkers]
   )
 
@@ -1123,6 +1339,9 @@ export function SpeciesDetail() {
             </SectionCard>
           </div>
 
+          {/* Sightings Over Time graph */}
+          <SightingsGraph obs={speciesObs} mlRows={speciesMlRows} hasML={hasML} />
+
           {/* Breeding Codes */}
           <SectionCard>
             <SectionHead icon={<Dna size={14} strokeWidth={2.2} />} title="Breeding Codes" />
@@ -1208,7 +1427,40 @@ export function SpeciesDetail() {
           {/* Sighting Locations Map */}
           {coordMarkers.length > 0 && (
             <SectionCard>
-              <SectionHead icon={<MapPin size={14} strokeWidth={2.2} />} title="Sighting Locations" />
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '14px 18px 12px',
+                borderBottom: '1px solid var(--sr-border-subtle)',
+              }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+                  background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <MapPin size={14} strokeWidth={2.2} />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>Sighting Locations</span>
+                <div style={{
+                  marginLeft: 'auto', display: 'inline-flex', gap: 2,
+                  background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2,
+                }}>
+                  {(['pins', 'heatmap'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setMapMode(mode)}
+                      style={{
+                        padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: 11,
+                        fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
+                        background: mapMode === mode ? 'var(--sr-surface)' : 'transparent',
+                        color: mapMode === mode ? 'var(--sr-text)' : 'var(--sr-text-muted)',
+                        boxShadow: mapMode === mode ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                      }}
+                    >
+                      {mode === 'pins' ? 'Pins' : 'Heatmap'}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="sr-map-container">
                 <MapContainer
                   center={uniqueCoords[0] ?? [0, 0]}
@@ -1220,7 +1472,7 @@ export function SpeciesDetail() {
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
-                  {coordMarkers.map(m => (
+                  {mapMode === 'pins' && coordMarkers.map(m => (
                     <Marker key={`${m.lat},${m.lng}`} position={[m.lat, m.lng]}>
                       <Popup>
                         <div style={{ fontSize: 13, lineHeight: 1.7, minWidth: 120 }}>
@@ -1251,6 +1503,7 @@ export function SpeciesDetail() {
                       </Popup>
                     </Marker>
                   ))}
+                  <HeatmapLayer points={heatPoints} visible={mapMode === 'heatmap'} />
                   <MapBoundsFitter coordinates={uniqueCoords} />
                 </MapContainer>
               </div>

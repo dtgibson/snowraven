@@ -58,6 +58,12 @@
 
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+
+  /* Graph line colors */
+  --sr-graph-individuals: #2D8653;
+  --sr-graph-photo: #3B82F6;
+  --sr-graph-audio: #F59E0B;
+  --sr-graph-video: #8B5CF6;
 }
 
 [data-theme="dark"] {
@@ -115,6 +121,12 @@
 
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+  /* Graph line colors */
+  --sr-graph-individuals: #34D399;
+  --sr-graph-photo: #60A5FA;
+  --sr-graph-audio: #FCD34D;
+  --sr-graph-video: #A78BFA;
 }
 
 /* External favicon images — lighten in dark mode so they remain visible */

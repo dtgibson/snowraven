@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — Species Detail Visualizations</title>
+<style>
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-text: #0F1117;
+    --sr-text-muted: #71717A;
+    --sr-text-disabled: #A1A1AA;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-accent: #2D8653;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-graph-individuals: #2D8653;
+    --sr-graph-photo: #3B82F6;
+    --sr-graph-audio: #F59E0B;
+    --sr-graph-video: #8B5CF6;
+    --sr-tier-4: #3B0764;
+    --sr-tier-3: #6B21A8;
+    --sr-tier-2: #9333EA;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 860px; margin: 0 auto; padding: 24px 20px 48px; }
+
+  /* Tab bar */
+  .tab-bar {
+    display: flex; gap: 0; margin-bottom: 20px;
+    border-bottom: 1px solid var(--sr-border);
+  }
+  .tab {
+    padding: 9px 14px; font-size: 13px; font-weight: 500;
+    color: var(--sr-text-muted); cursor: pointer; border: none;
+    background: none; font-family: inherit;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.12s;
+  }
+  .tab.active {
+    color: var(--sr-accent); border-bottom-color: var(--sr-accent);
+    font-weight: 600;
+  }
+
+  /* Section card */
+  .section-card {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: var(--sr-card-shadow); margin-bottom: 12px;
+  }
+  .section-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--sr-border-subtle);
+  }
+  .section-icon {
+    width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .section-title { font-size: 13px; font-weight: 600; color: var(--sr-text); }
+  .section-body { padding: 16px 18px; }
+
+  /* Two-column grid */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* Segmented toggle (Per Year / Cumulative) */
+  .seg-toggle {
+    display: inline-flex; gap: 2px; background: var(--sr-surface-subtle);
+    border-radius: 7px; padding: 2px;
+  }
+  .seg-toggle button {
+    padding: 5px 14px; border: none; border-radius: 5px; font-size: 12px;
+    font-weight: 500; font-family: inherit; cursor: pointer;
+    transition: all 0.15s; color: var(--sr-text-muted); background: transparent;
+  }
+  .seg-toggle button.active {
+    background: var(--sr-surface); color: var(--sr-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  /* Map mode toggle (Pins / Heatmap) — smaller variant */
+  .map-toggle {
+    margin-left: auto; display: inline-flex; gap: 2px;
+    background: var(--sr-surface-subtle); border-radius: 6px; padding: 2px;
+  }
+  .map-toggle button {
+    padding: 4px 10px; border: none; border-radius: 4px; font-size: 11px;
+    font-weight: 500; font-family: inherit; cursor: pointer;
+    transition: all 0.15s; color: var(--sr-text-muted); background: transparent;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .map-toggle button.active {
+    background: var(--sr-surface); color: var(--sr-text);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+
+  /* Chart */
+  .chart-wrap { padding: 14px 18px 0; position: relative; }
+  .chart-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .chart-axis-label { font-size: 11px; color: var(--sr-text-muted); letter-spacing: 0.01em; }
+  .chart-area { position: relative; user-select: none; }
+  #chart-svg { width: 100%; height: auto; display: block; }
+
+  /* Tooltip */
+  .chart-tooltip {
+    position: absolute; background: var(--sr-surface);
+    border: 1px solid var(--sr-border); border-radius: 8px;
+    padding: 9px 12px; font-size: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1); pointer-events: none;
+    min-width: 130px; z-index: 20; display: none; top: 20px;
+  }
+  .tt-year { font-size: 12px; font-weight: 600; color: var(--sr-text); margin-bottom: 6px; }
+  .tt-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-top: 3px;
+  }
+  .tt-label { display: flex; align-items: center; gap: 5px; color: var(--sr-text-muted); }
+  .tt-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .tt-val { font-weight: 600; color: var(--sr-text); }
+
+  /* Legend */
+  .chart-legend {
+    display: flex; flex-wrap: wrap; gap: 14px;
+    padding: 10px 18px 14px; border-top: 1px solid var(--sr-border-subtle);
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--sr-text-muted); }
+  .legend-swatch { width: 20px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+
+  /* Species summary */
+  .species-name { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--sr-text); }
+  .species-sci { font-size: 14px; color: var(--sr-text-muted); font-style: italic; margin-top: 3px; }
+  .breeding-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    background: rgba(59,7,100,0.08); color: var(--sr-tier-4); margin-top: 8px;
+  }
+  .media-btns { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .media-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 5px 11px; border: 1px solid var(--sr-border);
+    border-radius: 6px; font-size: 12px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+    background: var(--sr-surface); color: var(--sr-accent);
+    transition: background 0.12s;
+  }
+  .media-btn:hover { background: var(--sr-accent-bg); }
+
+  /* Stat items */
+  .stat-row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .stat-label { font-size: 10px; color: var(--sr-text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--sr-text); line-height: 1.1; margin-top: 2px; }
+  .stat-rows { display: flex; flex-direction: column; gap: 5px; margin-top: 12px; }
+  .stat-row-item { display: flex; justify-content: space-between; font-size: 12px; }
+  .stat-link { color: var(--sr-accent); text-decoration: none; }
+  .stat-link:hover { text-decoration: underline; }
+
+  /* Breeding code badge */
+  .code-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border: 1px solid var(--sr-border);
+    border-radius: 6px; font-size: 12px; margin: 2px;
+  }
+  .code-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Map container */
+  .map-container { height: 320px; position: relative; overflow: hidden; }
+
+  /* NEW label badge */
+  .new-badge {
+    display: inline-flex; align-items: center;
+    padding: 2px 7px; background: var(--sr-accent-bg);
+    color: var(--sr-accent); border-radius: 4px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+    margin-left: 8px; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab">Weather</button>
+    <button class="tab">List Comparer</button>
+    <button class="tab">Media List</button>
+    <button class="tab">Breeding Codes</button>
+    <button class="tab active">Species Detail</button>
+    <button class="tab">Settings</button>
+  </div>
+
+  <!-- Summary card -->
+  <div class="section-card">
+    <div style="padding:18px 20px 16px;">
+      <div class="species-name">American Robin</div>
+      <div class="species-sci">Turdus migratorius</div>
+      <div class="breeding-pill">
+        <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="#3B0764"/></svg>
+        Confirmed
+      </div>
+      <div class="media-btns">
+        <button class="media-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Photo · 39
+        </button>
+        <button class="media-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Audio · 18
+        </button>
+        <button class="media-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Video · 8
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sightings + Media row (existing, for context) -->
+  <div class="two-col">
+    <div class="section-card" style="margin-bottom:0;">
+      <div class="section-head">
+        <div class="section-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <span class="section-title">Sightings</span>
+      </div>
+      <div class="section-body">
+        <div class="stat-row">
+          <div><div class="stat-label">Checklists</div><div class="stat-value">84</div></div>
+          <div><div class="stat-label">Individuals</div><div class="stat-value">291</div></div>
+        </div>
+        <div class="stat-rows">
+          <div class="stat-row-item">
+            <span style="color:var(--sr-text-muted)">First seen</span>
+            <a href="#" class="stat-link">Mar 12, 2015</a>
+          </div>
+          <div class="stat-row-item">
+            <span style="color:var(--sr-text-muted)">Last seen</span>
+            <a href="#" class="stat-link">Nov 4, 2024</a>
+          </div>
+          <div class="stat-row-item">
+            <span style="color:var(--sr-text-muted)">Personal best</span>
+            <a href="#" class="stat-link">12 · May 8, 2022</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="section-card" style="margin-bottom:0;">
+      <div class="section-head">
+        <div class="section-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <span class="section-title">Media</span>
+      </div>
+      <div class="section-body">
+        <div class="stat-rows">
+          <div class="stat-row-item">
+            <span style="color:var(--sr-text-muted)">Photos</span>
+            <a href="#" style="font-weight:700;font-size:15px;color:var(--sr-accent);text-decoration:none;">39</a>
+          </div>
+          <div class="stat-row-item">
+            <span style="color:var(--sr-text-muted)">Audio</span>
+            <a href="#" style="font-weight:700;font-size:15px;color:var(--sr-accent);text-decoration:none;">18</a>
+          </div>
+          <div class="stat-row-item">
+            <span style="color:var(--sr-text-muted)">Video</span>
+            <a href="#" style="font-weight:700;font-size:15px;color:var(--sr-accent);text-decoration:none;">8</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- NEW: Sightings Over Time graph                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+      </div>
+      <span class="section-title">Sightings Over Time</span>
+      <span class="new-badge">New</span>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-top">
+        <span class="chart-axis-label" id="axis-label">Individuals reported per year</span>
+        <div class="seg-toggle">
+          <button id="btn-py" class="active" onclick="setMode('per-year')">Per Year</button>
+          <button id="btn-cum" onclick="setMode('cumulative')">Cumulative</button>
+        </div>
+      </div>
+      <div class="chart-area" id="chart-area">
+        <svg id="chart-svg" viewBox="0 0 560 230" xmlns="http://www.w3.org/2000/svg"
+             style="width:100%;height:auto;display:block;overflow:visible;"
+             onmousemove="handleHover(event)" onmouseleave="hideTooltip()">
+          <g id="gridlines"></g>
+          <g id="y-labels"></g>
+          <g id="x-labels"></g>
+          <g id="area-fills"></g>
+          <g id="lines"></g>
+          <g id="dots"></g>
+          <line id="hover-line" x1="0" y1="12" x2="0" y2="202"
+                stroke="#E4E4E7" stroke-width="1" stroke-dasharray="3,3" visibility="hidden"/>
+        </svg>
+        <div id="tooltip" class="chart-tooltip"></div>
+      </div>
+    </div>
+    <div class="chart-legend" id="legend">
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--sr-graph-individuals);height:2.5px;"></div>
+        <span>Individuals</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--sr-graph-photo);"></div>
+        <span>Photo</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--sr-graph-audio);"></div>
+        <span>Audio</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-swatch" style="background:var(--sr-graph-video);"></div>
+        <span>Video</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Breeding Codes (existing, shown for layout reference) -->
+  <div class="section-card">
+    <div class="section-head">
+      <div class="section-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+      </div>
+      <span class="section-title">Breeding Codes</span>
+    </div>
+    <div class="section-body" style="display:flex;flex-wrap:wrap;">
+      <div class="code-badge"><span class="code-dot" style="background:var(--sr-tier-4);"></span><span style="font-weight:600;">CF</span><span style="color:var(--sr-text-muted);">Carrying Food · 12</span></div>
+      <div class="code-badge"><span class="code-dot" style="background:var(--sr-tier-4);"></span><span style="font-weight:600;">NE</span><span style="color:var(--sr-text-muted);">Nest with Eggs · 5</span></div>
+      <div class="code-badge"><span class="code-dot" style="background:var(--sr-tier-2);"></span><span style="font-weight:600;">B</span><span style="color:var(--sr-text-muted);">Nest Building · 8</span></div>
+      <div class="code-badge"><span class="code-dot" style="background:var(--sr-tier-2);"></span><span style="font-weight:600;">S7</span><span style="color:var(--sr-text-muted);">Singing Male · 21</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- Sighting Locations — with NEW Pins / Heatmap toggle                   -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <div class="section-card" style="overflow:hidden;">
+    <div class="section-head">
+      <div class="section-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <span class="section-title">Sighting Locations</span>
+      <span class="new-badge">New</span>
+      <div class="map-toggle">
+        <button id="btn-pins" class="active" onclick="setMapMode('pins')">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Pins
+        </button>
+        <button id="btn-heatmap" onclick="setMapMode('heatmap')">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 0 20"/><path d="M12 2a15 15 0 0 0 0 20"/><path d="M2 12h20"/></svg>
+          Heatmap
+        </button>
+      </div>
+    </div>
+    <div class="map-container" id="map-container"></div>
+  </div>
+
+</div>
+
+<script>
+// ── Chart data ───────────────────────────────────────────────────────────────
+const years = [2015,2016,2017,2018,2019,2020,2021,2022,2023,2024];
+const pyData = {
+  individuals: [12, 18, 24, 19, 31, 27, 35, 42, 38, 45],
+  photo:       [ 0,  0,  1,  2,  3,  5,  4,  7,  8,  9],
+  audio:       [ 0,  0,  0,  0,  1,  2,  3,  4,  3,  5],
+  video:       [ 0,  0,  0,  0,  0,  0,  1,  2,  2,  3],
+};
+function cumOf(arr) {
+  const r = []; let s = 0;
+  for (const v of arr) { s += v; r.push(s); }
+  return r;
+}
+const cumData = {
+  individuals: cumOf(pyData.individuals),
+  photo:       cumOf(pyData.photo),
+  audio:       cumOf(pyData.audio),
+  video:       cumOf(pyData.video),
+};
+
+// Chart geometry
+const CL=52, CR=548, CT=12, CB=202;
+const CW=CR-CL, CH=CB-CT;
+const N=years.length;
+const xStep=CW/(N-1);
+
+function xp(i) { return CL + i * xStep; }
+function yp(v, maxY) { return CB - (v/maxY)*CH; }
+
+const COLORS = {
+  individuals: '#2D8653',
+  photo:       '#3B82F6',
+  audio:       '#F59E0B',
+  video:       '#8B5CF6',
+};
+const LABELS = { individuals: 'Individuals', photo: 'Photo', audio: 'Audio', video: 'Video' };
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgEl(tag, attrs) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k,v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+  return el;
+}
+
+function linePath(data, maxY) {
+  return data.map((v,i) => `${i===0?'M':'L'}${xp(i).toFixed(1)},${yp(v,maxY).toFixed(1)}`).join(' ');
+}
+
+function niceMax(val) {
+  const step = val <= 50 ? 10 : val <= 150 ? 50 : val <= 400 ? 100 : 200;
+  return Math.ceil(val / step) * step;
+}
+
+let mode = 'per-year';
+
+function renderChart(m) {
+  const data = m === 'per-year' ? pyData : cumData;
+  const rawMax = Math.max(...data.individuals);
+  const maxY = niceMax(rawMax);
+  const gridSteps = 5;
+
+  ['gridlines','y-labels','x-labels','area-fills','lines','dots'].forEach(id => {
+    document.getElementById(id).innerHTML = '';
+  });
+
+  // Gridlines + y-axis labels
+  for (let s=0; s<=gridSteps; s++) {
+    const v = (maxY/gridSteps)*s;
+    const y = yp(v, maxY);
+    document.getElementById('gridlines').appendChild(svgEl('line', {
+      x1:CL, y1:y.toFixed(1), x2:CR, y2:y.toFixed(1),
+      stroke:'#F4F4F5', 'stroke-width':'1',
+    }));
+    const t = svgEl('text', {
+      x:(CL-7), y:(y+4).toFixed(1),
+      'text-anchor':'end', fill:'#A1A1AA',
+      'font-size':'10', 'font-family':'Inter,system-ui,sans-serif',
+    });
+    t.textContent = Math.round(v).toString();
+    document.getElementById('y-labels').appendChild(t);
+  }
+
+  // X-axis labels — every other year to avoid crowding
+  years.forEach((yr, i) => {
+    if (i % 2 !== 0 && i !== N-1) return;
+    const t = svgEl('text', {
+      x:xp(i).toFixed(1), y:(CB+16),
+      'text-anchor':'middle', fill:'#A1A1AA',
+      'font-size':'10', 'font-family':'Inter,system-ui,sans-serif',
+    });
+    t.textContent = yr.toString();
+    document.getElementById('x-labels').appendChild(t);
+  });
+
+  // Area fill under individuals line (subtle)
+  const areaPoints = data.individuals.map((v,i) => `${xp(i).toFixed(1)},${yp(v,maxY).toFixed(1)}`).join(' ');
+  const areaPath = `M${xp(0).toFixed(1)},${CB} L${areaPoints.split(' ').join(' L')} L${xp(N-1).toFixed(1)},${CB} Z`
+    .replace('L L', 'L ');
+  const areaDefs = svgEl('defs', {});
+  const grad = svgEl('linearGradient', { id:'indiv-grad', x1:'0', y1:'0', x2:'0', y2:'1' });
+  const s1 = svgEl('stop', { offset:'0%', 'stop-color':'#2D8653', 'stop-opacity':'0.12' });
+  const s2 = svgEl('stop', { offset:'100%', 'stop-color':'#2D8653', 'stop-opacity':'0.01' });
+  grad.appendChild(s1); grad.appendChild(s2); areaDefs.appendChild(grad);
+  document.getElementById('area-fills').appendChild(areaDefs);
+
+  // Build area path properly
+  let aD = `M ${xp(0).toFixed(1)},${CB}`;
+  data.individuals.forEach((v,i) => { aD += ` L ${xp(i).toFixed(1)},${yp(v,maxY).toFixed(1)}`; });
+  aD += ` L ${xp(N-1).toFixed(1)},${CB} Z`;
+  document.getElementById('area-fills').appendChild(svgEl('path', {
+    d: aD, fill:'url(#indiv-grad)',
+  }));
+
+  // Lines
+  for (const [key, color] of Object.entries(COLORS)) {
+    const d = linePath(data[key], maxY);
+    document.getElementById('lines').appendChild(svgEl('path', {
+      d, fill:'none', stroke:color,
+      'stroke-width': key==='individuals' ? '2.5' : '1.8',
+      'stroke-linejoin':'round', 'stroke-linecap':'round',
+      opacity: key==='individuals' ? '1' : '0.85',
+    }));
+  }
+
+  // Dots
+  for (const [key, color] of Object.entries(COLORS)) {
+    data[key].forEach((v, i) => {
+      if (v===0 && key!=='individuals') return;
+      document.getElementById('dots').appendChild(svgEl('circle', {
+        cx:xp(i).toFixed(1), cy:yp(v,maxY).toFixed(1),
+        r: key==='individuals' ? '3.5' : '2.5',
+        fill:color, stroke:'white', 'stroke-width':'1.5',
+      }));
+    });
+  }
+
+  document.getElementById('axis-label').textContent =
+    m === 'per-year' ? 'Individuals reported per year' : 'Cumulative individuals reported';
+}
+
+function setMode(m) {
+  mode = m;
+  renderChart(m);
+  document.getElementById('btn-py').classList.toggle('active', m==='per-year');
+  document.getElementById('btn-cum').classList.toggle('active', m==='cumulative');
+}
+
+// ── Tooltip ─────────────────────────────────────────────────────────────────
+function handleHover(e) {
+  const svg = document.getElementById('chart-svg');
+  const rect = svg.getBoundingClientRect();
+  const svgX = (e.clientX - rect.left) * (560 / rect.width);
+
+  if (svgX < CL-15 || svgX > CR+15) { hideTooltip(); return; }
+
+  let nearest = 0, minD = Infinity;
+  years.forEach((_, i) => {
+    const d = Math.abs(xp(i) - svgX);
+    if (d < minD) { minD = d; nearest = i; }
+  });
+
+  const hline = document.getElementById('hover-line');
+  hline.setAttribute('x1', xp(nearest).toFixed(1));
+  hline.setAttribute('x2', xp(nearest).toFixed(1));
+  hline.setAttribute('visibility', 'visible');
+
+  const data = mode === 'per-year' ? pyData : cumData;
+  let html = `<div class="tt-year">${years[nearest]}</div>`;
+  for (const [key, color] of Object.entries(COLORS)) {
+    html += `<div class="tt-row">
+      <span class="tt-label"><span class="tt-dot" style="background:${color}"></span>${LABELS[key]}</span>
+      <span class="tt-val">${data[key][nearest]}</span>
+    </div>`;
+  }
+  const tip = document.getElementById('tooltip');
+  tip.innerHTML = html;
+  tip.style.display = 'block';
+
+  const xFrac = (xp(nearest) - CL) / CW;
+  const pxInContainer = xFrac * rect.width;
+  if (xFrac < 0.65) {
+    tip.style.left = (pxInContainer + 16) + 'px';
+    tip.style.right = 'auto';
+  } else {
+    tip.style.right = (rect.width - pxInContainer + 16) + 'px';
+    tip.style.left = 'auto';
+  }
+}
+
+function hideTooltip() {
+  document.getElementById('tooltip').style.display = 'none';
+  document.getElementById('hover-line').setAttribute('visibility', 'hidden');
+}
+
+// ── Map ──────────────────────────────────────────────────────────────────────
+const PIN_DATA = [
+  { x:33, y:38, w:15 }, { x:52, y:22, w:10 }, { x:48, y:58, w:18 },
+  { x:68, y:42, w:7  }, { x:24, y:62, w:12 }, { x:63, y:67, w:5  },
+  { x:40, y:27, w:11 }, { x:79, y:30, w:4  }, { x:16, y:47, w:8  },
+  { x:73, y:73, w:6  }, { x:44, y:82, w:13 }, { x:59, y:50, w:9  },
+];
+
+function buildMapBg(container) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
+  svg.setAttribute('viewBox', '0 0 100 100');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.style.cssText = 'position:absolute;inset:0;';
+
+  // land base
+  svg.appendChild(svgEl('rect', { x:0, y:0, width:100, height:100, fill:'#e8ede0' }));
+  // water areas
+  svg.appendChild(svgEl('rect', { x:0, y:72, width:22, height:28, fill:'#c8dbe8' }));
+  svg.appendChild(svgEl('rect', { x:84, y:0, width:16, height:40, fill:'#c8dbe8' }));
+  // parks (darker green patches)
+  svg.appendChild(svgEl('rect', { x:28, y:44, width:18, height:14, fill:'#d0e8c8', rx:2, ry:2 }));
+  svg.appendChild(svgEl('rect', { x:60, y:56, width:12, height:10, fill:'#d0e8c8', rx:2, ry:2 }));
+  // roads (light)
+  for (const r of [
+    'M0,50 L100,50', 'M0,32 L100,32', 'M0,74 L84,74',
+    'M35,0 L35,100', 'M60,0 L60,100', 'M78,0 L78,72',
+    'M14,0 L14,72',
+  ]) {
+    svg.appendChild(svgEl('path', { d:r, stroke:'#d4d0c4', 'stroke-width':'0.7', fill:'none' }));
+  }
+  container.appendChild(svg);
+}
+
+function renderMap(mapMode) {
+  const c = document.getElementById('map-container');
+  c.innerHTML = '';
+  c.style.position = 'relative';
+  c.style.background = '#e8ede0';
+
+  buildMapBg(c);
+
+  if (mapMode === 'pins') {
+    PIN_DATA.forEach(p => {
+      const pin = document.createElement('div');
+      const s = Math.max(10, Math.min(20, p.w + 4));
+      pin.style.cssText = `
+        position:absolute; left:${p.x}%; top:${p.y}%;
+        width:${s}px; height:${s}px;
+        border-radius:50% 50% 50% 0; transform:translate(-50%,-100%) rotate(-45deg);
+        background:#2D8653; border:2px solid white;
+        box-shadow:0 2px 6px rgba(0,0,0,0.3); cursor:pointer;
+        transition:transform 0.1s;
+      `;
+      pin.onmouseenter = () => { pin.style.transform='translate(-50%,-100%) rotate(-45deg) scale(1.2)'; };
+      pin.onmouseleave = () => { pin.style.transform='translate(-50%,-100%) rotate(-45deg) scale(1)'; };
+      c.appendChild(pin);
+    });
+
+  } else {
+    // Heatmap overlay
+    const svg = document.createElementNS(SVG_NS, 'svg');
+    svg.setAttribute('width', '100%'); svg.setAttribute('height', '100%');
+    svg.setAttribute('viewBox', '0 0 100 100');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.style.cssText = 'position:absolute;inset:0;';
+
+    const defs = svgEl('defs', {});
+
+    const clusters = [
+      { x:44, y:52, rx:20, ry:16, color0:'#DC2626', color1:'#F97316', i:0.9 },
+      { x:52, y:24, rx:14, ry:11, color0:'#F97316', color1:'#FCD34D', i:0.65 },
+      { x:24, y:56, rx:12, ry:10, color0:'#F97316', color1:'#FCD34D', i:0.5 },
+      { x:68, y:44, rx:10, ry: 8, color0:'#FCD34D', color1:'#FEF9C3', i:0.4 },
+      { x:60, y:68, rx: 9, ry: 7, color0:'#FCD34D', color1:'#FEF9C3', i:0.35 },
+      { x:79, y:31, rx: 7, ry: 6, color0:'#FCD34D', color1:'#FEF9C3', i:0.25 },
+    ];
+
+    clusters.forEach((cl, i) => {
+      const id = `hg${i}`;
+      const g = svgEl('radialGradient', { id });
+      g.appendChild(svgEl('stop', { offset:'0%', 'stop-color':cl.color0, 'stop-opacity':(cl.i * 0.85).toFixed(2) }));
+      g.appendChild(svgEl('stop', { offset:'50%', 'stop-color':cl.color1, 'stop-opacity':(cl.i * 0.45).toFixed(2) }));
+      g.appendChild(svgEl('stop', { offset:'100%', 'stop-color':cl.color1, 'stop-opacity':'0' }));
+      defs.appendChild(g);
+    });
+    svg.appendChild(defs);
+
+    clusters.forEach((cl, i) => {
+      svg.appendChild(svgEl('ellipse', {
+        cx:cl.x, cy:cl.y, rx:cl.rx, ry:cl.ry,
+        fill:`url(#hg${i})`,
+      }));
+    });
+    c.appendChild(svg);
+
+    // Legend
+    const leg = document.createElement('div');
+    leg.style.cssText = `
+      position:absolute; bottom:10px; right:10px;
+      display:flex; align-items:center; gap:6px;
+      background:rgba(255,255,255,0.92); padding:5px 10px;
+      border-radius:6px; font-size:10px; color:#666;
+      box-shadow:0 1px 4px rgba(0,0,0,0.12);
+    `;
+    leg.innerHTML = `
+      <span>Low</span>
+      <div style="width:56px;height:6px;border-radius:3px;background:linear-gradient(to right,#FEF9C3,#FCD34D,#F97316,#DC2626);"></div>
+      <span>High</span>
+    `;
+    c.appendChild(leg);
+  }
+
+  // Attribution
+  const attr = document.createElement('div');
+  attr.style.cssText = `position:absolute;bottom:5px;left:6px;font-size:9px;color:#888;background:rgba(255,255,255,0.8);padding:1px 5px;border-radius:3px;`;
+  attr.textContent = '© OpenStreetMap contributors';
+  c.appendChild(attr);
+}
+
+function setMapMode(m) {
+  renderMap(m);
+  document.getElementById('btn-pins').classList.toggle('active', m==='pins');
+  document.getElementById('btn-heatmap').classList.toggle('active', m==='heatmap');
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+renderChart('per-year');
+renderMap('pins');
+</script>
+</body>
+</html>

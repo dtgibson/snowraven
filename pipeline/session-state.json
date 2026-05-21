@@ -1,10 +1,17 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
-  "createdAt": "2026-05-20T04:00:00Z",
-  "updatedAt": "2026-05-20T04:40:00Z"
+  "activeFeature": "species-detail-visualizations",
+  "sessionNumber": 2,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
+  "confirmedArtifacts": [
+    "pipeline/species-detail-visualizations/strategic-brief.md",
+    "pipeline/species-detail-visualizations/prd.md",
+    "pipeline/species-detail-visualizations/schema.md",
+    "pipeline/species-detail-visualizations/design-spec.md",
+    "pipeline/species-detail-visualizations/design.html"
+  ],
+  "createdAt": "2026-05-21T12:00:00Z",
+  "updatedAt": "2026-05-21T14:55:00Z"
 }
