@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Upload, AlertCircle, Loader2, FileCheck, MapPin, Calendar } from 'lucide-react'
 import { parseBreedingCodes, aggregateBreedingRows } from '../lib/parseBreedingCodes'
-import type { BreedingData, BreedingEntry } from '../lib/parseBreedingCodes'
+import type { BreedingData, BreedingEntry, BreedingCodeRow } from '../lib/parseBreedingCodes'
 import { BREEDING_CODE_MAP, TIER_COLORS, CATEGORY_CODES } from '../lib/breedingCodes'
 import type { BreedingCategory } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
@@ -202,6 +202,39 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
     })
   }
 
+  // These useMemos must be declared before any early return so that the
+  // hook call order stays the same on every render regardless of phase.
+  const phaseData = phase.tag === 'ready' ? phase.data : null
+
+  const counties = useMemo(() => {
+    if (!phaseData) return [] as string[]
+    const set = new Set<string>()
+    for (const row of phaseData.rows) {
+      if (row.county) set.add(row.county)
+    }
+    return [...set].sort()
+  }, [phaseData])
+
+  const filteredRows = useMemo((): BreedingCodeRow[] => {
+    if (!phaseData) return []
+    if (countyFilter === null && !dateRange.from && !dateRange.to) return phaseData.rows
+    return phaseData.rows.filter(row => {
+      if (countyFilter !== null && row.county !== countyFilter) return false
+      if (dateRange.from && row.date < dateRange.from) return false
+      if (dateRange.to && row.date > dateRange.to) return false
+      return true
+    })
+  }, [phaseData, countyFilter, dateRange])
+
+  const hasLocationFilter = countyFilter !== null || !!dateRange.from || !!dateRange.to
+
+  const displayData = useMemo(() => {
+    if (!phaseData) return null
+    if (!hasLocationFilter) return phaseData
+    const { entries: filteredEntries, codesPresent: filteredCodes } = aggregateBreedingRows(filteredRows)
+    return { ...phaseData, entries: filteredEntries, codesPresent: filteredCodes }
+  }, [phaseData, hasLocationFilter, filteredRows])
+
   if (phase.tag === 'loading-saved') {
     return (
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -272,36 +305,8 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
     )
   }
 
-  const { data } = phase
-
-  // Derive county list and filtered data from raw rows
-  const counties = useMemo(() => {
-    const set = new Set<string>()
-    for (const row of data.rows) {
-      if (row.county) set.add(row.county)
-    }
-    return [...set].sort()
-  }, [data.rows])
-
-  const filteredRows = useMemo(() => {
-    if (countyFilter === null && !dateRange.from && !dateRange.to) return data.rows
-    return data.rows.filter(row => {
-      if (countyFilter !== null && row.county !== countyFilter) return false
-      if (dateRange.from && row.date < dateRange.from) return false
-      if (dateRange.to && row.date > dateRange.to) return false
-      return true
-    })
-  }, [data.rows, countyFilter, dateRange])
-
-  const hasLocationFilter = countyFilter !== null || !!dateRange.from || !!dateRange.to
-
-  const displayData = useMemo(() => {
-    if (!hasLocationFilter) return data
-    const { entries: filteredEntries, codesPresent: filteredCodes } = aggregateBreedingRows(filteredRows)
-    return { ...data, entries: filteredEntries, codesPresent: filteredCodes }
-  }, [data, hasLocationFilter, filteredRows])
-
-  const { entries, codesPresent } = displayData
+  // phaseData and displayData are non-null — phase is 'ready' at this point
+  const { entries, codesPresent } = displayData!
 
   if (entries.length === 0 && !hasLocationFilter) {
     return (
@@ -332,7 +337,7 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         filter.size === 0 || [...filter].every(code => (e.codes[code] ?? 0) > 0)
       ).length
 
-  const totalSpecies = data.entries.length
+  const totalSpecies = phaseData!.entries.length
   const countLabel = (categoryFilter.size === 0 && filter.size === 0 && !hasLocationFilter)
     ? `${entries.length} species`
     : `${filteredCount} of ${totalSpecies} species`

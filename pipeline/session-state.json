@@ -1,11 +1,10 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
-  "confirmedArtifacts": [],
-  "createdAt": "2026-05-20T00:15:00Z",
-  "updatedAt": "2026-05-20T03:45:00Z"
+  "activeFeature": "white-page-crash",
+  "sessionNumber": 1,
+  "sessionType": "fix",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
+  "createdAt": "2026-05-20T04:00:00Z",
+  "updatedAt": "2026-05-20T04:25:00Z"
 }

@@ -212,7 +212,10 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   const hasLocationFilter = countyFilter !== null || !!dateRange.from || !!dateRange.to
 
   const phaseSource = phase.tag === 'ready' ? phase.source : null
-  const phaseEntries = phase.tag === 'ready' ? phase.entries : []
+  const phaseEntries = useMemo(
+    () => (phase.tag === 'ready' ? phase.entries : []),
+    [phase]
+  )
 
   const displayEntries = useMemo((): LifeListEntry[] => {
     if (!hasLocationFilter || rawRows.length === 0 || phaseSource === null) return phaseEntries
