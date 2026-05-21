@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-26 versions shipped. Last shipped: **Species Detail extended** — subspecies merge toggle, spuh/slash toggle, top locations card, interactive sighting map with checklist popups, and embedded Macaulay Library media grid.
+27 versions shipped. Last shipped: **Tab filters** — county and date-range filters on the Breeding Codes, Media List, and Species Detail tabs; Total media column on the Media List; ML export county resolution via a 3-tier chain (ML column → eBird cross-reference → Nominatim reverse geocoding).
 
-Previously: **Breeding code category filters** — three filter pills (Confirmed, Probable, Possible) on the Breeding Codes tab let you see all species in an eBird evidence category with one click, composing naturally with individual code filters.
+Previously: **Species Detail extended** — subspecies merge toggle, spuh/slash toggle, top locations card, interactive sighting map with checklist popups, and embedded Macaulay Library media grid.
 
 ---
 

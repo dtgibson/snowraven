@@ -119,3 +119,35 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 **Rationale:** The ML export contains `Format` (Photo/Audio/Video) directly in each row, eliminating the backend CDN lookup entirely. This avoids rate limiting, latency, and network dependency. It also requires no Macaulay Library API keys. The two-zone upload UI makes the preferred path prominent without removing the eBird path.
 
 **Implications:** The ML export path is entirely client-side. The eBird path still requires the `POST /ml/media-types` backend endpoint and batch CDN probing. Both paths share the same `LifeListEntry` type and downstream table/filter components.
+
+## Tab Filters: raw row types enable post-parse filtering — 2026-05-20
+
+**Decision:** `parseBreedingCodes` and `parseMLExport` now return a `rows` field alongside the aggregated `entries`. `BreedingCodeRow[]` and `MLExportRow[]` hold per-observation data (date, county, code/format); filtering runs on these raw rows and re-aggregates via `aggregateBreedingRows()` / `aggregateMLRows()` on every filter change.
+
+**Rationale:** The aggregated `entries` (species-level) have no date or county information — those are discarded during aggregation. The only way to filter by county or date and then re-aggregate correctly is to retain the raw per-observation rows and re-run aggregation downstream. Storing both (raw rows for filtering, aggregated entries for display) is the correct data model.
+
+**Implications:** Any future filter dimension on Breeding Codes or Media List must filter against `BreedingCodeRow[]` / `MLExportRow[]`, not against `entries`. `aggregateBreedingRows()` and `aggregateMLRows()` are the canonical re-aggregation functions — do not derive filtered species counts by mutating existing `entries`.
+
+## Tab Filters: Nominatim rate limiting via in-process asyncio.Lock — 2026-05-20
+
+**Decision:** `POST /nominatim/counties` uses a module-level `asyncio.Lock()` and `await asyncio.sleep(1.0)` inside the lock after each outbound OSM request, enforcing ≤1 request/second. An in-process `_cache: dict[tuple[float, float], Optional[str]]` stores county lookups for the session.
+
+**Rationale:** OpenStreetMap's Nominatim usage policy requires ≤1 req/sec and a meaningful `User-Agent`. The lock + sleep pattern is the simplest correct serialization for a single-process FastAPI app — no external queue or Redis needed. The in-process cache avoids redundant lookups within a session (a common case when many observations share coordinates).
+
+**Implications:** The lock serializes all Nominatim calls globally. If a future feature adds another Nominatim use, it should reuse the same `_rate_lock` and `_cache` in `nominatim.py` rather than creating a second lock. For multi-process or multi-instance deployments, the rate limit guarantee is only per-process — a Redis-backed queue would be needed if SnowRaven ever runs with multiple workers.
+
+## Tab Filters: eBird Media List path switched from parseLifeList to parseEbirdObservations — 2026-05-20
+
+**Decision:** `LifeList.tsx` switched the eBird CSV processing path from `parseLifeList` (species-level aggregation, no county/date) to `parseEbirdObservations` (row-level with all fields). A local `obsToLifeListEntries` helper re-aggregates `ObservationEntry[]` → `LifeListEntry[]` for downstream CDN lookup compatibility.
+
+**Rationale:** `parseLifeList` discards date and county during aggregation. County and date filtering requires row-level data. Rather than retrofitting `parseLifeList` with optional raw-row output (which would duplicate the `parseEbirdObservations` pattern), the path simply switches to the parser that already has what's needed.
+
+**Implications:** `parseLifeList` is now unused by `LifeList.tsx`. It remains in the codebase because `ListComparer` still uses it. Do not delete it. `obsToLifeListEntries` is an internal helper in `LifeList.tsx` — it is not a general utility and should not be extracted to a shared module.
+
+## Tab Filters: 3-tier county resolution for ML export — 2026-05-20
+
+**Decision:** ML export county resolution runs in three passes: (1) read the `County` column from the ML CSV if present; (2) cross-reference against the eBird backup by location name (using `rawRows` from `parseEbirdObservations`); (3) call `POST /nominatim/counties` with unresolved lat/lng pairs. Passes run in sequence; each row stops after the first pass that resolves it.
+
+**Rationale:** The ML export often has a `County` column that covers most rows immediately. eBird backup cross-reference resolves most of the remainder without any network call. Nominatim is only invoked for rows that couldn't be resolved locally, minimizing outbound requests and respecting OSM rate limits.
+
+**Implications:** County resolution is async and runs after the ML parse completes. `countyResolution: 'idle' | 'resolving' | 'done'` drives the loading indicator in the county dropdown. Filters are available before resolution completes — `countyFilter` just won't have all counties until `'done'`. Any future feature that needs county data from ML exports should reuse this same `resolveMLCounties` pattern and the shared `nominatim.py` rate limiter.

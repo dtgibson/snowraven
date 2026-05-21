@@ -40,7 +40,7 @@ cd backend && uvicorn main:app --reload --port 1620
 # Terminal 2 — frontend
 cd frontend && npm run dev
 ```
-Frontend dev server runs on port 5173 and proxies `/weather`, `/health`, `/version`, `/ml`, `/taxonomy`, and `/settings` to port 1620.
+Frontend dev server runs on port 5173 and proxies `/weather`, `/health`, `/version`, `/ml`, `/taxonomy`, `/settings`, and `/nominatim` to port 1620.
 
 **Running in production:**
 ```
@@ -314,6 +314,29 @@ A fifth data tab that shows a complete per-species view from the user's eBird ba
 - `frontend/src/types.ts` — `ObservationEntry` now includes `locationId`, `latitude`, `longitude`
 - `frontend/src/globals.css` — `.sr-map-container`, `.sr-media-grid` (CSS grid 3-col), `.sr-media-item`, `.sr-media-iframe` with responsive overrides
 - `frontend/src/App.tsx` — `'species-detail'` tab (unchanged structure)
+
+### Tab Filters — County, Date Range, and Total Media (complete — May 2026)
+
+County and date-range filters added to the Breeding Codes, Media List, and Species Detail tabs. Total media column added to the Media List. County resolution for ML exports via a 3-tier chain.
+
+**What it does:**
+- County dropdown and date-range inputs appear in each tab's toolbar — only when the loaded file contains county data (the controls are hidden otherwise)
+- Active filter strip below the toolbar shows the current county/date selection and (in Species Detail) how many checklists match the filter out of the unfiltered total
+- **Breeding Codes:** county and date filters applied to `BreedingCodeRow[]` before re-aggregating species/code matrix
+- **Media List (eBird path):** county and date filters applied to `ObservationEntry[]` (eBird path now uses `parseEbirdObservations` instead of `parseLifeList` for row-level county/date access)
+- **Media List (ML export path):** county resolved via a 3-tier chain — (1) `County` column in the ML CSV if present; (2) eBird backup cross-reference by location name; (3) `POST /nominatim/counties` reverse geocoding using OpenStreetMap/Nominatim — then county/date filters applied to `MLExportRow[]`
+- **Species Detail:** county and date filters applied to `ObservationEntry[]` before all downstream derivations (sightings stats, media, codes, locations, map, comments)
+- **Total column (Media List):** `photoCount + audioCount + videoCount`; sortable, defaults descending; column header styled green with 1px left border like the other media columns
+- County controls show a "Resolving counties…" spinner while the Nominatim pass is running in the background
+
+**Key files:**
+- `backend/routers/nominatim.py` — `POST /nominatim/counties` endpoint; accepts `[{lat, lng}]`; in-process `_cache` dict; `asyncio.Lock()` enforces ≤1 req/sec to OSM; `User-Agent: SnowRaven/1.0`
+- `frontend/src/lib/parseBreedingCodes.ts` — added `BreedingCodeRow`, `rows` field in `BreedingData`, `aggregateBreedingRows()`
+- `frontend/src/lib/parseMLExport.ts` — added `MLExportRow`, `rows` field in `MLExportResult`, `aggregateMLRows()`
+- `frontend/src/lib/parseEbirdObservations.ts` — added `county` column read
+- `frontend/src/types.ts` — added `DateRangeState`, `DATE_RANGE_CLEAR`, `county: string | null` to `ObservationEntry`, `'total'` to `SortColumn`
+- `frontend/src/components/BreedingCodeList.tsx`, `LifeList.tsx`, `SpeciesDetail.tsx` — filter state, county/date controls, filter strip
+- `frontend/src/components/LifeListTable.tsx` — Total column header and cell; `'total'` sort case
 
 ### Breeding Code Category Filters (complete — May 2026)
 
