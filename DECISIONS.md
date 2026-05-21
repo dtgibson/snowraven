@@ -120,6 +120,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Implications:** The ML export path is entirely client-side. The eBird path still requires the `POST /ml/media-types` backend endpoint and batch CDN probing. Both paths share the same `LifeListEntry` type and downstream table/filter components.
 
+## React hooks must be declared before any early return — 2026-05-20
+
+**Bug:** SnowRaven showed a blank white page after loading in v0.0.34. All users with a stored eBird file were affected immediately on auto-load; others were affected the first time they loaded a file into the Breeding Codes tab.
+
+**Cause:** `BreedingCodeList.tsx` declared three `useMemo` hooks after conditional early returns (`loading-saved`, `idle/error`). On the initial render, the component returned early and those hooks were not called. When `phase` transitioned to `'ready'`, the early returns did not fire and React tried to call three additional hooks — a count mismatch from the previous render. React threw "Rendered more hooks than during the previous render" and unmounted the entire component tree.
+
+**Fix:** The three memos (`counties`, `filteredRows`, `displayData`) were moved before all early returns, with a `phaseData = phase.tag === 'ready' ? phase.data : null` extraction and null-safety guards. Also wrapped `phaseEntries` in `LifeList.tsx` in its own `useMemo` to fix a related `react-hooks/exhaustive-deps` warning that had been failing ESLint in CI.
+
+**Implications:** Any component with a phase/state union that uses early returns must declare all hooks before the first early return. A conditional variable like `phase.tag === 'ready' ? phase.entries : []` that appears to be safe is not — the `[]` literal creates a new array reference every render, making any useMemo that depends on it re-compute continuously. Wrap it in `useMemo` instead.
+
 ## Tab Filters: raw row types enable post-parse filtering — 2026-05-20
 
 **Decision:** `parseBreedingCodes` and `parseMLExport` now return a `rows` field alongside the aggregated `entries`. `BreedingCodeRow[]` and `MLExportRow[]` hold per-observation data (date, county, code/format); filtering runs on these raw rows and re-aggregates via `aggregateBreedingRows()` / `aggregateMLRows()` on every filter change.
