@@ -40,7 +40,7 @@ cd backend && uvicorn main:app --reload --port 1620
 # Terminal 2 — frontend
 cd frontend && npm run dev
 ```
-Frontend dev server runs on port 5173 and proxies `/weather`, `/health`, `/version`, `/ml`, `/taxonomy`, `/settings`, and `/nominatim` to port 1620.
+Frontend dev server runs on port 5173 and proxies `/weather`, `/health`, `/version`, `/taxonomy`, `/settings`, and `/nominatim` to port 1620.
 
 **Running in production:**
 ```
@@ -80,7 +80,6 @@ the initial page load.
 - Strips subspecies parentheticals so "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" count as the same species
 - Produces three alphabetically-sorted lists: in both, File A only, File B only
 - Summary bar shows five counts: total A, total B, both, A only, B only
-- "Show all / Collapse" toggle expands all three species panels to their full height for printing; in expanded mode the page switches to a normal scrollable layout so the header and tabs scroll away rather than staying pinned
 - "Compare new files" button resets to the upload state
 
 **Key files:**
@@ -110,46 +109,39 @@ After a successful weather lookup, an "Edit on eBird" link appears flush-right o
 
 A third tab that generates a full life list showing per-species media coverage
 — which species have been photographed, audio-recorded, and video-recorded.
-Accepts two input formats, auto-detected from the CSV header.
+Accepts Macaulay Library export CSV only.
 
-**Input formats (auto-detected — no user selection required):**
-- **Macaulay Library export (preferred):** Sign in to Macaulay Library → My Media → Save Spreadsheet. Columns: `Catalog Number` (or `ML Catalog Number`), `Common Name`, `Scientific Name`, `Format`. Media types are read directly from the CSV — no backend CDN lookup required. Results appear instantly.
-- **eBird backup CSV (secondary):** `MyEBirdData.csv` from the eBird account data download. Requires a backend batch lookup to determine media types per species via Cornell CDN HEAD requests.
+**Input format:**
+- **Macaulay Library export:** Sign in to Macaulay Library → My Media → Save Spreadsheet. Columns: `Catalog Number` (or `ML Catalog Number`), `Common Name`, `Scientific Name`, `Format`. Media types are read directly from the CSV — no backend lookup required. Results appear instantly.
 
 **What it does:**
-- Upload screen shows two drop zones: a prominent primary zone for ML export (with download instructions) and a compact secondary zone for eBird backup CSV
-- Auto-detects file type by inspecting the CSV header: ML export if `catalog number`/`ml catalog number` + `format` columns present; eBird if `submission id` present; otherwise shows an error
+- Upload screen shows a single drop zone for ML export (with download instructions)
 - Parses one entry per unique species; normalizes subspecies parentheticals (e.g. "Yellow-rumped Warbler (Myrtle)" → "Yellow-rumped Warbler")
 - Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `); soundscape entries are included as first-class rows
 - Strips the `ML` prefix from catalog numbers and deduplicates
-- **ML export path:** media types come from the `Format` column (Photo/Audio/Video) — client-side only, no network request
-- **eBird path:** POSTs catalog IDs in batches of 10 to `POST /ml/media-types` (500ms inter-batch delay); shows batch progress ("Looking up media… batch 3 of 12")
-- Renders a table with four columns: Entries, Photo, Audio, Video (no always-✓ "Media" column)
+- Media types come from the `Format` column (Photo/Audio/Video) — client-side only, no network request
+- Renders a table with five columns: Entries, Photo, Audio, Video, Total
 - Photo, Audio, and Video columns show a count of individual media items (integer in green); zero shows a dash
 - Non-zero counts are clickable links — open Macaulay Library catalog filtered by species (taxon code), media type, and personal userId in a new tab
 - `SpeciesLinks` favicon icons appear after each common name linking to eBird and Birds of the World species pages
 - User ID parsed from ML export filename (`ML__DATE_USERID.csv`) and appended to all catalog links; warning shown if filename was renamed
-- Taxon codes and taxon order numbers fetched via `POST /taxonomy/codes` after file load; ML links use `taxonCode=acowoo` parameter for accurate personal filtering; taxon orders power the Taxonomic sort for ML export results
-- All four column headers are clickable sort controls; clicking sorts by that column, clicking again reverses; count columns default to descending (highest first)
-- **Filter pills (7 total):** All · No photo · No audio · No video · Has photo · Has audio · Has video — multi-select with AND logic; each media dimension (photo/audio/video) is tracked independently; selecting "Has photo" while "No photo" is active auto-replaces it; clicking an active pill deselects it; "All" resets all dimensions; negative active pills are red, positive are green; multiple pills can be active simultaneously
-- Sort toggle: A–Z / Taxonomic — available for both ML export and eBird CSV inputs. For eBird CSV, uses the Taxonomic Order field parsed from the CSV directly; for ML export, uses taxon order numbers from the `POST /taxonomy/codes` response (same fetch that supplies taxon codes). Species not found in taxonomy sort last. The toggle persists as a tiebreaker when sorting by Photo/Audio/Video count columns.
+- Taxon codes and taxon order numbers fetched via `POST /taxonomy/codes` after file load; ML links use `taxonCode=acowoo` parameter for accurate personal filtering; taxon orders power the Taxonomic sort
+- All five column headers are clickable sort controls; clicking sorts by that column, clicking again reverses; count columns default to descending (highest first)
+- **Filter pills (7 total):** All · No photo · No audio · No video · Has photo · Has audio · Has video — multi-select with AND logic
+- A–Z / Taxonomic sort toggle in the filter bar
+- **↔ Unbounded / ↔ Normal toggle** — removes the `overflowX` constraint from the table wrapper (sets it to `width: max-content`) so the whole page scrolls horizontally on mobile; Normal restores the bounded scroll box
 - Species count label: "312 species" or "47 of 312 species" when filtered
-- "Show all / Collapse" toggle expands the full list for printing
 - "Load new file" button resets to the upload state
 
 **Key files:**
-- `backend/routers/ml.py` — `POST /ml/media-types` proxy endpoint; probes Cornell CDN via HEAD requests; `asyncio.Semaphore(8)` caps concurrency; 503 on failure
-- `backend/tests/test_ml_router.py` — 5 tests: valid lookup, missing ID omitted, unreachable API → 503, empty input, string catalogId in response
-- `backend/main.py` — ML router registered
-- `frontend/src/lib/parseMLExport.ts` — ML export CSV parser: returns `{ entries, mediaMap }` from Macaulay Library export; client-side only; throws `INVALID_ML_EXPORT` on bad input
+- `frontend/src/lib/parseMLExport.ts` — ML export CSV parser: returns `{ entries, mediaMap, rows }` from Macaulay Library export; client-side only; throws `INVALID_ML_EXPORT` on bad input
 - `frontend/src/lib/parseMLExport.test.ts` — 15 parser tests
-- `frontend/src/lib/parseLifeList.ts` — eBird backup CSV parser producing `LifeListEntry[]`
+- `frontend/src/lib/parseLifeList.ts` — eBird backup CSV parser producing `LifeListEntry[]` (used by ListComparer only)
 - `frontend/src/lib/parseLifeList.test.ts` — 13 parser tests
-- `frontend/src/components/LifeList.tsx` — top-level component: dual drop zones, file type auto-detection, idle/error/loading/ready state machine, controls row
-- `frontend/src/components/LifeListTable.tsx` — filtered/sorted species table; handles all 6 non-"all" filter cases including 3 positive filters
-- `frontend/src/types.ts` — `MediaType`, `MediaFilter` (includes positive filters), `SortOrder` types
+- `frontend/src/components/LifeList.tsx` — top-level component: single drop zone, ML-only state machine, controls row with Unbounded toggle
+- `frontend/src/components/LifeListTable.tsx` — filtered/sorted species table; `wideMode` prop controls wrapper overflow behavior
+- `frontend/src/types.ts` — `MediaType`, `MediaFilter` (includes positive filters), `SortState` types
 - `frontend/src/App.tsx` — Life List tab added (display-toggle pattern)
-- `frontend/vite.config.ts` — `/ml` proxy added for dev server
 
 ### Species Links (complete — May 2026)
 
@@ -198,7 +190,8 @@ code, rendered as a tier-colored circle. Entirely client-side — no backend cha
 - Filter pills row: "All" pill + one pill per code present, each with a 14px tier-colored dot — multi-select with AND logic; multiple code pills can be active simultaneously; the table shows only species that have ≥1 recorded observation for every active code; clicking an active pill removes it from the filter; "All" resets to unfiltered
 - Species count label: "8 species" (all) or "3 of 8 species" (filtered)
 - Legend at the bottom of the table card maps tier colors to categories and codes
-- "Show all / Collapse" and "Load new file" controls match the Media Life List pattern
+- **↔ Unbounded / ↔ Normal toggle** — removes `overflowX` and unfreezes the sticky species column so the whole page scrolls horizontally on mobile; species column stickiness is re-enabled in Normal mode
+- "Load new file" button resets to the upload state
 - Spuh (` sp.`), slash species, and hybrids (` x `) excluded; subspecies parentheticals normalized to parent species name
 
 **Key files:**
@@ -303,7 +296,7 @@ A fifth data tab that shows a complete per-species view from the user's eBird ba
 - **Sighting locations map:** interactive Leaflet/OpenStreetMap map; one marker per unique lat/lng pair among the selected species' observations; bounds auto-fit on species change (single coordinate → `setView` zoom 12, multiple → `fitBounds` with 30px padding); each marker opens a Popup listing up to 6 dated checklist links ("+N more" overflow label); map hidden when no coordinates are available; 380px tall on desktop, 300px on ≤640px
 - **Comments archive:** all non-empty per-species field notes from the eBird backup; sortable (newest/oldest); filterable by keyword (case-insensitive); first 10 shown with "Show all N comments" expand button; each date is a link to the corresponding checklist
 - **Embedded recent media:** when ML export is loaded and the species has catalog items, the most recently uploaded Photo, Audio, and/or Video (numerically highest catalog ID = most recently uploaded) is embedded via `macaulaylibrary.org/asset/{id}/embed` iframe; responsive 3-column CSS grid (`repeat(3, minmax(0, 1fr))`), 280px tall on desktop, full-width 360px on mobile; `scrolling="no"` + `overflow: hidden` suppress iframe scrollbars; section appears at the very bottom of the detail view
-- **Show all / Collapse** toolbar button follows the `onExpandedChange` pattern: toggles full-height layout for mobile viewing and printing
+- All sections render in natural page flow — no expand/collapse toggle
 - Switching species instantly replaces all sections (all data already parsed client-side)
 - `submissionId` values validated against `/^S\d+$/` before use in any `href` attribute; catalog IDs validated against `/^\d+$/`; location IDs validated against `/^L\d+$/`
 
@@ -337,6 +330,34 @@ County and date-range filters added to the Breeding Codes, Media List, and Speci
 - `frontend/src/types.ts` — added `DateRangeState`, `DATE_RANGE_CLEAR`, `county: string | null` to `ObservationEntry`, `'total'` to `SortColumn`
 - `frontend/src/components/BreedingCodeList.tsx`, `LifeList.tsx`, `SpeciesDetail.tsx` — filter state, county/date controls, filter strip
 - `frontend/src/components/LifeListTable.tsx` — Total column header and cell; `'total'` sort case
+
+### Species Detail Visualizations (complete — May 2026)
+
+Two new visualization sections added to the Species Detail tab.
+
+**Sightings Over Time graph:**
+- Recharts `LineChart` with `ResponsiveContainer` renders a full-width time-series graph below the Sightings / Media cards and above the Breeding Codes section
+- Primary line: total individuals per year (sum of numeric `howMany`; null/X counts as 0)
+- Monthly fallback: when all observations for the selected species fall within a single calendar year, the x-axis switches to monthly granularity automatically (`years.size <= 1` in `buildGraphData`)
+- Per Year / Cumulative segmented toggle: cumulative view computes a running sum per line in a `displayData` useMemo
+- ML overlay lines: when an ML export is loaded (`hasML`), three additional lines show Photo / Audio / Video item counts per period; hidden when no ML loaded
+- Graph returns `null` (section absent) when fewer than 2 distinct time periods exist
+- All colors via `var(--sr-graph-*)` tokens (added to both `:root` and `[data-theme="dark"]`)
+- Fully filter-reactive: uses `speciesObs` (already county/date filtered) and `speciesMlRows` (filtered by species + date range)
+
+**Map heatmap toggle:**
+- Pins / Heatmap segmented toggle in the Sighting Locations map section header
+- Heatmap mode: `leaflet.heat` IIFE loaded lazily via `import('leaflet.heat')` inside `HeatmapLayer` useEffect (after `window.L = L` is set) to work around Vite ESM bundling incompatibility; creates a `(L as any).heatLayer(points, {...})` layer
+- Each coordinate weighted by observation count at that location (from `coordMarkers[].sightings.length`)
+- Individual markers hidden in heatmap mode (`mapMode === 'pins'` guard)
+- Resets to Pins on species change (via `setMapMode('pins')` in `selectSpecies()`)
+- Toggle and heatmap absent when no coordinate data (entire map section guarded by `coordMarkers.length > 0`)
+
+**Key files:**
+- `frontend/src/lib/sightingsGraph.ts` — `buildGraphData(obs, mlRows)` pure function; `GraphPoint` type
+- `frontend/src/lib/sightingsGraph.test.ts` — 10 unit tests
+- `frontend/src/components/SpeciesDetail.tsx` — `HeatmapLayer`, `SightingsGraph`, `GraphTooltip`, `formatPeriodLabel` components; `mapMode` state; `speciesMlRows` and `heatPoints` useMemos; `Phase.ready` now includes `mlRows: MLExportRow[]`
+- `frontend/src/globals.css` — `--sr-graph-individuals`, `--sr-graph-photo`, `--sr-graph-audio`, `--sr-graph-video` tokens in both themes
 
 ### Breeding Code Category Filters (complete — May 2026)
 
@@ -438,24 +459,22 @@ a `species: Set<string>` field). Rather than retrofitting DropZone with generics
 `LifeList.tsx` implements its own minimal drop zone inline. The patterns are similar
 but kept separate to avoid coupling unrelated features.
 
-**Expanded view switches the outer layout, not internal scroll**
-When "Show all" is active, `App.tsx` switches from `height: 100vh; overflow: hidden`
-to `minHeight: 100vh` (no clip), and the active tab panel drops its `overflowY: auto`
-constraint. This lets the whole page scroll naturally so the header scrolls away.
-Any future tab with an expand toggle should follow the `onExpandedChange` callback
-pattern: the child notifies the parent, the parent controls the layout mode.
+**Expand/collapse removed — app always uses natural page flow (changed 2026-05-21)**
+`App.tsx` always uses `minHeight: 100vh` (no overflow clip). All tabs render in natural
+page flow. The `onExpandedChange` callback pattern and `isExpanded` state are gone.
+Do not re-add expand/collapse — use the **Unbounded / Normal** toggle pattern instead
+for tables that need mobile horizontal panning: set the table wrapper to `width: max-content`
+in unbounded mode (removes the `overflowX: auto` clip without overflowing the wrapper border).
 
 **Update script uses .venv/bin/pip explicitly**
 `update.sh` calls `.venv/bin/pip` rather than relying on a `pip` in PATH.
 This ensures the correct virtualenv is used regardless of the shell environment,
 which matters on Raspberry Pi where system Python is separate from the venv.
 
-**ML export is the preferred input; file type is auto-detected from header**
-Rather than asking the user to choose input format, `LifeList.tsx` inspects the
-CSV header row: if `catalog number` (or `ml catalog number`) + `format` columns
-are present, it's an ML export; if `submission id` is present, it's an eBird
-backup. Unknown headers get a clear error. The ML export path requires no backend
-call — all media types come directly from the `Format` column.
+**ML export is the only input for Media Life List (eBird path removed 2026-05-21)**
+`LifeList.tsx` accepts only Macaulay Library export CSV. The eBird backup secondary
+path, `POST /ml/media-types` backend endpoint, and auto-detection logic are gone.
+All media types come directly from the `Format` column — no backend call required.
 
 **Sort architecture: column-header sort + A–Z / Taxonomic name toggle**
 Column headers (Entries, Photo, Audio, Video; breeding code columns) are clickable sort controls. An A–Z / Taxonomic toggle button on each tab controls how the name column sorts. The two are independent: clicking a count column header preserves the active nameSortMode as a tiebreaker via `{ ...sort, column, dir }` spread in `handleHeaderClick`. `SortState` has three fields: `column`, `dir`, and `nameSortMode: 'az' | 'taxonomic'`. Always spread `{ ...sort }` when changing column or dir — never replace the whole object, or the nameSortMode preference is lost.

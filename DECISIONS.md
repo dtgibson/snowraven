@@ -4,6 +4,35 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## leaflet.heat loaded via dynamic import after window.L assignment — 2026-05-21
+
+**Decision:** `import 'leaflet.heat'` as a static side-effect import is replaced with a dynamic `import('leaflet.heat')` inside `HeatmapLayer`'s `useEffect`, called only after `(window as any).L = L` is set. A module-level `heatLoaded` ref prevents re-importing.
+
+**Rationale:** `leaflet.heat` is a legacy IIFE that reads the global `L` at load time. Vite's ESM bundling does not expose the module-imported `L` as `window.L`, so a static import fails at runtime with "Can't find variable: L". Setting `window.L = L` before a dynamic import ensures the IIFE finds it. Static imports are hoisted before any module code executes, so ordering cannot be controlled via static imports alone.
+
+**Side effect:** Vite automatically code-splits `leaflet.heat` into its own chunk (4.84 kB) because of the dynamic import, reducing the initial bundle.
+
+**Implications:** Do not convert this back to a static import. Any other legacy Leaflet plugin that reads `window.L` at module load time must follow the same pattern: set `window.L = L` then dynamically import the plugin.
+
+## Species Detail graph: buildGraphData extracted to a library module — 2026-05-21
+
+**Decision:** `buildGraphData` and `GraphPoint` were extracted from `SpeciesDetail.tsx` to `frontend/src/lib/sightingsGraph.ts` to make the pure function testable without React component dependencies.
+
+**Rationale:** Unit testing a function embedded in a React component file requires rendering the component, which adds Leaflet, Recharts, and react-leaflet to the test environment. Extracting to a standalone module reduces the test setup to zero (no DOM, no mocks) and keeps the component file focused on rendering.
+
+**Implications:** `buildGraphData` is the canonical source for graph data; do not implement equivalent logic inline in `SightingsGraph`. If future graph features need new derived fields (e.g. rolling average), add them to `sightingsGraph.ts` and add corresponding tests.
+
+## Expand/collapse removed from all tabs; eBird backup path removed from Media List — 2026-05-21
+
+**Changes:**
+- All four data tabs (Life List, Breeding Codes, Media List, Species Detail) had their "Show all / Collapse" toggle and `onExpandedChange` callback removed. `App.tsx` always uses `minHeight: 100vh`. Tabs render in natural page flow at all times.
+- `backend/routers/ml.py` (Cornell CDN HEAD-request proxy) and its tests deleted. `POST /ml/media-types` endpoint is gone. The eBird backup CSV path in `LifeList.tsx` is fully removed — ML export is now the only accepted input.
+- **Unbounded / Normal toggle** added to Life List and Breeding Codes tabs: sets the table wrapper to `width: max-content` in unbounded mode so the page itself scrolls horizontally on mobile. In Normal mode the wrapper uses `overflowX: auto`. In Breeding Codes unbounded mode, the sticky species column (`position: sticky; left: 0`) is suppressed so the full table pans as one unit.
+
+**Why `width: max-content` rather than just removing `overflowX`:** Removing `overflowX: auto` from the wrapper without setting `width: max-content` leaves the wrapper at its parent's width. The wrapper's `border` then appears as a grey vertical line mid-table where the right edge falls. `max-content` makes the wrapper shrink-wrap the table, so the border correctly surrounds the full table width.
+
+**Implications:** Do not re-add the `onExpandedChange` / `isExpanded` pattern. Any table that needs mobile horizontal exploration should use the `wideMode` / `width: max-content` approach. The `POST /ml/media-types` backend endpoint is permanently removed — do not re-add it. If a future feature needs Cornell CDN media-type lookup, rebuild it from the prior implementation in git history.
+
 ## Header pinned in expanded view — 2026-05-12
 
 **Bug:** When "Show all" was activated on the Media Life List or Life List Comparer tabs, the SnowRaven header and tab bar remained pinned at the top of the viewport. This wasted space on mobile and produced cluttered print output.
