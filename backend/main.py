@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from routers.apikeys import router as apikeys_router
 from routers.ml import router as ml_router
+from routers.nominatim import router as nominatim_router
 from routers.settings import router as settings_router
 from routers.taxonomy import router as taxonomy_router
 from routers.version import router as version_router
@@ -27,6 +28,7 @@ app.include_router(apikeys_router)
 app.include_router(weather_router)
 app.include_router(version_router)
 app.include_router(ml_router)
+app.include_router(nominatim_router)
 app.include_router(taxonomy_router)
 app.include_router(settings_router)
 

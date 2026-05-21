@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Upload, AlertCircle, Loader2, FileCheck, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
-  MapPin, Play,
+  MapPin, Play, Calendar,
 } from 'lucide-react'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
@@ -215,6 +215,9 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
   const [mergeSubspecies, setMergeSubspecies] = useState(true)
   const [showSpuh, setShowSpuh] = useState(false)
 
+  const [countyFilter, setCountyFilter] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' })
+
   const [commentFilter, setCommentFilter] = useState('')
   const [commentSort, setCommentSort] = useState<'newest' | 'oldest'>('newest')
   const [showAllComments, setShowAllComments] = useState(false)
@@ -354,6 +357,8 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
         selectSpecies(null)
         setSelectorQuery('')
         setMergeSubspecies(true)
+        setCountyFilter(null)
+        setDateRange({ from: '', to: '' })
         fetchTaxonData(observations)
       } catch {
         setPhase({ tag: 'error', message: "This doesn't look like an eBird backup CSV. Check you're uploading MyEBirdData.csv." })
@@ -384,6 +389,8 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
     setTaxonMap({})
     setSavedFileInfo(null)
     setMergeSubspecies(true)
+    setCountyFilter(null)
+    setDateRange({ from: '', to: '' })
     setExpanded(false)
     onExpandedChange?.(false)
   }
@@ -429,13 +436,30 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
     })
   }, [displaySpeciesList, selectorQuery, sciNameMap])
 
+  const counties = useMemo(() => {
+    if (phase.tag !== 'ready') return []
+    const set = new Set<string>()
+    for (const o of phase.observations) {
+      if (o.county) set.add(o.county)
+    }
+    return [...set].sort()
+  }, [phase])
+
+  const hasLocationFilter = countyFilter !== null || !!dateRange.from || !!dateRange.to
+
   const speciesObs = useMemo((): ObservationEntry[] => {
     if (phase.tag !== 'ready' || !selectedSpecies) return []
-    if (mergeSubspecies) {
-      return phase.observations.filter(o => normalizeSpeciesName(o.commonName) === selectedSpecies)
-    }
-    return phase.observations.filter(o => o.commonName === selectedSpecies)
-  }, [phase, selectedSpecies, mergeSubspecies])
+    const base = mergeSubspecies
+      ? phase.observations.filter(o => normalizeSpeciesName(o.commonName) === selectedSpecies)
+      : phase.observations.filter(o => o.commonName === selectedSpecies)
+    if (!hasLocationFilter) return base
+    return base.filter(o => {
+      if (countyFilter !== null && o.county !== countyFilter) return false
+      if (dateRange.from && o.date < dateRange.from) return false
+      if (dateRange.to && o.date > dateRange.to) return false
+      return true
+    })
+  }, [phase, selectedSpecies, mergeSubspecies, countyFilter, dateRange, hasLocationFilter])
 
   // Sightings stats
   const sightingsStats = useMemo(() => {
@@ -816,6 +840,83 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
         )}
       </div>
 
+      {/* Filter controls row */}
+      {counties.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap', flexShrink: 0 }}>
+          {/* County dropdown */}
+          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <MapPin size={12} strokeWidth={2} style={{
+              position: 'absolute', left: 7, color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+              pointerEvents: 'none', flexShrink: 0,
+            }} />
+            <select
+              value={countyFilter ?? ''}
+              onChange={e => setCountyFilter(e.target.value || null)}
+              style={{
+                height: 26, paddingLeft: 24, paddingRight: 22, borderRadius: 5,
+                border: countyFilter ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
+                background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', outline: 'none',
+              }}
+            >
+              <option value="">All Counties</option>
+              {counties.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: 9 }}>▾</span>
+          </div>
+
+          {/* Date range */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <Calendar size={11} strokeWidth={2} style={{
+                position: 'absolute', left: 7, color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                pointerEvents: 'none',
+              }} />
+              <input
+                type="date"
+                value={dateRange.from}
+                onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                style={{
+                  height: 26, paddingLeft: 24, paddingRight: 6, borderRadius: 5,
+                  border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
+                  background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                  color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
+                  fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                }}
+              />
+            </div>
+            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>→</span>
+            <input
+              type="date"
+              value={dateRange.to}
+              onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+              style={{
+                height: 26, paddingLeft: 8, paddingRight: 6, borderRadius: 5,
+                border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
+                background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
+                fontSize: 12, fontFamily: 'inherit', outline: 'none',
+              }}
+            />
+          </div>
+
+          {hasLocationFilter && (
+            <button
+              onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 12, color: 'var(--sr-accent)', fontFamily: 'inherit',
+                padding: 0, textDecoration: 'underline',
+              }}
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+      )}
+
       {/* No species selected prompt */}
       {!selectedSpecies && (
         <SectionCard style={{ flex: 1 }}>
@@ -844,6 +945,44 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
       {/* Species detail — shown when a species is selected */}
       {selectedSpecies && sightingsStats && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+          {/* Filter strip — appears above Summary card when filters active */}
+          {hasLocationFilter && (() => {
+            const parts: string[] = []
+            if (countyFilter) parts.push(countyFilter)
+            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+            function fmt(d: string) {
+              const [y,m,day] = d.split('-').map(Number)
+              return `${months[(m??1)-1]} ${day}, ${y}`
+            }
+            if (dateRange.from && dateRange.to) parts.push(`${fmt(dateRange.from)} – ${fmt(dateRange.to)}`)
+            else if (dateRange.from) parts.push(`From ${fmt(dateRange.from)}`)
+            else if (dateRange.to) parts.push(`Through ${fmt(dateRange.to)}`)
+            const baseCount = mergeSubspecies
+              ? observations.filter((o: ObservationEntry) => normalizeSpeciesName(o.commonName) === selectedSpecies).length
+              : observations.filter((o: ObservationEntry) => o.commonName === selectedSpecies).length
+            parts.push(`Showing ${speciesObs.length} of ${baseCount} checklists`)
+            return (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '7px 14px',
+                background: 'var(--sr-accent-bg)', borderRadius: 6,
+                fontSize: 12, color: 'var(--sr-accent)',
+              }}>
+                <span style={{ fontWeight: 500 }}>{parts.join(' · ')}</span>
+                <button
+                  onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 12, color: 'var(--sr-accent)', fontFamily: 'inherit',
+                    padding: 0, textDecoration: 'underline',
+                  }}
+                >
+                  Clear filter
+                </button>
+              </div>
+            )
+          })()}
 
           {/* Summary card */}
           <SectionCard>

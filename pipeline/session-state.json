@@ -1,11 +1,17 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 1,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
-  "confirmedArtifacts": [],
-  "createdAt": "2026-05-20T00:00:00Z",
-  "updatedAt": "2026-05-20T00:05:00Z"
+  "activeFeature": "tab-filters",
+  "sessionNumber": 2,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
+  "confirmedArtifacts": [
+    "pipeline/tab-filters/strategic-brief.md",
+    "pipeline/tab-filters/prd.md",
+    "pipeline/tab-filters/schema.md",
+    "pipeline/tab-filters/design-spec.md",
+    "pipeline/tab-filters/design.html"
+  ],
+  "createdAt": "2026-05-20T00:15:00Z",
+  "updatedAt": "2026-05-20T03:30:00Z"
 }

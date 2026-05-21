@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { Upload, AlertCircle, Loader2, FileCheck } from 'lucide-react'
-import { parseBreedingCodes } from '../lib/parseBreedingCodes'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Upload, AlertCircle, Loader2, FileCheck, MapPin, Calendar } from 'lucide-react'
+import { parseBreedingCodes, aggregateBreedingRows } from '../lib/parseBreedingCodes'
 import type { BreedingData, BreedingEntry } from '../lib/parseBreedingCodes'
 import { BREEDING_CODE_MAP, TIER_COLORS, CATEGORY_CODES } from '../lib/breedingCodes'
 import type { BreedingCategory } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
-import type { BreedingSortState, StoredFileInfo } from '../types'
+import type { BreedingSortState, StoredFileInfo, DateRangeState } from '../types'
+import { DATE_RANGE_CLEAR } from '../types'
 
 type Phase =
   | { tag: 'idle' }
@@ -91,6 +92,8 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
+  const [countyFilter, setCountyFilter] = useState<string | null>(null)
+  const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchTaxonCodes = async (entries: BreedingEntry[]) => {
@@ -150,6 +153,8 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         setPhase({ tag: 'ready', data })
         setFilter(new Set())
         setCategoryFilter(new Set())
+        setCountyFilter(null)
+        setDateRange(DATE_RANGE_CLEAR)
         setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
         if (data.entries.length > 0) fetchTaxonCodes(data.entries)
       } catch {
@@ -179,6 +184,8 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
     setPhase({ tag: 'idle' })
     setFilter(new Set())
     setCategoryFilter(new Set())
+    setCountyFilter(null)
+    setDateRange(DATE_RANGE_CLEAR)
     setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
     setExpanded(false)
     setTaxonMap({})
@@ -266,9 +273,37 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
   }
 
   const { data } = phase
-  const { entries, codesPresent } = data
 
-  if (entries.length === 0) {
+  // Derive county list and filtered data from raw rows
+  const counties = useMemo(() => {
+    const set = new Set<string>()
+    for (const row of data.rows) {
+      if (row.county) set.add(row.county)
+    }
+    return [...set].sort()
+  }, [data.rows])
+
+  const filteredRows = useMemo(() => {
+    if (countyFilter === null && !dateRange.from && !dateRange.to) return data.rows
+    return data.rows.filter(row => {
+      if (countyFilter !== null && row.county !== countyFilter) return false
+      if (dateRange.from && row.date < dateRange.from) return false
+      if (dateRange.to && row.date > dateRange.to) return false
+      return true
+    })
+  }, [data.rows, countyFilter, dateRange])
+
+  const hasLocationFilter = countyFilter !== null || !!dateRange.from || !!dateRange.to
+
+  const displayData = useMemo(() => {
+    if (!hasLocationFilter) return data
+    const { entries: filteredEntries, codesPresent: filteredCodes } = aggregateBreedingRows(filteredRows)
+    return { ...data, entries: filteredEntries, codesPresent: filteredCodes }
+  }, [data, hasLocationFilter, filteredRows])
+
+  const { entries, codesPresent } = displayData
+
+  if (entries.length === 0 && !hasLocationFilter) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
         <span style={{ fontSize: 14, color: 'var(--sr-text-muted)' }}>No species with breeding codes found in this file.</span>
@@ -297,9 +332,28 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         filter.size === 0 || [...filter].every(code => (e.codes[code] ?? 0) > 0)
       ).length
 
-  const countLabel = (categoryFilter.size === 0 && filter.size === 0)
+  const totalSpecies = data.entries.length
+  const countLabel = (categoryFilter.size === 0 && filter.size === 0 && !hasLocationFilter)
     ? `${entries.length} species`
-    : `${filteredCount} of ${entries.length} species`
+    : `${filteredCount} of ${totalSpecies} species`
+
+  // Format a YYYY-MM-DD date as human-readable "May 1, 2022"
+  function formatDateLabel(d: string): string {
+    if (!d) return ''
+    const [y, m, day] = d.split('-').map(Number)
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    return `${months[(m ?? 1) - 1]} ${day}, ${y}`
+  }
+
+  const filterStripText = (() => {
+    const parts: string[] = []
+    if (countyFilter) parts.push(countyFilter)
+    if (dateRange.from && dateRange.to) parts.push(`${formatDateLabel(dateRange.from)} – ${formatDateLabel(dateRange.to)}`)
+    else if (dateRange.from) parts.push(`From ${formatDateLabel(dateRange.from)}`)
+    else if (dateRange.to) parts.push(`Through ${formatDateLabel(dateRange.to)}`)
+    parts.push(`${filteredCount} of ${totalSpecies} species`)
+    return parts.join(' · ')
+  })()
 
   return (
     <div style={{
@@ -404,6 +458,82 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
               Taxonomic
             </button>
           </div>
+
+          {counties.length > 0 && (
+            <>
+              <div style={{ width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center' }} />
+
+              {/* County dropdown */}
+              <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                <MapPin size={12} strokeWidth={2} style={{
+                  position: 'absolute', left: 7, color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                  pointerEvents: 'none', flexShrink: 0,
+                }} />
+                <select
+                  value={countyFilter ?? ''}
+                  onChange={e => setCountyFilter(e.target.value || null)}
+                  style={{
+                    height: 26, paddingLeft: 24, paddingRight: 22, borderRadius: 5,
+                    border: countyFilter
+                      ? '1.5px solid var(--sr-accent-border-strong)'
+                      : '1.5px solid var(--sr-border)',
+                    background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                    color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                    fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                    cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">All Counties</option>
+                  {counties.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <span style={{
+                  position: 'absolute', right: 6, pointerEvents: 'none',
+                  color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                  fontSize: 9,
+                }}>▾</span>
+              </div>
+
+              {/* Date range */}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <Calendar size={11} strokeWidth={2} style={{
+                    position: 'absolute', left: 7, color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                    pointerEvents: 'none',
+                  }} />
+                  <input
+                    type="date"
+                    value={dateRange.from}
+                    onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                    style={{
+                      height: 26, paddingLeft: 24, paddingRight: 6, borderRadius: 5,
+                      border: dateRange.from
+                        ? '1.5px solid var(--sr-accent-border-strong)'
+                        : '1.5px solid var(--sr-border)',
+                      background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                      color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
+                      fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                    }}
+                  />
+                </div>
+                <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>→</span>
+                <input
+                  type="date"
+                  value={dateRange.to}
+                  onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                  style={{
+                    height: 26, paddingLeft: 8, paddingRight: 6, borderRadius: 5,
+                    border: dateRange.to
+                      ? '1.5px solid var(--sr-accent-border-strong)'
+                      : '1.5px solid var(--sr-border)',
+                    background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                    color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
+                    fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                  }}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
@@ -432,6 +562,27 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
           </button>
         </div>
       </div>
+
+      {hasLocationFilter && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '7px 12px', marginBottom: 8,
+          background: 'var(--sr-accent-bg)', borderRadius: 6,
+          fontSize: 12, color: 'var(--sr-accent)', flexShrink: 0,
+        }}>
+          <span style={{ fontWeight: 500 }}>{filterStripText}</span>
+          <button
+            onClick={() => { setCountyFilter(null); setDateRange(DATE_RANGE_CLEAR) }}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 12, color: 'var(--sr-accent)', fontFamily: 'inherit',
+              padding: 0, textDecoration: 'underline',
+            }}
+          >
+            Clear filter
+          </button>
+        </div>
+      )}
 
       <BreedingCodeTable
         entries={categoryFilteredEntries}

@@ -85,6 +85,12 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
       return sort.dir === 'asc' ? cmp : -cmp
     }
     const dirMult = sort.dir === 'asc' ? 1 : -1
+    if (sort.column === 'total') {
+      const totalA = countMedia(a, mediaMap, 'Photo') + countMedia(a, mediaMap, 'Audio') + countMedia(a, mediaMap, 'Video')
+      const totalB = countMedia(b, mediaMap, 'Photo') + countMedia(b, mediaMap, 'Audio') + countMedia(b, mediaMap, 'Video')
+      if (totalA !== totalB) return dirMult * (totalA - totalB)
+      return nameCompare(a, b)
+    }
     const type = sort.column === 'photo' ? 'Photo' : sort.column === 'audio' ? 'Audio' : 'Video'
     const diff = countMedia(a, mediaMap, type) - countMedia(b, mediaMap, type)
     if (diff !== 0) return dirMult * diff
@@ -177,6 +183,22 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 </div>
               </th>
             ))}
+            <th
+              onClick={() => handleHeaderClick('total')}
+              style={{
+                ...thBase,
+                padding: '10px 14px',
+                width: 70,
+                textAlign: 'center',
+                color: 'var(--sr-accent)',
+                borderLeft: '1px solid var(--sr-border)',
+              }}
+            >
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                Total
+                {sortIndicator('total')}
+              </div>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -184,6 +206,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
             const photoCount = countMedia(entry, mediaMap, 'Photo')
             const audioCount = countMedia(entry, mediaMap, 'Audio')
             const videoCount = countMedia(entry, mediaMap, 'Video')
+            const totalCount = photoCount + audioCount + videoCount
             const taxonCode = taxonMap[entry.commonName]
             return (
               <tr
@@ -245,6 +268,13 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{videoCount}</a>
                       : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
+                  </div>
+                </td>
+                <td style={{ width: 70, padding: '9px 14px', verticalAlign: 'middle', borderLeft: '1px solid var(--sr-border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums' }}>
+                      {totalCount}
+                    </span>
                   </div>
                 </td>
               </tr>

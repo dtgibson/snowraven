@@ -6,10 +6,37 @@ export interface BreedingEntry {
   codes: Record<string, number>
 }
 
+export interface BreedingCodeRow {
+  commonName: string
+  scientificName: string
+  date: string           // YYYY-MM-DD
+  county: string | null
+  code: string           // breeding code abbreviation (e.g. "CN")
+}
+
 export interface BreedingData {
   entries: BreedingEntry[]
   codesPresent: string[]
   hasBreedingCodeColumn: boolean
+  rows: BreedingCodeRow[]  // raw per-observation rows for filter re-aggregation
+}
+
+export function aggregateBreedingRows(
+  rows: BreedingCodeRow[]
+): Pick<BreedingData, 'entries' | 'codesPresent'> {
+  const entryMap = new Map<string, BreedingEntry>()
+  for (const row of rows) {
+    if (!entryMap.has(row.commonName)) {
+      entryMap.set(row.commonName, { commonName: row.commonName, scientificName: row.scientificName, codes: {} })
+    }
+    const entry = entryMap.get(row.commonName)!
+    entry.codes[row.code] = (entry.codes[row.code] ?? 0) + 1
+  }
+  const entries = [...entryMap.values()].sort((a, b) => a.commonName.localeCompare(b.commonName))
+  const codesPresent = BREEDING_CODES
+    .map(d => d.code)
+    .filter(code => entries.some(e => (e.codes[code] ?? 0) > 0))
+  return { entries, codesPresent }
 }
 
 // Full CSV parser that correctly handles quoted fields containing embedded
@@ -85,14 +112,17 @@ export function parseBreedingCodes(content: string): BreedingData {
   const commonNameIdx = headers.findIndex(h => h === 'common name')
   if (commonNameIdx === -1) throw new Error('INVALID_EBIRD')
 
-  const sciNameIdx = headers.findIndex(h => h === 'scientific name')
+  const sciNameIdx      = headers.findIndex(h => h === 'scientific name')
   const breedingCodeIdx = headers.findIndex(h => h === 'breeding code')
+  const dateIdx         = headers.findIndex(h => h === 'date')
+  const countyIdx       = headers.findIndex(h => h === 'county')
 
   if (breedingCodeIdx === -1) {
-    return { entries: [], codesPresent: [], hasBreedingCodeColumn: false }
+    return { entries: [], codesPresent: [], hasBreedingCodeColumn: false, rows: [] }
   }
 
   const entryMap = new Map<string, BreedingEntry>()
+  const codeRows: BreedingCodeRow[] = []
 
   for (let i = 1; i < rows.length; i++) {
     const cols = rows[i]
@@ -113,6 +143,10 @@ export function parseBreedingCodes(content: string): BreedingData {
     }
     const entry = entryMap.get(name)!
     entry.codes[code] = (entry.codes[code] ?? 0) + 1
+
+    const date   = dateIdx   >= 0 ? (cols[dateIdx]?.trim()   ?? '') : ''
+    const county = countyIdx >= 0 ? (cols[countyIdx]?.trim() || null) : null
+    codeRows.push({ commonName: name, scientificName: sciName, date, county, code })
   }
 
   const entries = [...entryMap.values()].sort((a, b) =>
@@ -123,5 +157,5 @@ export function parseBreedingCodes(content: string): BreedingData {
     .map(d => d.code)
     .filter(code => entries.some(e => (e.codes[code] ?? 0) > 0))
 
-  return { entries, codesPresent, hasBreedingCodeColumn: true }
+  return { entries, codesPresent, hasBreedingCodeColumn: true, rows: codeRows }
 }

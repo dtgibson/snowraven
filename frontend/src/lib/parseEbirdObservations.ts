@@ -67,6 +67,7 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
   const locationIdIdx         = headers.findIndex(h => h === 'location id')
   const latitudeIdx           = headers.findIndex(h => h === 'latitude')
   const longitudeIdx          = headers.findIndex(h => h === 'longitude')
+  const countyIdx             = headers.findIndex(h => h === 'county')
   const countIdx              = headers.findIndex(h => h === 'count')
   const breedingCodeIdx       = headers.findIndex(h => h === 'breeding code')
   const speciesCommentsIdx    = headers.findIndex(h => h === 'species comments' || h === 'observation details')
@@ -113,7 +114,9 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
       ? rawCatalog.split(/[\s,]+/).map(id => id.replace(/^ML/i, '').trim()).filter(id => /^\d+$/.test(id))
       : []
 
-    entries.push({ submissionId, commonName, scientificName, date, location, locationId, latitude, longitude, count, breedingCode, speciesComments, catalogIds })
+    const county = countyIdx >= 0 ? (cols[countyIdx]?.trim() || null) : null
+
+    entries.push({ submissionId, commonName, scientificName, date, location, locationId, latitude, longitude, county, count, breedingCode, speciesComments, catalogIds })
   }
 
   return entries

@@ -24,7 +24,7 @@ export const MEDIA_FILTER_CLEAR: MediaFilterState = { photo: null, audio: null, 
 export type BreedingFilterSet = Set<string>
 export type SortOrder = 'taxonomic' | 'alpha'
 export type NameSortMode = 'az' | 'taxonomic'
-export type SortColumn = 'name' | 'photo' | 'audio' | 'video'
+export type SortColumn = 'name' | 'photo' | 'audio' | 'video' | 'total'
 export type SortDir = 'asc' | 'desc'
 export interface SortState {
   column: SortColumn
@@ -48,6 +48,12 @@ export interface StoredFilesStatus {
   ml: StoredFileInfo | null
 }
 
+export interface DateRangeState {
+  from: string   // YYYY-MM-DD or '' (empty = no lower bound)
+  to: string     // YYYY-MM-DD or '' (empty = no upper bound)
+}
+export const DATE_RANGE_CLEAR: DateRangeState = { from: '', to: '' }
+
 export interface ObservationEntry {
   submissionId: string
   commonName: string
@@ -57,6 +63,7 @@ export interface ObservationEntry {
   locationId: string
   latitude: number | null
   longitude: number | null
+  county: string | null  // eBird "County" column; null when absent
   count: number | null   // null for "X" / presence-only
   breedingCode: string | null
   speciesComments: string
