@@ -6,8 +6,6 @@ interface ResultsViewProps {
   fileB: FileData
   result: ComparisonResult
   onReset: () => void
-  expanded: boolean
-  onToggleExpanded: () => void
   sort: SortOrder
   onSortChange: (s: SortOrder) => void
   taxonMap: Record<string, string>
@@ -23,7 +21,7 @@ function sortedSpecies(names: string[], order: Map<string, number>, sort: SortOr
   })
 }
 
-export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleExpanded, sort, onSortChange, taxonMap }: ResultsViewProps) {
+export function ResultsView({ fileA, fileB, result, onReset, sort, onSortChange, taxonMap }: ResultsViewProps) {
   const nameA = fileA.filename
   const nameB = fileB.filename
   const { taxOrder } = result
@@ -37,8 +35,6 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
       maxWidth: 880,
       display: 'flex',
       flexDirection: 'column',
-      flex: expanded ? 'none' : 1,
-      minHeight: expanded ? 'auto' : 0,
     }}>
       {/* Header */}
       <div style={{
@@ -79,27 +75,6 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
               </button>
             ))}
           </div>
-          <button
-            onClick={onToggleExpanded}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              height: 34,
-              padding: '0 14px',
-              background: expanded ? 'var(--sr-accent-bg)' : 'transparent',
-              color: 'var(--sr-accent)',
-              border: '1.5px solid var(--sr-accent-border)',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 500,
-              fontFamily: 'inherit',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {expanded ? '↑ Collapse' : '↓ Show all'}
-          </button>
           <button
             onClick={onReset}
             style={{
@@ -150,12 +125,10 @@ export function ResultsView({ fileA, fileB, result, onReset, expanded, onToggleE
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 12,
-        flex: expanded ? 'none' : 1,
-        minHeight: expanded ? 'auto' : 0,
       }}>
-        <SpeciesPanel title="In Both" species={displayBoth} expanded={expanded} taxonMap={taxonMap} />
-        <SpeciesPanel title={`${nameA} only`} species={displayAOnly} expanded={expanded} taxonMap={taxonMap} />
-        <SpeciesPanel title={`${nameB} only`} species={displayBOnly} expanded={expanded} taxonMap={taxonMap} />
+        <SpeciesPanel title="In Both" species={displayBoth} taxonMap={taxonMap} />
+        <SpeciesPanel title={`${nameA} only`} species={displayAOnly} taxonMap={taxonMap} />
+        <SpeciesPanel title={`${nameB} only`} species={displayBOnly} taxonMap={taxonMap} />
       </div>
     </div>
   )

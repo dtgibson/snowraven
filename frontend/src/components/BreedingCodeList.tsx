@@ -14,10 +14,6 @@ type Phase =
   | { tag: 'error'; message: string }
   | { tag: 'ready'; data: BreedingData }
 
-interface Props {
-  onExpandedChange?: (expanded: boolean) => void
-}
-
 function codePillStyle(tier: 1 | 2 | 3 | 4, active: boolean): React.CSSProperties {
   const base: React.CSSProperties = {
     display: 'inline-flex',
@@ -82,13 +78,13 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function BreedingCodeList({ onExpandedChange }: Props) {
+export function BreedingCodeList() {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<Set<string>>(new Set())
   const [categoryFilter, setCategoryFilter] = useState<Set<BreedingCategory>>(new Set())
   const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
-  const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
+  const [wideMode, setWideMode] = useState(false)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
@@ -187,19 +183,9 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
     setCountyFilter(null)
     setDateRange(DATE_RANGE_CLEAR)
     setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
-    setExpanded(false)
     setTaxonMap({})
     setTaxonOrders({})
     setSavedFileInfo(null)
-    onExpandedChange?.(false)
-  }
-
-  const handleToggleExpanded = () => {
-    setExpanded(prev => {
-      const next = !prev
-      onExpandedChange?.(next)
-      return next
-    })
   }
 
   // These useMemos must be declared before any early return so that the
@@ -362,8 +348,6 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
 
   return (
     <div style={{
-      flex: expanded ? 'none' : 1,
-      minHeight: expanded ? 'auto' : 0,
       display: 'flex',
       flexDirection: 'column',
       gap: 0,
@@ -559,8 +543,12 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
               </span>
             </div>
           )}
-          <button style={ghostBtn(expanded)} onClick={handleToggleExpanded}>
-            {expanded ? '↑ Collapse' : '↓ Show all'}
+          <button
+            style={ghostBtn(wideMode)}
+            onClick={() => setWideMode(w => !w)}
+            title={wideMode ? 'Collapse table into scroll box' : 'Expand table — scroll the whole page on mobile'}
+          >
+            {wideMode ? '↔ Normal' : '↔ Unbounded'}
           </button>
           <button style={ghostBtn()} onClick={handleReset}>
             {savedFileInfo ? 'Load different file' : 'Load new file'}
@@ -595,9 +583,9 @@ export function BreedingCodeList({ onExpandedChange }: Props) {
         sort={sort}
         onSortChange={setSort}
         filter={filter}
-        expanded={expanded}
         taxonMap={taxonMap}
         taxonOrders={taxonOrders}
+        wideMode={wideMode}
       />
     </div>
   )

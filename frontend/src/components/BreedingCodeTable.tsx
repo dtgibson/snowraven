@@ -10,9 +10,9 @@ interface Props {
   sort: BreedingSortState
   onSortChange: (next: BreedingSortState) => void
   filter: Set<string>
-  expanded: boolean
   taxonMap: Record<string, string>
   taxonOrders: Record<string, number>
+  wideMode: boolean
 }
 
 const TIER_LABELS: Record<number, string> = {
@@ -22,7 +22,7 @@ const TIER_LABELS: Record<number, string> = {
   1: 'Possible',
 }
 
-export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, expanded, taxonMap, taxonOrders }: Props) {
+export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, taxonMap, taxonOrders, wideMode }: Props) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
   const filtered = filter.size === 0
@@ -95,18 +95,11 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
       border: '1px solid var(--sr-border)',
       borderRadius: 10,
       background: 'var(--sr-surface)',
-      flex: expanded ? 'none' : 1,
-      minHeight: expanded ? 'auto' : 0,
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden',
+      ...(wideMode ? { width: 'max-content' } : {}),
     }}>
-      <div style={{
-        flex: expanded ? 'none' : 1,
-        minHeight: 0,
-        overflowX: 'auto',
-        overflowY: expanded ? 'visible' : 'auto',
-      }}>
+      <div style={wideMode ? {} : { overflowX: 'auto' }}>
         <table style={{
           width: '100%',
           minWidth: 'max-content',
@@ -119,14 +112,12 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                 onClick={() => handleHeaderClick('name')}
                 style={{
                   ...thBase,
-                  left: 0,
-                  zIndex: 3,
+                  ...(wideMode ? {} : { left: 0, zIndex: 3, boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)' }),
                   textAlign: 'left',
                   padding: '10px 12px',
                   width: 220,
                   minWidth: 220,
                   color: sort.column === 'name' ? 'var(--sr-text)' : 'var(--sr-text-muted)',
-                  boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)',
                 }}
               >
                 Species{sortIndicator('name')}
@@ -165,11 +156,8 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                 >
                   <td style={{
                     padding: '9px 12px',
-                    position: 'sticky',
-                    left: 0,
+                    ...(wideMode ? {} : { position: 'sticky', left: 0, zIndex: 1, boxShadow: '1px 0 0 var(--sr-border)' }),
                     background: rowBg,
-                    zIndex: 1,
-                    boxShadow: '1px 0 0 var(--sr-border)',
                     width: 220,
                     minWidth: 220,
                     maxWidth: 220,

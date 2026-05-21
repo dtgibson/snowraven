@@ -12,7 +12,7 @@ interface Props {
   userId: string | null
   taxonMap: Record<string, string>
   taxonOrders: Record<string, number>
-  expanded: boolean
+  wideMode: boolean
 }
 
 function hasMedia(
@@ -52,7 +52,7 @@ const iconCell: React.CSSProperties = {
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, expanded }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, wideMode }: Props) {
   const filtered = entries.filter(entry => {
     if (filter.photo === 'has' && !hasMedia(entry, mediaMap, 'Photo')) return false
     if (filter.photo === 'no' && hasMedia(entry, mediaMap, 'Photo')) return false
@@ -136,9 +136,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
       border: '1px solid var(--sr-border)',
       borderRadius: 10,
       background: 'var(--sr-surface)',
-      flex: expanded ? 'none' : 1,
-      minHeight: expanded ? 'auto' : 0,
-      overflowY: expanded ? 'visible' : 'auto',
+      ...(wideMode ? { width: 'max-content' } : { overflowX: 'auto' }),
     }}>
       <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
         <thead>

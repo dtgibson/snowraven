@@ -1,23 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Upload, Download, Loader2, AlertCircle, Camera, Mic, Video, ChevronRight, Info, FileCheck, MapPin, Calendar } from 'lucide-react'
+import { Download, Loader2, AlertCircle, Camera, Mic, Video, Info, FileCheck, MapPin, Calendar } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { LifeListTable } from './LifeListTable'
-import type { MediaFilterState, SortState, StoredFileInfo, DateRangeState, ObservationEntry } from '../types'
+import type { MediaFilterState, SortState, StoredFileInfo, DateRangeState } from '../types'
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
-
-const BATCH_SIZE = 10
-
-type Source = 'ml-export' | 'ebird'
 
 type Phase =
   | { tag: 'idle' }
   | { tag: 'loading-saved' }
   | { tag: 'error'; message: string }
-  | { tag: 'loading'; entries: LifeListEntry[]; batchCurrent: number; batchTotal: number }
-  | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string>; mlError: boolean; source: Source }
+  | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string> }
 
 function parseMLUserId(filename: string): string | null {
   const match = filename.match(/^ML__.*_([A-Za-z0-9]+)\.csv$/i)
@@ -68,34 +63,17 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-interface LifeListProps {
-  onExpandedChange?: (expanded: boolean) => void
-}
-
-function obsToLifeListEntries(obs: ObservationEntry[]): LifeListEntry[] {
-  type E = { scientificName: string; catalogIds: Set<string> }
-  const map = new Map<string, E>()
-  for (const o of obs) {
-    if (!map.has(o.commonName)) map.set(o.commonName, { scientificName: o.scientificName, catalogIds: new Set() })
-    for (const id of o.catalogIds) map.get(o.commonName)!.catalogIds.add(id)
-  }
-  return [...map.keys()].sort((a, b) => a.localeCompare(b)).map(commonName => {
-    const d = map.get(commonName)!
-    return { commonName, scientificName: d.scientificName, taxonomicOrder: Infinity, catalogIds: [...d.catalogIds] }
-  })
-}
-
-export function LifeList({ onExpandedChange }: LifeListProps) {
+export function LifeList() {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<MediaFilterState>(MEDIA_FILTER_CLEAR)
   const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
-  const [expanded, setExpanded] = useState(false)
   const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
-  const [draggingOver, setDraggingOver] = useState<'primary' | 'secondary' | null>(null)
-  const [rawRows, setRawRows] = useState<MLExportRow[] | ObservationEntry[]>([])
+  const [draggingOver, setDraggingOver] = useState(false)
+  const [wideMode, setWideMode] = useState(false)
+  const [rawRows, setRawRows] = useState<MLExportRow[]>([])
   const [countyResolution, setCountyResolution] = useState<'idle' | 'resolving' | 'done'>('idle')
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
@@ -211,17 +189,15 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
   const hasLocationFilter = countyFilter !== null || !!dateRange.from || !!dateRange.to
 
-  const phaseSource = phase.tag === 'ready' ? phase.source : null
   const phaseEntries = useMemo(
     () => (phase.tag === 'ready' ? phase.entries : []),
     [phase]
   )
 
   const displayEntries = useMemo((): LifeListEntry[] => {
-    if (!hasLocationFilter || rawRows.length === 0 || phaseSource === null) return phaseEntries
-    if (phaseSource === 'ml-export') return aggregateMLRows(filteredRows as MLExportRow[])
-    return obsToLifeListEntries(filteredRows as ObservationEntry[])
-  }, [hasLocationFilter, rawRows.length, phaseEntries, phaseSource, filteredRows])
+    if (!hasLocationFilter || rawRows.length === 0) return phaseEntries
+    return aggregateMLRows(filteredRows)
+  }, [hasLocationFilter, rawRows.length, phaseEntries, filteredRows])
 
   useEffect(() => {
     let cancelled = false
@@ -242,7 +218,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
           setMlUserId(parseMLUserId(status.ml.filename))
           setSavedFileInfo(status.ml)
           setRawRows(rows)
-          setPhase({ tag: 'ready', entries, mediaMap, mlError: false, source: 'ml-export' })
+          setPhase({ tag: 'ready', entries, mediaMap })
           fetchTaxonCodes(entries)
           resolveMLCounties(rows)
         }
@@ -254,87 +230,28 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     return () => { cancelled = true }
   }, [])
 
-  const startMediaLookup = async (entries: LifeListEntry[]) => {
-    const allIds = [...new Set(entries.flatMap(e => e.catalogIds))]
-
-    if (allIds.length === 0) {
-      setPhase({ tag: 'ready', entries, mediaMap: {}, mlError: false, source: 'ebird' })
-      return
-    }
-
-    const batches: string[][] = []
-    for (let i = 0; i < allIds.length; i += BATCH_SIZE) {
-      batches.push(allIds.slice(i, i + BATCH_SIZE))
-    }
-
-    setPhase({ tag: 'loading', entries, batchCurrent: 1, batchTotal: batches.length })
-
-    const mediaMap: Record<string, string> = {}
-    let mlError = false
-
-    for (let i = 0; i < batches.length; i++) {
-      if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 500))
-        setPhase(p => p.tag === 'loading' ? { ...p, batchCurrent: i + 1 } : p)
-      }
-      try {
-        const res = await fetch('/ml/media-types', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ catalog_ids: batches[i] }),
-        })
-        if (!res.ok) { mlError = true; continue }
-        const data = await res.json()
-        Object.assign(mediaMap, data.media_types)
-      } catch {
-        mlError = true
-        continue
-      }
-    }
-
-    setPhase({ tag: 'ready', entries, mediaMap, mlError, source: 'ebird' })
-    fetchTaxonCodes(entries)
-  }
-
   const processFile = async (file: File) => {
     try {
       const text = await file.text()
-      const fileType = detectFileType(text)
-
-      if (fileType === 'ml-export') {
-        const { entries, mediaMap, rows } = parseMLExport(text)
-        setMlUserId(parseMLUserId(file.name))
-        setRawRows(rows)
-        setCountyFilter(null)
-        setDateRange(DATE_RANGE_CLEAR)
-        setPhase({ tag: 'ready', entries, mediaMap, mlError: false, source: 'ml-export' })
-        fetchTaxonCodes(entries)
-        resolveMLCounties(rows)
-      } else if (fileType === 'ebird') {
-        const observations = parseEbirdObservations(text)
-        setRawRows(observations)
-        setCountyFilter(null)
-        setDateRange(DATE_RANGE_CLEAR)
-        setCountyResolution('done')
-        const entries = obsToLifeListEntries(observations)
-        await startMediaLookup(entries)
-      } else {
-        setPhase({
-          tag: 'error',
-          message: "This doesn't look like a Macaulay Library export or an eBird backup. Check you're uploading the right file.",
-        })
-      }
+      const { entries, mediaMap, rows } = parseMLExport(text)
+      setMlUserId(parseMLUserId(file.name))
+      setRawRows(rows)
+      setCountyFilter(null)
+      setDateRange(DATE_RANGE_CLEAR)
+      setPhase({ tag: 'ready', entries, mediaMap })
+      fetchTaxonCodes(entries)
+      resolveMLCounties(rows)
     } catch {
       setPhase({
         tag: 'error',
-        message: "This doesn't look like a Macaulay Library export or an eBird backup. Check you're uploading the right file.",
+        message: "This doesn't look like a Macaulay Library export. Sign in to Macaulay Library → My Media → Save Spreadsheet.",
       })
     }
   }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
-    setDraggingOver(null)
+    setDraggingOver(false)
     const file = e.dataTransfer.files[0]
     if (file) processFile(file)
   }
@@ -348,7 +265,6 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     setPhase({ tag: 'idle' })
     setFilter(MEDIA_FILTER_CLEAR)
     setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
-    setExpanded(false)
     setMlUserId(null)
     setTaxonMap({})
     setTaxonOrders({})
@@ -357,15 +273,6 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     setCountyResolution('idle')
     setCountyFilter(null)
     setDateRange(DATE_RANGE_CLEAR)
-    onExpandedChange?.(false)
-  }
-
-  const handleToggleExpanded = () => {
-    setExpanded(prev => {
-      const next = !prev
-      onExpandedChange?.(next)
-      return next
-    })
   }
 
   // ── Auto-loading saved file ───────────────────────────────────────────────
@@ -379,11 +286,8 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
 
   // ── Upload screen (idle / error) ─────────────────────────────────────────
   if (phase.tag === 'idle' || phase.tag === 'error') {
-    const isPrimaryActive = draggingOver === 'primary'
-    const isSecondaryActive = draggingOver === 'secondary'
-
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {phase.tag === 'error' && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
@@ -395,14 +299,13 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
           </div>
         )}
 
-        {/* Primary drop zone — ML export */}
         <div
-          onDragOver={e => { e.preventDefault(); setDraggingOver('primary') }}
-          onDragLeave={() => setDraggingOver(null)}
+          onDragOver={e => { e.preventDefault(); setDraggingOver(true) }}
+          onDragLeave={() => setDraggingOver(false)}
           onDrop={e => handleDrop(e)}
           onClick={() => fileInputRef.current?.click()}
           style={{
-            flex: 1,
+            minHeight: 240,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -410,25 +313,14 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
             gap: 8,
             border: `2px dashed var(--sr-accent)`,
             borderRadius: 12,
-            background: isPrimaryActive ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+            background: draggingOver ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
             cursor: 'pointer',
             transition: 'background 0.15s',
             padding: 40,
-            position: 'relative',
           }}
-          onMouseEnter={e => { if (!isPrimaryActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-accent-bg-hover)' }}
-          onMouseLeave={e => { if (!isPrimaryActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
+          onMouseEnter={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-accent-bg-hover)' }}
+          onMouseLeave={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
         >
-          {/* Recommended badge */}
-          <div style={{
-            position: 'absolute', top: 14, right: 14,
-            background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)',
-            fontSize: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase',
-            padding: '3px 8px', borderRadius: 4, border: '1px solid var(--sr-accent-border)',
-          }}>
-            Recommended
-          </div>
-
           <div style={{
             width: 48, height: 48, borderRadius: 12, background: 'var(--sr-accent-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -453,49 +345,6 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
           </span>
         </div>
 
-        {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
-          <span style={{ fontSize: 11, color: 'var(--sr-text-disabled)', whiteSpace: 'nowrap' }}>
-            or use your eBird backup
-          </span>
-          <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
-        </div>
-
-        {/* Secondary drop zone — eBird CSV */}
-        <div
-          onDragOver={e => { e.preventDefault(); setDraggingOver('secondary') }}
-          onDragLeave={() => setDraggingOver(null)}
-          onDrop={e => handleDrop(e)}
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 14,
-            padding: '14px 18px',
-            border: `1.5px dashed ${isSecondaryActive ? 'var(--sr-text-disabled)' : 'var(--sr-border)'}`,
-            borderRadius: 10,
-            background: isSecondaryActive ? 'var(--sr-surface-faint)' : 'var(--sr-surface)',
-            cursor: 'pointer',
-            transition: 'background 0.15s, border-color 0.15s',
-            flexShrink: 0,
-          }}
-          onMouseEnter={e => { if (!isSecondaryActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface-faint)' }}
-          onMouseLeave={e => { if (!isSecondaryActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
-        >
-          <div style={{
-            width: 36, height: 36, borderRadius: 8, background: 'var(--sr-surface-subtle)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <Upload size={16} strokeWidth={1.75} style={{ color: 'var(--sr-text-muted)' }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>MyEBirdData.csv</div>
-            <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 2 }}>
-              Looks up media coverage online — may take a moment for large lists
-            </div>
-          </div>
-          <ChevronRight size={14} strokeWidth={2} style={{ color: 'var(--sr-gray-400)', flexShrink: 0 }} />
-        </div>
-
         <input
           ref={fileInputRef}
           type="file"
@@ -507,34 +356,8 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
     )
   }
 
-  // ── Loading ───────────────────────────────────────────────────────────────
-  if (phase.tag === 'loading') {
-    const { entries, batchCurrent, batchTotal } = phase
-    const progress = batchTotal > 0 ? batchCurrent / batchTotal : 0
-    return (
-      <div style={{
-        flex: 1, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: 16, minHeight: 0,
-      }}>
-        <Loader2 size={32} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
-        <span style={{ fontSize: 13, color: 'var(--sr-text-muted)' }}>
-          Looking up media… batch {batchCurrent} of {batchTotal}
-        </span>
-        <div style={{ width: 280, height: 4, background: 'var(--sr-border)', borderRadius: 2 }}>
-          <div style={{
-            width: `${progress * 100}%`, height: '100%',
-            background: 'var(--sr-accent)', borderRadius: 2, transition: 'width 0.3s ease',
-          }} />
-        </div>
-        <span style={{ fontSize: 12, color: 'var(--sr-text-gray)' }}>
-          {entries.length} species · checking Macaulay Library
-        </span>
-      </div>
-    )
-  }
-
   // ── Ready ─────────────────────────────────────────────────────────────────
-  const { mediaMap, mlError, source } = phase
+  const { mediaMap } = phase
 
   const isFilterClear = !filter.photo && !filter.audio && !filter.video
 
@@ -600,24 +423,8 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
   }
 
   return (
-    <div style={{
-      flex: expanded ? 'none' : 1,
-      minHeight: expanded ? 'auto' : 0,
-      display: 'flex', flexDirection: 'column', gap: 0,
-    }}>
-      {mlError && (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '9px 13px', background: 'var(--sr-error-bg)',
-          border: '1px solid var(--sr-error-border)', borderRadius: 8,
-          fontSize: 13, color: 'var(--sr-error)', marginBottom: 12, flexShrink: 0,
-        }}>
-          <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-          Couldn't reach the Macaulay Library. Media coverage may be incomplete.
-        </div>
-      )}
-
-      {source === 'ml-export' && mlUserId === null && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {mlUserId === null && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-warning-bg)',
@@ -770,8 +577,12 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
               </span>
             </div>
           )}
-          <button style={ghostBtn(expanded)} onClick={handleToggleExpanded}>
-            {expanded ? '↑ Collapse' : '↓ Show all'}
+          <button
+            style={ghostBtn(wideMode)}
+            onClick={() => setWideMode(w => !w)}
+            title={wideMode ? 'Collapse table into scroll box' : 'Expand table — scroll the whole page on mobile'}
+          >
+            {wideMode ? '↔ Normal' : '↔ Unbounded'}
           </button>
           <button style={ghostBtn()} onClick={handleReset}>
             {savedFileInfo ? 'Load different file' : 'Load new file'}
@@ -809,7 +620,7 @@ export function LifeList({ onExpandedChange }: LifeListProps) {
         userId={mlUserId}
         taxonMap={taxonMap}
         taxonOrders={taxonOrders}
-        expanded={expanded}
+        wideMode={wideMode}
       />
     </div>
   )

@@ -5,17 +5,12 @@ import type { FileData, ComparisonResult, SortOrder } from '../types'
 import { DropZone } from './DropZone'
 import { ResultsView } from './ResultsView'
 
-interface ListComparerProps {
-  onExpandedChange?: (expanded: boolean) => void
-}
-
-export function ListComparer({ onExpandedChange }: ListComparerProps) {
+export function ListComparer() {
   const [fileA, setFileA] = useState<FileData | null>(null)
   const [fileB, setFileB] = useState<FileData | null>(null)
   const [errorA, setErrorA] = useState<string | null>(null)
   const [errorB, setErrorB] = useState<string | null>(null)
   const [result, setResult] = useState<ComparisonResult | null>(null)
-  const [expanded, setExpanded] = useState(false)
   const [sort, setSort] = useState<SortOrder>('taxonomic')
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
 
@@ -79,18 +74,8 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
     setErrorA(null)
     setErrorB(null)
     setResult(null)
-    setExpanded(false)
     setSort('taxonomic')
     setTaxonMap({})
-    onExpandedChange?.(false)
-  }
-
-  const handleToggleExpanded = () => {
-    setExpanded(prev => {
-      const next = !prev
-      onExpandedChange?.(next)
-      return next
-    })
   }
 
   const canCompare = fileA !== null && fileB !== null
@@ -110,8 +95,6 @@ export function ListComparer({ onExpandedChange }: ListComparerProps) {
           fileB={fileB!}
           result={result}
           onReset={handleReset}
-          expanded={expanded}
-          onToggleExpanded={handleToggleExpanded}
           sort={sort}
           onSortChange={setSort}
           taxonMap={taxonMap}

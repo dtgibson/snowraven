@@ -198,11 +198,7 @@ function MapBoundsFitter({ coordinates }: { coordinates: [number, number][] }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-interface Props {
-  onExpandedChange?: (expanded: boolean) => void
-}
-
-export function SpeciesDetail({ onExpandedChange }: Props) {
+export function SpeciesDetail() {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -223,19 +219,10 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
   const [showAllComments, setShowAllComments] = useState(false)
   const [showAllLocations, setShowAllLocations] = useState(false)
 
-  const [expanded, setExpanded] = useState(false)
   const [draggingOver, setDraggingOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const selectorRef = useRef<HTMLDivElement>(null)
   const dropdownListRef = useRef<HTMLDivElement>(null)
-
-  const handleToggleExpanded = () => {
-    setExpanded(prev => {
-      const next = !prev
-      onExpandedChange?.(next)
-      return next
-    })
-  }
 
   const selectSpecies = (name: string | null) => {
     setSelectedSpecies(name)
@@ -391,8 +378,6 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
     setMergeSubspecies(true)
     setCountyFilter(null)
     setDateRange({ from: '', to: '' })
-    setExpanded(false)
-    onExpandedChange?.(false)
   }
 
   // ── Derived data ───────────────────────────────────────────────────────
@@ -687,11 +672,7 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
 
   // ── Ready state ────────────────────────────────────────────────────────
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', gap: 0,
-      flex: expanded ? 'none' : 1,
-      minHeight: expanded ? 'auto' : 0,
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
@@ -719,23 +700,9 @@ export function SpeciesDetail({ onExpandedChange }: Props) {
         </button>
         <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
         <ToggleSwitch label="Show sp./slash" checked={showSpuh} onChange={handleToggleSpuh} />
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={handleToggleExpanded}
-            style={{
-              height: 30, padding: '0 12px', borderRadius: 6,
-              border: `1.5px solid ${expanded ? 'var(--sr-accent-border)' : 'var(--sr-border)'}`,
-              background: expanded ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-              color: expanded ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-              fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
-            }}
-          >
-            {expanded ? '↑ Collapse' : '↓ Show all'}
-          </button>
-          <span style={{ fontSize: 12, color: 'var(--sr-text-disabled)' }}>
-            {displaySpeciesList.length} species
-          </span>
-        </div>
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--sr-text-disabled)' }}>
+          {displaySpeciesList.length} species
+        </span>
       </div>
 
       {/* Species selector */}

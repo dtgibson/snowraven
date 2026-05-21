@@ -3,16 +3,15 @@ import { SpeciesLinks } from './SpeciesLinks'
 interface SpeciesPanelProps {
   title: string
   species: string[]
-  expanded?: boolean
   taxonMap?: Record<string, string>
 }
 
-export function SpeciesPanel({ title, species, expanded = false, taxonMap = {} }: SpeciesPanelProps) {
+export function SpeciesPanel({ title, species, taxonMap = {} }: SpeciesPanelProps) {
   return (
     <div style={{
       border: '1px solid var(--sr-border)',
       borderRadius: 10,
-      overflow: expanded ? 'visible' : 'hidden',
+      overflow: 'visible',
       display: 'flex',
       flexDirection: 'column',
       background: 'var(--sr-surface)',
@@ -51,9 +50,7 @@ export function SpeciesPanel({ title, species, expanded = false, taxonMap = {} }
 
       <ul
         style={{
-          overflowY: expanded ? 'visible' : 'auto',
-          flex: expanded ? 'none' : 1,
-          minHeight: expanded ? 'auto' : 0,
+          overflowY: 'visible',
           padding: '6px 0',
           listStyle: 'none',
           margin: 0,

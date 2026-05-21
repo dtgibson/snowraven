@@ -32,7 +32,6 @@ function isValidId(id: string): boolean {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('weather')
-  const [isExpanded, setIsExpanded] = useState(false)
   const [input, setInput] = useState('')
   const [state, setState] = useState<AppState>({ status: 'idle' })
   const [copied, setCopied] = useState(false)
@@ -152,7 +151,7 @@ export default function App() {
 
   return (
     <div style={{
-      ...(isExpanded ? { minHeight: '100vh' } : { height: '100vh', overflow: 'hidden' }),
+      minHeight: '100vh',
       background: 'var(--sr-bg)',
       display: 'flex',
       flexDirection: 'column',
@@ -180,7 +179,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'weather'}
             style={tabStyle('weather')}
-            onClick={() => { setActiveTab('weather'); setIsExpanded(false) }}
+            onClick={() => setActiveTab('weather')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
@@ -191,7 +190,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'breeding-codes'}
             style={tabStyle('breeding-codes')}
-            onClick={() => { setActiveTab('breeding-codes'); setIsExpanded(false) }}
+            onClick={() => setActiveTab('breeding-codes')}
           >
             <Dna size={14} strokeWidth={2.5} aria-hidden="true" />
             Breeding Codes
@@ -200,7 +199,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'life-list'}
             style={tabStyle('life-list')}
-            onClick={() => { setActiveTab('life-list'); setIsExpanded(false) }}
+            onClick={() => setActiveTab('life-list')}
           >
             <List size={14} strokeWidth={2.5} aria-hidden="true" />
             Media List
@@ -209,7 +208,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'comparer'}
             style={tabStyle('comparer')}
-            onClick={() => { setActiveTab('comparer'); setIsExpanded(false) }}
+            onClick={() => setActiveTab('comparer')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
@@ -220,7 +219,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'species-detail'}
             style={tabStyle('species-detail')}
-            onClick={() => { setActiveTab('species-detail'); setIsExpanded(false) }}
+            onClick={() => setActiveTab('species-detail')}
           >
             <BookOpen size={14} strokeWidth={2.5} aria-hidden="true" />
             Species Detail
@@ -229,7 +228,7 @@ export default function App() {
             role="tab"
             aria-selected={activeTab === 'settings'}
             style={tabStyle('settings')}
-            onClick={() => { setActiveTab('settings'); setIsExpanded(false) }}
+            onClick={() => setActiveTab('settings')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
@@ -246,9 +245,6 @@ export default function App() {
         className="sr-panel"
         style={{
           display: activeTab === 'weather' ? 'flex' : 'none',
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto',
           flexDirection: 'column',
           alignItems: 'center',
           padding: '40px 24px 24px',
@@ -451,12 +447,11 @@ export default function App() {
         className="sr-panel"
         style={{
           display: activeTab === 'comparer' ? 'flex' : 'none',
-          ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
           flexDirection: 'column',
           padding: '40px 24px 24px',
         }}
       >
-        <ListComparer onExpandedChange={setIsExpanded} />
+        <ListComparer />
       </div>
 
       {/* Life List tab content */}
@@ -465,12 +460,11 @@ export default function App() {
         className="sr-panel"
         style={{
           display: activeTab === 'life-list' ? 'flex' : 'none',
-          ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
           flexDirection: 'column',
           padding: '40px 24px 24px',
         }}
       >
-        <LifeList onExpandedChange={setIsExpanded} />
+        <LifeList />
       </div>
 
       {/* Breeding Codes tab content */}
@@ -479,12 +473,11 @@ export default function App() {
         className="sr-panel"
         style={{
           display: activeTab === 'breeding-codes' ? 'flex' : 'none',
-          ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
           flexDirection: 'column',
           padding: '40px 24px 24px',
         }}
       >
-        <BreedingCodeList onExpandedChange={setIsExpanded} />
+        <BreedingCodeList />
       </div>
 
       {/* Species Detail tab content */}
@@ -493,12 +486,11 @@ export default function App() {
         className="sr-panel"
         style={{
           display: activeTab === 'species-detail' ? 'flex' : 'none',
-          ...(isExpanded ? {} : { flex: 1, minHeight: 0, overflowY: 'auto' as const }),
           flexDirection: 'column',
           padding: '40px 24px 24px',
         }}
       >
-        <SpeciesDetail onExpandedChange={setIsExpanded} />
+        <SpeciesDetail />
       </div>
 
       {/* Settings tab content */}
@@ -507,9 +499,6 @@ export default function App() {
         className="sr-panel"
         style={{
           display: activeTab === 'settings' ? 'flex' : 'none',
-          flex: 1,
-          minHeight: 0,
-          overflowY: 'auto' as const,
           flexDirection: 'column',
           padding: '40px 24px 24px',
         }}

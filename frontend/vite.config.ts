@@ -15,7 +15,6 @@ export default defineConfig({
       '/weather': 'http://localhost:1620',
       '/health': 'http://localhost:1620',
       '/version': 'http://localhost:1620',
-      '/ml': 'http://localhost:1620',
       '/nominatim': 'http://localhost:1620',
       '/taxonomy': 'http://localhost:1620',
       '/settings': 'http://localhost:1620',
