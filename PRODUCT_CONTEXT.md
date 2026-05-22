@@ -109,10 +109,13 @@ After a successful weather lookup, an "Edit on eBird" link appears flush-right o
 
 A third tab that generates a full life list showing per-species media coverage
 — which species have been photographed, audio-recorded, and video-recorded.
-Accepts Macaulay Library export CSV only.
+Accepts a Macaulay Library export CSV as primary input; optionally uses a stored
+eBird backup CSV (from Settings) to enable **Comprehensive mode**, which builds
+the species list from eBird observations rather than ML catalog entries alone.
 
 **Input format:**
-- **Macaulay Library export:** Sign in to Macaulay Library → My Media → Save Spreadsheet. Columns: `Catalog Number` (or `ML Catalog Number`), `Common Name`, `Scientific Name`, `Format`. Media types are read directly from the CSV — no backend lookup required. Results appear instantly.
+- **Macaulay Library export:** Sign in to Macaulay Library → My Media → Save Spreadsheet. Columns: `Catalog Number` (or `ML Catalog Number`), `Common Name`, `Scientific Name`, `Format`. Media types are read directly from the CSV — no backend lookup required.
+- **eBird backup (optional, from Settings):** When a stored eBird backup is present, it is auto-loaded in parallel with the ML export on mount. Its `ObservationEntry[]` becomes the backbone list, ensuring every life-listed bird appears even if it has no ML media. Entries not recognized from the eBird backbone are classified as non-bird (`isNonBird: true`).
 
 **What it does:**
 - Upload screen shows a single drop zone for ML export (with download instructions)
@@ -120,26 +123,37 @@ Accepts Macaulay Library export CSV only.
 - Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `); soundscape entries are included as first-class rows
 - Strips the `ML` prefix from catalog numbers and deduplicates
 - Media types come from the `Format` column (Photo/Audio/Video) — client-side only, no network request
-- Renders a table with five columns: Entries, Photo, Audio, Video, Total
-- Photo, Audio, and Video columns show a count of individual media items (integer in green); zero shows a dash
+- Renders a table with five columns: Entries, Photo, Audio, Video, Total; all count cells show a dash for zero
 - Non-zero counts are clickable links — open Macaulay Library catalog filtered by species (taxon code), media type, and personal userId in a new tab
 - `SpeciesLinks` favicon icons appear after each common name linking to eBird and Birds of the World species pages
-- User ID parsed from ML export filename (`ML__DATE_USERID.csv`) and appended to all catalog links; warning shown if filename was renamed
+- User ID parsed from ML export filename (`ML__DATE_USERID.csv`) and appended to all catalog links; warning shown if filename was renamed and no ML data is loaded
 - Taxon codes and taxon order numbers fetched via `POST /taxonomy/codes` after file load; ML links use `taxonCode=acowoo` parameter for accurate personal filtering; taxon orders power the Taxonomic sort
 - All five column headers are clickable sort controls; clicking sorts by that column, clicking again reverses; count columns default to descending (highest first)
-- **Filter pills (7 total):** All · No photo · No audio · No video · Has photo · Has audio · Has video — multi-select with AND logic
+- **Filter pills (8 total):** All · Has media · No photo · No audio · No video · Has photo · Has audio · Has video — multi-select with AND logic; "Has media" hides all species with no media of any type; "All" resets all pills including "Has media"
 - A–Z / Taxonomic sort toggle in the filter bar
+- **Three toolbar toggles:**
+  - **Merge subspecies** (default ON) — collapses subspecies variants to the parent name; same behavior as Species Detail tab
+  - **Show sp./slash** (default OFF) — hides spuh and slash entries when off
+  - **Show non-bird** (default OFF, only visible in Comprehensive mode) — hides non-bird ML entries (soundscapes, etc.) when off; non-bird entries always sort after all birds in Taxonomic mode
 - **↔ Unbounded / ↔ Normal toggle** — removes the `overflowX` constraint from the table wrapper (sets it to `width: max-content`) so the whole page scrolls horizontally on mobile; Normal restores the bounded scroll box
-- Species count label: "312 species" or "47 of 312 species" when filtered
+- Species count label: "312 of 456 species" in Comprehensive mode, or "312 species" in ML-only mode; denominator always uses `displayEntries.length` (post-toggle, pre-media-filter count)
 - "Load new file" button resets to the upload state
 
+**Comprehensive mode internals:**
+- `buildComprehensiveEntries(ebirdObs, mlRows, mergeSubspecies)` — pure function outside the component; five-step algorithm: (1) build eBird species map (name → obs array), (2) build eBird normalized name set for non-bird detection, (3) build ML catalog map (name → catalogIds), (4) add all eBird backbone entries with ML catalog IDs merged in, (5) add ML-only entries not in the eBird backbone as non-bird (`isNonBird: true`)
+- Non-bird classification uses a set built from `normalizeSpeciesName(ebirdObs[].commonName)` — always normalized regardless of the mergeSubspecies toggle — so subspecies variants in eBird still protect ML entries from false-positive non-bird classification
+- `Phase.ready` carries `hasEbirdBackbone: boolean`; the non-bird toggle and non-bird separator are hidden in ML-only mode
+- Auto-load runs ML and eBird fetches in `Promise.all` (parallel, not sequential)
+
 **Key files:**
+- `frontend/src/lib/speciesUtils.ts` — shared module: `normalizeSpeciesName(name)` (strips trailing parentheticals) and `isSpuhOrSlash(name)` (spuh/slash detection); used by `LifeList.tsx` and `SpeciesDetail.tsx`
+- `frontend/src/lib/speciesUtils.test.ts` — 11 tests
 - `frontend/src/lib/parseMLExport.ts` — ML export CSV parser: returns `{ entries, mediaMap, rows }` from Macaulay Library export; client-side only; throws `INVALID_ML_EXPORT` on bad input
 - `frontend/src/lib/parseMLExport.test.ts` — 15 parser tests
-- `frontend/src/lib/parseLifeList.ts` — eBird backup CSV parser producing `LifeListEntry[]` (used by ListComparer only)
+- `frontend/src/lib/parseLifeList.ts` — eBird backup CSV parser producing `LifeListEntry[]`; `LifeListEntry` now includes `isNonBird?: boolean`
 - `frontend/src/lib/parseLifeList.test.ts` — 13 parser tests
-- `frontend/src/components/LifeList.tsx` — top-level component: single drop zone, ML-only state machine, controls row with Unbounded toggle
-- `frontend/src/components/LifeListTable.tsx` — filtered/sorted species table; `wideMode` prop controls wrapper overflow behavior
+- `frontend/src/components/LifeList.tsx` — top-level component: comprehensive/ML-only/eBird-only mode state machine; `buildComprehensiveEntries` outside component; `filterHasMedia` boolean state; three toolbar toggles; parallel auto-load; `resolveMLCounties` accepts optional `preloadedEbirdObs` to skip re-fetch
+- `frontend/src/components/LifeListTable.tsx` — filtered/sorted species table; non-bird sort partition (taxonomic mode only); Total column shows `<Minus>` for zero-count; `wideMode` prop controls wrapper overflow behavior
 - `frontend/src/types.ts` — `MediaType`, `MediaFilter` (includes positive filters), `SortState` types
 - `frontend/src/App.tsx` — Life List tab added (display-toggle pattern)
 
@@ -204,21 +218,21 @@ code, rendered as a tier-colored circle. Entirely client-side — no backend cha
 
 ### Settings Tab (complete — May 2026)
 
-A Settings tab (rightmost in the tab bar) where users upload and persistently store their eBird backup CSV and ML export on the server filesystem. Stored files auto-load in the Breeding Codes and Media List tabs on every page visit, eliminating repeated uploads between sessions.
+A Settings tab (rightmost in the tab bar) where users upload and persistently store their eBird backup CSV and ML export on the server filesystem. Stored files auto-load in the Breeding Codes, Media List, and Species Detail tabs on every page visit, eliminating repeated uploads between sessions.
 
 **What it does:**
-- Two file management sections: eBird Backup (for Breeding Codes) and ML Export (for Media List) — each shows stored filename + upload date, or an empty "No file saved" state
+- Two file management sections: eBird Backup and ML Export — each shows stored filename + upload date, or an empty "No file saved" state
 - Upload sends `multipart/form-data` POST; validated server-side (`.csv` extension only, 50 MB limit)
 - Clear button removes the stored file from disk and clears metadata; disabled when no file is stored
-- On app mount, Breeding Codes and Media List tabs start in `loading-saved` phase (spinner, no upload zone flash), auto-fetch their stored file, parse it, and enter the ready state automatically
-- A green chip in the data tab toolbar shows the stored filename when auto-load succeeded; "Load different file" returns to idle without touching the server file
-- Uploading directly through a tab's own upload UI is session-only — the server default is untouched and restores on next page load
+- On app mount, Breeding Codes, Media List, and Species Detail tabs start in `loading-saved` phase (spinner), auto-fetch their stored file, parse it, and enter the ready state automatically
+- A green chip in the data tab toolbar shows the stored filename when auto-load succeeded
+- `onKeysSaved` callback prop on `<Settings>` triggers a re-fetch of key status in App.tsx when a key is saved or deleted
 
 **Key files:**
 - `backend/routers/settings.py` — 7 endpoints: `GET /settings/files`, `POST/GET/DELETE /settings/files/ebird`, `POST/GET/DELETE /settings/files/ml`; writes to fixed paths in `data/`
 - `backend/tests/test_settings_router.py` — 9 tests using `monkeypatch` + `tmp_path` to isolate filesystem
-- `frontend/src/components/Settings.tsx` — new Settings tab component with `FileRow` sub-component
-- `frontend/src/components/BreedingCodeList.tsx` — `loading-saved` phase added, auto-load `useEffect`, `savedFileInfo` state and indicator chip
+- `frontend/src/components/Settings.tsx` — Settings tab component with `FileRow`, `KeyRow`, `AppearanceRow` sub-components; `onKeysSaved?: () => void` prop
+- `frontend/src/components/BreedingCodeList.tsx` — `loading-saved` phase, auto-load `useEffect`, `savedFileInfo` chip
 - `frontend/src/components/LifeList.tsx` — same pattern; `userId` parsed from stored metadata filename field
 
 ### Update Script + In-App Update Check (complete — May 2026)
@@ -337,13 +351,18 @@ Two new visualization sections added to the Species Detail tab.
 
 **Sightings Over Time graph:**
 - Recharts `LineChart` with `ResponsiveContainer` renders a full-width time-series graph below the Sightings / Media cards and above the Breeding Codes section
-- Primary line: total individuals per year (sum of numeric `howMany`; null/X counts as 0)
+- Shows individuals per year (or per month for single-year species) on its own y-axis — no media lines on this chart
 - Monthly fallback: when all observations for the selected species fall within a single calendar year, the x-axis switches to monthly granularity automatically (`years.size <= 1` in `buildGraphData`)
-- Per Year / Cumulative segmented toggle: cumulative view computes a running sum per line in a `displayData` useMemo
-- ML overlay lines: when an ML export is loaded (`hasML`), three additional lines show Photo / Audio / Video item counts per period; hidden when no ML loaded
+- Per Year / Cumulative segmented toggle: cumulative view computes a running sum in a `displayData` useMemo; toggle is shared with the Media Over Time graph below
 - Graph returns `null` (section absent) when fewer than 2 distinct time periods exist
 - All colors via `var(--sr-graph-*)` tokens (added to both `:root` and `[data-theme="dark"]`)
 - Fully filter-reactive: uses `speciesObs` (already county/date filtered) and `speciesMlRows` (filtered by species + date range)
+
+**Media Over Time graph:**
+- A second `LineChart` below "Sightings Over Time" with its own independent y-axis
+- Shows Photo / Audio / Video item counts per period as separate lines
+- Appears only when ML is loaded and the species has at least one media item; suppressed when all counts are zero
+- Shares `viewMode` state and `displayData` with the sightings graph — the Per Year / Cumulative toggle in the sightings card controls both
 
 **Map heatmap toggle:**
 - Pins / Heatmap segmented toggle in the Sighting Locations map section header
@@ -358,6 +377,28 @@ Two new visualization sections added to the Species Detail tab.
 - `frontend/src/lib/sightingsGraph.test.ts` — 10 unit tests
 - `frontend/src/components/SpeciesDetail.tsx` — `HeatmapLayer`, `SightingsGraph`, `GraphTooltip`, `formatPeriodLabel` components; `mapMode` state; `speciesMlRows` and `heatPoints` useMemos; `Phase.ready` now includes `mlRows: MLExportRow[]`
 - `frontend/src/globals.css` — `--sr-graph-individuals`, `--sr-graph-photo`, `--sr-graph-audio`, `--sr-graph-video` tokens in both themes
+
+### Settings-First File Model (complete — May 2026)
+
+Removes per-tab file upload from Breeding Codes, Media List, and Species Detail. Settings becomes the sole source of data for all three tabs. Life List Comparer gains a "My List" mode. Weather tab gains key-status notices.
+
+**What it does:**
+- **SetupRequired shared component** — when a required file is not configured in Settings, all three data tabs show the same styled guidance screen: an icon ring, a title, a body, a numbered steps card ("How to set this up"), and a "Go to Settings" button that calls `onGoToSettings` to navigate to the Settings tab. All colors via `var(--sr-*)` tokens; icon, card, button style consistent across all three.
+- **`setup-required` phase** — replaces `idle` as the "no file configured" state in `BreedingCodeList`, `LifeList`, and `SpeciesDetail`. The distinction from `error`: `setup-required` means no file is stored in Settings; `error` means a file exists but the fetch or parse failed. The `idle` tag is gone from all three tabs.
+- **Per-tab upload removed** — `BreedingCodeList`, `LifeList`, and `SpeciesDetail` no longer have drop zones, file input refs, `processFile`, `handleDrop`, `handleFileInput`, or "Load different file" / "Load new file" buttons. Data comes from Settings only.
+- **Life List Comparer — My List mode** — on mount, fetches `GET /settings/files` to check for a stored eBird backup. When available, a "My List / Upload a file" tab selector appears above the List A slot. My List mode replaces the drop zone with a styled "Loaded from Settings" card. On Compare, fetches `GET /settings/files/ebird` fresh and passes parsed data as List A. Results use "My List" / "Other List" as labels instead of filenames. `storedEbirdStatus: 'loading' | 'available' | 'unavailable'` state controls the selector visibility.
+- **ResultsView label threading** — `listALabel: string` and `listBLabel: string` replace `fileA.filename` / `fileB.filename` throughout the stats bar and panels. `fileA` and `fileB` props removed from `ResultsView`.
+- **Weather tab key notices** — App.tsx fetches `GET /settings/keys` on mount and stores `keyStatus: { ebird: string | null; openweather: string | null } | null`. When either key is null, an amber warning card appears above the checklist input card with a "Go to Settings →" link. `onKeysSaved` callback re-fetches key status when settings change.
+
+**Key files:**
+- `frontend/src/components/SetupRequired.tsx` — new shared setup guidance component
+- `frontend/src/components/BreedingCodeList.tsx` — upload removed; `setup-required` phase; `onGoToSettings` prop
+- `frontend/src/components/LifeList.tsx` — upload removed; `setup-required` phase; `onGoToSettings` prop
+- `frontend/src/components/SpeciesDetail.tsx` — upload removed; `setup-required` phase; `onGoToSettings` prop
+- `frontend/src/components/ListComparer.tsx` — My List mode; `storedEbirdStatus` state; async `handleCompare`
+- `frontend/src/components/ResultsView.tsx` — `listALabel`/`listBLabel` props replace `fileA`/`fileB`
+- `frontend/src/components/Settings.tsx` — `onKeysSaved?: () => void` prop
+- `frontend/src/App.tsx` — `keyStatus` state + fetch; key notices in Weather panel; `onGoToSettings` passed to three tabs; `onKeysSaved` passed to Settings
 
 ### Breeding Code Category Filters (complete — May 2026)
 
@@ -551,8 +592,44 @@ Flexbox `flex: 1` on media items causes a single item to stretch to full width, 
 **Server-side file storage uses fixed on-disk filenames; client filename in metadata only**
 `data/ebird-backup.csv` and `data/ml-export.csv` are the fixed on-disk paths regardless of what the user uploads. The original filename is stored in `data/metadata.json` (`{"ebird": {"filename": "...", "uploadedAt": "..."}, "ml": ...}`) for display only — never used to construct a file path. This eliminates path traversal risk entirely. `data/` is gitignored. `DATA_DIR` is resolved from `__file__` in `settings.py` (three `.parent` hops) so the path is correct regardless of CWD when uvicorn starts. Any future stored file type should follow the same fixed-filename + metadata sidecar pattern.
 
-**`loading-saved` is the initial phase for tabs that auto-load from stored files**
-`BreedingCodeList` and `LifeList` initialize to `{ tag: 'loading-saved' }` rather than `{ tag: 'idle' }`. Without this, the upload zone flashes on screen before the auto-load check completes. The phase shows a spinner and transitions to `ready` on success or `idle` on failure / no stored file. Any future tab that checks for a stored default on mount must follow this same initial-state pattern.
+**`loading-saved` → `setup-required` → `ready` | `error` phase progression for stored-file tabs**
+`BreedingCodeList`, `LifeList`, and `SpeciesDetail` initialize to `{ tag: 'loading-saved' }`. On auto-load: success → `ready`; no file configured in Settings → `setup-required` (shows the SetupRequired guidance screen with "Go to Settings"); fetch/parse failure → `error` (shows an inline error message). The `idle` tag does not exist in these components — there is no state where the tab is waiting for the user to upload something. Any future tab that checks for a stored default on mount must use `loading-saved` as the initial phase and distinguish `setup-required` (no file) from `error` (file exists but failed) rather than using a single `idle` catch-all.
 
 **Taxonomic sort for ML export uses the taxonomy fetch fallback**
 ML export entries have `taxonomicOrder: Infinity` (no order field in the CSV). `getOrder()` in `LifeListTable` returns `entry.taxonomicOrder` if finite (eBird CSV path), otherwise falls back to `taxonOrders[commonName] ?? Infinity` from the taxonomy fetch. This makes taxonomic sort available for both input formats without source-specific branching in the sort logic itself. Species absent from the taxonomy sort last on both paths.
+
+**`speciesUtils.ts` is a shared component-layer utility; parser-layer utilities remain separate**
+`normalizeSpeciesName` and `isSpuhOrSlash` are now exported from `frontend/src/lib/speciesUtils.ts`
+and imported by `LifeList.tsx` and `SpeciesDetail.tsx`. This is a component-layer extraction — the
+same two functions used to be duplicated inline in `SpeciesDetail.tsx`. Parser files
+(`parseMLExport.ts`, `parseBreedingCodes.ts`) continue to own their own copies, consistent with the
+earlier decision to keep parser-layer utilities separate. Do not merge those copies into `speciesUtils.ts`
+without re-evaluating the divergence risk.
+
+**Non-bird classification uses the always-normalized eBird backbone, not the toggle state**
+In Comprehensive mode, the set of eBird-known species names that protects ML entries from non-bird
+misclassification is built from `normalizeSpeciesName(ebirdObs[].commonName)` regardless of the
+Merge subspecies toggle. This means "Yellow-rumped Warbler (Myrtle)" in the eBird backbone will
+normalize to "Yellow-rumped Warbler" and correctly prevent an ML entry with that name from being
+classified as non-bird, even when `mergeSubspecies` is false. The alternative — building the set
+from toggled entry names — would cause false positives when subspecies are shown unmerged.
+
+**`filterHasMedia` is separate boolean state, not an addition to `MediaFilterState`**
+The "Has media" pill state is kept as a standalone `filterHasMedia: boolean` in `LifeList.tsx` rather
+than adding a fourth field to the `MediaFilterState` type in `types.ts`. It is applied as a pre-filter
+producing `mediaFilteredEntries` before passing to `LifeListTable`, so the table never sees entries that
+fail the has-media check. This avoided touching the shared type, kept the filter logic co-located with
+the component that understands media context, and made it easy for "All" to reset both `filter` and
+`filterHasMedia` together.
+
+**`totalSpecies` denominator is `displayEntries.length`, not `phaseEntries.length`**
+In ML-only mode `phaseEntries.length` was the correct total. In Comprehensive mode it would show the
+ML-only count (wrong — the backbone adds eBird species with no ML entries). `totalSpecies` was changed
+to use `displayEntries.length` (the post-toggle, pre-media-filter count) so the "N of M species" label
+reflects the correct denominator in both modes.
+
+**Non-bird sort partition fires only in Taxonomic nameSortMode (FR-13)**
+In `LifeListTable`, the partition that forces non-bird entries after all bird entries is guarded by
+`sort.nameSortMode === 'taxonomic'`. In A–Z sort, non-bird entries appear in their natural alphabetical
+position. Do not lift this guard — applying the partition in A–Z mode would prevent users from scanning
+non-bird entries alphabetically alongside birds, which is the expected behavior when sort is alphabetical.

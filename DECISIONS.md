@@ -4,6 +4,56 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Per-tab file upload removed; Settings is the sole file source — 2026-05-22
+
+**Decision:** `BreedingCodeList`, `LifeList`, and `SpeciesDetail` no longer have drop zones, file input refs, `processFile`, `handleDrop`, `handleFileInput`, or "Load different file" buttons. Data comes exclusively from files stored in Settings.
+
+**Rationale:** Per-tab upload created two parallel mental models — one where you upload per session, one where you store a default. With stored defaults working reliably, the per-tab path adds complexity without value. A single authoritative source (Settings) is simpler to explain and simpler to maintain.
+
+**Implications:** Any future tab that works with stored files must follow the same pattern: Settings-only source, `setup-required` phase when absent, `error` phase for fetch/parse failures. Do not re-add per-tab upload UI — if a user needs to use a different file, that is a Settings update, not a session-level override.
+
+## `setup-required` phase is distinct from `error` — 2026-05-22
+
+**Decision:** The three stored-file tabs use `setup-required` when no file is configured in Settings, and `error` only when a file is stored but the fetch or parse failed. The old `idle` tag is gone.
+
+**Rationale:** `idle` was ambiguous — it served as both "waiting for first upload" and "after reset". With per-tab upload removed there is no user-facing waiting-for-upload state. The `setup-required` phase specifically means "go configure this in Settings first"; `error` means "something went wrong technically". These require different UI: `setup-required` shows the SetupRequired guidance component; `error` shows a terse error message with a retry/settings option.
+
+**Implications:** When adding a new stored-file tab, initialize to `loading-saved`, transition to `setup-required` on null-file responses, and reserve `error` for genuine technical failures. The `SetupRequired` component accepts `title`, `body`, `steps[]`, and `onGoToSettings` — reuse it rather than writing per-tab guidance UI.
+
+## ListComparer My List mode fetches stored file fresh on each Compare click — 2026-05-22
+
+**Decision:** When `listAMode === 'my-list'`, `handleCompare` fetches `GET /settings/files/ebird` at the moment the Compare button is clicked, not when the mode is toggled. The stored file is never pre-fetched on mount just because My List mode is active.
+
+**Rationale:** Pre-fetching on mode toggle would mean the stored file is parsed into memory before the user clicks Compare — wasted work if they switch modes again. Fetching fresh on Compare also avoids stale data if the user updates their Settings file during a session.
+
+**Implications:** There is a short async pause when Compare is clicked in My List mode (the fetch + parse). This is covered by a `comparing` state that disables the button and shows "Loading…". Keep this pattern for any future comparer feature that reads stored files — do not pre-fetch on mode toggle.
+
+## tsc --noEmit and tsc -b are not equivalent type checkers — 2026-05-22
+
+**Bug:** A type cast (`as React.SVGProps<SVGTextElement>`) introduced in v0.0.39 passed `tsc --noEmit` (used by `npm run typecheck`) but failed `tsc -b` (used by `npm run build` and `update.sh`) with 4 errors. The Pi update broke because the build step failed.
+
+**Cause:** `tsc --noEmit` and `tsc -b` use different resolution paths. In project-references mode (`-b`), TypeScript applies stricter composite-project constraints and resolves types differently in some edge cases — particularly around spread props onto JSX components, where inferred types from spread objects may be checked more strictly than explicit prop types.
+
+**Fix:** Removed the type cast and inlined the axis props directly on each `XAxis` and `YAxis` call. TypeScript infers the correct prop types from usage context without a cast.
+
+**Implications:** Always verify changes with `npm run build` (not just `npm run typecheck`) before deploying. The `typecheck` script is useful for fast feedback but is not a substitute for a full build check. Do not use `as SomeType` to silence prop-spread type errors on third-party JSX components — inline the props instead so TypeScript can check them in context.
+
+## package-lock.json must be committed to the repository — 2026-05-22
+
+**Bug:** `frontend/package-lock.json` existed locally but was never committed. `npm ci` on the Pi fell back to a stale lockfile from a previous manual install, installing mismatched package versions. `npm audit` failed with ENOLOCK because it requires a lockfile to assess dependencies.
+
+**Fix:** Committed `package-lock.json` and patched the `brace-expansion` DoS vulnerability it surfaced. The lockfile is now a tracked file.
+
+**Implications:** `package-lock.json` must be kept committed and up to date. Any time dependencies change (`npm install`, `npm audit fix`, adding or removing packages), the updated lockfile must be included in the same commit. `npm ci` (used by `update.sh`) requires the lockfile — it is the mechanism that guarantees the Pi installs exactly the same versions as the development machine.
+
+## update.sh uses subshells for directory-sensitive steps — 2026-05-22
+
+**Bug:** `update.sh` used `cd dir && ... && cd ..` chains. When a step failed mid-chain, `cd ..` was not reached, stranding the shell in the subdirectory. The subsequent `cd backend` then resolved relative to `frontend/` and failed with "No such file or directory", triggering the error trap and masking the original build failure.
+
+**Fix:** Replaced both chains with subshell syntax: `(cd dir && ...)`. Directory changes inside a subshell are scoped to that subshell — the parent shell's working directory is unaffected regardless of success or failure.
+
+**Implications:** Any future step in `update.sh` that requires changing directory must use the subshell pattern. Do not use `cd && ... && cd ..` chains — a failure will leave the shell in the wrong directory for all subsequent steps.
+
 ## leaflet.heat loaded via dynamic import after window.L assignment — 2026-05-21
 
 **Decision:** `import 'leaflet.heat'` as a static side-effect import is replaced with a dynamic `import('leaflet.heat')` inside `HeatmapLayer`'s `useEffect`, called only after `(window as any).L = L` is set. A module-level `heatLoaded` ref prevents re-importing.
