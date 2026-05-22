@@ -3,6 +3,7 @@ import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink,
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
+import { MapExplorer } from './components/MapExplorer'
 import { Settings } from './components/Settings'
 import { SpeciesDetail } from './components/SpeciesDetail'
 
@@ -12,7 +13,7 @@ type AppState =
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
 
-type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes' | 'species-detail' | 'settings'
+type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes' | 'species-detail' | 'map-explorer' | 'settings'
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -237,6 +238,19 @@ export default function App() {
           >
             <BookOpen size={14} strokeWidth={2.5} aria-hidden="true" />
             Species Detail
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'map-explorer'}
+            style={tabStyle('map-explorer')}
+            onClick={() => setActiveTab('map-explorer')}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+              <line x1="9" y1="3" x2="9" y2="18"/>
+              <line x1="15" y1="6" x2="15" y2="21"/>
+            </svg>
+            Map Explorer
           </button>
           <button
             role="tab"
@@ -547,6 +561,19 @@ export default function App() {
         }}
       >
         <SpeciesDetail onGoToSettings={() => setActiveTab('settings')} />
+      </div>
+
+      {/* Map Explorer tab content */}
+      <div
+        role="tabpanel"
+        style={{
+          display: activeTab === 'map-explorer' ? 'flex' : 'none',
+          flexDirection: 'column',
+          height: 'calc(100vh - 178px)',
+          overflow: 'hidden',
+        }}
+      >
+        <MapExplorer onGoToSettings={() => setActiveTab('settings')} />
       </div>
 
       {/* Settings tab content */}

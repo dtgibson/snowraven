@@ -18,6 +18,7 @@ export default defineConfig({
       '/nominatim': 'http://localhost:1620',
       '/taxonomy': 'http://localhost:1620',
       '/settings': 'http://localhost:1620',
+      '/map': 'http://localhost:1620',
     },
   },
 })

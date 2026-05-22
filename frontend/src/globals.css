@@ -64,6 +64,12 @@
   --sr-graph-photo: #3B82F6;
   --sr-graph-audio: #F59E0B;
   --sr-graph-video: #8B5CF6;
+
+  /* Map Explorer pin colors */
+  --sr-map-visited:   #2D8653;
+  --sr-map-unvisited: #5B7FA6;
+  --sr-map-personal:  #C9842A;
+  --sr-map-target:    #7C3AED;
 }
 
 [data-theme="dark"] {
@@ -127,6 +133,12 @@
   --sr-graph-photo: #60A5FA;
   --sr-graph-audio: #FCD34D;
   --sr-graph-video: #A78BFA;
+
+  /* Map Explorer pin colors — lighter for dark backgrounds */
+  --sr-map-visited:   #34D399;
+  --sr-map-unvisited: #7BA7C9;
+  --sr-map-personal:  #E0A060;
+  --sr-map-target:    #A78BFA;
 }
 
 /* External favicon images — lighten in dark mode so they remain visible */

@@ -1,54 +1,62 @@
-# Handoff — Session 1 Complete: Media List: Comprehensive Species View
+# Pipeline Handoff — media-list-comprehensive
 
-**Date:** 2026-05-21
-**Feature:** media-list-comprehensive
-**Session:** 1 of 2
+**Status:** Complete — both sessions finished, feature shipped at v0.0.38
 
 ---
 
-## What Was Decided
+## What was built
 
-The Media Life List tab is being upgraded from an ML-export-only view into a comprehensive life list driven by the eBird backup. Every species from the eBird backup will appear in the list — species with ML media show their counts, species without show dashes. Four new controls are added: a "Has media" filter pill, and three toggle switches ("Show subspecies", "Show sp./slash", "Show non-bird"). All changes gracefully degrade to current behavior when no eBird backup is stored.
+The Media Life List tab gained a **Comprehensive mode** — when the user has an eBird backup stored
+in Settings, it auto-loads alongside the ML export and becomes the species backbone. Every eBird
+life-listed species appears in the table whether or not it has ML media. ML-only entries that don't
+match the eBird backbone are classified as non-bird (soundscapes, taxonomic mismatches) and can be
+shown or hidden with a toggle.
 
-## Key Technical Decisions
+Three new toolbar toggles were added (Merge subspecies, Show sp./slash, Show non-bird), plus a
+"Has media" filter pill that hides all zero-media entries in one click. The non-bird toggle and
+non-bird table section are hidden in ML-only mode. Species count denominator was corrected to use
+the comprehensive entry count, not the ML-only count.
 
-- **Species backbone:** eBird backup drives which species appear; ML export provides catalog IDs and media counts
-- **Non-bird classification:** ML species whose normalized name does not appear in the eBird backup normalized species set; shown at end of taxonomic sort under a "Non-Bird Media" separator
-- **Shared utilities:** `normalizeSpeciesName` and `isSpuhOrSlash` extracted to `frontend/src/lib/speciesUtils.ts`; imported by both `LifeList.tsx` and `SpeciesDetail.tsx`
-- **County/date filter in comprehensive mode:** Both `rawEbirdObs` and `rawRows` filtered independently in `displayEntries` useMemo; `buildComprehensiveEntries` called with filtered sets
-- **`resolveMLCounties` optimization:** Accepts optional pre-loaded `ObservationEntry[]` to skip the redundant Settings fetch when eBird obs are already in state
-- **Hooks rule compliance:** All new `useState` and `useMemo` hooks declared before any early return
-
-## Design Decisions (Stage 4)
-
-- Three `ToggleSwitch` buttons match the identical component in `SpeciesDetail.tsx` — not extracted, each component keeps its own copy
-- New "Has media" filter pill sits between "All" and the "No photo/audio/video" group — positive filter, shows only species with at least one catalog item
-- Non-bird section separator label: "Non-Bird Media"
-- No visual badge or indicator distinguishing non-bird from bird entries in table rows
-- Non-bird toggle hidden entirely in ML-only mode
-
-## Artifacts
-
-| File | Purpose |
-|---|---|
-| `pipeline/media-list-comprehensive/strategic-brief.md` | Feature scope and data model definition |
-| `pipeline/media-list-comprehensive/prd.md` | Functional requirements, user stories, QA criteria |
-| `pipeline/media-list-comprehensive/schema.md` | Architecture: all types, functions, state changes, and data flow |
-| `pipeline/media-list-comprehensive/design-spec.md` | Visual spec: tokens, interaction notes, component usage |
-| `pipeline/media-list-comprehensive/design.html` | Interactive mockup with all three scenarios and all controls |
-
-## Files the Engineer Will Touch
-
-| File | Change |
-|---|---|
-| `frontend/src/lib/speciesUtils.ts` | **New** — `normalizeSpeciesName`, `isSpuhOrSlash` |
-| `frontend/src/lib/parseLifeList.ts` | Add `isNonBird?: boolean` to `LifeListEntry` |
-| `frontend/src/components/LifeList.tsx` | New state, `buildComprehensiveEntries`, revised `displayEntries`, updated `resolveMLCounties`, "Has media" pill, toggle UI |
-| `frontend/src/components/LifeListTable.tsx` | Non-bird partition in sort comparator |
-| `frontend/src/components/SpeciesDetail.tsx` | Import `normalizeSpeciesName`, `isSpuhOrSlash` from `speciesUtils`; remove inline definitions |
-
-No backend changes. New test file: `frontend/src/lib/speciesUtils.test.ts`.
+A `speciesUtils.ts` shared module was extracted so `normalizeSpeciesName` and `isSpuhOrSlash` are
+no longer duplicated between `LifeList.tsx` and `SpeciesDetail.tsx`.
 
 ---
 
-## Resume with `/build-feature`
+## Artifacts produced
+
+**Session 1 (planning):**
+- `pipeline/media-list-comprehensive/strategic-brief.md`
+- `pipeline/media-list-comprehensive/prd.md`
+- `pipeline/media-list-comprehensive/schema.md`
+- `pipeline/media-list-comprehensive/design-spec.md`
+- `pipeline/media-list-comprehensive/design.html`
+
+**Session 2 (implementation):**
+- `frontend/src/lib/speciesUtils.ts` — NEW shared module
+- `frontend/src/lib/speciesUtils.test.ts` — NEW, 11 tests
+- `frontend/src/lib/parseLifeList.ts` — `isNonBird?: boolean` added to `LifeListEntry`
+- `frontend/src/components/SpeciesDetail.tsx` — switched to `speciesUtils` imports
+- `frontend/src/components/LifeList.tsx` — comprehensive mode, three toggles, filterHasMedia, buildComprehensiveEntries, parallel auto-load
+- `frontend/src/components/LifeListTable.tsx` — non-bird sort partition, Total column zero fix
+- `frontend/package.json` — bumped to v0.0.38
+- `CHANGELOG.md` — [0.0.38] entry added
+- `PRODUCT_CONTEXT.md` — Media Life List section rewritten; 5 new Key Decisions added
+
+**Deployed:** v0.0.38 — GitHub release at https://github.com/dtgibson/snowraven/releases/tag/v0.0.38
+
+---
+
+## Key decisions made this session
+
+- Non-bird detection uses a set built from the always-normalized eBird backbone (independent of the mergeSubspecies toggle) to avoid false positives on subspecies entries
+- `filterHasMedia` is a separate boolean state, not added to `MediaFilterState`, so "All" can reset both in one place
+- `totalSpecies` denominator uses `displayEntries.length` (comprehensive count) not `phaseEntries.length` (ML-only count)
+- Non-bird sort partition fires only in Taxonomic nameSortMode per FR-13; A-Z leaves non-birds in alphabetical position
+- `speciesUtils.ts` is a component-layer shared module; parser-layer utilities remain separate per the earlier decision
+
+---
+
+## Starting the next feature
+
+Run `/new-feature` to begin a new pipeline session. The Orchestrator will check the roadmap for the
+next suggested item.
