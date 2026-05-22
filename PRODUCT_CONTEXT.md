@@ -419,6 +419,54 @@ Three category filter pills — Confirmed, Probable, and Possible — added to t
 - `frontend/src/lib/breedingCodes.test.ts` — 8 tests covering category membership, disjointness, and full coverage
 - `frontend/src/components/BreedingCodeList.tsx` — `categoryFilter` state, `categoryPillStyle`, `CATEGORY_META`, updated filter predicate, `categoryFilteredEntries` passed to `BreedingCodeTable`
 
+### Map Explorer (complete — May 2026)
+
+An interactive map tab with three view modes for exploring birding locations: sightings heatmap, eBird hotspot discovery, and media target hunting. All map data comes from eBird API calls made at query time; the stored eBird backup is used client-side to classify which hotspots have been visited and to supply personal locations.
+
+**Three view modes:**
+- **My Sightings** — fetches recent personal observations via `GET /map/recent-obs`, plots circle markers colored green, and overlays a heatmap. Requires eBird API key. Shows `SetupRequired` component if no key is configured. Supports species code filter (All, any species from the backup's distinct codes), breeding status filter (All/Confirmed/Probable/Possible/None), and date range filter. Distance filter for personal locations in radius miles.
+- **Hotspots** — fetches regional hotspots via `GET /map/hotspots` (lat/lng/dist parameters). Classifies each as visited (green teardrop), unvisited (blue teardrop), or personal (orange star) using `visitedLocIds` derived from the stored backup. Address search above lat/lng fields. Legend rows are clickable to hide/show each pin category; opacity drops to 40% when hidden; state resets on each new fetch.
+- **Media Targets** — fetches recent sightings (`back=30`) for target species. Pins are color-coded green by recency tier (≤7 days / 8–15 days / 16–30 days). Address search above lat/lng. Last 30 Days / Last Week toggle filters pins client-side. Nearest-10 sidebar list ranked by haversine distance from center. Each popup shows a "View checklist {subId}" link when a valid subId is available.
+
+**Address geocoding (both Hotspots and Media Targets):**
+- `AddressSearch` sub-component renders a text input + search icon button above the lat/lng fields
+- Calls `GET /nominatim/search?q={q}` on Enter or button click
+- On success: populates lat/lng state and immediately triggers the mode's data fetch (override params bypass stale state)
+- On no results: "No location found. Try a different search term." inline
+- On network error: "Location search failed. Try again or enter coordinates manually." inline
+
+**Recency tiers (Media Targets):**
+- Three CSS tokens: `--sr-map-target-fresh` (≤7d), `--sr-map-target-mid` (8–15d), `--sr-map-target-old` (16–30d), `--sr-map-target-old-text` (text on old-tier pills)
+- `recencyTier(recentDate)` pure helper; `tierColors(tier)` returns `{bg, text}` CSS-var strings
+- Popup: species name, 📍 location, date + days-ago label, tier badge, checklist link (when `subId` matches `/^S\d+$/`)
+
+**Nearest-10 list:**
+- `nearest10` useMemo sorts `displayedTargetPins` by `distanceMiles()` (already in file), slices to 10
+- Each row: tier dot + species name + location + distance (1 decimal, " mi")
+- Clicking sets `panTarget` state; `MapPanner` child inside `MapContainer` calls `map.panTo()`
+
+**Sidebar (all modes):**
+- 268px fixed-width panel; tab-specific controls and a scrollable list of results
+- Legend section in Hotspots shows the three pin types with clickable toggle buttons
+
+**Backend:**
+- `GET /map/hotspots` — proxies `api.ebird.org/v2/ref/hotspot/geo`; returns eBird JSON directly; requires `EBIRD_API_KEY`; 10s httpx timeout
+- `GET /map/recent-obs` — proxies `api.ebird.org/v2/data/obs/geo/recent` with `back=30`; groups by `(speciesCode, locId)`; response includes `subId` from the most recent observation in each group; requires `EBIRD_API_KEY`
+- `GET /nominatim/search` — forward geocodes a place name via Nominatim OSM; shares `_rate_lock` (≤1 req/sec) and `User-Agent: SnowRaven/1.0` with the existing reverse geocoding endpoint
+
+**Layout:**
+- Tab panel uses `height: calc(100vh - 178px)` (not `flex: 1`) and `overflow: hidden` — see the corresponding decision entry
+- No `sr-panel` wrapper or padding; MapContainer fills the right side with `flex: 1`
+- MapContainer always rendered; `setup-required` state only replaces the sidebar content in My Sightings mode
+
+**Key files:**
+- `frontend/src/components/MapExplorer.tsx` — full tab component (~1200 lines); `VISITED_ICON`, `UNVISITED_ICON`, `PERSONAL_ICON` DivIcons at module level; `escHtml()` XSS guard; `AddressSearch`, `MapPanner`, `SightingMarkers`, `HotspotMarkers`, `TargetMarkers` sub-components
+- `backend/routers/map.py` — two eBird proxy endpoints; `back=30` and `subId` capture
+- `backend/routers/nominatim.py` — `GET /nominatim/search` forward geocoding endpoint added
+- `frontend/src/globals.css` — eight map tokens: `--sr-map-visited/unvisited/personal/target` + `--sr-map-target-fresh/mid/old/old-text` (both themes)
+- `frontend/vite.config.ts` — `/map` and `/nominatim` proxies for dev server
+- `frontend/src/App.tsx` — `'map-explorer'` tab added
+
 ## Key Decisions
 
 **eBird coordinate fallback strategy**

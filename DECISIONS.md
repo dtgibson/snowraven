@@ -233,6 +233,78 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Implications:** `parseLifeList` is now unused by `LifeList.tsx`. It remains in the codebase because `ListComparer` still uses it. Do not delete it. `obsToLifeListEntries` is an internal helper in `LifeList.tsx` — it is not a general utility and should not be extracted to a shared module.
 
+## Map Explorer tab height uses calc(100vh - 178px), not flex: 1 — 2026-05-22
+
+**Decision:** The Map Explorer tab panel in `App.tsx` uses `height: 'calc(100vh - 178px)'` and `overflow: 'hidden'` rather than `flex: 1`.
+
+**Rationale:** The outer app div uses `minHeight: 100vh` (not `height: 100vh`). In a `minHeight` context, flex children cannot compute a bounded height from `flex: 1` because the container has no fixed height to distribute. Without a bounded height, the Leaflet `MapContainer` (which requires an explicit height) collapses to zero. The 178px accounts for the header (~132px) + tab bar (~44px). This is consistent with the Leaflet requirement that the map container have a defined height.
+
+**Implications:** Any future map tab must use an explicit `calc(100vh - N)` height rather than relying on flex fill. If the header or tab bar height changes, update the 178px offset. Do not switch the outer app container to `height: 100vh` — doing so would break the natural page-flow behavior of all other tabs that rely on `minHeight`.
+
+## Map Explorer: DivIcon CSS vars use the style attribute, not SVG presentation attributes — 2026-05-22
+
+**Decision:** Teardrop DivIcon colors are set via `style="fill:var(--sr-map-*)"` on the SVG element, not via `fill="..."` SVG presentation attributes.
+
+**Rationale:** SVG presentation attributes (e.g. `fill="#2D8653"`) do not support CSS custom properties. The `style` attribute inside an HTML string (as used by `L.divIcon`) does support them — the browser evaluates the style in the normal cascade. This allows the map pins to correctly change color in dark mode without hardcoding separate icon instances for each theme.
+
+**Implications:** Always use the `style` attribute (not SVG presentation attributes) when setting colors via CSS custom properties inside DivIcon HTML strings. `CircleMarker.pathOptions.fillColor` is an exception — it sets a presentation attribute internally and cannot use CSS vars; use the hardcoded hex for the light-mode color there.
+
+## Map Explorer: escHtml() required for external API strings in DivIcon HTML — 2026-05-22
+
+**Decision:** `escHtml()` (HTML entity encoding) is applied to any external API string interpolated into an `L.divIcon` HTML string. Currently used on `pin.comName` in the Media Targets label pill.
+
+**Rationale:** `L.divIcon` sets `innerHTML` directly. An unescaped string from an external API (e.g. eBird species names) could inject HTML. eBird species names are benign in practice, but the XSS surface was hardened during the Stage 7 security review to establish the correct pattern for the future.
+
+**Implications:** Any future feature that interpolates external data (API responses, user-entered text) into a DivIcon HTML string must pass the value through `escHtml()`. Static SVG strings used for our own icons are not API data and do not require escaping.
+
+## Map Explorer: SightingMarkers fitBounds defers via Leaflet resize event when container is hidden — 2026-05-22 (revised 2026-05-22)
+
+**Decision:** `SightingMarkers` calls a `tryFit` function that checks `map.getSize()` before calling `fitBounds`. If the container reports 0×0 (tab is hidden), it registers a Leaflet `resize` listener and waits. When `AutoSizeMap`'s `ResizeObserver` fires `invalidateSize()` (which emits a `resize` event), `tryFit` is called again with the correct container size and fitBounds succeeds. A `hasFitted` ref prevents re-fitting on filter changes.
+
+**Rationale:** `MapContainer` renders when data loads (phase → ready), which may happen while the user is on a different tab and the Map Explorer panel is `display: none`. In that case, Leaflet sees a 0×0 container and `fitBounds` calculates wrong bounds — or the subsequent `invalidateSize()` pans the map away from the fitted location. The original `useEffect(fn, [])` approach failed for this reason. The `resize` event is the correct signal that the container is now correctly sized.
+
+**Implications:** Any future Leaflet sub-component that needs to call `fitBounds` or `setView` on mount must guard against a 0×0 container. Check `map.getSize()` first; if zero, defer via `map.on('resize', fn)`. `HotspotMarkers` and `TargetMarkers` use `key={pins.length}` for data-driven remounts — they only render after an explicit user action (Find Hotspots button), so the tab is always visible and the 0×0 case does not apply to them.
+
+## Map Explorer: forward geocoding reuses the existing Nominatim rate lock — 2026-05-22
+
+**Decision:** `GET /nominatim/search` acquires the same module-level `_rate_lock` as `POST /nominatim/counties` before calling OSM and sleeps 1 second inside the lock after each request.
+
+**Rationale:** One rate lock per module (not one per endpoint) ensures the ≤1 req/sec policy is enforced across all OSM traffic regardless of which endpoint triggers it. Adding a second lock would allow two concurrent OSM calls from the same process, violating the OSM usage policy.
+
+**Implications:** Any future Nominatim endpoint in `nominatim.py` must acquire `_rate_lock` before calling OSM. Do not create a second lock or bypass the existing one.
+
+## Map Explorer: address geocode triggers fetch via override parameters, not state read — 2026-05-22
+
+**Decision:** `handleFindHotspots` and `handleFindSightings` accept `(overrideLat?: number, overrideLng?: number)`. When the `AddressSearch` callback fires, it calls `setLat(...)` / `setLng(...)` and then calls the handler with the resolved values as explicit arguments rather than relying on the state to have updated.
+
+**Rationale:** React state updates are batched and asynchronous. Calling the handler immediately after `setLat`/`setLng` would read stale state values for `lat`/`lng`. Passing the coordinates explicitly as override parameters bypasses the asynchrony entirely without needing `useRef` or a `useEffect` dependency on lat/lng.
+
+**Implications:** Any future callback that must trigger a fetch with just-set state values should use the same override-parameter pattern. Do not use `useEffect([lat, lng], fn)` to fire fetches after geocoding — that approach triggers unintended fetches whenever the user manually edits the coordinate fields.
+
+## Map Explorer: sidebar-to-map pan uses panTarget state + MapPanner child — 2026-05-22
+
+**Decision:** Sidebar items that should pan the map (nearest-10 list rows) set a `panTarget: {lat, lng} | null` state in the parent. `MapPanner` is a null-rendering child component inside `MapContainer` that calls `map.panTo()` when `panTarget` changes, then notifies the parent via `onDone` to clear it.
+
+**Rationale:** `useMap()` must be called inside `MapContainer`'s context. Sidebar components are outside `MapContainer` and cannot call `useMap()` directly. The `panTarget` state bridge connects the two trees without requiring refs or imperative handles.
+
+**Implications:** Any future feature that needs to programmatically control the map from outside `MapContainer` (pan, zoom, fitBounds) should use this same state-bridge pattern: set a piece of state in the parent; consume it in a null-rendering child inside `MapContainer`.
+
+## Map Explorer: subId captured from most-recent observation per group — 2026-05-22
+
+**Decision:** In `GET /map/recent-obs`, the group dict initialises with `"subId": obs.get("subId", "")`. When a newer observation (`obsDt`) is found for the same group, both `recentDate` and `subId` are updated together: `entry["subId"] = obs.get("subId", "")`.
+
+**Rationale:** The eBird API already returns `subId` on every observation. The only change needed was to capture it and keep it in sync with the most-recent-observation tracking that was already in place for `recentDate`. This ensures the popup checklist link points to the checklist that actually contains the most recent sighting, not an older one.
+
+**Implications:** `subId` in the response reflects the checklist of the most recent sighting for each `(speciesCode, locId)` group. The frontend validates subId against `/^S\d+$/` before rendering — empty strings and unexpected formats are silently suppressed. Do not render an href with an unvalidated subId.
+
+## Map Explorer: recency tier pins use green CSS tokens, not purple — 2026-05-22
+
+**Decision:** Media Target pins use three green-family tokens (`--sr-map-target-fresh`, `--sr-map-target-mid`, `--sr-map-target-old`) rather than purple variants of `--sr-map-target`.
+
+**Rationale:** Purple is reserved for breeding code tier indicators throughout the app. Using purple for recency tiers on the map would create a visual collision with breeding code semantics. Green is the SnowRaven brand accent and is already used for visited hotspot pins and the primary accent — the recency scale reads naturally as a green intensity gradient.
+
+**Implications:** The legacy `--sr-map-target` token remains unchanged (single-color purple, used for the legend color swatch). The three new tokens carry the recency tier semantics. Do not add purple variants for recency — if a new tier or threshold is added, use the existing green gradient family.
+
 ## Tab Filters: 3-tier county resolution for ML export — 2026-05-20
 
 **Decision:** ML export county resolution runs in three passes: (1) read the `County` column from the ML CSV if present; (2) cross-reference against the eBird backup by location name (using `rawRows` from `parseEbirdObservations`); (3) call `POST /nominatim/counties` with unresolved lat/lng pairs. Passes run in sequence; each row stops after the first pass that resolves it.
