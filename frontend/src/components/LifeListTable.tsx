@@ -81,6 +81,12 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
 
   const sorted = [...filtered].sort((a, b) => {
     if (sort.column === 'name') {
+      // In taxonomic sort, non-bird entries always after all bird entries
+      if (sort.nameSortMode === 'taxonomic') {
+        const aNB = a.isNonBird ?? false
+        const bNB = b.isNonBird ?? false
+        if (aNB !== bNB) return aNB ? 1 : -1
+      }
       const cmp = nameCompare(a, b)
       return sort.dir === 'asc' ? cmp : -cmp
     }
@@ -270,9 +276,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 </td>
                 <td style={{ width: 70, padding: '9px 14px', verticalAlign: 'middle', borderLeft: '1px solid var(--sr-border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums' }}>
-                      {totalCount}
-                    </span>
+                    {totalCount > 0
+                      ? <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums' }}>{totalCount}</span>
+                      : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
                   </div>
                 </td>
               </tr>

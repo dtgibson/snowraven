@@ -3,6 +3,7 @@ export interface LifeListEntry {
   scientificName: string
   taxonomicOrder: number
   catalogIds: string[]
+  isNonBird?: boolean
 }
 
 function parseCSVLine(line: string): string[] {

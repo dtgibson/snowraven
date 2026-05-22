@@ -18,6 +18,7 @@ import { buildGraphData } from '../lib/sightingsGraph'
 import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
 import { SpeciesLinks } from './SpeciesLinks'
 import type { ObservationEntry, MediaType, StoredFileInfo } from '../types'
+import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,13 +67,6 @@ function mlCatalogLink(mediaType: MediaType, taxonCode: string | undefined, user
   return url
 }
 
-function normalizeSpeciesName(name: string): string {
-  return name.replace(/\s*\([^)]*\)\s*$/, '').trim()
-}
-
-function isSpuhOrSlash(name: string): boolean {
-  return name.endsWith(' sp.') || name.includes('/')
-}
 
 const BREEDING_CODE_CANONICAL_ORDER = new Map(BREEDING_CODES.map((d, i) => [d.code, i]))
 const COMMENTS_PAGE = 10

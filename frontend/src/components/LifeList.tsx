@@ -4,15 +4,101 @@ import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
+import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { LifeListTable } from './LifeListTable'
-import type { MediaFilterState, SortState, StoredFileInfo, DateRangeState } from '../types'
+import type { MediaFilterState, SortState, StoredFileInfo, DateRangeState, ObservationEntry } from '../types'
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
 
 type Phase =
   | { tag: 'idle' }
   | { tag: 'loading-saved' }
   | { tag: 'error'; message: string }
-  | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string> }
+  | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string>; hasEbirdBackbone: boolean }
+
+function buildComprehensiveEntries(
+  ebirdObs: ObservationEntry[],
+  mlRows: MLExportRow[],
+  mergeSubspecies: boolean,
+): LifeListEntry[] {
+  const ebirdMap = new Map<string, { sci: string }>()
+  for (const o of ebirdObs) {
+    const name = mergeSubspecies ? normalizeSpeciesName(o.commonName) : o.commonName
+    if (!ebirdMap.has(name)) ebirdMap.set(name, { sci: o.scientificName })
+  }
+
+  const ebirdNormalizedSet = new Set<string>()
+  for (const o of ebirdObs) ebirdNormalizedSet.add(normalizeSpeciesName(o.commonName))
+
+  const mlCatalogMap = new Map<string, Set<string>>()
+  const mlSciMap = new Map<string, string>()
+  for (const r of mlRows) {
+    const s = mlCatalogMap.get(r.commonName)
+    if (s) s.add(r.catalogId)
+    else mlCatalogMap.set(r.commonName, new Set([r.catalogId]))
+    if (!mlSciMap.has(r.commonName)) mlSciMap.set(r.commonName, r.scientificName)
+  }
+
+  const entries: LifeListEntry[] = []
+
+  for (const [displayName, data] of ebirdMap) {
+    const lookupName = mergeSubspecies ? displayName : normalizeSpeciesName(displayName)
+    const catalogIds = [...(mlCatalogMap.get(lookupName) ?? [])]
+    entries.push({
+      commonName: displayName,
+      scientificName: data.sci,
+      taxonomicOrder: Infinity,
+      catalogIds,
+      isNonBird: false,
+    })
+  }
+
+  for (const [mlName, catalogIds] of mlCatalogMap) {
+    if (!ebirdNormalizedSet.has(mlName)) {
+      entries.push({
+        commonName: mlName,
+        scientificName: mlSciMap.get(mlName) ?? '',
+        taxonomicOrder: Infinity,
+        catalogIds: [...catalogIds],
+        isNonBird: true,
+      })
+    }
+  }
+
+  return entries
+}
+
+function ToggleSwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        height: 30, padding: '0 10px 0 8px', borderRadius: 6,
+        border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 500,
+        color: 'var(--sr-text-muted)',
+      }}
+    >
+      <div style={{
+        width: 28, height: 16, borderRadius: 8, flexShrink: 0, position: 'relative',
+        background: checked ? 'var(--sr-accent)' : 'var(--sr-gray-400)',
+        transition: 'background 0.15s',
+      }}>
+        <div style={{
+          width: 12, height: 12, borderRadius: '50%',
+          background: 'white',
+          position: 'absolute', top: 2,
+          left: checked ? 14 : 2,
+          transition: 'left 0.15s',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+        }} />
+      </div>
+      {label}
+    </button>
+  )
+}
 
 function parseMLUserId(filename: string): string | null {
   const match = filename.match(/^ML__.*_([A-Za-z0-9]+)\.csv$/i)
@@ -74,6 +160,11 @@ export function LifeList() {
   const [draggingOver, setDraggingOver] = useState(false)
   const [wideMode, setWideMode] = useState(false)
   const [rawRows, setRawRows] = useState<MLExportRow[]>([])
+  const [rawEbirdObs, setRawEbirdObs] = useState<ObservationEntry[]>([])
+  const [mergeSubspecies, setMergeSubspecies] = useState(true)
+  const [showSpuh, setShowSpuh] = useState(false)
+  const [showNonBird, setShowNonBird] = useState(false)
+  const [filterHasMedia, setFilterHasMedia] = useState(false)
   const [countyResolution, setCountyResolution] = useState<'idle' | 'resolving' | 'done'>('idle')
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
@@ -97,32 +188,37 @@ export function LifeList() {
     }
   }
 
-  const resolveMLCounties = async (initialRows: MLExportRow[]) => {
+  const resolveMLCounties = async (initialRows: MLExportRow[], preloadedEbirdObs?: ObservationEntry[]) => {
     setCountyResolution('resolving')
     const rows = initialRows.map(r => ({ ...r }))
 
-    // Pass 2: cross-reference eBird backup if available
+    // Pass 2: cross-reference eBird backup (use pre-loaded obs if available)
     try {
-      const statusRes = await fetch('/settings/files')
-      if (statusRes.ok) {
-        const status = await statusRes.json()
-        if (status.ebird) {
-          const ebirdRes = await fetch('/settings/files/ebird')
-          if (ebirdRes.ok) {
-            const ebirdText = await ebirdRes.text()
-            const ebirdObs = parseEbirdObservations(ebirdText)
-            const locationCounty = new Map<string, string>()
-            for (const o of ebirdObs) {
-              if (o.county && o.location && !locationCounty.has(o.location)) {
-                locationCounty.set(o.location, o.county)
-              }
+      let ebirdObs: ObservationEntry[] | null = preloadedEbirdObs ?? null
+      if (!ebirdObs) {
+        const statusRes = await fetch('/settings/files')
+        if (statusRes.ok) {
+          const status = await statusRes.json()
+          if (status.ebird) {
+            const ebirdRes = await fetch('/settings/files/ebird')
+            if (ebirdRes.ok) {
+              const ebirdText = await ebirdRes.text()
+              ebirdObs = parseEbirdObservations(ebirdText)
             }
-            for (const row of rows) {
-              if (row.county === null && row.location) {
-                const c = locationCounty.get(row.location)
-                if (c) row.county = c
-              }
-            }
+          }
+        }
+      }
+      if (ebirdObs) {
+        const locationCounty = new Map<string, string>()
+        for (const o of ebirdObs) {
+          if (o.county && o.location && !locationCounty.has(o.location)) {
+            locationCounty.set(o.location, o.county)
+          }
+        }
+        for (const row of rows) {
+          if (row.county === null && row.location) {
+            const c = locationCounty.get(row.location)
+            if (c) row.county = c
           }
         }
       }
@@ -195,9 +291,34 @@ export function LifeList() {
   )
 
   const displayEntries = useMemo((): LifeListEntry[] => {
-    if (!hasLocationFilter || rawRows.length === 0) return phaseEntries
-    return aggregateMLRows(filteredRows)
-  }, [hasLocationFilter, rawRows.length, phaseEntries, filteredRows])
+    const hasEbird = phase.tag === 'ready' && phase.hasEbirdBackbone
+
+    let base: LifeListEntry[]
+
+    if (hasEbird && rawEbirdObs.length > 0) {
+      const filtEbird = hasLocationFilter
+        ? rawEbirdObs.filter(o => {
+            if (countyFilter !== null && o.county !== countyFilter) return false
+            if (dateRange.from && o.date < dateRange.from) return false
+            if (dateRange.to && o.date > dateRange.to) return false
+            return true
+          })
+        : rawEbirdObs
+      const filtML = hasLocationFilter ? filteredRows : rawRows
+      base = buildComprehensiveEntries(filtEbird, filtML, mergeSubspecies)
+    } else if (hasLocationFilter && rawRows.length > 0) {
+      base = aggregateMLRows(filteredRows)
+    } else {
+      base = phaseEntries
+    }
+
+    return base.filter(e => {
+      if (!showSpuh && isSpuhOrSlash(e.commonName)) return false
+      if (!showNonBird && e.isNonBird) return false
+      return true
+    })
+  }, [phase, rawEbirdObs, rawRows, filteredRows, phaseEntries, countyFilter, dateRange,
+      mergeSubspecies, showSpuh, showNonBird, hasLocationFilter])
 
   useEffect(() => {
     let cancelled = false
@@ -206,22 +327,49 @@ export function LifeList() {
         const statusRes = await fetch('/settings/files')
         if (!statusRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
         const status = await statusRes.json()
-        if (!status.ml) { setPhase({ tag: 'idle' }); return }
-        const fileRes = await fetch('/settings/files/ml')
-        if (!fileRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
-        const text = await fileRes.text()
+        if (!status.ml && !status.ebird) { setPhase({ tag: 'idle' }); return }
+
+        const [mlRes, ebirdRes] = await Promise.all([
+          status.ml ? fetch('/settings/files/ml') : Promise.resolve(null),
+          status.ebird ? fetch('/settings/files/ebird') : Promise.resolve(null),
+        ])
         if (cancelled) return
-        const fileType = detectFileType(text)
-        if (fileType !== 'ml-export') { setPhase({ tag: 'idle' }); return }
-        const { entries, mediaMap, rows } = parseMLExport(text)
-        if (!cancelled) {
-          setMlUserId(parseMLUserId(status.ml.filename))
-          setSavedFileInfo(status.ml)
-          setRawRows(rows)
-          setPhase({ tag: 'ready', entries, mediaMap })
-          fetchTaxonCodes(entries)
-          resolveMLCounties(rows)
+
+        let entries: LifeListEntry[] = []
+        let mediaMap: Record<string, string> = {}
+        let rows: MLExportRow[] = []
+        let hasEbirdBackbone = false
+        let ebirdObs: ObservationEntry[] = []
+
+        if (mlRes?.ok) {
+          const mlText = await mlRes.text()
+          if (detectFileType(mlText) === 'ml-export') {
+            const parsed = parseMLExport(mlText)
+            entries = parsed.entries
+            mediaMap = parsed.mediaMap
+            rows = parsed.rows
+            setMlUserId(parseMLUserId(status.ml.filename))
+            setSavedFileInfo(status.ml)
+            setRawRows(rows)
+          }
         }
+
+        if (ebirdRes?.ok) {
+          const ebirdText = await ebirdRes.text()
+          ebirdObs = parseEbirdObservations(ebirdText)
+          setRawEbirdObs(ebirdObs)
+          hasEbirdBackbone = true
+        }
+
+        if (cancelled) return
+
+        setPhase({ tag: 'ready', entries, mediaMap, hasEbirdBackbone })
+
+        const comprehensiveEntries = hasEbirdBackbone
+          ? buildComprehensiveEntries(ebirdObs, rows, true)
+          : entries
+        fetchTaxonCodes(comprehensiveEntries)
+        resolveMLCounties(rows, ebirdObs.length > 0 ? ebirdObs : undefined)
       } catch {
         if (!cancelled) setPhase({ tag: 'idle' })
       }
@@ -238,9 +386,33 @@ export function LifeList() {
       setRawRows(rows)
       setCountyFilter(null)
       setDateRange(DATE_RANGE_CLEAR)
-      setPhase({ tag: 'ready', entries, mediaMap })
-      fetchTaxonCodes(entries)
-      resolveMLCounties(rows)
+
+      // Check Settings for a stored eBird backup
+      let hasEbirdBackbone = false
+      let ebirdObs: ObservationEntry[] = []
+      try {
+        const statusRes = await fetch('/settings/files')
+        if (statusRes.ok) {
+          const status = await statusRes.json()
+          if (status.ebird) {
+            const ebirdRes = await fetch('/settings/files/ebird')
+            if (ebirdRes.ok) {
+              ebirdObs = parseEbirdObservations(await ebirdRes.text())
+              setRawEbirdObs(ebirdObs)
+              hasEbirdBackbone = true
+            }
+          }
+        }
+      } catch {
+        // proceed without eBird backbone
+      }
+
+      setPhase({ tag: 'ready', entries, mediaMap, hasEbirdBackbone })
+      const comprehensiveEntries = hasEbirdBackbone
+        ? buildComprehensiveEntries(ebirdObs, rows, true)
+        : entries
+      fetchTaxonCodes(comprehensiveEntries)
+      resolveMLCounties(rows, ebirdObs.length > 0 ? ebirdObs : undefined)
     } catch {
       setPhase({
         tag: 'error',
@@ -270,6 +442,11 @@ export function LifeList() {
     setTaxonOrders({})
     setSavedFileInfo(null)
     setRawRows([])
+    setRawEbirdObs([])
+    setMergeSubspecies(true)
+    setShowSpuh(false)
+    setShowNonBird(false)
+    setFilterHasMedia(false)
     setCountyResolution('idle')
     setCountyFilter(null)
     setDateRange(DATE_RANGE_CLEAR)
@@ -357,11 +534,15 @@ export function LifeList() {
   }
 
   // ── Ready ─────────────────────────────────────────────────────────────────
-  const { mediaMap } = phase
+  const { mediaMap, hasEbirdBackbone } = phase
 
-  const isFilterClear = !filter.photo && !filter.audio && !filter.video
+  const mediaFilteredEntries = filterHasMedia
+    ? displayEntries.filter(e => e.catalogIds.some(id => mediaMap[id] === 'Photo' || mediaMap[id] === 'Audio' || mediaMap[id] === 'Video'))
+    : displayEntries
 
-  const filteredCount = displayEntries.filter(entry => {
+  const isFilterClear = !filter.photo && !filter.audio && !filter.video && !filterHasMedia
+
+  const filteredCount = mediaFilteredEntries.filter(entry => {
     const photo = entry.catalogIds.some(id => mediaMap[id] === 'Photo')
     const audio = entry.catalogIds.some(id => mediaMap[id] === 'Audio')
     const video = entry.catalogIds.some(id => mediaMap[id] === 'Video')
@@ -374,7 +555,7 @@ export function LifeList() {
     return true
   }).length
 
-  const totalSpecies = phaseEntries.length
+  const totalSpecies = displayEntries.length
   const countLabel = (isFilterClear && !hasLocationFilter)
     ? `${displayEntries.length} species`
     : `${filteredCount} of ${totalSpecies} species`
@@ -424,7 +605,7 @@ export function LifeList() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {mlUserId === null && (
+      {mlUserId === null && rawRows.length > 0 && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-warning-bg)',
@@ -443,7 +624,8 @@ export function LifeList() {
       }}>
         {/* Filter pills */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => setFilter(MEDIA_FILTER_CLEAR)}>All</button>
+          <button style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false) }}>All</button>
+          <button style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</button>
 
           <div style={pillSep} />
 
@@ -486,6 +668,26 @@ export function LifeList() {
               Taxonomic
             </button>
           </div>
+
+          <div style={pillSep} />
+
+          <ToggleSwitch
+            label="Show subspecies"
+            checked={!mergeSubspecies}
+            onChange={() => setMergeSubspecies(v => !v)}
+          />
+          <ToggleSwitch
+            label="Show sp./slash"
+            checked={showSpuh}
+            onChange={() => setShowSpuh(v => !v)}
+          />
+          {hasEbirdBackbone && (
+            <ToggleSwitch
+              label="Show non-bird"
+              checked={showNonBird}
+              onChange={() => setShowNonBird(v => !v)}
+            />
+          )}
 
           <div style={pillSep} />
 
@@ -612,7 +814,7 @@ export function LifeList() {
       )}
 
       <LifeListTable
-        entries={displayEntries}
+        entries={mediaFilteredEntries}
         mediaMap={mediaMap}
         filter={filter}
         sort={sort}

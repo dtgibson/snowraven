@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — Media List: Comprehensive Species View</title>
+<style>
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #71717A;
+    --sr-text-disabled: #A1A1AA;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+    --sr-accent: #2D8653;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-accent-border: rgba(45,134,83,0.25);
+    --sr-accent-border-strong: rgba(45,134,83,0.7);
+    --sr-error: #DC2626;
+    --sr-error-bg: #FEF2F2;
+    --sr-error-border: #FECACA;
+    --sr-error-overlay: rgba(239,68,68,0.3);
+    --sr-gray-400: #D4D4D8;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+    --sr-accent: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-bg-hover: #064E3B;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-accent-border-strong: rgba(52,211,153,0.5);
+    --sr-error: #F87171;
+    --sr-error-bg: #1C0505;
+    --sr-error-border: #7F1D1D;
+    --sr-error-overlay: rgba(248,113,113,0.2);
+    --sr-gray-400: #52525B;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.2s, color 0.2s;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 20px; background: var(--sr-surface);
+    border-bottom: 1px solid var(--sr-border); margin-bottom: 0;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .toolbar-title { font-size: 13px; font-weight: 600; color: var(--sr-text-muted); }
+  .toolbar-right { display: flex; gap: 8px; align-items: center; }
+  .dark-btn {
+    height: 28px; padding: 0 12px; border-radius: 6px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+    color: var(--sr-text-muted); font-size: 12px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+  }
+  .mode-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 28px; padding: 0 12px; border-radius: 20px; font-size: 11px;
+    font-weight: 600; font-family: inherit; cursor: pointer;
+    border: 1.5px solid var(--sr-accent-border);
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+    transition: background 0.15s;
+  }
+  .mode-badge.ml-only {
+    border-color: var(--sr-border);
+    background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  }
+  .mode-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    display: flex; gap: 0; border-bottom: 1px solid var(--sr-border);
+    background: var(--sr-surface); padding: 0 20px;
+  }
+  .tab {
+    padding: 10px 14px; font-size: 13px; font-weight: 500;
+    color: var(--sr-text-muted); cursor: pointer; border: none;
+    background: none; font-family: inherit;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: color 0.12s;
+  }
+  .tab.active {
+    color: var(--sr-accent); border-bottom-color: var(--sr-accent);
+    font-weight: 600;
+  }
+
+  /* ── Controls row ── */
+  .controls-row {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .pills-group {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  }
+  .pill-sep { width: 1px; height: 20px; background: var(--sr-border); flex-shrink: 0; align-self: center; }
+
+  /* Filter pills */
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 30px; padding: 0 12px; border-radius: 6px;
+    font-size: 12px; font-weight: 500; font-family: inherit;
+    cursor: pointer; white-space: nowrap; transition: all 0.12s;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+    color: var(--sr-text-muted);
+  }
+  .pill.active-pos {
+    border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent);
+  }
+  .pill.active-neg {
+    border-color: var(--sr-error-overlay); background: var(--sr-error-bg); color: var(--sr-error);
+  }
+  .pill svg { display: inline-block; vertical-align: middle; }
+
+  /* Sort toggle */
+  .sort-toggle {
+    display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 6px; overflow: hidden;
+  }
+  .sort-btn {
+    height: 30px; padding: 0 13px; border: none;
+    background: transparent; color: var(--sr-text-muted);
+    font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer;
+    transition: all 0.12s;
+  }
+  .sort-btn.active { background: var(--sr-accent-bg); color: var(--sr-accent); }
+  .sort-btn + .sort-btn { border-left: 1.5px solid var(--sr-accent-border); }
+
+  /* ToggleSwitch */
+  .toggle-switch {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 30px; padding: 0 10px 0 8px; border-radius: 6px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+    cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 500;
+    color: var(--sr-text-muted); transition: all 0.12s; white-space: nowrap;
+    user-select: none;
+  }
+  .toggle-track {
+    width: 28px; height: 16px; border-radius: 8px; flex-shrink: 0; position: relative;
+    background: var(--sr-gray-400); transition: background 0.15s;
+  }
+  .toggle-track.on { background: var(--sr-accent); }
+  .toggle-thumb {
+    width: 12px; height: 12px; border-radius: 50%; background: white;
+    position: absolute; top: 2px; left: 2px;
+    transition: left 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .toggle-track.on .toggle-thumb { left: 14px; }
+
+  /* Count label */
+  .count-label {
+    font-size: 12px; color: var(--sr-text-disabled);
+    margin-left: auto; flex-shrink: 0; white-space: nowrap;
+  }
+
+  /* Reset button */
+  .reset-btn {
+    height: 30px; padding: 0 12px; border-radius: 6px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+    color: var(--sr-text-muted); font-size: 12px; font-weight: 500;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+  }
+
+  /* ── Table ── */
+  .table-wrap {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; overflow: hidden; box-shadow: var(--sr-card-shadow);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--sr-surface-subtle); }
+  th {
+    padding: 9px 14px; font-size: 11px; font-weight: 600;
+    color: var(--sr-text-muted); text-transform: uppercase; letter-spacing: 0.04em;
+    text-align: left; border-bottom: 1px solid var(--sr-border);
+    white-space: nowrap;
+  }
+  th.right, td.right { text-align: right; }
+  td {
+    padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--sr-border-subtle);
+    color: var(--sr-text);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--sr-surface-faint); }
+
+  .species-name { font-weight: 500; }
+  .sci-name { font-size: 11px; color: var(--sr-text-muted); font-style: italic; margin-top: 1px; }
+  .media-count { font-size: 13px; font-weight: 500; }
+  .media-count.has-media { color: var(--sr-accent); }
+  .media-count.no-media { color: var(--sr-text-disabled); }
+  .media-link {
+    font-size: 12px; color: var(--sr-accent); text-decoration: none; font-weight: 500;
+    opacity: 0.8;
+  }
+  .media-link:hover { opacity: 1; text-decoration: underline; }
+
+  /* Non-bird separator */
+  .non-bird-sep td {
+    padding: 6px 14px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--sr-text-disabled);
+    background: var(--sr-surface-subtle); border-bottom: 1px solid var(--sr-border);
+    border-top: 1px solid var(--sr-border);
+  }
+
+  /* ── Demo controls ── */
+  .demo-panel {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;
+    box-shadow: var(--sr-card-shadow);
+  }
+  .demo-panel h3 { font-size: 12px; font-weight: 600; color: var(--sr-text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .demo-opts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .demo-opt {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px; border-radius: 5px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface-subtle);
+    font-size: 11px; font-weight: 500; font-family: inherit;
+    cursor: pointer; color: var(--sr-text-muted); transition: all 0.12s;
+  }
+  .demo-opt.on {
+    border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent);
+  }
+
+  /* ── Animations / utilities ── */
+  .hidden { display: none !important; }
+  .fade-in { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* ── Responsive ── */
+  @media (max-width: 680px) {
+    .col-total, .col-total-h { display: none; }
+    .controls-row { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sticky toolbar -->
+<div class="toolbar">
+  <span class="toolbar-title">SnowRaven — Design Mockup</span>
+  <div class="toolbar-right">
+    <button class="mode-badge" id="modeBtn" onclick="toggleMode()">
+      <span class="mode-dot"></span>
+      <span id="modeBtnLabel">Comprehensive (eBird + ML)</span>
+    </button>
+    <button class="dark-btn" onclick="toggleTheme()">Toggle dark mode</button>
+  </div>
+</div>
+
+<!-- Tab bar -->
+<div class="tab-bar">
+  <button class="tab">Species</button>
+  <button class="tab">Breeding Codes</button>
+  <button class="tab active">Media List</button>
+</div>
+
+<div class="container">
+
+  <!-- Demo scenario selector -->
+  <div class="demo-panel">
+    <h3>Try different scenarios</h3>
+    <div class="demo-opts">
+      <button class="demo-opt on" id="opt-comprehensive" onclick="setScenario('comprehensive')">
+        eBird + ML (comprehensive)
+      </button>
+      <button class="demo-opt" id="opt-mlonly" onclick="setScenario('mlonly')">
+        ML only (no eBird)
+      </button>
+      <button class="demo-opt" id="opt-ebirdonly" onclick="setScenario('ebirdonly')">
+        eBird only (no ML)
+      </button>
+    </div>
+  </div>
+
+  <!-- Controls row -->
+  <div class="controls-row" id="controlsRow">
+    <div class="pills-group" id="pillsGroup">
+
+      <!-- Filter pills -->
+      <button class="pill active-pos" id="pillAll" onclick="setPillFilter('all')">All</button>
+      <button class="pill" id="pillHasMedia" onclick="setPillFilter('hasMedia')">Has media</button>
+
+      <div class="pill-sep"></div>
+
+      <button class="pill" id="pillNoPhoto" onclick="setPillFilter('noPhoto')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        No photo
+      </button>
+      <button class="pill" id="pillNoAudio" onclick="setPillFilter('noAudio')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        No audio
+      </button>
+      <button class="pill" id="pillNoVideo" onclick="setPillFilter('noVideo')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        No video
+      </button>
+
+      <div class="pill-sep"></div>
+
+      <button class="pill" id="pillHasPhoto" onclick="setPillFilter('hasPhoto')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Has photo
+      </button>
+      <button class="pill" id="pillHasAudio" onclick="setPillFilter('hasAudio')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+        Has audio
+      </button>
+      <button class="pill" id="pillHasVideo" onclick="setPillFilter('hasVideo')">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        Has video
+      </button>
+
+      <div class="pill-sep"></div>
+
+      <!-- Sort toggle -->
+      <div class="sort-toggle">
+        <button class="sort-btn" id="sortAZ" onclick="setSort('az')">A–Z</button>
+        <button class="sort-btn active" id="sortTax" onclick="setSort('taxonomic')">Taxonomic</button>
+      </div>
+
+      <div class="pill-sep"></div>
+
+      <!-- Reset button -->
+      <button class="reset-btn" onclick="alert('Would reset to upload screen')">Load different file</button>
+
+      <!-- New toggles -->
+      <button class="toggle-switch" id="toggleSubspecies" onclick="toggleState('subspecies')">
+        <div class="toggle-track" id="trackSubspecies">
+          <div class="toggle-thumb"></div>
+        </div>
+        Show subspecies
+      </button>
+      <button class="toggle-switch" id="toggleSpuh" onclick="toggleState('spuh')">
+        <div class="toggle-track" id="trackSpuh">
+          <div class="toggle-thumb"></div>
+        </div>
+        Show sp./slash
+      </button>
+      <button class="toggle-switch" id="toggleNonBird" onclick="toggleState('nonbird')">
+        <div class="toggle-track" id="trackNonBird">
+          <div class="toggle-thumb"></div>
+        </div>
+        Show non-bird
+      </button>
+
+      <!-- Count label -->
+      <span class="count-label" id="countLabel">342 species</span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Species</th>
+          <th class="right">Photo</th>
+          <th class="right">Audio</th>
+          <th class="right">Video</th>
+          <th class="right col-total col-total-h">Total</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let state = {
+  scenario: 'comprehensive',  // 'comprehensive' | 'mlonly' | 'ebirdonly'
+  subspecies: false,
+  spuh: false,
+  nonbird: false,
+  pillFilter: 'all',
+  sort: 'taxonomic',
+  dark: false,
+}
+
+// ─── Sample data ─────────────────────────────────────────────────────────────
+// Each entry: { name, sci, photo, audio, video, isSpuh, isSubspecies, isNonBird, mlOnly, ebirdOnly }
+const ALL_SPECIES = [
+  // Well-represented species
+  { name: 'Canada Goose', sci: 'Branta canadensis', photo: 12, audio: 3, video: 2, mlOnly: false },
+  { name: 'Wood Duck', sci: 'Aix sponsa', photo: 8, audio: 1, video: 0, mlOnly: false },
+  { name: 'Mallard', sci: 'Anas platyrhynchos', photo: 31, audio: 7, video: 4, mlOnly: false },
+  { name: 'Mallard (Domestic type)', sci: 'Anas platyrhynchos (Domestic type)', photo: 4, audio: 0, video: 0, isSubspecies: true, mlOnly: false },
+  { name: 'Green-winged Teal', sci: 'Anas crecca', photo: 5, audio: 2, video: 1, mlOnly: false },
+  { name: 'Ring-necked Pheasant', sci: 'Phasianus colchicus', photo: 3, audio: 1, video: 0, mlOnly: false },
+  { name: 'Wild Turkey', sci: 'Meleagris gallopavo', photo: 7, audio: 4, video: 2, mlOnly: false },
+  // Species with zero media (eBird-only in comprehensive mode)
+  { name: 'Northern Bobwhite', sci: 'Colinus virginianus', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'American Bittern', sci: 'Botaurus lentiginosus', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'Least Bittern', sci: 'Ixobrychus exilis', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'Great Blue Heron', sci: 'Ardea herodias', photo: 18, audio: 2, video: 1, mlOnly: false },
+  { name: 'Great Egret', sci: 'Ardea alba', photo: 11, audio: 0, video: 3, mlOnly: false },
+  { name: 'Snowy Egret', sci: 'Egretta thula', photo: 6, audio: 0, video: 0, mlOnly: false },
+  // More zero-media species
+  { name: 'Little Blue Heron', sci: 'Egretta caerulea', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'Tricolored Heron', sci: 'Egretta tricolor', photo: 0, audio: 0, video: 0, mlOnly: false },
+  // Osprey (has media)
+  { name: 'Osprey', sci: 'Pandion haliaetus', photo: 9, audio: 3, video: 1, mlOnly: false },
+  // Zero media
+  { name: 'Bald Eagle', sci: 'Haliaeetus leucocephalus', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'Northern Harrier', sci: 'Circus hudsonius', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'Sharp-shinned Hawk', sci: 'Accipiter striatus', photo: 2, audio: 0, video: 0, mlOnly: false },
+  { name: 'Cooper\'s Hawk', sci: 'Accipiter cooperii', photo: 4, audio: 1, video: 0, mlOnly: false },
+  // Spuh/slash species
+  { name: 'Accipiter sp.', sci: 'Accipiter sp.', photo: 1, audio: 0, video: 0, isSpuh: true, mlOnly: false },
+  { name: 'Sharp-shinned/Cooper\'s Hawk', sci: 'Accipiter striatus/cooperii', photo: 2, audio: 0, video: 0, isSpuh: true, mlOnly: false },
+  // More normal species
+  { name: 'Red-tailed Hawk', sci: 'Buteo jamaicensis', photo: 14, audio: 5, video: 2, mlOnly: false },
+  { name: 'American Kestrel', sci: 'Falco sparverius', photo: 8, audio: 3, video: 1, mlOnly: false },
+  { name: 'Eastern Wood-Pewee', sci: 'Contopus virens', photo: 2, audio: 9, video: 0, mlOnly: false },
+  { name: 'Acadian Flycatcher', sci: 'Empidonax virescens', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'Willow Flycatcher', sci: 'Empidonax traillii', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'Least Flycatcher', sci: 'Empidonax minimus', photo: 0, audio: 0, video: 0, mlOnly: false },
+  { name: 'Eastern Phoebe', sci: 'Sayornis phoebe', photo: 7, audio: 4, video: 1, mlOnly: false },
+  { name: 'Great Crested Flycatcher', sci: 'Myiarchus crinitus', photo: 3, audio: 6, video: 0, mlOnly: false },
+  // Non-bird (ML only, not in eBird)
+  { name: 'Gray Treefrog', sci: 'Hyla versicolor', photo: 0, audio: 7, video: 0, isNonBird: true, mlOnly: true },
+  { name: 'American Toad', sci: 'Anaxyrus americanus', photo: 2, audio: 4, video: 0, isNonBird: true, mlOnly: true },
+  { name: 'Wind in Trees', sci: '', photo: 0, audio: 12, video: 0, isNonBird: true, mlOnly: true },
+  { name: 'Meadow Ambience', sci: '', photo: 0, audio: 3, video: 0, isNonBird: true, mlOnly: true },
+]
+
+// ─── Rendering ───────────────────────────────────────────────────────────────
+function renderTable() {
+  const tbody = document.getElementById('tableBody')
+  const comprehensive = state.scenario === 'comprehensive'
+  const ebirdOnly = state.scenario === 'ebirdonly'
+  const mlOnly = state.scenario === 'mlonly'
+
+  let entries = ALL_SPECIES.filter(s => {
+    // In ML-only mode: no eBird backbone, show all non-non-bird ML entries
+    if (mlOnly) {
+      if (s.mlOnly && s.isNonBird) return false  // non-bird still possible in ml-only
+      if (!s.isNonBird && s.photo === 0 && s.audio === 0 && s.video === 0 && !s.isSubspecies) return false  // hide zero-media in ML-only
+      return true
+    }
+    // In eBird-only mode: show all non-ML-only species with zero counts
+    if (ebirdOnly) {
+      return !s.mlOnly  // mlOnly means it only exists in ML, not in eBird
+    }
+    // Comprehensive mode: show everything controlled by toggles
+    return true
+  })
+
+  // Filter by toggle state
+  if (!state.subspecies) {
+    entries = entries.filter(s => !s.isSubspecies)
+  }
+  if (!state.spuh) {
+    entries = entries.filter(s => !s.isSpuh)
+  }
+  if (!state.nonbird) {
+    entries = entries.filter(s => !s.isNonBird)
+  }
+
+  // Apply pill filter
+  entries = entries.filter(s => {
+    const hasPhoto = s.photo > 0
+    const hasAudio = s.audio > 0
+    const hasVideo = s.video > 0
+    if (state.pillFilter === 'hasMedia') return hasPhoto || hasAudio || hasVideo
+    if (state.pillFilter === 'hasPhoto') return hasPhoto
+    if (state.pillFilter === 'hasAudio') return hasAudio
+    if (state.pillFilter === 'hasVideo') return hasVideo
+    if (state.pillFilter === 'noPhoto') return !hasPhoto
+    if (state.pillFilter === 'noAudio') return !hasAudio
+    if (state.pillFilter === 'noVideo') return !hasVideo
+    return true
+  })
+
+  const birdEntries = entries.filter(s => !s.isNonBird)
+  const nonBirdEntries = entries.filter(s => s.isNonBird)
+  const finalEntries = state.nonbird ? [...birdEntries, ...nonBirdEntries] : birdEntries
+
+  // Count label
+  const totalAll = comprehensive
+    ? ALL_SPECIES.filter(s => !s.isSubspecies || state.subspecies).filter(s => !s.isSpuh || state.spuh).filter(s => !s.isNonBird || state.nonbird).filter(s => !s.mlOnly || comprehensive).length
+    : mlOnly
+      ? ALL_SPECIES.filter(s => !s.isNonBird && (s.photo > 0 || s.audio > 0 || s.video > 0 || s.isSubspecies)).length
+      : ALL_SPECIES.filter(s => !s.mlOnly).length
+
+  const countLabel = document.getElementById('countLabel')
+  if (state.pillFilter === 'all') {
+    countLabel.textContent = `${finalEntries.length} species`
+  } else {
+    countLabel.textContent = `${finalEntries.length} of ${totalAll} species`
+  }
+
+  // Render rows
+  let html = ''
+  let birdsDone = false
+
+  finalEntries.forEach((s, i) => {
+    if (!birdsDone && s.isNonBird) {
+      birdsDone = true
+      if (state.nonbird) {
+        html += `<tr class="non-bird-sep"><td colspan="5">Non-Bird Media</td></tr>`
+      }
+    }
+
+    const showMedia = !(ebirdOnly)
+    const photoCell = showMedia
+      ? (s.photo > 0 ? `<span class="media-count has-media">${s.photo}</span>` : `<span class="media-count no-media">—</span>`)
+      : `<span class="media-count no-media">—</span>`
+    const audioCell = showMedia
+      ? (s.audio > 0 ? `<span class="media-count has-media">${s.audio}</span>` : `<span class="media-count no-media">—</span>`)
+      : `<span class="media-count no-media">—</span>`
+    const videoCell = showMedia
+      ? (s.video > 0 ? `<span class="media-count has-media">${s.video}</span>` : `<span class="media-count no-media">—</span>`)
+      : `<span class="media-count no-media">—</span>`
+    const total = s.photo + s.audio + s.video
+    const totalCell = showMedia
+      ? (total > 0 ? `<span class="media-count has-media">${total}</span>` : `<span class="media-count no-media">—</span>`)
+      : `<span class="media-count no-media">—</span>`
+
+    const sciDisplay = s.sci && s.sci !== s.name ? `<div class="sci-name">${s.sci}</div>` : ''
+
+    html += `<tr class="fade-in">
+      <td>
+        <div class="species-name">${s.name}</div>
+        ${sciDisplay}
+      </td>
+      <td class="right">${photoCell}</td>
+      <td class="right">${audioCell}</td>
+      <td class="right">${videoCell}</td>
+      <td class="right col-total">${totalCell}</td>
+    </tr>`
+  })
+
+  if (finalEntries.length === 0) {
+    html = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--sr-text-disabled);font-size:13px;">No species match the current filters</td></tr>`
+  }
+
+  tbody.innerHTML = html
+}
+
+function renderToggles() {
+  const comprehensive = state.scenario === 'comprehensive'
+  const nonBirdToggle = document.getElementById('toggleNonBird')
+
+  // Non-bird toggle only visible in comprehensive mode
+  nonBirdToggle.style.display = comprehensive ? '' : 'none'
+
+  // Track states
+  setTrack('trackSubspecies', state.subspecies)
+  setTrack('trackSpuh', state.spuh)
+  setTrack('trackNonBird', state.nonbird)
+}
+
+function setTrack(id, on) {
+  const track = document.getElementById(id)
+  if (on) track.classList.add('on')
+  else track.classList.remove('on')
+}
+
+function renderModeBtn() {
+  const btn = document.getElementById('modeBtn')
+  const label = document.getElementById('modeBtnLabel')
+  if (state.scenario === 'comprehensive') {
+    btn.classList.remove('ml-only')
+    label.textContent = 'Comprehensive (eBird + ML)'
+  } else if (state.scenario === 'mlonly') {
+    btn.classList.add('ml-only')
+    label.textContent = 'ML only mode'
+  } else {
+    btn.classList.remove('ml-only')
+    label.textContent = 'eBird only mode'
+  }
+}
+
+function render() {
+  renderToggles()
+  renderModeBtn()
+  renderTable()
+  renderPills()
+  renderSort()
+}
+
+function renderPills() {
+  const pills = ['pillAll','pillHasMedia','pillNoPhoto','pillNoAudio','pillNoVideo','pillHasPhoto','pillHasAudio','pillHasVideo']
+  const map = { pillAll: 'all', pillHasMedia: 'hasMedia', pillNoPhoto: 'noPhoto', pillNoAudio: 'noAudio', pillNoVideo: 'noVideo', pillHasPhoto: 'hasPhoto', pillHasAudio: 'hasAudio', pillHasVideo: 'hasVideo' }
+  pills.forEach(id => {
+    const btn = document.getElementById(id)
+    const key = map[id]
+    btn.classList.remove('active-pos','active-neg')
+    if (state.pillFilter === key) {
+      if (key.startsWith('no')) btn.classList.add('active-neg')
+      else btn.classList.add('active-pos')
+    }
+  })
+}
+
+function renderSort() {
+  document.getElementById('sortAZ').classList.toggle('active', state.sort === 'az')
+  document.getElementById('sortTax').classList.toggle('active', state.sort === 'taxonomic')
+}
+
+// ─── Event handlers ───────────────────────────────────────────────────────────
+function toggleState(key) {
+  if (key === 'subspecies') state.subspecies = !state.subspecies
+  if (key === 'spuh') state.spuh = !state.spuh
+  if (key === 'nonbird') state.nonbird = !state.nonbird
+  render()
+}
+
+function setPillFilter(f) {
+  state.pillFilter = state.pillFilter === f ? 'all' : f
+  render()
+}
+
+function setSort(s) {
+  state.sort = s
+  render()
+}
+
+function setScenario(s) {
+  state.scenario = s
+  // Reset non-bird toggle when switching away from comprehensive
+  if (s !== 'comprehensive') state.nonbird = false
+  document.querySelectorAll('.demo-opt').forEach(el => el.classList.remove('on'))
+  document.getElementById('opt-' + s).classList.add('on')
+  render()
+}
+
+function toggleMode() {
+  const scenarios = ['comprehensive','mlonly','ebirdonly']
+  const next = scenarios[(scenarios.indexOf(state.scenario) + 1) % scenarios.length]
+  setScenario(next)
+  document.querySelectorAll('.demo-opt').forEach(el => el.classList.remove('on'))
+  document.getElementById('opt-' + next).classList.add('on')
+}
+
+function toggleTheme() {
+  state.dark = !state.dark
+  document.documentElement.setAttribute('data-theme', state.dark ? 'dark' : '')
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+render()
+</script>
+</body>
+</html>
