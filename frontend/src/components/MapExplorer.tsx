@@ -135,6 +135,17 @@ function fmtDate(d: string): string {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
+function AutoSizeMap() {
+  const map = useMap()
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize())
+    observer.observe(map.getContainer())
+    map.invalidateSize()
+    return () => observer.disconnect()
+  }, [map])
+  return null
+}
+
 function HeatmapLayer({ points }: { points: [number, number, number][] }) {
   const map = useMap()
   const layerRef = useRef<L.Layer | null>(null)
@@ -167,15 +178,27 @@ function HeatmapLayer({ points }: { points: [number, number, number][] }) {
 
 function SightingMarkers({ locations, displayMode }: { locations: LocationGroup[]; displayMode: DisplayMode }) {
   const map = useMap()
+  const hasFitted = useRef(false)
 
-  // Auto-fit on mount (triggers when mode switches to sightings)
   useEffect(() => {
-    if (locations.length === 0) return
-    const coords: [number, number][] = locations.map(l => [l.lat, l.lng])
-    if (coords.length === 1) map.setView(coords[0], 12)
-    else map.fitBounds(L.latLngBounds(coords), { padding: [50, 50] })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (hasFitted.current || locations.length === 0) return
+
+    const tryFit = () => {
+      // If the container is still hidden (display:none), getSize() returns 0×0.
+      // Wait for the resize event that AutoSizeMap fires when the tab becomes visible.
+      const size = map.getSize()
+      if (size.x === 0 && size.y === 0) return
+      hasFitted.current = true
+      map.off('resize', tryFit)
+      const coords: [number, number][] = locations.map(l => [l.lat, l.lng])
+      if (coords.length === 1) map.setView(coords[0], 12)
+      else map.fitBounds(L.latLngBounds(coords), { padding: [50, 50] })
+    }
+
+    tryFit()
+    if (!hasFitted.current) map.on('resize', tryFit)
+    return () => { map.off('resize', tryFit) }
+  }, [locations, map])
 
   const heatPoints = useMemo(
     (): [number, number, number][] => locations.map(l => [l.lat, l.lng, Math.min(l.count / 20, 1)]),
@@ -613,9 +636,20 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
 
   const handleUseMyLocation = useCallback(() => {
     setGeoError('')
+    if (!navigator.geolocation || !window.isSecureContext) {
+      setGeoError('Location detection requires HTTPS. Enter coordinates manually.')
+      return
+    }
     navigator.geolocation.getCurrentPosition(
       pos => { setLat(pos.coords.latitude.toFixed(5)); setLng(pos.coords.longitude.toFixed(5)) },
-      () => setGeoError('Location unavailable — enter coordinates manually.'),
+      err => {
+        if (err.code === 1) {
+          setGeoError('Location access was denied. Enter coordinates manually.')
+        } else {
+          setGeoError('Location unavailable. Enter coordinates manually.')
+        }
+      },
+      { timeout: 10000 },
     )
   }, [])
 
@@ -1076,6 +1110,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
               style={{ height: '100%', width: '100%' }}
               zoomControl
             >
+              <AutoSizeMap />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
