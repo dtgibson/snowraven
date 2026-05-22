@@ -312,12 +312,6 @@ function SightingsGraph({ obs, mlRows, hasML }: {
     ...btnBase, background: 'transparent', color: 'var(--sr-text-muted)',
   }
 
-  const sharedAxisProps = {
-    tick: { fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' } as React.SVGProps<SVGTextElement>,
-    tickLine: false as const,
-    axisLine: false as const,
-  }
-
   return (
     <>
       <SectionCard>
@@ -339,10 +333,17 @@ function SightingsGraph({ obs, mlRows, hasML }: {
               <XAxis
                 dataKey="key"
                 tickFormatter={k => formatPeriodLabel(k, useMonthly)}
-                {...sharedAxisProps}
+                tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
+                tickLine={false}
+                axisLine={false}
                 interval="preserveStartEnd"
               />
-              <YAxis {...sharedAxisProps} allowDecimals={false} />
+              <YAxis
+                tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
+                tickLine={false}
+                axisLine={false}
+                allowDecimals={false}
+              />
               <RechartsTooltip
                 content={<GraphTooltip useMonthly={useMonthly} />}
                 cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
@@ -370,10 +371,17 @@ function SightingsGraph({ obs, mlRows, hasML }: {
                 <XAxis
                   dataKey="key"
                   tickFormatter={k => formatPeriodLabel(k, useMonthly)}
-                  {...sharedAxisProps}
+                  tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
+                  tickLine={false}
+                  axisLine={false}
                   interval="preserveStartEnd"
                 />
-                <YAxis {...sharedAxisProps} allowDecimals={false} />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
+                  tickLine={false}
+                  axisLine={false}
+                  allowDecimals={false}
+                />
                 <RechartsTooltip
                   content={<GraphTooltip useMonthly={useMonthly} />}
                   cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
