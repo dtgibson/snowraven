@@ -38,6 +38,8 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Implications:** Always verify changes with `npm run build` (not just `npm run typecheck`) before deploying. The `typecheck` script is useful for fast feedback but is not a substitute for a full build check. Do not use `as SomeType` to silence prop-spread type errors on third-party JSX components — inline the props instead so TypeScript can check them in context.
 
+**Second instance — v0.0.45 (2026-05-22):** Adding optional parameters to `handleFindHotspots` and `handleFindSightings` so the address search could pass coordinates directly made them incompatible with React's `MouseEventHandler` type when used directly as `onClick={fn}`. `tsc --noEmit` passed; `tsc -b` failed. Fix: wrap in arrow functions (`onClick={() => fn()}`) so the MouseEvent is absorbed. Always wrap event handlers that take non-event arguments — never pass them directly as `onClick`.
+
 ## package-lock.json must be committed to the repository — 2026-05-22
 
 **Bug:** `frontend/package-lock.json` existed locally but was never committed. `npm ci` on the Pi fell back to a stale lockfile from a previous manual install, installing mismatched package versions. `npm audit` failed with ENOLOCK because it requires a lockfile to assess dependencies.

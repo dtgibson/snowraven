@@ -1,11 +1,11 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "activeFeature": "onclick-handler-type-error",
+  "sessionNumber": 1,
+  "sessionType": "fix",
+  "currentStage": 6,
+  "lastCompletedStage": 5,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [],
-  "createdAt": "2026-05-22T12:00:00Z",
-  "updatedAt": "2026-05-22T14:45:00Z"
+  "createdAt": "2026-05-22T15:00:00Z",
+  "updatedAt": "2026-05-22T15:15:00Z"
 }
