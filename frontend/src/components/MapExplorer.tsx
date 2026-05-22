@@ -1057,7 +1057,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
       {CenterPointControl}
       {RadiusControl}
       <button
-        onClick={handleFindHotspots}
+        onClick={() => handleFindHotspots()}
         disabled={hotspotsLoading || hasEbirdKey === false}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
@@ -1196,7 +1196,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
       )}
 
       <button
-        onClick={handleFindSightings}
+        onClick={() => handleFindSightings()}
         disabled={targetsFetchDisabled}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
