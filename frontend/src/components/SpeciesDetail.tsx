@@ -291,9 +291,14 @@ function SightingsGraph({ obs, mlRows, hasML }: {
 
   if (rawData.length < 2) return null
 
-  const axisLabel = viewMode === 'per-period'
-    ? (useMonthly ? 'Individuals per month' : 'Individuals per year')
+  const hasAnyMedia = hasML && rawData.some(p => p.photo > 0 || p.audio > 0 || p.video > 0)
+  const periodLabel = useMonthly ? 'month' : 'year'
+  const sightingsAxisLabel = viewMode === 'per-period'
+    ? `Individuals per ${periodLabel}`
     : 'Cumulative individuals'
+  const mediaAxisLabel = viewMode === 'per-period'
+    ? `Items per ${periodLabel}`
+    : 'Cumulative items'
 
   const btnBase: React.CSSProperties = {
     padding: '5px 14px', border: 'none', borderRadius: 5, fontSize: 12,
@@ -307,80 +312,101 @@ function SightingsGraph({ obs, mlRows, hasML }: {
     ...btnBase, background: 'transparent', color: 'var(--sr-text-muted)',
   }
 
+  const sharedAxisProps = {
+    tick: { fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' } as React.SVGProps<SVGTextElement>,
+    tickLine: false as const,
+    axisLine: false as const,
+  }
+
   return (
-    <SectionCard>
-      <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Sightings Over Time" />
-      <div style={{ padding: '14px 18px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{axisLabel}</span>
-          <div style={{
-            display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)',
-            borderRadius: 7, padding: 2,
-          }}>
-            <button style={viewMode === 'per-period' ? btnActive : btnInactive} onClick={() => setViewMode('per-period')}>Per Year</button>
-            <button style={viewMode === 'cumulative' ? btnActive : btnInactive} onClick={() => setViewMode('cumulative')}>Cumulative</button>
+    <>
+      <SectionCard>
+        <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Sightings Over Time" />
+        <div style={{ padding: '14px 18px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{sightingsAxisLabel}</span>
+            <div style={{
+              display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)',
+              borderRadius: 7, padding: 2,
+            }}>
+              <button style={viewMode === 'per-period' ? btnActive : btnInactive} onClick={() => setViewMode('per-period')}>Per Year</button>
+              <button style={viewMode === 'cumulative' ? btnActive : btnInactive} onClick={() => setViewMode('cumulative')}>Cumulative</button>
+            </div>
           </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
+              <XAxis
+                dataKey="key"
+                tickFormatter={k => formatPeriodLabel(k, useMonthly)}
+                {...sharedAxisProps}
+                interval="preserveStartEnd"
+              />
+              <YAxis {...sharedAxisProps} allowDecimals={false} />
+              <RechartsTooltip
+                content={<GraphTooltip useMonthly={useMonthly} />}
+                cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
+              />
+              <Line
+                type="monotone" dataKey="individuals" name="Individuals"
+                stroke="var(--sr-graph-individuals)" strokeWidth={2.5}
+                dot={{ r: 3, fill: 'var(--sr-graph-individuals)', stroke: 'white', strokeWidth: 1.5 }}
+                activeDot={{ r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
-            <XAxis
-              dataKey="key"
-              tickFormatter={k => formatPeriodLabel(k, useMonthly)}
-              tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
-              tickLine={false}
-              axisLine={false}
-              interval="preserveStartEnd"
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
-              tickLine={false}
-              axisLine={false}
-              allowDecimals={false}
-            />
-            <RechartsTooltip
-              content={<GraphTooltip useMonthly={useMonthly} />}
-              cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
-            />
-            <Legend
-              iconType="circle"
-              iconSize={7}
-              wrapperStyle={{ fontSize: 12, color: 'var(--sr-text-muted)', paddingTop: 8 }}
-            />
-            <Line
-              type="monotone" dataKey="individuals" name="Individuals"
-              stroke="var(--sr-graph-individuals)" strokeWidth={2.5}
-              dot={{ r: 3, fill: 'var(--sr-graph-individuals)', stroke: 'white', strokeWidth: 1.5 }}
-              activeDot={{ r: 4 }}
-            />
-            {hasML && (
-              <Line
-                type="monotone" dataKey="photo" name="Photo"
-                stroke="var(--sr-graph-photo)" strokeWidth={1.8} opacity={0.85}
-                dot={{ r: 2.5, fill: 'var(--sr-graph-photo)', stroke: 'white', strokeWidth: 1.5 }}
-                activeDot={{ r: 3.5 }}
-              />
-            )}
-            {hasML && (
-              <Line
-                type="monotone" dataKey="audio" name="Audio"
-                stroke="var(--sr-graph-audio)" strokeWidth={1.8} opacity={0.85}
-                dot={{ r: 2.5, fill: 'var(--sr-graph-audio)', stroke: 'white', strokeWidth: 1.5 }}
-                activeDot={{ r: 3.5 }}
-              />
-            )}
-            {hasML && (
-              <Line
-                type="monotone" dataKey="video" name="Video"
-                stroke="var(--sr-graph-video)" strokeWidth={1.8} opacity={0.85}
-                dot={{ r: 2.5, fill: 'var(--sr-graph-video)', stroke: 'white', strokeWidth: 1.5 }}
-                activeDot={{ r: 3.5 }}
-              />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </SectionCard>
+      </SectionCard>
+      {hasAnyMedia && (
+        <SectionCard>
+          <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Media Over Time" />
+          <div style={{ padding: '14px 18px 0' }}>
+            <div style={{ marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{mediaAxisLabel}</span>
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
+                <XAxis
+                  dataKey="key"
+                  tickFormatter={k => formatPeriodLabel(k, useMonthly)}
+                  {...sharedAxisProps}
+                  interval="preserveStartEnd"
+                />
+                <YAxis {...sharedAxisProps} allowDecimals={false} />
+                <RechartsTooltip
+                  content={<GraphTooltip useMonthly={useMonthly} />}
+                  cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
+                />
+                <Legend
+                  iconType="circle"
+                  iconSize={7}
+                  wrapperStyle={{ fontSize: 12, color: 'var(--sr-text-muted)', paddingTop: 8 }}
+                />
+                <Line
+                  type="monotone" dataKey="photo" name="Photo"
+                  stroke="var(--sr-graph-photo)" strokeWidth={1.8} opacity={0.85}
+                  dot={{ r: 2.5, fill: 'var(--sr-graph-photo)', stroke: 'white', strokeWidth: 1.5 }}
+                  activeDot={{ r: 3.5 }}
+                />
+                <Line
+                  type="monotone" dataKey="audio" name="Audio"
+                  stroke="var(--sr-graph-audio)" strokeWidth={1.8} opacity={0.85}
+                  dot={{ r: 2.5, fill: 'var(--sr-graph-audio)', stroke: 'white', strokeWidth: 1.5 }}
+                  activeDot={{ r: 3.5 }}
+                />
+                <Line
+                  type="monotone" dataKey="video" name="Video"
+                  stroke="var(--sr-graph-video)" strokeWidth={1.8} opacity={0.85}
+                  dot={{ r: 2.5, fill: 'var(--sr-graph-video)', stroke: 'white', strokeWidth: 1.5 }}
+                  activeDot={{ r: 3.5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </SectionCard>
+      )}
+    </>
   )
 }
 
