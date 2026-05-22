@@ -1,54 +1,43 @@
-# Pipeline Handoff — Map Explorer
-
-**Status:** Complete — both sessions finished, feature shipped at v0.0.42
-
----
+# Pipeline Handoff — map-explorer-enhancements (complete)
 
 ## What was built
 
-**Map Explorer** is a new tab in SnowRaven that gives users three ways to explore their birding geography on an interactive Leaflet/OpenStreetMap map.
+Five enhancements to the Map Explorer tab, shipped as v0.0.44.
 
-**My Sightings mode** — plots personal recent observations as green circle markers with an optional heatmap overlay. Filterable by species, breeding status, and date range. Requires the eBird API key configured in Settings; shows the standard SetupRequired screen if absent.
+**Address geocoding** — both Hotspots and Media Targets sidebars now have a "Search by place name" input that resolves addresses via Nominatim, populates the lat/lng fields, and immediately triggers a fetch. New `GET /nominatim/search` backend endpoint shares the existing rate lock and User-Agent.
 
-**Hotspots mode** — fetches regional eBird hotspots by lat/lng/radius and classifies them using the stored eBird backup: green teardrop (visited), blue teardrop (unvisited), or orange star (personal location). Sidebar lists results; clicking a sidebar row pans the map to that pin.
+**Hotspot legend toggles** — each legend row (Visited, Unvisited, Personal) is a clickable button. Clicking hides that pin category at 40% opacity; clicking again restores it. All categories reset to visible on each new fetch. `hiddenKinds` Set state in the component.
 
-**Media Targets mode** — fetches recent regional observations filtered by breeding status and plots label pill pins in purple at each unique location, showing the species common name. Useful for planning ML media collection trips.
+**Media Targets recency tiers** — pins are now color-coded by three green shades: fresh (≤7 days, `--sr-map-target-fresh`), mid (8–15 days, `--sr-map-target-mid`), old (16–30 days, `--sr-map-target-old`). The eBird `back` parameter was extended from 14 to 30 days. Pins older than 30 days are excluded by the API.
 
-All three modes share a 268px sidebar with mode-specific controls, a scrollable results list, and a legend. The MapContainer is always mounted; mode switches add/remove layers without unmounting the map.
+**Last 30 Days / Last Week toggle** — segmented control in the Media Targets sidebar filters pins client-side with no network call. "Last Week" shows all pins where `recentDate` is within 7 days (not one-per-species deduplication — all qualifying locations shown).
 
----
+**Checklist link in popup** — each target pin popup shows "View checklist {subId} →" when `subId` matches `/^S\d+$/`. The backend now captures `subId` from the most-recent observation in each `(speciesCode, locId)` group.
+
+**Nearest-10 sidebar list** — ranked by haversine distance (reusing the existing `distanceMiles()` helper). Each row: tier dot, species name, location name, distance in miles. Clicking a row sets `panTarget` state; `MapPanner` child inside `MapContainer` calls `map.panTo()`.
 
 ## Artifacts produced
 
 **Session 1 (planning):**
-- `pipeline/map-explorer/strategic-brief.md`
-- `pipeline/map-explorer/prd.md`
-- `pipeline/map-explorer/schema.md`
-- `pipeline/map-explorer/design-spec.md`
-- `pipeline/map-explorer/design.html`
+- `pipeline/map-explorer-enhancements/strategic-brief.md`
+- `pipeline/map-explorer-enhancements/prd.md`
+- `pipeline/map-explorer-enhancements/schema.md`
+- `pipeline/map-explorer-enhancements/design-spec.md`
+- `pipeline/map-explorer-enhancements/design.html`
 
 **Session 2 (implementation):**
-- `frontend/src/components/MapExplorer.tsx` — full tab component with three view modes, DivIcon pins, heatmap, XSS guard
-- `backend/routers/map.py` — `GET /map/hotspots` and `GET /map/recent-obs` eBird proxy endpoints (pre-existing, registered to app)
-- `frontend/vite.config.ts` — `/map` proxy entry added
-- `frontend/src/globals.css` — four map pin tokens (`--sr-map-visited/unvisited/personal/target`) in both themes
-- `frontend/src/App.tsx` — `'map-explorer'` tab added to tab bar and tab panel
-- `frontend/package.json` — bumped to v0.0.42
-- `CHANGELOG.md` — [0.0.42] entry added
-- `PRODUCT_CONTEXT.md` — Map Explorer section added; Key Decisions updated
-- `DECISIONS.md` — four new decision entries
+- `backend/routers/map.py` — `back=30`, `subId` capture
+- `backend/routers/nominatim.py` — `GET /nominatim/search` endpoint
+- `frontend/src/globals.css` — four new `--sr-map-target-*` tokens
+- `frontend/src/components/MapExplorer.tsx` — all frontend changes
+- `CHANGELOG.md` — v0.0.44 entry
+- `PRODUCT_CONTEXT.md` — Map Explorer section updated
+- `DECISIONS.md` — five new decision entries
 
----
+## Feature status
 
-## Key decisions made this session
-
-- Tab panel uses `height: calc(100vh - 178px)` not `flex: 1` because the outer app div is `minHeight: 100vh` (not `height`), which prevents flex fill from producing a bounded height for Leaflet
-- DivIcon colors use `style="fill:var(--sr-map-*)"` on the SVG element (not SVG presentation attributes) to support CSS custom properties and dark mode
-- `escHtml()` XSS guard applied to any external API string interpolated into DivIcon HTML (established as the required pattern going forward)
-- `SightingMarkers` fitBounds runs in `useEffect(fn, [])` so it fires on mount (mode switch) but not on filter-driven re-renders; `HotspotMarkers`/`TargetMarkers` use `key={pins.length}` for data-driven remounts instead
-
----
+Complete. v0.0.44 released on GitHub. All 189 tests pass (67 backend, 122 frontend).
 
 ## Starting the next feature
 
-Run `/new-feature` to begin a new pipeline session. The Orchestrator will check the roadmap for the next suggested item.
+Run `/new-feature` to begin the next pipeline session.
