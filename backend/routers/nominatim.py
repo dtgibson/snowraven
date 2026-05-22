@@ -2,7 +2,7 @@ import asyncio
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -60,6 +60,31 @@ async def _lookup(lat: float, lng: float) -> Optional[str]:
         _cache[key] = county
         await asyncio.sleep(1.0)
         return county
+
+
+@router.get("/nominatim/search")
+async def forward_geocode(q: str):
+    async with _rate_lock:
+        data: list = []
+        error = False
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    "https://nominatim.openstreetmap.org/search",
+                    params={"q": q, "format": "json", "limit": 5},
+                    headers={"User-Agent": "SnowRaven/1.0"},
+                    timeout=8.0,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                else:
+                    error = True
+        except Exception:
+            error = True
+        await asyncio.sleep(1.0)
+    if error:
+        raise HTTPException(status_code=502, detail="Location search unavailable.")
+    return data
 
 
 @router.post("/nominatim/counties", response_model=NominatimResponse)

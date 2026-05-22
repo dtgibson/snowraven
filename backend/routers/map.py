@@ -50,7 +50,7 @@ async def get_recent_obs(lat: float, lng: float, dist: int = 25, codes: str = ""
         try:
             resp = await client.get(
                 f"{_EBIRD_BASE}/data/obs/geo/recent",
-                params={"lat": lat, "lng": lng, "dist": dist, "back": 14, "fmt": "json"},
+                params={"lat": lat, "lng": lng, "dist": dist, "back": 30, "fmt": "json"},
                 headers={"X-eBirdApiToken": key},
             )
             resp.raise_for_status()
@@ -82,12 +82,14 @@ async def get_recent_obs(lat: float, lng: float, dist: int = 25, codes: str = ""
                 "lng": obs.get("lng"),
                 "recentDate": obs.get("obsDt", ""),
                 "checklistCount": 0,
+                "subId": obs.get("subId", ""),
             }
         entry = groups[group_key]
         entry["checklistCount"] += 1
-        # Keep the most recent date; eBird dates are ISO-format so lexicographic comparison works
+        # Keep the most recent date and its subId; eBird dates are ISO-format so lexicographic comparison works
         current_date = obs.get("obsDt", "")
         if current_date > entry["recentDate"]:
             entry["recentDate"] = current_date
+            entry["subId"] = obs.get("subId", "")
 
     return list(groups.values())

@@ -1,62 +1,54 @@
-# Pipeline Handoff — media-list-comprehensive
+# Pipeline Handoff — Map Explorer
 
-**Status:** Complete — both sessions finished, feature shipped at v0.0.38
+**Status:** Complete — both sessions finished, feature shipped at v0.0.42
 
 ---
 
 ## What was built
 
-The Media Life List tab gained a **Comprehensive mode** — when the user has an eBird backup stored
-in Settings, it auto-loads alongside the ML export and becomes the species backbone. Every eBird
-life-listed species appears in the table whether or not it has ML media. ML-only entries that don't
-match the eBird backbone are classified as non-bird (soundscapes, taxonomic mismatches) and can be
-shown or hidden with a toggle.
+**Map Explorer** is a new tab in SnowRaven that gives users three ways to explore their birding geography on an interactive Leaflet/OpenStreetMap map.
 
-Three new toolbar toggles were added (Merge subspecies, Show sp./slash, Show non-bird), plus a
-"Has media" filter pill that hides all zero-media entries in one click. The non-bird toggle and
-non-bird table section are hidden in ML-only mode. Species count denominator was corrected to use
-the comprehensive entry count, not the ML-only count.
+**My Sightings mode** — plots personal recent observations as green circle markers with an optional heatmap overlay. Filterable by species, breeding status, and date range. Requires the eBird API key configured in Settings; shows the standard SetupRequired screen if absent.
 
-A `speciesUtils.ts` shared module was extracted so `normalizeSpeciesName` and `isSpuhOrSlash` are
-no longer duplicated between `LifeList.tsx` and `SpeciesDetail.tsx`.
+**Hotspots mode** — fetches regional eBird hotspots by lat/lng/radius and classifies them using the stored eBird backup: green teardrop (visited), blue teardrop (unvisited), or orange star (personal location). Sidebar lists results; clicking a sidebar row pans the map to that pin.
+
+**Media Targets mode** — fetches recent regional observations filtered by breeding status and plots label pill pins in purple at each unique location, showing the species common name. Useful for planning ML media collection trips.
+
+All three modes share a 268px sidebar with mode-specific controls, a scrollable results list, and a legend. The MapContainer is always mounted; mode switches add/remove layers without unmounting the map.
 
 ---
 
 ## Artifacts produced
 
 **Session 1 (planning):**
-- `pipeline/media-list-comprehensive/strategic-brief.md`
-- `pipeline/media-list-comprehensive/prd.md`
-- `pipeline/media-list-comprehensive/schema.md`
-- `pipeline/media-list-comprehensive/design-spec.md`
-- `pipeline/media-list-comprehensive/design.html`
+- `pipeline/map-explorer/strategic-brief.md`
+- `pipeline/map-explorer/prd.md`
+- `pipeline/map-explorer/schema.md`
+- `pipeline/map-explorer/design-spec.md`
+- `pipeline/map-explorer/design.html`
 
 **Session 2 (implementation):**
-- `frontend/src/lib/speciesUtils.ts` — NEW shared module
-- `frontend/src/lib/speciesUtils.test.ts` — NEW, 11 tests
-- `frontend/src/lib/parseLifeList.ts` — `isNonBird?: boolean` added to `LifeListEntry`
-- `frontend/src/components/SpeciesDetail.tsx` — switched to `speciesUtils` imports
-- `frontend/src/components/LifeList.tsx` — comprehensive mode, three toggles, filterHasMedia, buildComprehensiveEntries, parallel auto-load
-- `frontend/src/components/LifeListTable.tsx` — non-bird sort partition, Total column zero fix
-- `frontend/package.json` — bumped to v0.0.38
-- `CHANGELOG.md` — [0.0.38] entry added
-- `PRODUCT_CONTEXT.md` — Media Life List section rewritten; 5 new Key Decisions added
-
-**Deployed:** v0.0.38 — GitHub release at https://github.com/dtgibson/snowraven/releases/tag/v0.0.38
+- `frontend/src/components/MapExplorer.tsx` — full tab component with three view modes, DivIcon pins, heatmap, XSS guard
+- `backend/routers/map.py` — `GET /map/hotspots` and `GET /map/recent-obs` eBird proxy endpoints (pre-existing, registered to app)
+- `frontend/vite.config.ts` — `/map` proxy entry added
+- `frontend/src/globals.css` — four map pin tokens (`--sr-map-visited/unvisited/personal/target`) in both themes
+- `frontend/src/App.tsx` — `'map-explorer'` tab added to tab bar and tab panel
+- `frontend/package.json` — bumped to v0.0.42
+- `CHANGELOG.md` — [0.0.42] entry added
+- `PRODUCT_CONTEXT.md` — Map Explorer section added; Key Decisions updated
+- `DECISIONS.md` — four new decision entries
 
 ---
 
 ## Key decisions made this session
 
-- Non-bird detection uses a set built from the always-normalized eBird backbone (independent of the mergeSubspecies toggle) to avoid false positives on subspecies entries
-- `filterHasMedia` is a separate boolean state, not added to `MediaFilterState`, so "All" can reset both in one place
-- `totalSpecies` denominator uses `displayEntries.length` (comprehensive count) not `phaseEntries.length` (ML-only count)
-- Non-bird sort partition fires only in Taxonomic nameSortMode per FR-13; A-Z leaves non-birds in alphabetical position
-- `speciesUtils.ts` is a component-layer shared module; parser-layer utilities remain separate per the earlier decision
+- Tab panel uses `height: calc(100vh - 178px)` not `flex: 1` because the outer app div is `minHeight: 100vh` (not `height`), which prevents flex fill from producing a bounded height for Leaflet
+- DivIcon colors use `style="fill:var(--sr-map-*)"` on the SVG element (not SVG presentation attributes) to support CSS custom properties and dark mode
+- `escHtml()` XSS guard applied to any external API string interpolated into DivIcon HTML (established as the required pattern going forward)
+- `SightingMarkers` fitBounds runs in `useEffect(fn, [])` so it fires on mount (mode switch) but not on filter-driven re-renders; `HotspotMarkers`/`TargetMarkers` use `key={pins.length}` for data-driven remounts instead
 
 ---
 
 ## Starting the next feature
 
-Run `/new-feature` to begin a new pipeline session. The Orchestrator will check the roadmap for the
-next suggested item.
+Run `/new-feature` to begin a new pipeline session. The Orchestrator will check the roadmap for the next suggested item.

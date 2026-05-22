@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Map Explorer Enhancements — SnowRaven Design</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  background: #FFFFFF;
+  color: #0F1117;
+  font-size: 13px;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── App chrome ── */
+.app-header {
+  height: 44px;
+  border-bottom: 1px solid #E4E4E7;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 20px;
+  flex-shrink: 0;
+  background: #FFFFFF;
+}
+.app-logo {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2D8653;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.tab-bar { display: flex; }
+.tab-item {
+  padding: 0 14px;
+  height: 44px;
+  font-size: 12px;
+  color: #71717A;
+  border: none;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+}
+.tab-item:hover { color: #0F1117; }
+.tab-item.active { color: #2D8653; border-bottom-color: #2D8653; font-weight: 600; }
+
+/* ── Map Explorer shell ── */
+.map-explorer { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 268px;
+  min-width: 268px;
+  border-right: 1px solid #E4E4E7;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+.mode-tabs { display: flex; border-bottom: 1px solid #E4E4E7; flex-shrink: 0; }
+.mode-tab {
+  flex: 1;
+  padding: 8px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #71717A;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  line-height: 1.3;
+}
+.mode-tab:hover { color: #0F1117; background: #F9F9FA; }
+.mode-tab.active { color: #2D8653; border-bottom-color: #2D8653; font-weight: 600; background: #F0FAF4; }
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sidebar-content::-webkit-scrollbar { width: 3px; }
+.sidebar-content::-webkit-scrollbar-thumb { background: #E4E4E7; border-radius: 2px; }
+
+/* Controls */
+.ctrl-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #71717A;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+.new-pill {
+  font-size: 8px;
+  font-weight: 700;
+  background: #E8F5EE;
+  color: #2D8653;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.upd-pill {
+  font-size: 8px;
+  font-weight: 700;
+  background: #FEF3C7;
+  color: #92400E;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.search-row { display: flex; gap: 5px; }
+.text-input {
+  flex: 1;
+  height: 28px;
+  border: 1px solid #E4E4E7;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #0F1117;
+  font-family: inherit;
+  outline: none;
+}
+.text-input:focus { border-color: #2D8653; box-shadow: 0 0 0 2px rgba(45,134,83,0.1); }
+.text-input::placeholder { color: #A1A1AA; }
+
+.search-btn {
+  height: 28px;
+  padding: 0 10px;
+  background: #2D8653;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.search-btn:hover { background: #246B45; }
+
+.inline-error { font-size: 11px; color: #EF4444; margin-top: 3px; display: none; }
+
+.coord-row { display: flex; gap: 6px; }
+.coord-field { flex: 1; }
+.coord-field label { font-size: 10px; color: #A1A1AA; display: block; margin-bottom: 3px; }
+.coord-input {
+  width: 100%;
+  height: 26px;
+  border: 1px solid #E4E4E7;
+  border-radius: 5px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  color: #3F3F46;
+  outline: none;
+}
+.coord-input:focus { border-color: #2D8653; }
+.coord-input.flash { border-color: #2D8653; background: #F0FAF4; transition: all 0.4s; }
+
+.range-row { display: flex; align-items: center; gap: 8px; }
+input[type=range] { flex: 1; height: 3px; accent-color: #2D8653; cursor: pointer; }
+.range-val { font-size: 11px; color: #71717A; white-space: nowrap; width: 32px; text-align: right; }
+
+/* Segment toggle */
+.seg-wrap { background: #F4F4F5; border-radius: 6px; padding: 2px; display: flex; gap: 2px; }
+.seg-btn {
+  flex: 1;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #71717A;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.seg-btn:hover { color: #0F1117; }
+.seg-btn.active { background: #fff; color: #0F1117; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+
+/* Select */
+.sel-input {
+  width: 100%;
+  height: 28px;
+  border: 1px solid #E4E4E7;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #0F1117;
+  background: #fff;
+  font-family: inherit;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2371717A' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 24px;
+}
+
+.fetch-btn {
+  width: 100%;
+  height: 28px;
+  background: #2D8653;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.fetch-btn:hover { background: #246B45; }
+
+/* Section separator */
+.section-sep {
+  font-size: 10px;
+  font-weight: 600;
+  color: #A1A1AA;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid #F4F4F5;
+}
+.section-sep .badge-wrap { display: flex; align-items: center; gap: 4px; }
+
+/* Nearest-10 list */
+.near-list { display: flex; flex-direction: column; gap: 1px; }
+.near-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.near-item:hover { background: #F4F4F5; }
+.near-item.hl { background: #F0FAF4; }
+
+.tier-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tier-dot.fresh { background: #2D8653; }
+.tier-dot.mid   { background: #5EA07C; }
+.tier-dot.old   { background: #A8D4BB; }
+
+.near-body { flex: 1; min-width: 0; }
+.near-sp {
+  font-size: 12px;
+  font-weight: 500;
+  color: #0F1117;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.near-loc {
+  font-size: 10px;
+  color: #71717A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.near-dist { font-size: 11px; color: #A1A1AA; white-space: nowrap; flex-shrink: 0; font-weight: 500; }
+
+/* Legend */
+.legend { display: flex; flex-direction: column; gap: 3px; padding-bottom: 8px; }
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #0F1117;
+}
+.legend-row.clickable { cursor: pointer; transition: all 0.15s; user-select: none; }
+.legend-row.clickable:hover { background: #F4F4F5; }
+.legend-row.dim { opacity: 0.38; }
+
+.leg-pill {
+  width: 28px;
+  height: 14px;
+  border-radius: 7px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.leg-pill.fresh { background: #2D8653; }
+.leg-pill.mid   { background: #5EA07C; }
+.leg-pill.old   { background: #A8D4BB; }
+
+.leg-icon {
+  width: 14px;
+  height: 18px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  flex-shrink: 0;
+}
+.leg-icon.visited  { background: #2D8653; }
+.leg-icon.unvisited{ background: #3B82F6; }
+.leg-icon.personal { background: #F97316; border-radius: 50%; transform: none; width: 14px; height: 14px; }
+
+.legend-hint { font-size: 10px; color: #A1A1AA; padding: 0 6px 4px; font-style: italic; }
+
+/* Hotspot result list */
+.hs-list { display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; }
+.hs-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.hs-item:hover { background: #F4F4F5; }
+.hs-dot-wrap { width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hs-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+}
+.hs-dot.visited  { background: #2D8653; }
+.hs-dot.unvisited{ background: #3B82F6; }
+.hs-dot.personal { background: #F97316; border-radius: 50%; transform: none; }
+.hs-name { font-size: 12px; color: #0F1117; }
+
+/* ── Map area ── */
+.map-area { flex: 1; position: relative; overflow: hidden; background: #F2EFE9; }
+.map-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+/* Target pill pins */
+.pin-wrap { position: absolute; transform: translateX(-50%) translateY(-50%); }
+.t-pin {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 7px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.28);
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.t-pin:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+.t-pin::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+}
+.t-pin.fresh { background: #2D8653; }
+.t-pin.fresh::after { border-top: 5px solid #2D8653; }
+.t-pin.mid   { background: #5EA07C; }
+.t-pin.mid::after { border-top: 5px solid #5EA07C; }
+.t-pin.old   { background: #A8D4BB; color: #1A5C38; }
+.t-pin.old::after { border-top: 5px solid #A8D4BB; }
+.t-pin .pd { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.5); flex-shrink: 0; }
+.t-pin.old .pd { background: rgba(26,92,56,0.25); }
+
+/* Hotspot teardrop pins */
+.hs-pin {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50% 50% 50% 0;
+  transform: translateX(-50%) translateY(-100%) rotate(-45deg);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.hs-pin.visited  { background: #2D8653; }
+.hs-pin.unvisited{ background: #3B82F6; }
+.hs-pin.personal { background: #F97316; border-radius: 50%; transform: translateX(-50%) translateY(-50%); }
+.hs-pin.ghost    { opacity: 0.15; pointer-events: none; }
+
+/* Popup */
+.map-popup {
+  position: absolute;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.1);
+  padding: 12px 14px;
+  width: 220px;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(calc(-100% - 20px));
+  display: none;
+  z-index: 20;
+}
+.map-popup.open { display: block; }
+.map-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 8px solid #fff;
+  filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1));
+}
+.popup-x {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #A1A1AA;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+}
+.popup-x:hover { background: #F4F4F5; color: #0F1117; }
+.popup-sp { font-size: 13px; font-weight: 700; color: #0F1117; padding-right: 18px; margin-bottom: 3px; }
+.popup-loc { font-size: 11px; color: #71717A; margin-bottom: 2px; }
+.popup-dt  { font-size: 11px; color: #A1A1AA; margin-bottom: 8px; }
+.popup-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 9px;
+}
+.popup-tier.fresh { background: #E8F5EE; color: #1A5C38; }
+.popup-tier.mid   { background: #E8F5EE; color: #2D8653; }
+.popup-tier.old   { background: #E8F5EE; color: #2D8653; }
+.popup-cta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #2D8653;
+  text-decoration: none;
+  font-weight: 600;
+  border-top: 1px solid #F4F4F5;
+  padding-top: 8px;
+}
+.popup-cta:hover { color: #1A5C38; text-decoration: underline; }
+
+/* Zoom controls */
+.zoom-ctrl {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+.z-btn {
+  width: 26px;
+  height: 26px;
+  background: #fff;
+  border: 1px solid #E4E4E7;
+  border-top: none;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #3F3F46;
+}
+.z-btn:first-child { border-top: 1px solid #E4E4E7; }
+.z-btn:hover { background: #F4F4F5; }
+
+/* Attribution */
+.attrib {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 9px;
+  color: #999;
+  background: rgba(255,255,255,0.75);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* My Sightings placeholder */
+.placeholder-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 16px;
+  color: #71717A;
+  gap: 8px;
+  flex: 1;
+}
+.placeholder-icon { font-size: 28px; margin-bottom: 4px; }
+.placeholder-title { font-size: 13px; font-weight: 600; color: #0F1117; }
+.placeholder-body  { font-size: 12px; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<!-- App header -->
+<div class="app-header">
+  <div class="app-logo">SnowRaven</div>
+  <div class="tab-bar">
+    <button class="tab-item">Weather</button>
+    <button class="tab-item">List Comparer</button>
+    <button class="tab-item">Media Life List</button>
+    <button class="tab-item">Breeding Codes</button>
+    <button class="tab-item">Species Detail</button>
+    <button class="tab-item active">Map Explorer</button>
+    <button class="tab-item">Settings</button>
+  </div>
+</div>
+
+<div class="map-explorer">
+
+  <!-- ── SIDEBAR ── -->
+  <div class="sidebar">
+    <div class="mode-tabs">
+      <button class="mode-tab" id="tab-sightings" onclick="switchMode('sightings')">My Sightings</button>
+      <button class="mode-tab" id="tab-hotspots" onclick="switchMode('hotspots')">Hotspots</button>
+      <button class="mode-tab active" id="tab-targets" onclick="switchMode('targets')">Media Targets</button>
+    </div>
+
+    <!-- ── MEDIA TARGETS sidebar ── -->
+    <div id="sb-targets" class="sidebar-content">
+
+      <div>
+        <div class="ctrl-label">Search by place name <span class="new-pill">new</span></div>
+        <div class="search-row">
+          <input type="text" class="text-input" id="addr-t" placeholder="City, park, or address…">
+          <button class="search-btn" onclick="doGeocode('t')">Search</button>
+        </div>
+        <div class="inline-error" id="err-t">No location found. Try a different search term.</div>
+      </div>
+
+      <div>
+        <div class="ctrl-label">Coordinates</div>
+        <div class="coord-row">
+          <div class="coord-field">
+            <label>Lat</label>
+            <input type="text" class="coord-input" id="lat-t" value="37.44238">
+          </div>
+          <div class="coord-field">
+            <label>Lng</label>
+            <input type="text" class="coord-input" id="lng-t" value="-122.14302">
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ctrl-label">Radius</div>
+        <div class="range-row">
+          <input type="range" min="5" max="50" value="25" oninput="this.nextElementSibling.textContent=this.value+' mi'">
+          <span class="range-val">25 mi</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="ctrl-label">View <span class="new-pill">new</span></div>
+        <div class="seg-wrap">
+          <button class="seg-btn active" onclick="setView(this,'all')">Last 30 Days</button>
+          <button class="seg-btn" onclick="setView(this,'week')">Last Week</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="ctrl-label">Breeding status</div>
+        <select class="sel-input">
+          <option>All</option>
+          <option>Confirmed</option>
+          <option>Probable</option>
+          <option>Possible</option>
+          <option>None</option>
+        </select>
+      </div>
+
+      <button class="fetch-btn">Refresh</button>
+
+      <div class="section-sep">
+        <span>Nearest 10 Targets</span>
+        <span class="new-pill">new</span>
+      </div>
+
+      <div class="near-list">
+        <div class="near-item hl" onclick="openPopup('ptwar')">
+          <div class="tier-dot fresh"></div>
+          <div class="near-body">
+            <div class="near-sp">Prothonotary Warbler</div>
+            <div class="near-loc">Coyote Creek Riparian Station</div>
+          </div>
+          <div class="near-dist">2.1 mi</div>
+        </div>
+        <div class="near-item" onclick="openPopup('pabu')">
+          <div class="tier-dot mid"></div>
+          <div class="near-body">
+            <div class="near-sp">Painted Bunting</div>
+            <div class="near-loc">Baylands Nature Preserve</div>
+          </div>
+          <div class="near-dist">3.7 mi</div>
+        </div>
+        <div class="near-item" onclick="openPopup('ctwa')">
+          <div class="tier-dot mid"></div>
+          <div class="near-body">
+            <div class="near-sp">Connecticut Warbler</div>
+            <div class="near-loc">Shoreline at Mountain View</div>
+          </div>
+          <div class="near-dist">5.2 mi</div>
+        </div>
+        <div class="near-item">
+          <div class="tier-dot fresh"></div>
+          <div class="near-body">
+            <div class="near-sp">Red Knot</div>
+            <div class="near-loc">Eden Landing Ecological Reserve</div>
+          </div>
+          <div class="near-dist">7.8 mi</div>
+        </div>
+        <div class="near-item">
+          <div class="tier-dot old"></div>
+          <div class="near-body">
+            <div class="near-sp">Mourning Warbler</div>
+            <div class="near-loc">Bedwell Bayfront Park</div>
+          </div>
+          <div class="near-dist">9.4 mi</div>
+        </div>
+        <div class="near-item">
+          <div class="tier-dot old"></div>
+          <div class="near-body">
+            <div class="near-sp">Yellow-billed Cuckoo</div>
+            <div class="near-loc">Alviso Marina County Park</div>
+          </div>
+          <div class="near-dist">11.3 mi</div>
+        </div>
+        <div class="near-item">
+          <div class="tier-dot mid"></div>
+          <div class="near-body">
+            <div class="near-sp">Buff-br. Sandpiper</div>
+            <div class="near-loc">Don Edwards NWR–Mowry Slough</div>
+          </div>
+          <div class="near-dist">13.6 mi</div>
+        </div>
+        <div class="near-item">
+          <div class="tier-dot old"></div>
+          <div class="near-body">
+            <div class="near-sp">Smith's Longspur</div>
+            <div class="near-loc">Coyote Hills Regional Park</div>
+          </div>
+          <div class="near-dist">14.2 mi</div>
+        </div>
+        <div class="near-item">
+          <div class="tier-dot old"></div>
+          <div class="near-body">
+            <div class="near-sp">Sprague's Pipit</div>
+            <div class="near-loc">Mineta San José Airport area</div>
+          </div>
+          <div class="near-dist">16.7 mi</div>
+        </div>
+        <div class="near-item">
+          <div class="tier-dot old"></div>
+          <div class="near-body">
+            <div class="near-sp">Purple Gallinule</div>
+            <div class="near-loc">Alviso Ponds</div>
+          </div>
+          <div class="near-dist">18.1 mi</div>
+        </div>
+      </div>
+
+      <div class="section-sep"><span>Legend</span><span class="upd-pill">updated</span></div>
+      <div class="legend">
+        <div class="legend-row"><span class="leg-pill fresh"></span> Fresh sighting (&le;7 days)</div>
+        <div class="legend-row"><span class="leg-pill mid"></span> Recent sighting (&le;15 days)</div>
+        <div class="legend-row"><span class="leg-pill old"></span> <span style="color:#1A5C38;">Older sighting (&le;30 days)</span></div>
+      </div>
+
+    </div><!-- /sb-targets -->
+
+    <!-- ── HOTSPOTS sidebar ── -->
+    <div id="sb-hotspots" class="sidebar-content" style="display:none;">
+
+      <div>
+        <div class="ctrl-label">Search by place name <span class="new-pill">new</span></div>
+        <div class="search-row">
+          <input type="text" class="text-input" placeholder="City, park, or address…">
+          <button class="search-btn">Search</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="ctrl-label">Coordinates</div>
+        <div class="coord-row">
+          <div class="coord-field"><label>Lat</label><input type="text" class="coord-input" value="37.44238"></div>
+          <div class="coord-field"><label>Lng</label><input type="text" class="coord-input" value="-122.14302"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="ctrl-label">Radius</div>
+        <div class="range-row">
+          <input type="range" min="5" max="50" value="25" oninput="this.nextElementSibling.textContent=this.value+' mi'">
+          <span class="range-val">25 mi</span>
+        </div>
+      </div>
+
+      <button class="fetch-btn">Search Hotspots</button>
+
+      <div class="section-sep"><span>Hotspots (23)</span></div>
+      <div class="hs-list">
+        <div class="hs-item"><div class="hs-dot-wrap"><div class="hs-dot visited"></div></div><div class="hs-name">Coyote Creek Riparian Station</div></div>
+        <div class="hs-item"><div class="hs-dot-wrap"><div class="hs-dot unvisited"></div></div><div class="hs-name">Baylands Nature Preserve</div></div>
+        <div class="hs-item"><div class="hs-dot-wrap"><div class="hs-dot visited"></div></div><div class="hs-name">Shoreline at Mountain View</div></div>
+        <div class="hs-item"><div class="hs-dot-wrap"><div class="hs-dot personal"></div></div><div class="hs-name">Backyard (Palo Alto)</div></div>
+        <div class="hs-item"><div class="hs-dot-wrap"><div class="hs-dot unvisited"></div></div><div class="hs-name">Bedwell Bayfront Park</div></div>
+        <div class="hs-item"><div class="hs-dot-wrap"><div class="hs-dot unvisited"></div></div><div class="hs-name">Don Edwards NWR–Newark</div></div>
+        <div class="hs-item"><div class="hs-dot-wrap"><div class="hs-dot visited"></div></div><div class="hs-name">Byxbee Park</div></div>
+      </div>
+
+      <div class="section-sep"><span>Legend</span><span class="upd-pill">updated</span></div>
+      <div class="legend">
+        <div class="legend-row clickable" id="leg-visited" onclick="toggleLeg('visited')">
+          <span class="leg-icon visited"></span>
+          Visited hotspot
+          <svg style="margin-left:auto;color:#A1A1AA;" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <div class="legend-row clickable dim" id="leg-unvisited" onclick="toggleLeg('unvisited')">
+          <span class="leg-icon unvisited"></span>
+          Unvisited hotspot
+          <svg style="margin-left:auto;color:#A1A1AA;" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </div>
+        <div class="legend-row clickable" id="leg-personal" onclick="toggleLeg('personal')">
+          <span class="leg-icon personal"></span>
+          Personal location
+          <svg style="margin-left:auto;color:#A1A1AA;" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+      </div>
+      <div class="legend-hint">Click a legend row to hide or show that pin category.</div>
+
+    </div><!-- /sb-hotspots -->
+
+    <!-- ── MY SIGHTINGS sidebar ── -->
+    <div id="sb-sightings" class="sidebar-content" style="display:none;">
+      <div class="placeholder-center">
+        <div class="placeholder-icon">🗺️</div>
+        <div class="placeholder-title">My Sightings</div>
+        <div class="placeholder-body">Your recent eBird observations plotted as a heatmap and markers.</div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- ── MAP AREA ── -->
+  <div class="map-area" id="map-area">
+
+    <!-- SVG map background -->
+    <svg class="map-bg" viewBox="0 0 900 680" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+      <rect width="900" height="680" fill="#F2EFE9"/>
+      <!-- SF Bay -->
+      <path d="M540,0 L900,0 L900,680 L600,680 L575,620 L555,560 L540,500 L530,440 L530,380 L535,320 L542,260 L550,200 L545,130 L540,60 L540,0Z" fill="#B5D0D0" opacity="0.85"/>
+      <!-- Creek -->
+      <path d="M250,360 Q300,350 350,368 Q400,386 440,410 Q480,430 520,460 Q535,478 540,500" fill="none" stroke="#B5D0D0" stroke-width="9" stroke-linecap="round" opacity="0.7"/>
+      <!-- Parks -->
+      <rect x="180" y="270" width="130" height="85" rx="10" fill="#D8E8CC" opacity="0.65"/>
+      <rect x="345" y="165" width="95" height="75" rx="8" fill="#D8E8CC" opacity="0.65"/>
+      <rect x="100" y="390" width="85" height="65" rx="7" fill="#D8E8CC" opacity="0.65"/>
+      <rect x="375" y="415" width="105" height="65" rx="7" fill="#D8E8CC" opacity="0.6"/>
+      <rect x="55" y="195" width="75" height="55" rx="6" fill="#D8E8CC" opacity="0.55"/>
+      <!-- Highway 101 -->
+      <path d="M0,300 Q120,293 220,296 Q330,299 430,302 Q490,304 540,307" fill="none" stroke="#F0DFA0" stroke-width="9"/>
+      <path d="M0,300 Q120,293 220,296 Q330,299 430,302 Q490,304 540,307" fill="none" stroke="#D4A800" stroke-width="1" stroke-dasharray="18,14"/>
+      <rect x="98" y="294" width="30" height="15" rx="3" fill="#4A6EB5"/>
+      <text x="113" y="305" font-size="9" fill="white" text-anchor="middle" font-weight="bold">101</text>
+      <!-- Major roads -->
+      <line x1="0" y1="360" x2="540" y2="360" stroke="#CCCCCC" stroke-width="3"/>
+      <line x1="0" y1="220" x2="540" y2="220" stroke="#CCCCCC" stroke-width="2.5"/>
+      <line x1="0" y1="490" x2="540" y2="490" stroke="#CCCCCC" stroke-width="2.5"/>
+      <line x1="175" y1="0" x2="175" y2="680" stroke="#CCCCCC" stroke-width="3"/>
+      <line x1="338" y1="0" x2="338" y2="590" stroke="#CCCCCC" stroke-width="2.5"/>
+      <!-- Minor roads -->
+      <line x1="0" y1="145" x2="540" y2="145" stroke="#DEDEDE" stroke-width="1.5"/>
+      <line x1="0" y1="565" x2="540" y2="565" stroke="#DEDEDE" stroke-width="1.5"/>
+      <line x1="80" y1="0" x2="80" y2="680" stroke="#DEDEDE" stroke-width="1.5"/>
+      <line x1="250" y1="0" x2="250" y2="680" stroke="#DEDEDE" stroke-width="1.5"/>
+      <line x1="430" y1="0" x2="430" y2="600" stroke="#DEDEDE" stroke-width="1.5"/>
+      <!-- Labels -->
+      <text x="700" y="200" font-size="13" fill="#7EA8A8" text-anchor="middle" font-style="italic" font-weight="500">San Francisco Bay</text>
+      <text x="108" y="140" font-size="11" fill="#9E8F82" font-weight="500">Palo Alto</text>
+      <text x="262" y="140" font-size="11" fill="#9E8F82" font-weight="500">Mountain View</text>
+      <text x="420" y="140" font-size="11" fill="#9E8F82" font-weight="500">Sunnyvale</text>
+      <text x="128" y="468" font-size="11" fill="#9E8F82" font-weight="500">Los Altos</text>
+      <text x="300" y="545" font-size="11" fill="#9E8F82" font-weight="500">Santa Clara</text>
+      <text x="243" y="310" font-size="9" fill="#6B8C5A" text-anchor="middle">Baylands</text>
+      <text x="390" y="205" font-size="9" fill="#6B8C5A" text-anchor="middle">Shoreline</text>
+    </svg>
+
+    <!-- ── Target pins (Media Targets mode) ── -->
+    <div id="tgt-pins">
+      <!-- fresh -->
+      <div class="pin-wrap" style="left:29%;top:40%;">
+        <div class="t-pin fresh" onclick="openPopup('ptwar')"><span class="pd"></span>Prothonotary Warbler</div>
+      </div>
+      <div class="pin-wrap" style="left:57%;top:63%;">
+        <div class="t-pin fresh" onclick="openPopup('rkno')"><span class="pd"></span>Red Knot</div>
+      </div>
+      <!-- mid -->
+      <div class="pin-wrap" style="left:43%;top:27%;">
+        <div class="t-pin mid" onclick="openPopup('pabu')"><span class="pd"></span>Painted Bunting</div>
+      </div>
+      <div class="pin-wrap" style="left:17%;top:70%;">
+        <div class="t-pin mid" onclick="openPopup('ctwa')"><span class="pd"></span>Connecticut Warbler</div>
+      </div>
+      <div class="pin-wrap" style="left:40%;top:77%;">
+        <div class="t-pin mid"><span class="pd"></span>Buff-br. Sandpiper</div>
+      </div>
+      <!-- old -->
+      <div class="pin-wrap" style="left:53%;top:48%;">
+        <div class="t-pin old"><span class="pd"></span>Mourning Warbler</div>
+      </div>
+      <div class="pin-wrap" style="left:23%;top:57%;">
+        <div class="t-pin old"><span class="pd"></span>Yellow-billed Cuckoo</div>
+      </div>
+      <div class="pin-wrap" style="left:33%;top:84%;">
+        <div class="t-pin old"><span class="pd"></span>Smith's Longspur</div>
+      </div>
+    </div>
+
+    <!-- ── Hotspot pins (Hotspots mode, hidden) ── -->
+    <div id="hs-pins" style="display:none;">
+      <div class="hs-pin visited"  style="left:29%;top:40%;"></div>
+      <div class="hs-pin visited"  style="left:43%;top:27%;"></div>
+      <div class="hs-pin visited"  style="left:17%;top:70%;"></div>
+      <div class="hs-pin unvisited" style="left:53%;top:48%;"></div>
+      <div class="hs-pin unvisited" style="left:62%;top:38%;"></div>
+      <div class="hs-pin unvisited" style="left:40%;top:77%;"></div>
+      <div class="hs-pin personal"  style="left:23%;top:50%;"></div>
+    </div>
+
+    <!-- ── Popups ── -->
+    <div class="map-popup open" id="pop-ptwar" style="left:29%;top:40%;">
+      <button class="popup-x" onclick="closePopups()">×</button>
+      <div class="popup-sp">Prothonotary Warbler</div>
+      <div class="popup-loc">📍 Coyote Creek Riparian Station</div>
+      <div class="popup-dt">May 21, 2026 · 2 days ago</div>
+      <div class="popup-tier fresh">● Fresh sighting</div>
+      <a class="popup-cta" href="#" onclick="return false;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        View checklist S23847162
+      </a>
+    </div>
+
+    <div class="map-popup" id="pop-pabu" style="left:43%;top:27%;">
+      <button class="popup-x" onclick="closePopups()">×</button>
+      <div class="popup-sp">Painted Bunting</div>
+      <div class="popup-loc">📍 Baylands Nature Preserve</div>
+      <div class="popup-dt">May 14, 2026 · 9 days ago</div>
+      <div class="popup-tier mid">● Recent sighting</div>
+      <a class="popup-cta" href="#" onclick="return false;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        View checklist S23791045
+      </a>
+    </div>
+
+    <div class="map-popup" id="pop-ctwa" style="left:17%;top:70%;">
+      <button class="popup-x" onclick="closePopups()">×</button>
+      <div class="popup-sp">Connecticut Warbler</div>
+      <div class="popup-loc">📍 Shoreline at Mountain View</div>
+      <div class="popup-dt">May 12, 2026 · 11 days ago</div>
+      <div class="popup-tier mid">● Recent sighting</div>
+      <a class="popup-cta" href="#" onclick="return false;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        View checklist S23764882
+      </a>
+    </div>
+
+    <div class="map-popup" id="pop-rkno" style="left:57%;top:63%;">
+      <button class="popup-x" onclick="closePopups()">×</button>
+      <div class="popup-sp">Red Knot</div>
+      <div class="popup-loc">📍 Eden Landing Ecological Reserve</div>
+      <div class="popup-dt">May 20, 2026 · 3 days ago</div>
+      <div class="popup-tier fresh">● Fresh sighting</div>
+      <a class="popup-cta" href="#" onclick="return false;">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        View checklist S23831907
+      </a>
+    </div>
+
+    <!-- Zoom controls -->
+    <div class="zoom-ctrl">
+      <button class="z-btn">+</button>
+      <button class="z-btn">−</button>
+    </div>
+
+    <div class="attrib">© OpenStreetMap contributors</div>
+
+  </div><!-- /map-area -->
+</div><!-- /map-explorer -->
+
+<script>
+  const legState = { visited: true, unvisited: false, personal: true };
+
+  function switchMode(mode) {
+    ['sightings','hotspots','targets'].forEach(m => {
+      document.getElementById('tab-' + m).classList.toggle('active', m === mode);
+      document.getElementById('sb-' + m).style.display = m === mode ? 'flex' : 'none';
+    });
+    document.getElementById('tgt-pins').style.display = mode === 'targets' ? '' : 'none';
+    document.getElementById('hs-pins').style.display  = mode === 'hotspots' ? '' : 'none';
+    closePopups();
+  }
+
+  function openPopup(id) {
+    closePopups();
+    const el = document.getElementById('pop-' + id);
+    if (el) el.classList.add('open');
+    document.querySelectorAll('.near-item').forEach(i => i.classList.remove('hl'));
+    const map = { ptwar: 0, pabu: 1, ctwa: 2, rkno: 3 };
+    const idx = map[id];
+    if (idx !== undefined) {
+      const items = document.querySelectorAll('#sb-targets .near-item');
+      if (items[idx]) items[idx].classList.add('hl');
+    }
+  }
+
+  function closePopups() {
+    document.querySelectorAll('.map-popup').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.near-item').forEach(i => i.classList.remove('hl'));
+  }
+
+  function setView(btn, mode) {
+    btn.closest('.seg-wrap').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const pins = document.querySelectorAll('#tgt-pins .pin-wrap');
+    pins.forEach(p => {
+      const chip = p.querySelector('.t-pin');
+      const isFresh = chip.classList.contains('fresh');
+      p.style.opacity = (mode === 'week' && !isFresh) ? '0.2' : '';
+      p.style.pointerEvents = (mode === 'week' && !isFresh) ? 'none' : '';
+    });
+    if (mode === 'week') closePopups();
+  }
+
+  function toggleLeg(cat) {
+    legState[cat] = !legState[cat];
+    document.getElementById('leg-' + cat).classList.toggle('dim', !legState[cat]);
+    document.querySelectorAll('#hs-pins .hs-pin.' + cat).forEach(p => {
+      p.classList.toggle('ghost', !legState[cat]);
+    });
+  }
+
+  function doGeocode(suffix) {
+    const input = document.getElementById('addr-' + suffix);
+    const errEl = document.getElementById('err-' + suffix);
+    const val = input.value.trim();
+    if (!val) return;
+    if (val.length < 3) { errEl.style.display = 'block'; return; }
+    errEl.style.display = 'none';
+    const lat = document.getElementById('lat-' + suffix);
+    const lng = document.getElementById('lng-' + suffix);
+    lat.value = '37.86519';
+    lng.value = '-122.24785';
+    input.value = '';
+    [lat, lng].forEach(el => {
+      el.classList.add('flash');
+      setTimeout(() => el.classList.remove('flash'), 900);
+    });
+  }
+</script>
+</body>
+</html>

@@ -1,17 +1,17 @@
 {
-  "activeFeature": "map-explorer",
+  "activeFeature": "map-explorer-enhancements",
   "sessionNumber": 2,
   "sessionType": "feature",
   "currentStage": 8,
   "lastCompletedStage": 7,
   "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/map-explorer/strategic-brief.md",
-    "pipeline/map-explorer/prd.md",
-    "pipeline/map-explorer/schema.md",
-    "pipeline/map-explorer/design-spec.md",
-    "pipeline/map-explorer/design.html"
+    "pipeline/map-explorer-enhancements/strategic-brief.md",
+    "pipeline/map-explorer-enhancements/prd.md",
+    "pipeline/map-explorer-enhancements/schema.md",
+    "pipeline/map-explorer-enhancements/design-spec.md",
+    "pipeline/map-explorer-enhancements/design.html"
   ],
-  "createdAt": "2026-05-22T07:00:00Z",
-  "updatedAt": "2026-05-22T09:45:00Z"
+  "createdAt": "2026-05-22T12:00:00Z",
+  "updatedAt": "2026-05-22T14:20:00Z"
 }

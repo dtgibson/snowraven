@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Camera, ChevronDown, Loader2, MapPin, Navigation } from 'lucide-react'
+import { AlertCircle, Camera, ChevronDown, Loader2, MapPin, Navigation, Search } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
@@ -75,7 +75,10 @@ interface TargetPin {
   lng: number
   recentDate: string
   checklistCount: number
+  subId: string
 }
+
+type RecencyTier = 'fresh' | 'mid' | 'old'
 
 interface LocationGroup {
   locId: string
@@ -126,6 +129,34 @@ function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+function recencyTier(recentDate: string): RecencyTier {
+  const dateStr = recentDate.split(' ')[0]
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const obsDate = new Date(y, m - 1, d)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const days = Math.floor((today.getTime() - obsDate.getTime()) / 86400000)
+  if (days <= 7) return 'fresh'
+  if (days <= 15) return 'mid'
+  return 'old'
+}
+
+function tierColors(tier: RecencyTier): { bg: string; text: string } {
+  if (tier === 'fresh') return { bg: 'var(--sr-map-target-fresh)', text: 'white' }
+  if (tier === 'mid')   return { bg: 'var(--sr-map-target-mid)',   text: 'white' }
+  return                       { bg: 'var(--sr-map-target-old)',   text: 'var(--sr-map-target-old-text)' }
+}
+
+function daysAgoLabel(recentDate: string): string {
+  const dateStr = recentDate.split(' ')[0]
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const obsDate = new Date(y, m - 1, d)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const days = Math.floor((today.getTime() - obsDate.getTime()) / 86400000)
+  if (days === 0) return 'today'
+  if (days === 1) return '1 day ago'
+  return `${days} days ago`
+}
+
 function fmtDate(d: string): string {
   const ymd = d.split(' ')[0].split('-').map(Number)
   if (ymd.length < 3) return d
@@ -144,6 +175,70 @@ function AutoSizeMap() {
     return () => observer.disconnect()
   }, [map])
   return null
+}
+
+function MapPanner({ target, onDone }: { target: { lat: number; lng: number } | null; onDone: () => void }) {
+  const map = useMap()
+  useEffect(() => {
+    if (!target) return
+    map.panTo([target.lat, target.lng])
+    onDone()
+  }, [target, map, onDone])
+  return null
+}
+
+function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => void }) {
+  const [query, setQuery] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSearch() {
+    const q = query.trim()
+    if (!q) return
+    setLoading(true); setError('')
+    try {
+      const res = await fetch(`/nominatim/search?q=${encodeURIComponent(q)}`)
+      if (!res.ok) { setError('Location search failed. Try again or enter coordinates manually.'); return }
+      const data: { lat: string; lon: string }[] = await res.json()
+      if (data.length === 0) { setError('No location found. Try a different search term.'); return }
+      onLocate(parseFloat(data[0].lat), parseFloat(data[0].lon))
+      setQuery('')
+    } catch {
+      setError('Location search failed. Try again or enter coordinates manually.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <input
+          type="text"
+          placeholder="Search by place name"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
+          style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }}
+        />
+        <button
+          onClick={handleSearch}
+          disabled={loading || !query.trim()}
+          title="Search"
+          style={{
+            width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: loading || !query.trim() ? 'var(--sr-surface-subtle)' : 'var(--sr-accent)',
+            color: loading || !query.trim() ? 'var(--sr-text-muted)' : '#fff',
+            border: '1.5px solid var(--sr-border)', borderRadius: 6,
+            cursor: loading || !query.trim() ? 'not-allowed' : 'pointer', flexShrink: 0,
+          }}
+        >
+          <Search size={14} strokeWidth={2} />
+        </button>
+      </div>
+      {error && <div style={{ fontSize: 11, color: 'var(--sr-error)', marginTop: 4 }}>{error}</div>}
+    </div>
+  )
 }
 
 function HeatmapLayer({ points }: { points: [number, number, number][] }) {
@@ -242,7 +337,7 @@ function SightingMarkers({ locations, displayMode }: { locations: LocationGroup[
   )
 }
 
-function HotspotMarkers({ pins }: { pins: HotspotPin[] }) {
+function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds: Set<HotspotPin['kind']> }) {
   const map = useMap()
 
   useEffect(() => {
@@ -253,9 +348,11 @@ function HotspotMarkers({ pins }: { pins: HotspotPin[] }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const visiblePins = pins.filter(p => !hiddenKinds.has(p.kind))
+
   return (
     <>
-      {pins.map((pin, i) => (
+      {visiblePins.map((pin, i) => (
         <Marker
           key={`${pin.kind}-${pin.locId}-${i}`}
           position={[pin.lat, pin.lng]}
@@ -313,22 +410,44 @@ function TargetMarkers({ pins }: { pins: TargetPin[] }) {
   return (
     <>
       {pins.map((pin, i) => {
+        const tier = recencyTier(pin.recentDate)
+        const { bg, text } = tierColors(tier)
         const icon = L.divIcon({
-          html: `<div style="background:var(--sr-map-target);color:white;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;font-family:Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,0.25)">${escHtml(pin.comName)}</div>`,
+          html: `<div style="background:${bg};color:${text};padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;font-family:Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,0.25)">${escHtml(pin.comName)}</div>`,
           className: '',
           iconAnchor: [0, 14],
           popupAnchor: [0, -16],
         })
+        const tierLabel = tier === 'fresh' ? '≤7 days' : tier === 'mid' ? '8–15 days' : '16–30 days'
+        const validSubId = /^S\d+$/.test(pin.subId ?? '')
         return (
           <Marker key={`${pin.speciesCode}-${pin.locId}-${i}`} position={[pin.lat, pin.lng]} icon={icon}>
             <Popup>
-              <div style={{ minWidth: 190 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#7C3AED', marginBottom: 5 }}>{pin.comName}</div>
-                <div style={{ fontSize: 12, color: '#0F1117', marginBottom: 3 }}>{pin.locName}</div>
-                <div style={{ fontSize: 12, color: '#71717A', marginBottom: 5 }}>Last seen: {fmtDate(pin.recentDate)}</div>
-                <div style={{ fontSize: 12, color: '#7C3AED' }}>
+              <div style={{ minWidth: 200 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#2D8653', marginBottom: 4 }}>{pin.comName}</div>
+                <div style={{ fontSize: 11, color: '#71717A', marginBottom: 2 }}>📍 {pin.locName}</div>
+                <div style={{ fontSize: 11, color: '#71717A', marginBottom: 6 }}>
+                  {fmtDate(pin.recentDate)} · {daysAgoLabel(pin.recentDate)}
+                </div>
+                <div style={{ display: 'inline-block', background: bg, color: text, padding: '1px 7px', borderRadius: 8, fontSize: 10, fontWeight: 600, marginBottom: 8 }}>
+                  {tierLabel}
+                </div>
+                <div style={{ fontSize: 11, color: '#71717A', marginBottom: validSubId ? 8 : 0 }}>
                   {pin.checklistCount} checklist{pin.checklistCount !== 1 ? 's' : ''}
                 </div>
+                {validSubId && (
+                  <>
+                    <div style={{ borderTop: '1px solid #E4E4E7', marginBottom: 6 }} />
+                    <a
+                      href={`https://ebird.org/checklist/${pin.subId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 12, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}
+                    >
+                      View checklist {pin.subId} →
+                    </a>
+                  </>
+                )}
               </div>
             </Popup>
           </Marker>
@@ -441,6 +560,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
   const [hotspotsLoading, setHotspotsLoading] = useState(false)
   const [hotspotsError, setHotspotsError]     = useState('')
   const [legendVisible, setLegendVisible]     = useState(false)
+  const [hiddenKinds, setHiddenKinds]         = useState<Set<HotspotPin['kind']>>(new Set())
 
   // Target state
   const [targetPins, setTargetPins]           = useState<TargetPin[] | null>(null)
@@ -448,6 +568,12 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
   const [targetsError, setTargetsError]       = useState('')
   const [manualTargets, setManualTargets]     = useState<Set<string>>(new Set())
   const [targetSearch, setTargetSearch]       = useState('')
+  const [targetViewMode, setTargetViewMode]   = useState<'all' | 'week'>('all')
+  const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null)
+
+  // Map pan target (set by sidebar clicks, consumed by MapPanner inside MapContainer)
+  const [panTarget, setPanTarget]             = useState<{ lat: number; lng: number } | null>(null)
+  const handlePanDone                         = useCallback(() => setPanTarget(null), [])
 
   // Species code map and key status
   const [speciesCodeMap, setSpeciesCodeMap] = useState<Record<string, string>>({})
@@ -632,6 +758,26 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
     return allSpecies.filter(s => s.toLowerCase().includes(q))
   }, [allSpecies, targetSearch])
 
+  const displayedTargetPins = useMemo((): TargetPin[] => {
+    if (!targetPins) return []
+    if (targetViewMode === 'all') return targetPins
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0, 0, 0, 0)
+    return targetPins.filter(pin => {
+      const [y, m, d] = pin.recentDate.split(' ')[0].split('-').map(Number)
+      return new Date(y, m - 1, d) >= cutoff
+    })
+  }, [targetPins, targetViewMode])
+
+  const nearest10 = useMemo(() => {
+    const latNum = parseFloat(lat)
+    const lngNum = parseFloat(lng)
+    if (isNaN(latNum) || isNaN(lngNum) || displayedTargetPins.length === 0) return []
+    return [...displayedTargetPins]
+      .sort((a, b) => distanceMiles(latNum, lngNum, a.lat, a.lng) - distanceMiles(latNum, lngNum, b.lat, b.lng))
+      .slice(0, 10)
+      .map(pin => ({ pin, dist: distanceMiles(latNum, lngNum, pin.lat, pin.lng) }))
+  }, [displayedTargetPins, lat, lng])
+
   // ── Actions ───────────────────────────────────────────────────────────────────
 
   const handleUseMyLocation = useCallback(() => {
@@ -653,9 +799,9 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
     )
   }, [])
 
-  const handleFindHotspots = useCallback(async () => {
-    const latNum = parseFloat(lat)
-    const lngNum = parseFloat(lng)
+  const handleFindHotspots = useCallback(async (overrideLat?: number, overrideLng?: number) => {
+    const latNum = overrideLat ?? parseFloat(lat)
+    const lngNum = overrideLng ?? parseFloat(lng)
     if (isNaN(latNum) || isNaN(lngNum)) { setHotspotsError('Enter a valid latitude and longitude.'); return }
     setHotspotsLoading(true); setHotspotsError('')
     try {
@@ -686,6 +832,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
         }
       }
 
+      setHiddenKinds(new Set())
       setHotspotPins(pins); setLegendVisible(true)
     } catch {
       setHotspotsError('Could not reach the server. Is the backend running?')
@@ -694,9 +841,9 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
     }
   }, [lat, lng, radius, visitedLocIds, obsLocationsByLocId])
 
-  const handleFindSightings = useCallback(async () => {
-    const latNum = parseFloat(lat)
-    const lngNum = parseFloat(lng)
+  const handleFindSightings = useCallback(async (overrideLat?: number, overrideLng?: number) => {
+    const latNum = overrideLat ?? parseFloat(lat)
+    const lngNum = overrideLng ?? parseFloat(lng)
     if (isNaN(latNum) || isNaN(lngNum)) { setTargetsError('Enter a valid latitude and longitude.'); return }
 
     const useManual = phase.tag === 'ready' && !phase.hasML
@@ -903,6 +1050,10 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
   const hotspotsSidebar = (
     <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1 }}>
       {hasEbirdKey === false && <KeyNotice onGoToSettings={onGoToSettings} />}
+      <AddressSearch onLocate={(aLat, aLng) => {
+        setLat(aLat.toFixed(5)); setLng(aLng.toFixed(5))
+        handleFindHotspots(aLat, aLng)
+      }} />
       {CenterPointControl}
       {RadiusControl}
       <button
@@ -933,6 +1084,9 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
       {legendVisible && hotspotPins && hotspotPins.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
           <SidebarLabel>Legend</SidebarLabel>
+          <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', fontStyle: 'italic', marginBottom: 8 }}>
+            Click a row to hide or show that pin category.
+          </div>
           {([
             { icon: VISITED_ICON,  label: 'Visited',   kind: 'visited' as const },
             { icon: UNVISITED_ICON, label: 'Unvisited', kind: 'unvisited' as const },
@@ -941,14 +1095,27 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
             .filter(row => hotspotPins.some(p => p.kind === row.kind))
             .map(row => {
               const count = hotspotPins.filter(p => p.kind === row.kind).length
+              const isHidden = hiddenKinds.has(row.kind)
               return (
-                <div key={row.label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <button
+                  key={row.label}
+                  onClick={() => setHiddenKinds(prev => {
+                    const next = new Set(prev)
+                    if (next.has(row.kind)) next.delete(row.kind); else next.add(row.kind)
+                    return next
+                  })}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
+                    width: '100%', background: 'none', border: 'none', padding: 0,
+                    cursor: 'pointer', opacity: isHidden ? 0.4 : 1, textAlign: 'left',
+                  }}
+                >
                   <div dangerouslySetInnerHTML={{ __html: row.icon.options.html as string }} style={{ flexShrink: 0, width: 28, height: 40 }} />
                   <div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>{row.label}</span>
                     <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginLeft: 6 }}>{count}</span>
                   </div>
-                </div>
+                </button>
               )
             })}
         </div>
@@ -967,6 +1134,10 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
   const targetsSidebar = (
     <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1 }}>
       {hasEbirdKey === false && <KeyNotice onGoToSettings={onGoToSettings} />}
+      <AddressSearch onLocate={(aLat, aLng) => {
+        setLat(aLat.toFixed(5)); setLng(aLng.toFixed(5))
+        handleFindSightings(aLat, aLng)
+      }} />
       {CenterPointControl}
       {RadiusControl}
 
@@ -1048,6 +1219,56 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
           {targetsError}
         </div>
       )}
+
+      {/* Recency toggle + nearest-10 — shown once pins are loaded */}
+      {targetPins !== null && (
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
+          <div style={{ marginBottom: 12 }}>
+            <SidebarLabel>Time Range</SidebarLabel>
+            <SegControl
+              options={[{ value: 'all', label: 'Last 30 Days' }, { value: 'week', label: 'Last Week' }]}
+              value={targetViewMode}
+              onChange={v => { setTargetViewMode(v as 'all' | 'week'); setSelectedTargetKey(null) }}
+            />
+          </div>
+          {nearest10.length > 0 && (
+            <div>
+              <SidebarLabel>Nearest Targets</SidebarLabel>
+              {nearest10.map(({ pin, dist }) => {
+                const key = `${pin.speciesCode}-${pin.locId}`
+                const tier = recencyTier(pin.recentDate)
+                const { bg, text } = tierColors(tier)
+                const isSelected = selectedTargetKey === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => { setSelectedTargetKey(key); setPanTarget({ lat: pin.lat, lng: pin.lng }) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                      padding: '6px 8px', marginBottom: 2, borderRadius: 6,
+                      background: isSelected ? 'var(--sr-accent-bg)' : 'transparent',
+                      border: `1px solid ${isSelected ? 'var(--sr-accent-border)' : 'transparent'}`,
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: bg, border: `1px solid ${text === 'white' ? 'transparent' : 'var(--sr-border)'}`, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.comName}</div>
+                      <div style={{ fontSize: 10, color: 'var(--sr-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0 }}>{dist.toFixed(1)} mi</div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {displayedTargetPins.length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>
+              No pins match the current filter.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 
@@ -1111,6 +1332,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
               zoomControl
             >
               <AutoSizeMap />
+              <MapPanner target={panTarget} onDone={handlePanDone} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -1119,10 +1341,10 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
                 <SightingMarkers locations={filteredLocations} displayMode={displayMode} />
               )}
               {viewMode === 'hotspots' && hotspotPins && (
-                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} />
+                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} />
               )}
               {viewMode === 'targets' && targetPins && (
-                <TargetMarkers key={targetPins.length} pins={targetPins} />
+                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} />
               )}
             </MapContainer>
           )}
