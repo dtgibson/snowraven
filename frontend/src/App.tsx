@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen } from 'lucide-react'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
@@ -30,6 +30,8 @@ function isValidId(id: string): boolean {
   return /^S\d+$/.test(id)
 }
 
+type KeyStatus = { ebird: string | null; openweather: string | null }
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('weather')
   const [input, setInput] = useState('')
@@ -37,6 +39,18 @@ export default function App() {
   const [copied, setCopied] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
+
+  const fetchKeyStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/settings/keys')
+      if (res.ok) setKeyStatus(await res.json())
+    } catch {
+      // silently fail — notices just won't appear
+    }
+  }, [])
+
+  useEffect(() => { fetchKeyStatus() }, [fetchKeyStatus])
 
   const handleLookup = useCallback(async () => {
     const id = extractChecklistId(input)
@@ -250,6 +264,48 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
+        {keyStatus && (keyStatus.ebird === null || keyStatus.openweather === null) && (
+          <div style={{ width: '100%', maxWidth: 540, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {keyStatus.ebird === null && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                padding: '10px 14px', background: 'var(--sr-warning-bg)',
+                border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
+                fontSize: 13, color: 'var(--sr-warning)',
+              }}>
+                <span>eBird API key not configured — weather lookups require an eBird API key.</span>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600,
+                    color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
+                  }}
+                >
+                  Go to Settings →
+                </button>
+              </div>
+            )}
+            {keyStatus.openweather === null && (
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                padding: '10px 14px', background: 'var(--sr-warning-bg)',
+                border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
+                fontSize: 13, color: 'var(--sr-warning)',
+              }}>
+                <span>OpenWeather API key not configured — weather lookups won't return conditions.</span>
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600,
+                    color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
+                  }}
+                >
+                  Go to Settings →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         <div className="sr-card" style={{
           width: '100%',
           maxWidth: 540,
@@ -464,7 +520,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <LifeList />
+        <LifeList onGoToSettings={() => setActiveTab('settings')} />
       </div>
 
       {/* Breeding Codes tab content */}
@@ -477,7 +533,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <BreedingCodeList />
+        <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} />
       </div>
 
       {/* Species Detail tab content */}
@@ -490,7 +546,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <SpeciesDetail />
+        <SpeciesDetail onGoToSettings={() => setActiveTab('settings')} />
       </div>
 
       {/* Settings tab content */}
@@ -503,7 +559,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <Settings />
+        <Settings onKeysSaved={fetchKeyStatus} />
       </div>
 
       {/* Footer */}

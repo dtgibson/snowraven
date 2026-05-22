@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Loader2, AlertCircle, Camera, Mic, Video, Info, FileCheck, MapPin, Calendar } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Loader2, AlertCircle, Camera, Mic, Video, FileCheck, MapPin, Calendar } from 'lucide-react'
+import { SetupRequired } from './SetupRequired'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
@@ -10,8 +11,8 @@ import type { MediaFilterState, SortState, StoredFileInfo, DateRangeState, Obser
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
 
 type Phase =
-  | { tag: 'idle' }
   | { tag: 'loading-saved' }
+  | { tag: 'setup-required' }
   | { tag: 'error'; message: string }
   | { tag: 'ready'; entries: LifeListEntry[]; mediaMap: Record<string, string>; hasEbirdBackbone: boolean }
 
@@ -149,7 +150,7 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function LifeList() {
+export function LifeList({ onGoToSettings }: { onGoToSettings: () => void }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<MediaFilterState>(MEDIA_FILTER_CLEAR)
   const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
@@ -157,7 +158,6 @@ export function LifeList() {
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
-  const [draggingOver, setDraggingOver] = useState(false)
   const [wideMode, setWideMode] = useState(false)
   const [rawRows, setRawRows] = useState<MLExportRow[]>([])
   const [rawEbirdObs, setRawEbirdObs] = useState<ObservationEntry[]>([])
@@ -168,7 +168,6 @@ export function LifeList() {
   const [countyResolution, setCountyResolution] = useState<'idle' | 'resolving' | 'done'>('idle')
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchTaxonCodes = async (entries: LifeListEntry[]) => {
     try {
@@ -325,9 +324,9 @@ export function LifeList() {
     async function autoLoad() {
       try {
         const statusRes = await fetch('/settings/files')
-        if (!statusRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
+        if (!statusRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
         const status = await statusRes.json()
-        if (!status.ml && !status.ebird) { setPhase({ tag: 'idle' }); return }
+        if (!status.ml) { setPhase({ tag: 'setup-required' }); return }
 
         const [mlRes, ebirdRes] = await Promise.all([
           status.ml ? fetch('/settings/files/ml') : Promise.resolve(null),
@@ -371,86 +370,12 @@ export function LifeList() {
         fetchTaxonCodes(comprehensiveEntries)
         resolveMLCounties(rows, ebirdObs.length > 0 ? ebirdObs : undefined)
       } catch {
-        if (!cancelled) setPhase({ tag: 'idle' })
+        if (!cancelled) setPhase({ tag: 'setup-required' })
       }
     }
     autoLoad()
     return () => { cancelled = true }
   }, [])
-
-  const processFile = async (file: File) => {
-    try {
-      const text = await file.text()
-      const { entries, mediaMap, rows } = parseMLExport(text)
-      setMlUserId(parseMLUserId(file.name))
-      setRawRows(rows)
-      setCountyFilter(null)
-      setDateRange(DATE_RANGE_CLEAR)
-
-      // Check Settings for a stored eBird backup
-      let hasEbirdBackbone = false
-      let ebirdObs: ObservationEntry[] = []
-      try {
-        const statusRes = await fetch('/settings/files')
-        if (statusRes.ok) {
-          const status = await statusRes.json()
-          if (status.ebird) {
-            const ebirdRes = await fetch('/settings/files/ebird')
-            if (ebirdRes.ok) {
-              ebirdObs = parseEbirdObservations(await ebirdRes.text())
-              setRawEbirdObs(ebirdObs)
-              hasEbirdBackbone = true
-            }
-          }
-        }
-      } catch {
-        // proceed without eBird backbone
-      }
-
-      setPhase({ tag: 'ready', entries, mediaMap, hasEbirdBackbone })
-      const comprehensiveEntries = hasEbirdBackbone
-        ? buildComprehensiveEntries(ebirdObs, rows, true)
-        : entries
-      fetchTaxonCodes(comprehensiveEntries)
-      resolveMLCounties(rows, ebirdObs.length > 0 ? ebirdObs : undefined)
-    } catch {
-      setPhase({
-        tag: 'error',
-        message: "This doesn't look like a Macaulay Library export. Sign in to Macaulay Library → My Media → Save Spreadsheet.",
-      })
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDraggingOver(false)
-    const file = e.dataTransfer.files[0]
-    if (file) processFile(file)
-  }
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) { processFile(file); e.target.value = '' }
-  }
-
-  const handleReset = () => {
-    setPhase({ tag: 'idle' })
-    setFilter(MEDIA_FILTER_CLEAR)
-    setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
-    setMlUserId(null)
-    setTaxonMap({})
-    setTaxonOrders({})
-    setSavedFileInfo(null)
-    setRawRows([])
-    setRawEbirdObs([])
-    setMergeSubspecies(true)
-    setShowSpuh(false)
-    setShowNonBird(false)
-    setFilterHasMedia(false)
-    setCountyResolution('idle')
-    setCountyFilter(null)
-    setDateRange(DATE_RANGE_CLEAR)
-  }
 
   // ── Auto-loading saved file ───────────────────────────────────────────────
   if (phase.tag === 'loading-saved') {
@@ -461,74 +386,44 @@ export function LifeList() {
     )
   }
 
-  // ── Upload screen (idle / error) ─────────────────────────────────────────
-  if (phase.tag === 'idle' || phase.tag === 'error') {
+  if (phase.tag === 'setup-required') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {phase.tag === 'error' && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
-            fontSize: 13, color: 'var(--sr-error)', flexShrink: 0,
-          }}>
-            <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-            {phase.message}
-          </div>
-        )}
+      <SetupRequired
+        title="Macaulay Library Export Required"
+        body="The Media Life List loads automatically from your stored ML export. You haven't saved one yet."
+        steps={[
+          <>Go to <strong>macaulaylibrary.org</strong> → My Media</>,
+          <>Click <strong>Save Spreadsheet</strong> — do not rename the downloaded file</>,
+          <>Upload it in <strong>Settings → Default Files → ML Export</strong></>,
+          <>This tab loads automatically on every visit from then on</>,
+        ]}
+        onGoToSettings={onGoToSettings}
+      />
+    )
+  }
 
-        <div
-          onDragOver={e => { e.preventDefault(); setDraggingOver(true) }}
-          onDragLeave={() => setDraggingOver(false)}
-          onDrop={e => handleDrop(e)}
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            minHeight: 240,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            border: `2px dashed var(--sr-accent)`,
-            borderRadius: 12,
-            background: draggingOver ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-            cursor: 'pointer',
-            transition: 'background 0.15s',
-            padding: 40,
-          }}
-          onMouseEnter={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-accent-bg-hover)' }}
-          onMouseLeave={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
-        >
-          <div style={{
-            width: 48, height: 48, borderRadius: 12, background: 'var(--sr-accent-bg)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Download size={22} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
-          </div>
-
-          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--sr-text)' }}>
-            Upload your Macaulay Library export
-          </span>
-          <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--sr-accent)' }}>
-            Instant results — species links and taxonomic sort load in the background
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-            <Info size={12} strokeWidth={2} style={{ color: 'var(--sr-text-disabled)', flexShrink: 0 }} />
-            <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>
-              Sign in to Macaulay Library → My Media → Save Spreadsheet
-            </span>
-          </div>
-          <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginTop: 2 }}>
-            Drop file here, or click to browse
-          </span>
+  if (phase.tag === 'error') {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
+          fontSize: 13, color: 'var(--sr-error)', maxWidth: 480,
+        }}>
+          <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+          {phase.message}
         </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          style={{ display: 'none' }}
-          onChange={handleFileInput}
-        />
+        <button
+          onClick={onGoToSettings}
+          style={{
+            height: 32, padding: '0 14px', borderRadius: 6,
+            border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
+            color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500,
+            fontFamily: 'inherit', cursor: 'pointer',
+          }}
+        >
+          Go to Settings
+        </button>
       </div>
     )
   }
@@ -785,9 +680,6 @@ export function LifeList() {
             title={wideMode ? 'Collapse table into scroll box' : 'Expand table — scroll the whole page on mobile'}
           >
             {wideMode ? '↔ Normal' : '↔ Unbounded'}
-          </button>
-          <button style={ghostBtn()} onClick={handleReset}>
-            {savedFileInfo ? 'Load different file' : 'Load new file'}
           </button>
         </div>
       </div>

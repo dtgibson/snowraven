@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Upload, AlertCircle, Loader2, FileCheck, MapPin, Calendar } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { AlertCircle, Loader2, FileCheck, MapPin, Calendar } from 'lucide-react'
+import { SetupRequired } from './SetupRequired'
 import { parseBreedingCodes, aggregateBreedingRows } from '../lib/parseBreedingCodes'
 import type { BreedingData, BreedingEntry, BreedingCodeRow } from '../lib/parseBreedingCodes'
 import { BREEDING_CODE_MAP, TIER_COLORS, CATEGORY_CODES } from '../lib/breedingCodes'
@@ -9,8 +10,8 @@ import type { BreedingSortState, StoredFileInfo, DateRangeState } from '../types
 import { DATE_RANGE_CLEAR } from '../types'
 
 type Phase =
-  | { tag: 'idle' }
   | { tag: 'loading-saved' }
+  | { tag: 'setup-required' }
   | { tag: 'error'; message: string }
   | { tag: 'ready'; data: BreedingData }
 
@@ -78,19 +79,17 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function BreedingCodeList() {
+export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => void }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<Set<string>>(new Set())
   const [categoryFilter, setCategoryFilter] = useState<Set<BreedingCategory>>(new Set())
   const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
-  const [draggingOver, setDraggingOver] = useState(false)
   const [wideMode, setWideMode] = useState(false)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchTaxonCodes = async (entries: BreedingEntry[]) => {
     try {
@@ -115,78 +114,31 @@ export function BreedingCodeList() {
     async function autoLoad() {
       try {
         const statusRes = await fetch('/settings/files')
-        if (!statusRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
+        if (!statusRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
         const status = await statusRes.json()
-        if (!status.ebird) { setPhase({ tag: 'idle' }); return }
+        if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
         const fileRes = await fetch('/settings/files/ebird')
-        if (!fileRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
+        if (!fileRes.ok || cancelled) {
+          setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
+          return
+        }
         const text = await fileRes.text()
         if (cancelled) return
         const data = parseBreedingCodes(text)
-        if (!data.hasBreedingCodeColumn) { setPhase({ tag: 'idle' }); return }
+        if (!data.hasBreedingCodeColumn) {
+          setPhase({ tag: 'error', message: "The stored file doesn't look like an eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup." })
+          return
+        }
         setSavedFileInfo(status.ebird)
         setPhase({ tag: 'ready', data })
         if (data.entries.length > 0) fetchTaxonCodes(data.entries)
       } catch {
-        if (!cancelled) setPhase({ tag: 'idle' })
+        if (!cancelled) setPhase({ tag: 'setup-required' })
       }
     }
     autoLoad()
     return () => { cancelled = true }
   }, [])
-
-  const processFile = (file: File) => {
-    file.text().then(text => {
-      try {
-        const data = parseBreedingCodes(text)
-        if (!data.hasBreedingCodeColumn) {
-          setPhase({
-            tag: 'error',
-            message: "This eBird backup doesn't have a Breeding Code column. Make sure you've entered at least one breeding code in eBird before exporting.",
-          })
-          return
-        }
-        setPhase({ tag: 'ready', data })
-        setFilter(new Set())
-        setCategoryFilter(new Set())
-        setCountyFilter(null)
-        setDateRange(DATE_RANGE_CLEAR)
-        setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
-        if (data.entries.length > 0) fetchTaxonCodes(data.entries)
-      } catch {
-        setPhase({
-          tag: 'error',
-          message: "This doesn't look like an eBird backup CSV. Check you're uploading MyEBirdData.csv.",
-        })
-      }
-    }).catch(() => {
-      setPhase({ tag: 'error', message: "Couldn't read the file. Please try again." })
-    })
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDraggingOver(false)
-    const file = e.dataTransfer.files[0]
-    if (file) processFile(file)
-  }
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) { processFile(file); e.target.value = '' }
-  }
-
-  const handleReset = () => {
-    setPhase({ tag: 'idle' })
-    setFilter(new Set())
-    setCategoryFilter(new Set())
-    setCountyFilter(null)
-    setDateRange(DATE_RANGE_CLEAR)
-    setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })
-    setTaxonMap({})
-    setTaxonOrders({})
-    setSavedFileInfo(null)
-  }
 
   // These useMemos must be declared before any early return so that the
   // hook call order stays the same on every render regardless of phase.
@@ -229,64 +181,44 @@ export function BreedingCodeList() {
     )
   }
 
-  if (phase.tag === 'idle' || phase.tag === 'error') {
+  if (phase.tag === 'setup-required') {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        {phase.tag === 'error' && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
-            fontSize: 13, color: 'var(--sr-error)', flexShrink: 0,
-          }}>
-            <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-            {phase.message}
-          </div>
-        )}
+      <SetupRequired
+        title="eBird Backup Required"
+        body="The Breeding Codes tab loads automatically from your stored eBird backup. You haven't saved one yet."
+        steps={[
+          <>Go to <strong>ebird.org</strong> → My eBird → Download My Data</>,
+          <>Download the file — it will be named <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, background: 'var(--sr-border)', padding: '1px 5px', borderRadius: 3 }}>MyEBirdData.csv</code></>,
+          <>Upload it in <strong>Settings → Default Files → eBird Backup</strong></>,
+          <>This tab loads automatically on every visit from then on</>,
+        ]}
+        onGoToSettings={onGoToSettings}
+      />
+    )
+  }
 
-        <div
-          onDragOver={e => { e.preventDefault(); setDraggingOver(true) }}
-          onDragLeave={() => setDraggingOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            border: `2px dashed ${draggingOver ? 'var(--sr-accent)' : 'var(--sr-border)'}`,
-            borderRadius: 12,
-            background: draggingOver ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-            cursor: 'pointer',
-            transition: 'background 0.15s, border-color 0.15s',
-            padding: 40,
-          }}
-          onMouseEnter={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface-faint)' }}
-          onMouseLeave={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
-        >
-          <div style={{
-            width: 48, height: 48, borderRadius: 12,
-            background: 'var(--sr-accent-bg)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Upload size={22} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
-          </div>
-          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--sr-text)' }}>
-            Upload your eBird backup
-          </span>
-          <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginTop: 2 }}>
-            MyEBirdData.csv · Drop file here, or click to browse
-          </span>
+  if (phase.tag === 'error') {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
+          fontSize: 13, color: 'var(--sr-error)', maxWidth: 480,
+        }}>
+          <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+          {phase.message}
         </div>
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".csv"
-          style={{ display: 'none' }}
-          onChange={handleFileInput}
-        />
+        <button
+          onClick={onGoToSettings}
+          style={{
+            height: 32, padding: '0 14px', borderRadius: 6,
+            border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
+            color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500,
+            fontFamily: 'inherit', cursor: 'pointer',
+          }}
+        >
+          Go to Settings
+        </button>
       </div>
     )
   }
@@ -297,13 +229,7 @@ export function BreedingCodeList() {
   if (entries.length === 0 && !hasLocationFilter) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <span style={{ fontSize: 14, color: 'var(--sr-text-muted)' }}>No species with breeding codes found in this file.</span>
-        <button
-          onClick={handleReset}
-          style={{ height: 32, padding: '0 14px', borderRadius: 6, border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer' }}
-        >
-          Load new file
-        </button>
+        <span style={{ fontSize: 14, color: 'var(--sr-text-muted)' }}>No species with breeding codes found in the stored file.</span>
       </div>
     )
   }
@@ -549,9 +475,6 @@ export function BreedingCodeList() {
             title={wideMode ? 'Collapse table into scroll box' : 'Expand table — scroll the whole page on mobile'}
           >
             {wideMode ? '↔ Normal' : '↔ Unbounded'}
-          </button>
-          <button style={ghostBtn()} onClick={handleReset}>
-            {savedFileInfo ? 'Load different file' : 'Load new file'}
           </button>
         </div>
       </div>

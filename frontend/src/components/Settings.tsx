@@ -478,7 +478,7 @@ interface ApiKeyStatus {
   openweather: string | null
 }
 
-export function Settings() {
+export function Settings({ onKeysSaved }: { onKeysSaved?: () => void }) {
   const [status, setStatus] = useState<StoredFilesStatus>({ ebird: null, ml: null })
   const [keys, setKeys] = useState<ApiKeyStatus>({ ebird: null, openweather: null })
 
@@ -567,6 +567,7 @@ export function Settings() {
       setKeys(prev => ({ ...prev, [slot]: input.trim() }))
       setEditing(false)
       setInput('')
+      onKeysSaved?.()
     } catch {
       setError('Could not reach the server. Is the backend running?')
     } finally {
@@ -587,6 +588,7 @@ export function Settings() {
       }
       setKeys(prev => ({ ...prev, [slot]: null }))
       setVisible(false)
+      onKeysSaved?.()
     } catch {
       setError('Could not reach the server. Is the backend running?')
     }

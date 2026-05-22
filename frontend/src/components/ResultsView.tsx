@@ -1,9 +1,9 @@
-import type { FileData, ComparisonResult, SortOrder } from '../types'
+import type { ComparisonResult, SortOrder } from '../types'
 import { SpeciesPanel } from './SpeciesPanel'
 
 interface ResultsViewProps {
-  fileA: FileData
-  fileB: FileData
+  listALabel: string
+  listBLabel: string
   result: ComparisonResult
   onReset: () => void
   sort: SortOrder
@@ -21,9 +21,9 @@ function sortedSpecies(names: string[], order: Map<string, number>, sort: SortOr
   })
 }
 
-export function ResultsView({ fileA, fileB, result, onReset, sort, onSortChange, taxonMap }: ResultsViewProps) {
-  const nameA = fileA.filename
-  const nameB = fileB.filename
+export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onSortChange, taxonMap }: ResultsViewProps) {
+  const nameA = listALabel
+  const nameB = listBLabel
   const { taxOrder } = result
   const displayBoth = sortedSpecies(result.both, taxOrder, sort)
   const displayAOnly = sortedSpecies(result.aOnly, taxOrder, sort)

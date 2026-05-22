@@ -3,10 +3,11 @@ import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Upload, AlertCircle, Loader2, FileCheck, ChevronDown,
+  AlertCircle, Loader2, FileCheck, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
   MapPin, Play, Calendar, TrendingUp,
 } from 'lucide-react'
+import { SetupRequired } from './SetupRequired'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   Legend, ResponsiveContainer,
@@ -33,7 +34,7 @@ L.Icon.Default.mergeOptions({
 
 type Phase =
   | { tag: 'loading-saved' }
-  | { tag: 'idle' }
+  | { tag: 'setup-required' }
   | { tag: 'error'; message: string }
   | { tag: 'ready'; observations: ObservationEntry[]; mediaMap: Map<string, MediaType>; mlRows: MLExportRow[]; hasML: boolean; userId: string | null }
 
@@ -420,7 +421,7 @@ function SightingsGraph({ obs, mlRows, hasML }: {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function SpeciesDetail() {
+export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -442,8 +443,6 @@ export function SpeciesDetail() {
   const [showAllLocations, setShowAllLocations] = useState(false)
   const [mapMode, setMapMode] = useState<'pins' | 'heatmap'>('pins')
 
-  const [draggingOver, setDraggingOver] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const selectorRef = useRef<HTMLDivElement>(null)
   const dropdownListRef = useRef<HTMLDivElement>(null)
 
@@ -512,9 +511,9 @@ export function SpeciesDetail() {
     async function autoLoad() {
       try {
         const statusRes = await fetch('/settings/files')
-        if (!statusRes.ok || cancelled) { setPhase({ tag: 'idle' }); return }
+        if (!statusRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
         const status = await statusRes.json()
-        if (!status.ebird) { setPhase({ tag: 'idle' }); return }
+        if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
 
         const mlUserId = extractUserId(status.ml?.filename ?? '')
 
@@ -525,7 +524,7 @@ export function SpeciesDetail() {
         if (cancelled) return
 
         const [ebirdRes, mlRes] = results
-        if (!ebirdRes.ok) { setPhase({ tag: 'idle' }); return }
+        if (!ebirdRes.ok) { setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." }); return }
 
         const ebirdText = await ebirdRes.text()
         if (cancelled) return
@@ -555,56 +554,12 @@ export function SpeciesDetail() {
         setPhase({ tag: 'ready', observations, mediaMap, mlRows, hasML, userId: mlUserId })
         fetchTaxonData(observations)
       } catch {
-        if (!cancelled) setPhase({ tag: 'idle' })
+        if (!cancelled) setPhase({ tag: 'setup-required' })
       }
     }
     autoLoad()
     return () => { cancelled = true }
   }, [])
-
-  const processFile = (file: File) => {
-    file.text().then(text => {
-      try {
-        const observations = parseEbirdObservations(text)
-        setPhase({ tag: 'ready', observations, mediaMap: new Map(), mlRows: [], hasML: false, userId: null })
-        selectSpecies(null)
-        setSelectorQuery('')
-        setMergeSubspecies(true)
-        setCountyFilter(null)
-        setDateRange({ from: '', to: '' })
-        fetchTaxonData(observations)
-      } catch {
-        setPhase({ tag: 'error', message: "This doesn't look like an eBird backup CSV. Check you're uploading MyEBirdData.csv." })
-      }
-    }).catch(() => {
-      setPhase({ tag: 'error', message: "Couldn't read the file. Please try again." })
-    })
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    setDraggingOver(false)
-    const file = e.dataTransfer.files[0]
-    if (file) processFile(file)
-  }
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) { processFile(file); e.target.value = '' }
-  }
-
-  const handleReset = () => {
-    setPhase({ tag: 'idle' })
-    selectSpecies(null)
-    setSelectorQuery('')
-    setDropdownOpen(false)
-    setTaxonOrders({})
-    setTaxonMap({})
-    setSavedFileInfo(null)
-    setMergeSubspecies(true)
-    setCountyFilter(null)
-    setDateRange({ from: '', to: '' })
-  }
 
   // ── Derived data ───────────────────────────────────────────────────────
 
@@ -861,53 +816,43 @@ export function SpeciesDetail() {
     )
   }
 
-  if (phase.tag === 'idle' || phase.tag === 'error') {
+  if (phase.tag === 'setup-required') {
     return (
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, minHeight: 0 }}>
-        {phase.tag === 'error' && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '9px 13px', background: 'var(--sr-error-bg)',
-            borderRadius: 8, fontSize: 13, color: 'var(--sr-error)', flexShrink: 0,
-          }}>
-            <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-            {phase.message}
-          </div>
-        )}
-        <div
-          onDragOver={e => { e.preventDefault(); setDraggingOver(true) }}
-          onDragLeave={() => setDraggingOver(false)}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            flex: 1, display: 'flex', flexDirection: 'column',
-            alignItems: 'center', justifyContent: 'center', gap: 8,
-            border: `2px dashed ${draggingOver ? 'var(--sr-accent)' : 'var(--sr-border)'}`,
-            borderRadius: 12,
-            background: draggingOver ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-            cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s', padding: 40,
-          }}
-          onMouseEnter={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface-faint)' }}
-          onMouseLeave={e => { if (!draggingOver) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface)' }}
-        >
-          <div style={{
-            width: 48, height: 48, borderRadius: 12,
-            background: 'var(--sr-accent-bg)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Upload size={22} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
-          </div>
-          <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--sr-text)' }}>
-            Upload your eBird backup
-          </span>
-          <span style={{ fontSize: 13, color: 'var(--sr-text-muted)', marginTop: 2, textAlign: 'center' }}>
-            MyEBirdData.csv · Drop file here, or click to browse
-          </span>
-          <span style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginTop: 4 }}>
-            Add your ML export in Settings to also see media statistics.
-          </span>
+      <SetupRequired
+        title="eBird Backup Required"
+        body="Species Detail loads automatically from your stored eBird backup. Upload it once in Settings and this tab will always be ready."
+        steps={[
+          <>Get <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, background: 'var(--sr-border)', padding: '1px 5px', borderRadius: 3 }}>MyEBirdData.csv</code> from <strong>ebird.org</strong> → My eBird → Download My Data</>,
+          <>Upload it in <strong>Settings → Default Files → eBird Backup</strong></>,
+          <>This tab loads automatically on every visit</>,
+        ]}
+        onGoToSettings={onGoToSettings}
+      />
+    )
+  }
+
+  if (phase.tag === 'error') {
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 40 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
+          fontSize: 13, color: 'var(--sr-error)', maxWidth: 480,
+        }}>
+          <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
+          {phase.message}
         </div>
-        <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileInput} />
+        <button
+          onClick={onGoToSettings}
+          style={{
+            height: 32, padding: '0 14px', borderRadius: 6,
+            border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
+            color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500,
+            fontFamily: 'inherit', cursor: 'pointer',
+          }}
+        >
+          Go to Settings
+        </button>
       </div>
     )
   }
@@ -931,17 +876,6 @@ export function SpeciesDetail() {
             {savedFileInfo.filename}
           </div>
         )}
-        <button
-          onClick={handleReset}
-          style={{
-            height: 30, padding: '0 12px', borderRadius: 6,
-            border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-            color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500,
-            fontFamily: 'inherit', cursor: 'pointer',
-          }}
-        >
-          Load different file
-        </button>
         <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
         <ToggleSwitch label="Show sp./slash" checked={showSpuh} onChange={handleToggleSpuh} />
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--sr-text-disabled)' }}>
