@@ -4,6 +4,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Leaflet divIcon inner content must use `display: inline-block` — 2026-05-23
+
+**Bug:** Media target label pills rendered with a tiny colored oval (≈12px wide) that didn't span the species name. The pill background was correct, but the text overflowed it visibly.
+
+**Cause:** Leaflet's `DivIcon` defaults to `iconSize: [12, 12]`, which applies `width: 12px; height: 12px` inline to the outer icon element. Any inner `<div>` (which is `display: block` by default) inherits that 12px width and constrains its own background to 12px — while the text overflows with `white-space: nowrap`, appearing uncontained. The outer element has `overflow: visible`, so text is visible, but the colored background is not.
+
+**Fix:** Added `display: inline-block` to the inner content div. An `inline-block` element sizes to its content regardless of parent width, so the background spans the full species name.
+
+**Implications:** Any Leaflet `divIcon` that renders a pill or label with a colored background must use `display: inline-block` on the innermost content div — not `display: block`. Do not use `iconSize: [12, 12]` (the default) as a sizing mechanism for text labels; it constrains the background but not the text, producing an invisible mismatch.
+
 ## Per-tab file upload removed; Settings is the sole file source — 2026-05-22
 
 **Decision:** `BreedingCodeList`, `LifeList`, and `SpeciesDetail` no longer have drop zones, file input refs, `processFile`, `handleDrop`, `handleFileInput`, or "Load different file" buttons. Data comes exclusively from files stored in Settings.

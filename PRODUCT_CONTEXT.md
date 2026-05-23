@@ -425,8 +425,8 @@ An interactive map tab with three view modes for exploring birding locations: si
 
 **Three view modes:**
 - **My Sightings** — fetches recent personal observations via `GET /map/recent-obs`, plots circle markers colored green, and overlays a heatmap. Requires eBird API key. Shows `SetupRequired` component if no key is configured. Supports species code filter (All, any species from the backup's distinct codes), breeding status filter (All/Confirmed/Probable/Possible/None), and date range filter. Distance filter for personal locations in radius miles.
-- **Hotspots** — fetches regional hotspots via `GET /map/hotspots` (lat/lng/dist parameters). Classifies each as visited (green teardrop), unvisited (blue teardrop), or personal (orange star) using `visitedLocIds` derived from the stored backup. Address search above lat/lng fields. Legend rows are clickable to hide/show each pin category; opacity drops to 40% when hidden; state resets on each new fetch.
-- **Media Targets** — fetches recent sightings (`back=30`) for target species. Pins are color-coded green by recency tier (≤7 days / 8–15 days / 16–30 days). Address search above lat/lng. Last 30 Days / Last Week toggle filters pins client-side. Nearest-10 sidebar list ranked by haversine distance from center. Each popup shows a "View checklist {subId}" link when a valid subId is available.
+- **Hotspots** — fetches regional hotspots via `GET /map/hotspots` (lat/lng/dist parameters). Classifies each as visited (green teardrop), unvisited (blue teardrop), or personal (orange star) using `visitedLocIds` derived from the stored backup. Address search above lat/lng fields. Legend rows are clickable to hide/show each pin category; opacity drops to 40% when hidden; state resets on each new fetch. Clicking the Hotspots tab button re-centers the map to the saved default location and auto-triggers a fetch if coordinates are set.
+- **Media Targets** — fetches recent sightings (`back=30`) for target species. Pins are color-coded green by recency tier (≤7 days / 8–15 days / 16–30 days). Address search above lat/lng. Last 30 Days / Last Week toggle filters pins client-side. Nearest-10 sidebar list ranked by haversine distance from center. Each popup shows a "View checklist {subId}" link when a valid subId is available. Clicking the Media Targets tab button re-centers the map and auto-triggers a fetch (when `phase.tag === 'ready'` and fetch is not disabled).
 
 **Address geocoding (both Hotspots and Media Targets):**
 - `AddressSearch` sub-component renders a text input + search icon button above the lat/lng fields
@@ -447,7 +447,7 @@ An interactive map tab with three view modes for exploring birding locations: si
 
 **Mobile layout (≤640px):**
 - The 268px sidebar is hidden from the flex flow by default; map fills 100% width
-- A green "Filters" pill button (`sr-map-filters-btn`) floats at `bottom: 20px; right: 16px; z-index: 30` over the map
+- A green "Filters" pill button (`sr-map-filters-btn`) floats at `bottom: 20px; right: 16px; z-index: 1050` over the map
 - Tapping Filters sets `sidebarOpen: true`; sidebar gains class `sr-map-sidebar-overlay` (absolute, `width: min(282px, 90vw)`, `z-index: 1200`)
 - A dark backdrop (`sr-map-backdrop`, `rgba(0,0,0,0.42)`, `z-index: 1100`) appears behind the sidebar; tapping it calls `setSidebarOpen(false)`
 - Sidebar header shows "Map Filters" title + circular close button (`sr-map-sidebar-close`); close button calls `setSidebarOpen(false)` with `aria-label="Close filters"`
@@ -458,7 +458,7 @@ An interactive map tab with three view modes for exploring birding locations: si
 
 **Default Location (Settings):**
 - `GET /settings/map-defaults` on MapExplorer mount; on 200, sets `lat`, `lng`, and `radius` state (shared by all three modes) AND sets `defaultCenter` state to trigger a map pan; on 404/error, no-op
-- `DefaultCenterSetter` — null-rendering child inside `MapContainer` (same pattern as `MapPanner`); calls `map.setView([lat, lng], zoom)` once when `defaultCenter` is set, then clears it via `onDone`; zoom derived from radius via `radiusToZoom()` (≤5 mi → 12, ≤10 → 11, ≤25 → 10, >25 → 9)
+- `DefaultCenterSetter` — null-rendering child inside `MapContainer` (same pattern as `MapPanner`); calls `map.setView([lat, lng], zoom)` once when `defaultCenter` is set, then clears it via `onDone`; zoom derived from radius via `radiusToZoom()` (≤5 mi → 12, ≤10 → 11, ≤25 → 10, >25 → 9); also triggered when the user clicks the Hotspots or Media Targets tab button (re-sets `defaultCenter` from the current lat/lng/radius state)
 - Settings → Default Location section: lat/lng/dist inputs + Save + Clear + "✓ Saved" chip (2500ms auto-hide)
 - Save: `POST /settings/map-defaults {lat, lng, dist}`; validates in-range before calling API
 - Clear: `DELETE /settings/map-defaults`; resets inputs to blank; button disabled when no defaults are stored
