@@ -225,14 +225,13 @@ A Settings tab (rightmost in the tab bar) where users upload and persistently st
 - Upload sends `multipart/form-data` POST; validated server-side (`.csv` extension only, 50 MB limit)
 - Clear button removes the stored file from disk and clears metadata; disabled when no file is stored
 - On app mount, Breeding Codes, Media List, and Species Detail tabs start in `loading-saved` phase (spinner), auto-fetch their stored file, parse it, and enter the ready state automatically
-- A green chip in the data tab toolbar shows the stored filename when auto-load succeeded
 - `onKeysSaved` callback prop on `<Settings>` triggers a re-fetch of key status in App.tsx when a key is saved or deleted
 
 **Key files:**
 - `backend/routers/settings.py` — 7 endpoints: `GET /settings/files`, `POST/GET/DELETE /settings/files/ebird`, `POST/GET/DELETE /settings/files/ml`; writes to fixed paths in `data/`
 - `backend/tests/test_settings_router.py` — 9 tests using `monkeypatch` + `tmp_path` to isolate filesystem
 - `frontend/src/components/Settings.tsx` — Settings tab component with `FileRow`, `KeyRow`, `AppearanceRow` sub-components; `onKeysSaved?: () => void` prop
-- `frontend/src/components/BreedingCodeList.tsx` — `loading-saved` phase, auto-load `useEffect`, `savedFileInfo` chip
+- `frontend/src/components/BreedingCodeList.tsx` — `loading-saved` phase, auto-load `useEffect`
 - `frontend/src/components/LifeList.tsx` — same pattern; `userId` parsed from stored metadata filename field
 
 ### Update Script + In-App Update Check (complete — May 2026)
@@ -703,7 +702,7 @@ Flexbox `flex: 1` on media items causes a single item to stretch to full width, 
 `BreedingCodeList`, `LifeList`, and `SpeciesDetail` initialize to `{ tag: 'loading-saved' }`. On auto-load: success → `ready`; no file configured in Settings → `setup-required` (shows the SetupRequired guidance screen with "Go to Settings"); fetch/parse failure → `error` (shows an inline error message). The `idle` tag does not exist in these components — there is no state where the tab is waiting for the user to upload something. Any future tab that checks for a stored default on mount must use `loading-saved` as the initial phase and distinguish `setup-required` (no file) from `error` (file exists but failed) rather than using a single `idle` catch-all.
 
 **Taxonomic sort for ML export uses the taxonomy fetch fallback**
-ML export entries have `taxonomicOrder: Infinity` (no order field in the CSV). `getOrder()` in `LifeListTable` returns `entry.taxonomicOrder` if finite (eBird CSV path), otherwise falls back to `taxonOrders[commonName] ?? Infinity` from the taxonomy fetch. This makes taxonomic sort available for both input formats without source-specific branching in the sort logic itself. Species absent from the taxonomy sort last on both paths.
+ML export entries have `taxonomicOrder: Infinity` (no order field in the CSV). `getOrder()` in `LifeListTable` returns `entry.taxonomicOrder` if finite (eBird CSV path), otherwise falls back to `taxonOrders[commonName] ?? taxonOrders[normalizeSpeciesName(commonName)] ?? Infinity` from the taxonomy fetch. The normalizeSpeciesName fallback handles subspecies/domestic entries (e.g. "Mallard (Domestic type)") whose parenthetical names don't appear in the taxon-order map — they normalize to the parent name ("Mallard") which does. This makes taxonomic sort available for both input formats and correctly handles the "Show subspecies" toggle. Species absent from the taxonomy sort last on both paths.
 
 **`speciesUtils.ts` is a shared component-layer utility; parser-layer utilities remain separate**
 `normalizeSpeciesName` and `isSpuhOrSlash` are now exported from `frontend/src/lib/speciesUtils.ts`

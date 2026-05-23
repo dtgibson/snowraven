@@ -177,7 +177,7 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Change:** A–Z / Taxonomic toggle re-added to the Media List and Breeding Codes tabs (the Life List Comparer already had it). `SortState` extended with `nameSortMode: 'az' | 'taxonomic'`. Column-header sorts preserved — the toggle acts as a tiebreaker for count columns.
 
-**Extension beyond prior behavior:** Taxonomic sort now works for ML export, not just eBird CSV. ML export entries have `taxonomicOrder: Infinity`; `getOrder()` falls back to `taxonOrders[commonName]` from the `POST /taxonomy/codes` fetch. The endpoint was extended to return `orders` alongside `codes` — no new endpoint.
+**Extension beyond prior behavior:** Taxonomic sort now works for ML export, not just eBird CSV. ML export entries have `taxonomicOrder: Infinity`; `getOrder()` falls back to `taxonOrders[commonName] ?? taxonOrders[normalizeSpeciesName(commonName)] ?? Infinity` from the `POST /taxonomy/codes` fetch. The normalizeSpeciesName fallback handles subspecies/domestic entries with parenthetical names (e.g. "Mallard (Domestic type)") — they resolve to the parent name, which is in the map. The endpoint was extended to return `orders` alongside `codes` — no new endpoint.
 
 **Implications:** When changing sort column via a header click, always use `{ ...sort, column, dir }` to preserve `nameSortMode`. A wholesale `sort` replacement will drop the user's A–Z vs Taxonomic preference.
 
@@ -237,7 +237,7 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Decision:** `BreedingCodeList` and `LifeList` initialize to `{ tag: 'loading-saved' }`, not `{ tag: 'idle' }`.
 **Rationale:** Without this, the upload zone briefly flashes before the auto-load fetch completes, which is jarring when a stored default exists.
-**Implications:** Any future tab that checks for a stored default on mount must start in `loading-saved`. Clearing `savedFileInfo` in `handleReset` is required so a subsequent manual upload doesn't show a stale indicator.
+**Implications:** Any future tab that checks for a stored default on mount must start in `loading-saved`.
 
 ## ML export as preferred input for Media Life List — 2026-05-12
 
