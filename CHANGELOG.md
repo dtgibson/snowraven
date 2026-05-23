@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.0] - 2026-05-22
+
+### Added
+- **Map Explorer — mobile layout** — on viewports ≤640px the map now fills the full screen with no sidebar visible by default. A green "Filters" pill button floats in the bottom-right corner of the map. Tapping it opens the filter sidebar as a full-height overlay with a dark backdrop; tapping the backdrop or the close button in the sidebar header dismisses it. Desktop layout (>640px) is pixel-identical to before.
+- **Settings — Default Location** — new section at the bottom of the Settings page with Latitude, Longitude, and Radius (mi) inputs. Saving persists the values server-side (`data/map-defaults.json`). The Map Explorer reads these defaults on mount and pre-fills the coordinate fields for all three map modes (My Sightings, Hotspots, Media Targets). Clear removes the saved defaults and resets the fields.
+- **`GET /settings/map-defaults`** — returns saved default location or 404 if none saved.
+- **`POST /settings/map-defaults`** — saves `{lat, lng, dist}` with server-side validation (lat ∈ [−90, 90], lng ∈ [−180, 180], dist > 0).
+- **`DELETE /settings/map-defaults`** — removes saved default location.
+
 ## [0.0.45] - 2026-05-22
 
 ### Fixed

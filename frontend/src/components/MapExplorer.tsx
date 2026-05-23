@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Camera, ChevronDown, Loader2, MapPin, Navigation, Search } from 'lucide-react'
+import { AlertCircle, Camera, ChevronDown, Filter, Loader2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
@@ -575,6 +575,9 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
   const [panTarget, setPanTarget]             = useState<{ lat: number; lng: number } | null>(null)
   const handlePanDone                         = useCallback(() => setPanTarget(null), [])
 
+  // Mobile sidebar overlay state
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   // Species code map and key status
   const [speciesCodeMap, setSpeciesCodeMap] = useState<Record<string, string>>({})
   const [hasEbirdKey, setHasEbirdKey]       = useState<boolean | null>(null)
@@ -585,6 +588,20 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
       .then(r => r.ok ? r.json() : null)
       .then((data: { ebird: string | null } | null) => setHasEbirdKey(data ? data.ebird !== null : false))
       .catch(() => setHasEbirdKey(false))
+  }, [])
+
+  // Pre-fill lat/lng/radius from saved map defaults on mount
+  useEffect(() => {
+    fetch('/settings/map-defaults')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { lat: number; lng: number; dist: number } | null) => {
+        if (data && typeof data.lat === 'number' && typeof data.lng === 'number' && typeof data.dist === 'number') {
+          setLat(String(data.lat))
+          setLng(String(data.lng))
+          setRadius(data.dist)
+        }
+      })
+      .catch(() => {})
   }, [])
 
   // Load observations + ML export
@@ -1303,9 +1320,36 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
       </div>
 
       {/* Content: sidebar + map */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <div className="sr-map-content" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Backdrop — mobile only, shown when sidebar open */}
+        {sidebarOpen && (
+          <div
+            className="sr-map-backdrop"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         {/* Sidebar */}
-        <div style={{ width: 268, flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div
+          className={`sr-map-sidebar-overlay${sidebarOpen ? '' : ' sr-map-sidebar-hidden'}`}
+          style={{ width: 268, flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+        >
+          {/* Mobile-only header with close button */}
+          <div className="sr-map-sidebar-close">
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>Map Filters</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close filters"
+              style={{
+                width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--sr-surface-subtle)', border: 'none', borderRadius: '50%',
+                cursor: 'pointer', color: 'var(--sr-text-muted)',
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
           {viewMode === 'sightings' && sightingsSidebar}
           {viewMode === 'hotspots' && hotspotsSidebar}
           {viewMode === 'targets'  && targetsSidebar}
@@ -1313,6 +1357,17 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
 
         {/* Map area */}
         <div style={{ flex: 1, position: 'relative' }}>
+          {/* Floating Filters button — mobile only, hidden while sidebar is open */}
+          {!sidebarOpen && (
+            <button
+              className="sr-map-filters-btn"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open map filters"
+            >
+              <Filter size={14} strokeWidth={2.5} />
+              Filters
+            </button>
+          )}
           {isSetupRequired && viewMode === 'sightings' ? (
             <SetupRequired
               title="eBird Backup Required"

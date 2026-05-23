@@ -500,6 +500,14 @@ export function Settings({ onKeysSaved }: { onKeysSaved?: () => void }) {
   const [ebirdKeyError, setEbirdKeyError] = useState<string | null>(null)
   const [openweatherKeyError, setOpenweatherKeyError] = useState<string | null>(null)
 
+  // Map defaults state
+  const [mapLat, setMapLat] = useState('')
+  const [mapLng, setMapLng] = useState('')
+  const [mapDist, setMapDist] = useState('')
+  const [mapDefaultsStatus, setMapDefaultsStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [mapDefaultsHasSaved, setMapDefaultsHasSaved] = useState(false)
+  const savedChipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     fetch('/settings/files')
       .then(r => r.ok ? r.json() : null)
@@ -509,6 +517,18 @@ export function Settings({ onKeysSaved }: { onKeysSaved?: () => void }) {
     fetch('/settings/keys')
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setKeys(data) })
+      .catch(() => {})
+
+    fetch('/settings/map-defaults')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { lat: number; lng: number; dist: number } | null) => {
+        if (data) {
+          setMapLat(String(data.lat))
+          setMapLng(String(data.lng))
+          setMapDist(String(data.dist))
+          setMapDefaultsHasSaved(true)
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -604,6 +624,40 @@ export function Settings({ onKeysSaved }: { onKeysSaved?: () => void }) {
     else { setOpenweatherKeyEditing(false); setOpenweatherKeyInput(''); setOpenweatherKeyError(null) }
   }
 
+  const handleSaveMapDefaults = async () => {
+    const lat = parseFloat(mapLat)
+    const lng = parseFloat(mapLng)
+    const dist = parseInt(mapDist, 10)
+    if (isNaN(lat) || lat < -90 || lat > 90) { setMapDefaultsStatus('error'); return }
+    if (isNaN(lng) || lng < -180 || lng > 180) { setMapDefaultsStatus('error'); return }
+    if (isNaN(dist) || dist <= 0) { setMapDefaultsStatus('error'); return }
+    setMapDefaultsStatus('saving')
+    try {
+      const res = await fetch('/settings/map-defaults', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat, lng, dist }),
+      })
+      if (!res.ok) { setMapDefaultsStatus('error'); return }
+      setMapDefaultsHasSaved(true)
+      if (savedChipTimerRef.current) clearTimeout(savedChipTimerRef.current)
+      setMapDefaultsStatus('saved')
+      savedChipTimerRef.current = setTimeout(() => setMapDefaultsStatus('idle'), 2500)
+    } catch {
+      setMapDefaultsStatus('error')
+    }
+  }
+
+  const handleClearMapDefaults = async () => {
+    try {
+      await fetch('/settings/map-defaults', { method: 'DELETE' })
+    } catch { /* best-effort */ }
+    setMapLat(''); setMapLng(''); setMapDist('')
+    setMapDefaultsHasSaved(false)
+    setMapDefaultsStatus('idle')
+    if (savedChipTimerRef.current) clearTimeout(savedChipTimerRef.current)
+  }
+
   return (
     <div style={{ width: '100%', maxWidth: 680, margin: '0 auto' }}>
 
@@ -681,9 +735,101 @@ export function Settings({ onKeysSaved }: { onKeysSaved?: () => void }) {
         </div>
       </div>
 
-      <p style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
         Files are stored on this server and load automatically when you open the relevant tab. Uploading a different file within a tab is session-only and won't replace your saved default.
       </p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+          Default Location
+        </span>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1px solid var(--sr-accent-border)' }}>
+          NEW
+        </span>
+        <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
+      </div>
+
+      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px' }}>
+          <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+            Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: 8, marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Latitude</div>
+              <input
+                type="number"
+                placeholder="e.g. 37.8716"
+                value={mapLat}
+                onChange={e => setMapLat(e.target.value)}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Longitude</div>
+              <input
+                type="number"
+                placeholder="e.g. -122.2727"
+                value={mapLng}
+                onChange={e => setMapLng(e.target.value)}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
+              />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Radius (mi)</div>
+              <input
+                type="number"
+                placeholder="25"
+                value={mapDist}
+                onChange={e => setMapDist(e.target.value)}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={handleSaveMapDefaults}
+              disabled={mapDefaultsStatus === 'saving'}
+              style={{
+                height: 32, padding: '0 14px',
+                background: mapDefaultsStatus === 'saving' ? 'var(--sr-surface-subtle)' : 'var(--sr-accent)',
+                color: mapDefaultsStatus === 'saving' ? 'var(--sr-text-disabled)' : '#fff',
+                border: 'none', borderRadius: 6,
+                fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                cursor: mapDefaultsStatus === 'saving' ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {mapDefaultsStatus === 'saving' ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              onClick={handleClearMapDefaults}
+              disabled={!mapDefaultsHasSaved}
+              style={{
+                height: 32, padding: '0 14px',
+                background: 'var(--sr-surface-subtle)',
+                color: mapDefaultsHasSaved ? 'var(--sr-text)' : 'var(--sr-text-disabled)',
+                border: '1px solid var(--sr-border)', borderRadius: 6,
+                fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                cursor: mapDefaultsHasSaved ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Clear
+            </button>
+            {mapDefaultsStatus === 'saved' && (
+              <span style={{ fontSize: 12, color: 'var(--sr-accent)', fontWeight: 500 }}>✓ Saved</span>
+            )}
+            {mapDefaultsStatus === 'error' && (
+              <span style={{ fontSize: 12, color: 'var(--sr-error)' }}>Check your values and try again.</span>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

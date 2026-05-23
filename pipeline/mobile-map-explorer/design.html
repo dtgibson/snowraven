@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mobile Map Explorer — Design Preview</title>
+  <style>
+    :root {
+      --primary: #2D8653;
+      --primary-fg: #FFFFFF;
+      --primary-light: #E8F5EE;
+      --primary-dark: #1A5C38;
+      --bg: #FFFFFF;
+      --fg: #0F1117;
+      --muted: #F4F4F5;
+      --muted-fg: #71717A;
+      --border: #E4E4E7;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.10), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.10), 0 4px 6px -2px rgba(0,0,0,0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: #F1F3F5;
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Header */
+    .preview-header {
+      width: 100%;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .sr-logo { font-size: 17px; font-weight: 700; color: var(--primary); letter-spacing: -0.3px; }
+    .preview-label {
+      font-size: 12px;
+      color: var(--muted-fg);
+      padding-left: 14px;
+      border-left: 1px solid var(--border);
+    }
+
+    /* Layout */
+    .preview-body {
+      display: flex;
+      gap: 56px;
+      padding: 48px 32px;
+      align-items: flex-start;
+      max-width: 1120px;
+      width: 100%;
+    }
+
+    .col-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--muted-fg);
+      margin-bottom: 14px;
+    }
+
+    /* Phone frame */
+    .phone-wrapper { display: flex; flex-direction: column; align-items: center; }
+
+    .phone {
+      width: 375px;
+      height: 720px;
+      background: var(--bg);
+      border-radius: 44px;
+      overflow: hidden;
+      box-shadow: 0 0 0 9px #1C1C1E, 0 0 0 11px #333, var(--shadow-lg);
+      position: relative;
+    }
+
+    .phone::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 28px;
+      background: #1C1C1E;
+      border-radius: 0 0 18px 18px;
+      z-index: 200;
+    }
+
+    /* App shell */
+    .app-shell { display: flex; flex-direction: column; height: 100%; }
+
+    .app-header {
+      padding: 38px 16px 10px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+    .app-logo { font-size: 15px; font-weight: 700; color: var(--primary); }
+
+    .app-tabs {
+      display: flex;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      flex-shrink: 0;
+      scrollbar-width: none;
+    }
+    .app-tabs::-webkit-scrollbar { display: none; }
+
+    .tab-item {
+      font-size: 10.5px;
+      font-weight: 500;
+      color: var(--muted-fg);
+      padding: 8px 9px;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .tab-item.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Map */
+    .map-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .map-bg {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(rgba(200,230,200,0.25) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(200,230,200,0.25) 1px, transparent 1px),
+        linear-gradient(160deg, #E6F0E2 0%, #D2E8CC 35%, #DCE9D4 65%, #E8F0E4 100%);
+      background-size: 28px 28px, 28px 28px, 100% 100%;
+    }
+
+    /* Backdrop */
+    .backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.42);
+      z-index: 40;
+      display: none;
+    }
+    .backdrop.open { display: block; }
+
+    /* Sidebar overlay */
+    .sidebar-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 282px;
+      background: var(--bg);
+      z-index: 50;
+      display: none;
+      flex-direction: column;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.18);
+    }
+    .sidebar-overlay.open { display: flex; }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-title { font-size: 13px; font-weight: 600; color: var(--fg); }
+
+    .close-btn {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--muted);
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--muted-fg);
+    }
+    .close-btn:hover { background: var(--border); }
+
+    .sidebar-body { flex: 1; overflow-y: auto; padding: 14px; }
+
+    /* Mode selector */
+    .mode-selector {
+      display: flex;
+      background: var(--muted);
+      border-radius: var(--radius);
+      padding: 3px;
+      margin-bottom: 14px;
+    }
+    .mode-btn {
+      flex: 1;
+      font-size: 10.5px;
+      font-weight: 600;
+      padding: 5px 6px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--muted-fg);
+      cursor: pointer;
+      text-align: center;
+    }
+    .mode-btn.active {
+      background: var(--bg);
+      color: var(--primary);
+      box-shadow: var(--shadow);
+    }
+
+    /* Fields */
+    .field-group { margin-bottom: 10px; }
+    .field-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--muted-fg);
+      margin-bottom: 4px;
+      display: block;
+    }
+    .field-input {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 7px 9px;
+      font-size: 12.5px;
+      color: var(--fg);
+      background: var(--bg);
+      outline: none;
+      font-family: inherit;
+    }
+    .field-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(45,134,83,0.15);
+    }
+
+    .coord-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 9px 14px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      margin-top: 6px;
+      font-family: inherit;
+    }
+    .btn-primary:hover { background: #225f3d; }
+
+    /* Legend */
+    .legend {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    .legend-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--muted-fg);
+      margin-bottom: 8px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 11.5px;
+      color: var(--fg);
+      margin-bottom: 5px;
+    }
+    .legend-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Floating filters button */
+    .filters-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 16px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      border-radius: 24px;
+      border: none;
+      box-shadow: 0 4px 12px rgba(45,134,83,0.4);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .filters-btn:hover { background: #225f3d; }
+
+    /* Demo controls */
+    .demo-controls {
+      margin-top: 14px;
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+    .demo-btn {
+      font-size: 11.5px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--muted-fg);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .demo-btn.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+
+    /* Settings panel */
+    .settings-panel {
+      width: 430px;
+      background: var(--bg);
+      border-radius: 16px;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .settings-hdr {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-hdr-title { font-size: 16px; font-weight: 700; color: var(--fg); }
+    .settings-hdr-sub { font-size: 12px; color: var(--muted-fg); margin-top: 2px; }
+
+    /* Settings section */
+    .s-section {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .s-section:last-child { border-bottom: none; }
+
+    .s-title { font-size: 13px; font-weight: 600; color: var(--fg); margin-bottom: 3px; }
+    .s-desc { font-size: 12px; color: var(--muted-fg); line-height: 1.5; margin-bottom: 14px; }
+
+    /* New section highlight */
+    .s-section.new-section {
+      background: linear-gradient(to bottom, #FAFFFD, var(--bg));
+    }
+    .new-badge {
+      display: inline-block;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+      text-transform: uppercase;
+    }
+
+    /* Coord row */
+    .coord-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 88px;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .coord-field { display: flex; flex-direction: column; gap: 4px; }
+    .coord-lbl { font-size: 11px; font-weight: 600; color: var(--muted-fg); }
+    .coord-input {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 7px 10px;
+      font-size: 13px;
+      color: var(--fg);
+      background: var(--bg);
+      outline: none;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      width: 100%;
+    }
+    .coord-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(45,134,83,0.15);
+    }
+
+    .s-btn-row { display: flex; gap: 8px; align-items: center; }
+
+    .btn-save {
+      background: var(--primary);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-save:hover { background: #225f3d; }
+
+    .btn-clear {
+      background: var(--muted);
+      color: var(--fg);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn-clear:hover { background: var(--border); }
+
+    .saved-chip {
+      display: none;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 6px 10px;
+      border-radius: 6px;
+    }
+    .saved-chip.visible { display: flex; }
+
+    /* File rows (existing) */
+    .file-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .file-row:last-child { border-bottom: none; }
+    .file-name { font-size: 13px; font-weight: 500; color: var(--fg); }
+    .file-meta { font-size: 11px; color: var(--muted-fg); margin-top: 2px; }
+    .file-actions { display: flex; gap: 6px; }
+
+    .btn-upload {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: var(--primary-light);
+      color: var(--primary-dark);
+      border: none;
+      cursor: pointer;
+    }
+    .btn-delete {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: var(--muted);
+      color: var(--muted-fg);
+      border: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    /* Theme toggle */
+    .theme-row { display: flex; gap: 6px; margin-top: 10px; }
+    .theme-btn {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 7px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--muted);
+      color: var(--muted-fg);
+      text-align: center;
+      cursor: pointer;
+    }
+    .theme-btn.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: var(--primary);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="preview-header">
+    <span class="sr-logo">SnowRaven</span>
+    <span class="preview-label">Mobile Map Explorer — Design Preview · Stage 4</span>
+  </div>
+
+  <div class="preview-body">
+
+    <!-- Left: Phone mockup -->
+    <div class="phone-wrapper">
+      <div class="col-label">Map Explorer · Mobile (375px)</div>
+
+      <div class="phone">
+        <div class="app-shell">
+
+          <!-- Header -->
+          <div class="app-header">
+            <span class="app-logo">SnowRaven</span>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+
+          <!-- Tabs -->
+          <div class="app-tabs">
+            <div class="tab-item">Weather</div>
+            <div class="tab-item">List</div>
+            <div class="tab-item">Media</div>
+            <div class="tab-item">Breeding</div>
+            <div class="tab-item">Species</div>
+            <div class="tab-item active">Map</div>
+            <div class="tab-item">Settings</div>
+          </div>
+
+          <!-- Map -->
+          <div class="map-container" id="mapContainer">
+            <div class="map-bg"></div>
+
+            <!-- Map features SVG -->
+            <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none" viewBox="0 0 375 582" preserveAspectRatio="xMidYMid slice">
+              <!-- Roads -->
+              <path d="M0 210 Q80 195 160 205 T 375 185" stroke="#fff" stroke-width="7" fill="none" opacity="0.75"/>
+              <path d="M0 340 Q110 328 200 345 T 375 318" stroke="#fff" stroke-width="5" fill="none" opacity="0.6"/>
+              <path d="M155 0 Q162 160 160 300 T 170 582" stroke="#fff" stroke-width="9" fill="none" opacity="0.8"/>
+              <path d="M40 0 L44 300" stroke="#ccc" stroke-width="3" fill="none" opacity="0.5"/>
+              <path d="M290 80 L295 460" stroke="#ccc" stroke-width="3" fill="none" opacity="0.5"/>
+              <path d="M0 450 L375 455" stroke="#ccc" stroke-width="3" fill="none" opacity="0.45"/>
+              <!-- Park -->
+              <rect x="18" y="90" width="108" height="88" rx="10" fill="#B8DEB4" opacity="0.55"/>
+              <text x="72" y="138" text-anchor="middle" font-size="9" fill="#2D8653" font-weight="600" opacity="0.8">Tilden Park</text>
+              <!-- Water -->
+              <ellipse cx="310" cy="500" rx="55" ry="28" fill="#A8C8E8" opacity="0.6"/>
+              <!-- Blocks -->
+              <rect x="205" y="255" width="55" height="42" rx="3" fill="#D4D4D8" opacity="0.45"/>
+              <rect x="270" y="232" width="44" height="58" rx="3" fill="#D4D4D8" opacity="0.4"/>
+              <rect x="28" y="375" width="64" height="52" rx="3" fill="#D4D4D8" opacity="0.4"/>
+              <rect x="100" y="380" width="40" height="35" rx="3" fill="#D4D4D8" opacity="0.35"/>
+              <!-- Visited hotspot (green teardrop) -->
+              <g transform="translate(168,185)">
+                <ellipse cx="0" cy="19" rx="4" ry="2" fill="rgba(0,0,0,0.14)"/>
+                <path d="M0,-2 C-7,-2 -12,3 -12,10 C-12,18 0,24 0,24 C0,24 12,18 12,10 C12,3 7,-2 0,-2 Z" fill="#2D8653"/>
+                <circle cx="0" cy="10" r="4.5" fill="white" opacity="0.88"/>
+              </g>
+              <!-- Visited hotspot 2 -->
+              <g transform="translate(90,260)">
+                <ellipse cx="0" cy="19" rx="4" ry="2" fill="rgba(0,0,0,0.14)"/>
+                <path d="M0,-2 C-7,-2 -12,3 -12,10 C-12,18 0,24 0,24 C0,24 12,18 12,10 C12,3 7,-2 0,-2 Z" fill="#2D8653"/>
+                <circle cx="0" cy="10" r="4.5" fill="white" opacity="0.88"/>
+              </g>
+              <!-- Unvisited (blue teardrop) -->
+              <g transform="translate(268,295)">
+                <ellipse cx="0" cy="19" rx="4" ry="2" fill="rgba(0,0,0,0.14)"/>
+                <path d="M0,-2 C-7,-2 -12,3 -12,10 C-12,18 0,24 0,24 C0,24 12,18 12,10 C12,3 7,-2 0,-2 Z" fill="#3B82F6"/>
+                <circle cx="0" cy="10" r="4.5" fill="white" opacity="0.88"/>
+              </g>
+              <!-- Unvisited 2 -->
+              <g transform="translate(60,370)">
+                <ellipse cx="0" cy="19" rx="4" ry="2" fill="rgba(0,0,0,0.14)"/>
+                <path d="M0,-2 C-7,-2 -12,3 -12,10 C-12,18 0,24 0,24 C0,24 12,18 12,10 C12,3 7,-2 0,-2 Z" fill="#3B82F6"/>
+                <circle cx="0" cy="10" r="4.5" fill="white" opacity="0.88"/>
+              </g>
+              <!-- Personal (orange star) -->
+              <g transform="translate(125,270) scale(0.85)">
+                <ellipse cx="0" cy="17" rx="4" ry="2" fill="rgba(0,0,0,0.14)"/>
+                <polygon points="0,-14 3.5,-5 13,-5 6,1 9,12 0,7 -9,12 -6,1 -13,-5 -3.5,-5" fill="#F97316"/>
+              </g>
+            </svg>
+
+            <!-- Backdrop -->
+            <div class="backdrop" id="backdrop" onclick="closeSidebar(); setActive('btnClosed')"></div>
+
+            <!-- Sidebar overlay -->
+            <div class="sidebar-overlay" id="sidebarOverlay">
+              <div class="sidebar-header">
+                <span class="sidebar-title">Map Filters</span>
+                <button class="close-btn" onclick="closeSidebar(); setActive('btnClosed')" aria-label="Close filters">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <div class="sidebar-body">
+                <div class="mode-selector">
+                  <button class="mode-btn">Sightings</button>
+                  <button class="mode-btn active">Hotspots</button>
+                  <button class="mode-btn">Targets</button>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Search location</label>
+                  <div style="position:relative">
+                    <input class="field-input" type="text" placeholder="Address or place name…" value="Tilden Regional Park" style="padding-right:30px;font-family:inherit"/>
+                    <svg style="position:absolute;right:9px;top:50%;transform:translateY(-50%)" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  </div>
+                </div>
+
+                <div class="coord-pair">
+                  <div class="field-group">
+                    <label class="field-label">Latitude</label>
+                    <input class="field-input" type="text" value="37.9047" style="font-family:monospace"/>
+                  </div>
+                  <div class="field-group">
+                    <label class="field-label">Longitude</label>
+                    <input class="field-input" type="text" value="-122.2431" style="font-family:monospace"/>
+                  </div>
+                </div>
+
+                <div class="field-group">
+                  <label class="field-label">Radius (miles)</label>
+                  <input class="field-input" type="text" value="15" style="font-family:inherit"/>
+                </div>
+
+                <button class="btn-primary">Find Hotspots</button>
+
+                <div class="legend">
+                  <div class="legend-label">Pin types</div>
+                  <div class="legend-item">
+                    <div class="legend-dot" style="background:#2D8653"></div>
+                    Visited hotspot
+                  </div>
+                  <div class="legend-item">
+                    <div class="legend-dot" style="background:#3B82F6"></div>
+                    Unvisited hotspot
+                  </div>
+                  <div class="legend-item">
+                    <div class="legend-dot" style="background:#F97316; border-radius:2px"></div>
+                    Personal location
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Floating Filters button -->
+            <button class="filters-btn" id="filtersBtn" onclick="openSidebar(); setActive('btnOpen')" aria-label="Open map filters">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+              </svg>
+              Filters
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="demo-controls">
+        <button class="demo-btn active" id="btnClosed" onclick="closeSidebar(); setActive('btnClosed')">Sidebar closed</button>
+        <button class="demo-btn" id="btnOpen" onclick="openSidebar(); setActive('btnOpen')">Sidebar open</button>
+      </div>
+    </div>
+
+    <!-- Right: Settings panel -->
+    <div>
+      <div class="col-label">Settings · Map Defaults (new section)</div>
+      <div class="settings-panel">
+        <div class="settings-hdr">
+          <div class="settings-hdr-title">Settings</div>
+          <div class="settings-hdr-sub">SnowRaven preferences</div>
+        </div>
+
+        <!-- Color scheme (existing) -->
+        <div class="s-section">
+          <div class="s-title">Color scheme</div>
+          <div class="theme-row">
+            <div class="theme-btn">System</div>
+            <div class="theme-btn active">Light</div>
+            <div class="theme-btn">Dark</div>
+          </div>
+        </div>
+
+        <!-- API Keys (existing) -->
+        <div class="s-section">
+          <div class="s-title">API Keys</div>
+          <div class="file-row">
+            <div>
+              <div class="file-name">eBird API Key</div>
+              <div class="file-meta">••••••••••••••••••••••••</div>
+            </div>
+            <div class="file-actions">
+              <button class="btn-upload">Update</button>
+              <button class="btn-delete">Clear</button>
+            </div>
+          </div>
+          <div class="file-row">
+            <div>
+              <div class="file-name">OpenWeather API Key</div>
+              <div class="file-meta">••••••••••••••••••••••••</div>
+            </div>
+            <div class="file-actions">
+              <button class="btn-upload">Update</button>
+              <button class="btn-delete">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Default Files (existing) -->
+        <div class="s-section">
+          <div class="s-title">Default Files</div>
+          <div class="file-row">
+            <div>
+              <div class="file-name">eBird Backup</div>
+              <div class="file-meta">MyEBirdData.csv · saved May 20</div>
+            </div>
+            <div class="file-actions">
+              <button class="btn-upload">Upload</button>
+              <button class="btn-delete">Clear</button>
+            </div>
+          </div>
+          <div class="file-row">
+            <div>
+              <div class="file-name">ML Export</div>
+              <div class="file-meta">ML__20260520_USER123.csv · saved May 20</div>
+            </div>
+            <div class="file-actions">
+              <button class="btn-upload">Upload</button>
+              <button class="btn-delete">Clear</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Map Defaults — NEW (bottom) -->
+        <div class="s-section new-section">
+          <div class="s-title">
+            Default Location
+            <span class="new-badge">New</span>
+          </div>
+          <div class="s-desc">Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.</div>
+
+          <div class="coord-row">
+            <div class="coord-field">
+              <span class="coord-lbl">Latitude</span>
+              <input class="coord-input" type="text" value="37.9047" id="latInput"/>
+            </div>
+            <div class="coord-field">
+              <span class="coord-lbl">Longitude</span>
+              <input class="coord-input" type="text" value="-122.2431" id="lngInput"/>
+            </div>
+            <div class="coord-field">
+              <span class="coord-lbl">Radius (mi)</span>
+              <input class="coord-input" type="text" value="15" id="distInput"/>
+            </div>
+          </div>
+
+          <div class="s-btn-row">
+            <button class="btn-save" onclick="showSaved()">Save</button>
+            <button class="btn-clear" onclick="clearDefaults()">Clear</button>
+            <div class="saved-chip" id="savedChip">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Saved
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function openSidebar() {
+      document.getElementById('sidebarOverlay').classList.add('open');
+      document.getElementById('backdrop').classList.add('open');
+      document.getElementById('filtersBtn').style.display = 'none';
+    }
+
+    function closeSidebar() {
+      document.getElementById('sidebarOverlay').classList.remove('open');
+      document.getElementById('backdrop').classList.remove('open');
+      document.getElementById('filtersBtn').style.display = '';
+    }
+
+    function setActive(id) {
+      document.getElementById('btnClosed').classList.remove('active');
+      document.getElementById('btnOpen').classList.remove('active');
+      document.getElementById(id).classList.add('active');
+    }
+
+    let savedTimer;
+    function showSaved() {
+      const chip = document.getElementById('savedChip');
+      chip.classList.add('visible');
+      clearTimeout(savedTimer);
+      savedTimer = setTimeout(() => chip.classList.remove('visible'), 2500);
+    }
+
+    function clearDefaults() {
+      document.getElementById('latInput').value = '';
+      document.getElementById('lngInput').value = '';
+      document.getElementById('distInput').value = '';
+      document.getElementById('savedChip').classList.remove('visible');
+    }
+  </script>
+
+</body>
+</html>

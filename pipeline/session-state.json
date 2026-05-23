@@ -1,11 +1,17 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
-  "confirmedArtifacts": [],
-  "createdAt": "2026-05-22T15:00:00Z",
-  "updatedAt": "2026-05-22T15:18:00Z"
+  "activeFeature": "mobile-map-explorer",
+  "sessionNumber": 2,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
+  "confirmedArtifacts": [
+    "pipeline/mobile-map-explorer/strategic-brief.md",
+    "pipeline/mobile-map-explorer/prd.md",
+    "pipeline/mobile-map-explorer/schema.md",
+    "pipeline/mobile-map-explorer/design-spec.md",
+    "pipeline/mobile-map-explorer/design.html"
+  ],
+  "createdAt": "2026-05-22T16:00:00Z",
+  "updatedAt": "2026-05-22T17:55:00Z"
 }
