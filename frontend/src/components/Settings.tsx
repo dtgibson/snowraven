@@ -92,7 +92,7 @@ function AppearanceRow() {
     <div>
       <div style={{ padding: '14px 16px' }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sr-text)', marginBottom: 10 }}>
-          Colour scheme
+          Color scheme
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {options.map(({ key, label }) => (
