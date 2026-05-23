@@ -315,6 +315,8 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Implications:** The floating Filters button is `display: none` on desktop via CSS and is also conditionally rendered only when `!sidebarOpen` — double-gated so it can never appear on desktop. Any future responsive feature in MapExplorer should use the same CSS-class pattern rather than JS window checks. Do not add `window.addEventListener('resize', ...)` to MapExplorer.
 
+**Correction (v0.1.1):** The initial implementation put `display: flex`, `flex-direction: column`, and `overflow: hidden` on the sidebar div as inline styles. This silently broke the mobile overlay: React inline styles have CSS specificity 1,0,0, which overrides any class-based rule (0,2,0 for two classes) — so `display: none` from `.sr-map-sidebar-hidden` was always ignored and the sidebar was permanently visible. These properties were moved to the `.sr-map-sidebar-overlay` base CSS class. z-indices were also raised from 30/40/50 to 1050/1100/1200 — the original values were below Leaflet's internal layers (tile pane: 200, controls: 1000). Rule: **never put `display` on an element whose CSS class needs to toggle it.** Rule: **always check Leaflet's z-index range (up to 1000) when placing elements that must appear above the map.**
+
 ## Map Explorer: default location stored as data/map-defaults.json, not in Settings .env — 2026-05-22
 
 **Decision:** The saved map default location (`lat`, `lng`, `dist`) is stored as `data/map-defaults.json` (a fixed-filename JSON file), not in the `.env` file alongside API keys, and not in browser localStorage.

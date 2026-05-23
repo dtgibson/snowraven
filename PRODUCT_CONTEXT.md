@@ -448,15 +448,17 @@ An interactive map tab with three view modes for exploring birding locations: si
 **Mobile layout (≤640px):**
 - The 268px sidebar is hidden from the flex flow by default; map fills 100% width
 - A green "Filters" pill button (`sr-map-filters-btn`) floats at `bottom: 20px; right: 16px; z-index: 30` over the map
-- Tapping Filters sets `sidebarOpen: true`; sidebar gains class `sr-map-sidebar-overlay` (absolute, `width: min(282px, 90vw)`, `z-index: 50`)
-- A dark backdrop (`sr-map-backdrop`, `rgba(0,0,0,0.42)`, `z-index: 40`) appears behind the sidebar; tapping it calls `setSidebarOpen(false)`
+- Tapping Filters sets `sidebarOpen: true`; sidebar gains class `sr-map-sidebar-overlay` (absolute, `width: min(282px, 90vw)`, `z-index: 1200`)
+- A dark backdrop (`sr-map-backdrop`, `rgba(0,0,0,0.42)`, `z-index: 1100`) appears behind the sidebar; tapping it calls `setSidebarOpen(false)`
 - Sidebar header shows "Map Filters" title + circular close button (`sr-map-sidebar-close`); close button calls `setSidebarOpen(false)` with `aria-label="Close filters"`
-- Filters button has `aria-label="Open map filters"` and is only rendered (not just hidden) when `!sidebarOpen`
+- Filters button has `aria-label="Open map filters"` and is only rendered (not just hidden) when `!sidebarOpen`; z-index 1050
 - All breakpoint logic is CSS-only (`@media (max-width: 640px)` in globals.css); no JS window-width checks
-- Desktop (>640px): `sr-map-sidebar-overlay` has no absolute positioning; sidebar stays in the flex row; Filters button is `display: none`; `sidebarOpen` is never true (no button to trigger it)
+- `display: flex`, `flex-direction: column`, and `overflow: hidden` live in the `.sr-map-sidebar-overlay` CSS base class — NOT as inline styles. This is critical: inline styles override CSS class `display: none`, which would prevent the hidden state from working
+- Desktop (>640px): `sr-map-sidebar-overlay` has no absolute positioning; sidebar stays in the flex row at 268px; Filters button is `display: none`; `sidebarOpen` is never true (no button to trigger it)
 
 **Default Location (Settings):**
-- `GET /settings/map-defaults` on MapExplorer mount; on 200, sets `lat`, `lng`, and `radius` state (shared by all three modes); on 404/error, no-op
+- `GET /settings/map-defaults` on MapExplorer mount; on 200, sets `lat`, `lng`, and `radius` state (shared by all three modes) AND sets `defaultCenter` state to trigger a map pan; on 404/error, no-op
+- `DefaultCenterSetter` — null-rendering child inside `MapContainer` (same pattern as `MapPanner`); calls `map.setView([lat, lng], zoom)` once when `defaultCenter` is set, then clears it via `onDone`; zoom derived from radius via `radiusToZoom()` (≤5 mi → 12, ≤10 → 11, ≤25 → 10, >25 → 9)
 - Settings → Default Location section: lat/lng/dist inputs + Save + Clear + "✓ Saved" chip (2500ms auto-hide)
 - Save: `POST /settings/map-defaults {lat, lng, dist}`; validates in-range before calling API
 - Clear: `DELETE /settings/map-defaults`; resets inputs to blank; button disabled when no defaults are stored
