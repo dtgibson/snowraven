@@ -78,6 +78,14 @@ interface TargetPin {
   subId: string
 }
 
+type DisplayTargetPin = TargetPin & { missingTypes: ('Photo' | 'Audio' | 'Video')[] }
+
+const MEDIA_ICONS: Record<'Photo' | 'Audio' | 'Video', string> = {
+  Photo: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>`,
+  Audio: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>`,
+  Video: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>`,
+}
+
 type RecencyTier = 'fresh' | 'mid' | 'old'
 
 interface LocationGroup {
@@ -92,6 +100,7 @@ interface LocationGroup {
 
 interface MapExplorerProps {
   onGoToSettings: () => void
+  onNavigateToMediaList: () => void
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -146,16 +155,6 @@ function tierColors(tier: RecencyTier): { bg: string; text: string } {
   return                       { bg: 'var(--sr-map-target-old)',   text: 'var(--sr-map-target-old-text)' }
 }
 
-function daysAgoLabel(recentDate: string): string {
-  const dateStr = recentDate.split(' ')[0]
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const obsDate = new Date(y, m - 1, d)
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const days = Math.floor((today.getTime() - obsDate.getTime()) / 86400000)
-  if (days === 0) return 'today'
-  if (days === 1) return '1 day ago'
-  return `${days} days ago`
-}
 
 function fmtDate(d: string): string {
   const ymd = d.split(' ')[0].split('-').map(Number)
@@ -396,7 +395,7 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
   )
 }
 
-function TargetMarkers({ pins }: { pins: TargetPin[] }) {
+function TargetMarkers({ pins }: { pins: DisplayTargetPin[] }) {
   const map = useMap()
 
   useEffect(() => {
@@ -407,47 +406,75 @@ function TargetMarkers({ pins }: { pins: TargetPin[] }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const locationGroups = useMemo(() => {
+    const groups = new Map<string, DisplayTargetPin[]>()
+    for (const pin of pins) {
+      const existing = groups.get(pin.locId) ?? []
+      existing.push(pin)
+      groups.set(pin.locId, existing)
+    }
+    return [...groups.values()]
+  }, [pins])
+
   return (
     <>
-      {pins.map((pin, i) => {
-        const tier = recencyTier(pin.recentDate)
+      {locationGroups.map((group, i) => {
+        const rep = group.reduce((best, p) => p.recentDate > best.recentDate ? p : best)
+        const tier = recencyTier(rep.recentDate)
         const { bg, text } = tierColors(tier)
+
+        let labelHtml: string
+        if (group.length === 1) {
+          const pin = group[0]
+          const iconsHtml = pin.missingTypes.length > 0
+            ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:5px">${pin.missingTypes.map(t => MEDIA_ICONS[t]).join('')}</span>`
+            : ''
+          labelHtml = `${escHtml(pin.comName)}${iconsHtml}`
+        } else {
+          labelHtml = `${group.length} species`
+        }
+
         const icon = L.divIcon({
-          html: `<div style="display:inline-block;background:${bg};color:${text};padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;font-family:Inter,system-ui,sans-serif;border:1.5px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)">${escHtml(pin.comName)}</div>`,
+          html: `<div style="display:inline-flex;align-items:center;background:${bg};color:${text};padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;font-family:Inter,system-ui,sans-serif;border:1.5px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)">${labelHtml}</div>`,
           className: '',
           iconAnchor: [0, 14],
           popupAnchor: [0, -16],
         })
-        const tierLabel = tier === 'fresh' ? '≤7 days' : tier === 'mid' ? '8–15 days' : '16–30 days'
-        const validSubId = /^S\d+$/.test(pin.subId ?? '')
+
         return (
-          <Marker key={`${pin.speciesCode}-${pin.locId}-${i}`} position={[pin.lat, pin.lng]} icon={icon}>
+          <Marker key={`${rep.locId}-${i}`} position={[rep.lat, rep.lng]} icon={icon}>
             <Popup>
-              <div style={{ minWidth: 200 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: '#2D8653', marginBottom: 4 }}>{pin.comName}</div>
-                <div style={{ fontSize: 11, color: '#71717A', marginBottom: 2 }}>📍 {pin.locName}</div>
-                <div style={{ fontSize: 11, color: '#71717A', marginBottom: 6 }}>
-                  {fmtDate(pin.recentDate)} · {daysAgoLabel(pin.recentDate)}
-                </div>
-                <div style={{ display: 'inline-block', background: bg, color: text, padding: '1px 7px', borderRadius: 8, fontSize: 10, fontWeight: 600, marginBottom: 8 }}>
-                  {tierLabel}
-                </div>
-                <div style={{ fontSize: 11, color: '#71717A', marginBottom: validSubId ? 8 : 0 }}>
-                  {pin.checklistCount} checklist{pin.checklistCount !== 1 ? 's' : ''}
-                </div>
-                {validSubId && (
-                  <>
-                    <div style={{ borderTop: '1px solid #E4E4E7', marginBottom: 6 }} />
-                    <a
-                      href={`https://ebird.org/checklist/${pin.subId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ fontSize: 12, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}
-                    >
-                      View checklist {pin.subId} →
-                    </a>
-                  </>
-                )}
+              <div style={{ minWidth: 200, maxWidth: 260 }}>
+                <div style={{ fontSize: 11, color: '#71717A', marginBottom: 8 }}>📍 {rep.locName}</div>
+                {group.map((pin, j) => {
+                  const pinTier = recencyTier(pin.recentDate)
+                  const { bg: pinBg, text: pinText } = tierColors(pinTier)
+                  const tierLabel = pinTier === 'fresh' ? '≤7 days' : pinTier === 'mid' ? '8–15 days' : '16–30 days'
+                  const validSubId = /^S\d+$/.test(pin.subId ?? '')
+                  return (
+                    <div key={pin.speciesCode} style={{ paddingTop: j > 0 ? 8 : 0, marginTop: j > 0 ? 8 : 0, borderTop: j > 0 ? '1px solid #E4E4E7' : 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: 12, color: '#0F1117' }}>{pin.comName}</span>
+                        {pin.missingTypes.map(t => (
+                          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 4px', background: 'var(--sr-surface-subtle)', borderRadius: 4, fontSize: 10, color: 'var(--sr-text-muted)', gap: 2 }}>
+                            {t === 'Photo' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>}
+                            {t === 'Audio' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>}
+                            {t === 'Video' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>}
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: validSubId ? 4 : 0 }}>
+                        <span style={{ display: 'inline-block', background: pinBg, color: pinText, padding: '1px 6px', borderRadius: 6, fontSize: 10, fontWeight: 600 }}>{tierLabel}</span>
+                        <span style={{ fontSize: 10, color: '#71717A' }}>{fmtDate(pin.recentDate)}</span>
+                      </div>
+                      {validSubId && (
+                        <a href={`https://ebird.org/checklist/${pin.subId}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}>
+                          View checklist {pin.subId} →
+                        </a>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </Popup>
           </Marker>
@@ -555,7 +582,7 @@ function DefaultCenterSetter({ center, onDone }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
+export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplorerProps) {
   const [phase, setPhase] = useState<MapPhase>({ tag: 'loading-saved' })
   const [viewMode, setViewMode] = useState<ViewMode>('sightings')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('pins')
@@ -671,12 +698,18 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
   // Pre-fetch taxonomy codes for target species once data is loaded
   const fetchTargetCodes = useCallback(async (observations: ObservationEntry[], mlRows: MLExportRow[]) => {
     try {
-      const mlSpecies = new Set(mlRows.map(r => r.commonName))
+      const mediaTypesMap = new Map<string, Set<'Photo' | 'Audio' | 'Video'>>()
+      for (const row of mlRows) {
+        let s = mediaTypesMap.get(row.commonName)
+        if (!s) { s = new Set(); mediaTypesMap.set(row.commonName, s) }
+        s.add(row.format)
+      }
       const targetMap = new Map<string, string>()
       for (const o of observations) {
-        if (!mlSpecies.has(o.commonName) && !targetMap.has(o.commonName)) {
-          targetMap.set(o.commonName, o.scientificName)
-        }
+        if (targetMap.has(o.commonName)) continue
+        const types = mediaTypesMap.get(o.commonName)
+        const hasAll = types?.has('Photo') && types?.has('Audio') && types?.has('Video')
+        if (!hasAll) targetMap.set(o.commonName, o.scientificName)
       }
       if (targetMap.size === 0) return
 
@@ -765,16 +798,16 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
   }, [phase])
 
   const targetSpecies = useMemo((): { commonName: string; scientificName: string }[] => {
-    if (phase.tag !== 'ready') return []
-    const mlSpecies = new Set(phase.mlRows.map(r => r.commonName))
+    if (phase.tag !== 'ready' || !phase.hasML) return []
     const seen = new Map<string, string>()
     for (const o of phase.observations) {
-      if (!mlSpecies.has(o.commonName) && !seen.has(o.commonName)) {
-        seen.set(o.commonName, o.scientificName)
-      }
+      if (seen.has(o.commonName)) continue
+      const types = mediaTypes.get(o.commonName)
+      const hasAll = types?.has('Photo') && types?.has('Audio') && types?.has('Video')
+      if (!hasAll) seen.set(o.commonName, o.scientificName)
     }
     return [...seen.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
-  }, [phase])
+  }, [phase, mediaTypes])
 
   const visitedLocIds = useMemo((): Set<string> => {
     if (phase.tag !== 'ready') return new Set()
@@ -800,15 +833,20 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
     return allSpecies.filter(s => s.toLowerCase().includes(q))
   }, [allSpecies, targetSearch])
 
-  const displayedTargetPins = useMemo((): TargetPin[] => {
+  const displayedTargetPins = useMemo((): DisplayTargetPin[] => {
     if (!targetPins) return []
-    if (targetViewMode === 'all') return targetPins
+    const ALL_TYPES: ('Photo' | 'Audio' | 'Video')[] = ['Photo', 'Audio', 'Video']
+    const withMissing = targetPins.map(pin => ({
+      ...pin,
+      missingTypes: ALL_TYPES.filter(t => !mediaTypes.get(pin.comName)?.has(t)),
+    }))
+    if (targetViewMode === 'all') return withMissing
     const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0, 0, 0, 0)
-    return targetPins.filter(pin => {
+    return withMissing.filter(pin => {
       const [y, m, d] = pin.recentDate.split(' ')[0].split('-').map(Number)
       return new Date(y, m - 1, d) >= cutoff
     })
-  }, [targetPins, targetViewMode])
+  }, [targetPins, targetViewMode, mediaTypes])
 
   const nearest10 = useMemo(() => {
     const latNum = parseFloat(lat)
@@ -1195,9 +1233,19 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
             <div style={{ padding: '10px 12px', background: 'var(--sr-surface-subtle)', borderRadius: 8, border: '1px solid var(--sr-border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sr-map-target)', flexShrink: 0 }} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--sr-text)' }}>{targetSpecies.length} target species</span>
+                <button
+                  onClick={onNavigateToMediaList}
+                  style={{
+                    fontSize: 14, fontWeight: 700, color: 'var(--sr-accent)',
+                    background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                    fontFamily: 'inherit', textDecoration: 'underline',
+                    textDecorationColor: 'rgba(45,134,83,0.4)',
+                  }}
+                >
+                  {targetSpecies.length} target species
+                </button>
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--sr-text-muted)', marginLeft: 15 }}>from ML export · no media recorded</div>
+              <div style={{ fontSize: 11.5, color: 'var(--sr-text-muted)', marginLeft: 15 }}>from ML export · missing ≥1 media type</div>
             </div>
           )}
         </div>

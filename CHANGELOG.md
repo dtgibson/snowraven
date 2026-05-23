@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.2.0] - 2026-05-23
+
+### Added
+- **Media List — "Is Target" filter pill** — new pill immediately after "Has media" in the filter bar. Shows every species missing at least one of Photo, Audio, or Video. Combines with all other pills using AND logic. "All" resets it along with all other filters.
+- **Map Explorer — per-species missing-type icons on target pins** — each pin label now shows small 10px SVG icons (camera, mic, video camera) for the media types that species is still missing. Icons use `currentColor` and appear to the right of the species name. Multi-species location groups show "N species" with a popup listing each species and its missing types.
+- **Map Explorer — expanded targeting model** — a species is now a target if it is missing at least one of Photo, Audio, or Video (previously: zero ML entries only). Partial-coverage species (e.g., has photos, no audio) now appear as targets on the map and in the "Is Target" pill.
+- **Map Explorer → Media List cross-tab navigation** — "N target species" in the Media Targets sidebar is now a clickable link. Clicking it switches to the Media List tab with "Is Target" pre-applied. Filter resets when navigating away so returning to the tab does not re-apply it.
+- **Map Explorer — updated sidebar label** — sub-label beneath the target count now reads "from ML export · missing ≥1 media type" (was "no media recorded").
+- **Design tokens** — added `--sr-is-target-bg`, `--sr-is-target-text`, `--sr-is-target-border` in both light and dark themes for the amber "Is Target" pill styling.
+
 ## [0.1.2] - 2026-05-23
 
 ### Improved

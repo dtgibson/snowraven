@@ -41,6 +41,14 @@ export default function App() {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
+  const [mediaListFilter, setMediaListFilter] = useState<'is-target' | undefined>(undefined)
+
+  const navigateToMediaList = useCallback(() => {
+    setActiveTab('life-list')
+    setMediaListFilter('is-target')
+  }, [])
+
+  const resetMediaListFilter = useCallback(() => setMediaListFilter(undefined), [])
 
   const fetchKeyStatus = useCallback(async () => {
     try {
@@ -534,7 +542,11 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <LifeList onGoToSettings={() => setActiveTab('settings')} />
+        <LifeList
+          onGoToSettings={() => setActiveTab('settings')}
+          requestedFilter={mediaListFilter}
+          onRequestedFilterConsumed={resetMediaListFilter}
+        />
       </div>
 
       {/* Breeding Codes tab content */}
@@ -573,7 +585,7 @@ export default function App() {
           overflow: 'hidden',
         }}
       >
-        <MapExplorer onGoToSettings={() => setActiveTab('settings')} />
+        <MapExplorer onGoToSettings={() => setActiveTab('settings')} onNavigateToMediaList={navigateToMediaList} />
       </div>
 
       {/* Settings tab content */}

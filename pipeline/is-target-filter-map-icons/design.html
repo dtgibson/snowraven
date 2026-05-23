@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Is Target Filter & Map Icons — Design Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-text: #0F1117;
+    --sr-text-muted: #71717A;
+    --sr-border: #E4E4E7;
+    --sr-accent: #2D8653;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(45,134,83,0.25);
+    --sr-accent-border-strong: rgba(45,134,83,0.7);
+    --sr-map-target: #7C3AED;
+    --sr-map-target-fresh: #2D8653;
+    --sr-map-target-mid: #5EA07C;
+    --sr-map-target-old: #A8D4BB;
+    --sr-map-target-old-text: #1A5C38;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-graph-photo: #3B82F6;
+    --sr-graph-audio: #F59E0B;
+    --sr-graph-video: #8B5CF6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Inter, system-ui, sans-serif;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    min-height: 100vh;
+    padding: 40px 24px 80px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .page-header {
+    max-width: 900px;
+    margin: 0 auto 48px;
+  }
+
+  .page-header h1 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sr-accent);
+    margin-bottom: 8px;
+  }
+
+  .page-header h2 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--sr-text);
+    margin-bottom: 6px;
+  }
+
+  .page-header p {
+    color: var(--sr-text-muted);
+    font-size: 14px;
+  }
+
+  .section {
+    max-width: 900px;
+    margin: 0 auto 56px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--sr-text-muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--sr-border);
+  }
+
+  .card {
+    background: var(--sr-surface);
+    border: 1px solid var(--sr-border);
+    border-radius: 10px;
+    box-shadow: var(--sr-card-shadow);
+    overflow: hidden;
+  }
+
+  /* ── Filter pills ──────────────────────────────────────── */
+
+  .filter-bar {
+    padding: 14px 16px 12px;
+    border-bottom: 1px solid var(--sr-border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.12s;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  .pill-none {
+    background: var(--sr-surface-subtle);
+    color: var(--sr-text-muted);
+    border-color: var(--sr-border);
+  }
+
+  .pill-none:hover {
+    background: var(--sr-accent-bg);
+    color: var(--sr-accent);
+    border-color: var(--sr-accent-border);
+  }
+
+  .pill-positive {
+    background: var(--sr-accent-bg);
+    color: var(--sr-accent);
+    border-color: var(--sr-accent-border-strong);
+    font-weight: 600;
+  }
+
+  .pill-negative {
+    background: #FEF2F2;
+    color: #DC2626;
+    border-color: #FECACA;
+    font-weight: 600;
+  }
+
+  .pill-sep {
+    width: 1px;
+    height: 16px;
+    background: var(--sr-border);
+    flex-shrink: 0;
+    margin: 0 2px;
+  }
+
+  /* "Is Target" pill — distinct orange/amber to signal targeting intent */
+  .pill-target {
+    background: #FFF7ED;
+    color: #C2410C;
+    border-color: rgba(194,65,12,0.35);
+    font-weight: 600;
+  }
+
+  /* ── Table ──────────────────────────────────────────────── */
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    text-align: left;
+    padding: 9px 14px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--sr-text-muted);
+    background: var(--sr-surface-subtle);
+    border-bottom: 1px solid var(--sr-border);
+    white-space: nowrap;
+  }
+
+  thead th.col-num {
+    text-align: right;
+    border-left: 1px solid var(--sr-border);
+    color: var(--sr-accent);
+  }
+
+  tbody tr {
+    border-bottom: 1px solid var(--sr-border);
+  }
+
+  tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: var(--sr-surface-subtle);
+  }
+
+  td {
+    padding: 9px 14px;
+    color: var(--sr-text);
+  }
+
+  td.col-num {
+    text-align: right;
+    border-left: 1px solid var(--sr-border);
+    font-variant-numeric: tabular-nums;
+  }
+
+  td.col-num .count-link {
+    color: var(--sr-accent);
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  td.col-num .dash {
+    color: var(--sr-text-muted);
+  }
+
+  .species-name {
+    font-weight: 500;
+  }
+
+  .target-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 6px;
+    padding: 1px 6px;
+    background: #FFF7ED;
+    color: #C2410C;
+    border: 1px solid rgba(194,65,12,0.25);
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+
+  .count-bar {
+    padding: 8px 14px;
+    background: var(--sr-surface-subtle);
+    border-top: 1px solid var(--sr-border);
+    font-size: 11.5px;
+    color: var(--sr-text-muted);
+  }
+
+  /* ── Map pins ──────────────────────────────────────────── */
+
+  .map-demo {
+    padding: 28px 24px;
+    background: #e8ece6;
+    border-radius: 10px;
+    position: relative;
+    min-height: 280px;
+    overflow: hidden;
+  }
+
+  /* subtle topo-like pattern */
+  .map-demo::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(45,134,83,0.06) 0%, transparent 50%),
+      radial-gradient(circle at 75% 65%, rgba(92,107,129,0.07) 0%, transparent 40%),
+      linear-gradient(135deg, #e8ece6 0%, #dde4d8 100%);
+    pointer-events: none;
+  }
+
+  .map-demo-label {
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #5a6859;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .map-pins-group {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: relative;
+    z-index: 1;
+    padding-top: 16px;
+  }
+
+  .pin-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .pin-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    font-family: Inter, system-ui, sans-serif;
+    border: 1.5px solid rgba(255,255,255,0.85);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 0 1px rgba(0,0,0,0.1);
+    line-height: 1;
+  }
+
+  .pin-label-fresh {
+    background: var(--sr-map-target-fresh);
+    color: white;
+  }
+
+  .pin-label-mid {
+    background: var(--sr-map-target-mid);
+    color: white;
+  }
+
+  .pin-label-old {
+    background: var(--sr-map-target-old);
+    color: var(--sr-map-target-old-text);
+  }
+
+  .pin-icons {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: 2px;
+  }
+
+  .pin-icon {
+    opacity: 0.92;
+  }
+
+  .pin-note {
+    font-size: 11.5px;
+    color: #5a6859;
+    font-style: italic;
+  }
+
+  /* ── Sidebar target count ──────────────────────────────── */
+
+  .sidebar-demo {
+    background: var(--sr-surface);
+    border: 1px solid var(--sr-border);
+    border-radius: 10px;
+    padding: 20px 18px;
+    max-width: 268px;
+  }
+
+  .sidebar-section-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sr-text-muted);
+    margin-bottom: 8px;
+  }
+
+  .target-count-card {
+    padding: 10px 12px;
+    background: var(--sr-surface-subtle);
+    border-radius: 8px;
+    border: 1px solid var(--sr-border);
+  }
+
+  .target-count-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 3px;
+  }
+
+  .target-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sr-map-target);
+    flex-shrink: 0;
+  }
+
+  .target-count-link {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--sr-accent);
+    text-decoration: underline;
+    text-decoration-color: rgba(45,134,83,0.4);
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .target-count-link:hover {
+    text-decoration-color: var(--sr-accent);
+  }
+
+  .target-count-sub {
+    font-size: 11.5px;
+    color: var(--sr-text-muted);
+    margin-left: 15px;
+  }
+
+  .find-btn {
+    width: 100%;
+    margin-top: 14px;
+    padding: 8px 0;
+    background: var(--sr-accent);
+    color: white;
+    border: none;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .find-btn:hover {
+    background: #1A5C38;
+  }
+
+  /* ── Annotation callouts ─────────────────────────────────── */
+
+  .annotation {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #FFFBF0;
+    border: 1px solid #FDE68A;
+    border-radius: 7px;
+    font-size: 11.5px;
+    color: #78350F;
+  }
+
+  .annotation-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #F59E0B;
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  @media (max-width: 600px) {
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>SnowRaven · Session 1 Design</h1>
+  <h2>Is Target Filter &amp; Map Icons</h2>
+  <p>Three UI moments: a new filter pill in the Media List, per-species missing-type icons on target map pins, and a cross-tab navigation link on the target count.</p>
+</div>
+
+<!-- ── Section 1: Is Target filter pill ──────────────────────────── -->
+<div class="section">
+  <div class="section-label">1 — Media List · Is Target filter pill</div>
+
+  <div class="card">
+    <!-- Filter bar -->
+    <div class="filter-bar">
+      <button class="pill pill-none">All</button>
+      <button class="pill pill-none">Has media</button>
+      <!-- NEW PILL -->
+      <button class="pill pill-target">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+        </svg>
+        Is Target
+      </button>
+
+      <div class="pill-sep"></div>
+
+      <button class="pill pill-none">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        No photo
+      </button>
+      <button class="pill pill-none">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        No audio
+      </button>
+      <button class="pill pill-none">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+        No video
+      </button>
+
+      <div class="pill-sep"></div>
+
+      <button class="pill pill-none">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        Has photo
+      </button>
+      <button class="pill pill-none">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+        Has audio
+      </button>
+      <button class="pill pill-none">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+        Has video
+      </button>
+    </div>
+
+    <!-- Table showing filtered "Is Target" rows -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="padding-left:14px;width:56px">Entries</th>
+            <th>Species</th>
+            <th class="col-num">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:3px;vertical-align:middle"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              Photo
+            </th>
+            <th class="col-num">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:3px;vertical-align:middle"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+              Audio
+            </th>
+            <th class="col-num">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;margin-right:3px;vertical-align:middle"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+              Video
+            </th>
+            <th class="col-num">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color:var(--sr-text-muted);font-size:12px">7</td>
+            <td><span class="species-name">Yellow Warbler</span></td>
+            <td class="col-num"><a class="count-link">3</a></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><a class="count-link">3</a></td>
+          </tr>
+          <tr>
+            <td style="color:var(--sr-text-muted);font-size:12px">12</td>
+            <td><span class="species-name">Sora</span></td>
+            <td class="col-num"><a class="count-link">5</a></td>
+            <td class="col-num"><a class="count-link">2</a></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><a class="count-link">7</a></td>
+          </tr>
+          <tr>
+            <td style="color:var(--sr-text-muted);font-size:12px">3</td>
+            <td><span class="species-name">Least Bittern</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+          </tr>
+          <tr>
+            <td style="color:var(--sr-text-muted);font-size:12px">18</td>
+            <td><span class="species-name">Virginia Rail</span></td>
+            <td class="col-num"><a class="count-link">9</a></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><a class="count-link">9</a></td>
+          </tr>
+          <tr>
+            <td style="color:var(--sr-text-muted);font-size:12px">5</td>
+            <td><span class="species-name">King Rail</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+            <td class="col-num"><span class="dash">—</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="count-bar">5 of 312 species · Is Target filter active</div>
+  </div>
+
+  <div class="annotation">
+    <div class="annotation-dot"></div>
+    <div>"Is Target" uses an amber/orange tone to distinguish it from the positive green pills ("Has media," "Has photo") and the negative red pills ("No photo"). It's a targeting concept, not just a positive/negative filter. Clicking "All" resets it.</div>
+  </div>
+</div>
+
+
+<!-- ── Section 2: Map target pin icons ──────────────────────────── -->
+<div class="section">
+  <div class="section-label">2 — Map Explorer · target pin labels with missing-type icons</div>
+
+  <div class="map-demo">
+    <div class="map-demo-label">Media Targets · Last 30 Days</div>
+
+    <div class="map-pins-group" style="padding: 36px 24px 16px;">
+
+      <!-- Pin: has photos only → needs audio + video -->
+      <div class="pin-row">
+        <div class="pin-label pin-label-fresh">
+          Yellow Warbler
+          <span class="pin-icons">
+            <!-- Mic — missing audio -->
+            <svg class="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            <!-- Video — missing video -->
+            <svg class="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+          </span>
+        </div>
+        <span class="pin-note">Has photo · needs audio + video</span>
+      </div>
+
+      <!-- Pin: has audio only → needs photo + video -->
+      <div class="pin-row">
+        <div class="pin-label pin-label-mid">
+          Virginia Rail
+          <span class="pin-icons">
+            <!-- Camera — missing photo -->
+            <svg class="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            <!-- Video — missing video -->
+            <svg class="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+          </span>
+        </div>
+        <span class="pin-note">Has audio · needs photo + video</span>
+      </div>
+
+      <!-- Pin: no ML entries → needs all three -->
+      <div class="pin-row">
+        <div class="pin-label pin-label-old">
+          Least Bittern
+          <span class="pin-icons">
+            <!-- Camera — missing photo -->
+            <svg class="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+            <!-- Mic — missing audio -->
+            <svg class="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            <!-- Video — missing video -->
+            <svg class="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>
+          </span>
+        </div>
+        <span class="pin-note">No ML entries · needs all three</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="annotation">
+    <div class="annotation-dot"></div>
+    <div>Icons show only what's <em>missing</em> — never what the user already has. Camera = no photo, mic = no audio, video camera = no video. Icons are 10px SVGs using <code>stroke="currentColor"</code>, inheriting the pill's text color. Appears to the right of the name on the same line.</div>
+  </div>
+</div>
+
+
+<!-- ── Section 3: Sidebar target count link ─────────────────────── -->
+<div class="section">
+  <div class="section-label">3 — Map Explorer sidebar · target count as navigation link</div>
+
+  <div class="two-col">
+    <div>
+      <div class="sidebar-demo">
+        <div class="sidebar-section-label">Target Species</div>
+
+        <div class="target-count-card">
+          <div class="target-count-row">
+            <div class="target-dot"></div>
+            <a class="target-count-link">42 target species</a>
+          </div>
+          <div class="target-count-sub">from ML export · missing ≥1 media type</div>
+        </div>
+
+        <button class="find-btn">Find Targets Near Here</button>
+      </div>
+
+      <div class="annotation" style="max-width:268px">
+        <div class="annotation-dot"></div>
+        <div>Clicking "42 target species" navigates to the Media List tab with "Is Target" pre-applied. Underlined green link — familiar affordance, no need for an external-link icon since it stays in-app.</div>
+      </div>
+    </div>
+
+    <div>
+      <div style="padding: 16px; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 10px; box-shadow: var(--sr-card-shadow);">
+        <div style="font-size:12px; font-weight:600; color:var(--sr-text-muted); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.07em;">What changes vs. today</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--sr-text)">
+            <span style="color:#DC2626;font-weight:700;flex-shrink:0">Before</span>
+            <span>"117 target species" — plain text, no action</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--sr-text)">
+            <span style="color:var(--sr-accent);font-weight:700;flex-shrink:0">After</span>
+            <span>"<span style="color:var(--sr-accent);text-decoration:underline;text-decoration-color:rgba(45,134,83,0.4);cursor:pointer">117 target species</span>" — clicking opens Media List with Is Target active</span>
+          </div>
+          <div style="height:1px;background:var(--sr-border)"></div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--sr-text)">
+            <span style="color:#DC2626;font-weight:700;flex-shrink:0">Before</span>
+            <span>Sub-label: "from ML export · no media recorded"</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--sr-text)">
+            <span style="color:var(--sr-accent);font-weight:700;flex-shrink:0">After</span>
+            <span>Sub-label: "from ML export · missing ≥1 media type"</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

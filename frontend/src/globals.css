@@ -41,6 +41,11 @@
   --sr-warning-bg: #FFFBEB;
   --sr-warning-subtle: #FDE68A;
 
+  /* Is Target (amber) */
+  --sr-is-target-bg: #FFF7ED;
+  --sr-is-target-text: #C2410C;
+  --sr-is-target-border: rgba(194,65,12,0.35);
+
   /* Breeding code tiers */
   --sr-tier-4: #3B0764;
   --sr-tier-3: #6B21A8;
@@ -114,6 +119,11 @@
   --sr-warning: #FDE68A;
   --sr-warning-bg: #1C1002;
   --sr-warning-subtle: #78350F;
+
+  /* Is Target (amber) */
+  --sr-is-target-bg: #1C0F00;
+  --sr-is-target-text: #FB923C;
+  --sr-is-target-border: rgba(251,146,60,0.3);
 
   /* Breeding code tiers — lightened for dark backgrounds */
   --sr-tier-4: #6B21A8;

@@ -150,7 +150,11 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function LifeList({ onGoToSettings }: { onGoToSettings: () => void }) {
+export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterConsumed }: {
+  onGoToSettings: () => void
+  requestedFilter?: 'is-target'
+  onRequestedFilterConsumed?: () => void
+}) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<MediaFilterState>(MEDIA_FILTER_CLEAR)
   const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
@@ -165,9 +169,17 @@ export function LifeList({ onGoToSettings }: { onGoToSettings: () => void }) {
   const [showSpuh, setShowSpuh] = useState(false)
   const [showNonBird, setShowNonBird] = useState(false)
   const [filterHasMedia, setFilterHasMedia] = useState(false)
+  const [filterIsTarget, setFilterIsTarget] = useState(false)
   const [countyResolution, setCountyResolution] = useState<'idle' | 'resolving' | 'done'>('idle')
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
+
+  useEffect(() => {
+    if (requestedFilter === 'is-target') {
+      setFilterIsTarget(true)
+      onRequestedFilterConsumed?.()
+    }
+  }, [requestedFilter, onRequestedFilterConsumed])
 
   const fetchTaxonCodes = async (entries: LifeListEntry[]) => {
     try {
@@ -435,9 +447,18 @@ export function LifeList({ onGoToSettings }: { onGoToSettings: () => void }) {
     ? displayEntries.filter(e => e.catalogIds.some(id => mediaMap[id] === 'Photo' || mediaMap[id] === 'Audio' || mediaMap[id] === 'Video'))
     : displayEntries
 
-  const isFilterClear = !filter.photo && !filter.audio && !filter.video && !filterHasMedia
+  const isTargetFilteredEntries = filterIsTarget
+    ? mediaFilteredEntries.filter(e => {
+        const photo = e.catalogIds.some(id => mediaMap[id] === 'Photo')
+        const audio = e.catalogIds.some(id => mediaMap[id] === 'Audio')
+        const video = e.catalogIds.some(id => mediaMap[id] === 'Video')
+        return !photo || !audio || !video
+      })
+    : mediaFilteredEntries
 
-  const filteredCount = mediaFilteredEntries.filter(entry => {
+  const isFilterClear = !filter.photo && !filter.audio && !filter.video && !filterHasMedia && !filterIsTarget
+
+  const filteredCount = isTargetFilteredEntries.filter(entry => {
     const photo = entry.catalogIds.some(id => mediaMap[id] === 'Photo')
     const audio = entry.catalogIds.some(id => mediaMap[id] === 'Audio')
     const video = entry.catalogIds.some(id => mediaMap[id] === 'Video')
@@ -519,8 +540,19 @@ export function LifeList({ onGoToSettings }: { onGoToSettings: () => void }) {
       }}>
         {/* Filter pills */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false) }}>All</button>
+          <button style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false) }}>All</button>
           <button style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</button>
+          <button
+            style={filterIsTarget ? {
+              ...pillStyle('none'),
+              background: 'var(--sr-is-target-bg)', color: 'var(--sr-is-target-text)',
+              border: '1.5px solid var(--sr-is-target-border)', fontWeight: 600,
+            } : pillStyle('none')}
+            onClick={() => setFilterIsTarget(v => !v)}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+            Is Target
+          </button>
 
           <div style={pillSep} />
 
@@ -706,7 +738,7 @@ export function LifeList({ onGoToSettings }: { onGoToSettings: () => void }) {
       )}
 
       <LifeListTable
-        entries={mediaFilteredEntries}
+        entries={isTargetFilteredEntries}
         mediaMap={mediaMap}
         filter={filter}
         sort={sort}
