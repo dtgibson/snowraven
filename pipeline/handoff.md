@@ -1,43 +1,52 @@
-# Pipeline Handoff — map-explorer-enhancements (complete)
+# Pipeline Handoff — mobile-map-explorer (complete)
 
 ## What was built
 
-Five enhancements to the Map Explorer tab, shipped as v0.0.44.
+Two improvements to the Map Explorer tab, shipped together as v0.1.0:
 
-**Address geocoding** — both Hotspots and Media Targets sidebars now have a "Search by place name" input that resolves addresses via Nominatim, populates the lat/lng fields, and immediately triggers a fetch. New `GET /nominatim/search` backend endpoint shares the existing rate lock and User-Agent.
+**1. Mobile Map Explorer**
+On viewports ≤640px the map now fills the full screen. A green "Filters" pill button floats in the bottom-right corner. Tapping it opens the existing filter sidebar as a full-height overlay with a dark semi-transparent backdrop. The sidebar has a "Map Filters" header with a close button. Tapping the backdrop or the close button dismisses the sidebar and restores the map. Desktop layout (>640px) is pixel-identical to before — no sidebar changes, no floating button, no backdrop.
 
-**Hotspot legend toggles** — each legend row (Visited, Unvisited, Personal) is a clickable button. Clicking hides that pin category at 40% opacity; clicking again restores it. All categories reset to visible on each new fetch. `hiddenKinds` Set state in the component.
+**2. Default Location in Settings**
+A new "Default Location" section at the bottom of the Settings tab lets users save a home latitude, longitude, and radius. The values persist server-side as `data/map-defaults.json`. When the Map Explorer tab opens, it fetches these defaults and pre-fills the coordinate fields in all three map modes (My Sightings, Hotspots, Media Targets). A Clear button removes the saved defaults.
 
-**Media Targets recency tiers** — pins are now color-coded by three green shades: fresh (≤7 days, `--sr-map-target-fresh`), mid (8–15 days, `--sr-map-target-mid`), old (16–30 days, `--sr-map-target-old`). The eBird `back` parameter was extended from 14 to 30 days. Pins older than 30 days are excluded by the API.
-
-**Last 30 Days / Last Week toggle** — segmented control in the Media Targets sidebar filters pins client-side with no network call. "Last Week" shows all pins where `recentDate` is within 7 days (not one-per-species deduplication — all qualifying locations shown).
-
-**Checklist link in popup** — each target pin popup shows "View checklist {subId} →" when `subId` matches `/^S\d+$/`. The backend now captures `subId` from the most-recent observation in each `(speciesCode, locId)` group.
-
-**Nearest-10 sidebar list** — ranked by haversine distance (reusing the existing `distanceMiles()` helper). Each row: tier dot, species name, location name, distance in miles. Clicking a row sets `panTarget` state; `MapPanner` child inside `MapContainer` calls `map.panTo()`.
+---
 
 ## Artifacts produced
 
-**Session 1 (planning):**
-- `pipeline/map-explorer-enhancements/strategic-brief.md`
-- `pipeline/map-explorer-enhancements/prd.md`
-- `pipeline/map-explorer-enhancements/schema.md`
-- `pipeline/map-explorer-enhancements/design-spec.md`
-- `pipeline/map-explorer-enhancements/design.html`
+### Session 1 (planning)
+- `pipeline/mobile-map-explorer/strategic-brief.md`
+- `pipeline/mobile-map-explorer/prd.md`
+- `pipeline/mobile-map-explorer/schema.md`
+- `pipeline/mobile-map-explorer/design-spec.md`
+- `pipeline/mobile-map-explorer/design.html`
 
-**Session 2 (implementation):**
-- `backend/routers/map.py` — `back=30`, `subId` capture
-- `backend/routers/nominatim.py` — `GET /nominatim/search` endpoint
-- `frontend/src/globals.css` — four new `--sr-map-target-*` tokens
-- `frontend/src/components/MapExplorer.tsx` — all frontend changes
-- `CHANGELOG.md` — v0.0.44 entry
-- `PRODUCT_CONTEXT.md` — Map Explorer section updated
-- `DECISIONS.md` — five new decision entries
+### Session 2 (implementation)
+- `backend/routers/mapdefaults.py` — new file; GET/POST/DELETE endpoints with Pydantic validation
+- `backend/tests/test_mapdefaults_router.py` — 11 tests; all passing
+- `backend/main.py` — two new lines to register mapdefaults router
+- `frontend/src/globals.css` — five new CSS classes for mobile overlay layout
+- `frontend/src/components/Settings.tsx` — Default Location section with save/clear/confirmation
+- `frontend/src/components/MapExplorer.tsx` — sidebarOpen state, defaults fetch on mount, mobile overlay layout
+- `CHANGELOG.md` — v0.1.0 entry
+- `frontend/package.json` — version bumped to 0.1.0
+- `PRODUCT_CONTEXT.md` — Map Explorer section updated with mobile layout and default location details
+- `DECISIONS.md` — two new entries: CSS-only mobile breakpoints, data/map-defaults.json storage rationale
 
-## Feature status
+---
 
-Complete. v0.0.44 released on GitHub. All 189 tests pass (67 backend, 122 frontend).
+## Test results
+- pytest: 77/77 passed (11 new tests for mapdefaults router)
+- TypeScript build: clean
+- Endpoint smoke tests: GET 404 → POST → GET 200 → DELETE → GET 404 all correct
+- Security: no findings
 
-## Starting the next feature
+## Deployment
+- Pushed to GitHub: commit `eb8a885`
+- GitHub release: v0.1.0
 
-Run `/new-feature` to begin the next pipeline session.
+---
+
+## This feature is complete
+
+To start the next feature, run `/new-feature`.

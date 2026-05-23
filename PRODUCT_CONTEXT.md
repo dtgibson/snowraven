@@ -445,6 +445,24 @@ An interactive map tab with three view modes for exploring birding locations: si
 - Each row: tier dot + species name + location + distance (1 decimal, " mi")
 - Clicking sets `panTarget` state; `MapPanner` child inside `MapContainer` calls `map.panTo()`
 
+**Mobile layout (≤640px):**
+- The 268px sidebar is hidden from the flex flow by default; map fills 100% width
+- A green "Filters" pill button (`sr-map-filters-btn`) floats at `bottom: 20px; right: 16px; z-index: 30` over the map
+- Tapping Filters sets `sidebarOpen: true`; sidebar gains class `sr-map-sidebar-overlay` (absolute, `width: min(282px, 90vw)`, `z-index: 50`)
+- A dark backdrop (`sr-map-backdrop`, `rgba(0,0,0,0.42)`, `z-index: 40`) appears behind the sidebar; tapping it calls `setSidebarOpen(false)`
+- Sidebar header shows "Map Filters" title + circular close button (`sr-map-sidebar-close`); close button calls `setSidebarOpen(false)` with `aria-label="Close filters"`
+- Filters button has `aria-label="Open map filters"` and is only rendered (not just hidden) when `!sidebarOpen`
+- All breakpoint logic is CSS-only (`@media (max-width: 640px)` in globals.css); no JS window-width checks
+- Desktop (>640px): `sr-map-sidebar-overlay` has no absolute positioning; sidebar stays in the flex row; Filters button is `display: none`; `sidebarOpen` is never true (no button to trigger it)
+
+**Default Location (Settings):**
+- `GET /settings/map-defaults` on MapExplorer mount; on 200, sets `lat`, `lng`, and `radius` state (shared by all three modes); on 404/error, no-op
+- Settings → Default Location section: lat/lng/dist inputs + Save + Clear + "✓ Saved" chip (2500ms auto-hide)
+- Save: `POST /settings/map-defaults {lat, lng, dist}`; validates in-range before calling API
+- Clear: `DELETE /settings/map-defaults`; resets inputs to blank; button disabled when no defaults are stored
+- Settings also fetches `GET /settings/map-defaults` on mount to pre-fill inputs if saved
+- Data stored in `data/map-defaults.json` (fixed filename, follows established `data/` pattern)
+
 **Sidebar (all modes):**
 - 268px fixed-width panel; tab-specific controls and a scrollable list of results
 - Legend section in Hotspots shows the three pin types with clickable toggle buttons
@@ -460,12 +478,16 @@ An interactive map tab with three view modes for exploring birding locations: si
 - MapContainer always rendered; `setup-required` state only replaces the sidebar content in My Sightings mode
 
 **Key files:**
-- `frontend/src/components/MapExplorer.tsx` — full tab component (~1200 lines); `VISITED_ICON`, `UNVISITED_ICON`, `PERSONAL_ICON` DivIcons at module level; `escHtml()` XSS guard; `AddressSearch`, `MapPanner`, `SightingMarkers`, `HotspotMarkers`, `TargetMarkers` sub-components
+- `frontend/src/components/MapExplorer.tsx` — full tab component; `sidebarOpen` state; `Filter`, `X` icons; defaults fetch on mount; mobile overlay layout in JSX
+- `frontend/src/components/Settings.tsx` — `MapDefaultsRow` state + handlers + Default Location section at bottom of return
+- `backend/routers/mapdefaults.py` — three `/settings/map-defaults` endpoints with Pydantic validation
 - `backend/routers/map.py` — two eBird proxy endpoints; `back=30` and `subId` capture
-- `backend/routers/nominatim.py` — `GET /nominatim/search` forward geocoding endpoint added
-- `frontend/src/globals.css` — eight map tokens: `--sr-map-visited/unvisited/personal/target` + `--sr-map-target-fresh/mid/old/old-text` (both themes)
-- `frontend/vite.config.ts` — `/map` and `/nominatim` proxies for dev server
-- `frontend/src/App.tsx` — `'map-explorer'` tab added
+- `backend/routers/nominatim.py` — `GET /nominatim/search` forward geocoding endpoint
+- `backend/tests/test_mapdefaults_router.py` — 11 tests covering GET/POST/DELETE, validation, overwrite, boundaries
+- `frontend/src/globals.css` — `.sr-map-content`, `.sr-map-sidebar-overlay`, `.sr-map-filters-btn`, `.sr-map-sidebar-close`, `.sr-map-backdrop` + mobile media query overrides; eight map color tokens
+- `data/map-defaults.json` — written by POST, deleted by DELETE; absent = no defaults saved
+- `frontend/vite.config.ts` — `/map` and `/nominatim` proxies; `/settings` already proxied, covers `/settings/map-defaults`
+- `frontend/src/App.tsx` — `'map-explorer'` tab
 
 ## Key Decisions
 

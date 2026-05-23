@@ -307,6 +307,22 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Implications:** The legacy `--sr-map-target` token remains unchanged (single-color purple, used for the legend color swatch). The three new tokens carry the recency tier semantics. Do not add purple variants for recency — if a new tier or threshold is added, use the existing green gradient family.
 
+## Map Explorer: mobile sidebar is a CSS-only overlay, not a JS-driven layout — 2026-05-22
+
+**Decision:** The mobile sidebar overlay is controlled entirely by CSS `@media (max-width: 640px)` classes (`sr-map-sidebar-overlay`, `sr-map-sidebar-hidden`, `sr-map-filters-btn`, `sr-map-sidebar-close`, `sr-map-backdrop`). React state (`sidebarOpen`) drives conditional rendering of the backdrop and Filters button, and adds/removes the `sr-map-sidebar-hidden` class. No JS `window.innerWidth` checks or resize listeners.
+
+**Rationale:** Consistent with the existing `.sr-two-col` and other responsive patterns in globals.css. CSS breakpoints are more reliable than JS window-size polling and avoid layout-shift during React hydration. The `sr-map-content` parent has `position: relative` so the absolute-positioned overlay and backdrop are scoped to the map panel, avoiding z-index conflicts with the app header and tab bar.
+
+**Implications:** The floating Filters button is `display: none` on desktop via CSS and is also conditionally rendered only when `!sidebarOpen` — double-gated so it can never appear on desktop. Any future responsive feature in MapExplorer should use the same CSS-class pattern rather than JS window checks. Do not add `window.addEventListener('resize', ...)` to MapExplorer.
+
+## Map Explorer: default location stored as data/map-defaults.json, not in Settings .env — 2026-05-22
+
+**Decision:** The saved map default location (`lat`, `lng`, `dist`) is stored as `data/map-defaults.json` (a fixed-filename JSON file), not in the `.env` file alongside API keys, and not in browser localStorage.
+
+**Rationale:** `.env` is for secrets (API keys). Map coordinates are not sensitive and shouldn't be mixed with credential storage. `localStorage` would be per-browser and would not survive clearing browser data or using a different browser. The `data/` fixed-filename pattern (established by `ebird-backup.csv`, `ml-export.csv`, `metadata.json`) keeps all persistent user data server-side in one place, consistent and backup-friendly.
+
+**Implications:** `GET /settings/map-defaults` returns 404 when no defaults are saved (file absent), not `null` in a 200 body — consistent with the existing file endpoint pattern. The 404 is the canonical signal for "no defaults stored." Do not change this to a 200 with null. MapExplorer and Settings both handle 404 as a no-op (leave inputs blank).
+
 ## Tab Filters: 3-tier county resolution for ML export — 2026-05-20
 
 **Decision:** ML export county resolution runs in three passes: (1) read the `County` column from the ML CSV if present; (2) cross-reference against the eBird backup by location name (using `rawRows` from `parseEbirdObservations`); (3) call `POST /nominatim/counties` with unresolved lat/lng pairs. Passes run in sequence; each row stops after the first pass that resolves it.
