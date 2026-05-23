@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Species Detail — Graph Options & Reported With</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-text: #0F1117;
+    --sr-text-muted: #71717A;
+    --sr-text-disabled: #A1A1AA;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-accent: #2D8653;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(45,134,83,0.25);
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 24px 16px 48px;
+  }
+
+  .page-header {
+    max-width: 780px;
+    margin: 0 auto 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .page-header .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--sr-text-disabled); }
+  .page-header .arrow { color: var(--sr-text-disabled); font-size: 12px; }
+  .page-header .species-name { font-size: 13px; font-weight: 600; color: var(--sr-text); }
+
+  .stack { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+
+  .card {
+    background: var(--sr-surface);
+    border: 1px solid var(--sr-border);
+    border-radius: 10px;
+    box-shadow: var(--sr-card-shadow);
+    overflow: hidden;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 12px 16px 10px;
+    border-bottom: 1px solid var(--sr-border-subtle);
+  }
+  .card-head svg { color: var(--sr-text-muted); flex-shrink: 0; }
+  .card-head .title { font-size: 12px; font-weight: 600; color: var(--sr-text); letter-spacing: .01em; }
+
+  .card-body { padding: 14px 16px; }
+
+  .seg-group {
+    display: inline-flex;
+    gap: 2px;
+    background: var(--sr-surface-subtle);
+    border-radius: 7px;
+    padding: 2px;
+  }
+  .seg-btn {
+    padding: 5px 13px;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all .14s;
+    background: transparent;
+    color: var(--sr-text-muted);
+  }
+  .seg-btn.active {
+    background: var(--sr-surface);
+    color: var(--sr-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .seg-btn:hover:not(.active) { color: var(--sr-text); }
+
+  .graph-options-body {
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .opt-group { display: flex; align-items: center; gap: 10px; }
+  .opt-label {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--sr-text-muted); white-space: nowrap;
+  }
+
+  .graph-area { padding: 4px 16px 16px; position: relative; }
+  .graph-sublabel { font-size: 11px; color: var(--sr-text-muted); margin-bottom: 10px; letter-spacing: .01em; }
+
+  .graph-svg { display: block; width: 100%; overflow: visible; }
+
+  /* Reported With */
+  .rw-list { list-style: none; }
+  .rw-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--sr-border-subtle);
+  }
+  .rw-row:last-child { border-bottom: none; }
+  .rw-rank { width: 20px; text-align: right; font-size: 11px; color: var(--sr-text-disabled); flex-shrink: 0; }
+  .rw-name { flex: 1; font-size: 13px; font-weight: 500; color: var(--sr-text); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rw-bar-wrap { width: 100px; height: 5px; background: var(--sr-surface-subtle); border-radius: 3px; flex-shrink: 0; overflow: hidden; }
+  .rw-bar { height: 100%; border-radius: 3px; background: var(--sr-accent); opacity: .55; }
+  .rw-pct { font-size: 13px; font-weight: 600; color: var(--sr-accent); width: 38px; text-align: right; flex-shrink: 0; }
+  .rw-count { font-size: 11px; color: var(--sr-text-muted); width: 80px; text-align: right; flex-shrink: 0; }
+
+  .rw-expand-row { padding: 10px 0 2px; text-align: center; }
+  .rw-expand-btn {
+    background: none; border: none; font-size: 12px; font-weight: 500;
+    color: var(--sr-accent); cursor: pointer; font-family: inherit;
+    padding: 4px 8px; border-radius: 4px; transition: background .12s;
+  }
+  .rw-expand-btn:hover { background: var(--sr-accent-bg); }
+
+  .breeding-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; }
+  .tier-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .breeding-code-label { font-size: 12px; color: var(--sr-text-muted); }
+  .breeding-count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--sr-text); }
+
+  .new-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px; background: var(--sr-accent-bg);
+    border: 1px solid var(--sr-accent-border); border-radius: 4px;
+    font-size: 10px; font-weight: 700; color: var(--sr-accent);
+    text-transform: uppercase; letter-spacing: .06em; margin-left: 8px;
+  }
+
+  .section-divider {
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--sr-text-disabled);
+    padding: 8px 0 4px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--sr-border-subtle); }
+
+  .context-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; background: var(--sr-surface);
+    border: 1px solid var(--sr-border); border-radius: 20px;
+    font-size: 11px; color: var(--sr-text-muted); font-weight: 500;
+  }
+
+  .legend { display: flex; align-items: center; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--sr-text-muted); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .col-headers {
+    display: flex; align-items: center; gap: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--sr-border-subtle); margin-bottom: 2px;
+  }
+  .col-hdr { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--sr-text-disabled); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <span class="label">Species Detail</span>
+  <span class="arrow">›</span>
+  <span class="species-name">American Robin</span>
+  <span class="context-chip">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+    All years · All counties
+  </span>
+</div>
+
+<div class="stack">
+
+  <!-- ══ GRAPH OPTIONS ═══════════════════════════════════════════════════ -->
+  <div class="section-divider">Graphs <span class="new-badge">Updated</span></div>
+
+  <div class="card">
+    <div class="card-head">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+      </svg>
+      <span class="title">Graph Options</span>
+    </div>
+    <div class="graph-options-body">
+      <div class="opt-group">
+        <span class="opt-label">Interval</span>
+        <div class="seg-group" id="intervalGroup">
+          <button class="seg-btn active" onclick="setIntervalMode('yearly', this)">Yearly</button>
+          <button class="seg-btn" onclick="setIntervalMode('monthly', this)">Monthly</button>
+        </div>
+      </div>
+      <div class="opt-group">
+        <span class="opt-label">View</span>
+        <div class="seg-group" id="viewGroup">
+          <button class="seg-btn active" onclick="setViewMode('per-period', this)">Per Period</button>
+          <button class="seg-btn" onclick="setViewMode('cumulative', this)">Cumulative</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SIGHTINGS OVER TIME ══════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span class="title">Sightings Over Time</span>
+    </div>
+    <div class="graph-area">
+      <div class="graph-sublabel" id="sightingsLabel">Individuals per year</div>
+      <svg class="graph-svg" id="sightingsSvg" height="200" viewBox="0 0 748 200"></svg>
+    </div>
+  </div>
+
+  <!-- ══ MEDIA OVER TIME ══════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      <span class="title">Media Over Time</span>
+    </div>
+    <div class="graph-area">
+      <div class="graph-sublabel" id="mediaLabel">Items per year</div>
+      <svg class="graph-svg" id="mediaSvg" height="200" viewBox="0 0 748 200"></svg>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-dot" style="background:#3B82F6"></span> Photo</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#F59E0B"></span> Audio</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#8B5CF6"></span> Video</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ BREEDING CODES ═══════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+      <span class="title">Breeding Codes</span>
+    </div>
+    <div class="card-body">
+      <div class="breeding-row"><span class="tier-dot" style="background:#3B0764"></span><span class="breeding-code-label">NY — Nest with Young</span><span class="breeding-count">8</span></div>
+      <div class="breeding-row"><span class="tier-dot" style="background:#6B21A8"></span><span class="breeding-code-label">CF — Carrying Food</span><span class="breeding-count">14</span></div>
+      <div class="breeding-row"><span class="tier-dot" style="background:#9333EA"></span><span class="breeding-code-label">B — Nest Building</span><span class="breeding-count">6</span></div>
+    </div>
+  </div>
+
+  <!-- ══ REPORTED WITH (NEW) ══════════════════════════════════════════════ -->
+  <div class="section-divider">Co-occurrence <span class="new-badge">New</span></div>
+
+  <div class="card">
+    <div class="card-head">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <circle cx="9" cy="12" r="3"/><circle cx="17" cy="8" r="3"/><circle cx="17" cy="16" r="3"/>
+        <line x1="12" y1="12" x2="14" y2="9"/><line x1="12" y1="12" x2="14" y2="15"/>
+      </svg>
+      <span class="title">Reported With</span>
+      <span style="margin-left:auto; font-size:11px; color:var(--sr-text-disabled);">of 142 checklists</span>
+    </div>
+    <div class="card-body" style="padding-bottom: 6px;">
+      <div class="col-headers">
+        <span style="width:20px;flex-shrink:0;"></span>
+        <span class="col-hdr" style="flex:1;">Species</span>
+        <span class="col-hdr" style="width:100px;flex-shrink:0;"></span>
+        <span class="col-hdr" style="width:38px;text-align:right;flex-shrink:0;">Rate</span>
+        <span class="col-hdr" style="width:80px;text-align:right;flex-shrink:0;">Checklists</span>
+      </div>
+      <ul class="rw-list">
+        <li class="rw-row"><span class="rw-rank">1</span><span class="rw-name">European Starling</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:82%"></div></div><span class="rw-pct">82%</span><span class="rw-count">116 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">2</span><span class="rw-name">House Sparrow</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:74%"></div></div><span class="rw-pct">74%</span><span class="rw-count">105 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">3</span><span class="rw-name">Mourning Dove</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:68%"></div></div><span class="rw-pct">68%</span><span class="rw-count">97 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">4</span><span class="rw-name">Northern Cardinal</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:65%"></div></div><span class="rw-pct">65%</span><span class="rw-count">92 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">5</span><span class="rw-name">Song Sparrow</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:61%"></div></div><span class="rw-pct">61%</span><span class="rw-count">87 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">6</span><span class="rw-name">Common Grackle</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:58%"></div></div><span class="rw-pct">58%</span><span class="rw-count">82 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">7</span><span class="rw-name">Blue Jay</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:52%"></div></div><span class="rw-pct">52%</span><span class="rw-count">74 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">8</span><span class="rw-name">Red-winged Blackbird</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:48%"></div></div><span class="rw-pct">48%</span><span class="rw-count">68 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">9</span><span class="rw-name">Dark-eyed Junco</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:44%"></div></div><span class="rw-pct">44%</span><span class="rw-count">63 checklists</span></li>
+        <li class="rw-row"><span class="rw-rank">10</span><span class="rw-name">White-throated Sparrow</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:41%"></div></div><span class="rw-pct">41%</span><span class="rw-count">58 checklists</span></li>
+        <li class="rw-row rw-extra" style="display:none;"><span class="rw-rank">11</span><span class="rw-name">Downy Woodpecker</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:38%"></div></div><span class="rw-pct">38%</span><span class="rw-count">54 checklists</span></li>
+        <li class="rw-row rw-extra" style="display:none;"><span class="rw-rank">12</span><span class="rw-name">House Finch</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:35%"></div></div><span class="rw-pct">35%</span><span class="rw-count">50 checklists</span></li>
+        <li class="rw-row rw-extra" style="display:none;"><span class="rw-rank">13</span><span class="rw-name">American Crow</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:33%"></div></div><span class="rw-pct">33%</span><span class="rw-count">47 checklists</span></li>
+        <li class="rw-row rw-extra" style="display:none;"><span class="rw-rank">14</span><span class="rw-name">Chipping Sparrow</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:29%"></div></div><span class="rw-pct">29%</span><span class="rw-count">41 checklists</span></li>
+        <li class="rw-row rw-extra" style="display:none;"><span class="rw-rank">15</span><span class="rw-name">Gray Catbird</span><div class="rw-bar-wrap"><div class="rw-bar" style="width:26%"></div></div><span class="rw-pct">26%</span><span class="rw-count">37 checklists</span></li>
+      </ul>
+      <div class="rw-expand-row">
+        <button class="rw-expand-btn" id="expandBtn" onclick="toggleExpand()">Show all 15 species</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────
+
+// Yearly sightings 2018–2024
+const yearlyIndiv  = [28, 34, 22, 47, 56, 43, 51]
+const yearlyPhoto  = [8,  11, 7,  14, 18, 13, 16]
+const yearlyAudio  = [3,  4,  2,  6,  9,  5,  7]
+const yearlyVideo  = [1,  2,  1,  2,  3,  2,  3]
+const years = ['2018','2019','2020','2021','2022','2023','2024']
+
+// Monthly base pattern Jan–Dec (American Robin seasonal)
+const monthlyBase = [6, 9, 32, 50, 44, 36, 26, 20, 15, 22, 28, 10]
+const monthlyPhotoBase = [1,2,7,12,10,8,5,4,3,5,6,2]
+const monthlyAudioBase = [0,1,3,5,4,3,2,1,1,2,2,1]
+const monthlyVideoBase = [0,0,1,2,2,1,1,0,0,1,1,0]
+const yearScale = [0.75, 0.90, 0.62, 1.10, 1.30, 1.00, 1.18]
+
+// Generate all 84 monthly points with slight noise
+function seeded(i) { return ((i * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff }
+
+const monthlyIndiv = [], monthlyPhoto = [], monthlyAudio = [], monthlyVideo = []
+const monthlyKeys = []
+for (let y = 0; y < 7; y++) {
+  for (let m = 0; m < 12; m++) {
+    const i = y * 12 + m
+    const noise = (seeded(i * 3 + 1) - 0.5) * 6
+    monthlyIndiv.push(Math.max(0, Math.round(monthlyBase[m] * yearScale[y] + noise)))
+    monthlyPhoto.push(Math.max(0, Math.round(monthlyPhotoBase[m] * yearScale[y] + (seeded(i*3+2)-0.5)*3)))
+    monthlyAudio.push(Math.max(0, Math.round(monthlyAudioBase[m] * yearScale[y] + (seeded(i*3+3)-0.5)*2)))
+    monthlyVideo.push(Math.max(0, Math.round(monthlyVideoBase[m] * yearScale[y] + (seeded(i*3)-0.5))))
+    const yr = 2018 + y, mo = String(m+1).padStart(2,'0')
+    monthlyKeys.push(`${yr}-${mo}`)
+  }
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
+let interval = 'yearly'
+let viewMode = 'per-period'
+
+// ── Graph rendering ───────────────────────────────────────────────────────
+const W = 748, H = 200
+const PAD_L = 28, PAD_R = 8, PAD_T = 8, PAD_B = 22
+
+function makeSvgEl(tag, attrs) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag)
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+  return el
+}
+
+function cumulate(arr) {
+  let s = 0; return arr.map(v => { s += v; return s })
+}
+
+function renderGraph(svgId, series, colors, strokeWidths) {
+  const svg = document.getElementById(svgId)
+  svg.innerHTML = ''
+
+  const isMonthly = interval === 'monthly'
+  const data = series.map(s => viewMode === 'cumulative' ? cumulate(s) : s)
+  const keys = isMonthly ? monthlyKeys : years
+  const n = keys.length
+
+  const gW = W - PAD_L - PAD_R
+  const gH = H - PAD_T - PAD_B
+
+  const allVals = data.flat()
+  const maxVal = Math.max(...allVals, 1)
+  const niceMax = Math.ceil(maxVal / 10) * 10
+
+  const toX = i => PAD_L + (i / (n - 1)) * gW
+  const toY = v => PAD_T + gH - (v / niceMax) * gH
+
+  // Grid lines + y-labels
+  const yTicks = 4
+  for (let t = 0; t <= yTicks; t++) {
+    const val = Math.round((niceMax / yTicks) * t)
+    const y = toY(val)
+    const line = makeSvgEl('line', { x1: PAD_L, y1: y, x2: W - PAD_R, y2: y, stroke: '#F4F4F5', 'stroke-width': 1 })
+    svg.appendChild(line)
+    const txt = makeSvgEl('text', { x: 2, y: y + 4, 'font-size': 10, fill: '#A1A1AA', 'font-family': 'Inter,sans-serif' })
+    txt.textContent = val
+    svg.appendChild(txt)
+  }
+
+  // X-axis labels
+  if (isMonthly) {
+    // Show year label at Jan of each year (every 12th point)
+    for (let i = 0; i < n; i += 12) {
+      const x = toX(i)
+      const txt = makeSvgEl('text', { x, y: H - 2, 'font-size': 10, fill: '#A1A1AA', 'font-family': 'Inter,sans-serif', 'text-anchor': 'middle' })
+      txt.textContent = keys[i].slice(0, 4)
+      svg.appendChild(txt)
+      // Subtle year divider
+      if (i > 0) {
+        const div = makeSvgEl('line', { x1: x, y1: PAD_T, x2: x, y2: PAD_T + gH, stroke: '#E4E4E7', 'stroke-width': 0.5, 'stroke-dasharray': '2 3' })
+        svg.appendChild(div)
+      }
+    }
+  } else {
+    for (let i = 0; i < n; i++) {
+      const x = toX(i)
+      const txt = makeSvgEl('text', { x, y: H - 2, 'font-size': 10, fill: '#A1A1AA', 'font-family': 'Inter,sans-serif', 'text-anchor': 'middle' })
+      txt.textContent = keys[i]
+      svg.appendChild(txt)
+    }
+  }
+
+  // Lines + dots per series
+  series.forEach((_, si) => {
+    const vals = data[si]
+    const pts = vals.map((v, i) => `${toX(i).toFixed(1)},${toY(v).toFixed(1)}`).join(' ')
+    const poly = makeSvgEl('polyline', {
+      points: pts,
+      fill: 'none',
+      stroke: colors[si],
+      'stroke-width': strokeWidths[si],
+      opacity: si === 0 ? 1 : 0.85,
+      'stroke-linejoin': 'round',
+    })
+    svg.appendChild(poly)
+
+    // Dots — only for yearly (monthly is too dense)
+    if (!isMonthly) {
+      vals.forEach((v, i) => {
+        const cx = toX(i), cy = toY(v)
+        const dot = makeSvgEl('circle', { cx, cy, r: si === 0 ? 3.5 : 3, fill: colors[si], stroke: 'white', 'stroke-width': 1.5 })
+        svg.appendChild(dot)
+      })
+    }
+  })
+}
+
+function renderBoth() {
+  const isMonthly = interval === 'monthly'
+  const periodWord = isMonthly ? 'month' : 'year'
+
+  document.getElementById('sightingsLabel').textContent =
+    viewMode === 'cumulative' ? 'Cumulative individuals' : `Individuals per ${periodWord}`
+  document.getElementById('mediaLabel').textContent =
+    viewMode === 'cumulative' ? 'Cumulative items' : `Items per ${periodWord}`
+
+  const indiv = isMonthly ? monthlyIndiv : yearlyIndiv
+  const photo = isMonthly ? monthlyPhoto : yearlyPhoto
+  const audio = isMonthly ? monthlyAudio : yearlyAudio
+  const video = isMonthly ? monthlyVideo : yearlyVideo
+
+  renderGraph('sightingsSvg', [indiv], ['#2D8653'], [2.5])
+  renderGraph('mediaSvg',
+    [photo, audio, video],
+    ['#3B82F6', '#F59E0B', '#8B5CF6'],
+    [1.8, 1.8, 1.8]
+  )
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────
+function setIntervalMode(val, btn) {
+  interval = val
+  document.getElementById('intervalGroup').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  renderBoth()
+}
+
+function setViewMode(val, btn) {
+  viewMode = val
+  document.getElementById('viewGroup').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  renderBoth()
+}
+
+// ── Reported With expand ──────────────────────────────────────────────────
+let expanded = false
+function toggleExpand() {
+  expanded = !expanded
+  document.querySelectorAll('.rw-extra').forEach(el => el.style.display = expanded ? 'flex' : 'none')
+  document.getElementById('expandBtn').textContent = expanded ? 'Show top 10' : 'Show all 15 species'
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+renderBoth()
+</script>
+</body>
+</html>

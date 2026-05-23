@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.5] - 2026-05-23
+
+### Added
+- **Species Detail — Graph Options card** — a new dedicated card above the Sightings Over Time and Media Over Time graphs. Replaces the auto-detect interval logic and the embedded Per Year/Cumulative toggle. Users can now explicitly choose Yearly or Monthly interval and Per Period or Cumulative view mode. Both graphs respond to the same controls simultaneously.
+- **Species Detail — Reported With section** — a new section between Breeding Codes and Top Locations listing the species most frequently appearing on the same eBird checklists as the selected species. Results are ranked by co-occurrence coefficient (shared checklists ÷ target checklists), expressed as a percentage. Top 10 are shown by default with expand/collapse for the full list. Respects active county and date-range filters, excludes the target species itself, and requires a minimum of 2 shared checklists.
+
+### Improved
+- **Species Detail — `buildGraphData` signature** — replaced auto-detection of yearly vs. monthly interval with an explicit `interval` parameter, giving the Graph Options card direct control over graph granularity.
+
 ## [0.1.4] - 2026-05-23
 
 ### Fixed

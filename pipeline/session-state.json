@@ -1,11 +1,17 @@
 {
-  "activeFeature": "subspecies-sort-filename-pill-cleanup",
-  "sessionNumber": 1,
-  "sessionType": "maintain",
-  "currentStage": 6,
-  "lastCompletedStage": 5,
+  "activeFeature": "species-detail-graph-co-occurrence",
+  "sessionNumber": 2,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
   "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": [],
-  "createdAt": "2026-05-23T14:00:00Z",
-  "updatedAt": "2026-05-23T14:25:00Z"
+  "confirmedArtifacts": [
+    "pipeline/species-detail-graph-co-occurrence/strategic-brief.md",
+    "pipeline/species-detail-graph-co-occurrence/prd.md",
+    "pipeline/species-detail-graph-co-occurrence/schema.md",
+    "pipeline/species-detail-graph-co-occurrence/design-spec.md",
+    "pipeline/species-detail-graph-co-occurrence/design.html"
+  ],
+  "createdAt": "2026-05-23T14:35:00Z",
+  "updatedAt": "2026-05-23T17:00:00Z"
 }

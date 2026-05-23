@@ -12,11 +12,11 @@ export type GraphPoint = {
 export function buildGraphData(
   obs: ObservationEntry[],
   mlRows: MLExportRow[],
+  interval: 'yearly' | 'monthly',
 ): { data: GraphPoint[]; useMonthly: boolean } {
   if (obs.length === 0) return { data: [], useMonthly: false }
 
-  const years = new Set(obs.map(o => o.date.slice(0, 4)))
-  const useMonthly = years.size <= 1
+  const useMonthly = interval === 'monthly'
   const keyOf = (date: string) => useMonthly ? date.slice(0, 7) : date.slice(0, 4)
 
   const indivMap = new Map<string, number>()

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, Loader2, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
-  MapPin, Play, Calendar, TrendingUp,
+  MapPin, Play, Calendar, TrendingUp, SlidersHorizontal, Share2,
 } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import {
@@ -15,7 +15,7 @@ import {
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
-import { buildGraphData } from '../lib/sightingsGraph'
+import { buildGraphData, type GraphPoint } from '../lib/sightingsGraph'
 import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
 import { SpeciesLinks } from './SpeciesLinks'
 import type { ObservationEntry, MediaType } from '../types'
@@ -272,27 +272,24 @@ function GraphTooltip({ active, payload, label, useMonthly }: {
   )
 }
 
-function SightingsGraph({ obs, mlRows, hasML }: {
-  obs: ObservationEntry[]
-  mlRows: MLExportRow[]
+function SightingsGraph({ data, useMonthly, viewMode, hasML }: {
+  data: GraphPoint[]
+  useMonthly: boolean
+  viewMode: 'per-period' | 'cumulative'
   hasML: boolean
 }) {
-  const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
-
-  const { data: rawData, useMonthly } = useMemo(() => buildGraphData(obs, mlRows), [obs, mlRows])
-
   const displayData = useMemo(() => {
-    if (viewMode === 'per-period') return rawData
+    if (viewMode === 'per-period') return data
     let ci = 0, cp = 0, ca = 0, cv = 0
-    return rawData.map(p => {
+    return data.map(p => {
       ci += p.individuals; cp += p.photo; ca += p.audio; cv += p.video
       return { key: p.key, individuals: ci, photo: cp, audio: ca, video: cv }
     })
-  }, [rawData, viewMode])
+  }, [data, viewMode])
 
-  if (rawData.length < 2) return null
+  if (data.length < 2) return null
 
-  const hasAnyMedia = hasML && rawData.some(p => p.photo > 0 || p.audio > 0 || p.video > 0)
+  const hasAnyMedia = hasML && data.some(p => p.photo > 0 || p.audio > 0 || p.video > 0)
   const periodLabel = useMonthly ? 'month' : 'year'
   const sightingsAxisLabel = viewMode === 'per-period'
     ? `Individuals per ${periodLabel}`
@@ -301,32 +298,13 @@ function SightingsGraph({ obs, mlRows, hasML }: {
     ? `Items per ${periodLabel}`
     : 'Cumulative items'
 
-  const btnBase: React.CSSProperties = {
-    padding: '5px 14px', border: 'none', borderRadius: 5, fontSize: 12,
-    fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
-  }
-  const btnActive: React.CSSProperties = {
-    ...btnBase, background: 'var(--sr-surface)', color: 'var(--sr-text)',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-  }
-  const btnInactive: React.CSSProperties = {
-    ...btnBase, background: 'transparent', color: 'var(--sr-text-muted)',
-  }
-
   return (
     <>
       <SectionCard>
         <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Sightings Over Time" />
         <div style={{ padding: '14px 18px 0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{sightingsAxisLabel}</span>
-            <div style={{
-              display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)',
-              borderRadius: 7, padding: 2,
-            }}>
-              <button style={viewMode === 'per-period' ? btnActive : btnInactive} onClick={() => setViewMode('per-period')}>Per Year</button>
-              <button style={viewMode === 'cumulative' ? btnActive : btnInactive} onClick={() => setViewMode('cumulative')}>Cumulative</button>
-            </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
@@ -440,6 +418,9 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
   const [showAllComments, setShowAllComments] = useState(false)
   const [showAllLocations, setShowAllLocations] = useState(false)
   const [mapMode, setMapMode] = useState<'pins' | 'heatmap'>('pins')
+  const [graphInterval, setGraphInterval] = useState<'yearly' | 'monthly'>('yearly')
+  const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
+  const [showAllCoOccurrence, setShowAllCoOccurrence] = useState(false)
 
   const selectorRef = useRef<HTMLDivElement>(null)
   const dropdownListRef = useRef<HTMLDivElement>(null)
@@ -451,6 +432,9 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
     setShowAllComments(false)
     setShowAllLocations(false)
     setMapMode('pins')
+    setGraphInterval('yearly')
+    setViewMode('per-period')
+    setShowAllCoOccurrence(false)
   }
 
   const handleToggleMerge = () => {
@@ -772,6 +756,42 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
     [coordMarkers]
   )
 
+  // Graph data (lifted from SightingsGraph for hasGraphData check and GraphOptions card)
+  const graphResult = useMemo(
+    () => buildGraphData(speciesObs, speciesMlRows, graphInterval),
+    [speciesObs, speciesMlRows, graphInterval],
+  )
+  const hasGraphData = graphResult.data.length >= 2
+
+  // Co-occurrence: species sharing target-species checklists, filtered by county/date
+  const coOccurrence = useMemo(() => {
+    if (!selectedSpecies || phase.tag !== 'ready') return null
+
+    const targetIds = new Set<string>()
+    for (const o of speciesObs) {
+      if (o.submissionId && SUBMISSION_ID_RE.test(o.submissionId)) targetIds.add(o.submissionId)
+    }
+
+    if (targetIds.size === 0) return { type: 'no-data' as const }
+
+    const speciesChecklist = new Map<string, Set<string>>()
+    for (const o of phase.observations) {
+      if (!o.submissionId || !SUBMISSION_ID_RE.test(o.submissionId)) continue
+      if (!targetIds.has(o.submissionId)) continue
+      const name = mergeSubspecies ? normalizeSpeciesName(o.commonName) : o.commonName
+      if (name === selectedSpecies) continue
+      if (!speciesChecklist.has(name)) speciesChecklist.set(name, new Set())
+      speciesChecklist.get(name)!.add(o.submissionId)
+    }
+
+    const results = [...speciesChecklist.entries()]
+      .map(([name, ids]) => ({ name, count: ids.size, pct: Math.round((ids.size / targetIds.size) * 100) }))
+      .filter(r => r.count >= 2)
+      .sort((a, b) => b.pct !== a.pct ? b.pct - a.pct : b.count - a.count)
+
+    return { type: 'results' as const, results, totalChecklists: targetIds.size }
+  }, [phase, selectedSpecies, speciesObs, mergeSubspecies])
+
   // Comments
   const allComments = useMemo(() => {
     const base = speciesObs.filter(o => o.speciesComments.trim() !== '')
@@ -1074,7 +1094,7 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
       )}
 
       {/* Species detail — shown when a species is selected */}
-      {selectedSpecies && sightingsStats && (
+      {selectedSpecies && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           {/* Filter strip — appears above Summary card when filters active */}
@@ -1115,6 +1135,7 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
             )
           })()}
 
+          {sightingsStats && (<>
           {/* Summary card */}
           <SectionCard>
             <div style={{ padding: '20px 22px 18px' }}>
@@ -1287,8 +1308,56 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
             </SectionCard>
           </div>
 
-          {/* Sightings Over Time graph */}
-          <SightingsGraph obs={speciesObs} mlRows={speciesMlRows} hasML={hasML} />
+          </>)}
+
+          {/* Graph Options */}
+          {hasGraphData && (() => {
+            const btnBase: React.CSSProperties = {
+              padding: '5px 13px', border: 'none', borderRadius: 5, fontSize: 12,
+              fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
+            }
+            const btnActive: React.CSSProperties = {
+              ...btnBase, background: 'var(--sr-surface)', color: 'var(--sr-text)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+            }
+            const btnInactive: React.CSSProperties = {
+              ...btnBase, background: 'transparent', color: 'var(--sr-text-muted)',
+            }
+            return (
+              <SectionCard>
+                <SectionHead icon={<SlidersHorizontal size={14} strokeWidth={2.2} />} title="Graph Options" />
+                <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+                      Interval
+                    </span>
+                    <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
+                      {(['yearly', 'monthly'] as const).map(v => (
+                        <button key={v} onClick={() => setGraphInterval(v)} style={graphInterval === v ? btnActive : btnInactive}>
+                          {v === 'yearly' ? 'Yearly' : 'Monthly'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+                      View
+                    </span>
+                    <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
+                      {(['per-period', 'cumulative'] as const).map(v => (
+                        <button key={v} onClick={() => setViewMode(v)} style={viewMode === v ? btnActive : btnInactive}>
+                          {v === 'per-period' ? 'Per Period' : 'Cumulative'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
+            )
+          })()}
+
+          {/* Sightings Over Time + Media Over Time graphs */}
+          <SightingsGraph data={graphResult.data} useMonthly={graphResult.useMonthly} viewMode={viewMode} hasML={hasML} />
 
           {/* Breeding Codes */}
           <SectionCard>
@@ -1317,6 +1386,104 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
               )}
             </div>
           </SectionCard>
+
+          {/* Reported With */}
+          {coOccurrence && (
+            <SectionCard>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '14px 18px 12px',
+                borderBottom: '1px solid var(--sr-border-subtle)',
+              }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+                  background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Share2 size={14} strokeWidth={2.2} />
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>Reported With</span>
+                {coOccurrence.type === 'results' && (
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--sr-text-disabled)' }}>
+                    of {coOccurrence.totalChecklists} checklists
+                  </span>
+                )}
+              </div>
+
+              {coOccurrence.type === 'no-data' ? (
+                <div style={{ padding: '16px 18px', fontSize: 13, color: 'var(--sr-text-muted)' }}>
+                  No checklist data available.
+                </div>
+              ) : coOccurrence.results.length === 0 ? (
+                <div style={{ padding: '16px 18px', fontSize: 13, color: 'var(--sr-text-muted)' }}>
+                  No species met the minimum co-occurrence threshold.
+                </div>
+              ) : (() => {
+                const maxPct = coOccurrence.results[0]?.pct ?? 1
+                const visible = showAllCoOccurrence
+                  ? coOccurrence.results
+                  : coOccurrence.results.slice(0, 10)
+                return (
+                  <div style={{ padding: '0 18px' }}>
+                    {/* Column headers */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '8px 0 6px', borderBottom: '1px solid var(--sr-border-subtle)', marginBottom: 2,
+                    }}>
+                      <span style={{ width: 20, flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Species</span>
+                      <span style={{ width: 100, flexShrink: 0 }} />
+                      <span style={{ width: 38, textAlign: 'right' as const, flexShrink: 0, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Rate</span>
+                      <span style={{ width: 84, textAlign: 'right' as const, flexShrink: 0, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Checklists</span>
+                    </div>
+                    {/* Rows */}
+                    {visible.map((r, idx) => (
+                      <div key={r.name} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 0',
+                        borderBottom: idx < visible.length - 1 ? '1px solid var(--sr-border-subtle)' : 'none',
+                      }}>
+                        <span style={{ width: 20, textAlign: 'right' as const, fontSize: 11, color: 'var(--sr-text-disabled)', flexShrink: 0 }}>
+                          {idx + 1}
+                        </span>
+                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--sr-text)', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {r.name}
+                        </span>
+                        <div style={{ width: 100, height: 5, background: 'var(--sr-surface-subtle)', borderRadius: 3, flexShrink: 0, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: 3, background: 'var(--sr-accent)', opacity: 0.55, width: `${Math.round((r.pct / maxPct) * 100)}%` }} />
+                        </div>
+                        <span style={{ width: 38, textAlign: 'right' as const, fontSize: 13, fontWeight: 600, color: 'var(--sr-accent)', flexShrink: 0 }}>
+                          {r.pct}%
+                        </span>
+                        <span style={{ width: 84, textAlign: 'right' as const, fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0 }}>
+                          {r.count} {r.count === 1 ? 'checklist' : 'checklists'}
+                        </span>
+                      </div>
+                    ))}
+                    {/* Expand / collapse */}
+                    {coOccurrence.results.length > 10 && (
+                      <button
+                        onClick={() => setShowAllCoOccurrence(prev => !prev)}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          width: '100%', padding: '10px 0 4px',
+                          border: 'none', background: 'none',
+                          fontSize: 12, fontWeight: 500, color: 'var(--sr-accent)',
+                          fontFamily: 'inherit', cursor: 'pointer',
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                      >
+                        {showAllCoOccurrence
+                          ? 'Show top 10'
+                          : `Show all ${coOccurrence.results.length} species`}
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
+            </SectionCard>
+          )}
 
           {/* Top Locations */}
           <SectionCard>

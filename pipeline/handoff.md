@@ -1,52 +1,44 @@
-# Pipeline Handoff — mobile-map-explorer (complete)
+# Session 1 Handoff — Species Detail: Graph Options and Co-occurring Species
 
-## What was built
-
-Two improvements to the Map Explorer tab, shipped together as v0.1.0:
-
-**1. Mobile Map Explorer**
-On viewports ≤640px the map now fills the full screen. A green "Filters" pill button floats in the bottom-right corner. Tapping it opens the existing filter sidebar as a full-height overlay with a dark semi-transparent backdrop. The sidebar has a "Map Filters" header with a close button. Tapping the backdrop or the close button dismisses the sidebar and restores the map. Desktop layout (>640px) is pixel-identical to before — no sidebar changes, no floating button, no backdrop.
-
-**2. Default Location in Settings**
-A new "Default Location" section at the bottom of the Settings tab lets users save a home latitude, longitude, and radius. The values persist server-side as `data/map-defaults.json`. When the Map Explorer tab opens, it fetches these defaults and pre-fills the coordinate fields in all three map modes (My Sightings, Hotspots, Media Targets). A Clear button removes the saved defaults.
+**Completed:** 2026-05-23
+**Feature:** species-detail-graph-co-occurrence
+**Session:** 1 of 2
 
 ---
 
-## Artifacts produced
+## What Was Accomplished
 
-### Session 1 (planning)
-- `pipeline/mobile-map-explorer/strategic-brief.md`
-- `pipeline/mobile-map-explorer/prd.md`
-- `pipeline/mobile-map-explorer/schema.md`
-- `pipeline/mobile-map-explorer/design-spec.md`
-- `pipeline/mobile-map-explorer/design.html`
+Session 1 defined and designed two enhancements to the Species Detail tab.
 
-### Session 2 (implementation)
-- `backend/routers/mapdefaults.py` — new file; GET/POST/DELETE endpoints with Pydantic validation
-- `backend/tests/test_mapdefaults_router.py` — 11 tests; all passing
-- `backend/main.py` — two new lines to register mapdefaults router
-- `frontend/src/globals.css` — five new CSS classes for mobile overlay layout
-- `frontend/src/components/Settings.tsx` — Default Location section with save/clear/confirmation
-- `frontend/src/components/MapExplorer.tsx` — sidebarOpen state, defaults fetch on mount, mobile overlay layout
-- `CHANGELOG.md` — v0.1.0 entry
-- `frontend/package.json` — version bumped to 0.1.0
-- `PRODUCT_CONTEXT.md` — Map Explorer section updated with mobile layout and default location details
-- `DECISIONS.md` — two new entries: CSS-only mobile breakpoints, data/map-defaults.json storage rationale
+**Graph Options card:** A new dedicated card above both graphs replaces the auto-detection logic and the embedded Per Year/Cumulative toggle in the Sightings card header. Users can now explicitly choose Yearly or Monthly interval and Per Period or Cumulative view mode. Both the Sightings Over Time and Media Over Time graphs respond to the same controls simultaneously. The `buildGraphData` function signature changes to accept an explicit `interval` parameter instead of auto-detecting from data.
+
+**Reported With section:** A new section below Breeding Codes lists the species most frequently appearing on the same eBird checklists as the selected species. Results are ranked by co-occurrence coefficient (shared checklists ÷ target checklists), expressed as a percentage. Top 10 are shown by default with expand/collapse for the full list. The section respects active county and date-range filters, excludes the target species itself, requires a minimum of 2 shared checklists, and handles both empty states cleanly.
 
 ---
 
-## Test results
-- pytest: 77/77 passed (11 new tests for mapdefaults router)
-- TypeScript build: clean
-- Endpoint smoke tests: GET 404 → POST → GET 200 → DELETE → GET 404 all correct
-- Security: no findings
+## Artifacts
 
-## Deployment
-- Pushed to GitHub: commit `eb8a885`
-- GitHub release: v0.1.0
+| File | Description |
+|---|---|
+| `pipeline/species-detail-graph-co-occurrence/strategic-brief.md` | Problem framing, scope, key decisions |
+| `pipeline/species-detail-graph-co-occurrence/prd.md` | 21 functional requirements, 4 NFRs, 15 QA acceptance criteria |
+| `pipeline/species-detail-graph-co-occurrence/schema.md` | Frontend-only confirmation, existing data structures, signature change spec |
+| `pipeline/species-detail-graph-co-occurrence/design-spec.md` | Layout order, component structure, token usage, interaction notes |
+| `pipeline/species-detail-graph-co-occurrence/design.html` | Interactive HTML mockup with working interval/view toggles and Reported With list |
 
 ---
 
-## This feature is complete
+## Key Engineering Notes for Session 2
 
-To start the next feature, run `/new-feature`.
+- `buildGraphData` in `sightingsGraph.ts` needs its signature changed: replace auto-detect with explicit `interval: 'yearly' | 'monthly'` parameter. Update all call sites in `SpeciesDetail.tsx` and fix `sightingsGraph.test.ts`.
+- `viewMode` and `interval` state moves up to the ready-state render block in `SpeciesDetail.tsx` (currently owned inside `SightingsGraph`). `SightingsGraph` becomes a controlled component.
+- New `GraphOptions` SectionCard renders above `SightingsGraph`.
+- Co-occurrence computed with `useMemo`, using a `Set<string>` of filtered `submissionId`s for O(1) checklist lookup across `phase.observations`.
+- `normalizeSpeciesName()` applied to co-occurring names when `mergeSubspecies` is true.
+- Reported With section position: below Breeding Codes, above Top Locations.
+
+---
+
+## Session 2 Entry
+
+Run `/build-feature` to start Session 2. The Engineer will implement the code from these artifacts.
