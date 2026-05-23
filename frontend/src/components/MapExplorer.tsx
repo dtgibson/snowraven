@@ -413,7 +413,7 @@ function TargetMarkers({ pins }: { pins: TargetPin[] }) {
         const tier = recencyTier(pin.recentDate)
         const { bg, text } = tierColors(tier)
         const icon = L.divIcon({
-          html: `<div style="background:${bg};color:${text};padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;font-family:Inter,system-ui,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,0.25)">${escHtml(pin.comName)}</div>`,
+          html: `<div style="display:inline-block;background:${bg};color:${text};padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;font-family:Inter,system-ui,sans-serif;border:1.5px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)">${escHtml(pin.comName)}</div>`,
           className: '',
           iconAnchor: [0, 14],
           popupAnchor: [0, -16],
@@ -1327,7 +1327,21 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
         ] as { mode: ViewMode; label: string; icon: React.ReactNode }[]).map(({ mode, label, icon }) => (
           <button
             key={mode}
-            onClick={() => setViewMode(mode)}
+            onClick={() => {
+              setViewMode(mode)
+              if (mode === 'hotspots' || mode === 'targets') {
+                const latNum = parseFloat(lat)
+                const lngNum = parseFloat(lng)
+                if (!isNaN(latNum) && !isNaN(lngNum)) {
+                  setDefaultCenter({ lat: latNum, lng: lngNum, zoom: radiusToZoom(radius) })
+                  if (mode === 'hotspots' && !hotspotsLoading && hasEbirdKey !== false) {
+                    handleFindHotspots(latNum, lngNum)
+                  } else if (mode === 'targets' && !targetsFetchDisabled && phase.tag === 'ready') {
+                    handleFindSightings(latNum, lngNum)
+                  }
+                }
+              }
+            }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '7px 14px', borderRadius: 20,
