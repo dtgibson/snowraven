@@ -4,6 +4,42 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Targeting model: "Is Target" means missing ≥1 media type, not zero-ML-only — 2026-05-23
+
+**Change:** `targetSpecies` useMemo and `fetchTargetCodes` in `MapExplorer.tsx`, and the "Is Target" pill filter in `LifeList.tsx`, all use `!hasAll` where `hasAll = types?.has('Photo') && types?.has('Audio') && types?.has('Video')`. The previous definition was "species not in `mlRows` at all."
+
+**Rationale:** A birder who has photos of a species but no audio recording still has a meaningful gap. Zero-ML-only targeting was too coarse.
+
+**Implications:** The `mediaTypes` map (built from `phase.mlRows`) is the source of truth for what each species HAS. `missingTypes` is derived as `ALL_TYPES.filter(t => !mediaTypes.get(comName)?.has(t))`. For a species entirely absent from `mlRows`, `mediaTypes.get(name)` returns `undefined` and all three types are "missing" — correct. Do not change this back to absence-based targeting without updating all three locations in sync.
+
+## fetchTargetCodes must use identical logic to targetSpecies — 2026-05-23
+
+**Bug:** After expanding the targeting model to `!hasAll`, the Map Explorer showed only zero-ML species on the map even though `targetSpecies` correctly computed partial-coverage species. Partial-coverage species had no entry in `speciesCodeMap`, were silently dropped by `.filter(Boolean)` in `handleFindSightings`, and since at least one zero-ML code remained, the fallback on-demand fetch was never triggered.
+
+**Cause:** `fetchTargetCodes` still used the old zero-ML logic when pre-fetching taxonomy codes. `targetSpecies` and `fetchTargetCodes` had diverged.
+
+**Fix:** `fetchTargetCodes` now builds its own `mediaTypesMap` from `mlRows` (same as the `mediaTypes` useMemo) and uses the same `!hasAll` condition. Both compute the same set of species.
+
+**Implications:** `targetSpecies` (for display/count) and `fetchTargetCodes` (for taxonomy code pre-fetch) must always use the same target condition. If the definition of "Is Target" ever changes again, update both in the same commit. The `.filter(Boolean)` in `handleFindSightings` silently drops species with no code — this is intentional for graceful degradation, but it means a divergence between these two functions will manifest as silent missing data, not an error.
+
+## TargetMarkers groups pins by locId to prevent overlapping labels — 2026-05-23
+
+**Bug:** Multiple target species seen at the same eBird location each got their own Leaflet marker at identical coordinates, stacking invisibly on top of each other. Labels overlapped and were illegible.
+
+**Fix:** `TargetMarkers` groups `DisplayTargetPin[]` by `locId` using a `useMemo`. Single-species groups render the species name + missing-type icons. Multi-species groups render "N species" as the label with a popup listing all species, their missing types, a recency tier badge, date, and checklist link.
+
+**Implications:** The representative pin for a group uses the pin with the most recent `recentDate` (for recency tier color). The popup shows all species in the group — the user can see each species and its individual missing types. Do not render one marker per species when species share a `locId`; the map becomes unreadable.
+
+## Cross-tab navigation uses requestedFilter prop + useEffect consumption pattern — 2026-05-23
+
+**Decision:** `App.tsx` holds `mediaListFilter: 'is-target' | undefined`. The Map Explorer's "N target species" button calls `navigateToMediaList`, which sets both `activeTab` and `mediaListFilter` simultaneously. `LifeList` receives `requestedFilter` and `onRequestedFilterConsumed` props. A `useEffect` watching `requestedFilter` activates the "Is Target" pill, then immediately calls `onRequestedFilterConsumed()` to reset App's `mediaListFilter` to `undefined`.
+
+**Rationale:** LifeList uses display toggling (never unmounts), so its `useEffect` fires immediately when the prop changes — no timing issue. Resetting to `undefined` after delivery means subsequent normal navigations to the Media List tab do not re-activate the filter. Repeat clicks on the target count work because App goes `undefined → 'is-target'` each time, which is a change that triggers the effect.
+
+**Implications:** This pattern is correct for any cross-tab "navigate + pre-apply filter" use case. The key requirements: (1) the receiving component must always be mounted (display toggle, not conditional render); (2) the filter state must be reset to `undefined`/`null` immediately after delivery so it isn't sticky; (3) the sending callback must set both the tab AND the filter in the same React update (batch).
+
+---
+
 ## Leaflet divIcon inner content must use `display: inline-block` — 2026-05-23
 
 **Bug:** Media target label pills rendered with a tiny colored oval (≈12px wide) that didn't span the species name. The pill background was correct, but the text overflowed it visibly.

@@ -419,6 +419,41 @@ Three category filter pills — Confirmed, Probable, and Possible — added to t
 - `frontend/src/lib/breedingCodes.test.ts` — 8 tests covering category membership, disjointness, and full coverage
 - `frontend/src/components/BreedingCodeList.tsx` — `categoryFilter` state, `categoryPillStyle`, `CATEGORY_META`, updated filter predicate, `categoryFilteredEntries` passed to `BreedingCodeTable`
 
+### Is Target Filter and Map Icons (complete — May 2026)
+
+Two coordinated changes that make the "Is Target" concept first-class across the Media List and Map Explorer tabs.
+
+**Expanded targeting model:**
+- A species is now a "target" if it is missing at least one of Photo, Audio, or Video (previously: zero ML entries of any type)
+- Partial-coverage species (e.g. has Photos but no Audio) now qualify as targets everywhere in the app
+- The `mediaTypes: Map<string, Set<'Photo'|'Audio'|'Video'>>` useMemo (built from `phase.mlRows`) is the single source of truth for what each species HAS; `!hasAll` (missing all three) is the target condition
+
+**Media List — "Is Target" filter pill:**
+- New pill immediately after "Has media," before the first `pillSep`
+- Amber styling: `var(--sr-is-target-bg)` / `var(--sr-is-target-text)` / `var(--sr-is-target-border)` — tokens added to both `:root` and `[data-theme="dark"]` in `globals.css`
+- Filter logic: `!photo || !audio || !video` on per-species catalogIds against `mediaMap`
+- Combines with all other pills using AND logic; "All" resets it alongside all others
+- State: separate `filterIsTarget: boolean` (not part of `MediaFilterState`), following the same pattern as `filterHasMedia`
+
+**Map Explorer — per-species missing-type icons on target pins:**
+- `DisplayTargetPin = TargetPin & { missingTypes: ('Photo'|'Audio'|'Video')[] }` — client-side computed in `displayedTargetPins` useMemo
+- `MEDIA_ICONS` record: hardcoded 10px SVG strings (camera, mic, video camera) using `stroke="currentColor"` — no user data
+- `TargetMarkers` groups pins by `locId` to prevent overlapping labels; single-species: name + icons; multi-species: "N species" with a popup listing all species and their missing types
+- Icon gap: 3px between icons, 5px margin-left from species name; `display: inline-flex; align-items: center`
+- Sidebar sub-label updated: "from ML export · missing ≥1 media type"
+
+**Cross-tab navigation:**
+- "N target species" button in Map Explorer sidebar calls `onNavigateToMediaList: () => void` prop
+- `App.tsx` holds `mediaListFilter: 'is-target' | undefined` — `navigateToMediaList` sets tab + filter simultaneously
+- `LifeList` receives `requestedFilter?: 'is-target'` and `onRequestedFilterConsumed?: () => void` — a `useEffect` watching `requestedFilter` activates the pill then calls the callback to reset App's filter to `undefined` (single-use delivery)
+- LifeList uses display toggling (never unmounts), so the `useEffect` fires immediately on prop change
+
+**Key files changed:**
+- `frontend/src/App.tsx` — `mediaListFilter` state, `navigateToMediaList` and `resetMediaListFilter` callbacks, prop threading to LifeList and MapExplorer
+- `frontend/src/components/LifeList.tsx` — `filterIsTarget` state, `useEffect` for `requestedFilter`, "Is Target" pill, `isTargetFilteredEntries` filter pipeline
+- `frontend/src/components/MapExplorer.tsx` — `DisplayTargetPin` type, `MEDIA_ICONS` constant, updated `targetSpecies` useMemo, updated `fetchTargetCodes` callback, updated `displayedTargetPins` useMemo, `TargetMarkers` location grouping, clickable target count button, updated sub-label
+- `frontend/src/globals.css` — `--sr-is-target-bg/text/border` tokens in both `:root` and `[data-theme="dark"]`
+
 ### Map Explorer (complete — May 2026)
 
 An interactive map tab with three view modes for exploring birding locations: sightings heatmap, eBird hotspot discovery, and media target hunting. All map data comes from eBird API calls made at query time; the stored eBird backup is used client-side to classify which hotspots have been visited and to supply personal locations.
