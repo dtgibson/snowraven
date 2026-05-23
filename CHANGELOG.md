@@ -2,7 +2,7 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [0.2.0] - 2026-05-23
+## [0.1.3] - 2026-05-23
 
 ### Added
 - **Media List — "Is Target" filter pill** — new pill immediately after "Has media" in the filter bar. Shows every species missing at least one of Photo, Audio, or Video. Combines with all other pills using AND logic. "All" resets it along with all other filters.
