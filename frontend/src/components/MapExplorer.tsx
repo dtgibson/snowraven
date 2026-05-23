@@ -533,6 +533,26 @@ function KeyNotice({ onGoToSettings }: { onGoToSettings: () => void }) {
   )
 }
 
+function radiusToZoom(distMiles: number): number {
+  if (distMiles <= 5) return 12
+  if (distMiles <= 10) return 11
+  if (distMiles <= 25) return 10
+  return 9
+}
+
+function DefaultCenterSetter({ center, onDone }: {
+  center: { lat: number; lng: number; zoom: number } | null
+  onDone: () => void
+}) {
+  const map = useMap()
+  useEffect(() => {
+    if (!center) return
+    map.setView([center.lat, center.lng], center.zoom)
+    onDone()
+  }, [center, map, onDone])
+  return null
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
@@ -578,6 +598,10 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
   // Mobile sidebar overlay state
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // Initial map center from saved defaults
+  const [defaultCenter, setDefaultCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null)
+  const handleDefaultCenterDone = useCallback(() => setDefaultCenter(null), [])
+
   // Species code map and key status
   const [speciesCodeMap, setSpeciesCodeMap] = useState<Record<string, string>>({})
   const [hasEbirdKey, setHasEbirdKey]       = useState<boolean | null>(null)
@@ -590,7 +614,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
       .catch(() => setHasEbirdKey(false))
   }, [])
 
-  // Pre-fill lat/lng/radius from saved map defaults on mount
+  // Pre-fill lat/lng/radius from saved map defaults on mount; pan map to saved location
   useEffect(() => {
     fetch('/settings/map-defaults')
       .then(r => r.ok ? r.json() : null)
@@ -599,6 +623,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
           setLat(String(data.lat))
           setLng(String(data.lng))
           setRadius(data.dist)
+          setDefaultCenter({ lat: data.lat, lng: data.lng, zoom: radiusToZoom(data.dist) })
         }
       })
       .catch(() => {})
@@ -1333,7 +1358,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
         {/* Sidebar */}
         <div
           className={`sr-map-sidebar-overlay${sidebarOpen ? '' : ' sr-map-sidebar-hidden'}`}
-          style={{ width: 268, flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+          style={{ width: 268, flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)' }}
         >
           {/* Mobile-only header with close button */}
           <div className="sr-map-sidebar-close">
@@ -1388,6 +1413,7 @@ export function MapExplorer({ onGoToSettings }: MapExplorerProps) {
             >
               <AutoSizeMap />
               <MapPanner target={panTarget} onDone={handlePanDone} />
+              <DefaultCenterSetter center={defaultCenter} onDone={handleDefaultCenterDone} />
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

@@ -1,11 +1,11 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "activeFeature": "mobile-map-and-defaults-fix",
+  "sessionNumber": 1,
+  "sessionType": "fix",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [],
-  "createdAt": "2026-05-22T16:00:00Z",
-  "updatedAt": "2026-05-22T18:20:00Z"
+  "createdAt": "2026-05-22T18:30:00Z",
+  "updatedAt": "2026-05-22T19:20:00Z"
 }
