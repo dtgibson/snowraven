@@ -3,7 +3,7 @@ import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertCircle, Loader2, FileCheck, ChevronDown,
+  AlertCircle, Loader2, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
   MapPin, Play, Calendar, TrendingUp,
 } from 'lucide-react'
@@ -18,7 +18,7 @@ import type { MLExportRow } from '../lib/parseMLExport'
 import { buildGraphData } from '../lib/sightingsGraph'
 import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
 import { SpeciesLinks } from './SpeciesLinks'
-import type { ObservationEntry, MediaType, StoredFileInfo } from '../types'
+import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 
 // Leaflet marker icon patch for Vite asset handling
@@ -425,8 +425,6 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
-  const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
-
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
   const [selectorQuery, setSelectorQuery] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -550,7 +548,6 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
         }
 
         if (cancelled) return
-        setSavedFileInfo(status.ebird)
         setPhase({ tag: 'ready', observations, mediaMap, mlRows, hasML, userId: mlUserId })
         fetchTaxonData(observations)
       } catch {
@@ -865,17 +862,6 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
-        {savedFileInfo && (
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            height: 30, padding: '0 10px', borderRadius: 6,
-            border: '1.5px solid var(--sr-accent-border)', background: 'var(--sr-accent-bg)',
-            fontSize: 12, fontWeight: 500, color: 'var(--sr-accent)',
-          }}>
-            <FileCheck size={13} strokeWidth={2.2} />
-            {savedFileInfo.filename}
-          </div>
-        )}
         <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
         <ToggleSwitch label="Show sp./slash" checked={showSpuh} onChange={handleToggleSpuh} />
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--sr-text-disabled)' }}>

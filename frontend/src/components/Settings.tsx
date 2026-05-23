@@ -736,7 +736,7 @@ export function Settings({ onKeysSaved }: { onKeysSaved?: () => void }) {
       </div>
 
       <p style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
-        Files are stored on this server and load automatically when you open the relevant tab. Uploading a different file within a tab is session-only and won't replace your saved default.
+        Files are stored on this server and load automatically when you open the relevant tab.
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>

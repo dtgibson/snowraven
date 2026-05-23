@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Loader2, FileCheck, MapPin, Calendar } from 'lucide-react'
+import { AlertCircle, Loader2, MapPin, Calendar } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { parseBreedingCodes, aggregateBreedingRows } from '../lib/parseBreedingCodes'
 import type { BreedingData, BreedingEntry, BreedingCodeRow } from '../lib/parseBreedingCodes'
 import { BREEDING_CODE_MAP, TIER_COLORS, CATEGORY_CODES } from '../lib/breedingCodes'
 import type { BreedingCategory } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
-import type { BreedingSortState, StoredFileInfo, DateRangeState } from '../types'
+import type { BreedingSortState, DateRangeState } from '../types'
 import { DATE_RANGE_CLEAR } from '../types'
 
 type Phase =
@@ -87,7 +87,6 @@ export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => voi
   const [wideMode, setWideMode] = useState(false)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
-  const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
 
@@ -129,7 +128,6 @@ export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => voi
           setPhase({ tag: 'error', message: "The stored file doesn't look like an eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup." })
           return
         }
-        setSavedFileInfo(status.ebird)
         setPhase({ tag: 'ready', data })
         if (data.entries.length > 0) fetchTaxonCodes(data.entries)
       } catch {
@@ -453,22 +451,6 @@ export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => voi
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
-          {savedFileInfo && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              height: 28, padding: '0 10px',
-              background: 'var(--sr-accent-bg)', border: '1.5px solid var(--sr-accent-border)',
-              borderRadius: 6, flexShrink: 0,
-            }}>
-              <FileCheck size={12} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
-              <span style={{
-                fontSize: 11, fontWeight: 500, color: 'var(--sr-accent)',
-                maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {savedFileInfo.filename}
-              </span>
-            </div>
-          )}
           <button
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}

@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.4] - 2026-05-23
+
+### Fixed
+- **Media List — taxonomic sort with Show Subspecies** — toggling "Show subspecies" caused domestics and subspecies to sort to the bottom instead of their correct taxon position. The taxon-order lookup now falls back to the normalized species name (stripping trailing parentheticals) so entries like "Mallard (Domestic type)" resolve correctly.
+
+### Removed
+- **Filename pill** — the pill showing the stored ML export or eBird backup filename has been removed from the Media List, Breeding Codes, and Species Detail tabs. Settings is now the sole file source, making the pill redundant.
+- **Stale Settings copy** — removed the sentence "Uploading a different file within a tab is session-only and won't replace your saved default." Per-tab upload no longer exists.
+
 ## [0.1.3] - 2026-05-23
 
 ### Added

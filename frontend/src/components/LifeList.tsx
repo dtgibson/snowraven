@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, AlertCircle, Camera, Mic, Video, FileCheck, MapPin, Calendar } from 'lucide-react'
+import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
@@ -7,7 +7,7 @@ import type { MLExportRow } from '../lib/parseMLExport'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { LifeListTable } from './LifeListTable'
-import type { MediaFilterState, SortState, StoredFileInfo, DateRangeState, ObservationEntry } from '../types'
+import type { MediaFilterState, SortState, DateRangeState, ObservationEntry } from '../types'
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
 
 type Phase =
@@ -161,7 +161,6 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
-  const [savedFileInfo, setSavedFileInfo] = useState<StoredFileInfo | null>(null)
   const [wideMode, setWideMode] = useState(false)
   const [rawRows, setRawRows] = useState<MLExportRow[]>([])
   const [rawEbirdObs, setRawEbirdObs] = useState<ObservationEntry[]>([])
@@ -360,7 +359,6 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             mediaMap = parsed.mediaMap
             rows = parsed.rows
             setMlUserId(parseMLUserId(status.ml.filename))
-            setSavedFileInfo(status.ml)
             setRawRows(rows)
           }
         }
@@ -690,22 +688,6 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         {/* Right controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
-          {savedFileInfo && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              height: 28, padding: '0 10px',
-              background: 'var(--sr-accent-bg)', border: '1.5px solid var(--sr-accent-border)',
-              borderRadius: 6, flexShrink: 0,
-            }}>
-              <FileCheck size={12} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
-              <span style={{
-                fontSize: 11, fontWeight: 500, color: 'var(--sr-accent)',
-                maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {savedFileInfo.filename}
-              </span>
-            </div>
-          )}
           <button
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}

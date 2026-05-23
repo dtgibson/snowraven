@@ -2,6 +2,7 @@ import { Camera, Mic, Video, Minus } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import type { MediaFilterState, SortColumn, SortDir, SortState } from '../types'
 import { SpeciesLinks } from './SpeciesLinks'
+import { normalizeSpeciesName } from '../lib/speciesUtils'
 
 interface Props {
   entries: LifeListEntry[]
@@ -68,7 +69,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
   // to the fetch result. Species not found in either sort last (Infinity).
   function getOrder(entry: LifeListEntry): number {
     if (entry.taxonomicOrder !== Infinity) return entry.taxonomicOrder
-    return taxonOrders[entry.commonName] ?? Infinity
+    return taxonOrders[entry.commonName] ?? taxonOrders[normalizeSpeciesName(entry.commonName)] ?? Infinity
   }
 
   function nameCompare(a: LifeListEntry, b: LifeListEntry): number {

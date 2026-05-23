@@ -1,17 +1,11 @@
 {
-  "activeFeature": "is-target-filter-map-icons",
-  "sessionNumber": 2,
-  "sessionType": "feature",
-  "currentStage": 8,
-  "lastCompletedStage": 7,
+  "activeFeature": "subspecies-sort-filename-pill-cleanup",
+  "sessionNumber": 1,
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
   "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": [
-    "pipeline/is-target-filter-map-icons/strategic-brief.md",
-    "pipeline/is-target-filter-map-icons/prd.md",
-    "pipeline/is-target-filter-map-icons/schema.md",
-    "pipeline/is-target-filter-map-icons/design-spec.md",
-    "pipeline/is-target-filter-map-icons/design.html"
-  ],
-  "createdAt": "2026-05-23T00:00:00Z",
-  "updatedAt": "2026-05-23T13:23:00Z"
+  "confirmedArtifacts": [],
+  "createdAt": "2026-05-23T14:00:00Z",
+  "updatedAt": "2026-05-23T14:20:00Z"
 }
