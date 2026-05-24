@@ -134,7 +134,7 @@ the species list from eBird observations rather than ML catalog entries alone.
 - **Three toolbar toggles:**
   - **Merge subspecies** (default ON) — collapses subspecies variants to the parent name; same behavior as Species Detail tab
   - **Show sp./slash** (default OFF) — hides spuh and slash entries when off
-  - **Show non-bird** (default OFF, only visible in Comprehensive mode) — hides non-bird ML entries (soundscapes, etc.) when off; in Taxonomic mode, non-bird entries use a three-tier sort: birds first → non-bird animals (genus+species in scientificName) → non-animals (no genus+species, e.g. Habitat/Soundscape/Experience) alphabetically at the very end
+  - **Show non-bird** (default OFF, only visible in Comprehensive mode) — hides non-bird ML entries (soundscapes, etc.) when off; in Taxonomic mode, non-bird entries use a three-tier sort: birds first → non-bird animals (any non-empty scientificName) → non-animals (empty scientificName, e.g. Habitat/Soundscape/Experience) alphabetically at the very end
 - **↔ Unbounded / ↔ Normal toggle** — removes the `overflowX` constraint from the table wrapper (sets it to `width: max-content`) so the whole page scrolls horizontally on mobile; Normal restores the bounded scroll box
 - Species count label: "312 of 456 species" in Comprehensive mode, or "312 species" in ML-only mode; denominator always uses `displayEntries.length` (post-toggle, pre-media-filter count)
 - "Load new file" button resets to the upload state
@@ -327,24 +327,24 @@ A Statistics tab (between Map Explorer and Settings in the tab bar) that derives
 
 **What it does:**
 
-**Life List Totals** — Headline counts (species, checklists, locations, years active, states/provinces, countries). First and last observation cards show date (linked to eBird checklist when submissionId matches `/^S\d+$/`) and location name. First species ever recorded. Life list accumulation chart with four-mode toggle: Total (default) / Yearly / Monthly / Weekly. Total mode plots one step-line point per new lifer in chronological order; tooltip shows species name at each point. Milestone pills (every 50 species up to 1,000) show the species that hit the threshold and link to the checklist.
+**Life List Totals** — Headline counts (species, checklists, locations, years active, states/provinces, countries). First and last observation cards show date (linked to eBird checklist when submissionId matches `/^S\d+$/`) and location name. First species ever recorded. Life list accumulation chart with four-mode toggle: Weekly · Monthly · Yearly · Total. Total mode plots one step-line point per new lifer in chronological order; tooltip shows species name at each point.
 
-**Firsts & Milestones** — Biggest single day (species count links to eBird checklist); longest consecutive streak; longest dry spell; Shannon diversity index (H′ from numeric counts).
+**Firsts & Milestones** — Biggest single day (species count links to eBird checklist); longest consecutive streak; longest dry spell; Shannon diversity index (H′ from numeric counts). Milestone pills at 43 thresholds (every 10 below 100, every 25 from 100–475, every 50 from 500–950, sparse from 1,000–3,000) show the species that hit the threshold and link to the checklist. Four color tiers: sage green (10–90), medium green (100–475), deep green (500–950), amber/gold (1,000+).
 
-**Temporal Stats** — Checklists by year (bar); checklists by month (bar + donut pie with percentage labels); checklists by day-of-week (bar + donut pie, grouped Sat/Sun/Weekdays, percentage labels); checklists by start hour (bar, excludes no-time checklists, percentage labels). All bar rows show both count and percentage of total. Protocol breakdown intentionally absent from this section — it lives entirely in Effort & Methodology.
+**Temporal Stats** — Checklists by year (bar + species count + best single-day species count [linked to checklist]); checklists by month (bar + donut pie with percentage labels); checklists by day-of-week (bars then pie chart + legend below, grouped Sat/Sun/Weekdays, percentage labels); checklists by start hour (bar, excludes no-time checklists, percentage labels). All bar rows show both count and percentage of total.
 
-**Geographic Stats** — Two location lists: "Top locations by checklists" and "Top locations by species" (each showing both counts). Counties split into two side-by-side bar charts: by checklists (green bars, with show-all expand) and by species (blue bars, top 8). States/provinces same split. County and state entries link to `ebird.org/region/{stateProvince}` when stateProvince is non-empty and contains a hyphen; plain text otherwise. Map removed (see Decisions).
+**Geographic Stats** — Leaflet map at the top showing numbered green circle markers (top by checklists) and blue square markers (top by species); auto-fits bounds to all visible markers; hidden when no locations have lat/lng data. Two ranked location text lists below the map. Counties split into two side-by-side bar charts: by checklists (green bars, with show-all expand) and by species (blue bars, top 8). States/provinces same split. County and state entries link to `ebird.org/region/{stateProvince}` when stateProvince is non-empty and contains a hyphen; plain text otherwise.
 
 **Effort & Methodology** — Protocol distribution: horizontal segmented bar + percentage labels + legend; key metrics grid (avg duration min, avg distance mi, spp/hour, spp/mi — distance converted from CSV's km values); average-by-protocol table (Protocol / Avg Duration / Avg Distance / Count); observer count: vertical bar chart + donut pie with percentage labels; complete-checklist ratio (shown only when "All Obs Reported" column is present in the CSV).
 
-**Data Quality** — Count method: proportional bar (numeric % vs. X/presence-only %); comment coverage: proportional bar (with-notes % vs. no-notes %); top 10 biggest single-species counts table (Species / Count [linked] / Date / Location).
+**Data Quality** — Count method: proportional bar (numeric % vs. X/presence-only %); comment coverage: proportional bar (with-notes % vs. no-notes %); top 10 biggest single-species counts table (Species / Count [linked] / Date / Location). Single-Checklist Birds (species seen on exactly one checklist; each pill links to that checklist). One-and-Done Birds (species where the total individual count is exactly 1; each pill links to the checklist where the single individual was recorded).
 
 **Breeding Stats** — Confirmed/Probable/Possible species totals. Breeding activity by month: stacked color-coded bars (dark purple = confirmed, medium = probable, light = possible species per month). Filter buttons (All / Confirmed / Probable / Possible) switch the chart to show only that tier.
 
-**Fun Stats** — Most Photographed / Most Audio / Most Video (top 10 each from ML export); links use `taxonCode` + `userId` pattern (same as Media Count tab — fetched via `POST /taxonomy/codes` on load). One-and-done birds (every species seen on exactly one checklist; each pill links to that checklist). Nemesis Birds (species recently observed nearby but absent from life list, powered by `GET /stats/nemesis`).
+**Other Statistics** — Most Photographed / Most Audio / Most Video (top 10 each from ML export); links use `taxonCode` + `userId` pattern. Nemesis Birds (species recently observed nearby but absent from life list, powered by `GET /stats/nemesis`; each name links to `ebird.org/species/{taxonCode}` — resolved from `mlTaxonMap` or a fire-and-forget `/taxonomy/codes` fetch; falls back to plain text when unresolvable).
 
 **Key files:**
-- `frontend/src/components/BirdingStats.tsx` — full tab component; ~1,800 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant; `mlCatalogUrl()` helper builds Macaulay Library search URLs using taxonCode when available, taxaName as fallback; `ML_USER_RE` extracts userId from ML export filename; `mlTaxonMap` state populated via `POST /taxonomy/codes` after ML load
+- `frontend/src/components/BirdingStats.tsx` — full tab component; ~2,100 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant; `mlCatalogUrl()` helper builds Macaulay Library search URLs using taxonCode when available, taxaName as fallback; `ML_USER_RE` extracts userId from ML export filename; `mlTaxonMap` and `nemesisTaxonMap` state populated via `POST /taxonomy/codes`; Leaflet `MapContainer` with `circleIcon`/`squareIcon` divIcon helpers and `TopLocationsBoundsFitter` null-rendering child (calls `map.invalidateSize()` then `fitBounds`)
 - `frontend/src/lib/parseEbirdObservations.ts` — extended with 9 optional checklist-level fields: `time`, `duration`, `distance`, `protocol`, `numObservers`, `allObsReported`, `checklistComments`, `stateProvince`
 - `backend/routers/stats.py` — `GET /stats/nemesis?lat&lng&dist` endpoint; validates params; calls eBird geo/recent API; returns `{species: [{commonName, recentDate, subId}]}`
 - `backend/tests/test_stats_router.py` — 13 tests
@@ -855,11 +855,11 @@ non-bird entries alphabetically alongside birds, which is the expected behavior 
 
 **Three-tier taxonomic sort: birds → non-bird animals → non-animals**
 Within taxonomic sort, `LifeListTable` assigns a priority tier to each entry: tier 0 = birds (not `isNonBird`),
-tier 1 = non-bird animals (`isNonBird && scientificName.includes(' ')`), tier 2 = non-animals (`isNonBird &&
-!scientificName.includes(' ')`). Tier 2 entries (Habitat, Soundscape, Experience, etc.) always sort
-alphabetically at the very end, regardless of the user's sort direction. The `scientificName.includes(' ')`
-test distinguishes true binomials (genus + species) from absent or single-word names — it handles both
-empty string and single-word entries without a separate empty-string check.
+tier 1 = non-bird animals (`isNonBird && scientificName.trim().length > 0`), tier 2 = non-animals (`isNonBird &&
+scientificName.trim().length === 0`). Tier 2 entries (Habitat, Soundscape, Experience, etc.) always sort
+alphabetically at the very end, regardless of the user's sort direction. The boundary is whether any scientific
+name is present — not whether it contains a space. Single-word scientific names (genus-only entries) correctly
+land in tier 1 alongside binomial-named non-bird animals.
 
 **`buildGraphData` returns `{ data, interval }` — `useMonthly` boolean removed**
 The return type was changed from `{ data, useMonthly: boolean }` to `{ data, interval: GraphInterval }` when weekly support was added. Callers should use `graphResult.interval` everywhere a format decision is needed (axis labels, tooltip titles). Do not re-introduce `useMonthly` — the explicit interval string is more expressive and handles three values without conditionals.

@@ -7,6 +7,14 @@ import { MapExplorer } from './components/MapExplorer'
 import { Settings } from './components/Settings'
 import { SpeciesDetail } from './components/SpeciesDetail'
 import { BirdingStats } from './components/BirdingStats'
+import {
+  type ConfigurableTab,
+  type TabLayoutState,
+  loadTabLayout,
+  saveTabLayout,
+  DEFAULT_TAB_ORDER,
+  TAB_LABELS,
+} from './lib/tabLayout'
 
 type AppState =
   | { status: 'idle' }
@@ -14,7 +22,7 @@ type AppState =
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
 
-type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes' | 'species-detail' | 'map-explorer' | 'birding-stats' | 'settings'
+type Tab = ConfigurableTab | 'settings'
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -34,8 +42,39 @@ function isValidId(id: string): boolean {
 
 type KeyStatus = { ebird: string | null; openweather: string | null }
 
+// Tab icon lookup — kept outside the component so it's never recreated
+const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
+  'weather': (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
+    </svg>
+  ),
+  'species-detail': <BookOpen size={14} strokeWidth={2.5} aria-hidden="true" />,
+  'birding-stats':  <BarChart2 size={14} strokeWidth={2.5} aria-hidden="true" />,
+  'map-explorer': (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
+      <line x1="9" y1="3" x2="9" y2="18"/>
+      <line x1="15" y1="6" x2="15" y2="21"/>
+    </svg>
+  ),
+  'life-list':      <List size={14} strokeWidth={2.5} aria-hidden="true" />,
+  'breeding-codes': <Dna size={14} strokeWidth={2.5} aria-hidden="true" />,
+  'comparer': (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
+    </svg>
+  ),
+}
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('weather')
+  // loadTabLayout reads localStorage synchronously — initial state is correct before first paint (NFR-04)
+  const [tabLayout, setTabLayout] = useState<TabLayoutState>(loadTabLayout)
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const layout = loadTabLayout()
+    const first = layout.order.find(t => !layout.hidden.has(t))
+    return first ?? 'settings'
+  })
   const [input, setInput] = useState('')
   const [state, setState] = useState<AppState>({ status: 'idle' })
   const [copied, setCopied] = useState(false)
@@ -50,6 +89,41 @@ export default function App() {
   }, [])
 
   const resetMediaListFilter = useCallback(() => setMediaListFilter(undefined), [])
+
+  const handleReorder = useCallback((newOrder: ConfigurableTab[]) => {
+    setTabLayout(prev => {
+      const next = { ...prev, order: newOrder }
+      saveTabLayout(next)
+      return next
+    })
+  }, [])
+
+  const handleToggleVisibility = useCallback((tab: ConfigurableTab) => {
+    setTabLayout(prev => {
+      const newHidden = new Set(prev.hidden)
+      if (newHidden.has(tab)) {
+        newHidden.delete(tab)
+      } else {
+        newHidden.add(tab)
+        // FR-08: if hiding the active tab, switch to the next visible one
+        setActiveTab(current => {
+          if (current === tab) {
+            return prev.order.find(t => !newHidden.has(t)) ?? 'settings'
+          }
+          return current
+        })
+      }
+      const next = { ...prev, hidden: newHidden }
+      saveTabLayout(next)
+      return next
+    })
+  }, [])
+
+  const handleRestoreDefaults = useCallback(() => {
+    const next: TabLayoutState = { order: [...DEFAULT_TAB_ORDER], hidden: new Set() }
+    setTabLayout(next)
+    saveTabLayout(next)
+  }, [])
 
   const fetchKeyStatus = useCallback(async () => {
     try {
@@ -196,80 +270,24 @@ export default function App() {
         </p>
       </div>
 
-      {/* Tab bar */}
+      {/* Tab bar — order and visibility controlled by tabLayout state */}
       <div style={{ borderBottom: '1px solid var(--sr-border)', display: 'flex', justifyContent: 'center', padding: '0 24px', flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
         <nav style={{ display: 'flex', maxWidth: 880, width: '100%' }} role="tablist">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'weather'}
-            style={tabStyle('weather')}
-            onClick={() => setActiveTab('weather')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>
-            </svg>
-            Weather
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'breeding-codes'}
-            style={tabStyle('breeding-codes')}
-            onClick={() => setActiveTab('breeding-codes')}
-          >
-            <Dna size={14} strokeWidth={2.5} aria-hidden="true" />
-            Breeding Codes
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'life-list'}
-            style={tabStyle('life-list')}
-            onClick={() => setActiveTab('life-list')}
-          >
-            <List size={14} strokeWidth={2.5} aria-hidden="true" />
-            Media List
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'comparer'}
-            style={tabStyle('comparer')}
-            onClick={() => setActiveTab('comparer')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
-            </svg>
-            Life List Comparer
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'species-detail'}
-            style={tabStyle('species-detail')}
-            onClick={() => setActiveTab('species-detail')}
-          >
-            <BookOpen size={14} strokeWidth={2.5} aria-hidden="true" />
-            Species Detail
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'map-explorer'}
-            style={tabStyle('map-explorer')}
-            onClick={() => setActiveTab('map-explorer')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/>
-              <line x1="9" y1="3" x2="9" y2="18"/>
-              <line x1="15" y1="6" x2="15" y2="21"/>
-            </svg>
-            Map Explorer
-          </button>
-          <button
-            role="tab"
-            aria-selected={activeTab === 'birding-stats'}
-            style={tabStyle('birding-stats')}
-            onClick={() => setActiveTab('birding-stats')}
-          >
-            <BarChart2 size={14} strokeWidth={2.5} aria-hidden="true" />
-            Statistics
-          </button>
+          {tabLayout.order
+            .filter(tab => !tabLayout.hidden.has(tab))
+            .map(tab => (
+              <button
+                key={tab}
+                role="tab"
+                aria-selected={activeTab === tab}
+                style={tabStyle(tab)}
+                onClick={() => setActiveTab(tab)}
+              >
+                {TAB_ICONS[tab]}
+                {TAB_LABELS[tab]}
+              </button>
+            ))
+          }
           <button
             role="tab"
             aria-selected={activeTab === 'settings'}
@@ -621,7 +639,14 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <Settings onKeysSaved={fetchKeyStatus} />
+        <Settings
+          onKeysSaved={fetchKeyStatus}
+          tabOrder={tabLayout.order}
+          tabHidden={tabLayout.hidden}
+          onReorder={handleReorder}
+          onToggleVisibility={handleToggleVisibility}
+          onRestoreDefaults={handleRestoreDefaults}
+        />
       </div>
 
       {/* Footer */}

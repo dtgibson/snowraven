@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tab Layout Settings — SnowRaven</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --sr-accent:          #2D8653;
+      --sr-accent-bg:       #E8F5EE;
+      --sr-accent-border:   #B8D8C5;
+      --sr-text:            #0F1117;
+      --sr-text-muted:      #71717A;
+      --sr-text-disabled:   #A1A1AA;
+      --sr-border:          #E4E4E7;
+      --sr-border-subtle:   #F0F0F2;
+      --sr-surface:         #FFFFFF;
+      --sr-surface-subtle:  #F4F4F5;
+      --sr-error:           #EF4444;
+    }
+
+    body {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      background: #F8F9FA;
+      color: var(--sr-text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Tab bar ── */
+    .app-tab-bar {
+      background: var(--sr-surface);
+      border-bottom: 1px solid var(--sr-border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      overflow-x: auto;
+    }
+
+    .app-tab {
+      padding: 13px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--sr-text-muted);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .app-tab.active {
+      color: var(--sr-accent);
+      border-bottom-color: var(--sr-accent);
+    }
+
+    /* ── Page ── */
+    .settings-wrapper {
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--sr-text-muted);
+      white-space: nowrap;
+    }
+
+    .section-rule {
+      flex: 1;
+      height: 1px;
+      background: var(--sr-border);
+    }
+
+    .badge-new {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: var(--sr-accent-bg);
+      color: var(--sr-accent);
+      border: 1px solid var(--sr-accent-border);
+    }
+
+    /* ── Card ── */
+    .card {
+      border: 1px solid var(--sr-border);
+      border-radius: 10px;
+      background: var(--sr-surface);
+      overflow: hidden;
+    }
+
+    /* ── Previous-section abbreviation ── */
+    .prev-section { margin-bottom: 24px; }
+
+    .prev-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 16px;
+      border-top: 1px solid var(--sr-border-subtle);
+    }
+    .prev-row:first-child { border-top: none; }
+
+    .prev-row-label { font-size: 13px; font-weight: 500; }
+    .prev-row-sub   { font-size: 11px; color: var(--sr-text-muted); margin-top: 1px; }
+
+    .prev-chip {
+      font-size: 11px;
+      color: var(--sr-text-muted);
+      padding: 3px 8px;
+      border: 1px solid var(--sr-border);
+      border-radius: 5px;
+      background: var(--sr-surface-subtle);
+      flex-shrink: 0;
+    }
+
+    .caption {
+      font-size: 12px;
+      color: var(--sr-text-disabled);
+      margin-top: 10px;
+      line-height: 1.5;
+      margin-bottom: 24px;
+    }
+
+    /* ── Tab layout list ── */
+    .card-intro {
+      padding: 11px 16px;
+      font-size: 12px;
+      color: var(--sr-text-muted);
+      line-height: 1.5;
+      border-bottom: 1px solid var(--sr-border-subtle);
+    }
+
+    .tab-list { list-style: none; }
+
+    .tab-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--sr-border-subtle);
+      transition: background 0.1s;
+      user-select: none;
+    }
+
+    .tab-row:first-child { border-top: none; }
+    .tab-row.drag-over   { background: var(--sr-accent-bg); }
+    .tab-row.dragging    { opacity: 0.35; }
+    .tab-row.locked      { background: var(--sr-surface-subtle); }
+
+    /* Drag handle */
+    .drag-handle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      cursor: grab;
+      color: var(--sr-text-disabled);
+      flex-shrink: 0;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .drag-handle:hover  { color: var(--sr-text-muted); }
+    .locked .drag-handle { cursor: default; }
+
+    /* Tab name */
+    .tab-name {
+      flex: 1;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--sr-text);
+    }
+    .hidden-row .tab-name { color: var(--sr-text-disabled); }
+    .locked .tab-name     { color: var(--sr-text-muted);    }
+
+    /* Hidden label */
+    .hidden-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--sr-text-disabled);
+      letter-spacing: 0.02em;
+    }
+
+    /* Lock label */
+    .lock-label {
+      font-size: 11px;
+      color: var(--sr-text-disabled);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    /* Eye button */
+    .eye-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      color: var(--sr-text-muted);
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .eye-btn:hover        { background: var(--sr-surface-subtle); color: var(--sr-text); }
+    .eye-btn.is-hidden    { color: var(--sr-text-disabled); }
+    .eye-btn:disabled     { cursor: not-allowed; color: var(--sr-border); }
+    .eye-btn:disabled:hover { background: transparent; }
+
+    /* Restore row */
+    .restore-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+    }
+
+    .restore-btn {
+      height: 30px;
+      padding: 0 12px;
+      background: var(--sr-surface-subtle);
+      color: var(--sr-text-muted);
+      border: 1px solid var(--sr-border);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .restore-btn:hover {
+      background: var(--sr-surface);
+      color: var(--sr-text);
+      border-color: var(--sr-text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Live tab bar — updates as you interact with the settings below -->
+  <nav class="app-tab-bar" id="tab-bar" aria-label="Application tabs"></nav>
+
+  <div class="settings-wrapper">
+
+    <!-- Appearance (abbreviated context) -->
+    <div class="prev-section">
+      <div class="section-header">
+        <span class="section-label">Appearance</span>
+        <div class="section-rule"></div>
+      </div>
+      <div class="card">
+        <div class="prev-row">
+          <div>
+            <div class="prev-row-label">Theme</div>
+            <div class="prev-row-sub">Follows your OS setting when set to System</div>
+          </div>
+          <div class="prev-chip">System</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Keys (abbreviated context) -->
+    <div class="prev-section">
+      <div class="section-header">
+        <span class="section-label">API Keys</span>
+        <div class="section-rule"></div>
+      </div>
+      <div class="card">
+        <div class="prev-row">
+          <div>
+            <div class="prev-row-label">eBird API Key</div>
+            <div class="prev-row-sub">Configured</div>
+          </div>
+          <div class="prev-chip">••••••••••••••••</div>
+        </div>
+        <div class="prev-row">
+          <div>
+            <div class="prev-row-label">OpenWeather API Key</div>
+            <div class="prev-row-sub">Configured</div>
+          </div>
+          <div class="prev-chip">••••••••••••••••</div>
+        </div>
+      </div>
+      <p class="caption">Keys are stored in the server's .env file and take effect immediately — no restart needed.</p>
+    </div>
+
+    <!-- Default Files (abbreviated context) -->
+    <div class="prev-section">
+      <div class="section-header">
+        <span class="section-label">Default Files</span>
+        <div class="section-rule"></div>
+      </div>
+      <div class="card">
+        <div class="prev-row">
+          <div>
+            <div class="prev-row-label">eBird Backup</div>
+            <div class="prev-row-sub">MyEBirdData.csv · Uploaded 22 May 2026</div>
+          </div>
+          <div class="prev-chip">Stored</div>
+        </div>
+        <div class="prev-row">
+          <div>
+            <div class="prev-row-label">ML Export</div>
+            <div class="prev-row-sub">ML__20260501_USER1234567.csv · Uploaded 1 May 2026</div>
+          </div>
+          <div class="prev-chip">Stored</div>
+        </div>
+      </div>
+      <p class="caption">Files are stored on this server and load automatically when you open the relevant tab.</p>
+    </div>
+
+    <!-- Default Location (abbreviated context) -->
+    <div class="prev-section">
+      <div class="section-header">
+        <span class="section-label">Default Location</span>
+        <div class="section-rule"></div>
+      </div>
+      <div class="card">
+        <div class="prev-row">
+          <div>
+            <div class="prev-row-label">Map center</div>
+            <div class="prev-row-sub">37.8716° N, 122.2727° W · 25 mi radius</div>
+          </div>
+          <div class="prev-chip">Saved</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Tab Layout — NEW ── -->
+    <div class="section-header">
+      <span class="section-label">Tab Layout</span>
+      <span class="badge-new">NEW</span>
+      <div class="section-rule"></div>
+    </div>
+
+    <div class="card">
+      <p class="card-intro">Drag to reorder. Use the eye icon to show or hide individual tabs.</p>
+      <ul class="tab-list" id="tab-list"></ul>
+      <!-- Settings — always last, always visible -->
+      <div class="tab-row locked">
+        <div class="drag-handle" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="8"  x2="21" y2="8"/>
+            <line x1="3" y1="16" x2="21" y2="16"/>
+          </svg>
+        </div>
+        <span class="tab-name">Settings</span>
+        <span class="lock-label">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          always last
+        </span>
+      </div>
+    </div>
+
+    <div class="restore-row">
+      <button class="restore-btn" id="restore-btn">Restore defaults</button>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Default order (PRD FR-02) ──
+    const DEFAULT_TABS = [
+      { id: 'weather',        label: 'Weather'           },
+      { id: 'species-detail', label: 'Species Detail'    },
+      { id: 'birding-stats',  label: 'Statistics'        },
+      { id: 'map-explorer',   label: 'Map Explorer'      },
+      { id: 'life-list',      label: 'Media List'        },
+      { id: 'breeding-codes', label: 'Breeding Codes'    },
+      { id: 'comparer',       label: 'Life List Comparer'},
+    ]
+
+    // Demo: start with Life List Comparer hidden to show the hidden state
+    let tabs = DEFAULT_TABS.map((t, i) => ({ ...t, visible: i !== 6 }))
+    let dragSrcIdx = null
+
+    // ── SVG icons ──
+    const EYE_ON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+
+    const EYE_OFF = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+
+    const GRIP = `<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="3.5" r="1.1"/><circle cx="11" cy="3.5" r="1.1"/><circle cx="5" cy="8"   r="1.1"/><circle cx="11" cy="8"   r="1.1"/><circle cx="5" cy="12.5" r="1.1"/><circle cx="11" cy="12.5" r="1.1"/></svg>`
+
+    function visibleCount() { return tabs.filter(t => t.visible).length }
+
+    function render() { renderList(); renderTabBar() }
+
+    function renderList() {
+      const list = document.getElementById('tab-list')
+      list.innerHTML = ''
+      const onlyOne = visibleCount() === 1
+
+      tabs.forEach((tab, idx) => {
+        const li = document.createElement('li')
+        li.className = 'tab-row' + (tab.visible ? '' : ' hidden-row')
+        li.draggable = true
+        li.dataset.idx = String(idx)
+
+        // Drag handle
+        const handle = document.createElement('div')
+        handle.className = 'drag-handle'
+        handle.innerHTML = GRIP
+        handle.setAttribute('aria-label', 'Drag to reorder ' + tab.label + ' tab')
+        li.appendChild(handle)
+
+        // Tab name
+        const name = document.createElement('span')
+        name.className = 'tab-name'
+        name.textContent = tab.label
+        li.appendChild(name)
+
+        // Hidden badge
+        if (!tab.visible) {
+          const badge = document.createElement('span')
+          badge.className = 'hidden-badge'
+          badge.textContent = 'hidden'
+          li.appendChild(badge)
+        }
+
+        // Eye button
+        const eyeBtn = document.createElement('button')
+        eyeBtn.className = 'eye-btn' + (tab.visible ? '' : ' is-hidden')
+        eyeBtn.innerHTML = tab.visible ? EYE_ON : EYE_OFF
+        eyeBtn.setAttribute('aria-label', (tab.visible ? 'Hide ' : 'Show ') + tab.label + ' tab')
+
+        if (tab.visible && onlyOne) {
+          eyeBtn.disabled = true
+          eyeBtn.title = 'At least one tab must remain visible'
+        }
+
+        eyeBtn.addEventListener('click', () => {
+          tabs[idx].visible = !tabs[idx].visible
+          render()
+        })
+        li.appendChild(eyeBtn)
+
+        // Drag events
+        li.addEventListener('dragstart', e => {
+          dragSrcIdx = idx
+          e.dataTransfer.effectAllowed = 'move'
+          setTimeout(() => li.classList.add('dragging'), 0)
+        })
+        li.addEventListener('dragend', () => {
+          li.classList.remove('dragging')
+          list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'))
+          dragSrcIdx = null
+        })
+        li.addEventListener('dragover', e => {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+          list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'))
+          li.classList.add('drag-over')
+        })
+        li.addEventListener('dragleave', () => li.classList.remove('drag-over'))
+        li.addEventListener('drop', e => {
+          e.preventDefault()
+          li.classList.remove('drag-over')
+          if (dragSrcIdx === null || dragSrcIdx === idx) return
+          const moved = tabs.splice(dragSrcIdx, 1)[0]
+          const targetIdx = idx > dragSrcIdx ? idx - 1 : idx
+          tabs.splice(targetIdx, 0, moved)
+          render()
+        })
+
+        list.appendChild(li)
+      })
+    }
+
+    function renderTabBar() {
+      const bar = document.getElementById('tab-bar')
+      bar.innerHTML = ''
+
+      tabs.filter(t => t.visible).forEach(tab => {
+        const btn = document.createElement('button')
+        btn.className = 'app-tab'
+        btn.textContent = tab.label
+        bar.appendChild(btn)
+      })
+
+      const settingsBtn = document.createElement('button')
+      settingsBtn.className = 'app-tab active'
+      settingsBtn.textContent = 'Settings'
+      bar.appendChild(settingsBtn)
+    }
+
+    // Restore defaults
+    const restoreBtn = document.getElementById('restore-btn')
+    restoreBtn.addEventListener('click', () => {
+      tabs = DEFAULT_TABS.map(t => ({ ...t, visible: true }))
+      render()
+      restoreBtn.textContent = 'Restored'
+      restoreBtn.style.color = 'var(--sr-accent)'
+      restoreBtn.style.borderColor = 'var(--sr-accent-border)'
+      setTimeout(() => {
+        restoreBtn.textContent = 'Restore defaults'
+        restoreBtn.style.color = ''
+        restoreBtn.style.borderColor = ''
+      }, 1500)
+    })
+
+    render()
+  </script>
+</body>
+</html>

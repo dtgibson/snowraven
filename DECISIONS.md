@@ -4,6 +4,21 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Stats: Top Locations Leaflet map added to Geographic Stats — 2026-05-24
+
+**Addition:** A Leaflet `MapContainer` now renders at the top of the Geographic Stats card, above the two location text lists. The prior "map removed" decision (FR-37, see below) referred to a personal-sightings history map — this is a different map showing ranked top locations as numbered pins.
+
+**Two marker sets:**
+- Green filled circle SVG markers (via `L.divIcon`) for top-by-checklists locations, numbered 1–10
+- Blue filled square SVG markers for top-by-species locations, numbered 1–10
+- A location in both lists gets one of each marker at the same coordinates
+
+**Layout and sizing:** `TopLocationsBoundsFitter` is a null-rendering child inside `MapContainer` that calls `map.invalidateSize()` then `fitBounds` (or `setView` at zoom 12 for single-marker cases) inside a `useEffect`. `invalidateSize()` must be called first — without it, Leaflet doesn't know the container's true dimensions at mount time (the classic "grey corner" bug). Markers hidden when no locations have lat/lng data.
+
+**Implications:** The divIcon SVG uses hardcoded hex colors (`#2D8653`, `#3B82F6`) — acceptable per the established Leaflet popup convention (CSS vars are not reliably inherited inside Leaflet's detached DOM). If you add more Leaflet maps to the Stats tab, use the same `invalidateSize()` pattern at the start of the bounds-fitting `useEffect`.
+
+---
+
 ## Birding Stats: protocol breakdown removed from Temporal Stats — 2026-05-24
 
 **FR-15 of the stats-tab-enhancements PRD specified a protocol pie chart in the Temporal Stats section.** It was intentionally not implemented there.

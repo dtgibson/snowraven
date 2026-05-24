@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { FileCheck, FileQuestion, Lock } from 'lucide-react'
+import { Eye, EyeOff, FileCheck, FileQuestion, Lock } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
+import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -471,6 +472,189 @@ function SectionHeader({ label }: { label: string }) {
   )
 }
 
+// ---- Tab Layout section ----
+
+interface TabLayoutSectionProps {
+  tabOrder: ConfigurableTab[]
+  tabHidden: Set<ConfigurableTab>
+  onReorder: (newOrder: ConfigurableTab[]) => void
+  onToggleVisibility: (tab: ConfigurableTab) => void
+  onRestoreDefaults: () => void
+}
+
+function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: TabLayoutSectionProps) {
+  const dragSrcRef = useRef<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+  const [showRestored, setShowRestored] = useState(false)
+  const restoredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const visibleCount = tabOrder.filter(t => !tabHidden.has(t)).length
+
+  function handleDragStart(idx: number) {
+    dragSrcRef.current = idx
+  }
+
+  function handleDragOver(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    setDragOverIdx(idx)
+  }
+
+  function handleDrop(e: React.DragEvent, idx: number) {
+    e.preventDefault()
+    setDragOverIdx(null)
+    const src = dragSrcRef.current
+    if (src === null || src === idx) return
+    const next = [...tabOrder]
+    const [moved] = next.splice(src, 1)
+    next.splice(idx, 0, moved)
+    onReorder(next)
+    dragSrcRef.current = null
+  }
+
+  function handleDragEnd() {
+    dragSrcRef.current = null
+    setDragOverIdx(null)
+  }
+
+  function handleRestore() {
+    onRestoreDefaults()
+    if (restoredTimerRef.current) clearTimeout(restoredTimerRef.current)
+    setShowRestored(true)
+    restoredTimerRef.current = setTimeout(() => setShowRestored(false), 1500)
+  }
+
+  const isDefault =
+    tabOrder.every((t, i) => t === DEFAULT_TAB_ORDER[i]) && tabHidden.size === 0
+
+  const rowStyle = (idx: number, hidden: boolean): React.CSSProperties => ({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    padding: '10px 16px',
+    borderTop: '1px solid var(--sr-border-subtle)',
+    background: dragOverIdx === idx
+      ? 'var(--sr-accent-bg)'
+      : hidden ? 'transparent' : 'transparent',
+    transition: 'background 0.1s',
+    cursor: 'default',
+    userSelect: 'none',
+  })
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+          Tab Layout
+        </span>
+        <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
+      </div>
+
+      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
+        <p style={{ padding: '11px 16px', fontSize: 12, color: 'var(--sr-text-muted)', lineHeight: 1.5, borderBottom: '1px solid var(--sr-border-subtle)' }}>
+          Drag to reorder. Use the eye icon to show or hide individual tabs.
+        </p>
+
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+          {tabOrder.map((tab, idx) => {
+            const hidden = tabHidden.has(tab)
+            const isLastVisible = !hidden && visibleCount === 1
+            return (
+              <li
+                key={tab}
+                draggable
+                onDragStart={() => handleDragStart(idx)}
+                onDragOver={e => handleDragOver(e, idx)}
+                onDrop={e => handleDrop(e, idx)}
+                onDragEnd={handleDragEnd}
+                onDragLeave={() => setDragOverIdx(null)}
+                style={rowStyle(idx, hidden)}
+              >
+                {/* Drag handle */}
+                <div
+                  aria-label={`Drag to reorder ${TAB_LABELS[tab]} tab`}
+                  style={{ cursor: 'grab', color: 'var(--sr-text-disabled)', display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <circle cx="5"  cy="3.5"  r="1.1"/><circle cx="11" cy="3.5"  r="1.1"/>
+                    <circle cx="5"  cy="8"    r="1.1"/><circle cx="11" cy="8"    r="1.1"/>
+                    <circle cx="5"  cy="12.5" r="1.1"/><circle cx="11" cy="12.5" r="1.1"/>
+                  </svg>
+                </div>
+
+                {/* Tab name */}
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: hidden ? 'var(--sr-text-disabled)' : 'var(--sr-text)' }}>
+                  {TAB_LABELS[tab]}
+                </span>
+
+                {/* Hidden badge */}
+                {hidden && (
+                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--sr-text-disabled)', letterSpacing: '0.02em' }}>
+                    hidden
+                  </span>
+                )}
+
+                {/* Eye toggle */}
+                <button
+                  aria-label={(hidden ? 'Show ' : 'Hide ') + TAB_LABELS[tab] + ' tab'}
+                  disabled={isLastVisible}
+                  title={isLastVisible ? 'At least one tab must remain visible' : undefined}
+                  onClick={() => onToggleVisibility(tab)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 28, height: 28,
+                    border: 'none', borderRadius: 6, background: 'transparent',
+                    cursor: isLastVisible ? 'not-allowed' : 'pointer',
+                    color: hidden ? 'var(--sr-text-disabled)' : isLastVisible ? 'var(--sr-border)' : 'var(--sr-text-muted)',
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={e => { if (!isLastVisible) { e.currentTarget.style.background = 'var(--sr-surface-subtle)'; e.currentTarget.style.color = 'var(--sr-text)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = hidden ? 'var(--sr-text-disabled)' : isLastVisible ? 'var(--sr-border)' : 'var(--sr-text-muted)' }}
+                >
+                  {hidden ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </li>
+            )
+          })}
+        </ul>
+
+        {/* Locked Settings row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', borderTop: '1px solid var(--sr-border-subtle)', background: 'var(--sr-surface-subtle)' }}>
+          <div style={{ color: 'var(--sr-border)', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <circle cx="5"  cy="3.5"  r="1.1"/><circle cx="11" cy="3.5"  r="1.1"/>
+              <circle cx="5"  cy="8"    r="1.1"/><circle cx="11" cy="8"    r="1.1"/>
+              <circle cx="5"  cy="12.5" r="1.1"/><circle cx="11" cy="12.5" r="1.1"/>
+            </svg>
+          </div>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--sr-text-muted)' }}>Settings</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--sr-text-disabled)' }}>
+            <Lock size={11} />
+            always last
+          </span>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, marginBottom: 8 }}>
+        <button
+          onClick={handleRestore}
+          disabled={isDefault}
+          style={{
+            height: 30, padding: '0 12px',
+            background: 'var(--sr-surface-subtle)',
+            color: showRestored ? 'var(--sr-accent)' : isDefault ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)',
+            border: `1px solid ${showRestored ? 'var(--sr-accent-border)' : 'var(--sr-border)'}`,
+            borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+            cursor: isDefault ? 'not-allowed' : 'pointer',
+            transition: 'color 0.15s, border-color 0.15s',
+          }}
+        >
+          {showRestored ? '✓ Restored' : 'Restore defaults'}
+        </button>
+      </div>
+    </>
+  )
+}
+
 // ---- Main Settings component ----
 
 interface ApiKeyStatus {
@@ -478,7 +662,16 @@ interface ApiKeyStatus {
   openweather: string | null
 }
 
-export function Settings({ onKeysSaved }: { onKeysSaved?: () => void }) {
+interface SettingsProps {
+  onKeysSaved?: () => void
+  tabOrder: ConfigurableTab[]
+  tabHidden: Set<ConfigurableTab>
+  onReorder: (newOrder: ConfigurableTab[]) => void
+  onToggleVisibility: (tab: ConfigurableTab) => void
+  onRestoreDefaults: () => void
+}
+
+export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
   const [status, setStatus] = useState<StoredFilesStatus>({ ebird: null, ml: null })
   const [keys, setKeys] = useState<ApiKeyStatus>({ ebird: null, openweather: null })
 
@@ -830,6 +1023,17 @@ export function Settings({ onKeysSaved }: { onKeysSaved?: () => void }) {
           </div>
         </div>
       </div>
+
+      <div style={{ marginTop: 24 }}>
+        <TabLayoutSection
+          tabOrder={tabOrder}
+          tabHidden={tabHidden}
+          onReorder={onReorder}
+          onToggleVisibility={onToggleVisibility}
+          onRestoreDefaults={onRestoreDefaults}
+        />
+      </div>
+
     </div>
   )
 }

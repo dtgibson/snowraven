@@ -1,30 +1,42 @@
-# Handoff — species-detail-enhancements (v0.1.11)
+# Handoff — stats-enhancements (v0.1.12)
 
 ## What was built
 
-Three additions to the Species Detail tab — shipped, tested, and deployed.
+Eight improvements to the Statistics tab, shipped and deployed.
 
-**Weekly graph interval** — The Graph Options toggle now includes Weekly as the first option (Weekly · Monthly · Yearly). Monthly is the new default on every species selection. Weekly groups observations by ISO week (`YYYY-Www`) with a Monday-anchored gap-fill and `Wk N 'YY` axis labels.
+**Denser milestone schedule** — 43 thresholds replacing 20. Every 10 species below 100, every 25 from 100–475, every 50 from 500–950, sparse from 1,000–3,000. Milestone pills moved from Life List Totals to the bottom of Firsts & Milestones. Four color tiers (sage green, medium green, deep green, amber/gold).
 
-**Checklists Over Time graph** — A new chart card between "Sightings Over Time" and "Media Over Time" showing how many of your checklists recorded the species per period (per week/month/year, or cumulative). Uses the same interval and view-mode controls as the other graphs. Rendered in the same accent green as the individuals line, at 0.6 opacity to visually subordinate it.
+**Per-year statistics** — Checklists by Year now shows checklist count, distinct species count, and best single-day species count per year. Best-day count links to the eBird checklist when the submission ID is valid.
 
-**Frequency statistic** — A "Frequency" cell in the Sightings section shows what percentage of your checklists include the selected species. Displays as `X%` (rounded) or `<1%` in accent green with a slim fill bar. Updates reactively when county or date-range filters are active; hidden when no valid submission IDs are in scope.
+**Top Locations Leaflet map** — Numbered green circle markers (top-by-checklists) and blue square markers (top-by-species) in the Geographic Stats card. Placed at the top of the card above the text lists. `invalidateSize()` called before `fitBounds` to prevent the "grey corner" Leaflet rendering bug.
+
+**Single-Checklist Birds / One-and-Done Birds split** — Renamed and separated into two distinct concepts. One-and-done now means total individual count = 1 (not seen on one checklist). Pills link to eBird checklists matching single-checklist bird behavior. Submissionid tracking added to the one-and-done computation.
+
+**Nemesis bird links** — Each nemesis bird name links to its eBird species page. Taxon codes resolved from ML export data or a fire-and-forget `/taxonomy/codes` fetch. Unresolvable names fall back to plain text.
+
+**Accumulation pill order** — Weekly · Monthly · Yearly · Total.
+
+**Day-of-week chart layout** — Pie chart and legend stacked below the bar chart.
+
+**"Fun Stats" renamed** — Section is now "Other Statistics."
 
 ## Artifacts
 
 **Session 1:**
-- `pipeline/species-detail-enhancements/strategic-brief.md`
-- `pipeline/species-detail-enhancements/prd.md`
-- `pipeline/species-detail-enhancements/schema.md`
-- `pipeline/species-detail-enhancements/design-spec.md`
-- `pipeline/species-detail-enhancements/design.html`
+- `pipeline/stats-enhancements/strategic-brief.md`
+- `pipeline/stats-enhancements/prd.md`
+- `pipeline/stats-enhancements/schema.md`
+- `pipeline/stats-enhancements/design-spec.md`
+- `pipeline/stats-enhancements/design.html`
 
 **Session 2 (code):**
-- `frontend/src/lib/sightingsGraph.ts` — complete rewrite; `GraphInterval` type, `checklists` field, ISO week support, returns `{ data, interval }`
-- `frontend/src/lib/sightingsGraph.test.ts` — 18 tests (up from 9)
-- `frontend/src/components/SpeciesDetail.tsx` — weekly interval, checklists graph, frequency stat, monthly default
+- `frontend/src/components/BirdingStats.tsx` — all feature changes
+- `frontend/package.json` — version bumped to 0.1.12
+- `CHANGELOG.md` — v0.1.12 entry
+- `PRODUCT_CONTEXT.md` — Statistics tab section updated
+- `DECISIONS.md` — Top Locations map decision added
 
-**Release:** v0.1.11 — deployed and published at https://github.com/dtgibson/snowraven/releases/tag/v0.1.11
+**Release:** v0.1.12 — deployed and published at https://github.com/dtgibson/snowraven/releases/tag/v0.1.12
 
 ## Status
 

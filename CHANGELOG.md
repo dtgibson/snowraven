@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.15] - 2026-05-24
+
+### Added
+- **Settings — Tab order & visibility** — New section at the bottom of Settings lets users drag tabs into any order and hide tabs they don't use. Settings tab is always fixed last. Changes take effect immediately with no save button. Preferences are stored per-browser in `localStorage` and survive page reloads. At least one tab must remain visible at all times. Hiding the currently active tab auto-switches to the first visible tab.
+
 ## [0.1.14] - 2026-05-24
 
 ### Changed
