@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2 } from 'lucide-react'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
 import { MapExplorer } from './components/MapExplorer'
 import { Settings } from './components/Settings'
 import { SpeciesDetail } from './components/SpeciesDetail'
+import { BirdingStats } from './components/BirdingStats'
 
 type AppState =
   | { status: 'idle' }
@@ -13,7 +14,7 @@ type AppState =
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
 
-type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes' | 'species-detail' | 'map-explorer' | 'settings'
+type Tab = 'weather' | 'comparer' | 'life-list' | 'breeding-codes' | 'species-detail' | 'map-explorer' | 'birding-stats' | 'settings'
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -259,6 +260,15 @@ export default function App() {
               <line x1="15" y1="6" x2="15" y2="21"/>
             </svg>
             Map Explorer
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'birding-stats'}
+            style={tabStyle('birding-stats')}
+            onClick={() => setActiveTab('birding-stats')}
+          >
+            <BarChart2 size={14} strokeWidth={2.5} aria-hidden="true" />
+            Statistics
           </button>
           <button
             role="tab"
@@ -586,6 +596,19 @@ export default function App() {
         }}
       >
         <MapExplorer onGoToSettings={() => setActiveTab('settings')} onNavigateToMediaList={navigateToMediaList} />
+      </div>
+
+      {/* Statistics tab content */}
+      <div
+        role="tabpanel"
+        className="sr-panel"
+        style={{
+          display: activeTab === 'birding-stats' ? 'flex' : 'none',
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        <BirdingStats onGoToSettings={() => setActiveTab('settings')} />
       </div>
 
       {/* Settings tab content */}

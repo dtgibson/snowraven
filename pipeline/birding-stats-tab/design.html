@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Birding Statistics — Design Mockup</title>
+  <style>
+    :root {
+      --sr-bg: #F9FAFB;
+      --sr-surface: #FFFFFF;
+      --sr-surface-subtle: #F4F4F5;
+      --sr-surface-faint: #FAFAFA;
+      --sr-text: #0F1117;
+      --sr-text-muted: #71717A;
+      --sr-text-disabled: #A1A1AA;
+      --sr-border: #E4E4E7;
+      --sr-border-subtle: #F4F4F5;
+      --sr-border-medium: #C4C4CE;
+      --sr-accent: #2D8653;
+      --sr-accent-bg: #E8F5EE;
+      --sr-accent-bg-hover: #F0FAF4;
+      --sr-accent-border: rgba(45,134,83,0.25);
+      --sr-accent-border-strong: rgba(45,134,83,0.7);
+      --sr-accent-surface: #fafffd;
+      --sr-tier-4: #3B0764;
+      --sr-tier-3: #6B21A8;
+      --sr-tier-2: #9333EA;
+      --sr-tier-1: #C084FC;
+      --sr-tier-4-rgb: 59,7,100;
+      --sr-tier-3-rgb: 107,33,168;
+      --sr-tier-2-rgb: 147,51,234;
+      --sr-tier-1-rgb: 192,132,252;
+      --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+      --font: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+      --radius: 0.5rem;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
+      background: var(--sr-bg);
+      color: var(--sr-text);
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { padding: 32px 24px 64px; max-width: 900px; margin: 0 auto; }
+
+    /* ── Page header ────────────────────────────────────────────────────── */
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .page-title {
+      font-size: 20px; font-weight: 700; color: var(--sr-text);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .page-title-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--sr-accent-bg); color: var(--sr-accent);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .page-subtitle { font-size: 12px; color: var(--sr-text-muted); margin-top: 2px; }
+    .badge {
+      display: inline-flex; align-items: center;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 2px 7px; border-radius: 4px;
+    }
+    .badge-green { background: var(--sr-accent); color: white; }
+    .badge-subtle {
+      background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+      border: 1px solid var(--sr-border);
+    }
+
+    /* ── Cards ──────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--sr-surface);
+      border: 1px solid var(--sr-border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--sr-card-shadow);
+      margin-bottom: 14px;
+    }
+    .card-head {
+      display: flex; align-items: center; gap: 8px;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid var(--sr-border-subtle);
+    }
+    .head-icon {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: var(--sr-accent-bg); color: var(--sr-accent);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .head-title { font-size: 13px; font-weight: 600; color: var(--sr-text); flex: 1; }
+    .head-meta { font-size: 11px; color: var(--sr-text-muted); }
+    .card-body { padding: 16px 18px; }
+    .card-body-tight { padding: 12px 18px; }
+
+    /* ── Buttons ─────────────────────────────────────────────────────────── */
+    .btn {
+      height: 28px; padding: 0 11px; border-radius: 6px;
+      border: 1.5px solid var(--sr-border);
+      background: var(--sr-surface); color: var(--sr-text-muted);
+      font-size: 12px; font-weight: 500; font-family: inherit;
+      cursor: pointer; display: inline-flex; align-items: center;
+      gap: 5px; transition: all 0.12s; white-space: nowrap;
+    }
+    .btn:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+    .btn-active {
+      border-color: var(--sr-accent-border-strong);
+      background: var(--sr-accent-bg); color: var(--sr-accent);
+    }
+    .btn-active:hover { background: var(--sr-accent-bg-hover); }
+    .toggle-group { display: inline-flex; border-radius: 7px; overflow: hidden; border: 1.5px solid var(--sr-border); }
+    .toggle-group .btn {
+      border: none; border-radius: 0; height: 26px;
+      border-right: 1px solid var(--sr-border);
+    }
+    .toggle-group .btn:last-child { border-right: none; }
+    .toggle-group .btn.active { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+
+    /* ── Hero stat grid ───────────────────────────────────────────────────── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--sr-border-subtle);
+    }
+    .stat-cell {
+      background: var(--sr-surface);
+      padding: 14px 16px;
+    }
+    .stat-cell:first-child { border-radius: 0; }
+    .stat-num {
+      font-size: 28px; font-weight: 700; color: var(--sr-text);
+      letter-spacing: -0.02em; line-height: 1.1;
+    }
+    .stat-num-sm {
+      font-size: 22px; font-weight: 700; color: var(--sr-text);
+      letter-spacing: -0.02em; line-height: 1.1;
+    }
+    .stat-label {
+      font-size: 11px; color: var(--sr-text-muted);
+      margin-top: 3px; font-weight: 500;
+    }
+    .stat-sub { font-size: 11px; color: var(--sr-text-muted); margin-top: 2px; }
+    .stat-accent { color: var(--sr-accent); }
+
+    /* ── Mini stat row ───────────────────────────────────────────────────── */
+    .mini-stats { display: flex; gap: 0; }
+    .mini-stat {
+      flex: 1; padding: 10px 14px;
+      border-right: 1px solid var(--sr-border-subtle);
+    }
+    .mini-stat:last-child { border-right: none; }
+    .mini-num { font-size: 18px; font-weight: 700; line-height: 1.1; }
+    .mini-label { font-size: 11px; color: var(--sr-text-muted); margin-top: 2px; }
+
+    /* ── Milestone list ──────────────────────────────────────────────────── */
+    .milestone-list { list-style: none; }
+    .milestone-item {
+      display: flex; align-items: baseline; gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--sr-border-subtle);
+    }
+    .milestone-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .milestone-num {
+      width: 34px; height: 20px; border-radius: 4px;
+      background: var(--sr-accent-bg); color: var(--sr-accent);
+      font-size: 10px; font-weight: 700; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .milestone-species { font-size: 13px; font-weight: 600; color: var(--sr-text); flex: 1; }
+    .milestone-date { font-size: 11px; color: var(--sr-text-muted); white-space: nowrap; }
+
+    /* ── Rank bars (most/least reported) ────────────────────────────────── */
+    .rank-list { list-style: none; }
+    .rank-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--sr-border-subtle);
+    }
+    .rank-item:last-child { border-bottom: none; }
+    .rank-name { font-size: 12px; color: var(--sr-text); width: 180px; flex-shrink: 0; }
+    .rank-bar-wrap { flex: 1; height: 6px; background: var(--sr-surface-subtle); border-radius: 3px; }
+    .rank-bar { height: 100%; border-radius: 3px; background: var(--sr-accent); }
+    .rank-bar-rare { background: #F59E0B; }
+    .rank-pct { font-size: 11px; color: var(--sr-text-muted); width: 38px; text-align: right; flex-shrink: 0; }
+
+    /* ── Bar histogram ───────────────────────────────────────────────────── */
+    .histogram { display: flex; flex-direction: column; gap: 5px; }
+    .histo-row { display: flex; align-items: center; gap: 8px; }
+    .histo-label { font-size: 11px; color: var(--sr-text-muted); width: 30px; flex-shrink: 0; text-align: right; }
+    .histo-label-wide { width: 44px; }
+    .histo-track { flex: 1; height: 14px; background: var(--sr-surface-subtle); border-radius: 3px; overflow: hidden; }
+    .histo-fill { height: 100%; background: var(--sr-accent); border-radius: 3px; opacity: 0.85; transition: width 0.3s; }
+    .histo-fill-blue { background: #3B82F6; }
+    .histo-fill-amber { background: #F59E0B; }
+    .histo-val { font-size: 11px; color: var(--sr-text-muted); width: 36px; flex-shrink: 0; }
+
+    /* ── Accumulation SVG ────────────────────────────────────────────────── */
+    .chart-svg { width: 100%; height: 160px; display: block; }
+
+    /* ── Two-column layout ───────────────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .two-col-3-2 { display: grid; grid-template-columns: 3fr 2fr; gap: 14px; }
+
+    /* ── Table ───────────────────────────────────────────────────────────── */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--sr-text-muted);
+      padding: 0 0 8px; text-align: left; border-bottom: 1px solid var(--sr-border);
+    }
+    .data-table th.right, .data-table td.right { text-align: right; }
+    .data-table td {
+      font-size: 12px; color: var(--sr-text);
+      padding: 8px 0;
+      border-bottom: 1px solid var(--sr-border-subtle);
+      vertical-align: middle;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table .loc-name { font-weight: 500; }
+    .data-table .loc-sub { font-size: 11px; color: var(--sr-text-muted); }
+    .data-table .accent-num { color: var(--sr-accent); font-weight: 600; }
+
+    /* ── Map placeholder ─────────────────────────────────────────────────── */
+    .map-box {
+      height: 220px; border-radius: 8px; overflow: hidden;
+      background: #e8ede6; position: relative;
+      border: 1px solid var(--sr-border);
+    }
+    .map-svg { width: 100%; height: 100%; }
+    .map-controls {
+      position: absolute; top: 10px; right: 10px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .map-btn {
+      background: white; border: 1px solid var(--sr-border);
+      border-radius: 6px; padding: 5px 10px;
+      font-size: 11px; font-weight: 500; cursor: pointer;
+      font-family: inherit; color: var(--sr-text-muted);
+    }
+    .map-btn.active { background: var(--sr-accent-bg); color: var(--sr-accent); border-color: var(--sr-accent-border); }
+
+    /* ── Protocol donut proxy ────────────────────────────────────────────── */
+    .proto-grid { display: flex; flex-direction: column; gap: 8px; }
+    .proto-row { display: flex; align-items: center; gap: 10px; }
+    .proto-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .proto-name { font-size: 12px; color: var(--sr-text); flex: 1; }
+    .proto-bar-wrap { width: 120px; height: 6px; background: var(--sr-surface-subtle); border-radius: 3px; }
+    .proto-bar { height: 100%; border-radius: 3px; }
+    .proto-pct { font-size: 12px; color: var(--sr-text-muted); width: 36px; text-align: right; }
+    .proto-count { font-size: 11px; color: var(--sr-text-disabled); width: 60px; text-align: right; }
+
+    /* ── Tier pill ───────────────────────────────────────────────────────── */
+    .tier-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 7px; border-radius: 4px;
+      font-size: 10px; font-weight: 600;
+    }
+    .tier-4 { background: rgba(var(--sr-tier-4-rgb),0.12); color: var(--sr-tier-4); }
+    .tier-3 { background: rgba(var(--sr-tier-3-rgb),0.12); color: var(--sr-tier-3); }
+    .tier-2 { background: rgba(var(--sr-tier-2-rgb),0.12); color: var(--sr-tier-2); }
+    .tier-1 { background: rgba(var(--sr-tier-1-rgb),0.15); color: #7C3AED; }
+
+    /* ── Divider ─────────────────────────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--sr-border-subtle); margin: 12px 0; }
+
+    /* ── Expandable ──────────────────────────────────────────────────────── */
+    .expand-btn {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 12px; color: var(--sr-accent); font-weight: 500;
+      cursor: pointer; border: none; background: none; padding: 0;
+      font-family: inherit; margin-top: 10px;
+    }
+    .expand-content { margin-top: 10px; }
+    .hidden { display: none; }
+
+    /* ── Nemesis card ────────────────────────────────────────────────────── */
+    .nemesis-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--sr-border-subtle);
+    }
+    .nemesis-item:last-child { border-bottom: none; }
+    .nemesis-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #F59E0B; flex-shrink: 0;
+    }
+    .nemesis-name { font-size: 13px; font-weight: 500; color: var(--sr-text); flex: 1; }
+    .nemesis-date { font-size: 11px; color: var(--sr-text-muted); }
+
+    /* ── Big Year controls ───────────────────────────────────────────────── */
+    .select-wrap { position: relative; display: inline-block; }
+    .year-select {
+      appearance: none; height: 28px; padding: 0 28px 0 10px;
+      border-radius: 6px; border: 1.5px solid var(--sr-border);
+      background: var(--sr-surface); color: var(--sr-text);
+      font-size: 12px; font-weight: 500; font-family: inherit;
+      cursor: pointer;
+    }
+    .select-chevron {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      pointer-events: none; color: var(--sr-text-muted);
+    }
+
+    /* ── Index scores ────────────────────────────────────────────────────── */
+    .score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .score-cell {
+      background: var(--sr-surface-subtle); border-radius: 8px;
+      padding: 12px 14px; text-align: center;
+    }
+    .score-num { font-size: 22px; font-weight: 700; color: var(--sr-text); }
+    .score-label { font-size: 11px; color: var(--sr-text-muted); margin-top: 3px; }
+
+    /* ── Section labels ──────────────────────────────────────────────────── */
+    .section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--sr-text-muted);
+      margin-bottom: 10px;
+    }
+
+    /* ── Streak display ──────────────────────────────────────────────────── */
+    .streak-box {
+      background: var(--sr-accent-bg); border-radius: 8px;
+      padding: 12px 14px; display: flex; align-items: center; gap: 12px;
+    }
+    .streak-icon { color: var(--sr-accent); }
+    .streak-num { font-size: 24px; font-weight: 700; color: var(--sr-accent); }
+    .streak-unit { font-size: 13px; color: var(--sr-accent); }
+    .streak-detail { font-size: 11px; color: #1A5C38; margin-top: 2px; }
+
+    /* ── Inline tag ──────────────────────────────────────────────────────── */
+    .inline-tag {
+      display: inline-flex; align-items: center;
+      padding: 1px 6px; border-radius: 3px;
+      font-size: 10px; font-weight: 600;
+      background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+      border: 1px solid var(--sr-border);
+    }
+
+    /* ── Toggle switch ───────────────────────────────────────────────────── */
+    .toggle-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 0; border-bottom: 1px solid var(--sr-border-subtle);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .switch {
+      position: relative; width: 32px; height: 18px; flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch-track {
+      position: absolute; cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--sr-border-medium); border-radius: 9px;
+      transition: 0.2s;
+    }
+    .switch-track::before {
+      content: ''; position: absolute;
+      width: 12px; height: 12px; border-radius: 50%;
+      left: 3px; bottom: 3px;
+      background: white; transition: 0.2s;
+    }
+    input:checked + .switch-track { background: var(--sr-accent); }
+    input:checked + .switch-track::before { transform: translateX(14px); }
+    .switch-label { font-size: 12px; color: var(--sr-text); }
+
+    /* ── Quick note box ──────────────────────────────────────────────────── */
+    .note-box {
+      background: var(--sr-warning-bg, #FFFBEB);
+      border: 1px solid #FDE68A; border-radius: 8px;
+      padding: 10px 14px; font-size: 12px; color: #92400E;
+      display: flex; gap: 8px; align-items: flex-start;
+    }
+
+    /* ── Compact species table ───────────────────────────────────────────── */
+    .sp-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 0; border-bottom: 1px solid var(--sr-border-subtle);
+    }
+    .sp-row:last-child { border-bottom: none; }
+    .sp-rank {
+      width: 20px; font-size: 11px; color: var(--sr-text-muted); text-align: right; flex-shrink: 0;
+    }
+    .sp-name { font-size: 12px; color: var(--sr-text); flex: 1; font-weight: 500; }
+    .sp-count { font-size: 12px; color: var(--sr-text-muted); flex-shrink: 0; }
+    .sp-bar-wrap { width: 80px; height: 5px; background: var(--sr-surface-subtle); border-radius: 2px; flex-shrink: 0; }
+    .sp-bar { height: 100%; border-radius: 2px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Page header ─────────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">
+        <div class="page-title-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>
+          </svg>
+        </div>
+        Statistics
+      </div>
+      <div class="page-subtitle">2,156 checklists · eBird backup from May 22, 2026</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <label class="switch">
+        <input type="checkbox" id="spuhToggle">
+        <span class="switch-track"></span>
+      </label>
+      <span class="switch-label">Include spuh/slash</span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- Section 1 · Life List Totals                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="head-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5Z"/><path d="M6 9.01V9"/><path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19"/>
+        </svg>
+      </div>
+      <span class="head-title">Life List Totals</span>
+      <span id="spuhNote" class="head-meta" style="display:none;">spuh/slash excluded</span>
+    </div>
+    <!-- Primary hero row -->
+    <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr);">
+      <div class="stat-cell">
+        <div class="stat-num stat-accent">487</div>
+        <div class="stat-label">Species</div>
+        <div class="stat-sub">486 without spuh/slash</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">12,483</div>
+        <div class="stat-label">Observations</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num">2,156</div>
+        <div class="stat-label">Checklists</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num-sm">3,847 hr</div>
+        <div class="stat-label">Time birded</div>
+        <div class="stat-sub">161 full days</div>
+      </div>
+    </div>
+    <!-- Secondary row -->
+    <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--sr-border-subtle);">
+      <div class="stat-cell">
+        <div class="stat-num-sm">23,412 km</div>
+        <div class="stat-label">Distance covered</div>
+        <div class="stat-sub">14,547 mi</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num-sm">847,293</div>
+        <div class="stat-label">Individual birds</div>
+        <div class="stat-sub">+ 8,412 × entries</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num-sm">342</div>
+        <div class="stat-label">Unique locations</div>
+        <div class="stat-sub">156 eBird hotspots</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num-sm">48 / 12 / 2</div>
+        <div class="stat-label">Counties / States / Countries</div>
+      </div>
+    </div>
+    <!-- Media row -->
+    <div style="padding: 12px 18px; border-top: 1px solid var(--sr-border-subtle); display:flex; align-items:center; gap:24px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--sr-text-muted);">ML Export</div>
+      <div style="display:flex;gap:20px;">
+        <div>
+          <span style="font-size:16px;font-weight:700;color:#3B82F6;">1,847</span>
+          <span style="font-size:11px;color:var(--sr-text-muted);margin-left:4px;">Photos</span>
+        </div>
+        <div>
+          <span style="font-size:16px;font-weight:700;color:#F59E0B;">234</span>
+          <span style="font-size:11px;color:var(--sr-text-muted);margin-left:4px;">Audio</span>
+        </div>
+        <div>
+          <span style="font-size:16px;font-weight:700;color:#8B5CF6;">67</span>
+          <span style="font-size:11px;color:var(--sr-text-muted);margin-left:4px;">Video</span>
+        </div>
+        <div style="border-left:1px solid var(--sr-border);padding-left:20px;">
+          <span style="font-size:16px;font-weight:700;color:var(--sr-text);">2,148</span>
+          <span style="font-size:11px;color:var(--sr-text-muted);margin-left:4px;">Total media</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- Section 2 · Firsts & Milestones                                       -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="head-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/>
+        </svg>
+      </div>
+      <span class="head-title">Firsts &amp; Milestones</span>
+    </div>
+    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+
+      <!-- Left: Firsts + Milestones -->
+      <div>
+        <div class="section-label">Firsts</div>
+        <div style="display:flex;flex-direction:column;gap:0;">
+          <div class="rank-item" style="padding:8px 0;">
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:600;color:var(--sr-text);">First checklist</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">May 12, 2014 · Whitefish Point Bird Observatory, MI</div>
+            </div>
+          </div>
+          <div class="rank-item" style="padding:8px 0;">
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:600;color:var(--sr-text);">First species</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">Common Loon · May 12, 2014</div>
+            </div>
+          </div>
+          <div class="rank-item" style="padding:8px 0;border-bottom:none;">
+            <div style="flex:1;">
+              <div style="font-size:12px;font-weight:600;color:var(--sr-text);">Busiest birding day</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">May 14, 2022 · 12 checklists · 134 species</div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider" style="margin:14px 0;">
+        <div class="section-label">Species Milestones</div>
+        <ul class="milestone-list">
+          <li class="milestone-item">
+            <div class="milestone-num">1st</div>
+            <div class="milestone-species">Common Loon</div>
+            <div class="milestone-date">May 12, 2014</div>
+          </li>
+          <li class="milestone-item">
+            <div class="milestone-num">10th</div>
+            <div class="milestone-species">Great Blue Heron</div>
+            <div class="milestone-date">May 12, 2014</div>
+          </li>
+          <li class="milestone-item">
+            <div class="milestone-num">50th</div>
+            <div class="milestone-species">Ring-billed Gull</div>
+            <div class="milestone-date">Jun 3, 2014</div>
+          </li>
+          <li class="milestone-item">
+            <div class="milestone-num">100th</div>
+            <div class="milestone-species">Green-winged Teal</div>
+            <div class="milestone-date">Mar 15, 2015</div>
+          </li>
+          <li class="milestone-item">
+            <div class="milestone-num">200th</div>
+            <div class="milestone-species">Connecticut Warbler</div>
+            <div class="milestone-date">Sep 18, 2016</div>
+          </li>
+          <li class="milestone-item" style="border-bottom:none;">
+            <div class="milestone-num" style="background:var(--sr-surface-subtle);color:var(--sr-text-muted);">500th</div>
+            <div class="milestone-species" style="color:var(--sr-text-muted);">Not yet reached</div>
+            <div class="milestone-date">–</div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Right: Streaks + Most/Least reported -->
+      <div>
+        <div class="section-label">Streaks &amp; Gaps</div>
+        <div class="streak-box" style="margin-bottom:10px;">
+          <div class="streak-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
+          <div>
+            <div><span class="streak-num">47</span> <span class="streak-unit">day streak</span></div>
+            <div class="streak-detail">Apr 12 – May 28, 2022 (longest ever)</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+          <div style="background:var(--sr-surface-subtle);border-radius:8px;padding:10px 12px;">
+            <div style="font-size:16px;font-weight:700;color:var(--sr-text);">3</div>
+            <div style="font-size:11px;color:var(--sr-text-muted);">Current streak</div>
+          </div>
+          <div style="background:var(--sr-surface-subtle);border-radius:8px;padding:10px 12px;">
+            <div style="font-size:16px;font-weight:700;color:var(--sr-text);">127 days</div>
+            <div style="font-size:11px;color:var(--sr-text-muted);">Longest gap</div>
+            <div style="font-size:10px;color:var(--sr-text-disabled);">Nov '20 – Mar '21</div>
+          </div>
+        </div>
+
+        <div class="section-label">Most Reported</div>
+        <ul class="rank-list" style="margin-bottom:14px;">
+          <li class="rank-item">
+            <div class="rank-name">American Robin</div>
+            <div class="rank-bar-wrap"><div class="rank-bar" style="width:100%;"></div></div>
+            <div class="rank-pct">78.3%</div>
+          </li>
+          <li class="rank-item">
+            <div class="rank-name">Black-capped Chickadee</div>
+            <div class="rank-bar-wrap"><div class="rank-bar" style="width:91%;"></div></div>
+            <div class="rank-pct">71.2%</div>
+          </li>
+          <li class="rank-item">
+            <div class="rank-name">American Goldfinch</div>
+            <div class="rank-bar-wrap"><div class="rank-bar" style="width:87%;"></div></div>
+            <div class="rank-pct">68.1%</div>
+          </li>
+        </ul>
+
+        <div class="section-label">Least Reported</div>
+        <ul class="rank-list">
+          <li class="rank-item">
+            <div class="rank-name">LeConte's Sparrow</div>
+            <div class="rank-bar-wrap"><div class="rank-bar rank-bar-rare" style="width:1%;"></div></div>
+            <div class="rank-pct">0.1%</div>
+          </li>
+          <li class="rank-item">
+            <div class="rank-name">Wilson's Snipe</div>
+            <div class="rank-bar-wrap"><div class="rank-bar rank-bar-rare" style="width:2%;"></div></div>
+            <div class="rank-pct">0.4%</div>
+          </li>
+          <li class="rank-item" style="border-bottom:none;">
+            <div class="rank-name">Henslow's Sparrow</div>
+            <div class="rank-bar-wrap"><div class="rank-bar rank-bar-rare" style="width:3%;"></div></div>
+            <div class="rank-pct">0.5%</div>
+          </li>
+        </ul>
+
+        <button class="expand-btn" onclick="toggleExpand('oneDone')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="oneDoneChevron">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+          47 one-and-done birds
+        </button>
+        <div id="oneDone" class="expand-content hidden">
+          <div style="font-size:11px;color:var(--sr-text-muted);line-height:1.8;padding:8px 10px;background:var(--sr-surface-subtle);border-radius:6px;">
+            Anhinga · American Avocet · Say's Phoebe · Purple Martin (county) · Bell's Vireo · Fish Crow ·
+            Brown-headed Nuthatch · Bewick's Wren · Blue-gray Gnatcatcher (location) · American Pipit ·
+            Sprague's Pipit · Phainopepla · Black-throated Gray Warbler · Hermit Warbler · MacGillivray's Warbler ·
+            Painted Bunting · Lazuli Bunting · Smith's Longspur · Chestnut-collared Longspur · Yellow Rail ·
+            King Rail · Whooping Crane · Reddish Egret · Little Blue Heron (county) · White Ibis ·
+            Roseate Spoonbill · Snail Kite · Short-tailed Hawk · Harris's Hawk · Ferruginous Hawk ·
+            Prairie Falcon · Purple Sandpiper · Baird's Sandpiper · Buff-breasted Sandpiper ·
+            Curlew Sandpiper · Sharp-tailed Sandpiper · Long-billed Curlew · Marbled Godwit ·
+            Bar-tailed Godwit · Red Phalarope · Parasitic Jaeger · Long-tailed Jaeger · Sabine's Gull ·
+            Black-legged Kittiwake · Elegant Tern · Manx Shearwater · Least Storm-Petrel
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- Section 3 · Temporal Stats                                            -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="head-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <span class="head-title">Temporal Stats</span>
+    </div>
+    <div class="card-body">
+
+      <!-- Accumulation curve -->
+      <div class="section-label">Species Accumulation</div>
+      <svg class="chart-svg" viewBox="0 0 800 160" preserveAspectRatio="none" style="height:130px;border-radius:6px;overflow:hidden;">
+        <rect width="800" height="160" fill="#F9FAFB"/>
+        <!-- Grid lines -->
+        <line x1="0" y1="32" x2="800" y2="32" stroke="#E4E4E7" stroke-width="1"/>
+        <line x1="0" y1="64" x2="800" y2="64" stroke="#E4E4E7" stroke-width="1"/>
+        <line x1="0" y1="96" x2="800" y2="96" stroke="#E4E4E7" stroke-width="1"/>
+        <line x1="0" y1="128" x2="800" y2="128" stroke="#E4E4E7" stroke-width="1"/>
+        <!-- Accumulation path (species: 2014:203, 2015:301, 2016:368, 2017:413, 2018:447, 2019:470, 2020:478, 2021:482, 2022:485, 2023:486, 2024:487, 2025:487) -->
+        <!-- scale: 0-500 maps to 148-0 (y = 148 - val/500*148) -->
+        <path d="M0,88 C40,88 60,28 100,28 L200,7 L310,4 L420,2 L520,1 L620,0 L720,0 L800,0"
+              fill="rgba(45,134,83,0.12)" stroke="none"/>
+        <path d="M0,148 L0,88 C40,88 60,28 100,28 L200,7 L310,4 L420,2 L520,1 L620,0 L720,0 L800,0 L800,148 Z"
+              fill="rgba(45,134,83,0.08)" stroke="none"/>
+        <path d="M0,88 C40,88 60,28 100,28 L200,7 L310,4 L420,2 L520,1 L620,0 L720,0 L800,0"
+              fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linejoin="round"/>
+        <!-- Year labels -->
+        <text x="0" y="158" font-size="9" fill="#71717A" font-family="system-ui">2014</text>
+        <text x="62" y="158" font-size="9" fill="#71717A" font-family="system-ui">2015</text>
+        <text x="135" y="158" font-size="9" fill="#71717A" font-family="system-ui">2016</text>
+        <text x="205" y="158" font-size="9" fill="#71717A" font-family="system-ui">2017</text>
+        <text x="275" y="158" font-size="9" fill="#71717A" font-family="system-ui">2018</text>
+        <text x="345" y="158" font-size="9" fill="#71717A" font-family="system-ui">2019</text>
+        <text x="415" y="158" font-size="9" fill="#71717A" font-family="system-ui">2020</text>
+        <text x="488" y="158" font-size="9" fill="#71717A" font-family="system-ui">2021</text>
+        <text x="558" y="158" font-size="9" fill="#71717A" font-family="system-ui">2022</text>
+        <text x="628" y="158" font-size="9" fill="#71717A" font-family="system-ui">2023</text>
+        <text x="698" y="158" font-size="9" fill="#71717A" font-family="system-ui">2024</text>
+        <!-- Value labels -->
+        <text x="6" y="85" font-size="9" fill="#2D8653" font-family="system-ui" font-weight="600">203</text>
+        <text x="106" y="24" font-size="9" fill="#2D8653" font-family="system-ui" font-weight="600">368</text>
+        <text x="420" y="15" font-size="9" fill="#2D8653" font-family="system-ui" font-weight="600">478</text>
+        <text x="730" y="13" font-size="9" fill="#2D8653" font-family="system-ui" font-weight="600">487</text>
+      </svg>
+
+      <hr class="divider">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- By year (checklists) -->
+        <div>
+          <div class="section-label">Checklists by Year</div>
+          <div class="histogram">
+            <div class="histo-row"><div class="histo-label">2014</div><div class="histo-track"><div class="histo-fill" style="width:28%;"></div></div><div class="histo-val">87</div></div>
+            <div class="histo-row"><div class="histo-label">2015</div><div class="histo-track"><div class="histo-fill" style="width:46%;"></div></div><div class="histo-val">142</div></div>
+            <div class="histo-row"><div class="histo-label">2016</div><div class="histo-track"><div class="histo-fill" style="width:57%;"></div></div><div class="histo-val">178</div></div>
+            <div class="histo-row"><div class="histo-label">2017</div><div class="histo-track"><div class="histo-fill" style="width:65%;"></div></div><div class="histo-val">203</div></div>
+            <div class="histo-row"><div class="histo-label">2018</div><div class="histo-track"><div class="histo-fill" style="width:50%;"></div></div><div class="histo-val">156</div></div>
+            <div class="histo-row"><div class="histo-label">2019</div><div class="histo-track"><div class="histo-fill" style="width:72%;"></div></div><div class="histo-val">224</div></div>
+            <div class="histo-row"><div class="histo-label">2020</div><div class="histo-track"><div class="histo-fill" style="width:64%;"></div></div><div class="histo-val">198</div></div>
+            <div class="histo-row"><div class="histo-label">2021</div><div class="histo-track"><div class="histo-fill" style="width:75%;"></div></div><div class="histo-val">234</div></div>
+            <div class="histo-row"><div class="histo-label">2022</div><div class="histo-track"><div class="histo-fill" style="width:86%;"></div></div><div class="histo-val">267</div></div>
+            <div class="histo-row"><div class="histo-label">2023</div><div class="histo-track"><div class="histo-fill" style="width:93%;"></div></div><div class="histo-val">289</div></div>
+            <div class="histo-row"><div class="histo-label">2024</div><div class="histo-track"><div class="histo-fill" style="width:100%;"></div></div><div class="histo-val">312</div></div>
+            <div class="histo-row"><div class="histo-label">2025</div><div class="histo-track"><div class="histo-fill" style="width:21%;"></div></div><div class="histo-val">66</div></div>
+          </div>
+        </div>
+
+        <!-- By month + new species per year combined -->
+        <div>
+          <div class="section-label">Checklists by Month</div>
+          <div class="histogram">
+            <div class="histo-row"><div class="histo-label">Jan</div><div class="histo-track"><div class="histo-fill" style="width:21%;"></div></div><div class="histo-val">64</div></div>
+            <div class="histo-row"><div class="histo-label">Feb</div><div class="histo-track"><div class="histo-fill" style="width:25%;"></div></div><div class="histo-val">78</div></div>
+            <div class="histo-row"><div class="histo-label">Mar</div><div class="histo-track"><div class="histo-fill" style="width:60%;"></div></div><div class="histo-val">187</div></div>
+            <div class="histo-row"><div class="histo-label">Apr</div><div class="histo-track"><div class="histo-fill" style="width:100%;"></div></div><div class="histo-val" style="color:var(--sr-accent);font-weight:600;">312</div></div>
+            <div class="histo-row"><div class="histo-label">May</div><div class="histo-track"><div class="histo-fill" style="width:95%;"></div></div><div class="histo-val">298</div></div>
+            <div class="histo-row"><div class="histo-label">Jun</div><div class="histo-track"><div class="histo-fill" style="width:60%;"></div></div><div class="histo-val">187</div></div>
+            <div class="histo-row"><div class="histo-label">Jul</div><div class="histo-track"><div class="histo-fill" style="width:46%;"></div></div><div class="histo-val">142</div></div>
+            <div class="histo-row"><div class="histo-label">Aug</div><div class="histo-track"><div class="histo-fill" style="width:50%;"></div></div><div class="histo-val">156</div></div>
+            <div class="histo-row"><div class="histo-label">Sep</div><div class="histo-track"><div class="histo-fill" style="width:64%;"></div></div><div class="histo-val">198</div></div>
+            <div class="histo-row"><div class="histo-label">Oct</div><div class="histo-track"><div class="histo-fill" style="width:75%;"></div></div><div class="histo-val">234</div></div>
+            <div class="histo-row"><div class="histo-label">Nov</div><div class="histo-track"><div class="histo-fill" style="width:57%;"></div></div><div class="histo-val">178</div></div>
+            <div class="histo-row"><div class="histo-label">Dec</div><div class="histo-track"><div class="histo-fill" style="width:39%;"></div></div><div class="histo-val">122</div></div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- By day of week -->
+        <div>
+          <div class="section-label">Checklists by Day of Week</div>
+          <div class="histogram">
+            <div class="histo-row"><div class="histo-label histo-label-wide">Mon</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:41%;"></div></div><div class="histo-val">234</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">Tue</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:35%;"></div></div><div class="histo-val">198</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">Wed</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:31%;"></div></div><div class="histo-val">178</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">Thu</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:33%;"></div></div><div class="histo-val">187</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">Fri</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:37%;"></div></div><div class="histo-val">212</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">Sat</div><div class="histo-track"><div class="histo-fill" style="width:98%;"></div></div><div class="histo-val" style="color:var(--sr-accent);font-weight:600;">567</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">Sun</div><div class="histo-track"><div class="histo-fill" style="width:100%;"></div></div><div class="histo-val" style="color:var(--sr-accent);font-weight:600;">580</div></div>
+          </div>
+        </div>
+
+        <!-- By hour -->
+        <div>
+          <div class="section-label">Checklist Start Hour</div>
+          <div class="histogram" style="gap:3px;">
+            <div class="histo-row"><div class="histo-label histo-label-wide">5am</div><div class="histo-track"><div class="histo-fill histo-fill-amber" style="width:18%;"></div></div><div class="histo-val">87</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">6am</div><div class="histo-track"><div class="histo-fill" style="width:70%;"></div></div><div class="histo-val">342</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">7am</div><div class="histo-track"><div class="histo-fill" style="width:100%;"></div></div><div class="histo-val" style="color:var(--sr-accent);font-weight:600;">487</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">8am</div><div class="histo-track"><div class="histo-fill" style="width:84%;"></div></div><div class="histo-val">412</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">9am</div><div class="histo-track"><div class="histo-fill" style="width:59%;"></div></div><div class="histo-val">287</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">10am</div><div class="histo-track"><div class="histo-fill" style="width:48%;"></div></div><div class="histo-val">234</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">11am</div><div class="histo-track"><div class="histo-fill" style="width:41%;"></div></div><div class="histo-val">198</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">12pm</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:34%;"></div></div><div class="histo-val">167</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">1pm</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:29%;"></div></div><div class="histo-val">142</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">2pm</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:25%;"></div></div><div class="histo-val">123</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">3pm</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:27%;"></div></div><div class="histo-val">134</div></div>
+            <div class="histo-row"><div class="histo-label histo-label-wide">4pm</div><div class="histo-track"><div class="histo-fill histo-fill-blue" style="width:32%;"></div></div><div class="histo-val">156</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- Section 4 · Geographic Stats                                          -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="head-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+      </div>
+      <span class="head-title">Geographic Stats</span>
+    </div>
+    <div class="card-body">
+      <!-- Observation map placeholder -->
+      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>Observation Map</span>
+        <div class="toggle-group">
+          <button class="btn active" id="mapPins" onclick="setMapMode('pins')">Pins</button>
+          <button class="btn" id="mapHeat" onclick="setMapMode('heat')">Heatmap</button>
+        </div>
+      </div>
+      <div class="map-box" style="margin-bottom:16px;">
+        <svg class="map-svg" viewBox="0 0 900 220" id="mapSvg">
+          <!-- Simple Great Lakes region map suggestion -->
+          <rect width="900" height="220" fill="#e8ede6"/>
+          <!-- Lake Michigan shape suggestion -->
+          <ellipse cx="340" cy="90" rx="30" ry="65" fill="#c8dce8" opacity="0.8"/>
+          <!-- Lake Huron / Georgian Bay suggestion -->
+          <ellipse cx="510" cy="75" rx="55" ry="40" fill="#c8dce8" opacity="0.8"/>
+          <ellipse cx="550" cy="50" rx="25" ry="30" fill="#c8dce8" opacity="0.8"/>
+          <!-- Lake Erie suggestion -->
+          <ellipse cx="540" cy="155" rx="85" ry="22" fill="#c8dce8" opacity="0.8"/>
+          <!-- Lake Ontario -->
+          <ellipse cx="660" cy="110" rx="50" ry="18" fill="#c8dce8" opacity="0.8"/>
+          <!-- Lake Superior -->
+          <ellipse cx="310" cy="25" rx="120" ry="22" fill="#c8dce8" opacity="0.8"/>
+
+          <!-- Observation pins (pins mode) -->
+          <g id="pinsGroup">
+            <!-- Whitefish Point cluster -->
+            <circle cx="390" cy="30" r="8" fill="#2D8653" opacity="0.85"/>
+            <circle cx="393" cy="27" r="5" fill="#2D8653" opacity="0.7"/>
+            <circle cx="385" cy="33" r="4" fill="#2D8653" opacity="0.6"/>
+            <!-- Home patch SE Michigan -->
+            <circle cx="430" cy="148" r="7" fill="#2D8653" opacity="0.8"/>
+            <circle cx="425" cy="153" r="4" fill="#2D8653" opacity="0.6"/>
+            <circle cx="435" cy="145" r="3" fill="#2D8653" opacity="0.5"/>
+            <!-- Point Pelee area -->
+            <circle cx="480" cy="165" r="6" fill="#2D8653" opacity="0.75"/>
+            <!-- Magee Marsh OH -->
+            <circle cx="490" cy="160" r="5" fill="#2D8653" opacity="0.7"/>
+            <!-- Belle Isle -->
+            <circle cx="450" cy="150" r="4" fill="#2D8653" opacity="0.6"/>
+            <!-- Various other locations -->
+            <circle cx="360" cy="140" r="3" fill="#2D8653" opacity="0.5"/>
+            <circle cx="550" cy="130" r="4" fill="#2D8653" opacity="0.5"/>
+            <circle cx="280" cy="100" r="3" fill="#2D8653" opacity="0.4"/>
+            <circle cx="600" cy="155" r="3" fill="#2D8653" opacity="0.4"/>
+            <circle cx="700" cy="140" r="3" fill="#2D8653" opacity="0.4"/>
+            <circle cx="650" cy="80" r="2" fill="#2D8653" opacity="0.35"/>
+            <circle cx="200" cy="90" r="2" fill="#2D8653" opacity="0.3"/>
+            <circle cx="150" cy="60" r="2" fill="#2D8653" opacity="0.3"/>
+          </g>
+          <!-- Heatmap mode (hidden by default) -->
+          <g id="heatGroup" style="display:none;">
+            <radialGradient id="heat1" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#2D8653" stop-opacity="0.7"/>
+              <stop offset="100%" stop-color="#2D8653" stop-opacity="0"/>
+            </radialGradient>
+            <radialGradient id="heat2" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#2D8653" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#2D8653" stop-opacity="0"/>
+            </radialGradient>
+            <ellipse cx="390" cy="30" rx="30" ry="25" fill="url(#heat1)"/>
+            <ellipse cx="430" cy="148" rx="28" ry="22" fill="url(#heat1)"/>
+            <ellipse cx="483" cy="162" rx="22" ry="18" fill="url(#heat2)"/>
+            <ellipse cx="280" cy="100" rx="18" ry="15" fill="url(#heat2)" opacity="0.6"/>
+            <ellipse cx="550" cy="130" rx="14" ry="12" fill="url(#heat2)" opacity="0.5"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="two-col">
+        <!-- Top locations -->
+        <div>
+          <div class="section-label">Top Locations by Species</div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th class="right">Species</th>
+                <th class="right">Visits</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="loc-name">Whitefish Point Bird Obs.</div><div class="loc-sub">Chippewa Co., MI</div></td>
+                <td class="right accent-num">312</td>
+                <td class="right">156</td>
+              </tr>
+              <tr>
+                <td><div class="loc-name">Point Pelee National Park</div><div class="loc-sub">Essex Co., ON</div></td>
+                <td class="right accent-num">267</td>
+                <td class="right">23</td>
+              </tr>
+              <tr>
+                <td><div class="loc-name">Magee Marsh WA</div><div class="loc-sub">Ottawa Co., OH</div></td>
+                <td class="right accent-num">234</td>
+                <td class="right">18</td>
+              </tr>
+              <tr>
+                <td><div class="loc-name">Home Patch (SE Michigan)</div><div class="loc-sub">Monroe Co., MI</div></td>
+                <td class="right accent-num">178</td>
+                <td class="right">487</td>
+              </tr>
+              <tr>
+                <td><div class="loc-name">Belle Isle Nature Center</div><div class="loc-sub">Wayne Co., MI</div></td>
+                <td class="right accent-num">156</td>
+                <td class="right">67</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Top counties -->
+        <div>
+          <div class="section-label">Top Counties by Species</div>
+          <ul class="rank-list">
+            <li class="rank-item">
+              <div class="rank-name">Chippewa Co., MI</div>
+              <div class="rank-bar-wrap"><div class="rank-bar" style="width:100%;"></div></div>
+              <div class="rank-pct">287</div>
+            </li>
+            <li class="rank-item">
+              <div class="rank-name">Essex Co., ON</div>
+              <div class="rank-bar-wrap"><div class="rank-bar" style="width:82%;"></div></div>
+              <div class="rank-pct">234</div>
+            </li>
+            <li class="rank-item">
+              <div class="rank-name">Monroe Co., MI</div>
+              <div class="rank-bar-wrap"><div class="rank-bar" style="width:69%;"></div></div>
+              <div class="rank-pct">198</div>
+            </li>
+            <li class="rank-item">
+              <div class="rank-name">Wayne Co., MI</div>
+              <div class="rank-bar-wrap"><div class="rank-bar" style="width:65%;"></div></div>
+              <div class="rank-pct">187</div>
+            </li>
+            <li class="rank-item" style="border-bottom:none;">
+              <div class="rank-name">Ottawa Co., OH</div>
+              <div class="rank-bar-wrap"><div class="rank-bar" style="width:61%;"></div></div>
+              <div class="rank-pct">176</div>
+            </li>
+          </ul>
+          <button class="expand-btn" onclick="toggleExpand('allCounties')" style="margin-top:8px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="countiesChevron">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+            Show all 48 counties
+          </button>
+          <div id="allCounties" class="expand-content hidden">
+            <div style="font-size:11px;color:var(--sr-text-muted);line-height:1.8;padding:8px 10px;background:var(--sr-surface-subtle);border-radius:6px;margin-top:6px;">
+              Alcona · Allegan · Bay · Cheboygan · Clare · Crawford · Emmet · Genesee · Gladwin · Grand Traverse ·
+              Huron · Ingham · Ionia · Iosco · Isabella · Jackson · Kalamazoo · Kent · Lake · Lapeer ·
+              Leelanau · Lenawee · Livingston · Mackinac · Macomb · Mason · Mecosta · Midland · Missaukee ·
+              Montcalm · Muskegon · Newaygo · Oakland · Oceana · Ogemaw · Osceola · Oscoda · Otsego ·
+              Ottawa (MI) · Presque Isle · Roscommon · Saginaw · Sanilac · Schoolcraft · Shiawassee · Tuscola ·
+              Van Buren · Washtenaw
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- Section 5 · Effort & Methodology                                      -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="head-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <span class="head-title">Effort &amp; Methodology</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--sr-border-subtle);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+        <div class="stat-cell">
+          <div class="stat-num-sm">107 min</div>
+          <div class="stat-label">Avg checklist</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num-sm">8.2</div>
+          <div class="stat-label">Species / hour</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num-sm">3.1</div>
+          <div class="stat-label">Species / km</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num-sm">89.3%</div>
+          <div class="stat-label">Complete lists</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- Protocol breakdown -->
+        <div>
+          <div class="section-label">Protocol Breakdown</div>
+          <!-- Mini stacked bar -->
+          <div style="height:12px;border-radius:6px;overflow:hidden;display:flex;margin-bottom:12px;">
+            <div style="width:68%;background:#2D8653;"></div>
+            <div style="width:24%;background:#3B82F6;"></div>
+            <div style="width:6%;background:#F59E0B;"></div>
+            <div style="width:2%;background:#E4E4E7;"></div>
+          </div>
+          <div class="proto-grid">
+            <div class="proto-row">
+              <div class="proto-swatch" style="background:#2D8653;"></div>
+              <div class="proto-name">Traveling</div>
+              <div class="proto-bar-wrap"><div class="proto-bar" style="width:68%;background:#2D8653;"></div></div>
+              <div class="proto-pct">68%</div>
+              <div class="proto-count">1,466 lists</div>
+            </div>
+            <div class="proto-row">
+              <div class="proto-swatch" style="background:#3B82F6;"></div>
+              <div class="proto-name">Stationary</div>
+              <div class="proto-bar-wrap"><div class="proto-bar" style="width:24%;background:#3B82F6;"></div></div>
+              <div class="proto-pct">24%</div>
+              <div class="proto-count">517 lists</div>
+            </div>
+            <div class="proto-row">
+              <div class="proto-swatch" style="background:#F59E0B;"></div>
+              <div class="proto-name">Incidental</div>
+              <div class="proto-bar-wrap"><div class="proto-bar" style="width:6%;background:#F59E0B;"></div></div>
+              <div class="proto-pct">6%</div>
+              <div class="proto-count">130 lists</div>
+            </div>
+            <div class="proto-row">
+              <div class="proto-swatch" style="background:#E4E4E7;"></div>
+              <div class="proto-name">Other</div>
+              <div class="proto-bar-wrap"><div class="proto-bar" style="width:2%;background:#A1A1AA;"></div></div>
+              <div class="proto-pct">2%</div>
+              <div class="proto-count">43 lists</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Effort breakdown -->
+        <div>
+          <div class="section-label">Average by Protocol</div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Protocol</th>
+                <th class="right">Avg dur.</th>
+                <th class="right">Avg spp.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Traveling</td>
+                <td class="right">127 min</td>
+                <td class="right">14.2</td>
+              </tr>
+              <tr>
+                <td>Stationary</td>
+                <td class="right">48 min</td>
+                <td class="right">9.8</td>
+              </tr>
+              <tr>
+                <td>Incidental</td>
+                <td class="right">–</td>
+                <td class="right">4.3</td>
+              </tr>
+            </tbody>
+          </table>
+          <hr class="divider" style="margin:12px 0;">
+          <div class="section-label">Observers</div>
+          <div style="display:flex;gap:16px;">
+            <div>
+              <div style="font-size:18px;font-weight:700;">1.8</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">Avg per checklist</div>
+            </div>
+            <div>
+              <div style="font-size:18px;font-weight:700;">12.4</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">Avg species/checklist</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- Section 6 · Data Quality                                              -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="head-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <span class="head-title">Data Quality</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <div>
+          <div class="section-label">Count Method</div>
+          <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;margin-bottom:10px;">
+            <div style="width:87.3%;background:#2D8653;"></div>
+            <div style="width:12.7%;background:#F59E0B;"></div>
+          </div>
+          <div style="display:flex;gap:16px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="width:10px;height:10px;border-radius:2px;background:#2D8653;flex-shrink:0;"></div>
+              <span style="font-size:12px;"><strong>87.3%</strong> real counts (1,882 lists)</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="width:10px;height:10px;border-radius:2px;background:#F59E0B;flex-shrink:0;"></div>
+              <span style="font-size:12px;"><strong>12.7%</strong> include X entries (274 lists)</span>
+            </div>
+          </div>
+
+          <div class="section-label">Checklist Comments</div>
+          <div style="height:10px;border-radius:5px;overflow:hidden;display:flex;margin-bottom:10px;">
+            <div style="width:34.2%;background:#3B82F6;"></div>
+            <div style="width:65.8%;background:#E4E4E7;"></div>
+          </div>
+          <div style="display:flex;gap:16px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="width:10px;height:10px;border-radius:2px;background:#3B82F6;flex-shrink:0;"></div>
+              <span style="font-size:12px;"><strong>34.2%</strong> with comments (738 lists)</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-label">Biggest Single-Species Counts</div>
+          <div class="rank-list">
+            <div class="rank-item">
+              <div class="rank-name">Golden Plover</div>
+              <div style="flex:1;font-size:12px;color:var(--sr-text);font-weight:600;">12,000</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">Sep 3, 2019</div>
+            </div>
+            <div class="rank-item">
+              <div class="rank-name">Ring-billed Gull</div>
+              <div style="flex:1;font-size:12px;color:var(--sr-text);font-weight:600;">8,400</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">Oct 12, 2021</div>
+            </div>
+            <div class="rank-item">
+              <div class="rank-name">Snow Goose</div>
+              <div style="flex:1;font-size:12px;color:var(--sr-text);font-weight:600;">6,200</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">Nov 4, 2018</div>
+            </div>
+            <div class="rank-item">
+              <div class="rank-name">Tree Swallow</div>
+              <div style="flex:1;font-size:12px;color:var(--sr-text);font-weight:600;">4,800</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">Aug 28, 2022</div>
+            </div>
+            <div class="rank-item" style="border-bottom:none;">
+              <div class="rank-name">Bonaparte's Gull</div>
+              <div style="flex:1;font-size:12px;color:var(--sr-text);font-weight:600;">3,200</div>
+              <div style="font-size:11px;color:var(--sr-text-muted);">Oct 30, 2023</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- Section 7 · Breeding Stats                                            -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="head-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a7 7 0 1 0 7 7"/><path d="M17 2v5h5"/>
+        </svg>
+      </div>
+      <span class="head-title">Breeding Stats</span>
+    </div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--sr-border-subtle);border-radius:8px;overflow:hidden;margin-bottom:16px;">
+        <div class="stat-cell">
+          <div class="stat-num-sm" style="color:var(--sr-tier-3);">134</div>
+          <div class="stat-label">Species with codes</div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num-sm" style="color:var(--sr-tier-4);">48</div>
+          <div class="stat-label">Confirmed <span class="tier-pill tier-4" style="font-size:9px;">C4</span></div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num-sm" style="color:var(--sr-tier-3);">52</div>
+          <div class="stat-label">Probable <span class="tier-pill tier-3" style="font-size:9px;">C3</span></div>
+        </div>
+        <div class="stat-cell">
+          <div class="stat-num-sm" style="color:var(--sr-tier-2);">34</div>
+          <div class="stat-label">Possible <span class="tier-pill tier-2" style="font-size:9px;">C2</span></div>
+        </div>
+      </div>
+
+      <div class="section-label">Breeding Observations by Month</div>
+      <div class="histogram">
+        <div class="histo-row"><div class="histo-label">Mar</div><div class="histo-track"><div class="histo-fill" style="width:8%;background:var(--sr-tier-1);"></div></div><div class="histo-val">12</div></div>
+        <div class="histo-row"><div class="histo-label">Apr</div><div class="histo-track"><div class="histo-fill" style="width:28%;background:var(--sr-tier-2);"></div></div><div class="histo-val">87</div></div>
+        <div class="histo-row"><div class="histo-label">May</div><div class="histo-track"><div class="histo-fill" style="width:100%;background:var(--sr-tier-3);"></div></div><div class="histo-val">312</div></div>
+        <div class="histo-row"><div class="histo-label">Jun</div><div class="histo-track"><div class="histo-fill" style="width:92%;background:var(--sr-tier-3);"></div></div><div class="histo-val">287</div></div>
+        <div class="histo-row"><div class="histo-label">Jul</div><div class="histo-track"><div class="histo-fill" style="width:71%;background:var(--sr-tier-4);"></div></div><div class="histo-val">223</div></div>
+        <div class="histo-row"><div class="histo-label">Aug</div><div class="histo-track"><div class="histo-fill" style="width:38%;background:var(--sr-tier-3);"></div></div><div class="histo-val">118</div></div>
+        <div class="histo-row"><div class="histo-label">Sep</div><div class="histo-track"><div class="histo-fill" style="width:11%;background:var(--sr-tier-2);"></div></div><div class="histo-val">34</div></div>
+      </div>
+
+      <hr class="divider">
+      <div class="section-label">Top Confirmed Breeding Species</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px;">
+        <div class="sp-row">
+          <div class="sp-rank">1</div>
+          <div class="sp-name">American Robin</div>
+          <span class="tier-pill tier-4">NY</span>
+        </div>
+        <div class="sp-row">
+          <div class="sp-rank">2</div>
+          <div class="sp-name">Black-capped Chickadee</div>
+          <span class="tier-pill tier-4">NE</span>
+        </div>
+        <div class="sp-row">
+          <div class="sp-rank">3</div>
+          <div class="sp-name">Red-winged Blackbird</div>
+          <span class="tier-pill tier-4">NY</span>
+        </div>
+        <div class="sp-row">
+          <div class="sp-rank">4</div>
+          <div class="sp-name">Song Sparrow</div>
+          <span class="tier-pill tier-4">CF</span>
+        </div>
+        <div class="sp-row" style="border-bottom:none;">
+          <div class="sp-rank">5</div>
+          <div class="sp-name">Killdeer</div>
+          <span class="tier-pill tier-4">NY</span>
+        </div>
+        <div class="sp-row" style="border-bottom:none;">
+          <div class="sp-rank">6</div>
+          <div class="sp-name">Yellow Warbler</div>
+          <span class="tier-pill tier-4">NE</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <!-- Section 8 · Fun Stats                                                 -->
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-head">
+      <div class="head-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      </div>
+      <span class="head-title">Fun Stats</span>
+    </div>
+    <div class="card-body">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- Most photographed -->
+        <div>
+          <div class="section-label">Most-Photographed Species</div>
+          <div style="display:flex;flex-direction:column;gap:0;">
+            <div class="sp-row">
+              <div class="sp-rank">1</div>
+              <div class="sp-name">American Robin</div>
+              <div class="sp-bar-wrap"><div class="sp-bar" style="width:100%;background:#3B82F6;"></div></div>
+              <div class="sp-count" style="color:#3B82F6;font-weight:600;">423</div>
+            </div>
+            <div class="sp-row">
+              <div class="sp-rank">2</div>
+              <div class="sp-name">Black-capped Chickadee</div>
+              <div class="sp-bar-wrap"><div class="sp-bar" style="width:91%;background:#3B82F6;"></div></div>
+              <div class="sp-count" style="color:#3B82F6;font-weight:600;">387</div>
+            </div>
+            <div class="sp-row">
+              <div class="sp-rank">3</div>
+              <div class="sp-name">Yellow Warbler</div>
+              <div class="sp-bar-wrap"><div class="sp-bar" style="width:74%;background:#3B82F6;"></div></div>
+              <div class="sp-count" style="color:#3B82F6;font-weight:600;">312</div>
+            </div>
+            <div class="sp-row">
+              <div class="sp-rank">4</div>
+              <div class="sp-name">Sandhill Crane</div>
+              <div class="sp-bar-wrap"><div class="sp-bar" style="width:68%;background:#3B82F6;"></div></div>
+              <div class="sp-count" style="color:#3B82F6;font-weight:600;">287</div>
+            </div>
+            <div class="sp-row" style="border-bottom:none;">
+              <div class="sp-rank">5</div>
+              <div class="sp-name">Bald Eagle</div>
+              <div class="sp-bar-wrap"><div class="sp-bar" style="width:56%;background:#3B82F6;"></div></div>
+              <div class="sp-count" style="color:#3B82F6;font-weight:600;">237</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nemesis Birds -->
+        <div>
+          <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Nemesis Birds</span>
+            <span style="font-size:10px;color:var(--sr-text-muted);">within 50 km · last 30 days</span>
+          </div>
+          <div style="background:var(--sr-accent-bg);border:1px solid var(--sr-accent-border);border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#1A5C38;display:flex;align-items:center;gap:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            Monroe Co., MI · 41.9°N, 83.4°W
+          </div>
+          <div style="display:flex;flex-direction:column;">
+            <div class="nemesis-item">
+              <div class="nemesis-dot" style="background:#EF4444;"></div>
+              <div class="nemesis-name">Yellow Rail</div>
+              <div class="nemesis-date">Last seen May 18</div>
+            </div>
+            <div class="nemesis-item">
+              <div class="nemesis-dot" style="background:#F59E0B;"></div>
+              <div class="nemesis-name">Smith's Longspur</div>
+              <div class="nemesis-date">Last seen May 12</div>
+            </div>
+            <div class="nemesis-item">
+              <div class="nemesis-dot" style="background:#F59E0B;"></div>
+              <div class="nemesis-name">Snowy Owl</div>
+              <div class="nemesis-date">Last seen May 3</div>
+            </div>
+            <div class="nemesis-item">
+              <div class="nemesis-dot" style="background:#A3A3A3;"></div>
+              <div class="nemesis-name">Connecticut Warbler</div>
+              <div class="nemesis-date">Last seen Apr 30</div>
+            </div>
+            <div class="nemesis-item" style="border-bottom:none;">
+              <div class="nemesis-dot" style="background:#A3A3A3;"></div>
+              <div class="nemesis-name">Purple Sandpiper</div>
+              <div class="nemesis-date">Last seen Apr 22</div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--sr-text-disabled);margin-top:8px;">
+            Red = seen in last 7 days · Yellow = 8–14 days · Gray = 15–30 days
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- Big Year -->
+        <div>
+          <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Big Year Recap</span>
+            <div class="select-wrap">
+              <select class="year-select" id="bigYearSelect" onchange="updateBigYear(this.value)">
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+                <option value="2022" selected>2022</option>
+                <option value="2021">2021</option>
+                <option value="2020">2020</option>
+                <option value="2019">2019</option>
+                <option value="2018">2018</option>
+                <option value="2017">2017</option>
+                <option value="2016">2016</option>
+                <option value="2015">2015</option>
+                <option value="2014">2014</option>
+              </select>
+              <svg class="select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+          </div>
+          <div id="bigYearContent">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+              <div style="background:var(--sr-surface-subtle);border-radius:8px;padding:10px;">
+                <div style="font-size:22px;font-weight:700;color:var(--sr-accent);" id="bigYearSp">312</div>
+                <div style="font-size:11px;color:var(--sr-text-muted);">Species</div>
+              </div>
+              <div style="background:var(--sr-surface-subtle);border-radius:8px;padding:10px;">
+                <div style="font-size:22px;font-weight:700;" id="bigYearLists">267</div>
+                <div style="font-size:11px;color:var(--sr-text-muted);">Checklists</div>
+              </div>
+            </div>
+            <div style="font-size:12px;color:var(--sr-text-muted);" id="bigYearMeta">
+              First new species: Common Goldeneye (Jan 3) · Last: Kirtland's Warbler (May 29) · Longest streak: 47 days
+            </div>
+          </div>
+        </div>
+
+        <!-- Dry spells + Diversity -->
+        <div>
+          <div class="section-label">Biggest Lifer Dry Spells</div>
+          <div class="rank-list" style="margin-bottom:16px;">
+            <div class="rank-item">
+              <div class="rank-name">245 days</div>
+              <div style="flex:1;font-size:11px;color:var(--sr-text-muted);">Mar–Nov 2021</div>
+            </div>
+            <div class="rank-item">
+              <div class="rank-name">187 days</div>
+              <div style="flex:1;font-size:11px;color:var(--sr-text-muted);">Dec 2019–Jun 2020</div>
+            </div>
+            <div class="rank-item" style="border-bottom:none;">
+              <div class="rank-name">134 days</div>
+              <div style="flex:1;font-size:11px;color:var(--sr-text-muted);">Aug 2018–Jan 2019</div>
+            </div>
+          </div>
+
+          <div class="section-label">Diversity Indices</div>
+          <div class="score-grid">
+            <div class="score-cell">
+              <div class="score-num">4.12</div>
+              <div class="score-label">Shannon H′ (overall)</div>
+            </div>
+            <div class="score-cell">
+              <div class="score-num">0.94</div>
+              <div class="score-label">Simpson 1–D</div>
+            </div>
+            <div class="score-cell">
+              <div class="score-num">4.38</div>
+              <div class="score-label">Shannon H′ (Whitefish Pt.)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+  // Spuh/slash toggle
+  document.getElementById('spuhToggle').addEventListener('change', function() {
+    const note = document.getElementById('spuhNote');
+    note.style.display = this.checked ? 'none' : 'block';
+    // In the real component this would recompute all stats
+  });
+
+  // One-and-done / counties expand
+  function toggleExpand(id) {
+    const el = document.getElementById(id);
+    const chevronId = id === 'oneDone' ? 'oneDoneChevron' : id === 'allCounties' ? 'countiesChevron' : null;
+    const hidden = el.classList.toggle('hidden');
+    if (chevronId) {
+      document.getElementById(chevronId).style.transform = hidden ? '' : 'rotate(180deg)';
+    }
+  }
+
+  // Map mode toggle
+  function setMapMode(mode) {
+    document.getElementById('mapPins').classList.toggle('active', mode === 'pins');
+    document.getElementById('mapHeat').classList.toggle('active', mode === 'heat');
+    document.getElementById('pinsGroup').style.display = mode === 'pins' ? '' : 'none';
+    document.getElementById('heatGroup').style.display = mode === 'heat' ? '' : 'none';
+  }
+
+  // Big Year dropdown
+  const bigYearData = {
+    '2024': { sp: 298, lists: 312, meta: 'First new species: Red-necked Grebe (Jan 6) · Last: Bohemian Waxwing (Nov 30) · Streak: 18 days' },
+    '2023': { sp: 287, lists: 289, meta: 'First new species: Common Redpoll (Jan 8) · Last: Pacific Wren (Oct 14) · Streak: 22 days' },
+    '2022': { sp: 312, lists: 267, meta: 'First new species: Common Goldeneye (Jan 3) · Last: Kirtland\'s Warbler (May 29) · Longest streak: 47 days' },
+    '2021': { sp: 276, lists: 234, meta: 'First new species: Rough-legged Hawk (Feb 14) · Last: Snowy Owl (Dec 3) · Streak: 28 days' },
+    '2020': { sp: 234, lists: 198, meta: 'First new species: Short-eared Owl (Jan 18) · Pandemic birding year · Streak: 31 days' },
+    '2019': { sp: 298, lists: 224, meta: 'First new species: Tundra Swan (Jan 2) · Best spring ever · Streak: 19 days' },
+    '2018': { sp: 223, lists: 156, meta: 'First new species: Common Merganser (Jan 14) · Quiet year · Streak: 12 days' },
+    '2017': { sp: 256, lists: 203, meta: 'First new species: Horned Lark (Jan 7) · Last: Smith\'s Longspur (Oct 8) · Streak: 24 days' },
+    '2016': { sp: 267, lists: 178, meta: 'First new species: American Tree Sparrow (Jan 3) · Last: LeConte\'s Sparrow (Sep 30) · Streak: 16 days' },
+    '2015': { sp: 198, lists: 142, meta: 'First new species: Northern Harrier (Mar 2) · Last: Green-winged Teal (Nov 8) · Streak: 14 days' },
+    '2014': { sp: 203, lists: 87, meta: 'First checklist: May 12 · First species: Common Loon · All new species this year!' },
+  };
+  function updateBigYear(year) {
+    const d = bigYearData[year] || bigYearData['2022'];
+    document.getElementById('bigYearSp').textContent = d.sp;
+    document.getElementById('bigYearLists').textContent = d.lists;
+    document.getElementById('bigYearMeta').textContent = d.meta;
+  }
+</script>
+</body>
+</html>

@@ -2,6 +2,23 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.6] - 2026-05-23
+
+### Added
+- **Statistics tab** — new dedicated tab with 8 sections of comprehensive birding analytics computed client-side from the stored eBird backup and ML export:
+  - **Life List Totals** — species count, checklist count, locations, years active, states/provinces, countries, and a life list accumulation curve (area chart) with milestone badges at 100, 200, 300, 400, 500+ species.
+  - **Firsts & Milestones** — biggest single day, longest consecutive-day streak, longest dry spell, and Shannon diversity index (H′).
+  - **Temporal Stats** — bar histograms for checklists by year, month, day of week, and hour of day.
+  - **Geographic Stats** — top 10 locations with checklist and species counts; county breakdown with expand/collapse; observation map with Pins and Heatmap toggle.
+  - **Effort & Methodology** — total and average duration/distance, complete-checklist ratio, average observers, and protocol breakdown.
+  - **Data Quality** — numeric count vs. presence-only (X) ratio, checklists with notes percentage, and biggest single counts by species.
+  - **Breeding Stats** — confirmed/probable/possible species counts and breeding activity by month histogram.
+  - **Fun Stats** — Big Year selector (all years in the data); most photographed species from ML export; one-and-done birds (seen on exactly one checklist); Nemesis Birds (recently reported nearby but not on the life list, via new `GET /stats/nemesis` endpoint).
+- **Spuh/slash toggle** — header-level control that recomputes all species-count stats globally.
+- **`ObservationEntry` — 8 new optional fields** parsed from eBird backup CSV columns that were previously discarded: `time`, `duration`, `distance`, `protocol`, `numObservers`, `allObsReported`, `checklistComments`, `stateProvince`. All optional; no existing callers affected.
+- **`ChecklistEntry` type** — new derived type (computed in `useMemo`, not parsed) representing one deduped entry per eBird checklist submission.
+- **`GET /stats/nemesis`** — new backend endpoint proxying the eBird regional recent-observations API. Validates lat/lng/dist parameters, returns deduplicated species with most-recent observation date.
+
 ## [0.1.5] - 2026-05-23
 
 ### Added

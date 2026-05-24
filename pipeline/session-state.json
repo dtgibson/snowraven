@@ -1,17 +1,17 @@
 {
-  "activeFeature": "species-detail-graph-co-occurrence",
+  "activeFeature": "birding-stats-tab",
   "sessionNumber": 2,
   "sessionType": "feature",
   "currentStage": 8,
   "lastCompletedStage": 7,
   "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/species-detail-graph-co-occurrence/strategic-brief.md",
-    "pipeline/species-detail-graph-co-occurrence/prd.md",
-    "pipeline/species-detail-graph-co-occurrence/schema.md",
-    "pipeline/species-detail-graph-co-occurrence/design-spec.md",
-    "pipeline/species-detail-graph-co-occurrence/design.html"
+    "pipeline/birding-stats-tab/strategic-brief.md",
+    "pipeline/birding-stats-tab/prd.md",
+    "pipeline/birding-stats-tab/schema.md",
+    "pipeline/birding-stats-tab/design-spec.md",
+    "pipeline/birding-stats-tab/design.html"
   ],
-  "createdAt": "2026-05-23T14:35:00Z",
-  "updatedAt": "2026-05-23T17:00:00Z"
+  "createdAt": "2026-05-23T19:00:00Z",
+  "updatedAt": "2026-05-23T22:35:00Z"
 }

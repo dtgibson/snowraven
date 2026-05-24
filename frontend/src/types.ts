@@ -68,4 +68,32 @@ export interface ObservationEntry {
   breedingCode: string | null
   speciesComments: string
   catalogIds: string[]
+  // Optional checklist-level fields (added for Statistics tab)
+  time?: string | null           // "HH:MM AM/PM"
+  duration?: number | null       // minutes
+  distance?: number | null       // km
+  protocol?: string | null
+  numObservers?: number | null
+  allObsReported?: boolean | null // "1"→true, "0"→false, blank→null
+  checklistComments?: string
+  stateProvince?: string | null  // e.g. "US-MN"; country = stateProvince.split('-')[0]
+}
+
+export type ChecklistEntry = {
+  submissionId: string
+  date: string
+  location: string
+  locationId: string
+  latitude: number | null
+  longitude: number | null
+  county: string | null
+  stateProvince: string | null
+  time: string | null
+  duration: number | null
+  distance: number | null
+  protocol: string | null
+  numObservers: number | null
+  allObsReported: boolean | null
+  checklistComments: string
+  speciesCount: number
 }

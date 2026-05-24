@@ -1,22 +1,23 @@
-# Session 1 Handoff — Species Detail: Graph Options and Co-occurring Species
+# Feature Complete — Species Detail: Graph Options and Reported With
 
 **Completed:** 2026-05-23
+**Version:** v0.1.5
 **Feature:** species-detail-graph-co-occurrence
-**Session:** 1 of 2
+**Sessions:** 2 (complete)
 
 ---
 
-## What Was Accomplished
+## What Was Built
 
-Session 1 defined and designed two enhancements to the Species Detail tab.
+Two enhancements to the Species Detail tab, shipped in v0.1.5.
 
-**Graph Options card:** A new dedicated card above both graphs replaces the auto-detection logic and the embedded Per Year/Cumulative toggle in the Sightings card header. Users can now explicitly choose Yearly or Monthly interval and Per Period or Cumulative view mode. Both the Sightings Over Time and Media Over Time graphs respond to the same controls simultaneously. The `buildGraphData` function signature changes to accept an explicit `interval` parameter instead of auto-detecting from data.
+**Graph Options card** — a new `SectionCard` above both graphs that gives users explicit control over interval (Yearly / Monthly) and view mode (Per Period / Cumulative). Replaces the old auto-detect logic that silently switched to monthly when a species was only observed in a single year. Both the Sightings Over Time and Media Over Time graphs respond to the same controls simultaneously. The card only appears when there are at least 2 distinct time periods. Controls reset on species change.
 
-**Reported With section:** A new section below Breeding Codes lists the species most frequently appearing on the same eBird checklists as the selected species. Results are ranked by co-occurrence coefficient (shared checklists ÷ target checklists), expressed as a percentage. Top 10 are shown by default with expand/collapse for the full list. The section respects active county and date-range filters, excludes the target species itself, requires a minimum of 2 shared checklists, and handles both empty states cleanly.
+**Reported With section** — a new `SectionCard` between Breeding Codes and Top Locations that lists the species most frequently appearing on the same eBird checklists as the selected species. Ranked by co-occurrence coefficient (shared checklists ÷ target checklists), shown as a percentage with a relative bar. Top 10 shown by default, expand/collapse for the full list. Fully respects active county and date-range filters. Minimum 2 shared checklists required. Handles both empty states: no-data (no valid checklist IDs in filtered observations) and zero-results (threshold not met by any species).
 
 ---
 
-## Artifacts
+## Artifacts Produced
 
 | File | Description |
 |---|---|
@@ -26,19 +27,20 @@ Session 1 defined and designed two enhancements to the Species Detail tab.
 | `pipeline/species-detail-graph-co-occurrence/design-spec.md` | Layout order, component structure, token usage, interaction notes |
 | `pipeline/species-detail-graph-co-occurrence/design.html` | Interactive HTML mockup with working interval/view toggles and Reported With list |
 
+## Files Changed
+
+| File | Change |
+|---|---|
+| `frontend/src/components/SpeciesDetail.tsx` | Graph Options card, Reported With section, controlled SightingsGraph, coOccurrence useMemo |
+| `frontend/src/lib/sightingsGraph.ts` | Explicit `interval` parameter replaces auto-detection |
+| `frontend/src/lib/sightingsGraph.test.ts` | All call sites updated to pass explicit interval |
+| `frontend/package.json` | Bumped to v0.1.5 |
+| `CHANGELOG.md` | v0.1.5 entry |
+| `PRODUCT_CONTEXT.md` | Updated Species Detail Visualizations; added Graph Options and Reported With entry |
+| `DECISIONS.md` | Added buildGraphData interval and co-occurrence Set decisions |
+
 ---
 
-## Key Engineering Notes for Session 2
+## Feature Complete
 
-- `buildGraphData` in `sightingsGraph.ts` needs its signature changed: replace auto-detect with explicit `interval: 'yearly' | 'monthly'` parameter. Update all call sites in `SpeciesDetail.tsx` and fix `sightingsGraph.test.ts`.
-- `viewMode` and `interval` state moves up to the ready-state render block in `SpeciesDetail.tsx` (currently owned inside `SightingsGraph`). `SightingsGraph` becomes a controlled component.
-- New `GraphOptions` SectionCard renders above `SightingsGraph`.
-- Co-occurrence computed with `useMemo`, using a `Set<string>` of filtered `submissionId`s for O(1) checklist lookup across `phase.observations`.
-- `normalizeSpeciesName()` applied to co-occurring names when `mergeSubspecies` is true.
-- Reported With section position: below Breeding Codes, above Top Locations.
-
----
-
-## Session 2 Entry
-
-Run `/build-feature` to start Session 2. The Engineer will implement the code from these artifacts.
+This feature is fully deployed. Start the next feature with `/new-feature`.

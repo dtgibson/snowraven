@@ -3,6 +3,8 @@ import { parseEbirdObservations } from './parseEbirdObservations'
 
 const HEADERS = 'Submission ID,Common Name,Scientific Name,Date,Location,Count,Breeding Code,Species Comments,ML Catalog Numbers,Location ID,Latitude,Longitude'
 
+const HEADERS_FULL = 'Submission ID,Common Name,Scientific Name,Date,Location,Count,Breeding Code,Species Comments,ML Catalog Numbers,Location ID,Latitude,Longitude,County,Time,Duration Min,Distance Traveled (km),Protocol,Number of Observers,All Obs Reported,Checklist Comments,State/Province Code'
+
 function makeRow(overrides: Partial<{
   submissionId: string
   commonName: string
@@ -34,6 +36,61 @@ function makeRow(overrides: Partial<{
   return [r.submissionId, r.commonName, r.scientificName, r.date, r.location,
           r.count, r.breedingCode, r.speciesComments, r.catalogNumbers,
           r.locationId, r.latitude, r.longitude].join(',')
+}
+
+function makeFullRow(overrides: Partial<{
+  submissionId: string
+  commonName: string
+  scientificName: string
+  date: string
+  location: string
+  count: string
+  breedingCode: string
+  speciesComments: string
+  catalogNumbers: string
+  locationId: string
+  latitude: string
+  longitude: string
+  county: string
+  time: string
+  duration: string
+  distance: string
+  protocol: string
+  numObservers: string
+  allObsReported: string
+  checklistComments: string
+  stateProvince: string
+}>): string {
+  const r = {
+    submissionId:      overrides.submissionId      ?? 'S12345678',
+    commonName:        overrides.commonName        ?? 'American Robin',
+    scientificName:    overrides.scientificName    ?? 'Turdus migratorius',
+    date:              overrides.date              ?? '2024-04-09',
+    location:          overrides.location          ?? 'Lake Harriet',
+    count:             overrides.count             ?? '5',
+    breedingCode:      overrides.breedingCode      ?? '',
+    speciesComments:   overrides.speciesComments   ?? '',
+    catalogNumbers:    overrides.catalogNumbers    ?? '',
+    locationId:        overrides.locationId        ?? 'L12345',
+    latitude:          overrides.latitude          ?? '44.9778',
+    longitude:         overrides.longitude         ?? '-93.2650',
+    county:            overrides.county            ?? 'Hennepin',
+    time:              overrides.time              ?? '8:00 AM',
+    duration:          overrides.duration          ?? '60',
+    distance:          overrides.distance          ?? '2.5',
+    protocol:          overrides.protocol          ?? 'Traveling',
+    numObservers:      overrides.numObservers      ?? '1',
+    allObsReported:    overrides.allObsReported    ?? '1',
+    checklistComments: overrides.checklistComments ?? '',
+    stateProvince:     overrides.stateProvince     ?? 'US-MN',
+  }
+  return [
+    r.submissionId, r.commonName, r.scientificName, r.date, r.location,
+    r.count, r.breedingCode, r.speciesComments, r.catalogNumbers,
+    r.locationId, r.latitude, r.longitude, r.county, r.time,
+    r.duration, r.distance, r.protocol, r.numObservers,
+    r.allObsReported, r.checklistComments, r.stateProvince,
+  ].join(',')
 }
 
 describe('parseEbirdObservations', () => {
@@ -203,5 +260,130 @@ describe('parseEbirdObservations', () => {
     const entries = parseEbirdObservations(csv)
     expect(entries[0].latitude).toBeNull()
     expect(entries[0].longitude).toBeNull()
+  })
+
+  // ── New optional fields ───────────────────────────────────────────────────
+
+  it('parses time when present', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ time: '7:30 AM' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].time).toBe('7:30 AM')
+  })
+
+  it('sets time to null when blank', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ time: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].time).toBeNull()
+  })
+
+  it('sets time to undefined when column absent', () => {
+    const csv = [HEADERS, makeRow({})].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].time).toBeUndefined()
+  })
+
+  it('parses duration as integer when present', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ duration: '90' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].duration).toBe(90)
+  })
+
+  it('sets duration to null when blank', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ duration: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].duration).toBeNull()
+  })
+
+  it('sets duration to null when non-numeric', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ duration: 'N/A' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].duration).toBeNull()
+  })
+
+  it('parses distance as float when present', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ distance: '3.75' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].distance).toBeCloseTo(3.75)
+  })
+
+  it('sets distance to null when blank', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ distance: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].distance).toBeNull()
+  })
+
+  it('parses protocol when present', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ protocol: 'Stationary' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].protocol).toBe('Stationary')
+  })
+
+  it('sets protocol to null when blank', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ protocol: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].protocol).toBeNull()
+  })
+
+  it('parses numObservers as integer when present', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ numObservers: '3' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].numObservers).toBe(3)
+  })
+
+  it('sets numObservers to null when blank', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ numObservers: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].numObservers).toBeNull()
+  })
+
+  it('parses allObsReported as true when "1"', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ allObsReported: '1' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].allObsReported).toBe(true)
+  })
+
+  it('parses allObsReported as false when "0"', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ allObsReported: '0' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].allObsReported).toBe(false)
+  })
+
+  it('sets allObsReported to null when blank', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ allObsReported: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].allObsReported).toBeNull()
+  })
+
+  it('parses checklistComments when present', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ checklistComments: 'Foggy morning' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].checklistComments).toBe('Foggy morning')
+  })
+
+  it('sets checklistComments to empty string when blank', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ checklistComments: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].checklistComments).toBe('')
+  })
+
+  it('parses stateProvince when present', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ stateProvince: 'US-MN' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].stateProvince).toBe('US-MN')
+  })
+
+  it('sets stateProvince to null when blank', () => {
+    const csv = [HEADERS_FULL, makeFullRow({ stateProvince: '' })].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].stateProvince).toBeNull()
+  })
+
+  it('sets all new fields to undefined when new columns are absent', () => {
+    const csv = [HEADERS, makeRow({})].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].duration).toBeUndefined()
+    expect(entries[0].distance).toBeUndefined()
+    expect(entries[0].protocol).toBeUndefined()
+    expect(entries[0].stateProvince).toBeUndefined()
   })
 })

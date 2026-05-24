@@ -72,6 +72,16 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
   const breedingCodeIdx       = headers.findIndex(h => h === 'breeding code')
   const speciesCommentsIdx    = headers.findIndex(h => h === 'species comments' || h === 'observation details')
   const catalogNumbersIdx     = headers.findIndex(h => h === 'ml catalog numbers')
+  const timeIdx               = headers.findIndex(h => h === 'time')
+  const durationIdx           = headers.findIndex(h => h === 'duration min')
+  const distanceIdx           = headers.findIndex(h => h === 'distance traveled (km)')
+  const protocolIdx           = headers.findIndex(h => h === 'protocol')
+  const numObserversIdx       = headers.findIndex(h => h === 'number of observers')
+  const allObsReportedIdx     = headers.findIndex(h => h === 'all obs reported')
+  const checklistCommentsIdx  = headers.findIndex(h => h === 'checklist comments')
+  const stateProvinceIdx      = headers.findIndex(h =>
+    h === 'state/province code' || h === 'state province code' || h === 'state/province'
+  )
 
   if (submissionIdIdx === -1 || commonNameIdx === -1 || dateIdx === -1) {
     throw new Error('INVALID_EBIRD')
@@ -116,7 +126,56 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
 
     const county = countyIdx >= 0 ? (cols[countyIdx]?.trim() || null) : null
 
-    entries.push({ submissionId, commonName, scientificName, date, location, locationId, latitude, longitude, county, count, breedingCode, speciesComments, catalogIds })
+    // Optional checklist-level fields — only included when the column exists in the CSV.
+    // Absent column → property omitted (undefined); blank value → null.
+    const optFields: {
+      time?: string | null
+      duration?: number | null
+      distance?: number | null
+      protocol?: string | null
+      numObservers?: number | null
+      allObsReported?: boolean | null
+      checklistComments?: string
+      stateProvince?: string | null
+    } = {}
+
+    if (timeIdx >= 0) {
+      optFields.time = cols[timeIdx]?.trim() || null
+    }
+    if (durationIdx >= 0) {
+      const raw = cols[durationIdx]?.trim() ?? ''
+      const parsed = parseInt(raw, 10)
+      optFields.duration = raw && !Number.isNaN(parsed) ? parsed : null
+    }
+    if (distanceIdx >= 0) {
+      const raw = cols[distanceIdx]?.trim() ?? ''
+      const parsed = parseFloat(raw)
+      optFields.distance = raw && !Number.isNaN(parsed) ? parsed : null
+    }
+    if (protocolIdx >= 0) {
+      optFields.protocol = cols[protocolIdx]?.trim() || null
+    }
+    if (numObserversIdx >= 0) {
+      const raw = cols[numObserversIdx]?.trim() ?? ''
+      const parsed = parseInt(raw, 10)
+      optFields.numObservers = raw && !Number.isNaN(parsed) ? parsed : null
+    }
+    if (allObsReportedIdx >= 0) {
+      const raw = cols[allObsReportedIdx]?.trim() ?? ''
+      optFields.allObsReported = raw === '1' ? true : raw === '0' ? false : null
+    }
+    if (checklistCommentsIdx >= 0) {
+      optFields.checklistComments = cols[checklistCommentsIdx]?.trim() ?? ''
+    }
+    if (stateProvinceIdx >= 0) {
+      optFields.stateProvince = cols[stateProvinceIdx]?.trim() || null
+    }
+
+    entries.push({
+      submissionId, commonName, scientificName, date, location, locationId,
+      latitude, longitude, county, count, breedingCode, speciesComments, catalogIds,
+      ...optFields,
+    })
   }
 
   return entries
