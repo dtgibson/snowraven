@@ -134,7 +134,7 @@ the species list from eBird observations rather than ML catalog entries alone.
 - **Three toolbar toggles:**
   - **Merge subspecies** (default ON) — collapses subspecies variants to the parent name; same behavior as Species Detail tab
   - **Show sp./slash** (default OFF) — hides spuh and slash entries when off
-  - **Show non-bird** (default OFF, only visible in Comprehensive mode) — hides non-bird ML entries (soundscapes, etc.) when off; non-bird entries always sort after all birds in Taxonomic mode
+  - **Show non-bird** (default OFF, only visible in Comprehensive mode) — hides non-bird ML entries (soundscapes, etc.) when off; in Taxonomic mode, non-bird entries use a three-tier sort: birds first → non-bird animals (genus+species in scientificName) → non-animals (no genus+species, e.g. Habitat/Soundscape/Experience) alphabetically at the very end
 - **↔ Unbounded / ↔ Normal toggle** — removes the `overflowX` constraint from the table wrapper (sets it to `width: max-content`) so the whole page scrolls horizontally on mobile; Normal restores the bounded scroll box
 - Species count label: "312 of 456 species" in Comprehensive mode, or "312 species" in ML-only mode; denominator always uses `displayEntries.length` (post-toggle, pre-media-filter count)
 - "Load new file" button resets to the upload state
@@ -402,9 +402,9 @@ Two new visualization sections added to the Species Detail tab.
 - Toggle and heatmap absent when no coordinate data (entire map section guarded by `coordMarkers.length > 0`)
 
 **Key files:**
-- `frontend/src/lib/sightingsGraph.ts` — `buildGraphData(obs, mlRows, interval)` pure function; `GraphPoint` type; `interval: 'yearly' | 'monthly'` explicit parameter
-- `frontend/src/lib/sightingsGraph.test.ts` — 9 unit tests
-- `frontend/src/components/SpeciesDetail.tsx` — `HeatmapLayer`, `SightingsGraph` (controlled component — receives `data`, `useMonthly`, `viewMode`, `hasML` props), `GraphTooltip`, `formatPeriodLabel` components; `mapMode` state; `speciesMlRows` and `heatPoints` useMemos; `Phase.ready` now includes `mlRows: MLExportRow[]`
+- `frontend/src/lib/sightingsGraph.ts` — `buildGraphData(obs, mlRows, interval)` pure function; `GraphPoint` type (includes `checklists` field); `GraphInterval = 'weekly' | 'monthly' | 'yearly'`; ISO week helpers `isoWeekKey()` and `mondayOfISOWeek()`; returns `{ data: GraphPoint[]; interval: GraphInterval }`
+- `frontend/src/lib/sightingsGraph.test.ts` — 18 unit tests (includes weekly bucketing, gap-fill, checklists field)
+- `frontend/src/components/SpeciesDetail.tsx` — `HeatmapLayer`, `SightingsGraph` (controlled component — receives `data`, `interval`, `viewMode`, `hasML` props), `GraphTooltip`, `formatPeriodLabel` components; `mapMode` state; `speciesMlRows` and `heatPoints` useMemos; `Phase.ready` now includes `mlRows: MLExportRow[]`
 - `frontend/src/globals.css` — `--sr-graph-individuals`, `--sr-graph-photo`, `--sr-graph-audio`, `--sr-graph-video` tokens in both themes
 
 ### Species Detail — Graph Options and Reported With (complete — May 2026)
@@ -414,10 +414,10 @@ Two enhancements to the Species Detail tab.
 **Graph Options card:**
 - A dedicated `SectionCard` above both graphs that unifies interval and view-mode control
 - Replaces the auto-detect interval logic in `buildGraphData` (which previously switched to monthly when `years.size <= 1`) with an explicit user-controlled `interval` state
-- Yearly / Monthly segmented toggle: sets `graphInterval` state (`'yearly'` | `'monthly'`); drives `buildGraphData` via the `graphResult` useMemo
-- Per Period / Cumulative segmented toggle: sets `viewMode` state; both graphs respond simultaneously
+- Weekly / Monthly / Yearly segmented toggle (left to right): sets `graphInterval` state (`'weekly' | 'monthly' | 'yearly'`); drives `buildGraphData` via the `graphResult` useMemo; Monthly is the default on load and on species change
+- Per Period / Cumulative segmented toggle: sets `viewMode` state; all three graphs respond simultaneously
 - Card only renders when `hasGraphData` is true (≥2 distinct periods exist)
-- `graphInterval` and `viewMode` reset to defaults (`'yearly'`, `'per-period'`) on species change via `selectSpecies()`
+- `graphInterval` resets to `'monthly'` and `viewMode` resets to `'per-period'` on species change via `selectSpecies()`
 - `graphResult` is computed once in the parent via `useMemo` and passed down as props; `SightingsGraph` is a controlled component — no longer owns its own interval state
 
 **Reported With section:**
@@ -586,6 +586,36 @@ An interactive map tab with three view modes for exploring birding locations: si
 - `data/map-defaults.json` — written by POST, deleted by DELETE; absent = no defaults saved
 - `frontend/vite.config.ts` — `/map` and `/nominatim` proxies; `/settings` already proxied, covers `/settings/map-defaults`
 - `frontend/src/App.tsx` — `'map-explorer'` tab
+
+### Species Detail Enhancements — Weekly Interval, Checklists Graph, Frequency Stat (complete — May 2026)
+
+Three additions to the Species Detail tab shipped in v0.1.11.
+
+**Weekly graph interval:**
+- "Weekly" is now the first option in the Graph Options toggle (Weekly · Monthly · Yearly); Monthly is the default on every species selection
+- `buildGraphData` accepts `'weekly'` as a `GraphInterval` value; ISO week bucketing via `isoWeekKey()` (Thursday determines ISO year; format `YYYY-Www`)
+- Gap-fill iterates Monday-by-Monday via `mondayOfISOWeek()` between first and last observed week
+- X-axis and tooltip: `2024-W03` → `Wk 3 '24` via updated `formatPeriodLabel(key, interval)`
+
+**Checklists Over Time graph:**
+- New `SectionCard` rendered between "Sightings Over Time" and "Media Over Time"
+- Plots `GraphPoint.checklists` — count of observation rows (checklist entries) whose date falls in that period
+- Same `displayData` / cumulative logic as Sightings; accumulates a running checklist count alongside individuals and media
+- Uses `var(--sr-graph-individuals)` at `opacity={0.6}` to visually subordinate it to the individuals line without a new token
+- Only renders when `hasGraphData` is true (same guard as Sightings Over Time)
+
+**Frequency statistic:**
+- New "Frequency" cell in the Sightings section of the Summary card
+- Shows `X%` (rounded) or `<1%` in `var(--sr-accent)` green with a 3px fill bar below
+- Sub-label: "of your checklists"
+- Denominator: `totalFilteredChecklists` useMemo — unique non-empty `submissionId` values across all observations that pass the active county and date-range filters (filter-aware, same logic as `speciesObs`)
+- Numerator: `sightingsStats.total` (species checklist count)
+- Hidden when `totalFilteredChecklists` is 0 (no valid submission IDs in scope)
+
+**Key files changed:**
+- `frontend/src/lib/sightingsGraph.ts` — `GraphInterval` type exported; `GraphPoint.checklists` added; `isoWeekKey()`, `mondayOfISOWeek()` helpers; weekly gap-fill; returns `{ data, interval }` (breaking change — `useMonthly` removed)
+- `frontend/src/lib/sightingsGraph.test.ts` — updated to new API; weekly bucketing, gap-fill, and checklists tests added (18 total)
+- `frontend/src/components/SpeciesDetail.tsx` — `graphInterval` state type widened to include `'weekly'`, default changed to `'monthly'`; `totalFilteredChecklists` useMemo; Frequency cell; Graph Options updated; `SightingsGraph` receives `interval` prop (was `useMonthly`)
 
 ### Map Explorer Improvements (complete — May 2026)
 
@@ -822,3 +852,23 @@ In `LifeListTable`, the partition that forces non-bird entries after all bird en
 `sort.nameSortMode === 'taxonomic'`. In A–Z sort, non-bird entries appear in their natural alphabetical
 position. Do not lift this guard — applying the partition in A–Z mode would prevent users from scanning
 non-bird entries alphabetically alongside birds, which is the expected behavior when sort is alphabetical.
+
+**Three-tier taxonomic sort: birds → non-bird animals → non-animals**
+Within taxonomic sort, `LifeListTable` assigns a priority tier to each entry: tier 0 = birds (not `isNonBird`),
+tier 1 = non-bird animals (`isNonBird && scientificName.includes(' ')`), tier 2 = non-animals (`isNonBird &&
+!scientificName.includes(' ')`). Tier 2 entries (Habitat, Soundscape, Experience, etc.) always sort
+alphabetically at the very end, regardless of the user's sort direction. The `scientificName.includes(' ')`
+test distinguishes true binomials (genus + species) from absent or single-word names — it handles both
+empty string and single-word entries without a separate empty-string check.
+
+**`buildGraphData` returns `{ data, interval }` — `useMonthly` boolean removed**
+The return type was changed from `{ data, useMonthly: boolean }` to `{ data, interval: GraphInterval }` when weekly support was added. Callers should use `graphResult.interval` everywhere a format decision is needed (axis labels, tooltip titles). Do not re-introduce `useMonthly` — the explicit interval string is more expressive and handles three values without conditionals.
+
+**Weekly x-axis format is `Wk N 'YY` — ISO week number without zero-padding**
+`formatPeriodLabel` strips the leading zero from the week number (`parseInt(wStr, 10)`) so `2024-W03` displays as `Wk 3 '24`, not `Wk 03 '24`. The internal key always uses zero-padded week numbers (`YYYY-Www`) for correct string sorting; display removes the pad.
+
+**Frequency denominator counts unique submissionIds across all species, not just the selected one**
+`totalFilteredChecklists` iterates `phase.observations` (all species) applying the same county and date filters as `speciesObs`, and counts unique non-empty `submissionId` values. Using `speciesObs.length` as both numerator and denominator would always give 100%. The denominator represents the user's total checklist activity in the filtered scope — a species with 5 checklists out of 200 total shows 2.5% (rounded to 3%).
+
+**`<1%` display guard prevents misleading `0%` for rare species**
+When `frequencyPct` is non-null but less than 1 (species appears on at least one checklist but rounds to 0%), the display shows `<1%` rather than `0%`. This matters for very rare or occasional species — `0%` would incorrectly imply the species was never seen.

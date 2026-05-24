@@ -1,17 +1,11 @@
 {
-  "activeFeature": "species-detail-enhancements",
-  "sessionNumber": 2,
-  "sessionType": "feature",
-  "currentStage": 8,
-  "lastCompletedStage": 7,
-  "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": [
-    "pipeline/species-detail-enhancements/strategic-brief.md",
-    "pipeline/species-detail-enhancements/prd.md",
-    "pipeline/species-detail-enhancements/schema.md",
-    "pipeline/species-detail-enhancements/design-spec.md",
-    "pipeline/species-detail-enhancements/design.html"
-  ],
+  "activeFeature": null,
+  "sessionNumber": null,
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 9,
+  "lastCheckpointStatus": "approved",
+  "confirmedArtifacts": [],
   "createdAt": "2026-05-24T15:00:00Z",
-  "updatedAt": "2026-05-24T16:20:00Z"
+  "updatedAt": "2026-05-24T16:40:00Z"
 }
