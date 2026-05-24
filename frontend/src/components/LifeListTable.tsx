@@ -82,11 +82,16 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
 
   const sorted = [...filtered].sort((a, b) => {
     if (sort.column === 'name') {
-      // In taxonomic sort, non-bird entries always after all bird entries
       if (sort.nameSortMode === 'taxonomic') {
-        const aNB = a.isNonBird ?? false
-        const bNB = b.isNonBird ?? false
-        if (aNB !== bNB) return aNB ? 1 : -1
+        // Three-tier priority: birds → non-bird animals → non-animals (no genus+species)
+        const tierOf = (e: LifeListEntry) => {
+          if (!(e.isNonBird ?? false)) return 0
+          return e.scientificName.includes(' ') ? 1 : 2
+        }
+        const ta = tierOf(a), tb = tierOf(b)
+        if (ta !== tb) return ta - tb
+        // Within tier 2 (non-animals), always sort alphabetically regardless of sort.dir
+        if (ta === 2) return a.commonName.localeCompare(b.commonName)
       }
       const cmp = nameCompare(a, b)
       return sort.dir === 'asc' ? cmp : -cmp

@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.10] - 2026-05-24
+
+### Fixed
+- **Media List — Taxonomic sort for non-animals** — entries with no genus+species in their scientific name (Habitat, Soundscape, Experience, etc.) now sort alphabetically at the very end of the list when taxonomic sort is active, after all non-bird animal entries. Previously they were grouped with other non-birds and sorted by taxon order.
+
 ## [0.1.9] - 2026-05-24
 
 ### Added
