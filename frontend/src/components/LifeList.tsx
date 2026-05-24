@@ -174,10 +174,9 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
 
   useEffect(() => {
-    if (requestedFilter === 'is-target') {
-      setFilterIsTarget(true)
-      onRequestedFilterConsumed?.()
-    }
+    if (requestedFilter !== 'is-target') return
+    const run = async () => { setFilterIsTarget(true); onRequestedFilterConsumed?.() }
+    run()
   }, [requestedFilter, onRequestedFilterConsumed])
 
   const fetchTaxonCodes = async (entries: LifeListEntry[]) => {

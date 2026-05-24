@@ -60,7 +60,7 @@ export default function App() {
     }
   }, [])
 
-  useEffect(() => { fetchKeyStatus() }, [fetchKeyStatus])
+  useEffect(() => { const run = async () => { await fetchKeyStatus() }; run() }, [fetchKeyStatus])
 
   const handleLookup = useCallback(async () => {
     const id = extractChecklistId(input)

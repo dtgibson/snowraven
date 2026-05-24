@@ -727,7 +727,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
   }, [])
 
   useEffect(() => {
-    if (phase.tag === 'ready') fetchTargetCodes(phase.observations, phase.mlRows)
+    if (phase.tag !== 'ready') return
+    const run = async () => { await fetchTargetCodes(phase.observations, phase.mlRows) }
+    run()
   }, [phase, fetchTargetCodes])
 
   // ── Derived data ──────────────────────────────────────────────────────────────
