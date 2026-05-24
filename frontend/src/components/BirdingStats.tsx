@@ -7,6 +7,9 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar,
 } from 'recharts'
+import L from 'leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import 'leaflet/dist/leaflet.css'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
@@ -46,6 +49,13 @@ function mlCatalogUrl(name: string, type: 'Photo' | 'Audio' | 'Video', userId: s
   }
   return `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(name)}&mediaType=${mt}${userSuffix}`
 }
+
+const MILESTONE_THRESHOLDS = [
+  10, 20, 30, 40, 50, 60, 70, 80, 90,
+  100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400, 425, 450, 475,
+  500, 550, 600, 650, 700, 750, 800, 850, 900, 950,
+  1000, 1250, 1500, 1750, 2000, 2500, 3000,
+]
 
 const PROTOCOL_COLORS = [
   'var(--sr-accent)',
@@ -185,6 +195,48 @@ function SubLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
+function circleIcon(rank: number) {
+  return L.divIcon({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    html: `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#2D8653"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="system-ui,sans-serif">${rank}</text></svg>`,
+    className: '',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -14],
+  })
+}
+
+function squareIcon(rank: number) {
+  return L.divIcon({
+    html: `<svg width="24" height="24" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="3" fill="#3B82F6"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="system-ui,sans-serif">${rank}</text></svg>`,
+    className: '',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -14],
+  })
+}
+
+function TopLocationsBoundsFitter({
+  checklistPins, speciesPins,
+}: {
+  checklistPins: { lat: number; lng: number }[]
+  speciesPins: { lat: number; lng: number }[]
+}) {
+  const map = useMap()
+  useEffect(() => {
+    map.invalidateSize()
+    const allPins = [...checklistPins, ...speciesPins]
+    if (allPins.length === 0) return
+    if (allPins.length === 1) {
+      map.setView([allPins[0].lat, allPins[0].lng], 12)
+      return
+    }
+    const bounds = L.latLngBounds(allPins.map(p => [p.lat, p.lng] as [number, number]))
+    map.fitBounds(bounds, { padding: [20, 20] })
+  }, [map, checklistPins, speciesPins])
+  return null
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void }) {
@@ -199,6 +251,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   const [nemesisResult, setNemesisResult] = useState<NemesisSpecies[] | null>(null)
   const [nemesisLoading, setNemesisLoading] = useState(false)
   const [nemesisError, setNemesisError] = useState<string | null>(null)
+  const [nemesisTaxonMap, setNemesisTaxonMap] = useState<Record<string, string>>({})
 
   // Auto-load eBird backup + ML export + map defaults on mount
   useEffect(() => {
@@ -283,7 +336,24 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         const r = await fetch(`/stats/nemesis?lat=${mapDefaults.lat}&lng=${mapDefaults.lng}&dist=${mapDefaults.dist}`)
         if (!r.ok) throw new Error(String(r.status))
         const data = await r.json()
-        if (!cancelled) setNemesisResult(data.species ?? [])
+        if (!cancelled) {
+          const species: NemesisSpecies[] = data.species ?? []
+          setNemesisResult(species)
+          const missing = species.map(s => s.commonName).filter(n => !mlTaxonMap[n])
+          if (missing.length > 0) {
+            try {
+              const taxRes = await fetch('/taxonomy/codes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ species: missing.map(n => ({ commonName: n, scientificName: '' })) }),
+              })
+              if (taxRes.ok && !cancelled) {
+                const taxData: { codes: Record<string, string> } = await taxRes.json()
+                setNemesisTaxonMap(taxData.codes)
+              }
+            } catch { /* non-fatal */ }
+          }
+        }
       } catch {
         if (!cancelled) setNemesisError('Could not load nearby sightings.')
       } finally {
@@ -380,7 +450,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     const byPeriod = new Map<string, number>()
     const liferDates = new Map<string, { count: number; species: string }>()
     let firstSpecies: { date: string; name: string } | null = null
-    const thresholds = Array.from({ length: 20 }, (_, i) => (i + 1) * 50)
+    const thresholds = MILESTONE_THRESHOLDS
 
     for (const o of sorted) {
       const norm = normalizeSpeciesName(o.commonName)
@@ -416,6 +486,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   // Temporal histograms
   const temporal = useMemo(() => {
     const byYearMap = new Map<string, { checklists: number; species: Set<string> }>()
+    const bestDayByYear = new Map<string, { species: number; submissionId: string }>()
     const byMonthMap = new Map<number, { checklists: number; species: Set<string> }>()
     const byDow = new Map<number, number>()
     const byHour = new Map<number, number>()
@@ -426,6 +497,11 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
 
       if (!byYearMap.has(year)) byYearMap.set(year, { checklists: 0, species: new Set() })
       byYearMap.get(year)!.checklists++
+
+      const existing = bestDayByYear.get(year)
+      if (!existing || c.speciesCount > existing.species) {
+        bestDayByYear.set(year, { species: c.speciesCount, submissionId: c.submissionId })
+      }
 
       if (!byMonthMap.has(month)) byMonthMap.set(month, { checklists: 0, species: new Set() })
       byMonthMap.get(month)!.checklists++
@@ -448,7 +524,12 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
 
     const yearRows = [...byYearMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([year, d]) => ({ label: year, checklists: d.checklists, species: d.species.size }))
+      .map(([year, d]) => ({
+        label: year,
+        checklists: d.checklists,
+        species: d.species.size,
+        bestDay: bestDayByYear.get(year) ?? null,
+      }))
 
     const monthRows = Array.from({ length: 12 }, (_, i) => ({
       label: MONTH_LABELS[i],
@@ -471,7 +552,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
 
   // Geographic stats
   const geo = useMemo(() => {
-    const locationMap = new Map<string, { name: string; count: number; species: Set<string> }>()
+    const locationMap = new Map<string, { name: string; count: number; species: Set<string>; lat: number | null; lng: number | null }>()
     const countyMap = new Map<string, number>()
     const countyStateMap = new Map<string, string | null>()
     const countySpecies = new Map<string, Set<string>>()
@@ -480,9 +561,14 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
 
     for (const c of checklists) {
       if (!locationMap.has(c.locationId)) {
-        locationMap.set(c.locationId, { name: c.location, count: 0, species: new Set() })
+        locationMap.set(c.locationId, { name: c.location, count: 0, species: new Set(), lat: null, lng: null })
       }
-      locationMap.get(c.locationId)!.count++
+      const loc = locationMap.get(c.locationId)!
+      loc.count++
+      if (loc.lat === null && c.latitude !== null && c.latitude !== undefined) {
+        loc.lat = c.latitude
+        loc.lng = c.longitude ?? null
+      }
 
       if (c.county) {
         countyMap.set(c.county, (countyMap.get(c.county) ?? 0) + 1)
@@ -503,7 +589,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     }
 
     const allLocations = [...locationMap.values()]
-      .map(l => ({ name: l.name, checklists: l.count, species: l.species.size }))
+      .map(l => ({ name: l.name, checklists: l.count, species: l.species.size, lat: l.lat, lng: l.lng }))
 
     const topLocations = [...allLocations].sort((a, b) => b.checklists - a.checklists).slice(0, 10)
     const topLocationsBySpecies = [...allLocations].sort((a, b) => b.species - a.species).slice(0, 10)
@@ -721,9 +807,25 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       if (!checklistsBySp.has(norm)) checklistsBySp.set(norm, new Set())
       checklistsBySp.get(norm)!.add(o.submissionId)
     }
-    const oneDoneBirds = [...checklistsBySp.entries()]
+    const singleChecklistBirds = [...checklistsBySp.entries()]
       .filter(([, subs]) => subs.size === 1)
       .map(([name, subs]) => ({ name, submissionId: [...subs][0] }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    const countBySp = new Map<string, { total: number; submissionId: string }>()
+    for (const o of filteredObs) {
+      if (o.count === null) continue
+      const norm = normalizeSpeciesName(o.commonName)
+      const existing = countBySp.get(norm)
+      if (!existing) {
+        countBySp.set(norm, { total: o.count, submissionId: o.submissionId })
+      } else {
+        countBySp.set(norm, { total: existing.total + o.count, submissionId: existing.submissionId })
+      }
+    }
+    const oneDoneBirds = [...countBySp.entries()]
+      .filter(([, { total }]) => total === 1)
+      .map(([name, { submissionId }]) => ({ name, submissionId }))
       .sort((a, b) => a.name.localeCompare(b.name))
 
     // Consecutive-day streak + longest dry spell
@@ -792,6 +894,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     }
 
     return {
+      singleChecklistBirds,
       oneDoneBirds,
       maxStreak,
       streakStart,
@@ -944,7 +1047,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <SubLabel>Life list accumulation</SubLabel>
               <div style={{ display: 'flex', gap: 4 }}>
-                {(['total', 'yearly', 'monthly', 'weekly'] as const).map(g => (
+                {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                   <button
                     key={g}
                     onClick={() => setAccGranularity(g)}
@@ -1018,40 +1121,6 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           </>
         )}
 
-        {accumulation.milestones.size > 0 && (
-          <>
-            <Divider />
-            <SubLabel>Milestones</SubLabel>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {Array.from({ length: 20 }, (_, i) => (i + 1) * 50).map(threshold => {
-                const m = accumulation.milestones.get(threshold)
-                if (!m) return null
-                return (
-                  <div key={threshold} style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                    padding: '8px 12px', borderRadius: 8,
-                    background: 'var(--sr-accent-bg)', border: '1px solid var(--sr-accent-border)',
-                    minWidth: 80,
-                  }}>
-                    <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1 }}>{threshold}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, margin: '3px 0 2px' }}>{m.species}</span>
-                    {SUBMISSION_ID_RE.test(m.submissionId) ? (
-                      <a
-                        href={`https://ebird.org/checklist/${m.submissionId}`}
-                        target="_blank" rel="noreferrer"
-                        style={{ fontSize: 11, color: 'var(--sr-text-muted)', textDecoration: 'none' }}
-                      >
-                        {fmtDate(m.date)}
-                      </a>
-                    ) : (
-                      <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmtDate(m.date)}</span>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </>
-        )}
       </SectionCard>
 
       {/* ── Section 2: Firsts & Milestones ─────────────────────────────────── */}
@@ -1112,6 +1181,53 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             </div>
           )}
         </div>
+
+        {accumulation.milestones.size > 0 && (
+          <>
+            <Divider />
+            <SubLabel>Milestones</SubLabel>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'flex-start' }}>
+              {MILESTONE_THRESHOLDS.map(threshold => {
+                const m = accumulation.milestones.get(threshold)
+                if (!m) return null
+                const tier = threshold < 100 ? 1 : threshold < 500 ? 2 : threshold < 1000 ? 3 : 4
+                const ts = tier === 1
+                  ? { bg: 'linear-gradient(160deg,#F2FAF5,#E8F5EE)', border: 'rgba(45,134,83,0.28)', num: '#2D8653', date: '#5EA07C', check: '#2D8653' }
+                  : tier === 2
+                  ? { bg: 'linear-gradient(160deg,#E5F3EC,#D8EDE4)', border: 'rgba(28,100,60,0.32)', num: '#1C6443', date: '#3E7A56', check: '#2D8653' }
+                  : tier === 3
+                  ? { bg: 'linear-gradient(160deg,#D6EAE0,#C6E2D5)', border: 'rgba(18,74,44,0.38)', num: '#14502E', date: '#2D6644', check: '#2D8653' }
+                  : { bg: 'linear-gradient(160deg,#FEFAEC,#FEF3C7)', border: 'rgba(146,64,14,0.32)', num: '#92400E', date: '#B45309', check: '#B45309' }
+                return (
+                  <div key={threshold} style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    padding: '10px 14px', borderRadius: 10,
+                    background: ts.bg, border: `1.5px solid ${ts.border}`,
+                    minWidth: 70, gap: 3, position: 'relative',
+                  }}>
+                    <div style={{
+                      position: 'absolute', top: 5, right: 6,
+                      width: 13, height: 13, borderRadius: '50%',
+                      background: ts.check, color: '#fff',
+                      fontSize: 8, fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>✓</div>
+                    <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1, color: ts.num }}>{threshold}</span>
+                    <span style={{ fontSize: 10, color: 'var(--sr-text-muted)', textAlign: 'center', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.species}</span>
+                    {SUBMISSION_ID_RE.test(m.submissionId) ? (
+                      <a href={`https://ebird.org/checklist/${m.submissionId}`} target="_blank" rel="noreferrer"
+                        style={{ fontSize: 10, color: ts.date, textDecoration: 'none' }}>
+                        {fmtDate(m.date)}
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: 10, color: ts.date }}>{fmtDate(m.date)}</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
       </SectionCard>
 
       {/* ── Section 3: Temporal Stats ──────────────────────────────────────── */}
@@ -1121,7 +1237,24 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             <SubLabel>Checklists by year</SubLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
               {temporal.yearRows.map(r => (
-                <BarRow key={r.label} label={r.label} value={r.checklists} max={maxYearChecklists} labelWidth={36} />
+                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 36 }}>{r.label}</span>
+                  <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${maxYearChecklists > 0 ? (r.checklists / maxYearChecklists) * 100 : 0}%`, background: 'var(--sr-accent)', borderRadius: 4, transition: 'width 0.3s' }} />
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: 28, textAlign: 'right' }}>{fmt(r.checklists)}</span>
+                  <span style={{ fontSize: 11, flexShrink: 0, width: 44, textAlign: 'right', color: 'var(--sr-accent)' }}>{fmt(r.species)} sp.</span>
+                  <span style={{ fontSize: 11, flexShrink: 0, width: 60, textAlign: 'right' }}>
+                    {r.bestDay && SUBMISSION_ID_RE.test(r.bestDay.submissionId) ? (
+                      <a href={`https://ebird.org/checklist/${r.bestDay.submissionId}`} target="_blank" rel="noreferrer"
+                        style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}>
+                        {fmt(r.bestDay.species)} best
+                      </a>
+                    ) : r.bestDay ? (
+                      <span style={{ color: 'var(--sr-text-muted)' }}>{fmt(r.bestDay.species)} best</span>
+                    ) : null}
+                  </span>
+                </div>
               ))}
             </div>
           </>
@@ -1178,14 +1311,14 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                 { label: 'Weekdays', value: temporal.dowRows.slice(1, 6).reduce((s, r) => s + r.value, 0), fill: 'var(--sr-chart-blue-light)' },
               ]
               return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 12, alignItems: 'start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {temporal.dowRows.map(r => (
                       <BarRow key={r.label} label={r.label} value={r.value} max={maxDow} labelWidth={28} color="var(--sr-graph-photo)" pctOf={totalDow} />
                     ))}
                   </div>
-                  <div>
-                    <div style={{ position: 'relative', width: 120, height: 120 }}>
+                  <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                    <div style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }}>
                       <PieChart width={120} height={120}>
                         <Pie data={dowPieData} dataKey="value" cx={60} cy={60} innerRadius={34} outerRadius={56} strokeWidth={0}>
                           {dowPieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
@@ -1196,7 +1329,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                         <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1.3 }}>{weekendPct}%</span>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                       {dowPieData.map(d => {
                         const dpct = totalDow > 0 ? Math.round(d.value / totalDow * 100) : 0
                         return (
@@ -1228,6 +1361,50 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
 
       {/* ── Section 4: Geographic Stats ────────────────────────────────────── */}
       <SectionCard title="Geographic Stats" icon={<MapPin size={16} />}>
+        {(() => {
+          const clPins = geo.topLocations
+            .map((loc, i) => loc.lat !== null ? { name: loc.name, checklists: loc.checklists, lat: loc.lat, lng: loc.lng!, rank: i + 1 } : null)
+            .filter((p): p is { name: string; checklists: number; lat: number; lng: number; rank: number } => p !== null)
+          const spPins = geo.topLocationsBySpecies
+            .map((loc, i) => loc.lat !== null ? { name: loc.name, species: loc.species, lat: loc.lat, lng: loc.lng!, rank: i + 1 } : null)
+            .filter((p): p is { name: string; species: number; lat: number; lng: number; rank: number } => p !== null)
+          if (clPins.length === 0 && spPins.length === 0) return null
+          return (
+            <div style={{ marginBottom: 20 }}>
+              <MapContainer
+                center={[0, 0]} zoom={2} zoomControl
+                style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)' }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                />
+                <TopLocationsBoundsFitter checklistPins={clPins} speciesPins={spPins} />
+                {clPins.map(pin => (
+                  <Marker key={`cl-${pin.rank}`} position={[pin.lat, pin.lng]} icon={circleIcon(pin.rank)}>
+                    <Popup><span style={{ fontSize: 13 }}>{pin.name}</span><br /><span style={{ color: '#71717A', fontSize: 12 }}>{fmt(pin.checklists)} checklists</span></Popup>
+                  </Marker>
+                ))}
+                {spPins.map(pin => (
+                  <Marker key={`sp-${pin.rank}`} position={[pin.lat, pin.lng]} icon={squareIcon(pin.rank)}>
+                    <Popup><span style={{ fontSize: 13 }}>{pin.name}</span><br /><span style={{ color: '#71717A', fontSize: 12 }}>{fmt(pin.species)} species</span></Popup>
+                  </Marker>
+                ))}
+              </MapContainer>
+              <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#2D8653" /></svg>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>Top by checklists</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="2" fill="#3B82F6" /></svg>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>Top by species</span>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+
         {geo.topLocations.length > 0 && (
           <>
             <SubLabel>Top locations by checklists</SubLabel>
@@ -1749,8 +1926,8 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         )}
       </SectionCard>
 
-      {/* ── Section 8: Fun Stats ───────────────────────────────────────────── */}
-      <SectionCard title="Fun Stats" icon={<Star size={16} />}>
+      {/* ── Section 8: Other Statistics ───────────────────────────────────── */}
+      <SectionCard title="Other Statistics" icon={<Star size={16} />}>
 
         {/* ML media sections */}
         {mlStats.mostPhotographed.length > 0 && (
@@ -1823,15 +2000,15 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           </>
         )}
 
-        {/* One-and-done birds */}
+        {/* Single-checklist birds (renamed) */}
         <Divider />
-        <SubLabel>One-and-done birds</SubLabel>
+        <SubLabel>Single-checklist birds</SubLabel>
         <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
-          {fmt(funStats.oneDoneBirds.length)} species seen on exactly one checklist
+          {fmt(funStats.singleChecklistBirds.length)} species seen on exactly one checklist
         </p>
-        {funStats.oneDoneBirds.length > 0 && (
+        {funStats.singleChecklistBirds.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {funStats.oneDoneBirds.map(bird => (
+            {funStats.singleChecklistBirds.map(bird => (
               SUBMISSION_ID_RE.test(bird.submissionId) ? (
                 <a
                   key={bird.name}
@@ -1856,6 +2033,45 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               )
             ))}
           </div>
+        )}
+
+        {/* One-and-done birds (new) */}
+        <Divider />
+        <SubLabel>One-and-done birds</SubLabel>
+        {funStats.oneDoneBirds.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: 0 }}>No one-and-done birds in your data.</p>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
+              {fmt(funStats.oneDoneBirds.length)} species with a total individual count of exactly 1
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {funStats.oneDoneBirds.map(bird => (
+                SUBMISSION_ID_RE.test(bird.submissionId) ? (
+                  <a
+                    key={bird.name}
+                    href={`https://ebird.org/checklist/${bird.submissionId}`}
+                    target="_blank" rel="noreferrer"
+                    style={{
+                      fontSize: 12, padding: '3px 10px', borderRadius: 100,
+                      background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                      color: 'var(--sr-accent)', textDecoration: 'none',
+                    }}
+                  >
+                    {bird.name}
+                  </a>
+                ) : (
+                  <span key={bird.name} style={{
+                    fontSize: 12, padding: '3px 10px', borderRadius: 100,
+                    background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                    color: 'var(--sr-text-muted)',
+                  }}>
+                    {bird.name}
+                  </span>
+                )
+              ))}
+            </div>
+          </>
         )}
 
         {/* Nemesis birds */}
@@ -1892,10 +2108,21 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                 (SESSION_NOW_MS - new Date(bird.recentDate + 'T12:00:00').getTime()) / 86400000
               )
               const dotColor = daysAgo <= 7 ? '#EF4444' : daysAgo <= 14 ? '#F59E0B' : 'var(--sr-text-disabled)'
+              const taxonCode = mlTaxonMap[bird.commonName] || nemesisTaxonMap[bird.commonName] || null
               return (
                 <div key={bird.commonName} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-                  <span style={{ fontSize: 13, flex: 1 }}>{bird.commonName}</span>
+                  {taxonCode ? (
+                    <a
+                      href={`https://ebird.org/species/${taxonCode}`}
+                      target="_blank" rel="noreferrer"
+                      style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                    >
+                      {bird.commonName}
+                    </a>
+                  ) : (
+                    <span style={{ fontSize: 13, flex: 1 }}>{bird.commonName}</span>
+                  )}
                   <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmtDate(bird.recentDate)}</span>
                 </div>
               )

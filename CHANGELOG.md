@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.12] - 2026-05-24
+
+### Added
+- **Statistics — Denser milestone schedule** — 43 milestone thresholds replacing the old 20, with every 10 species below 100, every 25 from 100–475, every 50 from 500–950, and sparse milestones from 1,000 to 3,000. Milestones are now in the Firsts & Milestones card instead of Life List Totals.
+- **Statistics — Per-year species & best day** — Checklists by Year now shows distinct species count and best single-day species count alongside checklist count. Best-day count links to the eBird checklist when the submission ID is valid.
+- **Statistics — Top Locations map** — Leaflet map in Geographic Stats showing numbered markers for top locations by checklists (green circles) and top locations by species (blue squares). Map appears at the top of the card. Markers auto-fit to bounds on load.
+- **Statistics — One-and-done birds as links** — One-and-done bird pills now link to the eBird checklist where the single individual was recorded, matching single-checklist bird behavior.
+- **Statistics — Nemesis bird links** — Each nemesis bird name links to its eBird species page. Taxon codes are resolved from ML export data or a secondary taxonomy lookup; unresolvable names fall back to plain text.
+
+### Changed
+- **Statistics — Accumulation pill order** — Life list accumulation toggle now reads Weekly · Monthly · Yearly · Total.
+- **Statistics — Day-of-week chart layout** — Pie chart and legend now appear below the bar chart instead of beside it.
+- **Statistics — "Fun Stats" renamed** — Section is now called "Other Statistics."
+
 ## [0.1.11] - 2026-05-24
 
 ### Added
