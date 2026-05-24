@@ -4,6 +4,28 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Birding Stats: protocol breakdown removed from Temporal Stats — 2026-05-24
+
+**FR-15 of the stats-tab-enhancements PRD specified a protocol pie chart in the Temporal Stats section.** It was intentionally not implemented there.
+
+**User direction:** "Remove protocol breakdown from the temporal stats since it already shows up in effort and methodology."
+
+**Current state:** The full protocol section (segmented bar + legend) lives exclusively in Effort & Methodology. It does not appear in Temporal Stats.
+
+**Implications:** Do not re-add a protocol chart to Temporal Stats. If protocol data is needed there in a future session, confirm the user wants duplication before implementing.
+
+---
+
+## Birding Stats: accumulation default changed from 'yearly' to 'total' — 2026-05-24
+
+**Previous behavior (v0.1.6):** The granularity toggle defaulted to `'yearly'`. The `'total'` mode did not exist.
+
+**New behavior (v0.1.9):** A fourth mode `'total'` was added (Total / Yearly / Monthly / Weekly order). `useState<Granularity>('total')` makes Total the default. Total mode renders a step-line chart with one point per new life species.
+
+**Implication:** The prior decision ("accumulation granularity toggle added beyond PRD — 2026-05-23") described the default as `'yearly'`. That is now stale. The correct default is `'total'`. Do not reset it to `'yearly'`.
+
+---
+
 ## Birding Stats: map, Big Year, and average-observers removed at user direction — 2026-05-23
 
 **PRD FR-37 (sighting map), FR-58 (Big Year dropdown), and FR-43 (average observers) were intentionally not implemented.**

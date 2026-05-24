@@ -323,30 +323,28 @@ A fifth data tab that shows a complete per-species view from the user's eBird ba
 
 ### Birding Statistics Tab (complete — May 2026)
 
-A new Statistics tab (between Map Explorer and Settings in the tab bar) that derives comprehensive birding analytics from the stored eBird backup CSV and ML export. All computation is client-side; one new backend endpoint supplies Nemesis Bird data.
+A Statistics tab (between Map Explorer and Settings in the tab bar) that derives comprehensive birding analytics from the stored eBird backup CSV and ML export. All computation is client-side; one new backend endpoint supplies Nemesis Bird data.
 
 **What it does:**
 
-**Life List Totals** — Headline counts: total unique species (normalized, spuh/slash excluded by default), total observation rows, total unique checklists, total time birded (hours + minutes), total distance (miles), total individual birds (numeric + X-count separately), unique locations, unique counties, unique states/provinces, unique countries. When ML export is loaded: total Photo, Audio, and Video catalog entries.
+**Life List Totals** — Headline counts (species, checklists, locations, years active, states/provinces, countries). First and last observation cards show date (linked to eBird checklist when submissionId matches `/^S\d+$/`) and location name. First species ever recorded. Life list accumulation chart with four-mode toggle: Total (default) / Yearly / Monthly / Weekly. Total mode plots one step-line point per new lifer in chronological order; tooltip shows species name at each point. Milestone pills (every 50 species up to 1,000) show the species that hit the threshold and link to the checklist.
 
-**Firsts & Milestones** — Earliest checklist date and location; first species ever recorded (date + name); species milestones at every 50 species up to 1,000 (date when each threshold was first reached, or "Not yet reached"); longest consecutive birding streak (days) with start/end dates; longest gap between birding dates (days) with the two boundary dates; top 5 most-reported species (% of checklists); least-reported species (bottom 5 excluding one-and-done); one-and-done species (appear on exactly one checklist, top 5 most recent with expand control).
+**Firsts & Milestones** — Biggest single day (species count links to eBird checklist); longest consecutive streak; longest dry spell; Shannon diversity index (H′ from numeric counts).
 
-**Species Accumulation Curve** — Line chart showing cumulative distinct species over time. Granularity toggle (Weekly / Monthly / Yearly) buckets data points by period. X-axis tick formatter shows period-appropriate labels (W01, Jan '24, 2024). Data point on each period in which a new life species was first recorded.
+**Temporal Stats** — Checklists by year (bar); checklists by month (bar + donut pie with percentage labels); checklists by day-of-week (bar + donut pie, grouped Sat/Sun/Weekdays, percentage labels); checklists by start hour (bar, excludes no-time checklists, percentage labels). All bar rows show both count and percentage of total. Protocol breakdown intentionally absent from this section — it lives entirely in Effort & Methodology.
 
-**Temporal** — Checklists per year (bar), new lifers per year (bar), species per year (bar), new locations per year (bar), checklists per month (bar), checklists per day-of-week (bar), checklists per hour-of-day (bar, excludes no-time checklists), busiest birding day (species + checklists), average start time by season.
+**Geographic Stats** — Two location lists: "Top locations by checklists" and "Top locations by species" (each showing both counts). Counties split into two side-by-side bar charts: by checklists (green bars, with show-all expand) and by species (blue bars, top 8). States/provinces same split. County and state entries link to `ebird.org/region/{stateProvince}` when stateProvince is non-empty and contains a hyphen; plain text otherwise. Map removed (see Decisions).
 
-**Geographic Stats** — Top 10 locations by species count; top 10 by checklist visits; top 10 by time spent; county list by species count and state/province list by species count (collapsed to 10 with expand); headline county + state/province counts. Distance-from-default-location stats (average, max, top-5-farthest) when a default location is saved. Map removed (see Decisions).
+**Effort & Methodology** — Protocol distribution: horizontal segmented bar + percentage labels + legend; key metrics grid (avg duration min, avg distance mi, spp/hour, spp/mi — distance converted from CSV's km values); average-by-protocol table (Protocol / Avg Duration / Avg Distance / Count); observer count: vertical bar chart + donut pie with percentage labels; complete-checklist ratio (shown only when "All Obs Reported" column is present in the CSV).
 
-**Effort & Methodology** — Protocol breakdown (bar chart with % labels); average duration (min) and average distance (km); species per hour and species per km; observer distribution (bar chart of checklists by number of observers — 1, 2, 3, etc.); average duration trend per year (line chart, years with <3 duration-bearing checklists omitted); complete-checklist ratio (shown only when "All Obs Reported" column is present); average species per checklist.
+**Data Quality** — Count method: proportional bar (numeric % vs. X/presence-only %); comment coverage: proportional bar (with-notes % vs. no-notes %); top 10 biggest single-species counts table (Species / Count [linked] / Date / Location).
 
-**Data Quality** — Numeric vs. X-count proportion; top 10 biggest single-species counts; checklist comment coverage (with/without).
+**Breeding Stats** — Confirmed/Probable/Possible species totals. Breeding activity by month: stacked color-coded bars (dark purple = confirmed, medium = probable, light = possible species per month). Filter buttons (All / Confirmed / Probable / Possible) switch the chart to show only that tier.
 
-**Breeding Stats** — Total species with any breeding code; counts by tier (Confirmed/Probable/Possible); breeding activity by month bar chart.
-
-**Fun Stats** — Most Photographed, Most Audio, Most Video species (top 10 each, from ML export); Nemesis Birds section (species frequently observed nearby that are absent from the user's life list, powered by `GET /stats/nemesis`). Big Year section removed at user direction (see Decisions).
+**Fun Stats** — Most Photographed / Most Audio / Most Video (top 10 each from ML export); links use `taxonCode` + `userId` pattern (same as Media Count tab — fetched via `POST /taxonomy/codes` on load). One-and-done birds (every species seen on exactly one checklist; each pill links to that checklist). Nemesis Birds (species recently observed nearby but absent from life list, powered by `GET /stats/nemesis`).
 
 **Key files:**
-- `frontend/src/components/BirdingStats.tsx` — full tab component; ~1,300 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant (computed at import time, not during render) for nemesis recency coloring
+- `frontend/src/components/BirdingStats.tsx` — full tab component; ~1,800 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant; `mlCatalogUrl()` helper builds Macaulay Library search URLs using taxonCode when available, taxaName as fallback; `ML_USER_RE` extracts userId from ML export filename; `mlTaxonMap` state populated via `POST /taxonomy/codes` after ML load
 - `frontend/src/lib/parseEbirdObservations.ts` — extended with 9 optional checklist-level fields: `time`, `duration`, `distance`, `protocol`, `numObservers`, `allObsReported`, `checklistComments`, `stateProvince`
 - `backend/routers/stats.py` — `GET /stats/nemesis?lat&lng&dist` endpoint; validates params; calls eBird geo/recent API; returns `{species: [{commonName, recentDate, subId}]}`
 - `backend/tests/test_stats_router.py` — 13 tests
