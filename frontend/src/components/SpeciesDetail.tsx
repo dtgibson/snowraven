@@ -15,7 +15,7 @@ import {
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
-import { buildGraphData, type GraphPoint } from '../lib/sightingsGraph'
+import { buildGraphData, type GraphPoint, type GraphInterval } from '../lib/sightingsGraph'
 import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
 import { SpeciesLinks } from './SpeciesLinks'
 import type { ObservationEntry, MediaType } from '../types'
@@ -235,19 +235,24 @@ function HeatmapLayer({ points, visible }: { points: [number, number, number][];
 
 const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-function formatPeriodLabel(key: string, useMonthly: boolean): string {
-  if (!useMonthly) return key
-  const [year, month] = key.split('-')
-  const m = parseInt(month, 10) - 1
-  return `${MONTH_ABBR[m] ?? ''} ${year}`
+function formatPeriodLabel(key: string, interval: GraphInterval): string {
+  if (interval === 'yearly') return key
+  if (interval === 'monthly') {
+    const [year, month] = key.split('-')
+    const m = parseInt(month, 10) - 1
+    return `${MONTH_ABBR[m] ?? ''} ${year}`
+  }
+  // weekly: "2024-W03" → "Wk 3 '24"
+  const [yearStr, wStr] = key.split('-W')
+  return `Wk ${parseInt(wStr, 10)} '${yearStr.slice(2)}`
 }
 
 
-function GraphTooltip({ active, payload, label, useMonthly }: {
+function GraphTooltip({ active, payload, label, interval }: {
   active?: boolean
   payload?: Array<{ name: string; value: number; color: string }>
   label?: string
-  useMonthly: boolean
+  interval: GraphInterval
 }) {
   if (!active || !payload?.length) return null
   return (
@@ -257,7 +262,7 @@ function GraphTooltip({ active, payload, label, useMonthly }: {
       boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: 130,
     }}>
       <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--sr-text)' }}>
-        {formatPeriodLabel(label ?? '', useMonthly)}
+        {formatPeriodLabel(label ?? '', interval)}
       </div>
       {payload.map(p => (
         <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 3, alignItems: 'center' }}>
@@ -272,31 +277,49 @@ function GraphTooltip({ active, payload, label, useMonthly }: {
   )
 }
 
-function SightingsGraph({ data, useMonthly, viewMode, hasML }: {
+function SightingsGraph({ data, interval, viewMode, hasML }: {
   data: GraphPoint[]
-  useMonthly: boolean
+  interval: GraphInterval
   viewMode: 'per-period' | 'cumulative'
   hasML: boolean
 }) {
   const displayData = useMemo(() => {
     if (viewMode === 'per-period') return data
-    let ci = 0, cp = 0, ca = 0, cv = 0
+    let ci = 0, cc = 0, cp = 0, ca = 0, cv = 0
     return data.map(p => {
-      ci += p.individuals; cp += p.photo; ca += p.audio; cv += p.video
-      return { key: p.key, individuals: ci, photo: cp, audio: ca, video: cv }
+      ci += p.individuals; cc += p.checklists; cp += p.photo; ca += p.audio; cv += p.video
+      return { key: p.key, individuals: ci, checklists: cc, photo: cp, audio: ca, video: cv }
     })
   }, [data, viewMode])
 
   if (data.length < 2) return null
 
   const hasAnyMedia = hasML && data.some(p => p.photo > 0 || p.audio > 0 || p.video > 0)
-  const periodLabel = useMonthly ? 'month' : 'year'
+  const periodLabel = interval === 'weekly' ? 'week' : interval === 'monthly' ? 'month' : 'year'
   const sightingsAxisLabel = viewMode === 'per-period'
     ? `Individuals per ${periodLabel}`
     : 'Cumulative individuals'
+  const checklistsAxisLabel = viewMode === 'per-period'
+    ? `Checklists per ${periodLabel}`
+    : 'Cumulative checklists'
   const mediaAxisLabel = viewMode === 'per-period'
     ? `Items per ${periodLabel}`
     : 'Cumulative items'
+
+  const xAxisProps = {
+    dataKey: 'key' as const,
+    tickFormatter: (k: string) => formatPeriodLabel(k, interval),
+    tick: { fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
+    tickLine: false as const,
+    axisLine: false as const,
+    interval: 'preserveStartEnd' as const,
+  }
+  const yAxisProps = {
+    tick: { fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
+    tickLine: false as const,
+    axisLine: false as const,
+    allowDecimals: false as const,
+  }
 
   return (
     <>
@@ -309,27 +332,40 @@ function SightingsGraph({ data, useMonthly, viewMode, hasML }: {
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
-              <XAxis
-                dataKey="key"
-                tickFormatter={k => formatPeriodLabel(k, useMonthly)}
-                tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
-                tickLine={false}
-                axisLine={false}
-                allowDecimals={false}
-              />
+              <XAxis {...xAxisProps} />
+              <YAxis {...yAxisProps} />
               <RechartsTooltip
-                content={<GraphTooltip useMonthly={useMonthly} />}
+                content={<GraphTooltip interval={interval} />}
                 cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
               />
               <Line
                 type="monotone" dataKey="individuals" name="Individuals"
                 stroke="var(--sr-graph-individuals)" strokeWidth={2.5}
+                dot={{ r: 3, fill: 'var(--sr-graph-individuals)', stroke: 'white', strokeWidth: 1.5 }}
+                activeDot={{ r: 4 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </SectionCard>
+      <SectionCard>
+        <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Checklists Over Time" />
+        <div style={{ padding: '14px 18px 0' }}>
+          <div style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{checklistsAxisLabel}</span>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
+              <XAxis {...xAxisProps} />
+              <YAxis {...yAxisProps} />
+              <RechartsTooltip
+                content={<GraphTooltip interval={interval} />}
+                cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
+              />
+              <Line
+                type="monotone" dataKey="checklists" name="Checklists"
+                stroke="var(--sr-graph-individuals)" strokeWidth={2.5} opacity={0.6}
                 dot={{ r: 3, fill: 'var(--sr-graph-individuals)', stroke: 'white', strokeWidth: 1.5 }}
                 activeDot={{ r: 4 }}
               />
@@ -347,22 +383,10 @@ function SightingsGraph({ data, useMonthly, viewMode, hasML }: {
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
-                <XAxis
-                  dataKey="key"
-                  tickFormatter={k => formatPeriodLabel(k, useMonthly)}
-                  tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
-                  tickLine={false}
-                  axisLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  tick={{ fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' }}
-                  tickLine={false}
-                  axisLine={false}
-                  allowDecimals={false}
-                />
+                <XAxis {...xAxisProps} />
+                <YAxis {...yAxisProps} />
                 <RechartsTooltip
-                  content={<GraphTooltip useMonthly={useMonthly} />}
+                  content={<GraphTooltip interval={interval} />}
                   cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
                 />
                 <Legend
@@ -418,7 +442,7 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
   const [showAllComments, setShowAllComments] = useState(false)
   const [showAllLocations, setShowAllLocations] = useState(false)
   const [mapMode, setMapMode] = useState<'pins' | 'heatmap'>('pins')
-  const [graphInterval, setGraphInterval] = useState<'yearly' | 'monthly'>('yearly')
+  const [graphInterval, setGraphInterval] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
   const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   const [showAllCoOccurrence, setShowAllCoOccurrence] = useState(false)
 
@@ -432,7 +456,7 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
     setShowAllComments(false)
     setShowAllLocations(false)
     setMapMode('pins')
-    setGraphInterval('yearly')
+    setGraphInterval('monthly')
     setViewMode('per-period')
     setShowAllCoOccurrence(false)
   }
@@ -725,6 +749,20 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
       return true
     })
   }, [phase, selectedSpecies, mergeSubspecies, dateRange])
+
+  // Total unique checklists in scope (same filters as speciesObs) — denominator for Frequency stat
+  const totalFilteredChecklists = useMemo(() => {
+    if (phase.tag !== 'ready') return 0
+    const ids = new Set<string>()
+    for (const o of phase.observations) {
+      if (!o.submissionId) continue
+      if (countyFilter !== null && o.county !== countyFilter) continue
+      if (dateRange.from && o.date < dateRange.from) continue
+      if (dateRange.to && o.date > dateRange.to) continue
+      ids.add(o.submissionId)
+    }
+    return ids.size
+  }, [phase, countyFilter, dateRange])
 
   // Map markers: one per unique lat/lng, with all sightings at that coordinate
   const coordMarkers = useMemo((): CoordMarker[] => {
@@ -1209,6 +1247,14 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
             <SectionCard>
               <SectionHead icon={<Eye size={14} strokeWidth={2.2} />} title="Sightings" />
               <div style={{ padding: '16px 18px' }}>
+                {(() => {
+                  const frequencyPct = totalFilteredChecklists > 0
+                    ? (sightingsStats.total / totalFilteredChecklists) * 100
+                    : null
+                  const frequencyDisplay = frequencyPct === null ? null
+                    : frequencyPct < 1 ? '<1%'
+                    : `${Math.round(frequencyPct)}%`
+                  return (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
                     <StatLabel>Checklists</StatLabel>
@@ -1226,6 +1272,26 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
                       <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--sr-text-disabled)' }}>—</div>
                     )}
                   </div>
+                  {frequencyDisplay !== null && (
+                    <div style={{ borderLeft: '1.5px solid var(--sr-border-subtle)', paddingLeft: 12 }}>
+                      <StatLabel>Frequency</StatLabel>
+                      <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-accent)' }}>
+                        {frequencyDisplay}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 2 }}>of your checklists</div>
+                      <div style={{
+                        height: 3, borderRadius: 2, marginTop: 6,
+                        background: 'var(--sr-border)',
+                        overflow: 'hidden',
+                      }}>
+                        <div style={{
+                          height: '100%', borderRadius: 2,
+                          background: 'var(--sr-accent)',
+                          width: `${Math.min(frequencyPct ?? 0, 100)}%`,
+                        }} />
+                      </div>
+                    </div>
+                  )}
                   <div style={{ gridColumn: '1 / -1' }}>
                     <StatLabel>Personal best</StatLabel>
                     {sightingsStats.bestObs ? (
@@ -1251,6 +1317,8 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
                     />
                   </div>
                 </div>
+                  )
+                })()}
               </div>
             </SectionCard>
 
@@ -1332,9 +1400,9 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
                       Interval
                     </span>
                     <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
-                      {(['yearly', 'monthly'] as const).map(v => (
+                      {(['weekly', 'monthly', 'yearly'] as const).map(v => (
                         <button key={v} onClick={() => setGraphInterval(v)} style={graphInterval === v ? btnActive : btnInactive}>
-                          {v === 'yearly' ? 'Yearly' : 'Monthly'}
+                          {v === 'weekly' ? 'Weekly' : v === 'monthly' ? 'Monthly' : 'Yearly'}
                         </button>
                       ))}
                     </div>
@@ -1356,8 +1424,8 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
             )
           })()}
 
-          {/* Sightings Over Time + Media Over Time graphs */}
-          <SightingsGraph data={graphResult.data} useMonthly={graphResult.useMonthly} viewMode={viewMode} hasML={hasML} />
+          {/* Sightings Over Time + Checklists Over Time + Media Over Time graphs */}
+          <SightingsGraph data={graphResult.data} interval={graphResult.interval} viewMode={viewMode} hasML={hasML} />
 
           {/* Breeding Codes */}
           <SectionCard>

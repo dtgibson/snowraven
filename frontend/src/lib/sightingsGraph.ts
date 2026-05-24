@@ -1,28 +1,62 @@
 import type { ObservationEntry } from '../types'
 import type { MLExportRow } from './parseMLExport'
 
+export type GraphInterval = 'weekly' | 'monthly' | 'yearly'
+
 export type GraphPoint = {
   key: string
   individuals: number
+  checklists: number
   photo: number
   audio: number
   video: number
 }
 
+// Returns the ISO week key (YYYY-Www) for a YYYY-MM-DD date string
+function isoWeekKey(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  const dayOfWeek = date.getUTCDay() || 7 // 1=Mon … 7=Sun
+  // Move to Thursday of this ISO week — Thursday determines the ISO year
+  date.setUTCDate(date.getUTCDate() + 4 - dayOfWeek)
+  const weekYear = date.getUTCFullYear()
+  const yearStart = new Date(Date.UTC(weekYear, 0, 1))
+  const weekNo = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return `${weekYear}-W${String(weekNo).padStart(2, '0')}`
+}
+
+// Returns the UTC Monday date for an ISO week key (YYYY-Www)
+function mondayOfISOWeek(weekKey: string): Date {
+  const [yearStr, wStr] = weekKey.split('-W')
+  const year = parseInt(yearStr, 10)
+  const week = parseInt(wStr, 10)
+  // ISO week 1 always contains Jan 4
+  const jan4 = new Date(Date.UTC(year, 0, 4))
+  const dayOfWeek = jan4.getUTCDay() || 7
+  const monday = new Date(jan4)
+  monday.setUTCDate(jan4.getUTCDate() - (dayOfWeek - 1) + (week - 1) * 7)
+  return monday
+}
+
 export function buildGraphData(
   obs: ObservationEntry[],
   mlRows: MLExportRow[],
-  interval: 'yearly' | 'monthly',
-): { data: GraphPoint[]; useMonthly: boolean } {
-  if (obs.length === 0) return { data: [], useMonthly: false }
+  interval: GraphInterval,
+): { data: GraphPoint[]; interval: GraphInterval } {
+  if (obs.length === 0) return { data: [], interval }
 
-  const useMonthly = interval === 'monthly'
-  const keyOf = (date: string) => useMonthly ? date.slice(0, 7) : date.slice(0, 4)
+  const keyOf = (date: string): string => {
+    if (interval === 'weekly') return isoWeekKey(date)
+    if (interval === 'monthly') return date.slice(0, 7)
+    return date.slice(0, 4)
+  }
 
   const indivMap = new Map<string, number>()
+  const checklistMap = new Map<string, number>()
   for (const o of obs) {
     const k = keyOf(o.date)
     indivMap.set(k, (indivMap.get(k) ?? 0) + (o.count ?? 0))
+    checklistMap.set(k, (checklistMap.get(k) ?? 0) + 1)
   }
 
   const photoMap = new Map<string, number>()
@@ -40,15 +74,15 @@ export function buildGraphData(
     ...indivMap.keys(), ...photoMap.keys(), ...audioMap.keys(), ...videoMap.keys(),
   ])
   const sortedKeys = [...allKeys].sort()
-  if (sortedKeys.length < 2) return { data: [], useMonthly }
+  if (sortedKeys.length < 2) return { data: [], interval }
 
   // Fill gaps so the x-axis is continuous
   const filled = new Set(sortedKeys)
-  if (!useMonthly) {
+  if (interval === 'yearly') {
     const firstY = parseInt(sortedKeys[0])
     const lastY = parseInt(sortedKeys[sortedKeys.length - 1])
     for (let y = firstY + 1; y < lastY; y++) filled.add(String(y))
-  } else {
+  } else if (interval === 'monthly') {
     const [fy, fm] = sortedKeys[0].split('-').map(Number)
     const [ly, lm] = sortedKeys[sortedKeys.length - 1].split('-').map(Number)
     let cy = fy, cm = fm
@@ -56,15 +90,25 @@ export function buildGraphData(
       filled.add(`${cy}-${String(cm).padStart(2, '0')}`)
       cm++; if (cm > 12) { cm = 1; cy++ }
     }
+  } else {
+    // Weekly: step Monday by Monday between first and last observed week
+    const firstMonday = mondayOfISOWeek(sortedKeys[0])
+    const lastMonday = mondayOfISOWeek(sortedKeys[sortedKeys.length - 1])
+    const current = new Date(firstMonday)
+    while (current <= lastMonday) {
+      filled.add(isoWeekKey(current.toISOString().slice(0, 10)))
+      current.setUTCDate(current.getUTCDate() + 7)
+    }
   }
 
   const data: GraphPoint[] = [...filled].sort().map(k => ({
     key: k,
     individuals: indivMap.get(k) ?? 0,
+    checklists: checklistMap.get(k) ?? 0,
     photo: photoMap.get(k) ?? 0,
     audio: audioMap.get(k) ?? 0,
     video: videoMap.get(k) ?? 0,
   }))
 
-  return { data, useMonthly }
+  return { data, interval }
 }

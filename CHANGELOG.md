@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.11] - 2026-05-24
+
+### Added
+- **Species Detail — Weekly graph interval** — new "Weekly" option in Graph Options groups sightings, checklists, and media by ISO week. Toggle order is now Weekly · Monthly · Yearly. Monthly is the new default on load and on every species change.
+- **Species Detail — Checklists Over Time graph** — new chart card below "Sightings Over Time" showing how many of your checklists recorded the species per period (per week/month/year, or cumulative). Uses the same interval and view-mode controls as the other graphs.
+- **Species Detail — Frequency statistic** — new "Frequency" cell in the Sightings section shows what percentage of your checklists include the selected species, with a slim fill bar. Updates reactively when county or date-range filters are active.
+
 ## [0.1.10] - 2026-05-24
 
 ### Fixed
