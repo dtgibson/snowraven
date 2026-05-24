@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.7] - 2026-05-23
+
+### Fixed
+- **Statistics tab build error** — `Tooltip` formatter parameter typed as `number` failed `tsc -b` (the stricter build-time type checker) because Recharts passes `ValueType | undefined`. Broadened to a runtime guard: `typeof v === 'number' ? fmt(v) : String(v ?? '')`.
+
 ## [0.1.6] - 2026-05-23
 
 ### Added
