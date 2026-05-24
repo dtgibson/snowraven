@@ -82,6 +82,29 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## eBird API `dist` parameter is km, not miles — 2026-05-23
+
+**Bug:** Both `/map/hotspots` and `/map/recent-obs` eBird API calls received `dist=${radius}` where `radius` is stored in miles (UI options: 5 / 10 / 25 / 50 mi). The eBird API expects `dist` in km. Public hotspots were clipped to ~60% of the intended area. Personal pins used `distanceMiles() <= radius` (miles vs miles, already correct), so they appeared farther out than public hotspots for the same radius.
+
+**Fix:** Both fetch calls now compute `const distKm = Math.round(radius * 1.60934)` and pass `dist=${distKm}`. The personal pin haversine comparison is unchanged.
+
+**Implications:** Any future call to an eBird geo endpoint (`/ref/hotspot/geo`, `/data/obs/geo/recent`, etc.) must convert miles → km before passing `dist`. The `radius` state in `MapExplorer.tsx` is always in miles (matching the UI labels). Never pass it raw to an eBird URL.
+
+## `const run = async () => {...}; run()` is the established pattern for useEffect + async — 2026-05-23
+
+**Problem:** `eslint-plugin-react-hooks` v7 introduced the `react-hooks/set-state-in-effect` rule, which flags any call to a setState setter (or a useCallback that internally calls setState) in the synchronous body of a `useEffect`. Three instances had been failing CI since v0.1.6: `fetchKeyStatus()` in `App.tsx`, `setFilterIsTarget(true)` in `LifeList.tsx`, and `fetchTargetCodes(...)` in `MapExplorer.tsx`.
+
+**Fix:** Wrap the call in a local async function and invoke immediately:
+```typescript
+useEffect(() => {
+  const run = async () => { await myAsyncAction() }
+  run()
+}, [myAsyncAction])
+```
+For sync-only state updates, the same wrapper works: `const run = async () => { setState(value) }; run()`.
+
+**Implications:** This is the project-wide pattern for any `useEffect` that triggers async work or setState. Do not call setState (or useCallback setters) directly in the synchronous effect body — wrap them. The `SESSION_NOW_MS` pattern (module-level constant, not useMemo) remains the correct fix for `react-hooks/purity` violations; this pattern addresses the separate `react-hooks/set-state-in-effect` rule.
+
 ## Leaflet divIcon inner content must use `display: inline-block` — 2026-05-23
 
 **Bug:** Media target label pills rendered with a tiny colored oval (≈12px wide) that didn't span the species name. The pill background was correct, but the text overflowed it visibly.

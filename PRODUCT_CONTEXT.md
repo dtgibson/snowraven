@@ -589,6 +589,27 @@ An interactive map tab with three view modes for exploring birding locations: si
 - `frontend/vite.config.ts` — `/map` and `/nominatim` proxies; `/settings` already proxied, covers `/settings/map-defaults`
 - `frontend/src/App.tsx` — `'map-explorer'` tab
 
+### Map Explorer Improvements (complete — May 2026)
+
+Two targeted improvements to the Map Explorer tab shipped in v0.1.8.
+
+**Media Target Type Filter:**
+- Filter pills (All / Photo / Audio / Video) appear in the Media Targets sidebar after results are fetched, between the target-species count and the Time Range toggle
+- Selecting one or more type pills narrows map pins and the nearest-10 list to species missing those specific types — AND logic (`every(t => pin.missingTypes.includes(t))`)
+- "All" is the default (empty Set); selecting any type pill deselects All; selecting All resets all type pills
+- Species count label next to "Filter by Type" shows `displayedTargetPins.length` (post-filter)
+- Empty state: "No targets match this filter."
+- Filter resets to All (`setTargetTypeFilter(new Set())`) at the start of `handleFindSightings`
+- Active pills use `var(--sr-is-target-bg/text/border)` amber tokens; inactive pills use `var(--sr-surface-subtle)` / `var(--sr-border)` — consistent with the "Is Target" pill in the Media List tab
+- `targetTypeFilter: Set<'Photo'|'Audio'|'Video'>` state; empty set = All; no persistence
+
+**Hotspot radius unit fix:**
+- `handleFindHotspots` and `handleFindSightings` now compute `const distKm = Math.round(radius * 1.60934)` and pass `dist=${distKm}` to the eBird API. Both calls previously passed `dist=${radius}` (miles), causing public hotspots to be clipped to ~60% of the intended area while personal pins (which use `distanceMiles() <= radius`, already correct in miles) appeared farther out.
+- The personal pin haversine comparison at `distanceMiles(latNum, lngNum, loc.lat, loc.lng) <= radius` is unchanged — it was already comparing miles to miles correctly.
+
+**Key files changed:**
+- `frontend/src/components/MapExplorer.tsx` — `targetTypeFilter` state; modified `displayedTargetPins` useMemo (two-pass: recency then type); `distKm` conversion in both fetch calls; filter pills JSX; count label; reset on fetch; empty state text updated
+
 ## Key Decisions
 
 **eBird coordinate fallback strategy**

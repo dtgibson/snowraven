@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-28 versions shipped. Last shipped: **Species Detail visualizations** — Sightings Over Time line chart (per-year / cumulative toggle, monthly fallback for single-year species, ML overlay lines for photo/audio/video); map heatmap toggle (Pins / Heatmap, weighted by observation count, resets on species change).
+29 versions shipped. Last shipped: **Map Explorer improvements** — type filter pills (Photo / Audio / Video, AND logic) on the Media Targets sidebar; fixed hotspot radius bug where eBird API calls received miles instead of km, causing public hotspots to clip at ~60% of the intended radius.
 
-Previously: **Tab filters** — county and date-range filters on the Breeding Codes, Media List, and Species Detail tabs; Total media column on the Media List; ML export county resolution via a 3-tier chain.
+Previously: **Species Detail visualizations** — Sightings Over Time line chart (per-year / cumulative toggle, monthly fallback for single-year species, ML overlay lines for photo/audio/video); map heatmap toggle (Pins / Heatmap, weighted by observation count, resets on species change).
 
 ---
 
