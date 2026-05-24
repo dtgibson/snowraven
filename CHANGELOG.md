@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.13] - 2026-05-24
+
+### Fixed
+- **Media List — Taxonomic sort for non-bird animals** — entries with a single-word scientific name (no space) now sort in the middle tier alongside other non-bird animals, rather than at the very end with entries that have no scientific name at all.
+
 ## [0.1.12] - 2026-05-24
 
 ### Added

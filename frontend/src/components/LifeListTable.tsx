@@ -83,10 +83,10 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
   const sorted = [...filtered].sort((a, b) => {
     if (sort.column === 'name') {
       if (sort.nameSortMode === 'taxonomic') {
-        // Three-tier priority: birds → non-bird animals → non-animals (no genus+species)
+        // Three-tier priority: birds → non-bird animals → non-animals (no scientific name)
         const tierOf = (e: LifeListEntry) => {
           if (!(e.isNonBird ?? false)) return 0
-          return e.scientificName.includes(' ') ? 1 : 2
+          return e.scientificName.trim().length > 0 ? 1 : 2
         }
         const ta = tierOf(a), tb = tierOf(b)
         if (ta !== tb) return ta - tb
