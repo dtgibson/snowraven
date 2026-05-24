@@ -4,6 +4,26 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Tab layout stored in localStorage, not server-side — 2026-05-24
+
+**Decision:** Tab order and visibility preferences are stored per-browser in `localStorage` (`sr-tab-layout` key), not in the server's `data/` directory or user account.
+
+**Rationale:** SnowRaven is a single-user self-hosted tool, but multiple people sometimes use the same server installation. Server-side storage would give all users one shared layout. `localStorage` gives each browser an independent preference without requiring user accounts.
+
+**Implications:** Tab layout preferences are not portable across browsers or devices. Clearing browser data will reset the layout. This is acceptable given the audience — power birders who set up their own server. Do not add server-side tab layout storage without a user identity model.
+
+---
+
+## Tab order uses lazy useState initializer to prevent first-paint flash — 2026-05-24
+
+**Decision:** Both `tabLayout` and `activeTab` are initialized with lazy `useState` initializers (`useState(loadTabLayout)` and `useState(() => { const l = loadTabLayout(); return ... })`), which run synchronously before React's first paint.
+
+**Rationale:** A `useEffect`-based load would initialize with the default order, render the tab bar once, then re-render with the stored order — causing a visible flash where tabs snap to their custom positions. The lazy initializer runs before the first render so the correct order is displayed immediately.
+
+**Implications:** This requires two calls to `loadTabLayout()` (one for each piece of state). The cost is two synchronous localStorage reads at mount — negligible. Do not replace these with module-level singletons: module-level state persists across HMR hot reloads in development and can cause stale data after file edits. The two-call pattern is correct.
+
+---
+
 ## Stats: Top Locations Leaflet map added to Geographic Stats — 2026-05-24
 
 **Addition:** A Leaflet `MapContainer` now renders at the top of the Geographic Stats card, above the two location text lists. The prior "map removed" decision (FR-37, see below) referred to a personal-sightings history map — this is a different map showing ranked top locations as numbered pins.

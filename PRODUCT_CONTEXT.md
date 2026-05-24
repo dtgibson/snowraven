@@ -617,6 +617,28 @@ Three additions to the Species Detail tab shipped in v0.1.11.
 - `frontend/src/lib/sightingsGraph.test.ts` — updated to new API; weekly bucketing, gap-fill, and checklists tests added (18 total)
 - `frontend/src/components/SpeciesDetail.tsx` — `graphInterval` state type widened to include `'weekly'`, default changed to `'monthly'`; `totalFilteredChecklists` useMemo; Frequency cell; Graph Options updated; `SightingsGraph` receives `interval` prop (was `useMonthly`)
 
+### Tab Order & Visibility Settings (complete — May 2026)
+
+A section at the bottom of the Settings tab lets users reorder and hide tabs from the tab bar. All preferences are stored per-browser in `localStorage` — not on the server — so each user on a shared install gets an independent layout.
+
+**What it does:**
+- Drag to reorder tabs using a six-dot grip handle; the tab bar updates immediately
+- Eye / EyeOff button hides or shows each tab; changes take effect instantly with no save button
+- Settings tab is always fixed last and cannot be moved or hidden
+- At least one tab must remain visible at all times — the eye button disables on the last remaining visible tab
+- Hiding the currently active tab auto-switches to the next visible tab (FR-08)
+- Preferences persist in `localStorage` under key `sr-tab-layout` and survive page reloads
+- "Restore defaults" button resets order and visibility to the original arrangement; shows "✓ Restored" for 1.5s
+- Unknown tab IDs in stored data are silently ignored; tabs added after preferences were saved are appended to the end of the stored order (FR-13)
+- Falls back to defaults on malformed JSON or missing keys; all localStorage access is wrapped in try/catch for private browsing compatibility (NFR-02)
+- No first-paint flash — initial tab bar order is derived synchronously before React's first render using a lazy `useState` initializer (NFR-04)
+
+**Key files:**
+- `frontend/src/lib/tabLayout.ts` — `ConfigurableTab` type, `DEFAULT_TAB_ORDER`, `TAB_LABELS`, `TabLayoutState` interface, `loadTabLayout()`, `saveTabLayout()`, `clearTabLayout()`
+- `frontend/src/lib/tabLayout.test.ts` — 12 unit tests covering defaults, custom order, hidden tabs, malformed JSON, unknown IDs, missing tab append, roundtrip, clear, and localStorage unavailable
+- `frontend/src/components/Settings.tsx` — `TabLayoutSection` sub-component with drag-and-drop rows, eye toggles, locked Settings row, and restore button
+- `frontend/src/App.tsx` — `tabLayout` and `activeTab` state (both lazy-initialized from `loadTabLayout`); `handleReorder`, `handleToggleVisibility`, `handleRestoreDefaults` callbacks; dynamic tab bar rendering and `<Settings>` prop threading
+
 ### Map Explorer Improvements (complete — May 2026)
 
 Two targeted improvements to the Map Explorer tab shipped in v0.1.8.
