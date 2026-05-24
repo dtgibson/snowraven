@@ -1,44 +1,35 @@
-# Feature Complete — Map Explorer Improvements
+# Handoff — species-detail-enhancements (v0.1.11)
 
-**Completed:** 2026-05-23
-**Version:** v0.1.8
-**Feature:** map-explorer-improvements
+## What was built
 
----
+Three additions to the Species Detail tab — shipped, tested, and deployed.
 
-## What Was Built
+**Weekly graph interval** — The Graph Options toggle now includes Weekly as the first option (Weekly · Monthly · Yearly). Monthly is the new default on every species selection. Weekly groups observations by ISO week (`YYYY-Www`) with a Monday-anchored gap-fill and `Wk N 'YY` axis labels.
 
-Two targeted improvements to the Map Explorer tab.
+**Checklists Over Time graph** — A new chart card between "Sightings Over Time" and "Media Over Time" showing how many of your checklists recorded the species per period (per week/month/year, or cumulative). Uses the same interval and view-mode controls as the other graphs. Rendered in the same accent green as the individuals line, at 0.6 opacity to visually subordinate it.
 
-**Media Target Type Filter:** When Media Targets results are loaded, four filter pills appear in the sidebar — All, Photo, Audio, Video. Selecting one or more type pills narrows the map pins and nearest-10 list to species missing those specific media types, using AND logic. The species count updates live. The filter resets when "Find Recent Sightings" is clicked.
+**Frequency statistic** — A "Frequency" cell in the Sightings section shows what percentage of your checklists include the selected species. Displays as `X%` (rounded) or `<1%` in accent green with a slim fill bar. Updates reactively when county or date-range filters are active; hidden when no valid submission IDs are in scope.
 
-**Hotspot Radius Fix:** Personal location pins in Hotspots mode now correctly clip to the selected radius. The bug was that both eBird API fetch calls were passing the radius in miles, but the eBird API expects km — causing public hotspots to appear within a ~60% smaller area while personal pins (which used a correct miles-to-miles haversine comparison) bled outside. Both fetch calls now convert with `Math.round(radius * 1.60934)`.
+## Artifacts
 
-As a side fix, three pre-existing `react-hooks/set-state-in-effect` lint errors were resolved, restoring CI to green for the first time since v0.1.6.
+**Session 1:**
+- `pipeline/species-detail-enhancements/strategic-brief.md`
+- `pipeline/species-detail-enhancements/prd.md`
+- `pipeline/species-detail-enhancements/schema.md`
+- `pipeline/species-detail-enhancements/design-spec.md`
+- `pipeline/species-detail-enhancements/design.html`
 
----
+**Session 2 (code):**
+- `frontend/src/lib/sightingsGraph.ts` — complete rewrite; `GraphInterval` type, `checklists` field, ISO week support, returns `{ data, interval }`
+- `frontend/src/lib/sightingsGraph.test.ts` — 18 tests (up from 9)
+- `frontend/src/components/SpeciesDetail.tsx` — weekly interval, checklists graph, frequency stat, monthly default
 
-## All Artifacts and Files Produced
+**Release:** v0.1.11 — deployed and published at https://github.com/dtgibson/snowraven/releases/tag/v0.1.11
 
-**Pipeline artifacts:**
-- `pipeline/map-explorer-improvements/strategic-brief.md`
-- `pipeline/map-explorer-improvements/prd.md`
-- `pipeline/map-explorer-improvements/schema.md`
-- `pipeline/map-explorer-improvements/design-spec.md`
-- `pipeline/map-explorer-improvements/design.html`
+## Status
 
-**Modified source files:**
-- `frontend/src/components/MapExplorer.tsx` — `targetTypeFilter` state; two-pass `displayedTargetPins` useMemo; `distKm` conversion in both fetch calls; filter pills JSX; species count label; empty state text; `set-state-in-effect` fix
-- `frontend/src/App.tsx` — `set-state-in-effect` fix (`fetchKeyStatus` wrapper)
-- `frontend/src/components/LifeList.tsx` — `set-state-in-effect` fix (`setFilterIsTarget` wrapper)
-- `frontend/package.json` — v0.1.8
-- `CHANGELOG.md` — v0.1.8 entry
-- `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md` — context updated
+Feature complete. All 9 stages approved. No open issues.
 
 ---
-
-## Feature Complete
-
-This feature is fully deployed. v0.1.8 is live at https://github.com/dtgibson/snowraven/releases/tag/v0.1.8.
 
 To start the next feature, run `/new-feature`.
