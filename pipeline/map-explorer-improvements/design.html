@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Map Explorer Improvements — Design Mockup</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-text: #0F1117;
+    --sr-text-muted: #71717A;
+    --sr-border: #E4E4E7;
+    --sr-accent: #2D8653;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(45,134,83,0.25);
+    --sr-is-target-bg: #FFF7ED;
+    --sr-is-target-text: #C2410C;
+    --sr-is-target-border: rgba(194,65,12,0.35);
+    --sr-map-target: #7C3AED;
+    --sr-map-target-fresh: #2D8653;
+    --sr-map-target-mid: #5EA07C;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    padding: 32px 24px;
+    min-height: 100vh;
+    font-size: 14px;
+  }
+
+  .page { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
+
+  .section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--sr-text-muted); margin-bottom: 4px;
+  }
+  .section-note { font-size: 12px; color: var(--sr-text-muted); line-height: 1.55; margin-bottom: 16px; }
+  .variant-label { font-size: 11px; font-weight: 500; color: var(--sr-text-muted); margin-bottom: 8px; }
+
+  /* Explorer shell */
+  .explorer {
+    background: var(--sr-surface);
+    border-radius: 10px;
+    border: 1px solid var(--sr-border);
+    overflow: hidden;
+    box-shadow: var(--sr-card-shadow);
+  }
+
+  /* Mode bar */
+  .mode-bar {
+    display: flex; gap: 6px; padding: 10px 14px;
+    border-bottom: 1px solid var(--sr-border);
+    background: var(--sr-surface);
+  }
+  .mode-btn {
+    display: flex; align-items: center; gap: 5px;
+    padding: 6px 12px; border-radius: 20px;
+    font-size: 12px; font-weight: 400; font-family: inherit;
+    border: 1.5px solid transparent; cursor: pointer;
+    color: var(--sr-text-muted); background: var(--sr-surface-subtle);
+  }
+  .mode-btn.active {
+    background: var(--sr-accent-bg); border-color: var(--sr-accent-border);
+    color: var(--sr-accent); font-weight: 600;
+  }
+
+  /* Sidebar scroll area */
+  .sidebar-scroll { padding: 14px; }
+
+  .sidebar-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--sr-text-muted); margin-bottom: 6px;
+  }
+
+  /* Pills */
+  .pills { display: flex; gap: 5px; flex-wrap: wrap; }
+  .pill {
+    font-size: 11px; padding: 3px 10px; border-radius: 12px;
+    border: 1px solid var(--sr-border); background: transparent;
+    color: var(--sr-text-muted); cursor: pointer;
+    font-weight: 400; font-family: inherit;
+  }
+  .pill.active {
+    background: var(--sr-is-target-bg);
+    border-color: var(--sr-is-target-border);
+    color: var(--sr-is-target-text);
+    font-weight: 600;
+  }
+
+  /* Segmented control */
+  .seg {
+    display: flex; background: var(--sr-surface-subtle);
+    border-radius: 8px; padding: 2px; gap: 2px;
+  }
+  .seg-btn {
+    flex: 1; text-align: center; padding: 5px 0; border-radius: 6px;
+    font-size: 11px; font-weight: 500; color: var(--sr-text-muted);
+    border: none; background: none; cursor: pointer; font-family: inherit;
+  }
+  .seg-btn.active {
+    background: var(--sr-surface); color: var(--sr-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.10); font-weight: 600;
+  }
+
+  /* Target count card */
+  .target-card {
+    padding: 10px 12px; background: var(--sr-surface-subtle);
+    border-radius: 8px; border: 1px solid var(--sr-border); margin-bottom: 12px;
+  }
+  .target-card-row { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .target-count {
+    font-size: 14px; font-weight: 700; color: var(--sr-accent);
+    text-decoration: underline; text-decoration-color: rgba(45,134,83,0.4);
+  }
+  .target-sub { font-size: 11.5px; color: var(--sr-text-muted); margin-left: 15px; }
+
+  /* Nearest targets rows */
+  .nearest-row {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 6px 8px; margin-bottom: 2px; border-radius: 6px;
+    border: 1px solid transparent; cursor: pointer; background: transparent;
+    font-family: inherit; text-align: left;
+  }
+  .nearest-name { font-size: 12px; font-weight: 500; color: var(--sr-text); }
+  .nearest-loc { font-size: 10px; color: var(--sr-text-muted); }
+  .nearest-dist { font-size: 11px; color: var(--sr-text-muted); flex-shrink: 0; }
+
+  /* Missing type badges (matching existing popup style) */
+  .media-badge {
+    display: inline-flex; align-items: center;
+    padding: 0 4px; background: var(--sr-surface-subtle);
+    border-radius: 4px; font-size: 10px; color: var(--sr-text-muted); gap: 2px;
+  }
+  .media-badges { display: inline-flex; gap: 3px; margin-left: 5px; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid var(--sr-border); margin: 12px 0; }
+
+  /* Callout — matches sr-warning palette */
+  .callout {
+    background: #FFFBEB; border: 1px solid #FDE68A;
+    border-radius: 8px; padding: 12px 16px;
+    font-size: 12px; color: #92400E; line-height: 1.6;
+  }
+
+  /* Two-up layout */
+  .two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  /* Comparison box */
+  .compare-box {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 8px; padding: 14px 16px; font-size: 12px; line-height: 1.8;
+  }
+  .compare-box.correct { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Section 1: Default state and Photo filter ── -->
+  <div>
+    <div class="section-label">Media Targets — Filter Pills</div>
+    <div class="section-note">A "Media Needed" section appears above Time Range once sightings are fetched. Default is "All" — current behavior unchanged.</div>
+
+    <div class="two-up">
+
+      <!-- Default: All selected -->
+      <div>
+        <div class="variant-label">Default — All selected</div>
+        <div class="explorer">
+          <div class="mode-bar">
+            <button class="mode-btn">My Sightings</button>
+            <button class="mode-btn">Hotspots</button>
+            <button class="mode-btn active">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              Media Targets
+            </button>
+          </div>
+          <div class="sidebar-scroll">
+            <div class="target-card">
+              <div class="target-card-row">
+                <div class="dot" style="background:var(--sr-map-target)"></div>
+                <span class="target-count">18 target species</span>
+              </div>
+              <div class="target-sub">from ML export · missing ≥1 media type</div>
+            </div>
+
+            <div style="margin-bottom:12px">
+              <div class="sidebar-label">Media Needed</div>
+              <div class="pills">
+                <button class="pill active">All</button>
+                <button class="pill">Photo</button>
+                <button class="pill">Audio</button>
+                <button class="pill">Video</button>
+              </div>
+            </div>
+
+            <div style="margin-bottom:12px">
+              <div class="sidebar-label">Time Range</div>
+              <div class="seg">
+                <button class="seg-btn active">Last 30 Days</button>
+                <button class="seg-btn">Last Week</button>
+              </div>
+            </div>
+
+            <hr class="divider">
+            <div class="sidebar-label" style="margin-bottom:8px">Nearest Targets</div>
+
+            <button class="nearest-row">
+              <div class="dot" style="background:var(--sr-map-target-fresh)"></div>
+              <div style="flex:1;min-width:0">
+                <div class="nearest-name">
+                  Marsh Wren
+                  <span class="media-badges">
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+                  </span>
+                </div>
+                <div class="nearest-loc">Shorebird Lagoon</div>
+              </div>
+              <div class="nearest-dist">1.2 mi</div>
+            </button>
+
+            <button class="nearest-row">
+              <div class="dot" style="background:var(--sr-map-target-fresh)"></div>
+              <div style="flex:1;min-width:0">
+                <div class="nearest-name">
+                  Sora
+                  <span class="media-badges">
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+                  </span>
+                </div>
+                <div class="nearest-loc">Palo Alto Baylands</div>
+              </div>
+              <div class="nearest-dist">2.8 mi</div>
+            </button>
+
+            <button class="nearest-row">
+              <div class="dot" style="background:var(--sr-map-target-mid)"></div>
+              <div style="flex:1;min-width:0">
+                <div class="nearest-name">
+                  Clapper Rail
+                  <span class="media-badges">
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+                  </span>
+                </div>
+                <div class="nearest-loc">Dumbarton Shoreline</div>
+              </div>
+              <div class="nearest-dist">4.1 mi</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Photo filter active -->
+      <div>
+        <div class="variant-label">Photo filter active — Marsh Wren drops off (audio-only gap)</div>
+        <div class="explorer">
+          <div class="mode-bar">
+            <button class="mode-btn">My Sightings</button>
+            <button class="mode-btn">Hotspots</button>
+            <button class="mode-btn active">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              Media Targets
+            </button>
+          </div>
+          <div class="sidebar-scroll">
+            <div class="target-card">
+              <div class="target-card-row">
+                <div class="dot" style="background:var(--sr-map-target)"></div>
+                <span class="target-count">11 target species</span>
+              </div>
+              <div class="target-sub">from ML export · missing ≥1 media type</div>
+            </div>
+
+            <div style="margin-bottom:12px">
+              <div class="sidebar-label">Media Needed</div>
+              <div class="pills">
+                <button class="pill">All</button>
+                <button class="pill active">Photo</button>
+                <button class="pill">Audio</button>
+                <button class="pill">Video</button>
+              </div>
+            </div>
+
+            <div style="margin-bottom:12px">
+              <div class="sidebar-label">Time Range</div>
+              <div class="seg">
+                <button class="seg-btn active">Last 30 Days</button>
+                <button class="seg-btn">Last Week</button>
+              </div>
+            </div>
+
+            <hr class="divider">
+            <div class="sidebar-label" style="margin-bottom:8px">Nearest Targets</div>
+
+            <button class="nearest-row">
+              <div class="dot" style="background:var(--sr-map-target-fresh)"></div>
+              <div style="flex:1;min-width:0">
+                <div class="nearest-name">
+                  Sora
+                  <span class="media-badges">
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+                  </span>
+                </div>
+                <div class="nearest-loc">Palo Alto Baylands</div>
+              </div>
+              <div class="nearest-dist">2.8 mi</div>
+            </button>
+
+            <button class="nearest-row">
+              <div class="dot" style="background:var(--sr-map-target-mid)"></div>
+              <div style="flex:1;min-width:0">
+                <div class="nearest-name">
+                  Clapper Rail
+                  <span class="media-badges">
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+                  </span>
+                </div>
+                <div class="nearest-loc">Dumbarton Shoreline</div>
+              </div>
+              <div class="nearest-dist">4.1 mi</div>
+            </button>
+
+            <button class="nearest-row">
+              <div class="dot" style="background:var(--sr-map-target-mid)"></div>
+              <div style="flex:1;min-width:0">
+                <div class="nearest-name">
+                  Virginia Rail
+                  <span class="media-badges">
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg></span>
+                  </span>
+                </div>
+                <div class="nearest-loc">Greco Island Trail</div>
+              </div>
+              <div class="nearest-dist">6.3 mi</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 2: Multi-select + empty state ── -->
+  <div>
+    <div class="section-label">Multi-select and Empty State</div>
+    <div class="two-up">
+
+      <!-- Photo + Audio -->
+      <div>
+        <div class="variant-label">Photo + Audio — species missing both</div>
+        <div class="explorer">
+          <div class="sidebar-scroll">
+            <div style="margin-bottom:12px">
+              <div class="sidebar-label">Media Needed</div>
+              <div class="pills">
+                <button class="pill">All</button>
+                <button class="pill active">Photo</button>
+                <button class="pill active">Audio</button>
+                <button class="pill">Video</button>
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <div class="sidebar-label">Time Range</div>
+              <div class="seg">
+                <button class="seg-btn active">Last 30 Days</button>
+                <button class="seg-btn">Last Week</button>
+              </div>
+            </div>
+            <hr class="divider">
+            <div class="sidebar-label" style="margin-bottom:8px">Nearest Targets</div>
+            <button class="nearest-row">
+              <div class="dot" style="background:var(--sr-map-target-fresh)"></div>
+              <div style="flex:1;min-width:0">
+                <div class="nearest-name">
+                  Sora
+                  <span class="media-badges">
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+                  </span>
+                </div>
+                <div class="nearest-loc">Palo Alto Baylands</div>
+              </div>
+              <div class="nearest-dist">2.8 mi</div>
+            </button>
+            <button class="nearest-row">
+              <div class="dot" style="background:var(--sr-map-target-mid)"></div>
+              <div style="flex:1;min-width:0">
+                <div class="nearest-name">
+                  American Bittern
+                  <span class="media-badges">
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+                    <span class="media-badge"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg></span>
+                  </span>
+                </div>
+                <div class="nearest-loc">Mountain View Slough</div>
+              </div>
+              <div class="nearest-dist">9.4 mi</div>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div>
+        <div class="variant-label">Filter + time range produces no results</div>
+        <div class="explorer">
+          <div class="sidebar-scroll">
+            <div style="margin-bottom:12px">
+              <div class="sidebar-label">Media Needed</div>
+              <div class="pills">
+                <button class="pill">All</button>
+                <button class="pill">Photo</button>
+                <button class="pill">Audio</button>
+                <button class="pill active">Video</button>
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <div class="sidebar-label">Time Range</div>
+              <div class="seg">
+                <button class="seg-btn">Last 30 Days</button>
+                <button class="seg-btn active">Last Week</button>
+              </div>
+            </div>
+            <hr class="divider">
+            <div style="font-size:12px;color:var(--sr-text-muted)">No targets match this filter.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 3: Radius fix ── -->
+  <div>
+    <div class="section-label">Hotspot Radius Fix</div>
+    <div class="section-note">No UI change. The radius selector already shows miles — the fix corrects the conversion before the eBird API call so public and personal locations are bounded by the same actual distance.</div>
+    <div class="two-up">
+      <div>
+        <div class="variant-label">Before — 25 mi selected</div>
+        <div class="compare-box">
+          <div>Public hotspots within <strong>25 km</strong> (≈ 15.5 mi)</div>
+          <div>Personal locations within <strong>25 mi</strong></div>
+          <div style="margin-top:8px;color:var(--sr-text-muted);font-size:11px">Personal pins bleed outside the hotspot boundary.</div>
+        </div>
+      </div>
+      <div>
+        <div class="variant-label">After — 25 mi selected</div>
+        <div class="compare-box correct">
+          <div>Public hotspots within <strong>25 mi</strong> (≈ 40 km)</div>
+          <div>Personal locations within <strong>25 mi</strong></div>
+          <div style="margin-top:8px;color:#1A5C38;font-size:11px">Both pin types correctly bounded by the selected radius.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

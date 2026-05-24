@@ -617,6 +617,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
   const [targetSearch, setTargetSearch]       = useState('')
   const [targetViewMode, setTargetViewMode]   = useState<'all' | 'week'>('all')
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null)
+  const [targetTypeFilter, setTargetTypeFilter] = useState<Set<'Photo' | 'Audio' | 'Video'>>(new Set())
 
   // Map pan target (set by sidebar clicks, consumed by MapPanner inside MapContainer)
   const [panTarget, setPanTarget]             = useState<{ lat: number; lng: number } | null>(null)
@@ -840,13 +841,23 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
       ...pin,
       missingTypes: ALL_TYPES.filter(t => !mediaTypes.get(pin.comName)?.has(t)),
     }))
-    if (targetViewMode === 'all') return withMissing
-    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0, 0, 0, 0)
-    return withMissing.filter(pin => {
-      const [y, m, d] = pin.recentDate.split(' ')[0].split('-').map(Number)
-      return new Date(y, m - 1, d) >= cutoff
-    })
-  }, [targetPins, targetViewMode, mediaTypes])
+    // Pass 1: recency filter
+    let filtered = withMissing
+    if (targetViewMode !== 'all') {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0, 0, 0, 0)
+      filtered = withMissing.filter(pin => {
+        const [y, m, d] = pin.recentDate.split(' ')[0].split('-').map(Number)
+        return new Date(y, m - 1, d) >= cutoff
+      })
+    }
+    // Pass 2: type filter — AND logic; empty set means All
+    if (targetTypeFilter.size > 0) {
+      filtered = filtered.filter(pin =>
+        [...targetTypeFilter].every(t => pin.missingTypes.includes(t))
+      )
+    }
+    return filtered
+  }, [targetPins, targetViewMode, mediaTypes, targetTypeFilter])
 
   const nearest10 = useMemo(() => {
     const latNum = parseFloat(lat)
@@ -885,7 +896,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
     if (isNaN(latNum) || isNaN(lngNum)) { setHotspotsError('Enter a valid latitude and longitude.'); return }
     setHotspotsLoading(true); setHotspotsError('')
     try {
-      const res = await fetch(`/map/hotspots?lat=${latNum}&lng=${lngNum}&dist=${radius}`)
+      const distKm = Math.round(radius * 1.60934)
+      const res = await fetch(`/map/hotspots?lat=${latNum}&lng=${lngNum}&dist=${distKm}`)
       if (!res.ok) {
         const d = await res.json().catch(() => ({})) as { detail?: string }
         setHotspotsError(res.status === 401
@@ -922,6 +934,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
   }, [lat, lng, radius, visitedLocIds, obsLocationsByLocId])
 
   const handleFindSightings = useCallback(async (overrideLat?: number, overrideLng?: number) => {
+    setTargetTypeFilter(new Set())
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
     if (isNaN(latNum) || isNaN(lngNum)) { setTargetsError('Enter a valid latitude and longitude.'); return }
@@ -954,7 +967,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
 
     setTargetsLoading(true); setTargetsError('')
     try {
-      const res = await fetch(`/map/recent-obs?lat=${latNum}&lng=${lngNum}&dist=${radius}&codes=${encodeURIComponent(codes)}`)
+      const distKm = Math.round(radius * 1.60934)
+      const res = await fetch(`/map/recent-obs?lat=${latNum}&lng=${lngNum}&dist=${distKm}&codes=${encodeURIComponent(codes)}`)
       if (!res.ok) {
         const d = await res.json().catch(() => ({})) as { detail?: string }
         setTargetsError(res.status === 401
@@ -1313,6 +1327,52 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
       {/* Recency toggle + nearest-10 — shown once pins are loaded */}
       {targetPins !== null && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
+          {/* Filter by type */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+              <SidebarLabel>Filter by Type</SidebarLabel>
+              <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{displayedTargetPins.length} species</span>
+            </div>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setTargetTypeFilter(new Set())}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', padding: '3px 9px',
+                  borderRadius: 20, fontSize: 11.5, fontWeight: 500,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  background: targetTypeFilter.size === 0 ? 'var(--sr-is-target-bg)' : 'var(--sr-surface-subtle)',
+                  border: `1.5px solid ${targetTypeFilter.size === 0 ? 'var(--sr-is-target-border)' : 'var(--sr-border)'}`,
+                  color: targetTypeFilter.size === 0 ? 'var(--sr-is-target-text)' : 'var(--sr-text-muted)',
+                }}
+              >
+                All
+              </button>
+              {(['Photo', 'Audio', 'Video'] as const).map(type => {
+                const isActive = targetTypeFilter.has(type)
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setTargetTypeFilter(prev => {
+                      const next = new Set(prev)
+                      if (next.has(type)) next.delete(type); else next.add(type)
+                      return next
+                    })}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px',
+                      borderRadius: 20, fontSize: 11.5, fontWeight: 500,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                      background: isActive ? 'var(--sr-is-target-bg)' : 'var(--sr-surface-subtle)',
+                      border: `1.5px solid ${isActive ? 'var(--sr-is-target-border)' : 'var(--sr-border)'}`,
+                      color: isActive ? 'var(--sr-is-target-text)' : 'var(--sr-text-muted)',
+                    }}
+                  >
+                    <span style={{ display: 'inline-flex' }} dangerouslySetInnerHTML={{ __html: MEDIA_ICONS[type] }} />
+                    {type}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           <div style={{ marginBottom: 12 }}>
             <SidebarLabel>Time Range</SidebarLabel>
             <SegControl
@@ -1354,7 +1414,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
           )}
           {displayedTargetPins.length === 0 && (
             <div style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>
-              No pins match the current filter.
+              No targets match this filter.
             </div>
           )}
         </div>

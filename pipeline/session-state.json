@@ -1,11 +1,17 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
-  "confirmedArtifacts": [],
+  "activeFeature": "map-explorer-improvements",
+  "sessionNumber": 2,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
+  "confirmedArtifacts": [
+    "pipeline/map-explorer-improvements/strategic-brief.md",
+    "pipeline/map-explorer-improvements/prd.md",
+    "pipeline/map-explorer-improvements/schema.md",
+    "pipeline/map-explorer-improvements/design-spec.md",
+    "pipeline/map-explorer-improvements/design.html"
+  ],
   "createdAt": "2026-05-23T19:00:00Z",
-  "updatedAt": "2026-05-24T01:00:00Z"
+  "updatedAt": "2026-05-23T22:00:00Z"
 }

@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.8] - 2026-05-23
+
+### Added
+- **Media Targets — Filter by Type** — new filter pills (All / Photo / Audio / Video) in the Map Explorer Media Targets sidebar. Selecting one or more type pills narrows the map pins and nearest-10 list to species missing those specific media types (AND logic). The species count updates as the filter changes. Filter resets when "Find Recent Sightings" is clicked.
+
+### Fixed
+- **Hotspots — personal location radius** — personal location pins were appearing outside the user-selected radius because the eBird API expects distance in km but both fetch calls (`/map/hotspots` and `/map/recent-obs`) were passing the radius in miles. Both calls now convert before the request (`Math.round(radius * 1.60934)`). The personal-pin haversine comparison was already in miles and is unchanged.
+
 ## [0.1.7] - 2026-05-23
 
 ### Fixed
