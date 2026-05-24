@@ -818,7 +818,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                   <YAxis tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: number) => [fmt(v), 'Species']}
+                    formatter={(v) => [typeof v === 'number' ? fmt(v) : String(v ?? ''), 'Species']}
                     labelFormatter={key => formatPeriodLabel(String(key), accGranularity)}
                   />
                   <Area type="monotone" dataKey="species" stroke="var(--sr-accent)" fill="url(#statsAccGrad)" strokeWidth={2} dot={false} />
