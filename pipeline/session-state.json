@@ -1,17 +1,11 @@
 {
-  "activeFeature": "birding-stats-tab",
-  "sessionNumber": 2,
-  "sessionType": "feature",
-  "currentStage": 8,
-  "lastCompletedStage": 7,
-  "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": [
-    "pipeline/birding-stats-tab/strategic-brief.md",
-    "pipeline/birding-stats-tab/prd.md",
-    "pipeline/birding-stats-tab/schema.md",
-    "pipeline/birding-stats-tab/design-spec.md",
-    "pipeline/birding-stats-tab/design.html"
-  ],
+  "activeFeature": null,
+  "sessionNumber": null,
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 9,
+  "lastCheckpointStatus": "approved",
+  "confirmedArtifacts": [],
   "createdAt": "2026-05-23T19:00:00Z",
-  "updatedAt": "2026-05-23T22:35:00Z"
+  "updatedAt": "2026-05-24T01:00:00Z"
 }

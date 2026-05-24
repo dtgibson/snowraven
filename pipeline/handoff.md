@@ -1,46 +1,61 @@
-# Feature Complete — Species Detail: Graph Options and Reported With
+# Feature Complete — Birding Statistics Tab
 
 **Completed:** 2026-05-23
-**Version:** v0.1.5
-**Feature:** species-detail-graph-co-occurrence
-**Sessions:** 2 (complete)
+**Version:** v0.1.6
+**Feature:** birding-stats-tab
 
 ---
 
 ## What Was Built
 
-Two enhancements to the Species Detail tab, shipped in v0.1.5.
+A new Statistics tab in SnowRaven that turns the stored eBird backup CSV and ML export into a full personal birding analytics dashboard. All computation is client-side; one new backend endpoint (`GET /stats/nemesis`) fetches regional species frequency data for the Nemesis Birds section.
 
-**Graph Options card** — a new `SectionCard` above both graphs that gives users explicit control over interval (Yearly / Monthly) and view mode (Per Period / Cumulative). Replaces the old auto-detect logic that silently switched to monthly when a species was only observed in a single year. Both the Sightings Over Time and Media Over Time graphs respond to the same controls simultaneously. The card only appears when there are at least 2 distinct time periods. Controls reset on species change.
+The tab covers:
+- **Life List Totals** — headline counts (species, observations, checklists, time, distance, locations, geographic breadth, media)
+- **Firsts & Milestones** — first checklist, first species, species milestones at every 50 species up to 1,000, longest streak + dry spell with dates, most/least-reported species, one-and-done species
+- **Species Accumulation Curve** — line chart with Weekly / Monthly / Yearly granularity toggle
+- **Temporal** — bar charts for checklists/lifers/species/locations per year, monthly/DOW/hourly activity, busiest day, seasonal average start time
+- **Geographic Stats** — top locations by species/visits/time, county + state lists, distance-from-home stats when a default location is configured
+- **Effort & Methodology** — protocol breakdown, duration/distance averages, species-per-hour, observer distribution, effort trend chart, complete-checklist ratio
+- **Data Quality** — count vs X proportion, biggest single counts, comment coverage
+- **Breeding Stats** — species by code category, breeding activity by month
+- **Fun Stats** — Most Photographed, Most Audio, Most Video; Nemesis Birds
 
-**Reported With section** — a new `SectionCard` between Breeding Codes and Top Locations that lists the species most frequently appearing on the same eBird checklists as the selected species. Ranked by co-occurrence coefficient (shared checklists ÷ target checklists), shown as a percentage with a relative bar. Top 10 shown by default, expand/collapse for the full list. Fully respects active county and date-range filters. Minimum 2 shared checklists required. Handles both empty states: no-data (no valid checklist IDs in filtered observations) and zero-results (threshold not met by any species).
+**PRD deviations made at user direction:**
+- FR-37 (map) removed — redundant with Species Detail and Map Explorer
+- FR-58 (Big Year dropdown) removed — user direction
+- FR-43 (average observers) replaced with observer distribution chart
 
 ---
 
-## Artifacts Produced
+## All Artifacts and Files Produced
 
-| File | Description |
-|---|---|
-| `pipeline/species-detail-graph-co-occurrence/strategic-brief.md` | Problem framing, scope, key decisions |
-| `pipeline/species-detail-graph-co-occurrence/prd.md` | 21 functional requirements, 4 NFRs, 15 QA acceptance criteria |
-| `pipeline/species-detail-graph-co-occurrence/schema.md` | Frontend-only confirmation, existing data structures, signature change spec |
-| `pipeline/species-detail-graph-co-occurrence/design-spec.md` | Layout order, component structure, token usage, interaction notes |
-| `pipeline/species-detail-graph-co-occurrence/design.html` | Interactive HTML mockup with working interval/view toggles and Reported With list |
+**Pipeline artifacts:**
+- `pipeline/birding-stats-tab/strategic-brief.md`
+- `pipeline/birding-stats-tab/prd.md`
+- `pipeline/birding-stats-tab/schema.md`
+- `pipeline/birding-stats-tab/design-spec.md`
+- `pipeline/birding-stats-tab/design.html`
 
-## Files Changed
+**New source files:**
+- `frontend/src/components/BirdingStats.tsx`
+- `backend/routers/stats.py`
+- `backend/tests/test_stats_router.py`
 
-| File | Change |
-|---|---|
-| `frontend/src/components/SpeciesDetail.tsx` | Graph Options card, Reported With section, controlled SightingsGraph, coOccurrence useMemo |
-| `frontend/src/lib/sightingsGraph.ts` | Explicit `interval` parameter replaces auto-detection |
-| `frontend/src/lib/sightingsGraph.test.ts` | All call sites updated to pass explicit interval |
-| `frontend/package.json` | Bumped to v0.1.5 |
-| `CHANGELOG.md` | v0.1.5 entry |
-| `PRODUCT_CONTEXT.md` | Updated Species Detail Visualizations; added Graph Options and Reported With entry |
-| `DECISIONS.md` | Added buildGraphData interval and co-occurrence Set decisions |
+**Modified source files:**
+- `frontend/src/lib/parseEbirdObservations.ts` — 9 optional checklist-level fields added
+- `frontend/src/lib/parseEbirdObservations.test.ts` — tests updated
+- `frontend/src/types.ts` — `MLExportRow` type added
+- `frontend/src/App.tsx` — Statistics tab wired in
+- `backend/main.py` — stats router registered
+- `frontend/vite.config.ts` — `/stats` proxy added
+- `frontend/package.json` — v0.1.6
+- `CHANGELOG.md` — v0.1.6 entry
 
 ---
 
 ## Feature Complete
 
-This feature is fully deployed. Start the next feature with `/new-feature`.
+This feature is fully deployed. v0.1.6 is live at https://github.com/dtgibson/snowraven/releases/tag/v0.1.6.
+
+To start the next feature, run `/new-feature`.

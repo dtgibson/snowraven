@@ -321,6 +321,38 @@ A fifth data tab that shows a complete per-species view from the user's eBird ba
 - `frontend/src/globals.css` — `.sr-map-container`, `.sr-media-grid` (CSS grid 3-col), `.sr-media-item`, `.sr-media-iframe` with responsive overrides
 - `frontend/src/App.tsx` — `'species-detail'` tab (unchanged structure)
 
+### Birding Statistics Tab (complete — May 2026)
+
+A new Statistics tab (between Map Explorer and Settings in the tab bar) that derives comprehensive birding analytics from the stored eBird backup CSV and ML export. All computation is client-side; one new backend endpoint supplies Nemesis Bird data.
+
+**What it does:**
+
+**Life List Totals** — Headline counts: total unique species (normalized, spuh/slash excluded by default), total observation rows, total unique checklists, total time birded (hours + minutes), total distance (miles), total individual birds (numeric + X-count separately), unique locations, unique counties, unique states/provinces, unique countries. When ML export is loaded: total Photo, Audio, and Video catalog entries.
+
+**Firsts & Milestones** — Earliest checklist date and location; first species ever recorded (date + name); species milestones at every 50 species up to 1,000 (date when each threshold was first reached, or "Not yet reached"); longest consecutive birding streak (days) with start/end dates; longest gap between birding dates (days) with the two boundary dates; top 5 most-reported species (% of checklists); least-reported species (bottom 5 excluding one-and-done); one-and-done species (appear on exactly one checklist, top 5 most recent with expand control).
+
+**Species Accumulation Curve** — Line chart showing cumulative distinct species over time. Granularity toggle (Weekly / Monthly / Yearly) buckets data points by period. X-axis tick formatter shows period-appropriate labels (W01, Jan '24, 2024). Data point on each period in which a new life species was first recorded.
+
+**Temporal** — Checklists per year (bar), new lifers per year (bar), species per year (bar), new locations per year (bar), checklists per month (bar), checklists per day-of-week (bar), checklists per hour-of-day (bar, excludes no-time checklists), busiest birding day (species + checklists), average start time by season.
+
+**Geographic Stats** — Top 10 locations by species count; top 10 by checklist visits; top 10 by time spent; county list by species count and state/province list by species count (collapsed to 10 with expand); headline county + state/province counts. Distance-from-default-location stats (average, max, top-5-farthest) when a default location is saved. Map removed (see Decisions).
+
+**Effort & Methodology** — Protocol breakdown (bar chart with % labels); average duration (min) and average distance (km); species per hour and species per km; observer distribution (bar chart of checklists by number of observers — 1, 2, 3, etc.); average duration trend per year (line chart, years with <3 duration-bearing checklists omitted); complete-checklist ratio (shown only when "All Obs Reported" column is present); average species per checklist.
+
+**Data Quality** — Numeric vs. X-count proportion; top 10 biggest single-species counts; checklist comment coverage (with/without).
+
+**Breeding Stats** — Total species with any breeding code; counts by tier (Confirmed/Probable/Possible); breeding activity by month bar chart.
+
+**Fun Stats** — Most Photographed, Most Audio, Most Video species (top 10 each, from ML export); Nemesis Birds section (species frequently observed nearby that are absent from the user's life list, powered by `GET /stats/nemesis`). Big Year section removed at user direction (see Decisions).
+
+**Key files:**
+- `frontend/src/components/BirdingStats.tsx` — full tab component; ~1,300 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant (computed at import time, not during render) for nemesis recency coloring
+- `frontend/src/lib/parseEbirdObservations.ts` — extended with 9 optional checklist-level fields: `time`, `duration`, `distance`, `protocol`, `numObservers`, `allObsReported`, `checklistComments`, `stateProvince`
+- `backend/routers/stats.py` — `GET /stats/nemesis?lat&lng&dist` endpoint; validates params; calls eBird geo/recent API; returns `{species: [{commonName, recentDate, subId}]}`
+- `backend/tests/test_stats_router.py` — 13 tests
+- `backend/main.py` — stats router registered
+- `frontend/vite.config.ts` — `/stats` proxy added
+
 ### Tab Filters — County, Date Range, and Total Media (complete — May 2026)
 
 County and date-range filters added to the Breeding Codes, Media List, and Species Detail tabs. Total media column added to the Media List. County resolution for ML exports via a 3-tier chain.

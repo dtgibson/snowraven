@@ -4,6 +4,32 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Birding Stats: map, Big Year, and average-observers removed at user direction — 2026-05-23
+
+**PRD FR-37 (sighting map), FR-58 (Big Year dropdown), and FR-43 (average observers) were intentionally not implemented.**
+
+- **Map (FR-37):** The Stats tab shares the same observation data as the Species Detail tab's sighting map and the Map Explorer tab. User directed removal: "Remove the map since it is redundant."
+- **Big Year (FR-58):** Removed per user direction: "Remove the redundant big year dropdown."
+- **Average observers (FR-43):** Replaced with an observer distribution chart (bar chart of checklists by number of observers: 1, 2, 3, etc.) per user direction: "Instead of average observers, list the total number of lists with 1, 2, 3, etc. for as many observers as there are in the file."
+
+**Implications:** If a future session re-adds any of these, the original PRD acceptance criteria (FR-37, FR-43, FR-58) are in `pipeline/birding-stats-tab/prd.md`. The observer distribution chart is a direct replacement for the average — do not add both.
+
+## Birding Stats: accumulation granularity toggle added beyond PRD — 2026-05-23
+
+**User-requested addition:** The PRD specified a simple accumulation line chart. The user added a Weekly / Monthly / Yearly granularity toggle.
+
+**Implementation:** `getPeriodKey(date, granularity)` and `formatPeriodLabel(key, granularity)` are module-level helpers in `BirdingStats.tsx`. Weekly uses ISO-style `YYYY-WNN` keys; monthly uses `YYYY-MM`; yearly uses `YYYY`. The `accGranularity` state drives both.
+
+**Implications:** The granularity toggle is a user-facing control on the accumulation chart card. Default is `'yearly'`. X-axis `tickFormatter` receives the period key and formats it for display.
+
+## Birding Stats: SESSION_NOW_MS avoids react-hooks/purity lint violation — 2026-05-23
+
+**Problem:** `Date.now()` called inside `useMemo(() => Date.now(), [])` was still flagged by `react-hooks/purity` (eslint-plugin-react-hooks v7) because the `useMemo` callback runs during render.
+
+**Fix:** `const SESSION_NOW_MS = Date.now()` declared at module level (computed once at import time, not during render). All components in `BirdingStats.tsx` that need "now" for recency coloring reference this constant.
+
+**Implications:** Module-level constants are safe from `react-hooks/purity` because they are not evaluated during React's render cycle. This is the correct pattern for any "stable snapshot of now" needed across a component's lifetime. Do not revert to `useMemo(() => Date.now(), [])` — it will restore the lint error.
+
 ## buildGraphData takes explicit interval; auto-detection removed — 2026-05-23
 
 **Change:** `buildGraphData(obs, mlRows, interval)` now requires an explicit `interval: 'yearly' | 'monthly'` parameter. The previous auto-detection logic (`const useMonthly = years.size <= 1`) is gone.
