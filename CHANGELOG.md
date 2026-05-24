@@ -2,6 +2,25 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.9] - 2026-05-24
+
+### Added
+- **Statistics — Life List Accumulation** — new "Total" granularity mode plots one data point per new life species in chronological order using a step-line chart. Tooltip shows the species name at each milestone. Toggle order is now Total · Yearly · Monthly · Weekly with Total as default.
+- **Statistics — Milestone pills** — each reached milestone now displays the species name that hit that threshold and links to the corresponding eBird checklist.
+- **Statistics — First/last observation cards** — location name appears on a second line; date is a clickable eBird checklist link when a valid submission ID is present.
+- **Statistics — Biggest single day** — species count links to the eBird checklist.
+- **Statistics — Temporal pie charts** — donut pie charts alongside the checklists-by-month and checklists-by-day-of-week bar charts, with percentage labels in legends.
+- **Statistics — Percentage display** — checklists-by-month, by-day-of-week, and by-start-hour bars now show the percentage of total checklists alongside the raw count.
+- **Statistics — Geographic charts split** — counties and states/provinces are now shown as two separate side-by-side charts each: one ranked by checklists, one ranked by species. Top locations also split into by-checklists and by-species lists, each showing both metrics.
+- **Statistics — Observer count pie chart** — donut pie chart added alongside the observer count bar chart in Effort & Methodology.
+- **Statistics — Breeding activity by month** — stacked color-coded bars showing confirmed (dark purple), probable (medium purple), and possible (light purple) species counts per month. Filter buttons (All / Confirmed / Probable / Possible) let users isolate one tier.
+- **Statistics — One-and-done pills** — each pill links to the single checklist the species appeared on.
+- **Statistics — County/state region links** — county entries link to the state/province eBird region page; state/province entries link to their eBird region page directly.
+- **Statistics — ML media links** — most-photographed/recorded/filmed lists now link to Macaulay Library catalog filtered to the user's own media of that type and species (using `taxonCode` + `userId`), matching the behavior of the Media Count tab.
+
+### Fixed
+- **Statistics — Average duration and spp/hour blank** — eBird CSV column is `Duration (Min)` with parentheses; the parser was searching for `duration min` without parentheses. Fixed column header matching in `parseEbirdObservations.ts`.
+
 ## [0.1.8] - 2026-05-23
 
 ### Added

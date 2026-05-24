@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, BarChart, Bar,
 } from 'recharts'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
@@ -33,6 +34,26 @@ const EMPTY_ML: MLExportRow[] = []
 const SESSION_NOW_MS = Date.now()
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const SUBMISSION_ID_RE = /^S\d+$/
+const KM_TO_MI = 0.621371
+const ML_USER_RE = /^ML__.*_([A-Za-z0-9]+)\.csv$/i
+
+function mlCatalogUrl(name: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null, taxonCode?: string | null): string {
+  const mt = type.toLowerCase()
+  const userSuffix = userId ? `&userId=${encodeURIComponent(userId)}` : ''
+  if (taxonCode) {
+    return `https://search.macaulaylibrary.org/catalog?mediaType=${mt}&taxonCode=${encodeURIComponent(taxonCode)}${userSuffix}`
+  }
+  return `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(name)}&mediaType=${mt}${userSuffix}`
+}
+
+const PROTOCOL_COLORS = [
+  'var(--sr-accent)',
+  'var(--sr-graph-photo)',
+  'var(--sr-graph-video)',
+  'var(--sr-graph-audio)',
+  'var(--sr-chart-slate)',
+]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -57,9 +78,10 @@ function fmtDate(iso: string): string {
   return `${months[parseInt(m, 10) - 1]} ${parseInt(d, 10)}, ${y}`
 }
 
-type Granularity = 'weekly' | 'monthly' | 'yearly'
+type Granularity = 'total' | 'weekly' | 'monthly' | 'yearly'
+type PeriodGranularity = Exclude<Granularity, 'total'>
 
-function getPeriodKey(date: string, granularity: Granularity): string {
+function getPeriodKey(date: string, granularity: PeriodGranularity): string {
   if (granularity === 'yearly') return date.substring(0, 4)
   if (granularity === 'monthly') return date.substring(0, 7)
   const d = new Date(date + 'T12:00:00')
@@ -68,7 +90,7 @@ function getPeriodKey(date: string, granularity: Granularity): string {
   return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
-function formatPeriodLabel(key: string, granularity: Granularity): string {
+function formatPeriodLabel(key: string, granularity: PeriodGranularity): string {
   if (granularity === 'yearly') return key
   if (granularity === 'monthly') {
     const [y, m] = key.split('-')
@@ -124,10 +146,11 @@ function StatCell({ label, value, sub, large = true }: {
   )
 }
 
-function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWidth = 44 }: {
-  label: string; value: number; max: number; color?: string; labelWidth?: number
+function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWidth = 44, pctOf }: {
+  label: string; value: number; max: number; color?: string; labelWidth?: number; pctOf?: number
 }) {
   const pct = max > 0 ? (value / max) * 100 : 0
+  const pctDisplay = pctOf && pctOf > 0 && value > 0 ? Math.round(value / pctOf * 100) : null
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
       <span style={{
@@ -143,8 +166,8 @@ function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWidth = 44
           borderRadius: 4, transition: 'width 0.3s',
         }} />
       </div>
-      <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: 40, textAlign: 'right' }}>
-        {fmt(value)}
+      <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: pctDisplay !== null ? 68 : 40, textAlign: 'right' }}>
+        {fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}
       </span>
     </div>
   )
@@ -168,9 +191,11 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   const [phase, setPhase]           = useState<Phase>({ tag: 'loading-saved' })
   const [mapDefaults, setMapDefaults] = useState<MapDefaults | null>(null)
   const [includeSpuh, setIncludeSpuh] = useState(false)
-  const [accGranularity, setAccGranularity] = useState<Granularity>('yearly')
-  const [showAllOneDone, setShowAllOneDone] = useState(false)
+  const [accGranularity, setAccGranularity] = useState<Granularity>('total')
   const [showAllCounties, setShowAllCounties] = useState(false)
+  const [breedingFilter, setBreedingFilter] = useState<'all' | 'confirmed' | 'probable' | 'possible'>('all')
+  const [mlUserId, setMlUserId] = useState<string | null>(null)
+  const [mlTaxonMap, setMlTaxonMap] = useState<Record<string, string>>({})
   const [nemesisResult, setNemesisResult] = useState<NemesisSpecies[] | null>(null)
   const [nemesisLoading, setNemesisLoading] = useState(false)
   const [nemesisError, setNemesisError] = useState<string | null>(null)
@@ -216,6 +241,28 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         }
 
         if (cancelled) return
+        const mlMatch = status.ml?.filename.match(ML_USER_RE)
+        if (mlMatch) setMlUserId(mlMatch[1])
+
+        if (mlRows.length > 0) {
+          const seenNames = new Map<string, string>()
+          for (const r of mlRows) {
+            if (!seenNames.has(r.commonName)) seenNames.set(r.commonName, r.scientificName)
+          }
+          const species = [...seenNames.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
+          try {
+            const taxRes = await fetch('/taxonomy/codes', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ species }),
+            })
+            if (taxRes.ok && !cancelled) {
+              const data: { codes: Record<string, string> } = await taxRes.json()
+              setMlTaxonMap(data.codes)
+            }
+          } catch { /* taxonomy unavailable — falls back to taxaName */ }
+        }
+
         setPhase({ tag: 'ready', observations, mlRows, freshness: status.ebird.filename })
       } catch {
         if (!cancelled) setPhase({ tag: 'setup-required' })
@@ -329,8 +376,9 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   const accumulation = useMemo(() => {
     const sorted = [...filteredObs].sort((a, b) => a.date.localeCompare(b.date))
     const seen = new Set<string>()
-    const milestoneMap = new Map<number, string>()
+    const milestoneMap = new Map<number, { date: string; species: string; submissionId: string }>()
     const byPeriod = new Map<string, number>()
+    const liferDates = new Map<string, { count: number; species: string }>()
     let firstSpecies: { date: string; name: string } | null = null
     const thresholds = Array.from({ length: 20 }, (_, i) => (i + 1) * 50)
 
@@ -341,17 +389,28 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         const count = seen.size
         if (!firstSpecies) firstSpecies = { date: o.date, name: norm }
         for (const t of thresholds) {
-          if (count === t && !milestoneMap.has(t)) milestoneMap.set(t, o.date)
+          if (count === t && !milestoneMap.has(t)) {
+            milestoneMap.set(t, { date: o.date, species: norm, submissionId: o.submissionId })
+          }
         }
-        byPeriod.set(getPeriodKey(o.date, accGranularity), count)
+        liferDates.set(o.date, { count, species: norm })
+        if (accGranularity !== 'total') {
+          byPeriod.set(getPeriodKey(o.date, accGranularity as PeriodGranularity), count)
+        }
       }
     }
 
-    const chartData = [...byPeriod.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([period, species]) => ({ period, species }))
+    const chartData = accGranularity !== 'total'
+      ? [...byPeriod.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([period, species]) => ({ period, species }))
+      : []
 
-    return { chartData, milestones: milestoneMap, firstSpecies }
+    const liferPoints = [...liferDates.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, { count, species }]) => ({ date, count, species }))
+
+    return { chartData, liferPoints, milestones: milestoneMap, firstSpecies }
   }, [filteredObs, accGranularity])
 
   // Temporal histograms
@@ -414,7 +473,10 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   const geo = useMemo(() => {
     const locationMap = new Map<string, { name: string; count: number; species: Set<string> }>()
     const countyMap = new Map<string, number>()
+    const countyStateMap = new Map<string, string | null>()
+    const countySpecies = new Map<string, Set<string>>()
     const stateMap = new Map<string, number>()
+    const stateSpecies = new Map<string, Set<string>>()
 
     for (const c of checklists) {
       if (!locationMap.has(c.locationId)) {
@@ -422,45 +484,90 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       }
       locationMap.get(c.locationId)!.count++
 
-      if (c.county) countyMap.set(c.county, (countyMap.get(c.county) ?? 0) + 1)
-      if (c.stateProvince) stateMap.set(c.stateProvince, (stateMap.get(c.stateProvince) ?? 0) + 1)
+      if (c.county) {
+        countyMap.set(c.county, (countyMap.get(c.county) ?? 0) + 1)
+        if (!countyStateMap.has(c.county)) countyStateMap.set(c.county, c.stateProvince)
+        if (!countySpecies.has(c.county)) countySpecies.set(c.county, new Set())
+      }
+      if (c.stateProvince) {
+        stateMap.set(c.stateProvince, (stateMap.get(c.stateProvince) ?? 0) + 1)
+        if (!stateSpecies.has(c.stateProvince)) stateSpecies.set(c.stateProvince, new Set())
+      }
     }
 
     for (const o of filteredObs) {
       const norm = normalizeSpeciesName(o.commonName)
       locationMap.get(o.locationId)?.species.add(norm)
+      if (o.county) countySpecies.get(o.county)?.add(norm)
+      if (o.stateProvince) stateSpecies.get(o.stateProvince)?.add(norm)
     }
 
-    const topLocations = [...locationMap.values()]
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10)
+    const allLocations = [...locationMap.values()]
       .map(l => ({ name: l.name, checklists: l.count, species: l.species.size }))
 
-    const topCounties = [...countyMap.entries()]
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, count]) => ({ name, count }))
+    const topLocations = [...allLocations].sort((a, b) => b.checklists - a.checklists).slice(0, 10)
+    const topLocationsBySpecies = [...allLocations].sort((a, b) => b.species - a.species).slice(0, 10)
 
-    const topStates = [...stateMap.entries()]
-      .sort(([, a], [, b]) => b - a)
-      .map(([name, count]) => ({ name, count }))
+    const allCountyData = [...countyMap.entries()].map(([name, count]) => ({
+      name, count,
+      stateProvince: countyStateMap.get(name) ?? null,
+      species: countySpecies.get(name)?.size ?? 0,
+    }))
+    const topCounties = [...allCountyData].sort((a, b) => b.count - a.count)
+    const topCountiesBySpecies = [...allCountyData].sort((a, b) => b.species - a.species)
 
-    return { topLocations, topCounties, topStates }
+    const allStateData = [...stateMap.entries()].map(([name, count]) => ({
+      name, count,
+      species: stateSpecies.get(name)?.size ?? 0,
+    }))
+    const topStates = [...allStateData].sort((a, b) => b.count - a.count)
+    const topStatesBySpecies = [...allStateData].sort((a, b) => b.species - a.species)
+
+    return { topLocations, topLocationsBySpecies, topCounties, topCountiesBySpecies, topStates, topStatesBySpecies }
   }, [checklists, filteredObs])
 
   // Effort stats
   const effort = useMemo(() => {
     const protocols = new Map<string, number>()
+    const protocolDuration = new Map<string, { total: number; count: number }>()
+    const protocolDistance = new Map<string, { total: number; count: number }>()
     let totalDurationMin = 0, durationCount = 0
     let totalDistanceKm = 0, distanceCount = 0
     const observerDist = new Map<number, number>()
     let completeCount = 0, allObsCount = 0
+    let totalSpeciesHours = 0, speciesHourCount = 0
+    let totalSpeciesDist = 0, speciesDistCount = 0
 
     for (const c of checklists) {
-      if (c.protocol) protocols.set(c.protocol, (protocols.get(c.protocol) ?? 0) + 1)
-      if (c.duration !== null) { totalDurationMin += c.duration; durationCount++ }
-      if (c.distance !== null) { totalDistanceKm += c.distance; distanceCount++ }
+      const proto = c.protocol ?? ''
+      if (proto) protocols.set(proto, (protocols.get(proto) ?? 0) + 1)
+      if (c.duration !== null) {
+        totalDurationMin += c.duration; durationCount++
+        if (proto) {
+          const pd = protocolDuration.get(proto) ?? { total: 0, count: 0 }
+          pd.total += c.duration; pd.count++
+          protocolDuration.set(proto, pd)
+        }
+        if (c.speciesCount > 0 && c.duration > 0) {
+          totalSpeciesHours += c.speciesCount / (c.duration / 60)
+          speciesHourCount++
+        }
+      }
+      if (c.distance !== null) {
+        totalDistanceKm += c.distance; distanceCount++
+        if (proto) {
+          const dd = protocolDistance.get(proto) ?? { total: 0, count: 0 }
+          dd.total += c.distance; dd.count++
+          protocolDistance.set(proto, dd)
+        }
+        if (c.speciesCount > 0 && c.distance > 0) {
+          totalSpeciesDist += c.speciesCount / (c.distance * KM_TO_MI)
+          speciesDistCount++
+        }
+      }
       if (c.numObservers !== null) {
-        observerDist.set(c.numObservers, (observerDist.get(c.numObservers) ?? 0) + 1)
+        const key = c.numObservers >= 5 ? 5 : c.numObservers
+        observerDist.set(key, (observerDist.get(key) ?? 0) + 1)
       }
       if (c.allObsReported !== null) {
         allObsCount++
@@ -471,7 +578,17 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     const total = checklists.length
     const protocolRows = [...protocols.entries()]
       .sort(([, a], [, b]) => b - a)
-      .map(([name, count]) => ({ name, count, pct: total > 0 ? Math.round(count / total * 100) : 0 }))
+      .map(([name, count]) => ({
+        name,
+        count,
+        pct: total > 0 ? Math.round(count / total * 100) : 0,
+        avgDurationMin: protocolDuration.has(name)
+          ? protocolDuration.get(name)!.total / protocolDuration.get(name)!.count
+          : null,
+        avgDistanceMi: protocolDistance.has(name)
+          ? (protocolDistance.get(name)!.total / protocolDistance.get(name)!.count) * KM_TO_MI
+          : null,
+      }))
 
     const observerRows = [...observerDist.entries()]
       .sort(([a], [b]) => a - b)
@@ -482,8 +599,10 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       observerRows,
       totalHours: durationCount > 0 ? totalDurationMin / 60 : null,
       avgDurationMin: durationCount > 0 ? totalDurationMin / durationCount : null,
-      totalDistanceKm: distanceCount > 0 ? totalDistanceKm : null,
-      avgDistanceKm: distanceCount > 0 ? totalDistanceKm / distanceCount : null,
+      totalDistanceMi: distanceCount > 0 ? totalDistanceKm * KM_TO_MI : null,
+      avgDistanceMi: distanceCount > 0 ? (totalDistanceKm / distanceCount) * KM_TO_MI : null,
+      sppPerHour: speciesHourCount > 0 ? totalSpeciesHours / speciesHourCount : null,
+      sppPerMi: speciesDistCount > 0 ? totalSpeciesDist / speciesDistCount : null,
       completeRatio: allObsCount > 0 ? completeCount / allObsCount : null,
     }
   }, [checklists])
@@ -492,6 +611,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   const quality = useMemo(() => {
     let numericCount = 0, xCount = 0
     const speciesMaxCounts = new Map<string, { count: number; submissionId: string }>()
+    const checklistBySubId = new Map(checklists.map(c => [c.submissionId, c]))
 
     for (const o of filteredObs) {
       if (o.count !== null) {
@@ -509,8 +629,11 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     const total = numericCount + xCount
     const biggestCounts = [...speciesMaxCounts.entries()]
       .sort(([, a], [, b]) => b.count - a.count)
-      .slice(0, 5)
-      .map(([name, { count, submissionId }]) => ({ name, count, submissionId }))
+      .slice(0, 10)
+      .map(([name, { count, submissionId }]) => {
+        const cl = checklistBySubId.get(submissionId)
+        return { name, count, submissionId, date: cl?.date ?? '', location: cl?.location ?? '' }
+      })
 
     const checksWithComments = checklists.filter(c => c.checklistComments.trim().length > 0).length
 
@@ -525,19 +648,21 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
 
   // Breeding stats
   const breedingStats = useMemo(() => {
-    const codesBySp = new Map<string, number>() // sp → highest tier
-    const byMonth = new Map<number, Set<string>>()
+    const codesBySp = new Map<string, number>() // sp → highest tier overall
+    const byMonth = new Map<number, Map<string, number>>() // month → sp → highest tier that month
 
     for (const o of filteredObs) {
       if (!o.breedingCode) continue
       const norm = normalizeSpeciesName(o.commonName)
       const def = BREEDING_CODE_MAP.get(o.breedingCode)
       const tier = def?.tier ?? 0
+      if (tier === 0) continue
       codesBySp.set(norm, Math.max(codesBySp.get(norm) ?? 0, tier))
 
       const month = parseInt(o.date.substring(5, 7), 10) - 1
-      if (!byMonth.has(month)) byMonth.set(month, new Set())
-      byMonth.get(month)!.add(norm)
+      if (!byMonth.has(month)) byMonth.set(month, new Map())
+      const mm = byMonth.get(month)!
+      mm.set(norm, Math.max(mm.get(norm) ?? 0, tier))
     }
 
     let confirmed = 0, probable = 0, possible = 0
@@ -547,10 +672,18 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       else if (tier >= 1) possible++
     }
 
-    const byMonthRows = Array.from({ length: 12 }, (_, i) => ({
-      label: MONTH_LABELS[i],
-      value: byMonth.get(i)?.size ?? 0,
-    }))
+    const byMonthRows = Array.from({ length: 12 }, (_, i) => {
+      const mm = byMonth.get(i)
+      let c = 0, p = 0, s = 0
+      if (mm) {
+        for (const tier of mm.values()) {
+          if (tier >= 4) c++
+          else if (tier >= 2) p++
+          else if (tier >= 1) s++
+        }
+      }
+      return { label: MONTH_LABELS[i], confirmed: c, probable: p, possible: s, total: c + p + s }
+    })
 
     return { confirmed, probable, possible, total: confirmed + probable + possible, byMonthRows }
   }, [filteredObs])
@@ -560,17 +693,21 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     const photoCounts = new Map<string, number>()
     const audioCounts = new Map<string, number>()
     const videoCounts = new Map<string, number>()
+    const firstCatalog = new Map<string, string>() // name+format → first catalogId
     for (const row of rawMlRows) {
+      const key = `${row.commonName}::${row.format}`
+      if (!firstCatalog.has(key)) firstCatalog.set(key, row.catalogId)
       if (row.format === 'Photo') photoCounts.set(row.commonName, (photoCounts.get(row.commonName) ?? 0) + 1)
       else if (row.format === 'Audio') audioCounts.set(row.commonName, (audioCounts.get(row.commonName) ?? 0) + 1)
       else if (row.format === 'Video') videoCounts.set(row.commonName, (videoCounts.get(row.commonName) ?? 0) + 1)
     }
-    const topN = (m: Map<string, number>) => [...m.entries()]
-      .sort(([, a], [, b]) => b - a).slice(0, 10).map(([name, count]) => ({ name, count }))
+    const topN = (m: Map<string, number>, fmt: 'Photo' | 'Audio' | 'Video') => [...m.entries()]
+      .sort(([, a], [, b]) => b - a).slice(0, 10)
+      .map(([name, count]) => ({ name, count, catalogId: firstCatalog.get(`${name}::${fmt}`) ?? null }))
     return {
-      mostPhotographed: topN(photoCounts),
-      mostAudio: topN(audioCounts),
-      mostVideo: topN(videoCounts),
+      mostPhotographed: topN(photoCounts, 'Photo'),
+      mostAudio: topN(audioCounts, 'Audio'),
+      mostVideo: topN(videoCounts, 'Video'),
       totalPhotos: [...photoCounts.values()].reduce((a, b) => a + b, 0),
     }
   }, [rawMlRows])
@@ -586,8 +723,8 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     }
     const oneDoneBirds = [...checklistsBySp.entries()]
       .filter(([, subs]) => subs.size === 1)
-      .map(([name]) => name)
-      .sort()
+      .map(([name, subs]) => ({ name, submissionId: [...subs][0] }))
+      .sort((a, b) => a.name.localeCompare(b.name))
 
     // Consecutive-day streak + longest dry spell
     const dates = [...new Set(checklists.map(c => c.date))].sort()
@@ -631,7 +768,12 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       if (!spByDate.has(o.date)) spByDate.set(o.date, new Set())
       spByDate.get(o.date)!.add(normalizeSpeciesName(o.commonName))
     }
-    const busiestDay = [...spByDate.entries()].sort(([, a], [, b]) => b.size - a.size)[0]
+    const busiestDayEntry = [...spByDate.entries()].sort(([, a], [, b]) => b.size - a.size)[0]
+    const busiestDaySubId = busiestDayEntry
+      ? checklists
+          .filter(c => c.date === busiestDayEntry[0])
+          .sort((a, b) => b.speciesCount - a.speciesCount)[0]?.submissionId ?? ''
+      : ''
 
     // Shannon diversity (numeric obs only)
     const spCounts = new Map<string, number>()
@@ -657,7 +799,9 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       drySpell,
       dryStart,
       dryEnd,
-      busiestDay: busiestDay ? { date: busiestDay[0], species: busiestDay[1].size } : null,
+      busiestDay: busiestDayEntry
+        ? { date: busiestDayEntry[0], species: busiestDayEntry[1].size, submissionId: busiestDaySubId }
+        : null,
       shannon: shannon > 0 ? shannon : null,
     }
   }, [filteredObs, checklists])
@@ -709,6 +853,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   const maxMonthChecklists = Math.max(...temporal.monthRows.map(r => r.checklists), 1)
   const maxDow = Math.max(...temporal.dowRows.map(r => r.value), 1)
   const maxHour = Math.max(...temporal.hourRows.map(r => r.value), 1)
+  const totalHour = temporal.hourRows.reduce((s, r) => s + r.value, 0)
 
   return (
     <div style={{ width: '100%', maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
@@ -755,33 +900,51 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         {totals.firstDate && (
           <>
             <Divider />
-            <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap' }}>
-              <div>
-                <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>First observation</span>
-                <p style={{ fontSize: 14, fontWeight: 600, margin: '2px 0 0' }}>{fmtDate(totals.firstDate)}</p>
-              </div>
-              <div>
-                <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>Most recent</span>
-                <p style={{ fontSize: 14, fontWeight: 600, margin: '2px 0 0' }}>{fmtDate(totals.lastDate!)}</p>
-              </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+              {[
+                { label: 'First observation', cl: checklists[0] },
+                { label: 'Most recent', cl: checklists[checklists.length - 1] },
+              ].map(({ label, cl }) => cl && (
+                <div key={label} style={{
+                  flex: '1 1 160px', padding: '10px 14px', borderRadius: 8,
+                  background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                }}>
+                  <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>{label}</p>
+                  {SUBMISSION_ID_RE.test(cl.submissionId) ? (
+                    <a
+                      href={`https://ebird.org/checklist/${cl.submissionId}`}
+                      target="_blank" rel="noreferrer"
+                      style={{ fontSize: 15, fontWeight: 700, color: 'var(--sr-accent)', textDecoration: 'none', display: 'block', margin: '0 0 3px' }}
+                    >
+                      {fmtDate(cl.date)}
+                    </a>
+                  ) : (
+                    <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 3px' }}>{fmtDate(cl.date)}</p>
+                  )}
+                  <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: 0 }}>{cl.location}</p>
+                </div>
+              ))}
               {accumulation.firstSpecies && (
-                <div>
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>First species ever</span>
-                  <p style={{ fontSize: 14, fontWeight: 600, margin: '2px 0 0' }}>{accumulation.firstSpecies.name}</p>
-                  <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '1px 0 0' }}>{fmtDate(accumulation.firstSpecies.date)}</p>
+                <div style={{
+                  flex: '1 1 160px', padding: '10px 14px', borderRadius: 8,
+                  background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                }}>
+                  <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>First species ever</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 3px' }}>{accumulation.firstSpecies.name}</p>
+                  <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: 0 }}>{fmtDate(accumulation.firstSpecies.date)}</p>
                 </div>
               )}
             </div>
           </>
         )}
 
-        {accumulation.chartData.length > 1 && (
+        {(accumulation.liferPoints.length > 1 || accumulation.chartData.length > 1) && (
           <>
             <Divider />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <SubLabel>Life list accumulation</SubLabel>
               <div style={{ display: 'flex', gap: 4 }}>
-                {(['yearly', 'monthly', 'weekly'] as const).map(g => (
+                {(['total', 'yearly', 'monthly', 'weekly'] as const).map(g => (
                   <button
                     key={g}
                     onClick={() => setAccGranularity(g)}
@@ -800,29 +963,56 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             </div>
             <div style={{ height: 180 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={accumulation.chartData} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
-                  <defs>
-                    <linearGradient id="statsAccGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--sr-accent)" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="var(--sr-accent)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis
-                    dataKey="period"
-                    tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    interval="preserveStartEnd"
-                    tickFormatter={key => formatPeriodLabel(key, accGranularity)}
-                  />
-                  <YAxis tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: 12 }}
-                    formatter={(v) => [typeof v === 'number' ? fmt(v) : String(v ?? ''), 'Species']}
-                    labelFormatter={key => formatPeriodLabel(String(key), accGranularity)}
-                  />
-                  <Area type="monotone" dataKey="species" stroke="var(--sr-accent)" fill="url(#statsAccGrad)" strokeWidth={2} dot={false} />
-                </AreaChart>
+                {accGranularity === 'total' ? (
+                  <AreaChart data={accumulation.liferPoints} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
+                    <defs>
+                      <linearGradient id="statsAccGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--sr-accent)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="var(--sr-accent)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
+                      tickLine={false} axisLine={false}
+                      interval="preserveStartEnd"
+                      tickFormatter={d => fmtDate(String(d))}
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: 12 }}
+                      formatter={(v, _n, props) => [
+                        `#${typeof v === 'number' ? fmt(v) : String(v ?? '')}: ${(props?.payload as { species?: string })?.species ?? ''}`,
+                        fmtDate(String((props?.payload as { date?: string })?.date ?? '')),
+                      ]}
+                      labelFormatter={() => ''}
+                    />
+                    <Area type="stepAfter" dataKey="count" stroke="var(--sr-accent)" fill="url(#statsAccGrad)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                ) : (
+                  <AreaChart data={accumulation.chartData} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
+                    <defs>
+                      <linearGradient id="statsAccGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--sr-accent)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="var(--sr-accent)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis
+                      dataKey="period"
+                      tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
+                      tickLine={false} axisLine={false}
+                      interval="preserveStartEnd"
+                      tickFormatter={key => formatPeriodLabel(String(key), accGranularity as PeriodGranularity)}
+                    />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: 12 }}
+                      formatter={(v) => [typeof v === 'number' ? fmt(v) : String(v ?? ''), 'Species']}
+                      labelFormatter={key => formatPeriodLabel(String(key), accGranularity as PeriodGranularity)}
+                    />
+                    <Area type="monotone" dataKey="species" stroke="var(--sr-accent)" fill="url(#statsAccGrad)" strokeWidth={2} dot={false} />
+                  </AreaChart>
+                )}
               </ResponsiveContainer>
             </div>
           </>
@@ -834,16 +1024,28 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             <SubLabel>Milestones</SubLabel>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {Array.from({ length: 20 }, (_, i) => (i + 1) * 50).map(threshold => {
-                const date = accumulation.milestones.get(threshold)
-                if (!date) return null
+                const m = accumulation.milestones.get(threshold)
+                if (!m) return null
                 return (
                   <div key={threshold} style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '6px 12px', borderRadius: 8,
+                    display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                    padding: '8px 12px', borderRadius: 8,
                     background: 'var(--sr-accent-bg)', border: '1px solid var(--sr-accent-border)',
+                    minWidth: 80,
                   }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)' }}>{threshold}</span>
-                    <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{fmtDate(date)}</span>
+                    <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1 }}>{threshold}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, margin: '3px 0 2px' }}>{m.species}</span>
+                    {SUBMISSION_ID_RE.test(m.submissionId) ? (
+                      <a
+                        href={`https://ebird.org/checklist/${m.submissionId}`}
+                        target="_blank" rel="noreferrer"
+                        style={{ fontSize: 11, color: 'var(--sr-text-muted)', textDecoration: 'none' }}
+                      >
+                        {fmtDate(m.date)}
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmtDate(m.date)}</span>
+                    )}
                   </div>
                 )
               })}
@@ -858,9 +1060,19 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           {funStats.busiestDay && (
             <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
               <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Biggest single day</p>
-              <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-accent)' }}>
-                {fmt(funStats.busiestDay.species)} species
-              </p>
+              {SUBMISSION_ID_RE.test(funStats.busiestDay.submissionId) ? (
+                <a
+                  href={`https://ebird.org/checklist/${funStats.busiestDay.submissionId}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ fontSize: 18, fontWeight: 700, display: 'block', margin: '0 0 2px', color: 'var(--sr-accent)', textDecoration: 'none' }}
+                >
+                  {fmt(funStats.busiestDay.species)} species
+                </a>
+              ) : (
+                <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-accent)' }}>
+                  {fmt(funStats.busiestDay.species)} species
+                </p>
+              )}
               <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: 0 }}>{fmtDate(funStats.busiestDay.date)}</p>
             </div>
           )}
@@ -915,27 +1127,96 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           </>
         )}
 
+        <Divider />
         <SubLabel>Checklists by month</SubLabel>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
-          {temporal.monthRows.map(r => (
-            <BarRow key={r.label} label={r.label} value={r.checklists} max={maxMonthChecklists} labelWidth={28} />
-          ))}
-        </div>
+        {(() => {
+          const maxMonth = Math.max(...temporal.monthRows.map(r => r.checklists), 1)
+          const totalMonth = temporal.monthRows.reduce((s, r) => s + r.checklists, 0)
+          const peakMonth = temporal.monthRows.reduce((best, r) => r.checklists > best.checklists ? r : best, temporal.monthRows[0])
+          const monthPieData = temporal.monthRows.map((r) => ({
+            label: r.label, value: r.checklists,
+            fill: totalMonth > 0 ? `hsl(145,60%,${Math.round(80 - (r.checklists / maxMonth) * 45)}%)` : 'var(--sr-chart-slate)',
+          }))
+          return (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 16, alignItems: 'start', marginBottom: 4 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {temporal.monthRows.map(r => (
+                  <BarRow key={r.label} label={r.label} value={r.checklists} max={maxMonthChecklists} labelWidth={28} pctOf={totalMonth} />
+                ))}
+              </div>
+              <div>
+                <div style={{ position: 'relative', width: 120, height: 120 }}>
+                  <PieChart width={120} height={120}>
+                    <Pie data={monthPieData} dataKey="value" cx={60} cy={60} innerRadius={34} outerRadius={56} strokeWidth={0}>
+                      {monthPieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                    </Pie>
+                  </PieChart>
+                  {peakMonth && (
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--sr-text-muted)', lineHeight: 1 }}>peak</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1.3 }}>{peakMonth.label}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
+        <Divider />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
           <div>
             <SubLabel>By day of week</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {temporal.dowRows.map(r => (
-                <BarRow key={r.label} label={r.label} value={r.value} max={maxDow} labelWidth={28} color="#3B82F6" />
-              ))}
-            </div>
+            {(() => {
+              const totalDow = temporal.dowRows.reduce((s, r) => s + r.value, 0)
+              const weekendPct = totalDow > 0
+                ? Math.round(((temporal.dowRows[0]?.value ?? 0) + (temporal.dowRows[6]?.value ?? 0)) / totalDow * 100)
+                : 0
+              const dowPieData = [
+                { label: 'Sat', value: temporal.dowRows[6]?.value ?? 0, fill: 'var(--sr-chart-blue-dark)' },
+                { label: 'Sun', value: temporal.dowRows[0]?.value ?? 0, fill: 'var(--sr-graph-photo)' },
+                { label: 'Weekdays', value: temporal.dowRows.slice(1, 6).reduce((s, r) => s + r.value, 0), fill: 'var(--sr-chart-blue-light)' },
+              ]
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 12, alignItems: 'start' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {temporal.dowRows.map(r => (
+                      <BarRow key={r.label} label={r.label} value={r.value} max={maxDow} labelWidth={28} color="var(--sr-graph-photo)" pctOf={totalDow} />
+                    ))}
+                  </div>
+                  <div>
+                    <div style={{ position: 'relative', width: 120, height: 120 }}>
+                      <PieChart width={120} height={120}>
+                        <Pie data={dowPieData} dataKey="value" cx={60} cy={60} innerRadius={34} outerRadius={56} strokeWidth={0}>
+                          {dowPieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                        </Pie>
+                      </PieChart>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--sr-text-muted)', lineHeight: 1 }}>wkend</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1.3 }}>{weekendPct}%</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+                      {dowPieData.map(d => {
+                        const dpct = totalDow > 0 ? Math.round(d.value / totalDow * 100) : 0
+                        return (
+                          <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: d.fill, flexShrink: 0 }} />
+                            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{d.label} {dpct}%</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
           </div>
           <div>
-            <SubLabel>By hour of day</SubLabel>
+            <SubLabel>By start hour</SubLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {temporal.hourRows.filter(r => r.value > 0).map(r => (
-                <BarRow key={r.label} label={r.label} value={r.value} max={maxHour} labelWidth={28} color="#3B82F6" />
+                <BarRow key={r.label} label={r.label} value={r.value} max={maxHour} labelWidth={28} color="var(--sr-graph-photo)" pctOf={totalHour} />
               ))}
               {temporal.hourRows.every(r => r.value === 0) && (
                 <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: 0 }}>No time data in this export.</p>
@@ -949,7 +1230,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       <SectionCard title="Geographic Stats" icon={<MapPin size={16} />}>
         {geo.topLocations.length > 0 && (
           <>
-            <SubLabel>Top locations</SubLabel>
+            <SubLabel>Top locations by checklists</SubLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
               {geo.topLocations.map((loc, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
@@ -962,16 +1243,91 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           </>
         )}
 
+        {geo.topLocationsBySpecies.length > 0 && (
+          <>
+            <SubLabel>Top locations by species</SubLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
+              {geo.topLocationsBySpecies.map((loc, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ fontSize: 13, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.name}</span>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0 }}>{fmt(loc.species)} sp. · {fmt(loc.checklists)} lists</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         {geo.topCounties.length > 0 && (
           <>
             <Divider />
-            <SubLabel>Counties / regions</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 12 }}>
-              {(showAllCounties ? geo.topCounties : geo.topCounties.slice(0, 8)).map((c, i) => (
-                <BarRow key={i} label={c.name} value={c.count}
-                  max={geo.topCounties[0]?.count ?? 1} labelWidth={120} />
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+              <div>
+                <SubLabel>Counties by checklists</SubLabel>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {(showAllCounties ? geo.topCounties : geo.topCounties.slice(0, 8)).map((c, i) => {
+                    const sp = c.stateProvince
+                    const validSp = sp && sp.includes('-')
+                    const label = validSp ? (
+                      <a
+                        href={`https://ebird.org/region/${sp}`}
+                        target="_blank" rel="noreferrer"
+                        style={{ color: 'var(--sr-text)', textDecoration: 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                      >
+                        {c.name}
+                      </a>
+                    ) : c.name
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {label}
+                        </span>
+                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${geo.topCounties[0]?.count ? (c.count / geo.topCounties[0].count) * 100 : 0}%`, background: 'var(--sr-accent)', borderRadius: 4, transition: 'width 0.3s' }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: 32, textAlign: 'right' }}>{fmt(c.count)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                <SubLabel>Counties by species</SubLabel>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {geo.topCountiesBySpecies.slice(0, 8).map((c, i) => {
+                    const sp = c.stateProvince
+                    const validSp = sp && sp.includes('-')
+                    const label = validSp ? (
+                      <a
+                        href={`https://ebird.org/region/${sp}`}
+                        target="_blank" rel="noreferrer"
+                        style={{ color: 'var(--sr-text)', textDecoration: 'none' }}
+                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                      >
+                        {c.name}
+                      </a>
+                    ) : c.name
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {label}
+                        </span>
+                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${geo.topCountiesBySpecies[0]?.species ? (c.species / geo.topCountiesBySpecies[0].species) * 100 : 0}%`, background: 'var(--sr-graph-photo)', borderRadius: 4, transition: 'width 0.3s' }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: 40, textAlign: 'right' }}>{fmt(c.species)} sp.</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
+            <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '8px 0 4px' }}>
+              County names link to their state/province eBird region page.
+            </p>
             {geo.topCounties.length > 8 && (
               <button
                 onClick={() => setShowAllCounties(v => !v)}
@@ -989,40 +1345,145 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           </>
         )}
 
+        {geo.topStates.length > 0 && (
+          <>
+            <Divider />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+              <div>
+                <SubLabel>States by checklists</SubLabel>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {geo.topStates.map((s, i) => {
+                    const validSp = s.name && s.name.includes('-')
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {validSp ? (
+                            <a
+                              href={`https://ebird.org/region/${s.name}`}
+                              target="_blank" rel="noreferrer"
+                              style={{ color: 'var(--sr-text)', textDecoration: 'none' }}
+                              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                            >
+                              {s.name}
+                            </a>
+                          ) : s.name}
+                        </span>
+                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${geo.topStates[0]?.count ? (s.count / geo.topStates[0].count) * 100 : 0}%`, background: 'var(--sr-accent)', borderRadius: 4, transition: 'width 0.3s' }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: 32, textAlign: 'right' }}>{fmt(s.count)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              <div>
+                <SubLabel>States by species</SubLabel>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {geo.topStatesBySpecies.map((s, i) => {
+                    const validSp = s.name && s.name.includes('-')
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {validSp ? (
+                            <a
+                              href={`https://ebird.org/region/${s.name}`}
+                              target="_blank" rel="noreferrer"
+                              style={{ color: 'var(--sr-text)', textDecoration: 'none' }}
+                              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                            >
+                              {s.name}
+                            </a>
+                          ) : s.name}
+                        </span>
+                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${geo.topStatesBySpecies[0]?.species ? (s.species / geo.topStatesBySpecies[0].species) * 100 : 0}%`, background: 'var(--sr-graph-photo)', borderRadius: 4, transition: 'width 0.3s' }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: 40, textAlign: 'right' }}>{fmt(s.species)} sp.</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
       </SectionCard>
 
       {/* ── Section 5: Effort & Methodology ───────────────────────────────── */}
       <SectionCard title="Effort & Methodology" icon={<Clock size={16} />}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 0 }}>
+
+        {effort.protocolRows.length > 0 && (
+          <>
+            <SubLabel>Protocol distribution</SubLabel>
+            <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 10 }}>
+              {effort.protocolRows.map((r, i) => (
+                <div key={r.name} style={{
+                  width: `${r.pct}%`,
+                  background: PROTOCOL_COLORS[i % PROTOCOL_COLORS.length],
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                }}>
+                  {r.pct >= 8 && (
+                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{r.pct}%</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              {effort.protocolRows.map((r, i) => (
+                <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, background: PROTOCOL_COLORS[i % PROTOCOL_COLORS.length], flexShrink: 0 }} />
+                  <span style={{ fontSize: 12 }}>{r.name}</span>
+                  <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>({fmt(r.count)})</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <Divider />
+        <SubLabel>Key metrics</SubLabel>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--sr-border-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
           {[
-            effort.totalHours !== null ? { label: 'Total hours', value: fmt(effort.totalHours, 1) } : null,
-            effort.avgDurationMin !== null ? { label: 'Avg duration', value: `${fmt(effort.avgDurationMin, 0)} min` } : null,
-            effort.totalDistanceKm !== null ? { label: 'Total distance', value: `${fmt(effort.totalDistanceKm * 0.621371, 0)} mi` } : null,
-            effort.avgDistanceKm !== null ? { label: 'Avg distance', value: `${fmt(effort.avgDistanceKm * 0.621371, 1)} mi` } : null,
-            effort.completeRatio !== null ? { label: 'Complete lists', value: `${Math.round(effort.completeRatio * 100)}%` } : null,
-          ].filter(Boolean).map((stat, i) => (
-            <div key={i} style={{ borderRight: '1px solid var(--sr-border-subtle)', borderBottom: '1px solid var(--sr-border-subtle)' }}>
-              <StatCell label={stat!.label} value={stat!.value} large={false} />
+            { label: 'Avg Duration', value: effort.avgDurationMin !== null ? `${fmt(effort.avgDurationMin, 0)} min` : '—' },
+            { label: 'Avg Distance', value: effort.avgDistanceMi !== null ? `${fmt(effort.avgDistanceMi, 1)} mi` : '—' },
+            { label: 'Spp / Hour', value: effort.sppPerHour !== null ? fmt(effort.sppPerHour, 1) : '—' },
+            { label: 'Spp / Mi', value: effort.sppPerMi !== null ? fmt(effort.sppPerMi, 1) : '—' },
+          ].map((cell, i) => (
+            <div key={i} style={{ background: 'var(--sr-surface-subtle)', padding: '12px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{cell.value}</div>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', marginTop: 4 }}>{cell.label}</div>
             </div>
           ))}
         </div>
 
-        {effort.protocolRows.length > 0 && (
+        {effort.protocolRows.length > 0 && (effort.protocolRows.some(r => r.avgDurationMin !== null) || effort.protocolRows.some(r => r.avgDistanceMi !== null)) && (
           <>
             <Divider />
-            <SubLabel>Protocol breakdown</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {effort.protocolRows.map(r => (
-                <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 12, flex: 1 }}>{r.name}</span>
-                  <div style={{ width: 120, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${r.pct}%`, background: 'var(--sr-accent)', borderRadius: 4 }} />
-                  </div>
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 48, textAlign: 'right' }}>
-                    {r.pct}% ({fmt(r.count)})
-                  </span>
-                </div>
-              ))}
+            <SubLabel>Average by protocol</SubLabel>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    {(['Protocol', 'Avg Duration (min)', 'Avg Distance (mi)', 'Count'] as const).map(h => (
+                      <th key={h} style={{ textAlign: h === 'Protocol' ? 'left' : 'right', padding: '4px 8px', fontSize: 11, color: 'var(--sr-text-muted)', fontWeight: 600, borderBottom: '1px solid var(--sr-border-subtle)' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {effort.protocolRows.map(r => (
+                    <tr key={r.name} style={{ borderBottom: '1px solid var(--sr-border-subtle)' }}>
+                      <td style={{ padding: '5px 8px', textAlign: 'left' }}>{r.name}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>{r.avgDurationMin !== null ? fmt(r.avgDurationMin, 0) : '—'}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>{r.avgDistanceMi !== null ? fmt(r.avgDistanceMi, 1) : '—'}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>{fmt(r.count)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         )}
@@ -1031,62 +1492,149 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           <>
             <Divider />
             <SubLabel>Lists by observer count</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {effort.observerRows.map(r => (
-                <BarRow
-                  key={r.n}
-                  label={r.n === 1 ? 'Solo' : `${r.n}`}
-                  value={r.count}
-                  max={effort.observerRows[0]?.count ?? 1}
-                  labelWidth={36}
-                />
-              ))}
-            </div>
+            {(() => {
+              const totalObs = effort.observerRows.reduce((s, r) => s + r.count, 0)
+              const obsPieColors = [
+                'var(--sr-accent)',
+                'var(--sr-graph-photo)',
+                'var(--sr-graph-video)',
+                'var(--sr-graph-audio)',
+                'var(--sr-chart-slate)',
+              ]
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 16, alignItems: 'start' }}>
+                  <div style={{ height: 110 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={effort.observerRows} margin={{ top: 4, right: 4, bottom: 16, left: -20 }}>
+                        <XAxis
+                          dataKey="n"
+                          tick={{ fontSize: 11, fill: 'var(--sr-text-muted)' }}
+                          tickLine={false} axisLine={false}
+                          tickFormatter={n => n === 5 ? '5+' : String(n)}
+                        />
+                        <YAxis tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
+                        <Tooltip
+                          contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: 12 }}
+                          formatter={(v) => [fmt(Number(v)), 'Lists']}
+                          labelFormatter={n => n === 5 ? '5+ observers' : `${n} observer${n === 1 ? '' : 's'}`}
+                        />
+                        <Bar dataKey="count" fill="var(--sr-accent)" radius={[3, 3, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div>
+                    <PieChart width={120} height={120}>
+                      <Pie data={effort.observerRows} dataKey="count" cx={60} cy={60} innerRadius={34} outerRadius={56} strokeWidth={0}>
+                        {effort.observerRows.map((_, i) => (
+                          <Cell key={i} fill={obsPieColors[i % obsPieColors.length]} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
+                      {effort.observerRows.map((r, i) => {
+                        const opct = totalObs > 0 ? Math.round(r.count / totalObs * 100) : 0
+                        return (
+                          <div key={r.n} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: obsPieColors[i % obsPieColors.length], flexShrink: 0 }} />
+                            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{r.n === 5 ? '5+' : r.n} obs {opct}%</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </>
+        )}
+
+        {effort.completeRatio !== null && (
+          <>
+            <Divider />
+            <p style={{ fontSize: 13, margin: 0 }}>
+              <span style={{ fontWeight: 600 }}>{Math.round(effort.completeRatio * 100)}%</span>
+              <span style={{ color: 'var(--sr-text-muted)' }}> of checklists reported all species observed (complete checklists)</span>
+            </p>
           </>
         )}
       </SectionCard>
 
       {/* ── Section 6: Data Quality ────────────────────────────────────────── */}
       <SectionCard title="Data Quality" icon={<ShieldCheck size={16} />}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 16 }}>
-          {quality.numericRatio !== null && (
-            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
-              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Numeric counts</p>
-              <p style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{Math.round(quality.numericRatio * 100)}%</p>
+
+        {quality.numericRatio !== null && quality.xRatio !== null && (
+          <>
+            <SubLabel>Count method</SubLabel>
+            <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
+              <div style={{ width: `${Math.round(quality.numericRatio * 100)}%`, background: 'var(--sr-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {quality.numericRatio > 0.1 && <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>{Math.round(quality.numericRatio * 100)}% numeric</span>}
+              </div>
+              <div style={{ flex: 1, background: 'var(--sr-chart-slate)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {quality.xRatio > 0.1 && <span style={{ fontSize: 12, color: 'var(--sr-text)', fontWeight: 600 }}>{Math.round(quality.xRatio * 100)}% X</span>}
+              </div>
             </div>
-          )}
-          {quality.xRatio !== null && (
-            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
-              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Presence-only (X)</p>
-              <p style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{Math.round(quality.xRatio * 100)}%</p>
+          </>
+        )}
+
+        {quality.commentRatio !== null && (
+          <>
+            <Divider />
+            <SubLabel>Comment coverage</SubLabel>
+            <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
+              <div style={{ width: `${Math.round(quality.commentRatio * 100)}%`, background: 'var(--sr-graph-photo)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {quality.commentRatio > 0.1 && <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>{Math.round(quality.commentRatio * 100)}% with notes</span>}
+              </div>
+              <div style={{ flex: 1, background: 'var(--sr-chart-blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {(1 - quality.commentRatio) > 0.1 && <span style={{ fontSize: 12, color: 'var(--sr-text)', fontWeight: 600 }}>{Math.round((1 - quality.commentRatio) * 100)}% no notes</span>}
+              </div>
             </div>
-          )}
-          {quality.commentRatio !== null && (
-            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
-              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Lists with notes</p>
-              <p style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{Math.round(quality.commentRatio * 100)}%</p>
-            </div>
-          )}
-        </div>
+          </>
+        )}
 
         {quality.biggestCounts.length > 0 && (
           <>
             <Divider />
             <SubLabel>Biggest single counts</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {quality.biggestCounts.map((entry, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0' }}>
-                  <span style={{ fontSize: 13, flex: 1 }}>{entry.name}</span>
-                  <a
-                    href={`https://ebird.org/checklist/${entry.submissionId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none' }}
-                  >
-                    {fmt(entry.count)}
-                  </a>
-                </div>
-              ))}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    {(['Species', 'Count', 'Date', 'Location'] as const).map(h => (
+                      <th key={h} style={{
+                        textAlign: h === 'Species' ? 'left' : 'right',
+                        padding: '4px 8px', fontSize: 11, color: 'var(--sr-text-muted)',
+                        fontWeight: 600, borderBottom: '1px solid var(--sr-border-subtle)',
+                      }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {quality.biggestCounts.map((entry, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--sr-border-subtle)' }}>
+                      <td style={{ padding: '5px 8px', textAlign: 'left' }}>{entry.name}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right' }}>
+                        {SUBMISSION_ID_RE.test(entry.submissionId) ? (
+                          <a
+                            href={`https://ebird.org/checklist/${entry.submissionId}`}
+                            target="_blank" rel="noreferrer"
+                            style={{ color: 'var(--sr-accent)', fontWeight: 600, textDecoration: 'none' }}
+                          >
+                            {fmt(entry.count)}
+                          </a>
+                        ) : (
+                          <span style={{ fontWeight: 600 }}>{fmt(entry.count)}</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>
+                        {entry.date ? fmtDate(entry.date) : '—'}
+                      </td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {entry.location || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </>
         )}
@@ -1113,17 +1661,90 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               ))}
             </div>
 
-            <SubLabel>Breeding activity by month</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {breedingStats.byMonthRows.map(r => (
-                <BarRow key={r.label} label={r.label}
-                  value={r.value}
-                  max={Math.max(...breedingStats.byMonthRows.map(x => x.value), 1)}
-                  labelWidth={28}
-                  color="var(--sr-tier-4)"
-                />
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <SubLabel>Breeding activity by month</SubLabel>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {([
+                  { key: 'all', label: 'All' },
+                  { key: 'confirmed', label: 'Confirmed', color: 'var(--sr-tier-4)' },
+                  { key: 'probable', label: 'Probable', color: 'var(--sr-tier-2)' },
+                  { key: 'possible', label: 'Possible', color: 'var(--sr-tier-1)' },
+                ] as const).map(f => (
+                  <button
+                    key={f.key}
+                    onClick={() => setBreedingFilter(f.key)}
+                    style={{
+                      height: 24, padding: '0 8px', borderRadius: 6, fontSize: 11, fontWeight: 500,
+                      fontFamily: 'inherit', cursor: 'pointer',
+                      border: breedingFilter === f.key
+                        ? `1.5px solid ${'color' in f ? f.color : 'var(--sr-accent-border)'}`
+                        : '1.5px solid var(--sr-border)',
+                      background: breedingFilter === f.key ? ('color' in f ? `rgba(var(--sr-tier-${'confirmed' === f.key ? 4 : 'probable' === f.key ? 2 : 1}-rgb), 0.1)` : 'var(--sr-accent-bg)') : 'none',
+                      color: breedingFilter === f.key ? ('color' in f ? f.color : 'var(--sr-accent)') : 'var(--sr-text-muted)',
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
+            {(() => {
+              const maxVal = Math.max(...breedingStats.byMonthRows.map(r =>
+                breedingFilter === 'all' ? r.total :
+                breedingFilter === 'confirmed' ? r.confirmed :
+                breedingFilter === 'probable' ? r.probable : r.possible
+              ), 1)
+              return (
+                <>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {breedingStats.byMonthRows.map(r => {
+                      if (breedingFilter !== 'all') {
+                        const val = breedingFilter === 'confirmed' ? r.confirmed : breedingFilter === 'probable' ? r.probable : r.possible
+                        const color = breedingFilter === 'confirmed' ? 'var(--sr-tier-4)' : breedingFilter === 'probable' ? 'var(--sr-tier-2)' : 'var(--sr-tier-1)'
+                        return (
+                          <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 28 }}>{r.label}</span>
+                            <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${maxVal > 0 ? (val / maxVal) * 100 : 0}%`, background: color, borderRadius: 4, transition: 'width 0.3s' }} />
+                            </div>
+                            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: 20, textAlign: 'right' }}>{val || ''}</span>
+                          </div>
+                        )
+                      }
+                      const totalPct = maxVal > 0 ? (r.total / maxVal) * 100 : 0
+                      const confPct = r.total > 0 ? (r.confirmed / r.total) * totalPct : 0
+                      const probPct = r.total > 0 ? (r.probable / r.total) * totalPct : 0
+                      const possPct = r.total > 0 ? (r.possible / r.total) * totalPct : 0
+                      return (
+                        <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                          <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 28 }}>{r.label}</span>
+                          <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden', display: 'flex' }}>
+                            <div style={{ height: '100%', width: `${confPct}%`, background: 'var(--sr-tier-4)', transition: 'width 0.3s' }} />
+                            <div style={{ height: '100%', width: `${probPct}%`, background: 'var(--sr-tier-2)', transition: 'width 0.3s' }} />
+                            <div style={{ height: '100%', width: `${possPct}%`, background: 'var(--sr-tier-1)', transition: 'width 0.3s' }} />
+                          </div>
+                          <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0, width: 20, textAlign: 'right' }}>{r.total || ''}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {breedingFilter === 'all' && (
+                    <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+                      {[
+                        { label: 'Confirmed', color: 'var(--sr-tier-4)' },
+                        { label: 'Probable', color: 'var(--sr-tier-2)' },
+                        { label: 'Possible', color: 'var(--sr-tier-1)' },
+                      ].map(d => (
+                        <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
+                          <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{d.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </>
         )}
       </SectionCard>
@@ -1139,7 +1760,13 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               {mlStats.mostPhotographed.map((entry, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ fontSize: 13, flex: 1 }}>{entry.name}</span>
+                  <a
+                    href={mlCatalogUrl(entry.name, 'Photo', mlUserId, mlTaxonMap[entry.name])}
+                    target="_blank" rel="noreferrer"
+                    style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                  >
+                    {entry.name}
+                  </a>
                   <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} photos</span>
                 </div>
               ))}
@@ -1154,7 +1781,13 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               {mlStats.mostAudio.map((entry, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ fontSize: 13, flex: 1 }}>{entry.name}</span>
+                  <a
+                    href={mlCatalogUrl(entry.name, 'Audio', mlUserId, mlTaxonMap[entry.name])}
+                    target="_blank" rel="noreferrer"
+                    style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                  >
+                    {entry.name}
+                  </a>
                   <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} recordings</span>
                 </div>
               ))}
@@ -1169,7 +1802,13 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               {mlStats.mostVideo.map((entry, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ fontSize: 13, flex: 1 }}>{entry.name}</span>
+                  <a
+                    href={mlCatalogUrl(entry.name, 'Video', mlUserId, mlTaxonMap[entry.name])}
+                    target="_blank" rel="noreferrer"
+                    style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                  >
+                    {entry.name}
+                  </a>
                   <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} videos</span>
                 </div>
               ))}
@@ -1191,38 +1830,40 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           {fmt(funStats.oneDoneBirds.length)} species seen on exactly one checklist
         </p>
         {funStats.oneDoneBirds.length > 0 && (
-          <>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-              {(showAllOneDone ? funStats.oneDoneBirds : funStats.oneDoneBirds.slice(0, 20)).map(name => (
-                <span key={name} style={{
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {funStats.oneDoneBirds.map(bird => (
+              SUBMISSION_ID_RE.test(bird.submissionId) ? (
+                <a
+                  key={bird.name}
+                  href={`https://ebird.org/checklist/${bird.submissionId}`}
+                  target="_blank" rel="noreferrer"
+                  style={{
+                    fontSize: 12, padding: '3px 10px', borderRadius: 100,
+                    background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                    color: 'var(--sr-accent)', textDecoration: 'none',
+                  }}
+                >
+                  {bird.name}
+                </a>
+              ) : (
+                <span key={bird.name} style={{
                   fontSize: 12, padding: '3px 10px', borderRadius: 100,
                   background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
                   color: 'var(--sr-text-muted)',
                 }}>
-                  {name}
+                  {bird.name}
                 </span>
-              ))}
-            </div>
-            {funStats.oneDoneBirds.length > 20 && (
-              <button
-                onClick={() => setShowAllOneDone(v => !v)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 4,
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 12, color: 'var(--sr-accent)', padding: 0, fontFamily: 'inherit',
-                }}
-              >
-                {showAllOneDone
-                  ? <><ChevronUp size={12} /> Show fewer</>
-                  : <><ChevronDown size={12} /> Show all {fmt(funStats.oneDoneBirds.length)}</>}
-              </button>
-            )}
-          </>
+              )
+            ))}
+          </div>
         )}
 
         {/* Nemesis birds */}
         <Divider />
         <SubLabel>Current Local Nemesis Birds</SubLabel>
+        <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', fontStyle: 'italic', margin: '0 0 10px', borderLeft: '3px solid var(--sr-accent-border)', paddingLeft: 10 }}>
+          Nemesis birds are species recently reported within your area that don't yet appear on your life list, ranked by how frequently they've been seen.
+        </p>
         {!mapDefaults ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
             <AlertCircle size={14} style={{ color: 'var(--sr-text-muted)', flexShrink: 0 }} />

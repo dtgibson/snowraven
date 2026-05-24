@@ -73,7 +73,7 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
   const speciesCommentsIdx    = headers.findIndex(h => h === 'species comments' || h === 'observation details')
   const catalogNumbersIdx     = headers.findIndex(h => h === 'ml catalog numbers')
   const timeIdx               = headers.findIndex(h => h === 'time')
-  const durationIdx           = headers.findIndex(h => h === 'duration min')
+  const durationIdx           = headers.findIndex(h => h === 'duration min' || h === 'duration (min)')
   const distanceIdx           = headers.findIndex(h => h === 'distance traveled (km)')
   const protocolIdx           = headers.findIndex(h => h === 'protocol')
   const numObserversIdx       = headers.findIndex(h => h === 'number of observers')

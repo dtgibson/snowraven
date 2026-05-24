@@ -1,17 +1,17 @@
 {
-  "activeFeature": null,
+  "activeFeature": "stats-tab-enhancements",
   "sessionNumber": 2,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/map-explorer-improvements/strategic-brief.md",
-    "pipeline/map-explorer-improvements/prd.md",
-    "pipeline/map-explorer-improvements/schema.md",
-    "pipeline/map-explorer-improvements/design-spec.md",
-    "pipeline/map-explorer-improvements/design.html"
+    "pipeline/stats-tab-enhancements/strategic-brief.md",
+    "pipeline/stats-tab-enhancements/prd.md",
+    "pipeline/stats-tab-enhancements/schema.md",
+    "pipeline/stats-tab-enhancements/design-spec.md",
+    "pipeline/stats-tab-enhancements/design.html"
   ],
-  "createdAt": "2026-05-23T19:00:00Z",
-  "updatedAt": "2026-05-23T22:25:00Z"
+  "createdAt": "2026-05-23T22:30:00Z",
+  "updatedAt": "2026-05-24T14:10:00Z"
 }

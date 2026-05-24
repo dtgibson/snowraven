@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statistics Tab Enhancements — SnowRaven Design Mockup</title>
+  <style>
+    :root {
+      --sr-accent: #2D8653;
+      --sr-accent-bg: #F0FAF4;
+      --sr-accent-border: #B6DFCA;
+      --sr-surface: #FFFFFF;
+      --sr-surface-subtle: #F4F4F5;
+      --sr-border: #E4E4E7;
+      --sr-border-subtle: #EFEFEF;
+      --sr-text: #0F1117;
+      --sr-text-muted: #71717A;
+      --sr-text-disabled: #A1A1AA;
+      --sr-card-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --sr-error: #EF4444;
+      --chart-blue: #3B82F6;
+      --chart-purple: #8B5CF6;
+      --chart-amber: #F59E0B;
+      --chart-slate: #94A3B8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      color: var(--sr-text);
+      background: #F9F9FA;
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .page { width: 100%; max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    /* Page header */
+    .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .page-title { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .page-subtitle { font-size: 13px; color: var(--sr-text-muted); }
+
+    /* Cards */
+    .card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; padding: 24px; box-shadow: var(--sr-card-shadow); }
+    .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--sr-border-subtle); }
+    .card-title { font-size: 15px; font-weight: 600; }
+    .card-icon { color: var(--sr-accent); display: flex; align-items: center; }
+
+    .divider { height: 1px; background: var(--sr-border-subtle); margin: 16px 0; }
+    .sub-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--sr-text-muted); margin-bottom: 10px; }
+
+    /* Stat grid */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+    .stat-cell { padding: 12px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; border-right: 1px solid var(--sr-border-subtle); border-bottom: 1px solid var(--sr-border-subtle); }
+    .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; color: var(--sr-text); line-height: 1; }
+    .stat-label { font-size: 11px; color: var(--sr-text-muted); margin-top: 2px; }
+
+    a { color: var(--sr-accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Granularity toggle */
+    .toggle-group { display: flex; gap: 4px; }
+    .toggle-btn { height: 24px; padding: 0 10px; border-radius: 6px; font-size: 11px; font-weight: 500; font-family: inherit; cursor: pointer; border: 1.5px solid var(--sr-border); background: none; color: var(--sr-text-muted); }
+    .toggle-btn.active { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); }
+    .toggle-btn:hover:not(.active) { background: var(--sr-surface-subtle); }
+
+    /* First/Last obs cards */
+    .obs-cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+    .obs-card { flex: 1; min-width: 180px; padding: 14px 16px; background: var(--sr-surface-subtle); border-radius: 10px; border: 1px solid var(--sr-border); }
+    .obs-card-label { font-size: 11px; color: var(--sr-text-muted); margin-bottom: 4px; }
+    .obs-card-date { font-size: 16px; font-weight: 700; color: var(--sr-accent); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+    .obs-card-location { font-size: 12px; color: var(--sr-text-muted); display: flex; align-items: center; gap: 4px; }
+
+    /* Milestone pills */
+    .milestones { display: flex; flex-wrap: wrap; gap: 8px; }
+    .milestone-pill { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 8px; background: var(--sr-accent-bg); border: 1px solid var(--sr-accent-border); }
+    .milestone-count { font-size: 16px; font-weight: 700; color: var(--sr-accent); min-width: 28px; }
+    .milestone-body { display: flex; flex-direction: column; gap: 1px; }
+    .milestone-species { font-size: 12px; font-weight: 600; color: var(--sr-text); }
+    .milestone-date { font-size: 11px; color: var(--sr-text-muted); }
+
+    /* Info cards (firsts & milestones section) */
+    .info-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+    .info-card { padding: 14px 16px; background: var(--sr-surface-subtle); border-radius: 10px; }
+    .info-card-label { font-size: 11px; color: var(--sr-text-muted); margin-bottom: 4px; }
+    .info-card-value { font-size: 20px; font-weight: 700; line-height: 1.2; }
+    .info-card-sub { font-size: 11px; color: var(--sr-text-muted); margin-top: 3px; }
+
+    /* Bar rows */
+    .bar-row { display: flex; align-items: center; gap: 8px; min-height: 22px; }
+    .bar-label { font-size: 11px; color: var(--sr-text-muted); text-align: right; flex-shrink: 0; }
+    .bar-track { flex: 1; height: 8px; border-radius: 4px; background: var(--sr-surface-subtle); overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .bar-value { font-size: 11px; color: var(--sr-text-muted); flex-shrink: 0; text-align: right; width: 32px; }
+
+    /* Chart pair: bars left, pie right */
+    .chart-pair { display: grid; grid-template-columns: 1fr 148px; gap: 24px; align-items: center; margin-bottom: 4px; }
+    .pie-wrap { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .pie-legend { display: flex; flex-direction: column; gap: 3px; }
+    .pie-legend-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--sr-text-muted); white-space: nowrap; }
+    .pie-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Horizontal protocol bars (effort redesign) */
+    .proto-bar-item { margin-bottom: 10px; }
+    .proto-bar-name { font-size: 12px; color: var(--sr-text); margin-bottom: 3px; display: flex; justify-content: space-between; }
+    .proto-bar-pct { font-size: 11px; color: var(--sr-text-muted); }
+    .proto-bar-track { height: 28px; background: var(--sr-surface-subtle); border-radius: 6px; overflow: hidden; }
+    .proto-bar-fill { height: 100%; display: flex; align-items: center; padding: 0 12px; font-size: 11px; font-weight: 600; color: #fff; border-radius: 6px; white-space: nowrap; }
+
+    /* Key metrics grid */
+    .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .metric-cell { background: var(--sr-surface-subtle); border-radius: 8px; padding: 14px 10px; text-align: center; }
+    .metric-value { font-size: 22px; font-weight: 700; color: var(--sr-text); line-height: 1; margin-bottom: 4px; }
+    .metric-label { font-size: 10px; color: var(--sr-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Protocol table */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .data-table th { text-align: left; padding: 6px 8px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sr-text-muted); border-bottom: 1px solid var(--sr-border); }
+    .data-table th:not(:first-child) { text-align: right; }
+    .data-table td { padding: 9px 8px; border-bottom: 1px solid var(--sr-border-subtle); font-size: 13px; }
+    .data-table td:not(:first-child) { text-align: right; color: var(--sr-text-muted); }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    /* Observer bar chart */
+    .obs-chart { display: flex; align-items: flex-end; gap: 12px; height: 100px; }
+    .obs-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .obs-col-bar { width: 100%; background: var(--sr-accent); border-radius: 4px 4px 0 0; display: flex; align-items: flex-start; justify-content: center; padding-top: 5px; }
+    .obs-col-label { font-size: 10px; color: var(--sr-text-muted); }
+
+    /* Proportional bars (data quality) */
+    .prop-bar-wrap { margin-bottom: 16px; }
+    .prop-bar { height: 32px; border-radius: 6px; overflow: hidden; display: flex; margin-bottom: 6px; }
+    .prop-seg { display: flex; align-items: center; padding: 0 12px; font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; }
+    .prop-legend { display: flex; gap: 16px; flex-wrap: wrap; }
+    .prop-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--sr-text-muted); }
+    .prop-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+    /* One-and-done pills */
+    .pill-link { display: inline-flex; align-items: center; font-size: 12px; padding: 3px 10px; border-radius: 100px; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); color: var(--sr-accent); }
+    .pill-link:hover { background: var(--sr-accent-bg); border-color: var(--sr-accent-border); text-decoration: none; }
+
+    /* Nemesis methodology callout */
+    .nemesis-method { font-size: 12px; color: var(--sr-text-muted); font-style: italic; margin-bottom: 12px; padding: 8px 12px; background: var(--sr-surface-subtle); border-radius: 6px; border-left: 3px solid var(--sr-accent-border); }
+
+    /* Two-col layout */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+
+    /* Spuh toggle */
+    .spuh-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; }
+    .spuh-toggle input { accent-color: var(--sr-accent); width: 14px; height: 14px; }
+
+    svg.icon { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; flex-shrink: 0; }
+    .ext-icon { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h2 class="page-title">
+        <svg class="icon" style="color:var(--sr-accent)" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Statistics
+      </h2>
+      <p class="page-subtitle">2,847 checklists · eBird backup: MyEBirdData.csv</p>
+    </div>
+    <label class="spuh-toggle">
+      <input type="checkbox"> Include spuh / slash species
+    </label>
+  </div>
+
+  <!-- ── Life List Totals ──────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon"><svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+      <h3 class="card-title">Life List Totals</h3>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-cell"><span class="stat-value">412</span><span class="stat-label">Species</span></div>
+      <div class="stat-cell"><span class="stat-value">2,847</span><span class="stat-label">Checklists</span></div>
+      <div class="stat-cell"><span class="stat-value">284</span><span class="stat-label">Locations</span></div>
+      <div class="stat-cell"><span class="stat-value">12</span><span class="stat-label">Years Active</span></div>
+      <div class="stat-cell"><span class="stat-value">14</span><span class="stat-label">States/Provinces</span></div>
+      <div class="stat-cell"><span class="stat-value">3</span><span class="stat-label">Countries</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- First / Last observation cards — with location + checklist link -->
+    <div class="obs-cards">
+      <div class="obs-card">
+        <div class="obs-card-label">First observation</div>
+        <div class="obs-card-date">
+          <a href="https://ebird.org/checklist/S23847102" target="_blank" style="display:flex;align-items:center;gap:4px;font-size:16px;font-weight:700;">
+            Sep 3, 2012
+            <svg class="ext-icon" style="color:var(--sr-accent)" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+        <div class="obs-card-location">
+          <svg style="width:12px;height:12px;stroke:var(--sr-text-muted);fill:none;stroke-width:2;flex-shrink:0;" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Kensington Metropark
+        </div>
+      </div>
+      <div class="obs-card">
+        <div class="obs-card-label">Most recent</div>
+        <div class="obs-card-date">
+          <a href="https://ebird.org/checklist/S213847102" target="_blank" style="display:flex;align-items:center;gap:4px;font-size:16px;font-weight:700;">
+            May 21, 2026
+            <svg class="ext-icon" style="color:var(--sr-accent)" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+        <div class="obs-card-location">
+          <svg style="width:12px;height:12px;stroke:var(--sr-text-muted);fill:none;stroke-width:2;flex-shrink:0;" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Point Pelee National Park
+        </div>
+      </div>
+      <div class="obs-card" style="flex:none;">
+        <div class="obs-card-label">First species ever</div>
+        <div style="font-size:15px;font-weight:700;margin:2px 0;">Canada Goose</div>
+        <div style="font-size:11px;color:var(--sr-text-muted);">Sep 3, 2012</div>
+      </div>
+    </div>
+
+    <!-- Accumulation chart with Total as default -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div class="sub-label" style="margin-bottom:0;">Life list accumulation</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" onclick="switchGran('total',this)">Total</button>
+        <button class="toggle-btn" onclick="switchGran('yearly',this)">Yearly</button>
+        <button class="toggle-btn" onclick="switchGran('monthly',this)">Monthly</button>
+        <button class="toggle-btn" onclick="switchGran('weekly',this)">Weekly</button>
+      </div>
+    </div>
+
+    <div style="height:180px;position:relative;">
+      <div id="chart-total" style="width:100%;height:180px;">
+        <svg id="total-svg" width="100%" height="180" viewBox="0 0 860 180" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="tGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stop-color="#2D8653" stop-opacity="0.18"/>
+              <stop offset="95%" stop-color="#2D8653" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line x1="20" y1="20" x2="850" y2="20" stroke="#EFEFEF" stroke-width="1"/>
+          <line x1="20" y1="55" x2="850" y2="55" stroke="#EFEFEF" stroke-width="1"/>
+          <line x1="20" y1="90" x2="850" y2="90" stroke="#EFEFEF" stroke-width="1"/>
+          <line x1="20" y1="125" x2="850" y2="125" stroke="#EFEFEF" stroke-width="1"/>
+          <line x1="20" y1="158" x2="850" y2="158" stroke="#EFEFEF" stroke-width="1"/>
+          <text x="0" y="23" fill="#71717A" font-size="9" font-family="Inter,sans-serif">400</text>
+          <text x="0" y="58" fill="#71717A" font-size="9" font-family="Inter,sans-serif">300</text>
+          <text x="0" y="93" fill="#71717A" font-size="9" font-family="Inter,sans-serif">200</text>
+          <text x="0" y="128" fill="#71717A" font-size="9" font-family="Inter,sans-serif">100</text>
+          <path id="t-area" d="" fill="url(#tGrad)"/>
+          <path id="t-line" d="" fill="none" stroke="#2D8653" stroke-width="1.5"/>
+          <text x="20"  y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2012</text>
+          <text x="155" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2014</text>
+          <text x="290" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2016</text>
+          <text x="425" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2018</text>
+          <text x="560" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2020</text>
+          <text x="695" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2022</text>
+          <text x="830" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2024</text>
+        </svg>
+      </div>
+      <div id="chart-period" style="display:none;width:100%;height:180px;">
+        <svg width="100%" height="180" viewBox="0 0 860 180" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="pGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stop-color="#2D8653" stop-opacity="0.25"/>
+              <stop offset="95%" stop-color="#2D8653" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <line x1="20" y1="20" x2="850" y2="20" stroke="#EFEFEF" stroke-width="1"/>
+          <line x1="20" y1="55" x2="850" y2="55" stroke="#EFEFEF" stroke-width="1"/>
+          <line x1="20" y1="90" x2="850" y2="90" stroke="#EFEFEF" stroke-width="1"/>
+          <line x1="20" y1="125" x2="850" y2="125" stroke="#EFEFEF" stroke-width="1"/>
+          <line x1="20" y1="158" x2="850" y2="158" stroke="#EFEFEF" stroke-width="1"/>
+          <polyline points="20,155 88,138 155,118 222,100 290,82 357,64 425,48 492,44 560,40 627,37 695,36 762,36 830,35"
+            fill="none" stroke="#2D8653" stroke-width="2"/>
+          <polygon points="20,155 88,138 155,118 222,100 290,82 357,64 425,48 492,44 560,40 627,37 695,36 762,36 830,35 830,163 20,163"
+            fill="url(#pGrad)"/>
+          <text x="20"  y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2012</text>
+          <text x="155" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2014</text>
+          <text x="290" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2016</text>
+          <text x="425" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2018</text>
+          <text x="560" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2020</text>
+          <text x="695" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2022</text>
+          <text x="830" y="174" fill="#71717A" font-size="9" font-family="Inter,sans-serif" text-anchor="middle">2024</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Milestones with species names + linked dates -->
+    <div class="divider"></div>
+    <div class="sub-label">Milestones</div>
+    <div class="milestones">
+      <div class="milestone-pill">
+        <span class="milestone-count">50</span>
+        <div class="milestone-body">
+          <div class="milestone-species">Canada Warbler</div>
+          <div class="milestone-date"><a href="https://ebird.org/checklist/S38472910" target="_blank">Apr 14, 2013</a></div>
+        </div>
+      </div>
+      <div class="milestone-pill">
+        <span class="milestone-count">100</span>
+        <div class="milestone-body">
+          <div class="milestone-species">Swainson's Hawk</div>
+          <div class="milestone-date"><a href="https://ebird.org/checklist/S52839012" target="_blank">Sep 2, 2014</a></div>
+        </div>
+      </div>
+      <div class="milestone-pill">
+        <span class="milestone-count">150</span>
+        <div class="milestone-body">
+          <div class="milestone-species">Black-throated Blue Warbler</div>
+          <div class="milestone-date"><a href="https://ebird.org/checklist/S71023840" target="_blank">May 8, 2016</a></div>
+        </div>
+      </div>
+      <div class="milestone-pill">
+        <span class="milestone-count">200</span>
+        <div class="milestone-body">
+          <div class="milestone-species">Curve-billed Thrasher</div>
+          <div class="milestone-date"><a href="https://ebird.org/checklist/S98712301" target="_blank">Mar 22, 2018</a></div>
+        </div>
+      </div>
+      <div class="milestone-pill">
+        <span class="milestone-count">250</span>
+        <div class="milestone-body">
+          <div class="milestone-species">Snowy Owl</div>
+          <div class="milestone-date"><a href="https://ebird.org/checklist/S134521879" target="_blank">Jan 7, 2021</a></div>
+        </div>
+      </div>
+      <div class="milestone-pill">
+        <span class="milestone-count">300</span>
+        <div class="milestone-body">
+          <div class="milestone-species">Piping Plover</div>
+          <div class="milestone-date"><a href="https://ebird.org/checklist/S158923401" target="_blank">May 12, 2022</a></div>
+        </div>
+      </div>
+      <div class="milestone-pill">
+        <span class="milestone-count">350</span>
+        <div class="milestone-body">
+          <div class="milestone-species">Painted Bunting</div>
+          <div class="milestone-date"><a href="https://ebird.org/checklist/S183472901" target="_blank">Apr 30, 2023</a></div>
+        </div>
+      </div>
+      <div class="milestone-pill">
+        <span class="milestone-count">400</span>
+        <div class="milestone-body">
+          <div class="milestone-species">Black Rail</div>
+          <div class="milestone-date"><a href="https://ebird.org/checklist/S219847302" target="_blank">Oct 14, 2024</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Firsts & Milestones ──────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></span>
+      <h3 class="card-title">Firsts & Milestones</h3>
+    </div>
+    <div class="info-card-grid">
+      <div class="info-card">
+        <div class="info-card-label">Biggest single day</div>
+        <div class="info-card-value" style="color:var(--sr-accent);">
+          <a href="https://ebird.org/checklist/S183471290" target="_blank" style="font-size:20px;font-weight:700;display:flex;align-items:center;gap:4px;">
+            78 species
+            <svg class="ext-icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+        <div class="info-card-sub">May 10, 2023 · Point Pelee</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">Longest streak</div>
+        <div class="info-card-value" style="color:var(--sr-text);">23 days</div>
+        <div class="info-card-sub">Apr 18 – May 10, 2023</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">Longest dry spell</div>
+        <div class="info-card-value" style="color:var(--sr-text);">47 days</div>
+        <div class="info-card-sub">Jan 3 – Feb 19, 2015</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">Shannon diversity (H′)</div>
+        <div class="info-card-value" style="color:var(--sr-text);font-size:18px;padding-top:3px;">3.84</div>
+        <div class="info-card-sub">from numeric counts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Temporal Stats ───────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+      <h3 class="card-title">Temporal Stats</h3>
+    </div>
+
+    <!-- Protocol with pie -->
+    <div class="sub-label">Protocol breakdown</div>
+    <div class="chart-pair" style="margin-bottom:20px;">
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="proto-bar-item" style="margin-bottom:0;">
+          <div class="proto-bar-name">Traveling <span class="proto-bar-pct">68% · 1,938 lists</span></div>
+          <div class="proto-bar-track"><div class="proto-bar-fill" style="width:68%;background:var(--sr-accent);">1,938</div></div>
+        </div>
+        <div class="proto-bar-item" style="margin-bottom:0;">
+          <div class="proto-bar-name">Stationary <span class="proto-bar-pct">19% · 541 lists</span></div>
+          <div class="proto-bar-track"><div class="proto-bar-fill" style="width:19%;background:var(--chart-blue);">541</div></div>
+        </div>
+        <div class="proto-bar-item" style="margin-bottom:0;">
+          <div class="proto-bar-name">Area <span class="proto-bar-pct">8% · 228</span></div>
+          <div class="proto-bar-track"><div class="proto-bar-fill" style="width:8%;background:var(--chart-purple);padding-left:8px;">228</div></div>
+        </div>
+        <div class="proto-bar-item" style="margin-bottom:0;">
+          <div class="proto-bar-name">Incidental <span class="proto-bar-pct">5% · 140</span></div>
+          <div class="proto-bar-track" style="display:flex;align-items:center;">
+            <div style="width:5%;height:100%;background:var(--chart-amber);border-radius:6px;"></div>
+            <span style="font-size:11px;color:var(--sr-text-muted);margin-left:8px;">140</span>
+          </div>
+        </div>
+      </div>
+      <div class="pie-wrap">
+        <svg id="proto-pie" width="100" height="100" viewBox="0 0 100 100"></svg>
+        <div class="pie-legend">
+          <div class="pie-legend-item"><div class="pie-dot" style="background:#2D8653;"></div>Traveling 68%</div>
+          <div class="pie-legend-item"><div class="pie-dot" style="background:#3B82F6;"></div>Stationary 19%</div>
+          <div class="pie-legend-item"><div class="pie-dot" style="background:#8B5CF6;"></div>Area 8%</div>
+          <div class="pie-legend-item"><div class="pie-dot" style="background:#F59E0B;"></div>Incidental 5%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Month with pie -->
+    <div class="sub-label">Checklists by month</div>
+    <div class="chart-pair" style="margin-bottom:20px;">
+      <div style="display:flex;flex-direction:column;gap:3px;">
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Jan</span><div class="bar-track"><div class="bar-fill" style="width:28%;background:var(--sr-accent);"></div></div><span class="bar-value">112</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Feb</span><div class="bar-track"><div class="bar-fill" style="width:25%;background:var(--sr-accent);"></div></div><span class="bar-value">98</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Mar</span><div class="bar-track"><div class="bar-fill" style="width:47%;background:var(--sr-accent);"></div></div><span class="bar-value">187</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Apr</span><div class="bar-track"><div class="bar-fill" style="width:78%;background:var(--sr-accent);"></div></div><span class="bar-value">312</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">May</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--sr-accent);"></div></div><span class="bar-value">398</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Jun</span><div class="bar-track"><div class="bar-fill" style="width:51%;background:var(--sr-accent);"></div></div><span class="bar-value">203</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Jul</span><div class="bar-track"><div class="bar-fill" style="width:47%;background:var(--sr-accent);"></div></div><span class="bar-value">187</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Aug</span><div class="bar-track"><div class="bar-fill" style="width:56%;background:var(--sr-accent);"></div></div><span class="bar-value">221</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Sep</span><div class="bar-track"><div class="bar-fill" style="width:67%;background:var(--sr-accent);"></div></div><span class="bar-value">267</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Oct</span><div class="bar-track"><div class="bar-fill" style="width:61%;background:var(--sr-accent);"></div></div><span class="bar-value">243</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Nov</span><div class="bar-track"><div class="bar-fill" style="width:47%;background:var(--sr-accent);"></div></div><span class="bar-value">189</span></div>
+        <div class="bar-row"><span class="bar-label" style="width:28px;">Dec</span><div class="bar-track"><div class="bar-fill" style="width:33%;background:var(--sr-accent);"></div></div><span class="bar-value">130</span></div>
+      </div>
+      <div class="pie-wrap">
+        <svg id="month-pie" width="100" height="100" viewBox="0 0 100 100"></svg>
+        <div style="font-size:10px;color:var(--sr-text-muted);text-align:center;">peak: May (14%)</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- DOW (with pie) + By start hour (bar only) side by side -->
+    <div class="two-col">
+      <div>
+        <div class="sub-label">By day of week</div>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:14px;">
+          <div class="bar-row"><span class="bar-label" style="width:28px;">Sun</span><div class="bar-track"><div class="bar-fill" style="width:93%;background:var(--chart-blue);"></div></div><span class="bar-value">382</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:28px;">Mon</span><div class="bar-track"><div class="bar-fill" style="width:54%;background:var(--chart-blue);"></div></div><span class="bar-value">221</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:28px;">Tue</span><div class="bar-track"><div class="bar-fill" style="width:48%;background:var(--chart-blue);"></div></div><span class="bar-value">198</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:28px;">Wed</span><div class="bar-track"><div class="bar-fill" style="width:52%;background:var(--chart-blue);"></div></div><span class="bar-value">213</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:28px;">Thu</span><div class="bar-track"><div class="bar-fill" style="width:45%;background:var(--chart-blue);"></div></div><span class="bar-value">187</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:28px;">Fri</span><div class="bar-track"><div class="bar-fill" style="width:57%;background:var(--chart-blue);"></div></div><span class="bar-value">234</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:28px;">Sat</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--chart-blue);"></div></div><span class="bar-value">412</span></div>
+        </div>
+        <div style="display:flex;justify-content:center;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <svg id="dow-pie" width="72" height="72" viewBox="0 0 100 100"></svg>
+            <div class="pie-legend">
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#1D4ED8;"></div>Sat 22%</div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#3B82F6;"></div>Sun 21%</div>
+              <div class="pie-legend-item"><div class="pie-dot" style="background:#93C5FD;"></div>Weekdays 57%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="sub-label">By start hour</div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <div class="bar-row"><span class="bar-label" style="width:32px;">5am</span><div class="bar-track"><div class="bar-fill" style="width:52%;background:var(--chart-blue);"></div></div><span class="bar-value">234</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:32px;">6am</span><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--chart-blue);"></div></div><span class="bar-value">447</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:32px;">7am</span><div class="bar-track"><div class="bar-fill" style="width:87%;background:var(--chart-blue);"></div></div><span class="bar-value">390</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:32px;">8am</span><div class="bar-track"><div class="bar-fill" style="width:65%;background:var(--chart-blue);"></div></div><span class="bar-value">291</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:32px;">9am</span><div class="bar-track"><div class="bar-fill" style="width:43%;background:var(--chart-blue);"></div></div><span class="bar-value">193</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:32px;">10am</span><div class="bar-track"><div class="bar-fill" style="width:28%;background:var(--chart-blue);"></div></div><span class="bar-value">126</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:32px;">11am</span><div class="bar-track"><div class="bar-fill" style="width:18%;background:var(--chart-blue);"></div></div><span class="bar-value">82</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:32px;">12pm</span><div class="bar-track"><div class="bar-fill" style="width:12%;background:var(--chart-blue);"></div></div><span class="bar-value">54</span></div>
+          <div class="bar-row"><span class="bar-label" style="width:32px;">4pm</span><div class="bar-track"><div class="bar-fill" style="width:8%;background:var(--chart-blue);"></div></div><span class="bar-value">37</span></div>
+        </div>
+        <p style="font-size:11px;color:var(--sr-text-muted);margin-top:8px;">Excludes checklists with no start time</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Geographic Stats ─────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
+      <h3 class="card-title">Geographic Stats</h3>
+    </div>
+
+    <div class="sub-label">Top locations</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:var(--sr-text-muted);width:16px;text-align:right;">1</span><span style="font-size:13px;flex:1;">Kensington Metropark</span><span style="font-size:11px;color:var(--sr-text-muted);">312 lists · 198 sp.</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:var(--sr-text-muted);width:16px;text-align:right;">2</span><span style="font-size:13px;flex:1;">Pt. Mouillee SGA</span><span style="font-size:11px;color:var(--sr-text-muted);">287 lists · 176 sp.</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:var(--sr-text-muted);width:16px;text-align:right;">3</span><span style="font-size:13px;flex:1;">Lake Erie Metropark</span><span style="font-size:11px;color:var(--sr-text-muted);">203 lists · 154 sp.</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:var(--sr-text-muted);width:16px;text-align:right;">4</span><span style="font-size:13px;flex:1;">Point Pelee National Park</span><span style="font-size:11px;color:var(--sr-text-muted);">189 lists · 212 sp.</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="font-size:11px;color:var(--sr-text-muted);width:16px;text-align:right;">5</span><span style="font-size:13px;flex:1;">Nichols Arboretum</span><span style="font-size:11px;color:var(--sr-text-muted);">167 lists · 112 sp.</span></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sub-label">Counties / regions</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">
+      <div class="bar-row">
+        <span class="bar-label" style="width:130px;"><a href="https://ebird.org/region/US-MI" target="_blank" style="color:var(--sr-text);font-size:11px;">Washtenaw, MI</a></span>
+        <div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--sr-accent);"></div></div>
+        <span class="bar-value">847</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label" style="width:130px;"><a href="https://ebird.org/region/US-MI" target="_blank" style="color:var(--sr-text);font-size:11px;">Wayne, MI</a></span>
+        <div class="bar-track"><div class="bar-fill" style="width:37%;background:var(--sr-accent);"></div></div>
+        <span class="bar-value">312</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label" style="width:130px;"><a href="https://ebird.org/region/US-MI" target="_blank" style="color:var(--sr-text);font-size:11px;">Monroe, MI</a></span>
+        <div class="bar-track"><div class="bar-fill" style="width:34%;background:var(--sr-accent);"></div></div>
+        <span class="bar-value">287</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label" style="width:130px;"><a href="https://ebird.org/region/US-MI" target="_blank" style="color:var(--sr-text);font-size:11px;">Livingston, MI</a></span>
+        <div class="bar-track"><div class="bar-fill" style="width:23%;background:var(--sr-accent);"></div></div>
+        <span class="bar-value">198</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label" style="width:130px;"><a href="https://ebird.org/region/US-OH" target="_blank" style="color:var(--sr-text);font-size:11px;">Lucas, OH</a></span>
+        <div class="bar-track"><div class="bar-fill" style="width:19%;background:var(--sr-accent);"></div></div>
+        <span class="bar-value">160</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label" style="width:130px;"><a href="https://ebird.org/region/CA-ON" target="_blank" style="color:var(--sr-text);font-size:11px;">Essex, ON</a></span>
+        <div class="bar-track"><div class="bar-fill" style="width:13%;background:var(--sr-accent);"></div></div>
+        <span class="bar-value">112</span>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--sr-text-muted);">County names link to their state/province eBird region page</p>
+  </div>
+
+  <!-- ── Effort & Methodology (redesigned) ────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <h3 class="card-title">Effort & Methodology</h3>
+    </div>
+
+    <div class="sub-label">Protocol distribution</div>
+    <div style="margin-bottom:20px;">
+      <div style="margin-bottom:8px;">
+        <div style="font-size:12px;margin-bottom:3px;display:flex;justify-content:space-between;"><span>Traveling</span><span style="color:var(--sr-text-muted);">68% · 1,938 lists</span></div>
+        <div style="height:28px;background:var(--sr-surface-subtle);border-radius:6px;overflow:hidden;">
+          <div style="width:68%;height:100%;background:var(--sr-accent);border-radius:6px;display:flex;align-items:center;padding-left:12px;">
+            <span style="font-size:11px;font-weight:600;color:#fff;">Traveling</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:12px;margin-bottom:3px;display:flex;justify-content:space-between;"><span>Stationary</span><span style="color:var(--sr-text-muted);">19% · 541 lists</span></div>
+        <div style="height:28px;background:var(--sr-surface-subtle);border-radius:6px;overflow:hidden;">
+          <div style="width:19%;height:100%;background:var(--chart-blue);border-radius:6px;display:flex;align-items:center;padding-left:12px;">
+            <span style="font-size:11px;font-weight:600;color:#fff;">541</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="font-size:12px;margin-bottom:3px;display:flex;justify-content:space-between;"><span>Area</span><span style="color:var(--sr-text-muted);">8% · 228 lists</span></div>
+        <div style="height:28px;background:var(--sr-surface-subtle);border-radius:6px;overflow:hidden;display:flex;align-items:center;">
+          <div style="width:8%;height:100%;background:var(--chart-purple);border-radius:6px;"></div>
+          <span style="font-size:11px;color:var(--sr-text-muted);margin-left:8px;">228</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;margin-bottom:3px;display:flex;justify-content:space-between;"><span>Incidental</span><span style="color:var(--sr-text-muted);">5% · 140 lists</span></div>
+        <div style="height:28px;background:var(--sr-surface-subtle);border-radius:6px;overflow:hidden;display:flex;align-items:center;">
+          <div style="width:5%;height:100%;background:var(--chart-amber);border-radius:6px;"></div>
+          <span style="font-size:11px;color:var(--sr-text-muted);margin-left:8px;">140</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sub-label">Key metrics</div>
+    <div class="metrics-grid" style="margin-bottom:20px;">
+      <div class="metric-cell"><div class="metric-value">87</div><div class="metric-label">Avg Duration (min)</div></div>
+      <div class="metric-cell"><div class="metric-value">2.6</div><div class="metric-label">Avg Distance (mi)</div></div>
+      <div class="metric-cell"><div class="metric-value">8.3</div><div class="metric-label">Spp / Hour</div></div>
+      <div class="metric-cell"><div class="metric-value">7.7</div><div class="metric-label">Spp / mi</div></div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sub-label">Averages by protocol</div>
+    <table class="data-table" style="margin-bottom:20px;">
+      <thead>
+        <tr><th>Protocol</th><th>Avg Duration</th><th>Avg Distance</th><th>Checklists</th></tr>
+      </thead>
+      <tbody>
+        <tr><td style="font-weight:500;">Traveling</td><td>94 min</td><td>4.2 mi</td><td>1,938</td></tr>
+        <tr><td style="font-weight:500;">Stationary</td><td>52 min</td><td>—</td><td>541</td></tr>
+        <tr><td style="font-weight:500;">Area</td><td>78 min</td><td>1.5 mi</td><td>228</td></tr>
+        <tr><td style="font-weight:500;">Incidental</td><td>—</td><td>—</td><td>140</td></tr>
+      </tbody>
+    </table>
+
+    <div class="divider"></div>
+    <div class="sub-label">Checklists by observer count</div>
+    <div style="display:flex;align-items:flex-end;gap:12px;height:110px;padding-bottom:4px;">
+      <div class="obs-col">
+        <div class="obs-col-bar" style="height:100px;">
+          <span style="font-size:10px;font-weight:600;color:#fff;">1,847</span>
+        </div>
+        <span class="obs-col-label">Solo</span>
+      </div>
+      <div class="obs-col">
+        <div class="obs-col-bar" style="height:34px;opacity:0.75;justify-content:center;">
+          <span style="font-size:10px;font-weight:600;color:#fff;">621</span>
+        </div>
+        <span class="obs-col-label">2</span>
+      </div>
+      <div class="obs-col">
+        <div class="obs-col-bar" style="height:13px;opacity:0.6;"></div>
+        <span class="obs-col-label">3</span>
+      </div>
+      <div class="obs-col">
+        <div class="obs-col-bar" style="height:6px;opacity:0.5;"></div>
+        <span class="obs-col-label">4</span>
+      </div>
+      <div class="obs-col">
+        <div class="obs-col-bar" style="height:4px;opacity:0.4;"></div>
+        <span class="obs-col-label">5+</span>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--sr-text-muted);margin-top:4px;">65% of checklists are solo</p>
+    <div class="divider"></div>
+    <span style="font-size:13px;color:var(--sr-text-muted);">Complete checklists: <strong style="color:var(--sr-text);">74%</strong></span>
+  </div>
+
+  <!-- ── Data Quality (redesigned) ────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+      <h3 class="card-title">Data Quality</h3>
+    </div>
+
+    <div class="sub-label">Count method</div>
+    <div class="prop-bar-wrap">
+      <div class="prop-bar">
+        <div class="prop-seg" style="width:73%;background:var(--sr-accent);">73% numeric</div>
+        <div class="prop-seg" style="width:27%;background:var(--chart-slate);">27% X</div>
+      </div>
+      <div class="prop-legend">
+        <div class="prop-legend-item"><div class="prop-dot" style="background:var(--sr-accent);"></div>Numeric counts — 73%</div>
+        <div class="prop-legend-item"><div class="prop-dot" style="background:var(--chart-slate);"></div>Presence-only (X) — 27%</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sub-label">Checklist comment coverage</div>
+    <div class="prop-bar-wrap">
+      <div class="prop-bar">
+        <div class="prop-seg" style="width:38%;background:var(--chart-blue);">38% with notes</div>
+        <div class="prop-seg" style="width:62%;background:#CBD5E1;color:#475569;">62% no notes</div>
+      </div>
+      <div class="prop-legend">
+        <div class="prop-legend-item"><div class="prop-dot" style="background:var(--chart-blue);"></div>Checklists with comments — 38%</div>
+        <div class="prop-legend-item"><div class="prop-dot" style="background:#CBD5E1;"></div>No checklist notes — 62%</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="sub-label">Top 10 biggest single counts</div>
+    <table class="data-table">
+      <thead>
+        <tr><th>Species</th><th>Count</th><th>Date</th><th>Location</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Canada Goose</td>
+          <td style="text-align:right;font-weight:600;color:var(--sr-accent);"><a href="https://ebird.org/checklist/S38472911" target="_blank">4,200</a></td>
+          <td style="text-align:right;"><a href="https://ebird.org/checklist/S38472911" target="_blank" style="color:var(--sr-text-muted);font-size:12px;">Nov 3, 2018</a></td>
+          <td style="text-align:right;color:var(--sr-text-muted);font-size:12px;">Lake Erie Metropark</td>
+        </tr>
+        <tr>
+          <td>Snow Goose</td>
+          <td style="text-align:right;font-weight:600;color:var(--sr-accent);"><a href="https://ebird.org/checklist/S52839013" target="_blank">3,800</a></td>
+          <td style="text-align:right;"><a href="https://ebird.org/checklist/S52839013" target="_blank" style="color:var(--sr-text-muted);font-size:12px;">Oct 28, 2021</a></td>
+          <td style="text-align:right;color:var(--sr-text-muted);font-size:12px;">Pt. Mouillee SGA</td>
+        </tr>
+        <tr>
+          <td>Dunlin</td>
+          <td style="text-align:right;font-weight:600;color:var(--sr-accent);"><a href="https://ebird.org/checklist/S71023841" target="_blank">2,100</a></td>
+          <td style="text-align:right;"><a href="https://ebird.org/checklist/S71023841" target="_blank" style="color:var(--sr-text-muted);font-size:12px;">May 14, 2019</a></td>
+          <td style="text-align:right;color:var(--sr-text-muted);font-size:12px;">Pt. Mouillee SGA</td>
+        </tr>
+        <tr>
+          <td>American Robin</td>
+          <td style="text-align:right;font-weight:600;color:var(--sr-accent);"><a href="https://ebird.org/checklist/S98712302" target="_blank">1,800</a></td>
+          <td style="text-align:right;"><a href="https://ebird.org/checklist/S98712302" target="_blank" style="color:var(--sr-text-muted);font-size:12px;">Oct 5, 2022</a></td>
+          <td style="text-align:right;color:var(--sr-text-muted);font-size:12px;">Nichols Arboretum</td>
+        </tr>
+        <tr>
+          <td>Sandhill Crane</td>
+          <td style="text-align:right;font-weight:600;color:var(--sr-accent);"><a href="https://ebird.org/checklist/S134521880" target="_blank">1,400</a></td>
+          <td style="text-align:right;"><a href="https://ebird.org/checklist/S134521880" target="_blank" style="color:var(--sr-text-muted);font-size:12px;">Nov 12, 2020</a></td>
+          <td style="text-align:right;color:var(--sr-text-muted);font-size:12px;">Kensington Metropark</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Fun Stats (one-and-done + nemesis) ───────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon"><svg class="icon" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>
+      <h3 class="card-title">Fun Stats</h3>
+    </div>
+
+    <div class="sub-label">One-and-done birds</div>
+    <p style="font-size:13px;color:var(--sr-text-muted);margin:0 0 8px;">47 species seen on exactly one checklist — each links to that checklist</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+      <a class="pill-link" href="https://ebird.org/checklist/S219847302" target="_blank">Black Rail</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S183471290" target="_blank">Pacific Loon</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S158923401" target="_blank">Mountain Bluebird</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S134521879" target="_blank">Snowy Owl</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S98712301" target="_blank">Curve-billed Thrasher</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S71023840" target="_blank">Connecticut Warbler</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S52839012" target="_blank">Swainson's Hawk</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S38472910" target="_blank">Kirtland's Warbler</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S28741903" target="_blank">Razorbill</a>
+      <a class="pill-link" href="https://ebird.org/checklist/S23471902" target="_blank">Painted Bunting</a>
+      <span style="font-size:12px;color:var(--sr-text-muted);padding:3px 4px;align-self:center;">+37 more</span>
+    </div>
+    <button style="display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:12px;color:var(--sr-accent);padding:0;font-family:inherit;margin-bottom:4px;">
+      <svg style="width:12px;height:12px;stroke:var(--sr-accent);fill:none;stroke-width:2;" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      Show all 47 birds
+    </button>
+
+    <div class="divider"></div>
+
+    <div class="sub-label">Current Local Nemesis Birds</div>
+    <div class="nemesis-method">
+      Nemesis birds are species recently reported within your area that don't yet appear on your life list, ranked by how frequently they've been seen.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;gap:8px;"><div style="width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;"></div><span style="font-size:13px;flex:1;">Cackling Goose</span><span style="font-size:11px;color:var(--sr-text-muted);">May 20, 2026</span></div>
+      <div style="display:flex;align-items:center;gap:8px;"><div style="width:8px;height:8px;border-radius:50%;background:#EF4444;flex-shrink:0;"></div><span style="font-size:13px;flex:1;">Yellow-crowned Night-Heron</span><span style="font-size:11px;color:var(--sr-text-muted);">May 18, 2026</span></div>
+      <div style="display:flex;align-items:center;gap:8px;"><div style="width:8px;height:8px;border-radius:50%;background:#F59E0B;flex-shrink:0;"></div><span style="font-size:13px;flex:1;">Western Kingbird</span><span style="font-size:11px;color:var(--sr-text-muted);">May 10, 2026</span></div>
+      <div style="display:flex;align-items:center;gap:8px;"><div style="width:8px;height:8px;border-radius:50%;background:#A1A1AA;flex-shrink:0;"></div><span style="font-size:13px;flex:1;">Great Kiskadee</span><span style="font-size:11px;color:var(--sr-text-muted);">May 3, 2026</span></div>
+    </div>
+  </div>
+
+</div>
+<script>
+function switchGran(mode, btn) {
+  document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('chart-total').style.display = mode === 'total' ? 'block' : 'none'
+  document.getElementById('chart-period').style.display = mode !== 'total' ? 'block' : 'none'
+}
+
+// Generate the Total accumulation step chart
+(function() {
+  const startMs = new Date('2012-09-01').getTime()
+  const endMs   = new Date('2026-05-21').getTime()
+  const rangeMs = endMs - startMs
+  const xMin = 20, xMax = 840, yBottom = 160, yTop = 8
+
+  // Simulate 412 lifers with faster early growth, slower later
+  const pts = []
+  for (let i = 1; i <= 412; i++) {
+    const prog = Math.pow(i / 412, 0.62) + (Math.random() - 0.5) * 0.025
+    const t = Math.min(1, Math.max(0, prog))
+    const x = xMin + t * (xMax - xMin)
+    const y = yBottom - (i / 412) * (yBottom - yTop)
+    pts.push({ x, y })
+  }
+
+  let line = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`
+  for (let i = 1; i < pts.length; i++) {
+    line += ` L${pts[i].x.toFixed(1)},${pts[i-1].y.toFixed(1)} L${pts[i].x.toFixed(1)},${pts[i].y.toFixed(1)}`
+  }
+  const last = pts[pts.length - 1]
+  const area = line + ` L${last.x.toFixed(1)},${yBottom} L${pts[0].x.toFixed(1)},${yBottom} Z`
+
+  document.getElementById('t-line').setAttribute('d', line)
+  document.getElementById('t-area').setAttribute('d', area)
+})()
+
+// Pie chart renderer — generates correct SVG arc paths from data
+function makePie(svgId, cx, cy, r, innerR, slices, center) {
+  var svg = document.getElementById(svgId);
+  if (!svg) return;
+  var total = slices.reduce(function(s, d) { return s + d.v; }, 0);
+  var angle = -Math.PI / 2;
+  var html = '';
+  slices.forEach(function(d) {
+    var sweep = (d.v / total) * Math.PI * 2;
+    var ea = angle + sweep;
+    var x1 = (cx + r * Math.cos(angle)).toFixed(2);
+    var y1 = (cy + r * Math.sin(angle)).toFixed(2);
+    var x2 = (cx + r * Math.cos(ea)).toFixed(2);
+    var y2 = (cy + r * Math.sin(ea)).toFixed(2);
+    var lf = sweep > Math.PI ? 1 : 0;
+    html += '<path d="M' + cx + ',' + cy + ' L' + x1 + ',' + y1 + ' A' + r + ',' + r + ' 0 ' + lf + ',1 ' + x2 + ',' + y2 + ' Z" fill="' + d.c + '"/>';
+    angle = ea;
+  });
+  html += '<circle cx="' + cx + '" cy="' + cy + '" r="' + innerR + '" fill="white"/>';
+  if (center) center.forEach(function(l) {
+    html += '<text x="' + cx + '" y="' + l.y + '" text-anchor="middle" fill="' + (l.fill || '#71717A') + '" font-size="' + (l.sz || 8) + '" font-family="Inter,sans-serif" font-weight="' + (l.w || '400') + '">' + l.t + '</text>';
+  });
+  svg.innerHTML = html;
+}
+
+// Protocol pie (4 slices)
+makePie('proto-pie', 50, 50, 45, 20, [
+  { v: 68, c: '#2D8653' },
+  { v: 19, c: '#3B82F6' },
+  { v: 8,  c: '#8B5CF6' },
+  { v: 5,  c: '#F59E0B' }
+]);
+
+// Month pie (12 months, sequential green scale lightest→darkest→lighter)
+;(function() {
+  var vals = [112,98,187,312,398,203,187,221,267,243,189,130];
+  var mx = Math.max.apply(null, vals);
+  makePie('month-pie', 50, 50, 45, 20,
+    vals.map(function(v) { return { v: v, c: 'hsl(145,55%,' + Math.round(75 - (v/mx)*45) + '%)' }; }),
+    [{y:47,t:'peak',fill:'#71717A',sz:7},{y:57,t:'May',fill:'#2D8653',sz:9,w:'600'}]
+  );
+})();
+
+// DOW pie (Sat / Sun / Weekdays)
+makePie('dow-pie', 50, 50, 45, 22, [
+  { v: 412,  c: '#1D4ED8' },
+  { v: 382,  c: '#3B82F6' },
+  { v: 1053, c: '#93C5FD' }
+], [{y:47,t:'wkend',fill:'#71717A',sz:7},{y:57,t:'43%',fill:'#1D4ED8',sz:9,w:'600'}]);
+</script>
+</body>
+</html>
