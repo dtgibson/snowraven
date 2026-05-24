@@ -4,6 +4,22 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## buildGraphData takes explicit interval; auto-detection removed — 2026-05-23
+
+**Change:** `buildGraphData(obs, mlRows, interval)` now requires an explicit `interval: 'yearly' | 'monthly'` parameter. The previous auto-detection logic (`const useMonthly = years.size <= 1`) is gone.
+
+**Rationale:** Auto-detection silently chose an interval based on data span, making it impossible for users to override it. The Graph Options card requires explicit user control. The old heuristic (single-year data → monthly) was also confusing — a species seen only in one year could suddenly show monthly granularity after filtering by date range.
+
+**Implications:** `graphInterval` state lives in the `SpeciesDetail` parent (not inside `SightingsGraph`). All call sites must pass an explicit interval. `SightingsGraph` is now a controlled component — it receives `data`, `useMonthly`, `viewMode`, and `hasML` as props. Do not re-add auto-detection; the Graph Options card is the source of truth for interval.
+
+## Co-occurrence uses Set<string> submissionId lookup for O(1) performance — 2026-05-23
+
+**Decision:** The `coOccurrence` useMemo builds `targetIds: Set<string>` from filtered `speciesObs` submissionIds, then iterates `phase.observations` once — checking `targetIds.has(o.submissionId)` for each row. Per-species shared-checklist counts are accumulated in a `Map<string, Set<string>>` (name → Set of shared submissionIds).
+
+**Rationale:** `phase.observations` can be 10,000+ rows across all species. A naive O(n²) comparison between target and all observations would be unusable. The `Set.has()` approach makes the inner loop O(1) per row — total cost is O(n) where n is `phase.observations.length`. `SUBMISSION_ID_RE` (`/^S\d+$/`) gates all submissionId use, consistent with the existing pattern in the codebase.
+
+**Implications:** The minimum threshold (≥2 shared checklists) is applied after the full pass — do not short-circuit the Set population. `normalizeSpeciesName()` is applied inside the loop when `mergeSubspecies` is true so co-occurring subspecies variants aggregate to the parent name. Target species (the one currently selected) is excluded before inserting into the per-species map.
+
 ## Targeting model: "Is Target" means missing ≥1 media type, not zero-ML-only — 2026-05-23
 
 **Change:** `targetSpecies` useMemo and `fetchTargetCodes` in `MapExplorer.tsx`, and the "Is Target" pill filter in `LifeList.tsx`, all use `!hasAll` where `hasAll = types?.has('Photo') && types?.has('Audio') && types?.has('Video')`. The previous definition was "species not in `mlRows` at all."

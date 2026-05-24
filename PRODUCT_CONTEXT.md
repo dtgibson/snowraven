@@ -349,10 +349,10 @@ County and date-range filters added to the Breeding Codes, Media List, and Speci
 Two new visualization sections added to the Species Detail tab.
 
 **Sightings Over Time graph:**
-- Recharts `LineChart` with `ResponsiveContainer` renders a full-width time-series graph below the Sightings / Media cards and above the Breeding Codes section
-- Shows individuals per year (or per month for single-year species) on its own y-axis — no media lines on this chart
-- Monthly fallback: when all observations for the selected species fall within a single calendar year, the x-axis switches to monthly granularity automatically (`years.size <= 1` in `buildGraphData`)
-- Per Year / Cumulative segmented toggle: cumulative view computes a running sum in a `displayData` useMemo; toggle is shared with the Media Over Time graph below
+- Recharts `LineChart` with `ResponsiveContainer` renders a full-width time-series graph below the Graph Options card and above the Breeding Codes section
+- Shows individuals per year (or per month) on its own y-axis — no media lines on this chart
+- Interval is controlled by the Graph Options card (explicit `interval` parameter — no auto-detection)
+- Per Period / Cumulative view: cumulative view computes a running sum in a `displayData` useMemo; shared with the Media Over Time graph
 - Graph returns `null` (section absent) when fewer than 2 distinct time periods exist
 - All colors via `var(--sr-graph-*)` tokens (added to both `:root` and `[data-theme="dark"]`)
 - Fully filter-reactive: uses `speciesObs` (already county/date filtered) and `speciesMlRows` (filtered by species + date range)
@@ -361,7 +361,7 @@ Two new visualization sections added to the Species Detail tab.
 - A second `LineChart` below "Sightings Over Time" with its own independent y-axis
 - Shows Photo / Audio / Video item counts per period as separate lines
 - Appears only when ML is loaded and the species has at least one media item; suppressed when all counts are zero
-- Shares `viewMode` state and `displayData` with the sightings graph — the Per Year / Cumulative toggle in the sightings card controls both
+- Shares `viewMode` state and `displayData` with the sightings graph
 
 **Map heatmap toggle:**
 - Pins / Heatmap segmented toggle in the Sighting Locations map section header
@@ -372,10 +372,42 @@ Two new visualization sections added to the Species Detail tab.
 - Toggle and heatmap absent when no coordinate data (entire map section guarded by `coordMarkers.length > 0`)
 
 **Key files:**
-- `frontend/src/lib/sightingsGraph.ts` — `buildGraphData(obs, mlRows)` pure function; `GraphPoint` type
-- `frontend/src/lib/sightingsGraph.test.ts` — 10 unit tests
-- `frontend/src/components/SpeciesDetail.tsx` — `HeatmapLayer`, `SightingsGraph`, `GraphTooltip`, `formatPeriodLabel` components; `mapMode` state; `speciesMlRows` and `heatPoints` useMemos; `Phase.ready` now includes `mlRows: MLExportRow[]`
+- `frontend/src/lib/sightingsGraph.ts` — `buildGraphData(obs, mlRows, interval)` pure function; `GraphPoint` type; `interval: 'yearly' | 'monthly'` explicit parameter
+- `frontend/src/lib/sightingsGraph.test.ts` — 9 unit tests
+- `frontend/src/components/SpeciesDetail.tsx` — `HeatmapLayer`, `SightingsGraph` (controlled component — receives `data`, `useMonthly`, `viewMode`, `hasML` props), `GraphTooltip`, `formatPeriodLabel` components; `mapMode` state; `speciesMlRows` and `heatPoints` useMemos; `Phase.ready` now includes `mlRows: MLExportRow[]`
 - `frontend/src/globals.css` — `--sr-graph-individuals`, `--sr-graph-photo`, `--sr-graph-audio`, `--sr-graph-video` tokens in both themes
+
+### Species Detail — Graph Options and Reported With (complete — May 2026)
+
+Two enhancements to the Species Detail tab.
+
+**Graph Options card:**
+- A dedicated `SectionCard` above both graphs that unifies interval and view-mode control
+- Replaces the auto-detect interval logic in `buildGraphData` (which previously switched to monthly when `years.size <= 1`) with an explicit user-controlled `interval` state
+- Yearly / Monthly segmented toggle: sets `graphInterval` state (`'yearly'` | `'monthly'`); drives `buildGraphData` via the `graphResult` useMemo
+- Per Period / Cumulative segmented toggle: sets `viewMode` state; both graphs respond simultaneously
+- Card only renders when `hasGraphData` is true (≥2 distinct periods exist)
+- `graphInterval` and `viewMode` reset to defaults (`'yearly'`, `'per-period'`) on species change via `selectSpecies()`
+- `graphResult` is computed once in the parent via `useMemo` and passed down as props; `SightingsGraph` is a controlled component — no longer owns its own interval state
+
+**Reported With section:**
+- A `SectionCard` between Breeding Codes and Top Locations
+- Lists species most frequently appearing on the same eBird checklists as the selected species
+- Co-occurrence coefficient: `shared_checklists ÷ target_checklists × 100`, rounded to the nearest integer and shown as a percentage
+- `coOccurrence` useMemo builds a `Set<string>` of filtered `submissionId`s for O(1) checklist lookup; iterates `phase.observations` once to count shared checklists per co-occurring species
+- `normalizeSpeciesName()` applied when `mergeSubspecies` is true; target species excluded from results
+- Minimum 2 shared checklists required before a species appears
+- Top 10 shown by default; expand/collapse for the full list via `showAllCoOccurrence` state
+- Relative bar widths use `(r.pct / maxPct) * 100` scaling so the top result is always full-width; `maxPct ?? 1` prevents division by zero
+- Two discriminated union outcomes: `{ type: 'no-data' }` (no valid submissionIds in filtered observations) and `{ type: 'results', results, totalChecklists }` (ranked list)
+- Empty results state ("No species met the minimum co-occurrence threshold.") is distinct from no-data state
+- Section fully respects active county and date-range filters — `speciesObs` is the source for `targetIds`
+- `showAllCoOccurrence` resets on species change via `selectSpecies()`
+
+**Key files:**
+- `frontend/src/components/SpeciesDetail.tsx` — `graphInterval`, `viewMode`, `showAllCoOccurrence` state; `graphResult` and `coOccurrence` useMemos; GraphOptions card and Reported With card render blocks; `SlidersHorizontal` and `Share2` icons from lucide-react
+- `frontend/src/lib/sightingsGraph.ts` — `interval` parameter replaces auto-detect
+- `frontend/src/lib/sightingsGraph.test.ts` — all call sites updated to pass explicit interval
 
 ### Settings-First File Model (complete — May 2026)
 
