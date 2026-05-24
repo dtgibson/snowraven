@@ -1815,6 +1815,78 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             </div>
           </>
         )}
+
+        <Divider />
+        <SubLabel>Single-checklist birds</SubLabel>
+        <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
+          {fmt(funStats.singleChecklistBirds.length)} species seen on exactly one checklist
+        </p>
+        {funStats.singleChecklistBirds.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {funStats.singleChecklistBirds.map(bird => (
+              SUBMISSION_ID_RE.test(bird.submissionId) ? (
+                <a
+                  key={bird.name}
+                  href={`https://ebird.org/checklist/${bird.submissionId}`}
+                  target="_blank" rel="noreferrer"
+                  style={{
+                    fontSize: 12, padding: '3px 10px', borderRadius: 100,
+                    background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                    color: 'var(--sr-accent)', textDecoration: 'none',
+                  }}
+                >
+                  {bird.name}
+                </a>
+              ) : (
+                <span key={bird.name} style={{
+                  fontSize: 12, padding: '3px 10px', borderRadius: 100,
+                  background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                  color: 'var(--sr-text-muted)',
+                }}>
+                  {bird.name}
+                </span>
+              )
+            ))}
+          </div>
+        )}
+
+        <Divider />
+        <SubLabel>One-and-done birds</SubLabel>
+        {funStats.oneDoneBirds.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: 0 }}>No one-and-done birds in your data.</p>
+        ) : (
+          <>
+            <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
+              {fmt(funStats.oneDoneBirds.length)} species with a total individual count of exactly 1
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {funStats.oneDoneBirds.map(bird => (
+                SUBMISSION_ID_RE.test(bird.submissionId) ? (
+                  <a
+                    key={bird.name}
+                    href={`https://ebird.org/checklist/${bird.submissionId}`}
+                    target="_blank" rel="noreferrer"
+                    style={{
+                      fontSize: 12, padding: '3px 10px', borderRadius: 100,
+                      background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                      color: 'var(--sr-accent)', textDecoration: 'none',
+                    }}
+                  >
+                    {bird.name}
+                  </a>
+                ) : (
+                  <span key={bird.name} style={{
+                    fontSize: 12, padding: '3px 10px', borderRadius: 100,
+                    background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                    color: 'var(--sr-text-muted)',
+                  }}>
+                    {bird.name}
+                  </span>
+                )
+              ))}
+            </div>
+          </>
+        )}
       </SectionCard>
 
       {/* ── Section 7: Breeding Stats ──────────────────────────────────────── */}
@@ -2000,79 +2072,6 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           </>
         )}
 
-        {/* Single-checklist birds (renamed) */}
-        <Divider />
-        <SubLabel>Single-checklist birds</SubLabel>
-        <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
-          {fmt(funStats.singleChecklistBirds.length)} species seen on exactly one checklist
-        </p>
-        {funStats.singleChecklistBirds.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {funStats.singleChecklistBirds.map(bird => (
-              SUBMISSION_ID_RE.test(bird.submissionId) ? (
-                <a
-                  key={bird.name}
-                  href={`https://ebird.org/checklist/${bird.submissionId}`}
-                  target="_blank" rel="noreferrer"
-                  style={{
-                    fontSize: 12, padding: '3px 10px', borderRadius: 100,
-                    background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-                    color: 'var(--sr-accent)', textDecoration: 'none',
-                  }}
-                >
-                  {bird.name}
-                </a>
-              ) : (
-                <span key={bird.name} style={{
-                  fontSize: 12, padding: '3px 10px', borderRadius: 100,
-                  background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-                  color: 'var(--sr-text-muted)',
-                }}>
-                  {bird.name}
-                </span>
-              )
-            ))}
-          </div>
-        )}
-
-        {/* One-and-done birds (new) */}
-        <Divider />
-        <SubLabel>One-and-done birds</SubLabel>
-        {funStats.oneDoneBirds.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: 0 }}>No one-and-done birds in your data.</p>
-        ) : (
-          <>
-            <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
-              {fmt(funStats.oneDoneBirds.length)} species with a total individual count of exactly 1
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {funStats.oneDoneBirds.map(bird => (
-                SUBMISSION_ID_RE.test(bird.submissionId) ? (
-                  <a
-                    key={bird.name}
-                    href={`https://ebird.org/checklist/${bird.submissionId}`}
-                    target="_blank" rel="noreferrer"
-                    style={{
-                      fontSize: 12, padding: '3px 10px', borderRadius: 100,
-                      background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-                      color: 'var(--sr-accent)', textDecoration: 'none',
-                    }}
-                  >
-                    {bird.name}
-                  </a>
-                ) : (
-                  <span key={bird.name} style={{
-                    fontSize: 12, padding: '3px 10px', borderRadius: 100,
-                    background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-                    color: 'var(--sr-text-muted)',
-                  }}>
-                    {bird.name}
-                  </span>
-                )
-              ))}
-            </div>
-          </>
-        )}
 
         {/* Nemesis birds */}
         <Divider />

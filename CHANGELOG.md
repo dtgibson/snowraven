@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.14] - 2026-05-24
+
+### Changed
+- **Statistics — Single-checklist and one-and-done birds** — moved from Other Statistics to Data Quality, below the Biggest Single Counts table.
+
 ## [0.1.13] - 2026-05-24
 
 ### Fixed
