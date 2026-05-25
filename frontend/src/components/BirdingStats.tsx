@@ -2162,7 +2162,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       <SectionCard title="Other Statistics" icon={<Star size={16} />}>
 
         {/* Nemesis birds */}
-        <SubLabel>Current Local Nemesis Birds</SubLabel>
+        <SubLabel>Top Local Target Species</SubLabel>
         <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: '0 0 12px', borderLeft: '3px solid var(--sr-accent-border)', paddingLeft: 10 }}>
           <p style={{ margin: '0 0 6px' }}>
             Species observed near your configured location in the past 30 days that haven't appeared on your life list, sorted by most recently seen. Data comes from eBird's recent observations for the location and search radius set in Settings.
