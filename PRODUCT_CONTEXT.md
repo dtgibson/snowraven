@@ -683,6 +683,27 @@ Two targeted improvements to the Map Explorer tab shipped in v0.1.8.
 **Key files changed:**
 - `frontend/src/components/MapExplorer.tsx` — `targetTypeFilter` state; modified `displayedTargetPins` useMemo (two-pass: recency then type); `distKm` conversion in both fetch calls; filter pills JSX; count label; reset on fetch; empty state text updated
 
+### In-App Help Documentation (complete -- May 2026)
+
+A full-screen documentation overlay accessible from the top of the Settings tab. `docs/HELP.md` at the repo root is the single source of truth -- imported at build time via Vite's `?raw` loader and bundled as a string literal, making documentation always available offline with no runtime network call. The same file is rendered by GitHub at a predictable URL.
+
+**What it does:**
+- "Help & Documentation" section at the very top of Settings (above Appearance), with an "Open documentation" button
+- Full-screen overlay (`z-index: 1200`, `position: fixed; inset: 0`) with a sticky 200px sidebar TOC and a max-width 680px content area
+- 15-entry TOC with sub-item indentation; clicking any entry scrolls to the corresponding section using `getBoundingClientRect()` arithmetic against the scrollable body ref
+- Focus trap cycles Tab/Shift+Tab among focusable elements inside the overlay; Escape closes; close button (`aria-label="Close documentation"`) auto-focuses on mount
+- Custom lightweight markdown renderer: `parseBlocks()` (line-by-line block parser) + `renderInline()` (regex-based inline renderer for bold, code, links) -- zero new npm dependencies
+- Supported block types: H1, H2, H3, paragraphs, unordered lists, ordered lists, fenced code blocks, horizontal rules, inline code, bold, hyperlinks
+- All links rendered with `target="_blank" rel="noreferrer"`; all colors use `var(--sr-*)` tokens only
+- `docs/HELP.md` covers: Getting Started, API Keys (eBird + OpenWeather with One Call by Call warning), Default Files (eBird backup + ML export), Weather, Species Detail, Statistics (all 9 cards including Top Local Target Species with dot color explanation), Map Explorer, Media List, Breeding Codes, Life List Comparer, Settings
+- `README.md` updated with a "Documentation" section linking to `docs/HELP.md` and full descriptions of all tabs
+
+**Key files:**
+- `docs/HELP.md` -- single source of truth for all help content; update when adding or changing features
+- `frontend/src/components/HelpDocs.tsx` -- overlay component with custom markdown renderer
+- `frontend/src/components/Settings.tsx` -- Help & Documentation section (first section), `helpOpen` state, `HelpDocs` mount
+- `frontend/vite.config.ts` -- `server.fs.allow: ['..']` enables dev server to resolve the `?raw` import outside `frontend/`
+
 ## Key Decisions
 
 **eBird coordinate fallback strategy**

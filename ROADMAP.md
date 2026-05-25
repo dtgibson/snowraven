@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-30 versions shipped. Last shipped: **Media card on the Statistics tab** — four-series chart (Photo / Audio / Video / Total) with weekly/monthly/yearly/total interval controls and a per-period/cumulative toggle; Most Photographed, Most Recorded, and Most Filmed rankings moved from Other Statistics into the new card.
+31 versions shipped. Last shipped: **In-app help documentation** -- full-screen overlay accessible from the top of Settings; `docs/HELP.md` bundled at build time via Vite `?raw` import; always available offline; covers all tabs, API key setup, and file instructions.
 
-Previously: **Map Explorer improvements** — type filter pills (Photo / Audio / Video, AND logic) on the Media Targets sidebar; fixed hotspot radius bug where eBird API calls received miles instead of km, causing public hotspots to clip at ~60% of the intended radius.
+Previously: **Media card on the Statistics tab** -- four-series chart (Photo / Audio / Video / Total) with weekly/monthly/yearly/total interval controls and a per-period/cumulative toggle; Most Photographed, Most Recorded, and Most Filmed rankings moved from Other Statistics into the new card.
 
 ---
 

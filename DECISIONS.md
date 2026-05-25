@@ -4,6 +4,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Help documentation bundled at build time via Vite ?raw import — 2026-05-25
+
+**Decision:** `docs/HELP.md` is imported in `HelpDocs.tsx` as `import helpText from '../../../docs/HELP.md?raw'`. Vite resolves this at build time and inlines the file content as a string literal in the bundle. No runtime fetch is made; the documentation is always available offline.
+
+**Rationale:** The only valid input for the help panel is a developer-controlled static file -- not user data and not a remote URL. Build-time bundling eliminates an entire class of failure (network error, server unavailability) with no trade-off for this use case. It also means the app works offline on a Pi with no internet access.
+
+**Implications:** `docs/HELP.md` must be updated whenever user-facing behavior changes -- it is the source of truth for both the in-app panel and the GitHub-rendered URL. `vite.config.ts` sets `server.fs.allow: ['..']` to allow the dev server to resolve the import outside `frontend/`; this is dev-only (production resolves at compile time). Any future static documentation added to the app should follow the same `?raw` pattern rather than a fetch-on-open approach.
+
+---
+
 ## Tab layout stored in localStorage, not server-side — 2026-05-24
 
 **Decision:** Tab order and visibility preferences are stored per-browser in `localStorage` (`sr-tab-layout` key), not in the server's `data/` directory or user account.

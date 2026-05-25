@@ -55,6 +55,13 @@ cd backend && python -m pytest tests/ -v
 - New tokens go in both `:root` and `[data-theme="dark"]` before use
 - The `data-theme` attribute on `<html>` is set by the anti-flash script in `index.html` and updated by `applyTheme()` in `src/lib/theme.ts`
 
+### Documentation
+
+- **`docs/HELP.md` is the single source of truth for all in-app help content.** When a feature is added or changed, update this file to reflect the current behavior before pushing.
+- `HelpDocs.tsx` imports `docs/HELP.md` via Vite's `?raw` loader (`import helpText from '../../../docs/HELP.md?raw'`). Content is bundled at build time — no runtime fetch. Offline-available by design.
+- `vite.config.ts` sets `server.fs.allow: ['..']` to allow the dev server to resolve the `?raw` import outside the `frontend/` root. This is dev-only — production resolves at compile time.
+- **Also review and update `README.md`** before every push to ensure it reflects the current feature set.
+
 ### Production build
 ```
 ./start.sh
