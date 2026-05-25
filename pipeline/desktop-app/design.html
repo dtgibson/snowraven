@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven Desktop — Design Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1A1A2E;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: -apple-system, 'Inter', system-ui, sans-serif;
+    padding: 48px 32px;
+    gap: 32px;
+  }
+
+  /* Scene label */
+  .scene-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+    align-self: flex-start;
+    margin-left: calc(50% - 510px);
+  }
+
+  /* macOS window */
+  .window {
+    width: 1020px;
+    background: #ffffff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 0.5px rgba(255,255,255,0.06),
+      0 24px 80px rgba(0,0,0,0.6),
+      0 4px 16px rgba(0,0,0,0.3);
+  }
+
+  /* Title bar */
+  .titlebar {
+    background: #F5F5F5;
+    border-bottom: 1px solid #DEDEDE;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    position: relative;
+    user-select: none;
+  }
+
+  .traffic-lights {
+    display: flex;
+    gap: 8px;
+    z-index: 1;
+  }
+
+  .tl {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    cursor: default;
+    transition: filter 0.1s;
+  }
+  .tl:hover { filter: brightness(0.85); }
+  .tl-close  { background: #FF5F57; border: 0.5px solid rgba(0,0,0,0.1); }
+  .tl-min    { background: #FEBC2E; border: 0.5px solid rgba(0,0,0,0.1); }
+  .tl-full   { background: #28C840; border: 0.5px solid rgba(0,0,0,0.1); }
+
+  .titlebar-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #2C2C2C;
+    letter-spacing: -0.01em;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Tab bar */
+  .tabbar {
+    background: #FAFAFA;
+    border-bottom: 1px solid #E4E4E7;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 2px;
+    overflow-x: auto;
+  }
+
+  .tab {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #71717A;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.12s;
+    margin-bottom: -1px;
+  }
+
+  .tab:hover { color: #2D8653; }
+
+  .tab.active {
+    color: #2D8653;
+    border-bottom-color: #2D8653;
+  }
+
+  /* Content area */
+  .content {
+    height: 560px;
+    overflow-y: auto;
+  }
+
+  /* ====================== SETTINGS VIEW ====================== */
+  .settings-view {
+    padding: 32px 48px;
+    display: none;
+  }
+  .settings-view.active { display: block; }
+
+  .settings-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #A0A0A0;
+    margin-bottom: 10px;
+    margin-top: 24px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  .card {
+    background: #FFFFFF;
+    border: 1px solid #E4E4E7;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 0;
+  }
+
+  .card-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    gap: 14px;
+    border-bottom: 1px solid #F2F2F2;
+  }
+  .card-row:last-child { border-bottom: none; }
+
+  .row-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .icon-green  { background: #E8F5EE; }
+  .icon-amber  { background: #FEF3C7; }
+  .icon-blue   { background: #EEF2FF; }
+  .icon-slate  { background: #F1F5F9; }
+
+  .row-body { flex: 1; min-width: 0; }
+
+  .row-title {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #0F1117;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row-sub {
+    font-size: 11.5px;
+    color: #71717A;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .row-action {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+  .badge-green  { background: #E8F5EE; color: #2D8653; }
+  .badge-amber  { background: #FEF3C7; color: #92400E; }
+  .badge-slate  { background: #F4F4F5; color: #71717A; }
+
+  /* Buttons */
+  .btn {
+    padding: 6px 12px;
+    border-radius: 7px;
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-primary  { background: #2D8653; color: white; }
+  .btn-primary:hover { background: #256B44; }
+  .btn-ghost    { background: #F4F4F5; color: #3C3C3C; border: 1px solid #E4E4E7; }
+  .btn-ghost:hover { background: #EAEAEA; }
+  .btn-danger   { background: transparent; color: #EF4444; border: 1px solid #FECACA; padding: 4px 9px; font-size: 11.5px; }
+  .btn-danger:hover { background: #FEF2F2; }
+
+  /* Toggle */
+  .toggle {
+    width: 42px;
+    height: 24px;
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .toggle.on  { background: #2D8653; }
+  .toggle.off { background: #D4D4D8; }
+  .toggle-knob {
+    position: absolute;
+    top: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    transition: left 0.15s;
+  }
+  .toggle.on  .toggle-knob { left: 20px; }
+  .toggle.off .toggle-knob { left: 2px; }
+
+  /* Update banner */
+  .update-banner {
+    background: linear-gradient(135deg, #E8F5EE 0%, #F0FAF4 100%);
+    border: 1px solid #A7D4B8;
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .update-icon {
+    width: 40px;
+    height: 40px;
+    background: #2D8653;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .update-body { flex: 1; }
+  .update-title { font-size: 13.5px; font-weight: 600; color: #1A5C38; margin-bottom: 2px; }
+  .update-sub   { font-size: 12px; color: #4A8B65; }
+  .update-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+  /* Theme picker */
+  .theme-options {
+    display: flex;
+    gap: 10px;
+  }
+
+  .theme-opt {
+    flex: 1;
+    border: 1.5px solid #E4E4E7;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: #3C3C3C;
+    transition: all 0.12s;
+  }
+  .theme-opt:hover { border-color: #B2D9C1; }
+  .theme-opt.selected { border-color: #2D8653; background: #F0FAF4; color: #2D8653; }
+
+  .theme-swatch {
+    width: 28px;
+    height: 18px;
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.08);
+    flex-shrink: 0;
+  }
+  .swatch-light  { background: #F8F8F8; }
+  .swatch-dark   { background: #1C1C2E; }
+  .swatch-system { background: linear-gradient(135deg, #F8F8F8 50%, #1C1C2E 50%); }
+
+  /* ====================== STATS VIEW ====================== */
+  .stats-view {
+    padding: 32px 48px;
+    display: none;
+  }
+  .stats-view.active { display: block; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: white;
+    border: 1px solid #E4E4E7;
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+
+  .stat-value {
+    font-size: 30px;
+    font-weight: 700;
+    color: #0F1117;
+    letter-spacing: -0.04em;
+    margin-bottom: 4px;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #A0A0A0;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+
+  .chart-placeholder {
+    height: 300px;
+    background: #FAFAFA;
+    border: 1px solid #E4E4E7;
+    border-radius: 10px;
+    display: flex;
+    align-items: flex-end;
+    padding: 24px;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .bar {
+    flex: 1;
+    border-radius: 4px 4px 0 0;
+    background: #E8F5EE;
+    transition: background 0.1s;
+    cursor: pointer;
+    min-width: 0;
+  }
+  .bar:hover { background: #2D8653; }
+  .bar.highlight { background: #2D8653; }
+
+  /* ====================== MAP VIEW ====================== */
+  .map-view {
+    height: 560px;
+    display: none;
+    position: relative;
+    overflow: hidden;
+    background: #EAF0E8;
+  }
+  .map-view.active { display: block; }
+
+  .map-tiles {
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.04) 0px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 40px, rgba(0,0,0,0.04) 41px),
+      repeating-linear-gradient(90deg, rgba(0,0,0,0.04) 0px, rgba(0,0,0,0) 1px, rgba(0,0,0,0) 40px, rgba(0,0,0,0.04) 41px),
+      #DDEBD5;
+  }
+
+  .map-pin {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #2D8653;
+    border: 2px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+
+  .map-controls {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .map-btn {
+    width: 32px;
+    height: 32px;
+    background: white;
+    border: 1px solid #E4E4E7;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    color: #3C3C3C;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+
+  /* ====================== WEATHER / GENERIC VIEW ====================== */
+  .generic-view {
+    padding: 80px 48px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #71717A;
+  }
+  .generic-view.active { display: flex; }
+
+  .generic-icon { margin-bottom: 16px; }
+  .generic-title { font-size: 16px; font-weight: 600; color: #0F1117; margin-bottom: 6px; }
+  .generic-sub   { font-size: 13px; max-width: 320px; }
+
+  /* Keychain dialog overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+  .overlay.open { display: flex; }
+
+  .dialog {
+    background: white;
+    border-radius: 14px;
+    padding: 28px 32px;
+    width: 400px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+  }
+
+  .dialog-icon {
+    width: 52px;
+    height: 52px;
+    background: #EBF7F0;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+  }
+
+  .dialog-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #0F1117;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  .dialog-sub {
+    font-size: 13px;
+    color: #71717A;
+    text-align: center;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  .input-group {
+    margin-bottom: 16px;
+  }
+
+  .input-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3C3C3C;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .input-field {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid #E4E4E7;
+    border-radius: 8px;
+    font-size: 13.5px;
+    font-family: 'Menlo', 'SF Mono', monospace;
+    color: #0F1117;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  .input-field:focus { border-color: #2D8653; }
+
+  .keychain-note {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 12px;
+    background: #F0FAF4;
+    border-radius: 8px;
+    font-size: 11.5px;
+    color: #2D8653;
+    margin-bottom: 20px;
+  }
+
+  .dialog-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .dialog-actions .btn { flex: 1; justify-content: center; padding: 10px; font-size: 13.5px; }
+</style>
+</head>
+<body>
+
+<div class="scene-label">SnowRaven Desktop — Stage 4 Design Mockup</div>
+
+<!-- macOS Window -->
+<div class="window">
+
+  <!-- Title bar -->
+  <div class="titlebar">
+    <div class="traffic-lights">
+      <div class="tl tl-close"></div>
+      <div class="tl tl-min"></div>
+      <div class="tl tl-full"></div>
+    </div>
+
+    <div class="titlebar-center">
+      <!-- Raven icon -->
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path d="M12 3C9 3 6.5 5 6 8c-1.5 0.5-3 2-3 4 0 1 0.5 2 1.5 2.5L6 17l1.5 3h9L18 17l1.5-2.5c1-0.5 1.5-1.5 1.5-2.5 0-2-1.5-3.5-3-4C17.5 5 15 3 12 3z" fill="#2D8653" opacity="0.25"/>
+        <path d="M12 3c-1.5 0-2.8 0.6-3.8 1.5M6 8c-1.5 0.5-3 2-3 4 0 1 0.5 2 1.5 2.5" stroke="#2D8653" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="9.5" cy="9" r="1" fill="#2D8653"/>
+      </svg>
+      SnowRaven
+    </div>
+
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabbar">
+    <div class="tab" onclick="switchView('weather', this)">Weather</div>
+    <div class="tab" onclick="switchView('breeding', this)">Breeding Codes</div>
+    <div class="tab" onclick="switchView('media', this)">Media</div>
+    <div class="tab" onclick="switchView('species', this)">Species Detail</div>
+    <div class="tab" onclick="switchView('stats', this)">Statistics</div>
+    <div class="tab" onclick="switchView('map', this)">Map</div>
+    <div class="tab active" onclick="switchView('settings', this)">Settings</div>
+  </div>
+
+  <!-- ==================== SETTINGS ==================== -->
+  <div id="view-settings" class="settings-view active">
+
+    <!-- Update banner -->
+    <div class="update-banner">
+      <div class="update-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </div>
+      <div class="update-body">
+        <div class="update-title">SnowRaven 0.2.0 is available</div>
+        <div class="update-sub">You're on 0.1.0. Adds county filter improvements and performance fixes.</div>
+      </div>
+      <div class="update-actions">
+        <button class="btn btn-primary">Update now</button>
+        <button class="btn btn-ghost">Later</button>
+      </div>
+    </div>
+
+    <div class="settings-columns">
+      <!-- Left column -->
+      <div>
+        <div class="section-label">API Keys</div>
+        <div class="card">
+          <div class="card-row">
+            <div class="row-icon icon-green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">eBird API Key</div>
+              <div class="row-sub">Species data, checklists, statistics</div>
+            </div>
+            <div class="row-action">
+              <div class="badge badge-green">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Keychain
+              </div>
+              <button class="btn btn-danger">Remove</button>
+            </div>
+          </div>
+          <div class="card-row">
+            <div class="row-icon icon-amber">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>
+              </svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">OpenWeather API Key</div>
+              <div class="row-sub">Weather lookups on checklists</div>
+            </div>
+            <div class="row-action">
+              <div class="badge badge-amber">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Not set
+              </div>
+              <button class="btn btn-primary" onclick="openDialog()">Add key</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top:20px;">Appearance</div>
+        <div class="card">
+          <div class="card-row" style="flex-direction:column;align-items:flex-start;gap:12px;">
+            <div class="row-body">
+              <div class="row-title">Theme</div>
+              <div class="row-sub">Follows macOS automatically by default</div>
+            </div>
+            <div class="theme-options" style="width:100%;">
+              <div class="theme-opt">
+                <div class="theme-swatch swatch-light"></div>
+                Light
+              </div>
+              <div class="theme-opt">
+                <div class="theme-swatch swatch-dark"></div>
+                Dark
+              </div>
+              <div class="theme-opt selected">
+                <div class="theme-swatch swatch-system"></div>
+                System
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top:20px;">Data</div>
+        <div class="card">
+          <div class="card-row">
+            <div class="row-icon icon-slate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">eBird Backup File</div>
+              <div class="row-sub">~/Library/Application Support/SnowRaven</div>
+            </div>
+            <div class="row-action">
+              <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;">Change</button>
+            </div>
+          </div>
+          <div class="card-row">
+            <div class="row-icon icon-slate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">ML Export File</div>
+              <div class="row-sub">~/Library/Application Support/SnowRaven</div>
+            </div>
+            <div class="row-action">
+              <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;">Change</button>
+            </div>
+          </div>
+          <div class="card-row">
+            <div class="row-icon icon-green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+              </svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">Taxonomy Cache</div>
+              <div class="row-sub">Cached 2026-05-20 — v2024</div>
+            </div>
+            <div class="row-action">
+              <div class="badge badge-green">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                Current
+              </div>
+              <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;">Refresh</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div>
+        <div class="section-label">Tab Layout</div>
+        <div class="card">
+          <div class="card-row">
+            <div class="row-icon icon-slate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">Weather</div>
+              <div class="row-sub">Visible</div>
+            </div>
+            <div class="row-action">
+              <div class="toggle on" onclick="toggleEl(this)"><div class="toggle-knob"></div></div>
+            </div>
+          </div>
+          <div class="card-row">
+            <div class="row-icon icon-slate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">Breeding Codes</div>
+              <div class="row-sub">Visible</div>
+            </div>
+            <div class="row-action">
+              <div class="toggle on" onclick="toggleEl(this)"><div class="toggle-knob"></div></div>
+            </div>
+          </div>
+          <div class="card-row">
+            <div class="row-icon icon-slate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">Media List</div>
+              <div class="row-sub">Visible</div>
+            </div>
+            <div class="row-action">
+              <div class="toggle on" onclick="toggleEl(this)"><div class="toggle-knob"></div></div>
+            </div>
+          </div>
+          <div class="card-row">
+            <div class="row-icon icon-slate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">Map Explorer</div>
+              <div class="row-sub">Hidden</div>
+            </div>
+            <div class="row-action">
+              <div class="toggle off" onclick="toggleEl(this)"><div class="toggle-knob"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top:20px;">About</div>
+        <div class="card">
+          <div class="card-row">
+            <div class="row-icon icon-green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">SnowRaven for Mac</div>
+              <div class="row-sub">Version 0.1.0 (build 35)</div>
+            </div>
+          </div>
+          <div class="card-row">
+            <div class="row-icon icon-slate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+              </svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">Source Code</div>
+              <div class="row-sub">github.com/dtgibson/snowraven</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top:20px;">Help</div>
+        <div class="card">
+          <div class="card-row" style="cursor:pointer;" onclick="">
+            <div class="row-icon icon-slate">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">Help &amp; Documentation</div>
+              <div class="row-sub">Setup guides, feature walkthroughs</div>
+            </div>
+            <div class="row-action">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0A0A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STATISTICS ==================== -->
+  <div id="view-stats" class="stats-view">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">843</div>
+        <div class="stat-label">Life List</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">2,841</div>
+        <div class="stat-label">Checklists</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">41</div>
+        <div class="stat-label">States / Provinces</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">312</div>
+        <div class="stat-label">Species with Photos</div>
+      </div>
+    </div>
+    <div class="chart-placeholder">
+      <div class="bar" style="height:30%;"></div>
+      <div class="bar" style="height:55%;"></div>
+      <div class="bar" style="height:40%;"></div>
+      <div class="bar" style="height:70%;"></div>
+      <div class="bar" style="height:45%;"></div>
+      <div class="bar" style="height:85%;"></div>
+      <div class="bar highlight" style="height:100%;"></div>
+      <div class="bar" style="height:60%;"></div>
+      <div class="bar" style="height:75%;"></div>
+      <div class="bar" style="height:50%;"></div>
+      <div class="bar" style="height:65%;"></div>
+      <div class="bar" style="height:80%;"></div>
+    </div>
+  </div>
+
+  <!-- ==================== MAP ==================== -->
+  <div id="view-map" class="map-view">
+    <div class="map-tiles"></div>
+    <!-- Scattered pins -->
+    <div class="map-pin" style="left:18%;top:32%;"></div>
+    <div class="map-pin" style="left:26%;top:55%;"></div>
+    <div class="map-pin" style="left:44%;top:28%;"></div>
+    <div class="map-pin" style="left:52%;top:48%;"></div>
+    <div class="map-pin" style="left:61%;top:38%;"></div>
+    <div class="map-pin" style="left:38%;top:66%;"></div>
+    <div class="map-pin" style="left:72%;top:55%;background:#1A5C38;width:14px;height:14px;top:43%;"></div>
+    <div class="map-pin" style="left:80%;top:30%;"></div>
+    <div class="map-controls">
+      <div class="map-btn">+</div>
+      <div class="map-btn">−</div>
+    </div>
+  </div>
+
+  <!-- ==================== GENERIC VIEWS ==================== -->
+  <div id="view-weather" class="generic-view">
+    <div class="generic-icon">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#D0D0D0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/></svg>
+    </div>
+    <div class="generic-title">Weather Lookup</div>
+    <div class="generic-sub">Enter a checklist ID to see the conditions at observation time.</div>
+  </div>
+
+  <div id="view-breeding" class="generic-view">
+    <div class="generic-icon">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#D0D0D0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a6 6 0 0 1 12 0v2"/></svg>
+    </div>
+    <div class="generic-title">Breeding Codes</div>
+    <div class="generic-sub">Review and filter confirmed breeding behavior across your checklists.</div>
+  </div>
+
+  <div id="view-media" class="generic-view">
+    <div class="generic-icon">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#D0D0D0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+    </div>
+    <div class="generic-title">Media List</div>
+    <div class="generic-sub">Browse and sort species with photos, audio, and video in your collection.</div>
+  </div>
+
+  <div id="view-species" class="generic-view">
+    <div class="generic-icon">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#D0D0D0" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </div>
+    <div class="generic-title">Species Detail</div>
+    <div class="generic-sub">Search any species to see your full observation history, photos, and statistics.</div>
+  </div>
+
+</div>
+<!-- /window -->
+
+<!-- Keychain dialog -->
+<div class="overlay" id="overlay" onclick="closeDialog(event)">
+  <div class="dialog">
+    <div class="dialog-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </div>
+    <div class="dialog-title">Add OpenWeather API Key</div>
+    <div class="dialog-sub">Your key is stored in Mac Keychain and never written to disk in plaintext.</div>
+    <div class="input-group">
+      <label class="input-label">API Key</label>
+      <input class="input-field" type="password" placeholder="Paste your key here" id="apiKeyInput">
+    </div>
+    <div class="keychain-note">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Stored securely in Mac Keychain — not in any file
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" onclick="closeDialog()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveKey()">Save to Keychain</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function switchView(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('[id^="view-"]').forEach(v => {
+      v.classList.remove('active');
+      // settings-view uses .active for display:block; others too
+    });
+    const target = document.getElementById('view-' + name);
+    if (target) target.classList.add('active');
+  }
+
+  function toggleEl(el) {
+    if (el.classList.contains('on')) {
+      el.classList.remove('on');
+      el.classList.add('off');
+      el.nextElementSibling && (el.nextElementSibling.textContent = 'Hidden');
+      el.closest('.card-row').querySelector('.row-sub').textContent = 'Hidden';
+    } else {
+      el.classList.remove('off');
+      el.classList.add('on');
+      el.closest('.card-row').querySelector('.row-sub').textContent = 'Visible';
+    }
+  }
+
+  function openDialog() {
+    document.getElementById('overlay').classList.add('open');
+  }
+
+  function closeDialog(e) {
+    if (!e || e.target === document.getElementById('overlay')) {
+      document.getElementById('overlay').classList.remove('open');
+    }
+  }
+
+  function saveKey() {
+    const val = document.getElementById('apiKeyInput').value.trim();
+    if (!val) return;
+    document.getElementById('overlay').classList.remove('open');
+    // Update badge
+    const rows = document.querySelectorAll('.card-row');
+    rows.forEach(row => {
+      if (row.querySelector('.row-title') && row.querySelector('.row-title').textContent === 'OpenWeather API Key') {
+        row.querySelector('.badge').className = 'badge badge-green';
+        row.querySelector('.badge').innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Keychain';
+        const btn = row.querySelector('.btn-primary');
+        if (btn) {
+          btn.className = 'btn btn-danger';
+          btn.textContent = 'Remove';
+          btn.onclick = null;
+        }
+      }
+    });
+  }
+</script>
+
+</body>
+</html>

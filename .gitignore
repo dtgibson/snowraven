@@ -24,3 +24,9 @@ backend/.venv/
 
 # Uploaded user data files (server-side storage)
 data/
+
+# Tauri / Rust build output
+src-tauri/target/
+
+# Root package manager
+node_modules/

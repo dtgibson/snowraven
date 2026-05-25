@@ -1,0 +1,11 @@
+{
+  "name": "snowraven",
+  "private": true,
+  "scripts": {
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

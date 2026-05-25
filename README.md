@@ -290,6 +290,20 @@ cd backend
 python -m pytest tests/ -v
 ```
 
+### Desktop app (Tauri)
+
+The repo includes a Tauri v2 project at `src-tauri/` for building the Mac and Windows standalone app. Phase 0 establishes the Tauri project structure alongside the web app; the desktop app still requires the backend during this phase.
+
+Prerequisites: [Rust](https://rustup.rs/) and the Tauri CLI (`npm install -g @tauri-apps/cli@next`).
+
+```bash
+# Run the desktop app in development mode (starts Tauri + Vite dev server)
+npm run desktop:dev
+
+# Build a production desktop app bundle
+npm run desktop:build
+```
+
 ---
 
 ## Security note

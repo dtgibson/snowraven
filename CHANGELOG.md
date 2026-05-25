@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.2.0] - 2026-05-25
+
+### Added
+- **Transport seam** (`frontend/src/lib/transport.ts`) -- `TransportAdapter` interface wrapping all outbound HTTP. `WebTransport` routes through the existing Vite proxy to the FastAPI backend (no behavior change for web/Pi users). `TauriTransport` delegates to `WebTransport` in Phase 0; will call external APIs directly in Phase 3 as each proxy migrates.
+- **Storage seam** (`frontend/src/lib/storage.ts`) -- `StorageAdapter` interface wrapping all persistent data access: API keys, settings, and stored files. `WebStorage` routes through the existing `/settings` API endpoints. `TauriStorage` delegates to `WebStorage` in Phase 0; will use OS keychain (Phase 2) and app data directory (Phase 4) as migration progresses.
+- **Platform detection** (`frontend/src/lib/platform.ts`) -- `isTauri()` utility checking `window.__TAURI_INTERNALS__`. Single source of truth for platform detection across all seam implementations.
+- **Tauri v2 project** (`src-tauri/`) -- Tauri project initialized: `Cargo.toml`, `build.rs`, `tauri.conf.json`, `src/main.rs`, `src/lib.rs`, and `capabilities/default.json`. Wraps the existing Vite frontend build. App identifier: `com.snowraven.app`.
+- **Root `package.json`** -- `desktop:dev` and `desktop:build` scripts for running the Tauri app via `@tauri-apps/cli`.
+
+### Changed
+- **`frontend/vite.config.ts`** -- Added `clearScreen: false` for Tauri compatibility (keeps Tauri terminal output visible).
+
 ## [0.1.19] - 2026-05-25
 
 ### Added
