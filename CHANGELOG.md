@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.18] - 2026-05-25
+
+### Changed
+- **Build — chunk splitting** — Vendor libraries now split into three separate cacheable chunks: `vendor-recharts` (~397 kB), `vendor-react` (~179 kB), `vendor-leaflet` (~170 kB). App code chunk reduced from ~1,013 kB to ~272 kB. Resolves the large-chunk build warning. Configured via `manualChunks` in `vite.config.ts`.
+
 ## [0.1.17] - 2026-05-25
 
 ### Changed
