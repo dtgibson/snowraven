@@ -112,3 +112,85 @@ export function buildGraphData(
 
   return { data, interval }
 }
+
+export type MediaGraphInterval = 'weekly' | 'monthly' | 'yearly' | 'total'
+
+export type MediaGraphPoint = {
+  key: string
+  photo: number
+  audio: number
+  video: number
+  total: number
+}
+
+export function buildMediaGraphData(
+  mlRows: MLExportRow[],
+  interval: MediaGraphInterval,
+): { data: MediaGraphPoint[]; interval: MediaGraphInterval } {
+  const keyOf = (date: string): string => {
+    if (interval === 'weekly') return isoWeekKey(date)
+    if (interval === 'monthly') return date.slice(0, 7)
+    if (interval === 'yearly') return date.slice(0, 4)
+    return date.slice(0, 10) // 'total' → daily YYYY-MM-DD
+  }
+
+  const photoMap = new Map<string, number>()
+  const audioMap = new Map<string, number>()
+  const videoMap = new Map<string, number>()
+
+  for (const r of mlRows) {
+    if (!r.date) continue
+    const k = keyOf(r.date)
+    if (r.format === 'Photo') photoMap.set(k, (photoMap.get(k) ?? 0) + 1)
+    else if (r.format === 'Audio') audioMap.set(k, (audioMap.get(k) ?? 0) + 1)
+    else if (r.format === 'Video') videoMap.set(k, (videoMap.get(k) ?? 0) + 1)
+  }
+
+  const allKeys = new Set([...photoMap.keys(), ...audioMap.keys(), ...videoMap.keys()])
+  const sortedKeys = [...allKeys].sort()
+
+  if (sortedKeys.length < 2) return { data: [], interval }
+
+  if (interval === 'total') {
+    const data = sortedKeys.map(k => {
+      const photo = photoMap.get(k) ?? 0
+      const audio = audioMap.get(k) ?? 0
+      const video = videoMap.get(k) ?? 0
+      return { key: k, photo, audio, video, total: photo + audio + video }
+    })
+    return { data, interval }
+  }
+
+  // Gap-fill for weekly / monthly / yearly
+  const filled = new Set(sortedKeys)
+  if (interval === 'yearly') {
+    const firstY = parseInt(sortedKeys[0])
+    const lastY = parseInt(sortedKeys[sortedKeys.length - 1])
+    for (let y = firstY + 1; y < lastY; y++) filled.add(String(y))
+  } else if (interval === 'monthly') {
+    const [fy, fm] = sortedKeys[0].split('-').map(Number)
+    const [ly, lm] = sortedKeys[sortedKeys.length - 1].split('-').map(Number)
+    let cy = fy, cm = fm
+    while (cy < ly || (cy === ly && cm <= lm)) {
+      filled.add(`${cy}-${String(cm).padStart(2, '0')}`)
+      cm++; if (cm > 12) { cm = 1; cy++ }
+    }
+  } else {
+    const firstMonday = mondayOfISOWeek(sortedKeys[0])
+    const lastMonday = mondayOfISOWeek(sortedKeys[sortedKeys.length - 1])
+    const current = new Date(firstMonday)
+    while (current <= lastMonday) {
+      filled.add(isoWeekKey(current.toISOString().slice(0, 10)))
+      current.setUTCDate(current.getUTCDate() + 7)
+    }
+  }
+
+  const data: MediaGraphPoint[] = [...filled].sort().map(k => {
+    const photo = photoMap.get(k) ?? 0
+    const audio = audioMap.get(k) ?? 0
+    const video = videoMap.get(k) ?? 0
+    return { key: k, photo, audio, video, total: photo + audio + video }
+  })
+
+  return { data, interval }
+}

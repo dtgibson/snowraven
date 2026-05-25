@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — Media Stats Design</title>
+<style>
+:root {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-text: #0F1117;
+  --sr-text-muted: #71717A;
+  --sr-text-disabled: #A1A1AA;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-accent: #2D8653;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(45,134,83,0.25);
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-graph-photo: #3B82F6;
+  --sr-graph-audio: #F59E0B;
+  --sr-graph-video: #8B5CF6;
+  --sr-graph-media-total: #64748B;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--sr-bg); color: var(--sr-text); font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.5; }
+
+/* ── App header ── */
+.app-header {
+  background: var(--sr-surface);
+  border-bottom: 1px solid var(--sr-border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.app-header-logo {
+  width: 22px; height: 22px;
+  background: var(--sr-accent);
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+}
+.app-header-logo svg { width: 14px; height: 14px; }
+.app-header-name { font-size: 15px; font-weight: 600; color: var(--sr-text); }
+
+/* ── Tab bar ── */
+.tab-bar {
+  background: var(--sr-surface);
+  border-bottom: 1px solid var(--sr-border);
+  padding: 0 12px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  position: sticky;
+  top: 43px;
+  z-index: 19;
+}
+.tab {
+  padding: 9px 13px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sr-text-muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  cursor: default;
+}
+.tab.active { color: var(--sr-accent); border-bottom-color: var(--sr-accent); }
+
+/* ── Content ── */
+.content {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Ghost sections (context above/below) ── */
+.ghost-card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  opacity: 0.38;
+  pointer-events: none;
+}
+.ghost-card-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.ghost-icon { width: 16px; height: 16px; background: var(--sr-accent-bg); border-radius: 3px; }
+.ghost-title { font-size: 14px; font-weight: 600; color: var(--sr-text-muted); }
+.ghost-line { height: 10px; background: var(--sr-surface-subtle); border-radius: 4px; margin: 6px 0; }
+
+/* ── Media card ── */
+.card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  box-shadow: var(--sr-card-shadow);
+  overflow: hidden;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.card-icon { color: var(--sr-accent); display: flex; align-items: center; }
+.card-title { font-size: 15px; font-weight: 600; }
+.card-body { padding: 18px 24px 24px; }
+
+/* ── Graph options ── */
+.graph-options {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.seg-group { display: flex; align-items: center; gap: 8px; }
+.seg-label { font-size: 12px; color: var(--sr-text-muted); white-space: nowrap; }
+.seg {
+  display: inline-flex;
+  background: var(--sr-surface-subtle);
+  border-radius: 6px;
+  padding: 2px;
+  gap: 1px;
+}
+.seg button {
+  padding: 4px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--sr-text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+  font-family: inherit;
+}
+.seg button:hover:not(.active) { color: var(--sr-text); }
+.seg button.active {
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05);
+}
+#viewmode-wrap { transition: opacity 0.15s; }
+#viewmode-wrap.hidden { opacity: 0; pointer-events: none; }
+
+/* ── Chart ── */
+.chart-outer {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+}
+#chart-svg { width: 100%; display: block; overflow: visible; }
+.chart-tooltip {
+  position: absolute;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 7px;
+  padding: 8px 11px;
+  font-size: 11px;
+  line-height: 1.6;
+  box-shadow: var(--sr-card-shadow);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+  min-width: 120px;
+  z-index: 10;
+}
+.chart-tooltip.show { opacity: 1; }
+.tt-head { font-size: 12px; font-weight: 600; color: var(--sr-text); margin-bottom: 4px; }
+.tt-row { display: flex; align-items: center; gap: 5px; }
+.tt-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tt-name { color: var(--sr-text-muted); flex: 1; }
+.tt-val { color: var(--sr-text); font-weight: 600; }
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sr-text-muted); }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── Rankings ── */
+.rankings-divider { height: 1px; background: var(--sr-border-subtle); margin: 4px 0 18px; }
+.rankings-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.ranking-col-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+.ranking-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ranking-item { display: flex; align-items: center; gap: 6px; }
+.ranking-num { font-size: 11px; color: var(--sr-text-disabled); width: 14px; text-align: right; flex-shrink: 0; }
+.ranking-name {
+  font-size: 12px;
+  color: var(--sr-accent);
+  text-decoration: none;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ranking-name:hover { text-decoration: underline; }
+.ranking-count { font-size: 11px; color: var(--sr-text-muted); white-space: nowrap; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- App header -->
+<header class="app-header">
+  <div class="app-header-logo">
+    <svg viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round">
+      <path d="M7 2C4.8 2 3 3.8 3 6c0 1.5.8 2.8 2 3.5V11h4V9.5c1.2-.7 2-2 2-3.5 0-2.2-1.8-4-4-4z"/>
+    </svg>
+  </div>
+  <span class="app-header-name">SnowRaven</span>
+</header>
+
+<!-- Tab bar -->
+<nav class="tab-bar">
+  <div class="tab">Weather</div>
+  <div class="tab">Species Detail</div>
+  <div class="tab active">Statistics</div>
+  <div class="tab">Map Explorer</div>
+  <div class="tab">Media List</div>
+  <div class="tab">Breeding Codes</div>
+  <div class="tab">Life List Comparer</div>
+  <div class="tab">Settings</div>
+</nav>
+
+<!-- Page content -->
+<div class="content">
+
+  <!-- Ghost: Breeding Stats (above) -->
+  <div class="ghost-card">
+    <div class="ghost-card-header">
+      <div class="ghost-icon"></div>
+      <div class="ghost-title">Breeding Stats</div>
+    </div>
+    <div class="ghost-line" style="width:60%"></div>
+    <div class="ghost-line" style="width:45%"></div>
+    <div class="ghost-line" style="width:70%;margin-top:10px"></div>
+  </div>
+
+  <!-- ── MEDIA CARD ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="6" width="16" height="12" rx="2"/>
+          <path d="M18 10l4-2v8l-4-2"/>
+        </svg>
+      </div>
+      <h3 class="card-title">Media</h3>
+    </div>
+
+    <div class="card-body">
+      <!-- Graph options -->
+      <div class="graph-options">
+        <div class="seg-group">
+          <span class="seg-label">Interval</span>
+          <div class="seg" id="interval-seg">
+            <button data-val="weekly">Weekly</button>
+            <button data-val="monthly" class="active">Monthly</button>
+            <button data-val="yearly">Yearly</button>
+            <button data-val="total">Total</button>
+          </div>
+        </div>
+        <div class="seg-group" id="viewmode-wrap">
+          <span class="seg-label">View</span>
+          <div class="seg" id="viewmode-seg">
+            <button data-val="per-period" class="active">Per Period</button>
+            <button data-val="cumulative">Cumulative</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div class="chart-outer">
+        <svg id="chart-svg" height="220"></svg>
+        <div class="chart-tooltip" id="tooltip"></div>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--sr-graph-photo)"></div>Photo</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--sr-graph-audio)"></div>Audio</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--sr-graph-video)"></div>Video</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--sr-graph-media-total)"></div>Total</div>
+      </div>
+
+      <!-- Rankings -->
+      <div class="rankings-divider"></div>
+      <div class="rankings-grid">
+
+        <!-- Most Photographed -->
+        <div>
+          <div class="ranking-col-head">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3l-2-2H9L8 6z"/></svg>
+            Most Photographed
+          </div>
+          <ul class="ranking-list">
+            <li class="ranking-item"><span class="ranking-num">1</span><a class="ranking-name" href="#" onclick="return false">American Robin</a><span class="ranking-count">847 photos</span></li>
+            <li class="ranking-item"><span class="ranking-num">2</span><a class="ranking-name" href="#" onclick="return false">Red-tailed Hawk</a><span class="ranking-count">623</span></li>
+            <li class="ranking-item"><span class="ranking-num">3</span><a class="ranking-name" href="#" onclick="return false">Northern Cardinal</a><span class="ranking-count">589</span></li>
+            <li class="ranking-item"><span class="ranking-num">4</span><a class="ranking-name" href="#" onclick="return false">Great Blue Heron</a><span class="ranking-count">512</span></li>
+            <li class="ranking-item"><span class="ranking-num">5</span><a class="ranking-name" href="#" onclick="return false">Downy Woodpecker</a><span class="ranking-count">478</span></li>
+            <li class="ranking-item"><span class="ranking-num">6</span><a class="ranking-name" href="#" onclick="return false">Black-capped Chickadee</a><span class="ranking-count">441</span></li>
+            <li class="ranking-item"><span class="ranking-num">7</span><a class="ranking-name" href="#" onclick="return false">Dark-eyed Junco</a><span class="ranking-count">389</span></li>
+            <li class="ranking-item"><span class="ranking-num">8</span><a class="ranking-name" href="#" onclick="return false">Song Sparrow</a><span class="ranking-count">372</span></li>
+            <li class="ranking-item"><span class="ranking-num">9</span><a class="ranking-name" href="#" onclick="return false">White-breasted Nuthatch</a><span class="ranking-count">344</span></li>
+            <li class="ranking-item"><span class="ranking-num">10</span><a class="ranking-name" href="#" onclick="return false">American Crow</a><span class="ranking-count">318</span></li>
+          </ul>
+        </div>
+
+        <!-- Most Recorded (audio) -->
+        <div>
+          <div class="ranking-col-head">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+            Most Recorded
+          </div>
+          <ul class="ranking-list">
+            <li class="ranking-item"><span class="ranking-num">1</span><a class="ranking-name" href="#" onclick="return false">American Robin</a><span class="ranking-count">156 recordings</span></li>
+            <li class="ranking-item"><span class="ranking-num">2</span><a class="ranking-name" href="#" onclick="return false">Song Sparrow</a><span class="ranking-count">143</span></li>
+            <li class="ranking-item"><span class="ranking-num">3</span><a class="ranking-name" href="#" onclick="return false">Red-winged Blackbird</a><span class="ranking-count">128</span></li>
+            <li class="ranking-item"><span class="ranking-num">4</span><a class="ranking-name" href="#" onclick="return false">Common Yellowthroat</a><span class="ranking-count">112</span></li>
+            <li class="ranking-item"><span class="ranking-num">5</span><a class="ranking-name" href="#" onclick="return false">Ovenbird</a><span class="ranking-count">97</span></li>
+            <li class="ranking-item"><span class="ranking-num">6</span><a class="ranking-name" href="#" onclick="return false">Wood Thrush</a><span class="ranking-count">89</span></li>
+            <li class="ranking-item"><span class="ranking-num">7</span><a class="ranking-name" href="#" onclick="return false">Eastern Towhee</a><span class="ranking-count">82</span></li>
+            <li class="ranking-item"><span class="ranking-num">8</span><a class="ranking-name" href="#" onclick="return false">Yellow Warbler</a><span class="ranking-count">76</span></li>
+            <li class="ranking-item"><span class="ranking-num">9</span><a class="ranking-name" href="#" onclick="return false">Blk-thr. Green Warbler</a><span class="ranking-count">71</span></li>
+            <li class="ranking-item"><span class="ranking-num">10</span><a class="ranking-name" href="#" onclick="return false">Hermit Thrush</a><span class="ranking-count">65</span></li>
+          </ul>
+        </div>
+
+        <!-- Most Filmed (video) -->
+        <div>
+          <div class="ranking-col-head">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l5-2v8l-5-2"/></svg>
+            Most Filmed
+          </div>
+          <ul class="ranking-list">
+            <li class="ranking-item"><span class="ranking-num">1</span><a class="ranking-name" href="#" onclick="return false">Bald Eagle</a><span class="ranking-count">38 videos</span></li>
+            <li class="ranking-item"><span class="ranking-num">2</span><a class="ranking-name" href="#" onclick="return false">Great Blue Heron</a><span class="ranking-count">31</span></li>
+            <li class="ranking-item"><span class="ranking-num">3</span><a class="ranking-name" href="#" onclick="return false">Osprey</a><span class="ranking-count">27</span></li>
+            <li class="ranking-item"><span class="ranking-num">4</span><a class="ranking-name" href="#" onclick="return false">Red-tailed Hawk</a><span class="ranking-count">24</span></li>
+            <li class="ranking-item"><span class="ranking-num">5</span><a class="ranking-name" href="#" onclick="return false">Peregrine Falcon</a><span class="ranking-count">19</span></li>
+            <li class="ranking-item"><span class="ranking-num">6</span><a class="ranking-name" href="#" onclick="return false">American Kestrel</a><span class="ranking-count">16</span></li>
+            <li class="ranking-item"><span class="ranking-num">7</span><a class="ranking-name" href="#" onclick="return false">Turkey Vulture</a><span class="ranking-count">14</span></li>
+            <li class="ranking-item"><span class="ranking-num">8</span><a class="ranking-name" href="#" onclick="return false">Cooper's Hawk</a><span class="ranking-count">12</span></li>
+            <li class="ranking-item"><span class="ranking-num">9</span><a class="ranking-name" href="#" onclick="return false">Sharp-shinned Hawk</a><span class="ranking-count">9</span></li>
+            <li class="ranking-item"><span class="ranking-num">10</span><a class="ranking-name" href="#" onclick="return false">Merlin</a><span class="ranking-count">8</span></li>
+          </ul>
+        </div>
+
+      </div><!-- /rankings-grid -->
+    </div><!-- /card-body -->
+  </div><!-- /card -->
+
+  <!-- Ghost: Other Statistics (nemesis only) -->
+  <div class="ghost-card">
+    <div class="ghost-card-header">
+      <div class="ghost-icon"></div>
+      <div class="ghost-title">Other Statistics</div>
+    </div>
+    <div style="font-size:11px;color:#A1A1AA;font-style:italic;margin-bottom:8px">Current Local Nemesis Birds</div>
+    <div class="ghost-line" style="width:55%"></div>
+    <div class="ghost-line" style="width:40%"></div>
+    <div class="ghost-line" style="width:62%"></div>
+  </div>
+
+</div><!-- /content -->
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────
+// Monthly: Jan 2020 – Dec 2024 (60 values)
+const PHOTO_M = [22,18,31,45,62,78,54,48,41,35,19,12, 28,24,38,52,71,89,63,55,47,42,23,15, 35,29,44,61,84,103,75,68,58,50,29,18, 41,34,53,72,95,118,88,79,67,58,34,21, 48,41,62,85,108,127,96,87,74,65,38,25];
+const AUDIO_M = [5,4,8,14,22,31,18,14,11,9,5,3, 7,5,10,18,27,38,22,17,14,11,6,4, 9,7,14,23,33,46,28,22,17,14,8,5, 12,9,17,28,40,54,34,27,21,17,10,6, 15,11,21,33,47,62,40,32,25,20,12,8];
+const VIDEO_M = [0,1,2,4,7,9,5,4,3,2,1,0, 1,0,2,5,8,11,6,5,4,3,1,1, 2,1,3,6,10,14,8,7,5,4,2,1, 2,2,4,8,13,17,10,8,6,5,2,1, 3,2,5,10,15,21,13,11,8,7,3,2];
+
+// Monthly labels — show year at Jan, abbrev at Jul, empty otherwise
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_LABEL = Array.from({length:60}, (_,i) => {
+  const yr = 2020 + Math.floor(i/12);
+  const mo = i % 12;
+  if (mo === 0) return `${yr}`;
+  if (mo === 6) return `Jul '${String(yr).slice(2)}`;
+  return '';
+});
+const MONTHS_FULL = Array.from({length:60}, (_,i) => {
+  const yr = 2020 + Math.floor(i/12);
+  const mo = i % 12;
+  return `${MONTH_NAMES[mo]} ${yr}`;
+});
+
+// Yearly: 2020–2024
+const PHOTO_Y = [465, 547, 654, 780, 856];
+const AUDIO_Y = [144, 179, 226, 275, 326];
+const VIDEO_Y = [38, 47, 63, 78, 100];
+const YEAR_LABELS = ['2020','2021','2022','2023','2024'];
+
+// Weekly: ~260 weeks (5 years); approximate from monthly by ~4.33 weeks/month
+// Generate synthetic weekly data from monthly averages
+const PHOTO_W = [], AUDIO_W = [], VIDEO_W = [], WEEKS_LABEL = [], WEEKS_FULL = [];
+(function() {
+  let d = new Date(2020, 0, 6); // First Monday of 2020
+  for (let w = 0; w < 261; w++) {
+    const mo = Math.floor(w / 4.33);
+    const idx = Math.min(59, Math.floor(mo));
+    const frac = (w % 4.33) / 4.33;
+    const base = (v) => Math.round(v[idx] / 4.3 * (0.7 + frac * 0.6));
+    PHOTO_W.push(Math.max(0, base(PHOTO_M) + (w%3===0?2:-1)));
+    AUDIO_W.push(Math.max(0, base(AUDIO_M) + (w%5===0?1:0)));
+    VIDEO_W.push(Math.max(0, base(VIDEO_M)));
+    const yr = d.getFullYear();
+    const wk = Math.ceil((((d - new Date(yr,0,1))/86400000)+1)/7);
+    const show = (d.getMonth()===0&&d.getDate()<=7) ? `${yr}` : (d.getMonth()===6&&d.getDate()<=7) ? `Jul '${String(yr).slice(2)}` : '';
+    WEEKS_LABEL.push(show);
+    WEEKS_FULL.push(`Wk ${wk} '${String(yr).slice(2)}`);
+    d.setDate(d.getDate()+7);
+  }
+})();
+
+// Total: cumulative daily step — using monthly data as proxy, one point per month
+function makeCumulative(photo, audio, video) {
+  let rp=0, ra=0, rv=0;
+  return photo.map((_,i) => {
+    rp += photo[i]; ra += audio[i]; rv += video[i];
+    return { photo: rp, audio: ra, video: rv, total: rp+ra+rv };
+  });
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let interval = 'monthly';
+let viewMode = 'per-period';
+
+// ── Chart rendering ────────────────────────────────────────────────────────
+function getData() {
+  let photo, audio, video, labels, fullLabels;
+  if (interval === 'weekly') {
+    photo = PHOTO_W; audio = AUDIO_W; video = VIDEO_W;
+    labels = WEEKS_LABEL; fullLabels = WEEKS_FULL;
+  } else if (interval === 'yearly') {
+    photo = PHOTO_Y; audio = AUDIO_Y; video = VIDEO_Y;
+    labels = YEAR_LABELS; fullLabels = YEAR_LABELS;
+  } else if (interval === 'total') {
+    // cumulative monthly
+    const cum = makeCumulative(PHOTO_M, AUDIO_M, VIDEO_M);
+    photo = cum.map(d=>d.photo); audio = cum.map(d=>d.audio);
+    video = cum.map(d=>d.video); labels = MONTHS_LABEL; fullLabels = MONTHS_FULL;
+    return { photo, audio, video, total: photo.map((_,i)=>photo[i]+audio[i]+video[i]), labels, fullLabels };
+  } else {
+    photo = PHOTO_M; audio = AUDIO_M; video = VIDEO_M;
+    labels = MONTHS_LABEL; fullLabels = MONTHS_FULL;
+  }
+
+  if (viewMode === 'cumulative') {
+    const cum = makeCumulative(photo, audio, video);
+    return {
+      photo: cum.map(d=>d.photo), audio: cum.map(d=>d.audio),
+      video: cum.map(d=>d.video), total: cum.map(d=>d.total),
+      labels, fullLabels
+    };
+  }
+  return {
+    photo, audio, video, total: photo.map((_,i)=>photo[i]+audio[i]+video[i]),
+    labels, fullLabels
+  };
+}
+
+function renderChart() {
+  const svg = document.getElementById('chart-svg');
+  const W = svg.getBoundingClientRect().width || 800;
+  const H = 220;
+  const ML = 42, MR = 14, MT = 12, MB = 28;
+  const cW = W - ML - MR, cH = H - MT - MB;
+
+  const d = getData();
+  const n = d.photo.length;
+  const maxVal = Math.max(...d.total, 1);
+  const yMax = Math.ceil(maxVal * 1.08 / 10) * 10;
+
+  const xOf = i => ML + (i / (n-1)) * cW;
+  const yOf = v => MT + cH - (v / yMax) * cH;
+
+  // Gridlines and Y-axis labels
+  const gridCount = 4;
+  let gridSVG = '';
+  for (let g=0; g<=gridCount; g++) {
+    const v = Math.round((yMax / gridCount) * g);
+    const y = yOf(v);
+    gridSVG += `<line x1="${ML}" y1="${y.toFixed(1)}" x2="${W-MR}" y2="${y.toFixed(1)}" stroke="#E4E4E7" stroke-width="1"/>`;
+    gridSVG += `<text x="${ML-5}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#A1A1AA">${v >= 1000 ? (v/1000).toFixed(1)+'k' : v}</text>`;
+  }
+
+  // X-axis labels
+  let xSVG = '';
+  const step = interval === 'weekly' ? 4 : 1;
+  for (let i=0; i<n; i+=step) {
+    if (!d.labels[i]) continue;
+    const x = xOf(i);
+    xSVG += `<text x="${x.toFixed(1)}" y="${(H-6).toFixed(1)}" text-anchor="middle" font-size="10" fill="#A1A1AA">${d.labels[i]}</text>`;
+  }
+
+  // Line path helper
+  function makePath(vals) {
+    return vals.map((v,i) => `${i===0?'M':'L'}${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ');
+  }
+
+  const stepPath = (vals) => {
+    // Step-line for total interval
+    let p = '';
+    for (let i=0; i<vals.length; i++) {
+      const x = xOf(i).toFixed(1), y = yOf(vals[i]).toFixed(1);
+      if (i===0) p += `M${x},${y}`;
+      else { const xprev = xOf(i).toFixed(1); p += ` H${xprev} L${x},${y}`; }
+    }
+    return p;
+  };
+
+  const pathFn = interval === 'total' ? stepPath : makePath;
+
+  const colors = {
+    photo: '#3B82F6', audio: '#F59E0B', video: '#8B5CF6', total: '#64748B'
+  };
+  const series = [
+    { key: 'total', vals: d.total },
+    { key: 'photo', vals: d.photo },
+    { key: 'audio', vals: d.audio },
+    { key: 'video', vals: d.video },
+  ];
+
+  let linesSVG = series.map(s =>
+    `<path d="${pathFn(s.vals)}" fill="none" stroke="${colors[s.key]}" stroke-width="${s.key==='total'?2:1.8}" stroke-linejoin="round" stroke-linecap="round" opacity="${s.key==='total'?0.75:0.9}"/>`
+  ).join('\n');
+
+  // Hover overlay columns
+  let hoverSVG = '';
+  for (let i=0; i<n; i++) {
+    const x = xOf(i);
+    const colW = n > 1 ? cW / (n-1) : cW;
+    hoverSVG += `<rect class="hover-col" data-i="${i}" x="${(x - colW/2).toFixed(1)}" y="${MT}" width="${colW.toFixed(1)}" height="${cH}" fill="transparent" style="cursor:crosshair"/>`;
+  }
+
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('height', H);
+  svg.innerHTML = `
+    <g class="gridlines">${gridSVG}</g>
+    <g class="lines">${linesSVG}</g>
+    <g class="x-axis">${xSVG}</g>
+    <g class="hover-cols">${hoverSVG}</g>
+  `;
+
+  // Tooltip hover
+  const tooltip = document.getElementById('tooltip');
+  const outer = svg.parentElement;
+  svg.querySelectorAll('.hover-col').forEach(rect => {
+    rect.addEventListener('mouseenter', (e) => {
+      const i = parseInt(rect.dataset.i);
+      const label = d.fullLabels[i];
+      const vals = { Photo: d.photo[i], Audio: d.audio[i], Video: d.video[i], Total: d.total[i] };
+      const colors2 = { Photo: '#3B82F6', Audio: '#F59E0B', Video: '#8B5CF6', Total: '#64748B' };
+      tooltip.innerHTML = `<div class="tt-head">${label}</div>` +
+        Object.entries(vals).map(([k,v]) =>
+          `<div class="tt-row"><div class="tt-dot" style="background:${colors2[k]}"></div><span class="tt-name">${k}</span><span class="tt-val">${v.toLocaleString()}</span></div>`
+        ).join('');
+      // Position
+      const svgRect = svg.getBoundingClientRect();
+      const outerRect = outer.getBoundingClientRect();
+      const xPx = xOf(i) * (svgRect.width / W);
+      let left = xPx + 10;
+      if (left + 130 > outer.offsetWidth) left = xPx - 140;
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = '20px';
+      tooltip.classList.add('show');
+
+      // Vertical crosshair line (remove old)
+      svg.querySelector('.crosshair')?.remove();
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('class','crosshair');
+      line.setAttribute('x1', xOf(i).toFixed(1));
+      line.setAttribute('y1', MT);
+      line.setAttribute('x2', xOf(i).toFixed(1));
+      line.setAttribute('y2', MT+cH);
+      line.setAttribute('stroke','#E4E4E7');
+      line.setAttribute('stroke-width','1');
+      line.setAttribute('stroke-dasharray','3,3');
+      svg.insertBefore(line, svg.querySelector('.lines'));
+    });
+    rect.addEventListener('mouseleave', () => {
+      tooltip.classList.remove('show');
+      svg.querySelector('.crosshair')?.remove();
+    });
+  });
+}
+
+// ── Controls ───────────────────────────────────────────────────────────────
+document.getElementById('interval-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  interval = btn.dataset.val;
+  document.querySelectorAll('#interval-seg button').forEach(b => b.classList.toggle('active', b===btn));
+  const vm = document.getElementById('viewmode-wrap');
+  if (interval === 'total') {
+    vm.classList.add('hidden');
+  } else {
+    vm.classList.remove('hidden');
+  }
+  renderChart();
+});
+
+document.getElementById('viewmode-seg').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  viewMode = btn.dataset.val;
+  document.querySelectorAll('#viewmode-seg button').forEach(b => b.classList.toggle('active', b===btn));
+  renderChart();
+});
+
+// Initial render + re-render on resize
+renderChart();
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderChart, 80);
+});
+</script>
+</body>
+</html>

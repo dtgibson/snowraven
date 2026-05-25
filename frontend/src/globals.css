@@ -69,6 +69,7 @@
   --sr-graph-photo: #3B82F6;
   --sr-graph-audio: #F59E0B;
   --sr-graph-video: #8B5CF6;
+  --sr-graph-media-total: #64748b;
 
   /* Chart palette */
   --sr-chart-slate: #94A3B8;
@@ -152,6 +153,7 @@
   --sr-graph-photo: #60A5FA;
   --sr-graph-audio: #FCD34D;
   --sr-graph-video: #A78BFA;
+  --sr-graph-media-total: #94a3b8;
 
   /* Chart palette */
   --sr-chart-slate: #94A3B8;

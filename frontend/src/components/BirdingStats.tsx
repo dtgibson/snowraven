@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Star,
-  AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar,
+  AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar,
+  PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, Legend,
 } from 'recharts'
 import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { buildMediaGraphData } from '../lib/sightingsGraph'
+import type { MediaGraphInterval } from '../lib/sightingsGraph'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
@@ -252,6 +254,8 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   const [nemesisLoading, setNemesisLoading] = useState(false)
   const [nemesisError, setNemesisError] = useState<string | null>(null)
   const [nemesisTaxonMap, setNemesisTaxonMap] = useState<Record<string, string>>({})
+  const [mediaInterval, setMediaInterval] = useState<MediaGraphInterval>('monthly')
+  const [mediaViewMode, setMediaViewMode] = useState<'per-period' | 'cumulative'>('per-period')
 
   // Auto-load eBird backup + ML export + map defaults on mount
   useEffect(() => {
@@ -916,7 +920,20 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     return nemesisResult.filter(n => !lifeSet.has(n.commonName.toLowerCase()))
   }, [nemesisResult, lifeList])
 
+  const mediaGraphResult = useMemo(
+    () => buildMediaGraphData(rawMlRows, mediaInterval),
+    [rawMlRows, mediaInterval],
+  )
 
+  const mediaDisplayData = useMemo(() => {
+    const useCumulative = mediaInterval === 'total' || mediaViewMode === 'cumulative'
+    if (!useCumulative) return mediaGraphResult.data
+    let rPhoto = 0, rAudio = 0, rVideo = 0
+    return mediaGraphResult.data.map(p => {
+      rPhoto += p.photo; rAudio += p.audio; rVideo += p.video
+      return { ...p, photo: rPhoto, audio: rAudio, video: rVideo, total: rPhoto + rAudio + rVideo }
+    })
+  }, [mediaGraphResult.data, mediaInterval, mediaViewMode])
 
   // ── Phase gates (all hooks above) ────────────────────────────────────────
 
@@ -1998,83 +2015,153 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         )}
       </SectionCard>
 
-      {/* ── Section 8: Other Statistics ───────────────────────────────────── */}
+      {/* ── Section 8: Media ─────────────────────────────────────────────────── */}
+      {rawMlRows.length > 0 && (
+        <SectionCard title="Media" icon={<Video size={16} />}>
+
+          {/* Controls row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            {/* Per Period / Cumulative toggle — hidden when interval = 'total' */}
+            {mediaInterval !== 'total' ? (
+              <div style={{ display: 'flex', gap: 4 }}>
+                {(['per-period', 'cumulative'] as const).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => setMediaViewMode(m)}
+                    style={{
+                      height: 24, padding: '0 8px', borderRadius: 6, fontSize: 11, fontWeight: 500,
+                      fontFamily: 'inherit', cursor: 'pointer',
+                      border: mediaViewMode === m ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
+                      background: mediaViewMode === m ? 'var(--sr-accent-bg)' : 'none',
+                      color: mediaViewMode === m ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                    }}
+                  >
+                    {m === 'per-period' ? 'Per Period' : 'Cumulative'}
+                  </button>
+                ))}
+              </div>
+            ) : <div />}
+            {/* Interval control */}
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
+                <button
+                  key={g}
+                  onClick={() => setMediaInterval(g)}
+                  style={{
+                    height: 24, padding: '0 8px', borderRadius: 6, fontSize: 11, fontWeight: 500,
+                    fontFamily: 'inherit', cursor: 'pointer',
+                    border: mediaInterval === g ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
+                    background: mediaInterval === g ? 'var(--sr-accent-bg)' : 'none',
+                    color: mediaInterval === g ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                  }}
+                >
+                  {g.charAt(0).toUpperCase() + g.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Chart */}
+          {mediaGraphResult.data.length >= 2 && (
+            <div style={{ height: 240, marginBottom: 20 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={mediaDisplayData} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
+                  <XAxis
+                    dataKey="key"
+                    tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }}
+                    tickLine={false} axisLine={false}
+                    interval="preserveStartEnd"
+                    tickFormatter={key => mediaInterval === 'total'
+                      ? fmtDate(String(key))
+                      : formatPeriodLabel(String(key), mediaInterval as PeriodGranularity)}
+                  />
+                  <YAxis tick={{ fontSize: 10, fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: 12 }}
+                    labelFormatter={key => mediaInterval === 'total'
+                      ? fmtDate(String(key))
+                      : formatPeriodLabel(String(key), mediaInterval as PeriodGranularity)}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="photo" name="Photo" stroke="var(--sr-graph-photo)" strokeWidth={2} dot={false} />
+                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="audio" name="Audio" stroke="var(--sr-graph-audio)" strokeWidth={2} dot={false} />
+                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="video" name="Video" stroke="var(--sr-graph-video)" strokeWidth={2} dot={false} />
+                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="total" name="Total" stroke="var(--sr-graph-media-total)" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Rankings */}
+          {mlStats.mostPhotographed.length > 0 && (
+            <>
+              <SubLabel>Most photographed</SubLabel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
+                {mlStats.mostPhotographed.map((entry, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                    <a
+                      href={mlCatalogUrl(entry.name, 'Photo', mlUserId, mlTaxonMap[entry.name])}
+                      target="_blank" rel="noreferrer"
+                      style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                    >
+                      {entry.name}
+                    </a>
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} photos</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {mlStats.mostAudio.length > 0 && (
+            <>
+              {mlStats.mostPhotographed.length > 0 && <Divider />}
+              <SubLabel>Most recorded (audio)</SubLabel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
+                {mlStats.mostAudio.map((entry, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                    <a
+                      href={mlCatalogUrl(entry.name, 'Audio', mlUserId, mlTaxonMap[entry.name])}
+                      target="_blank" rel="noreferrer"
+                      style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                    >
+                      {entry.name}
+                    </a>
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} recordings</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+          {mlStats.mostVideo.length > 0 && (
+            <>
+              {(mlStats.mostPhotographed.length > 0 || mlStats.mostAudio.length > 0) && <Divider />}
+              <SubLabel>Most filmed (video)</SubLabel>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {mlStats.mostVideo.map((entry, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                    <a
+                      href={mlCatalogUrl(entry.name, 'Video', mlUserId, mlTaxonMap[entry.name])}
+                      target="_blank" rel="noreferrer"
+                      style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                    >
+                      {entry.name}
+                    </a>
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} videos</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </SectionCard>
+      )}
+
+      {/* ── Section 9: Other Statistics ───────────────────────────────────── */}
       <SectionCard title="Other Statistics" icon={<Star size={16} />}>
 
-        {/* ML media sections */}
-        {mlStats.mostPhotographed.length > 0 && (
-          <>
-            <SubLabel>Most photographed (ML export)</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
-              {mlStats.mostPhotographed.map((entry, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <a
-                    href={mlCatalogUrl(entry.name, 'Photo', mlUserId, mlTaxonMap[entry.name])}
-                    target="_blank" rel="noreferrer"
-                    style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
-                  >
-                    {entry.name}
-                  </a>
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} photos</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-        {mlStats.mostAudio.length > 0 && (
-          <>
-            <Divider />
-            <SubLabel>Most recorded (audio)</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
-              {mlStats.mostAudio.map((entry, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <a
-                    href={mlCatalogUrl(entry.name, 'Audio', mlUserId, mlTaxonMap[entry.name])}
-                    target="_blank" rel="noreferrer"
-                    style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
-                  >
-                    {entry.name}
-                  </a>
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} recordings</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-        {mlStats.mostVideo.length > 0 && (
-          <>
-            <Divider />
-            <SubLabel>Most filmed (video)</SubLabel>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
-              {mlStats.mostVideo.map((entry, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <a
-                    href={mlCatalogUrl(entry.name, 'Video', mlUserId, mlTaxonMap[entry.name])}
-                    target="_blank" rel="noreferrer"
-                    style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
-                  >
-                    {entry.name}
-                  </a>
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} videos</span>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-        {rawMlRows.length === 0 && (
-          <>
-            <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: '0 0 16px' }}>
-              Upload an ML export in Settings to see most-photographed species.
-            </p>
-          </>
-        )}
-
-
         {/* Nemesis birds */}
-        <Divider />
         <SubLabel>Current Local Nemesis Birds</SubLabel>
         <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', fontStyle: 'italic', margin: '0 0 10px', borderLeft: '3px solid var(--sr-accent-border)', paddingLeft: 10 }}>
           Nemesis birds are species recently reported within your area that don't yet appear on your life list, ranked by how frequently they've been seen.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildGraphData } from './sightingsGraph'
+import { buildGraphData, buildMediaGraphData } from './sightingsGraph'
 import type { ObservationEntry } from '../types'
 import type { MLExportRow } from './parseMLExport'
 
@@ -182,6 +182,104 @@ describe('buildGraphData', () => {
     const observations = [obs('2024-01-08', 1), obs('2024-01-10', 2)]
     const result = buildGraphData(observations, [], 'weekly')
     // Both in same week → only 1 key → data is empty (< 2 periods)
+    expect(result.data).toHaveLength(0)
+  })
+})
+
+describe('buildMediaGraphData', () => {
+  it('returns empty when no rows', () => {
+    const result = buildMediaGraphData([], 'monthly')
+    expect(result).toEqual({ data: [], interval: 'monthly' })
+  })
+
+  it('returns empty when only one distinct period', () => {
+    const rows = [mlRow('2024-03-01', 'Photo'), mlRow('2024-03-15', 'Audio')]
+    const result = buildMediaGraphData(rows, 'monthly')
+    expect(result.data).toHaveLength(0)
+  })
+
+  it('skips rows with empty date', () => {
+    const rows = [
+      { ...mlRow('2024-01-01', 'Photo'), date: '' },
+      mlRow('2024-02-01', 'Audio'),
+    ]
+    const result = buildMediaGraphData(rows, 'monthly')
+    expect(result.data).toHaveLength(0) // only 1 real date → < 2 periods
+  })
+
+  it('correctly counts photo/audio/video/total per month', () => {
+    const rows = [
+      mlRow('2024-01-05', 'Photo'),
+      mlRow('2024-01-10', 'Photo'),
+      mlRow('2024-01-20', 'Audio'),
+      mlRow('2024-02-03', 'Video'),
+      mlRow('2024-02-14', 'Photo'),
+    ]
+    const result = buildMediaGraphData(rows, 'monthly')
+    expect(result.interval).toBe('monthly')
+    const jan = result.data.find(p => p.key === '2024-01')!
+    expect(jan.photo).toBe(2)
+    expect(jan.audio).toBe(1)
+    expect(jan.video).toBe(0)
+    expect(jan.total).toBe(3)
+    const feb = result.data.find(p => p.key === '2024-02')!
+    expect(feb.photo).toBe(1)
+    expect(feb.audio).toBe(0)
+    expect(feb.video).toBe(1)
+    expect(feb.total).toBe(2)
+  })
+
+  it('gap-fills zero-count months between real data', () => {
+    const rows = [mlRow('2024-01-01', 'Photo'), mlRow('2024-04-01', 'Audio')]
+    const result = buildMediaGraphData(rows, 'monthly')
+    const keys = result.data.map(p => p.key)
+    expect(keys).toEqual(['2024-01', '2024-02', '2024-03', '2024-04'])
+    const feb = result.data.find(p => p.key === '2024-02')!
+    expect(feb.photo).toBe(0)
+    expect(feb.audio).toBe(0)
+    expect(feb.video).toBe(0)
+    expect(feb.total).toBe(0)
+  })
+
+  it('uses ISO week keys for weekly interval', () => {
+    // 2024-01-10 → W02, 2024-01-31 → W05
+    const rows = [mlRow('2024-01-10', 'Photo'), mlRow('2024-01-31', 'Audio')]
+    const result = buildMediaGraphData(rows, 'weekly')
+    expect(result.interval).toBe('weekly')
+    const keys = result.data.map(p => p.key)
+    expect(keys).toContain('2024-W02')
+    expect(keys).toContain('2024-W05')
+  })
+
+  it('uses year keys for yearly interval', () => {
+    const rows = [mlRow('2021-06-01', 'Photo'), mlRow('2023-09-01', 'Audio')]
+    const result = buildMediaGraphData(rows, 'yearly')
+    expect(result.interval).toBe('yearly')
+    const keys = result.data.map(p => p.key)
+    expect(keys).toEqual(['2021', '2022', '2023'])
+  })
+
+  it('total interval uses daily YYYY-MM-DD keys with no gap-fill', () => {
+    const rows = [
+      mlRow('2024-01-05', 'Photo'),
+      mlRow('2024-01-05', 'Audio'),
+      mlRow('2024-03-10', 'Video'),
+    ]
+    const result = buildMediaGraphData(rows, 'total')
+    expect(result.interval).toBe('total')
+    expect(result.data.map(p => p.key)).toEqual(['2024-01-05', '2024-03-10'])
+    const jan = result.data.find(p => p.key === '2024-01-05')!
+    expect(jan.photo).toBe(1)
+    expect(jan.audio).toBe(1)
+    expect(jan.video).toBe(0)
+    expect(jan.total).toBe(2)
+    // No gap-fill: 2024-02 and 2024-03 intermediate dates absent
+    expect(result.data).toHaveLength(2)
+  })
+
+  it('total interval returns empty when only one distinct date', () => {
+    const rows = [mlRow('2024-05-01', 'Photo'), mlRow('2024-05-01', 'Audio')]
+    const result = buildMediaGraphData(rows, 'total')
     expect(result.data).toHaveLength(0)
   })
 })

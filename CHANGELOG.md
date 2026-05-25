@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.16] - 2026-05-25
+
+### Added
+- **Statistics — Media card** — New card between Breeding Stats and Other Statistics, visible when an ML export is loaded. Includes a four-series line chart (Photo, Audio, Video, Total) with Weekly / Monthly / Yearly / Total interval controls and a Per Period / Cumulative toggle. In Total mode the chart shows a cumulative step-line at daily granularity and the toggle is hidden. Chart is suppressed when data spans fewer than two periods.
+
+### Changed
+- **Statistics — Media rankings moved** — Most Photographed, Most Recorded (Audio), and Most Filmed (Video) top-10 rankings have moved from Other Statistics into the new Media card.
+- **Statistics — Other Statistics** — Now contains only Nemesis Birds.
+
 ## [0.1.15] - 2026-05-24
 
 ### Added
