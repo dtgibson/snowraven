@@ -2,11 +2,15 @@
 
 Self-hosted birding tools for your eBird workflow.
 
+## Documentation
+
+[Full documentation](docs/HELP.md) covers every tab, API key setup, and how to download and upload the data files that unlock most features.
+
 ## Tools
 
 ### Weather Lookup
 
-Paste an eBird checklist ID or URL and get a formatted historical weather summary for that time and location — temperature, wind, humidity, dew point, sunrise/sunset, and conditions. The result is copied to your clipboard automatically, and a direct link to edit your checklist comment appears so you can paste it in straight away.
+Paste an eBird checklist ID or URL and get a formatted historical weather summary for that time and location -- temperature, wind, humidity, dew point, sunrise/sunset, and conditions. The result is copied to your clipboard automatically, and a direct link to edit your checklist comment appears so you can paste it in straight away.
 
 Compatible with the output format used by [raincrow.app](https://raincrow.app/). This is a self-hosted solution to retrieve weather data for many eBird checklists without rate limits. I feel it would be unethical to circumvent the rate limits of an online tool that is being generously made available to others for free; if the creator wishes to limit requests to five per day to keep the service broadly available, those wishes should be respected.
 
@@ -15,89 +19,96 @@ If you like this, the idea and inspiration really came from someone else, so [wh
 **How it works:**
 
 1. Paste a checklist ID (`S12345678`) or full URL (`https://ebird.org/checklist/S12345678`)
-2. Click **Get weather** — the result copies to your clipboard automatically
+2. Click **Get weather** -- the result copies to your clipboard automatically
 3. Click **Edit on eBird** to open your checklist comment field directly, then paste
 
 Weather data comes from the [OpenWeather One Call API 3.0](https://openweathermap.org/api/one-call-3) timemachine endpoint. Checklist metadata (date, location, duration) comes from the [eBird API](https://documenter.getpostman.com/view/664302/S1ENwy59).
 
 ### Breeding Codes
 
-Upload your eBird backup CSV to see every species you've recorded a breeding code for, displayed as a matrix across all 23 eBird breeding codes. Each cell shows how many times you've recorded that code for that species, with colors following eBird's four-tier system — darkest for Confirmed, lightest for Possible. All processing happens in the browser — no data leaves your machine.
+See every species you've recorded a breeding code for, displayed as a matrix across all 23 eBird breeding codes. Each cell shows how many times you've recorded that code for that species, with colors following eBird's four-tier system -- darkest for Confirmed, lightest for Possible. Requires your eBird backup saved in Settings.
 
 **How it works:**
 
-1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)
-2. Drop `MyEBirdData.csv` onto the Breeding Codes tab
-3. Your breeding code matrix loads — one row per species, one column per code
-4. Click any column header to sort by that code's count; click the species column to sort alphabetically
-5. Use the filter pills above the table to focus on a single breeding code
-6. A legend at the bottom maps tier colors to their categories and codes
+1. Save your `MyEBirdData.csv` in the Settings tab under Default Files
+2. Open Breeding Codes -- your matrix loads automatically
+3. Click any column header to sort by that code's count; click the species column to sort alphabetically or by taxonomic order
+4. Use the filter pills to focus on a single code or evidence category (Confirmed, Probable, Possible)
+5. A legend at the bottom maps tier colors to their categories and codes
 
 Slash species, hybrids, and `sp.` entries are excluded. Subspecies parentheticals (e.g. "Yellow-rumped Warbler (Myrtle)") are merged into the parent species entry.
 
 ### Media List
 
-Upload your Macaulay Library export or eBird backup CSV to see your complete life list with media coverage — which species you've photographed, audio-recorded, and video-recorded. Each species name links directly to its eBird account and Birds of the World page. Filter by missing or present media type to find target species for your next outing.
+See your complete life list with media coverage -- which species you've photographed, audio-recorded, and video-recorded. Each species name links directly to its eBird account and Birds of the World page. Filter by missing or present media type to find target species for your next outing.
 
-**Two input formats (auto-detected — no selection required):**
-
-- **Macaulay Library export (recommended):** Sign in at [macaulaylibrary.org](https://www.macaulaylibrary.org/), go to **My Media**, and click **Save Spreadsheet**. Media types are read directly from the file — instant results, no network lookups.
-- **eBird backup CSV:** Export from [ebird.org/downloadMyData](https://ebird.org/downloadMyData). Media coverage is looked up from the Macaulay Library in batches with a progress indicator. No API key required — only numeric catalog IDs are sent.
+Save your eBird backup and Macaulay Library export in Settings to unlock the full Comprehensive mode, which shows every life-listed species even if it has no media yet.
 
 **How it works:**
 
-1. Drop either file onto the Media List tab — the format is detected automatically
-2. Your life list loads with a count of photos, audio recordings, and videos per species
+1. Save your files in Settings under Default Files -- eBird backup and/or ML export
+2. Open Media List -- your life list loads automatically with photo, audio, and video counts per species
 3. Click any count to open that species' personal media on the Macaulay Library in a new tab
 4. Click the eBird or Birds of the World icon next to a species name to open its species account
 5. Use the filter pills to show species missing (or having) a photo, audio recording, or video
-6. Click any column header to sort by name, photo count, audio count, or video count
-7. Use **Show all** to expand the full list for printing
+6. Click any column header to sort by name, photo count, audio count, video count, or total
+7. Use the Is Target pill to quickly find species missing at least one media type
 
 ### Life List Comparer
 
-Upload two eBird backup CSV files to see which species you share with another birder and which are unique to each list. Each species name links directly to its eBird account and Birds of the World page. All processing happens in the browser — no data leaves your machine.
+Compare your life list against another birder's to see which species you share and which are unique to each list. Your list loads automatically from Settings if you've saved your eBird backup. Each species name links directly to its eBird account and Birds of the World page.
 
 **How it works:**
 
-1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData)
-2. Drop both CSV files onto the Life List Comparer tab
-3. Click **Compare Lists** to see three panels: species in both, species only in the first list, species only in the second
+1. Save your `MyEBirdData.csv` in Settings -- it loads as "My List" automatically
+2. Drop another birder's eBird backup CSV onto the List B slot
+3. Click **Compare Lists** to see three panels: species in both, species only in List A, species only in List B
 4. Click the eBird or Birds of the World icon next to a species name to open its species account
-5. Use the **Taxonomic / A–Z** toggle to switch between eBird taxonomic order and alphabetical
+5. Use the Taxonomic / A-Z toggle to switch sort order
 6. Use **Show all** to expand all panels to full length for printing
 
 ### Species Detail
 
-Upload your eBird backup CSV to explore your complete history with any species — sighting stats, breeding codes, field notes, your most-visited locations, a map of all observation coordinates, and embedded media from Macaulay Library. Select any species from the searchable dropdown and every section updates instantly. All processing happens in the browser — no data leaves your machine.
+Explore your complete history with any species -- sighting stats, breeding codes, field notes, your most-visited locations, a map of all observation coordinates, and embedded media from Macaulay Library. Select any species from the searchable dropdown and every section updates instantly. Requires your eBird backup saved in Settings.
 
 **How it works:**
 
-1. Export your eBird data from [ebird.org/downloadMyData](https://ebird.org/downloadMyData) (or save it as a default in Settings so it loads automatically)
-2. Select a species from the dropdown — type to search by common or scientific name
-3. The **Summary card** shows your media coverage (Photo/Audio/Video) and highest breeding evidence category for that species
-4. The **Sightings card** shows checklist count, total individuals, personal best, and first/last seen dates — each linked to the original checklist
-5. **Breeding Codes** lists every code you've recorded with tier color, abbreviation, and count
-6. **Top Locations** ranks where you've found the species most often, with links to each location on eBird
-7. The **map** plots every observation coordinate — click any pin to see the checklist dates recorded at that spot
-8. **Comments** archives all your per-species field notes, filterable by keyword and sortable by date
-9. **Recent Media** embeds your most recently uploaded photo, audio recording, and video directly from Macaulay Library (requires ML export loaded in Settings)
+1. Save your `MyEBirdData.csv` in Settings -- Species Detail loads it automatically
+2. Select a species from the dropdown -- type to search by common or scientific name
+3. The Summary card shows your media coverage (Photo/Audio/Video) and highest breeding evidence category
+4. The Sightings card shows checklist count, total individuals, personal best, and first/last seen dates -- each linked to the original checklist
+5. Breeding Codes lists every code you've recorded with tier color, abbreviation, and count
+6. Top Locations ranks where you've found the species most often, with links to each location on eBird
+7. The map plots every observation coordinate -- click any pin to see the checklist dates recorded at that spot
+8. Comments archives all your per-species field notes, filterable by keyword and sortable by date
+9. Recent Media embeds your most recently uploaded photo, audio recording, and video from Macaulay Library (requires ML export in Settings)
 
 **Toolbar options:**
 
-- **Show subspecies** — off by default (subspecies variants are merged into the parent species). Toggle on to split "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" into separate entries with separate stats.
-- **Show sp./slash** — off by default (uncertain identifications are hidden). Toggle on to include sp. and slash species in the selector.
-- **Show all / Collapse** — expands the full detail view to page height for printing or extended browsing.
+- Show subspecies: off by default; merges subspecies variants into the parent species. Toggle on to split "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" into separate entries.
+- Show sp./slash: off by default; hides uncertain identifications. Toggle on to include sp. and slash species in the selector.
 
 If your ML export is also saved in Settings, media counts in the Summary card become active and the Recent Media section appears automatically.
 
+### Statistics
+
+A comprehensive analytics dashboard built from your eBird backup. Nine cards cover your life list totals and accumulation chart, firsts and milestones, temporal patterns (by year, month, day, and hour), geographic stats with a location map, effort and methodology, data quality, breeding stats, media trends (requires ML export), and Top Local Target Species -- birds seen near your configured home location in the past 30 days that are missing from your life list. Requires your eBird backup saved in Settings.
+
+### Map Explorer
+
+An interactive map with three view modes: My Sightings (your personal recent observations with a heatmap overlay), Hotspots (eBird hotspots near a location, colored by whether you've visited them), and Media Targets (recent sightings of species you're missing media for). Requires an eBird API key.
+
 ### Settings
 
-The Settings tab lets you configure API keys and save default files so they load automatically each session.
+The Settings tab lets you configure API keys, save default files, set a default location, and customize the tab layout so everything loads automatically each session.
 
-**API keys:** Enter your eBird and OpenWeather API keys directly in the app. Keys are saved to the server's `.env` file and take effect immediately — no restart needed. Saved keys are masked by default with a Show/Hide toggle.
+**API keys:** Enter your eBird and OpenWeather API keys directly in the app. Keys are saved to the server's `.env` file and take effect immediately -- no restart needed. Saved keys are masked by default with a Show/Hide toggle.
 
-**Default files:** Upload your eBird backup CSV and Macaulay Library export once and they'll load automatically whenever you open the Breeding Codes, Media List, or Species Detail tab.
+**Default files:** Upload your eBird backup CSV and Macaulay Library export once and they load automatically whenever you open the Breeding Codes, Media List, Species Detail, Statistics, or Life List Comparer tabs.
+
+**Default location:** Set a home location (latitude, longitude, and radius) used by the Map Explorer and the Top Local Target Species card in Statistics.
+
+**Tab layout:** Reorder and show or hide individual tabs. The Settings tab is always last.
 
 ---
 
@@ -113,7 +124,7 @@ You need two free API keys before installation:
 ### OpenWeather API key
 1. Create a free account at [openweathermap.org](https://openweathermap.org)
 2. Go to **API keys** in your account dashboard and copy your key
-3. Go to **Billing plans** and subscribe to **One Call by Call** (free tier: first 1,000 calls/day at no cost — you must subscribe explicitly or the API returns 401)
+3. Go to **Billing plans** and subscribe to **One Call by Call** (free tier: first 1,000 calls/day at no cost -- you must subscribe explicitly or the API returns 401)
 
 ---
 
@@ -259,12 +270,12 @@ cd snowraven
 cp .env.example .env
 # Edit .env and add your API keys
 
-# Terminal 1 — backend with hot reload
+# Terminal 1 - backend with hot reload
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 1620
 
-# Terminal 2 — frontend dev server
+# Terminal 2 - frontend dev server
 cd frontend
 npm install
 npm run dev

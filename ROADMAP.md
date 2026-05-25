@@ -16,9 +16,10 @@ Previously: **Map Explorer improvements** — type filter pills (Photo / Audio /
 
 ## Up Next
 
-1. **Print / export view** — a clean single-column layout optimised for printing or saving as PDF, covering all three tabs.
-2. **Checklist weather batch mode** — accept multiple checklist IDs at once and retrieve weather for all of them in sequence.
-3. **Hotspot weather context** — look up recent weather for a hotspot by name or ID without needing a specific checklist.
+1. **Nemesis bird map** — Leaflet map in Other Statistics showing where each nemesis bird was most recently reported. Requires backend to return lat/lng in the nemesis API response (currently returns only commonName, recentDate, subId).
+2. **Print / export view** — a clean single-column layout optimised for printing or saving as PDF, covering all three tabs.
+3. **Checklist weather batch mode** — accept multiple checklist IDs at once and retrieve weather for all of them in sequence.
+4. **Hotspot weather context** — look up recent weather for a hotspot by name or ID without needing a specific checklist.
 
 ---
 

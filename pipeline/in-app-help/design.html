@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — In-App Help Design Mockup</title>
+<style>
+  :root {
+    --sr-bg: #f5f5f4;
+    --sr-surface: #ffffff;
+    --sr-surface-subtle: #f4f4f5;
+    --sr-border: #e4e4e7;
+    --sr-border-subtle: #f0f0f1;
+    --sr-text: #0f1117;
+    --sr-text-muted: #71717a;
+    --sr-text-disabled: #a1a1aa;
+    --sr-accent: #2d8653;
+    --sr-accent-bg: #f0faf4;
+    --sr-accent-border: #86c9a3;
+    --sr-card-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  }
+  [data-theme="dark"] {
+    --sr-bg: #131313;
+    --sr-surface: #1e1e1e;
+    --sr-surface-subtle: #262626;
+    --sr-border: #303030;
+    --sr-border-subtle: #282828;
+    --sr-text: #f0f0f0;
+    --sr-text-muted: #9ca3af;
+    --sr-text-disabled: #6b7280;
+    --sr-accent: #4ade80;
+    --sr-accent-bg: #0d2e1a;
+    --sr-accent-border: #166534;
+    --sr-card-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── App shell ──────────────────────────────────── */
+  .app-header {
+    height: 48px;
+    background: var(--sr-surface);
+    border-bottom: 1px solid var(--sr-border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .app-header-brand {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--sr-accent);
+    letter-spacing: -0.02em;
+  }
+  .tab-bar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+  }
+  .tab {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--sr-text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .tab.active {
+    background: var(--sr-accent-bg);
+    color: var(--sr-accent);
+  }
+  .theme-toggle {
+    margin-left: 12px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--sr-text-muted);
+    background: var(--sr-surface-subtle);
+    border: 1px solid var(--sr-border);
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  /* ── Settings page ──────────────────────────────── */
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 28px 20px 60px;
+  }
+  .section-card {
+    border: 1px solid var(--sr-border);
+    border-radius: 10px;
+    background: var(--sr-surface);
+    overflow: hidden;
+    margin-bottom: 8px;
+    box-shadow: var(--sr-card-shadow);
+  }
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    margin-top: 24px;
+  }
+  .section-divider-icon {
+    color: var(--sr-text-muted);
+    display: flex;
+    align-items: center;
+  }
+  .section-divider-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--sr-text-muted);
+    white-space: nowrap;
+  }
+  .section-divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--sr-border);
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--sr-border-subtle);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--sr-surface-subtle);
+    border: 1px solid var(--sr-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--sr-text-muted);
+  }
+  .settings-row-body { flex: 1; min-width: 0; }
+  .settings-row-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--sr-text);
+  }
+  .settings-row-sublabel {
+    font-size: 12px;
+    color: var(--sr-text-muted);
+    margin-top: 2px;
+  }
+  .settings-row-action { flex-shrink: 0; }
+  .btn-secondary {
+    height: 30px;
+    padding: 0 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--sr-text-muted);
+    background: var(--sr-surface-subtle);
+    border: 1px solid var(--sr-border);
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-secondary:hover {
+    background: var(--sr-border);
+    color: var(--sr-text);
+  }
+  .btn-primary {
+    height: 34px;
+    padding: 0 18px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ffffff;
+    background: var(--sr-accent);
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-primary:hover { opacity: 0.9; }
+
+  /* Help section card */
+  .help-entry-card {
+    border: 1px solid var(--sr-border);
+    border-radius: 10px;
+    background: var(--sr-surface);
+    overflow: hidden;
+    box-shadow: var(--sr-card-shadow);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+  }
+  .help-icon-wrap {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--sr-accent-bg);
+    border: 1px solid var(--sr-accent-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--sr-accent);
+  }
+  .help-entry-body { flex: 1; min-width: 0; }
+  .help-entry-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--sr-text);
+    margin-bottom: 2px;
+  }
+  .help-entry-desc {
+    font-size: 12px;
+    color: var(--sr-text-muted);
+    line-height: 1.5;
+  }
+
+  /* ── Help overlay ───────────────────────────────── */
+  .help-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: var(--sr-surface);
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .help-overlay.open { display: flex; }
+
+  .help-overlay-header {
+    height: 52px;
+    border-bottom: 1px solid var(--sr-border);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 12px;
+    flex-shrink: 0;
+    background: var(--sr-surface);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .help-overlay-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--sr-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .help-overlay-title svg { color: var(--sr-accent); }
+  .help-overlay-close {
+    margin-left: auto;
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--sr-text-muted);
+  }
+  .help-overlay-close:hover {
+    background: var(--sr-surface-subtle);
+    color: var(--sr-text);
+  }
+
+  .help-overlay-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+  }
+
+  /* ── Help content layout ─ sidebar + main ───────── */
+  .help-layout {
+    display: flex;
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+    gap: 40px;
+    align-items: flex-start;
+  }
+
+  .help-toc {
+    width: 200px;
+    flex-shrink: 0;
+    padding: 32px 0;
+    position: sticky;
+    top: 0;
+    max-height: calc(100vh - 52px);
+    overflow-y: auto;
+  }
+  .help-toc-heading {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sr-text-disabled);
+    margin-bottom: 10px;
+    padding-left: 10px;
+  }
+  .help-toc-item {
+    display: block;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    color: var(--sr-text-muted);
+    text-decoration: none;
+    margin-bottom: 1px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+  }
+  .help-toc-item:hover {
+    background: var(--sr-surface-subtle);
+    color: var(--sr-text);
+  }
+  .help-toc-item.active {
+    background: var(--sr-accent-bg);
+    color: var(--sr-accent);
+    font-weight: 600;
+  }
+  .help-toc-sub {
+    padding-left: 20px;
+    font-size: 12px;
+  }
+
+  .help-content {
+    flex: 1;
+    min-width: 0;
+    padding: 40px 0 80px;
+    max-width: 680px;
+  }
+
+  /* ── Rendered markdown typography ───────────────── */
+  .md h1 {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--sr-text);
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+  .md .doc-intro {
+    font-size: 15px;
+    color: var(--sr-text-muted);
+    line-height: 1.65;
+    margin-bottom: 36px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--sr-border);
+  }
+  .md h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--sr-text);
+    margin-top: 40px;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--sr-border-subtle);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .md h2 .h2-icon {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: var(--sr-accent-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--sr-accent);
+  }
+  .md h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--sr-text);
+    margin-top: 24px;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 11px;
+    color: var(--sr-text-muted);
+  }
+  .md p {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--sr-text);
+    margin-bottom: 14px;
+  }
+  .md ol, .md ul {
+    margin-bottom: 14px;
+    padding-left: 22px;
+  }
+  .md li {
+    font-size: 14px;
+    line-height: 1.75;
+    color: var(--sr-text);
+    margin-bottom: 4px;
+  }
+  .md ol { list-style: decimal; }
+  .md ul { list-style: disc; }
+  .md code {
+    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 12.5px;
+    background: var(--sr-surface-subtle);
+    border: 1px solid var(--sr-border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--sr-text);
+  }
+  .md pre {
+    background: var(--sr-surface-subtle);
+    border: 1px solid var(--sr-border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin-bottom: 14px;
+  }
+  .md pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .md a {
+    color: var(--sr-accent);
+    text-decoration: none;
+  }
+  .md a:hover { text-decoration: underline; }
+  .md hr {
+    border: none;
+    border-top: 1px solid var(--sr-border);
+    margin: 32px 0;
+  }
+
+  /* callout box */
+  .md .callout {
+    background: var(--sr-accent-bg);
+    border: 1px solid var(--sr-accent-border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .md .callout-icon { color: var(--sr-accent); flex-shrink: 0; margin-top: 2px; }
+  .md .callout p { margin-bottom: 0; font-size: 13.5px; }
+
+  /* step number */
+  .md .step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .md .step-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--sr-accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+  .md .step p { margin-bottom: 0; }
+
+  /* section section content */
+  .doc-section { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ── App shell ──────────────────────────────────────────────── -->
+<div class="app-header">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 0h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 14z"/></svg>
+  <span class="app-header-brand">SnowRaven</span>
+  <nav class="tab-bar">
+    <button class="tab">Weather</button>
+    <button class="tab">Species Detail</button>
+    <button class="tab">Statistics</button>
+    <button class="tab">Map Explorer</button>
+    <button class="tab">Media List</button>
+    <button class="tab">Breeding Codes</button>
+    <button class="tab">Life List Comparer</button>
+    <button class="tab active">Settings</button>
+  </nav>
+  <button class="theme-toggle" onclick="toggleTheme()">Toggle theme</button>
+</div>
+
+<!-- ── Settings page ─────────────────────────────────────────── -->
+<div class="page">
+
+  <!-- Help and Documentation section -->
+  <div class="section-divider">
+    <span class="section-divider-icon">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </span>
+    <span class="section-divider-label">Help &amp; Documentation</span>
+    <div class="section-divider-line"></div>
+  </div>
+
+  <div class="help-entry-card" style="margin-bottom:8px">
+    <div class="help-icon-wrap">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+    </div>
+    <div class="help-entry-body">
+      <div class="help-entry-title">SnowRaven Documentation</div>
+      <div class="help-entry-desc">Setup guides, feature walkthroughs, and API key instructions. Available offline. Also readable on GitHub.</div>
+    </div>
+    <button class="btn-primary" id="openHelpBtn" onclick="openHelp()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      Open documentation
+    </button>
+  </div>
+
+  <!-- API Keys (abbreviated for mockup context) -->
+  <div class="section-divider" style="margin-top:20px">
+    <span class="section-divider-icon">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+    </span>
+    <span class="section-divider-label">API Keys</span>
+    <div class="section-divider-line"></div>
+  </div>
+  <div class="section-card">
+    <div class="settings-row">
+      <div class="settings-row-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      </div>
+      <div class="settings-row-body">
+        <div class="settings-row-label">eBird API key</div>
+        <div class="settings-row-sublabel">Saved &bull; used for weather lookups and nearby sightings</div>
+      </div>
+      <div class="settings-row-action">
+        <button class="btn-secondary">Show</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-icon">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 110-14h8.5"/><path d="M17 4l3 3-3 3"/></svg>
+      </div>
+      <div class="settings-row-body">
+        <div class="settings-row-label">OpenWeather API key</div>
+        <div class="settings-row-sublabel">Saved &bull; used for historical weather data</div>
+      </div>
+      <div class="settings-row-action">
+        <button class="btn-secondary">Show</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Default Files (abbreviated) -->
+  <div class="section-divider" style="margin-top:20px">
+    <span class="section-divider-icon">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    </span>
+    <span class="section-divider-label">Default Files</span>
+    <div class="section-divider-line"></div>
+  </div>
+  <div class="section-card">
+    <div class="settings-row">
+      <div class="settings-row-icon" style="color:var(--sr-accent);background:var(--sr-accent-bg);border-color:var(--sr-accent-border)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="settings-row-body">
+        <div class="settings-row-label">eBird backup</div>
+        <div class="settings-row-sublabel">MyEBirdData.csv &bull; uploaded 12 May 2026</div>
+      </div>
+      <div class="settings-row-action" style="display:flex;gap:6px">
+        <button class="btn-secondary">Replace</button>
+        <button class="btn-secondary" style="color:var(--sr-text-disabled)">Remove</button>
+      </div>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-icon" style="color:var(--sr-accent);background:var(--sr-accent-bg);border-color:var(--sr-accent-border)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="settings-row-body">
+        <div class="settings-row-label">ML export</div>
+        <div class="settings-row-sublabel">ML__MyMedia_abc123.csv &bull; uploaded 14 May 2026</div>
+      </div>
+      <div class="settings-row-action" style="display:flex;gap:6px">
+        <button class="btn-secondary">Replace</button>
+        <button class="btn-secondary" style="color:var(--sr-text-disabled)">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Layout (abbreviated) -->
+  <div class="section-divider" style="margin-top:20px">
+    <span class="section-divider-icon">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+    </span>
+    <span class="section-divider-label">Tab Layout</span>
+    <div class="section-divider-line"></div>
+  </div>
+  <div class="section-card" style="padding:12px 16px">
+    <p style="font-size:12.5px;color:var(--sr-text-muted);margin-bottom:10px">Drag tabs to reorder. Click the eye icon to show or hide a tab.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--sr-border);border-radius:6px;background:var(--sr-surface);font-size:12px;color:var(--sr-text)">
+        <span style="color:var(--sr-text-muted);cursor:grab">&#9776;</span> Weather
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--sr-border);border-radius:6px;background:var(--sr-surface);font-size:12px;color:var(--sr-text)">
+        <span style="color:var(--sr-text-muted);cursor:grab">&#9776;</span> Species Detail
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--sr-border);border-radius:6px;background:var(--sr-surface);font-size:12px;color:var(--sr-text-muted)">
+        <span style="color:var(--sr-text-disabled);cursor:grab">&#9776;</span> <s>Statistics</s>
+      </div>
+    </div>
+  </div>
+
+
+</div><!-- end .page -->
+
+<!-- ── Help overlay ───────────────────────────────────────────── -->
+<div class="help-overlay" id="helpOverlay">
+
+  <div class="help-overlay-header">
+    <div class="help-overlay-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+      SnowRaven Documentation
+    </div>
+    <button class="help-overlay-close" onclick="closeHelp()" aria-label="Close documentation">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <div class="help-overlay-body">
+    <div class="help-layout">
+
+      <!-- Table of contents -->
+      <nav class="help-toc">
+        <div class="help-toc-heading">Contents</div>
+        <button class="help-toc-item active" onclick="scrollTo('getting-started')">Getting Started</button>
+        <button class="help-toc-item" onclick="scrollTo('api-keys')">API Keys</button>
+        <button class="help-toc-item help-toc-sub" onclick="scrollTo('ebird-key')">eBird API key</button>
+        <button class="help-toc-item help-toc-sub" onclick="scrollTo('ow-key')">OpenWeather API key</button>
+        <button class="help-toc-item" onclick="scrollTo('default-files')">Default Files</button>
+        <button class="help-toc-item help-toc-sub" onclick="scrollTo('ebird-backup')">eBird backup</button>
+        <button class="help-toc-item help-toc-sub" onclick="scrollTo('ml-export')">ML export</button>
+        <button class="help-toc-item" onclick="scrollTo('weather-tab')">Weather</button>
+        <button class="help-toc-item" onclick="scrollTo('species-tab')">Species Detail</button>
+        <button class="help-toc-item" onclick="scrollTo('stats-tab')">Statistics</button>
+        <button class="help-toc-item" onclick="scrollTo('map-tab')">Map Explorer</button>
+        <button class="help-toc-item" onclick="scrollTo('media-tab')">Media List</button>
+        <button class="help-toc-item" onclick="scrollTo('breeding-tab')">Breeding Codes</button>
+        <button class="help-toc-item" onclick="scrollTo('comparer-tab')">Life List Comparer</button>
+        <button class="help-toc-item" onclick="scrollTo('settings-tab')">Settings</button>
+      </nav>
+
+      <!-- Documentation content -->
+      <div class="help-content md">
+
+        <h1>SnowRaven Documentation</h1>
+        <p class="doc-intro">SnowRaven is a self-hosted toolkit for birders who use eBird. It runs on a Raspberry Pi or any computer on your local network and gives you weather lookups, life list analytics, media coverage tracking, breeding code history, and more -- all from a single browser tab.</p>
+
+        <h2 id="getting-started">
+          <span class="h2-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg></span>
+          Getting Started
+        </h2>
+        <p>When you first open SnowRaven, go to the <strong>Settings</strong> tab first. That is where you enter your API keys and upload your data files. Once your keys and files are in place, every other tab works automatically on each visit -- there is nothing to re-upload between sessions.</p>
+        <p>The recommended setup order is:</p>
+        <div class="step"><div class="step-num">1</div><p>Enter your eBird API key in Settings. This is needed for the Weather tab and the Top Local Target Species feature in Statistics.</p></div>
+        <div class="step"><div class="step-num">2</div><p>Enter your OpenWeather API key in Settings. This is needed for the Weather tab only.</p></div>
+        <div class="step"><div class="step-num">3</div><p>Upload your eBird backup file (<code>MyEBirdData.csv</code>). This powers Breeding Codes, Media List, Species Detail, Statistics, and Life List Comparer.</p></div>
+        <div class="step"><div class="step-num">4</div><p>Upload your ML export from Macaulay Library. This is optional but unlocks media-specific features in Media List, Species Detail, and Statistics.</p></div>
+
+        <hr/>
+
+        <h2 id="api-keys">
+          <span class="h2-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></span>
+          API Keys
+        </h2>
+        <p>An API key is a private code that identifies your account when the app contacts an external data service. Think of it like a password that the app uses on your behalf. Both keys required by SnowRaven are free.</p>
+
+        <h3 id="ebird-key">eBird API key</h3>
+        <p>The eBird API key lets SnowRaven fetch checklist metadata for weather lookups and retrieve recent bird sightings near your location for the Top Local Target Species feature.</p>
+        <p>To get your key: sign in to your eBird account at <a href="#">ebird.org</a>, then go to <a href="#">ebird.org/api/keygen</a>. Your key will be displayed on that page. Copy it and paste it into the eBird API key field in Settings.</p>
+
+        <div class="callout">
+          <span class="callout-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+          <p>Keep your API key private. It is tied to your eBird account and should not be shared or published.</p>
+        </div>
+
+        <h3 id="ow-key">OpenWeather API key</h3>
+        <p>The OpenWeather key lets SnowRaven retrieve historical weather for the time and location of any eBird checklist you look up. The service is free for the first 1,000 requests per day, which is well above what a typical user will need.</p>
+
+        <div class="callout">
+          <span class="callout-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+          <p><strong>Important:</strong> After creating your OpenWeather account, you must subscribe to the "One Call by Call" plan separately. Go to your account Billing plans and activate the One Call by Call subscription. It will not activate automatically, and the weather lookup will return an error until it does. The free tier covers 1,000 calls per day at no cost.</p>
+        </div>
+
+        <p>To get your key: create a free account at <a href="#">openweathermap.org</a>, go to API keys in your account dashboard, and copy the default key. Then go to Billing plans and subscribe to One Call by Call.</p>
+
+        <hr/>
+
+        <h2 id="default-files">
+          <span class="h2-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+          Default Files
+        </h2>
+        <p>SnowRaven works with two data files you export from your own eBird and Macaulay Library accounts. Once uploaded in Settings, they are stored on the server and load automatically every time you open the app.</p>
+
+        <h3 id="ebird-backup">eBird backup (MyEBirdData.csv)</h3>
+        <p>Your eBird backup is a full export of all your eBird observations -- every checklist, every species, every location. It is the primary data source for most of SnowRaven's features.</p>
+        <p><strong>What it enables:</strong> Breeding Codes, Media List, Species Detail, Statistics (all cards except Top Local Target Species), and Life List Comparer.</p>
+        <p>To download it: sign in at <a href="#">ebird.org</a> and go to <a href="#">ebird.org/downloadMyData</a>. Click "Download My Data" and save the file. It will be named <code>MyEBirdData.csv</code>. In SnowRaven, go to Settings and upload the file under Default Files. Large lists with many years of data may take a minute to process.</p>
+        <p>eBird updates your export with new checklists periodically. Re-upload the file whenever you want your Statistics and other tabs to reflect recent observations.</p>
+
+        <h3 id="ml-export">ML export (Macaulay Library)</h3>
+        <p>Your ML export is a spreadsheet of all the media -- photos, audio recordings, and videos -- that you have uploaded to the Macaulay Library. It contains catalog IDs, media types, and the species associated with each item.</p>
+        <p><strong>What it enables:</strong> Media counts and charts in Media List; the Recent Media embedded player and media coverage in Species Detail; the Media card in Statistics.</p>
+        <p>To download it: sign in at <a href="#">macaulaylibrary.org</a>, go to My Media, and click "Save Spreadsheet." In SnowRaven, upload it in Settings under Default Files. The filename will contain your Macaulay Library user ID.</p>
+
+        <hr/>
+
+        <h2 id="weather-tab">
+          <span class="h2-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17.5 19H9a7 7 0 110-14h8.5"/><path d="M17 4l3 3-3 3"/></svg></span>
+          Weather
+        </h2>
+        <p>Paste an eBird checklist ID or URL, click "Get weather," and receive a formatted historical weather summary for that checklist's time and location -- temperature, wind, humidity, dew point, conditions, and sunrise/sunset. The result is ready to paste directly into your eBird checklist comment field.</p>
+        <p>The format matches the output from raincrow.app. Both your eBird API key and OpenWeather API key must be configured in Settings for this tab to work.</p>
+
+        <hr/>
+
+        <h2 id="species-tab">
+          <span class="h2-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          Species Detail
+        </h2>
+        <p>Select any species from the searchable dropdown and explore your complete history with that species across all your checklists. Requires your eBird backup.</p>
+        <p>Each species page shows a summary card with your media coverage and highest breeding evidence category, followed by sighting statistics (checklist count, total individuals, personal best single count, first and last seen dates), breeding codes recorded, top locations ranked by visit count, a map of all observation coordinates, field notes and comments, and -- if your ML export is also loaded -- embedded recent media from Macaulay Library.</p>
+        <p>The "Show subspecies" toggle splits subspecies variants into separate entries. The "Show sp./slash" toggle includes uncertain identifications in the selector.</p>
+
+        <hr/>
+
+        <h2 id="stats-tab">
+          <span class="h2-icon"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+          Statistics
+        </h2>
+        <p>A full analytics dashboard derived from your eBird backup. All nine cards are described below. Requires your eBird backup; the Media card additionally requires your ML export.</p>
+        <p><strong>Life List Totals</strong> shows your headline counts -- species, checklists, locations, years active, states and countries. The accumulation chart traces how your life list grew over time, with Weekly, Monthly, Yearly, and Total interval options.</p>
+        <p><strong>Firsts and Milestones</strong> records your biggest single day, longest consecutive streak, longest dry spell, Shannon diversity index, and milestone pills at 43 thresholds from 10 to 3,000 species.</p>
+        <p><strong>Temporal Stats</strong> breaks down your checklist activity by year, month, day of week, and start hour.</p>
+        <p><strong>Geographic Stats</strong> shows a map and ranked lists of your top locations, counties, and states by checklists and species.</p>
+        <p><strong>Effort and Methodology</strong> summarises your protocol distribution, average duration, average distance, species-per-hour, species-per-mile, and observer counts.</p>
+        <p><strong>Data Quality</strong> shows your numeric vs. X-count ratio, comment coverage, biggest single species counts, single-checklist birds, and one-and-done birds.</p>
+        <p><strong>Breeding Stats</strong> shows confirmed, probable, and possible species totals and a month-by-month chart of breeding activity.</p>
+        <p><strong>Media</strong> (requires ML export) shows a four-series chart of photos, audio recordings, videos, and total media over time, with per-period and cumulative views. Rankings for most-photographed, most-recorded, and most-filmed species appear below the chart.</p>
+        <p><strong>Top Local Target Species</strong> shows species recently reported near your configured location (set under Default Location in Settings) that do not appear on your life list. Data comes from eBird's recent observations for the past 30 days within your configured search radius. Results are sorted by most recently seen. The dot next to each species indicates recency: a red dot means it was seen within the past 7 days, amber means 8 to 14 days ago, and grey means 15 to 30 days ago.</p>
+
+        <!-- (remaining sections abbreviated in mockup) -->
+        <hr/>
+        <p style="color:var(--sr-text-muted);font-size:13px;font-style:italic">Map Explorer, Media List, Breeding Codes, Life List Comparer, and Settings sections continue below...</p>
+
+      </div><!-- end .help-content -->
+    </div><!-- end .help-layout -->
+  </div><!-- end .help-overlay-body -->
+</div><!-- end .help-overlay -->
+
+<script>
+  function openHelp() {
+    document.getElementById('helpOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeHelp() {
+    document.getElementById('helpOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeHelp();
+  });
+  function toggleTheme() {
+    const html = document.documentElement;
+    html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  }
+</script>
+</body>
+</html>

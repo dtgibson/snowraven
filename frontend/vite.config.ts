@@ -11,6 +11,9 @@ export default defineConfig({
     },
   },
   server: {
+    fs: {
+      allow: ['..'],
+    },
     proxy: {
       '/weather': 'http://localhost:1620',
       '/health': 'http://localhost:1620',

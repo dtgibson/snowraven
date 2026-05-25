@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.19] - 2026-05-25
+
+### Added
+- **In-app help documentation** -- New "Help & Documentation" section at the top of the Settings tab with an "Open documentation" button. Clicking it opens a full-screen overlay showing the complete `docs/HELP.md` documentation: Getting Started, API Keys (eBird and OpenWeather with setup instructions), Default Files (eBird backup and ML export), and a section for every tab. Rendered from a bundled markdown string with no network call at runtime -- works fully offline.
+- **`docs/HELP.md`** -- Single source of truth for all documentation. Available in-app (via the `?raw` import bundled at build time) and rendered on GitHub at a permanent URL. No em dashes or emojis.
+- **`HelpDocs.tsx`** -- Full-viewport overlay component with sticky header, two-column layout (sidebar TOC + content), Escape-key close, focus trap, and a custom lightweight markdown renderer with no new dependencies.
+- **README.md** -- Added "Documentation" section with a "Full documentation" link to `docs/HELP.md`. Updated all tab descriptions to reflect the Settings-first model (no per-tab file upload). Added Statistics and Map Explorer tab entries. Removed all em dashes from README prose.
+
 ## [0.1.18] - 2026-05-25
 
 ### Changed

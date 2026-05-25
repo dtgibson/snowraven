@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Eye, EyeOff, FileCheck, FileQuestion, Lock } from 'lucide-react'
+import { BookOpen, Eye, EyeOff, FileCheck, FileQuestion, Lock } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
+import { HelpDocs } from './HelpDocs'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -672,6 +673,7 @@ interface SettingsProps {
 }
 
 export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
+  const [helpOpen, setHelpOpen] = useState(false)
   const [status, setStatus] = useState<StoredFilesStatus>({ ebird: null, ml: null })
   const [keys, setKeys] = useState<ApiKeyStatus>({ ebird: null, openweather: null })
 
@@ -852,7 +854,46 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
   }
 
   return (
+    <>
     <div style={{ width: '100%', maxWidth: 680, margin: '0 auto' }}>
+
+      <SectionHeader label="Help &amp; Documentation" />
+
+      <div style={{
+        border: '1px solid var(--sr-border)', borderRadius: 10,
+        background: 'var(--sr-surface)', overflow: 'hidden',
+        marginBottom: 24, display: 'flex', alignItems: 'center',
+        gap: 16, padding: 16,
+      }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--sr-accent-bg)', border: '1px solid var(--sr-accent-border)',
+          color: 'var(--sr-accent)',
+        }}>
+          <BookOpen size={18} strokeWidth={1.75} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sr-text)', marginBottom: 2 }}>
+            SnowRaven Documentation
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+            Setup guides, feature walkthroughs, and API key instructions. Available offline.
+          </div>
+        </div>
+        <button
+          onClick={() => setHelpOpen(true)}
+          style={{
+            height: 34, padding: '0 16px', flexShrink: 0,
+            background: 'var(--sr-accent)', color: '#fff',
+            border: 'none', borderRadius: 7,
+            fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+            cursor: 'pointer', whiteSpace: 'nowrap',
+          }}
+        >
+          Open documentation
+        </button>
+      </div>
 
       <SectionHeader label="Appearance" />
 
@@ -1035,5 +1076,7 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
       </div>
 
     </div>
+    {helpOpen && <HelpDocs onClose={() => setHelpOpen(false)} />}
+    </>
   )
 }
