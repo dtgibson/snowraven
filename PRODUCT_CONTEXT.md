@@ -683,6 +683,30 @@ Two targeted improvements to the Map Explorer tab shipped in v0.1.8.
 **Key files changed:**
 - `frontend/src/components/MapExplorer.tsx` — `targetTypeFilter` state; modified `displayedTargetPins` useMemo (two-pass: recency then type); `distKm` conversion in both fetch calls; filter pills JSX; count label; reset on fetch; empty state text updated
 
+### Desktop App Foundation — Phase 0 (complete — May 2026)
+
+The architectural foundation for a signed, distributable Mac and Windows desktop app built with Tauri v2. Phase 0 establishes two permanent seams and the Tauri project structure. The backend is still required in Phase 0 — no user-visible behavior changes in the web app.
+
+**Two permanent seams:**
+- **Transport** (`frontend/src/lib/transport.ts`) — `TransportAdapter` interface; `WebTransport` uses `fetch`; `TauriTransport` delegates to `WebTransport` in Phase 0, will call external APIs directly in Phase 3. Singleton: `export const transport = isTauri() ? new TauriTransport() : new WebTransport()`.
+- **Storage** (`frontend/src/lib/storage.ts`) — `StorageAdapter` interface; `WebStorage` calls the FastAPI `/settings/*` endpoints; `TauriStorage` delegates to `WebStorage` in Phase 0. Phase 2 target: OS keychain. Phase 4 target: app data directory. Singleton: `export const storage`.
+- **Platform detection** (`frontend/src/lib/platform.ts`) — `isTauri()` checks `window.__TAURI_INTERNALS__`; single source of truth for platform branching.
+
+**Migration phases (future pipeline sessions):**
+- Phase 1: Weather formatter golden tests — TypeScript formatter that matches Python output
+- Phase 2: `TauriStorage` → OS keychain (Mac Keychain / Windows Credential Manager via stronghold plugin)
+- Phase 3: `TauriTransport` → direct external API calls (eBird, OpenWeather, Nominatim); API keys travel as HTTP headers, not URL params; CSP must be explicitly set before this ships
+- Phase 4: `TauriStorage` → app data directory; IndexedDB for taxonomy cache
+- Phase 5: Tauri updater plugin; in-app auto-update replaces the current GitHub releases check
+- Phase 6: backend decommission; fully standalone distribution
+
+**Tauri project files:**
+- `src-tauri/Cargo.toml` — package name "snowraven", identifier `com.snowraven.app`, Rust 1.77.2+
+- `src-tauri/tauri.conf.json` — window 1100×720 (min 800×600); `csp: null` (Phase 0 only — must be set before Phase 3); `devUrl: http://localhost:5173`
+- `src-tauri/capabilities/default.json` — minimal permissions: `core:default` + `opener:default`
+- `package.json` (repo root) — `desktop:dev` and `desktop:build` scripts via `@tauri-apps/cli`
+- `frontend/vite.config.ts` — `clearScreen: false` for Tauri terminal compatibility
+
 ### In-App Help Documentation (complete -- May 2026)
 
 A full-screen documentation overlay accessible from the top of the Settings tab. `docs/HELP.md` at the repo root is the single source of truth -- imported at build time via Vite's `?raw` loader and bundled as a string literal, making documentation always available offline with no runtime network call. The same file is rendered by GitHub at a predictable URL.

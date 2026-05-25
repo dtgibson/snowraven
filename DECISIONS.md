@@ -4,6 +4,30 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Desktop app: two-seam architecture and phased migration — 2026-05-25
+
+**Decision:** The desktop app is built around two permanent seams — transport (outbound HTTP via `TransportAdapter`) and storage (keys/settings/files via `StorageAdapter`). Phase 0 ships both seams with delegation-to-Web implementations; the backend is still required. Phases 1–6 migrate each capability to native Tauri implementations over future sessions.
+
+**Rationale:** Migrating all backend dependencies at once creates a high-risk, large-change release. The seam + phased approach lets each capability be proven against the Python backend as a reference oracle, then flipped when the TypeScript output matches. Phase 0 goes to production with zero user-visible change.
+
+**Implications:**
+- The `transport` singleton (`frontend/src/lib/transport.ts`) and `storage` singleton (`frontend/src/lib/storage.ts`) are the permanent seam layer. New Tauri-specific code must route through them — do not add `isTauri()` branches outside these two files.
+- Phase 3 constraint: API keys must travel as HTTP headers, not URL params, when `TauriTransport` calls external APIs directly. The eBird API accepts `X-eBird-Token` header; OpenWeather accepts `appid` as a query param but the header form should be used to avoid keys appearing in server logs.
+- `security.csp: null` in `tauri.conf.json` is acceptable for Phase 0 (no external content loaded at runtime). An explicit restrictive CSP must be in place before Phase 3 ships.
+- The Vite proxy list (`/weather`, `/taxonomy`, `/settings`, `/nominatim`, `/stats`, `/map`, `/version`) is the Phase 3 migration checklist — each entry is one proxy to decommission when its `TauriTransport` implementation is ready.
+
+---
+
+## Desktop app: Tauri v2 chosen as desktop wrapper — 2026-05-25
+
+**Decision:** The desktop app uses Tauri v2 (system webview + Rust core), not Electron or a similar Chromium-embedding framework.
+
+**Rationale:** Tauri bundles the OS system webview (WebKit on macOS, WebView2 on Windows) instead of Chromium, giving a binary roughly 4 MB vs 100 MB+ for Electron, lower memory overhead, and native OS appearance for dialogs and menus. The Rust core is a natural security boundary and the Tauri plugin system (stronghold, http, fs, updater) covers every Phase 2–5 capability.
+
+**Implications:** Minor rendering differences across platforms are expected and acceptable — platforms use native OS conventions, not pixel-identical layouts. Building the desktop app requires the Rust toolchain and `@tauri-apps/cli`. The app identifier is `com.snowraven.app`; the Tauri project lives in `src-tauri/` at the repo root.
+
+---
+
 ## Help documentation bundled at build time via Vite ?raw import — 2026-05-25
 
 **Decision:** `docs/HELP.md` is imported in `HelpDocs.tsx` as `import helpText from '../../../docs/HELP.md?raw'`. Vite resolves this at build time and inlines the file content as a string literal in the bundle. No runtime fetch is made; the documentation is always available offline.

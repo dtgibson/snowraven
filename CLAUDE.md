@@ -68,3 +68,17 @@ cd backend && python -m pytest tests/ -v
 ```
 Builds frontend into `frontend/dist/`, starts uvicorn on port 1620.
 FastAPI serves the built frontend as static files automatically.
+
+### Desktop app seams
+
+Two permanent architectural seams route all platform-sensitive operations. Use them in new code — do not bypass them.
+
+- **Transport:** `transport.get()` / `transport.post()` from `frontend/src/lib/transport.ts` — for all outbound HTTP calls. Phase 3 target: `TauriTransport` will call external APIs directly.
+- **Storage:** `storage.getApiKey()` / `storage.getSetting()` / etc. from `frontend/src/lib/storage.ts` — for all key, setting, and file access. Do not call `/settings/*` endpoints directly from new components.
+- **Platform detection:** `isTauri()` from `frontend/src/lib/platform.ts` — single source of truth for branching on Tauri vs. web. Do not check `window.__TAURI_INTERNALS__` elsewhere.
+
+Desktop development (requires Rust + `@tauri-apps/cli`):
+```
+npm run desktop:dev    # Tauri dev mode
+npm run desktop:build  # production .app / .exe bundle
+```
