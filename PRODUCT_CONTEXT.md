@@ -341,7 +341,7 @@ A Statistics tab (between Map Explorer and Settings in the tab bar) that derives
 
 **Breeding Stats** — Confirmed/Probable/Possible species totals. Breeding activity by month: stacked color-coded bars (dark purple = confirmed, medium = probable, light = possible species per month). Filter buttons (All / Confirmed / Probable / Possible) switch the chart to show only that tier.
 
-**Other Statistics** — Most Photographed / Most Audio / Most Video (top 10 each from ML export); links use `taxonCode` + `userId` pattern. Nemesis Birds (species recently observed nearby but absent from life list, powered by `GET /stats/nemesis`; each name links to `ebird.org/species/{taxonCode}` — resolved from `mlTaxonMap` or a fire-and-forget `/taxonomy/codes` fetch; falls back to plain text when unresolvable).
+**Other Statistics** — Nemesis Birds only (species recently observed nearby but absent from life list, powered by `GET /stats/nemesis`; each name links to `ebird.org/species/{taxonCode}` — resolved from `mlTaxonMap` or a fire-and-forget `/taxonomy/codes` fetch; falls back to plain text when unresolvable). Most Photographed / Most Recorded / Most Filmed have moved to the Media card.
 
 **Key files:**
 - `frontend/src/components/BirdingStats.tsx` — full tab component; ~2,100 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant; `mlCatalogUrl()` helper builds Macaulay Library search URLs using taxonCode when available, taxaName as fallback; `ML_USER_RE` extracts userId from ML export filename; `mlTaxonMap` and `nemesisTaxonMap` state populated via `POST /taxonomy/codes`; Leaflet `MapContainer` with `circleIcon`/`squareIcon` divIcon helpers and `TopLocationsBoundsFitter` null-rendering child (calls `map.invalidateSize()` then `fitBounds`)
@@ -638,6 +638,27 @@ A section at the bottom of the Settings tab lets users reorder and hide tabs fro
 - `frontend/src/lib/tabLayout.test.ts` — 12 unit tests covering defaults, custom order, hidden tabs, malformed JSON, unknown IDs, missing tab append, roundtrip, clear, and localStorage unavailable
 - `frontend/src/components/Settings.tsx` — `TabLayoutSection` sub-component with drag-and-drop rows, eye toggles, locked Settings row, and restore button
 - `frontend/src/App.tsx` — `tabLayout` and `activeTab` state (both lazy-initialized from `loadTabLayout`); `handleReorder`, `handleToggleVisibility`, `handleRestoreDefaults` callbacks; dynamic tab bar rendering and `<Settings>` prop threading
+
+### Media Card on the Statistics Tab (complete — May 2026)
+
+A new card between Breeding Stats and Other Statistics on the Statistics tab. Visible only when an ML export is loaded. Consolidates media-centric analytics — previously scattered across Other Statistics — into a dedicated card with a portfolio-level chart.
+
+**What it does:**
+- Four-series line chart (Photo, Audio, Video, Total) driven by `buildMediaGraphData()` — aggregates all ML rows by period across all species (unlike `buildGraphData`, which is per-species)
+- Interval controls: Weekly · Monthly · Yearly · Total; Monthly is the default on every tab load
+- Per Period / Cumulative toggle; hidden when Total interval is selected (Total always implies the full cumulative arc as a step-line)
+- Total interval: one data point per calendar date with any media, no gap-fill; other intervals gap-fill empty periods with zeros
+- Chart suppressed when data spans fewer than 2 distinct periods; rankings still appear
+- Three rankings below the chart: Most Photographed, Most Recorded (Audio), Most Filmed (Video) — top 10 each with ML catalog links via `mlCatalogUrl()`
+- Entirely absent when no ML export is loaded — no empty state or placeholder
+
+**What changed in Other Statistics:** Most Photographed, Most Recorded, and Most Filmed removed. Other Statistics now contains only Nemesis Birds.
+
+**Key files:**
+- `frontend/src/lib/sightingsGraph.ts` — `MediaGraphInterval`, `MediaGraphPoint` types, and `buildMediaGraphData(mlRows, interval)` function added; reuses existing `isoWeekKey()` and `mondayOfISOWeek()` helpers
+- `frontend/src/lib/sightingsGraph.test.ts` — 9 new tests for `buildMediaGraphData` (170 total)
+- `frontend/src/components/BirdingStats.tsx` — `mediaInterval`/`mediaViewMode` useState hooks; `mediaGraphResult`/`mediaDisplayData` useMemos; Media SectionCard JSX
+- `frontend/src/globals.css` — `--sr-graph-media-total` token in both `:root` (#64748b) and `[data-theme="dark"]` (#94a3b8)
 
 ### Map Explorer Improvements (complete — May 2026)
 
