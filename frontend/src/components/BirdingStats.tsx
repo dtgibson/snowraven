@@ -122,7 +122,7 @@ function SectionCard({ children, title, icon }: {
       background: 'var(--sr-surface)',
       border: '1px solid var(--sr-border)',
       borderRadius: 12,
-      padding: 24,
+      padding: 'clamp(14px, 4vw, 24px)',
       boxShadow: 'var(--sr-card-shadow)',
     }}>
       <div style={{
@@ -1314,7 +1314,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         })()}
 
         <Divider />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
           <div>
             <SubLabel>By day of week</SubLabel>
             {(() => {
@@ -1455,7 +1455,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         {geo.topCounties.length > 0 && (
           <>
             <Divider />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, alignItems: 'start' }}>
               <div>
                 <SubLabel>Counties by checklists</SubLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1542,7 +1542,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         {geo.topStates.length > 0 && (
           <>
             <Divider />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, alignItems: 'start' }}>
               <div>
                 <SubLabel>States by checklists</SubLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1640,7 +1640,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
 
         <Divider />
         <SubLabel>Key metrics</SubLabel>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--sr-border-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 1, background: 'var(--sr-border-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
           {[
             { label: 'Avg Duration', value: effort.avgDurationMin !== null ? `${fmt(effort.avgDurationMin, 0)} min` : '—' },
             { label: 'Avg Distance', value: effort.avgDistanceMi !== null ? `${fmt(effort.avgDistanceMi, 1)} mi` : '—' },
@@ -1927,7 +1927,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
               <SubLabel>Breeding activity by month</SubLabel>
               <div style={{ display: 'flex', gap: 4 }}>
                 {([
@@ -2020,7 +2020,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         <SectionCard title="Media" icon={<Video size={16} />}>
 
           {/* Controls row */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 8, marginBottom: 10 }}>
             {/* Per Period / Cumulative toggle — hidden when interval = 'total' */}
             {mediaInterval !== 'total' ? (
               <div style={{ display: 'flex', gap: 4 }}>
@@ -2163,9 +2163,23 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
 
         {/* Nemesis birds */}
         <SubLabel>Current Local Nemesis Birds</SubLabel>
-        <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', fontStyle: 'italic', margin: '0 0 10px', borderLeft: '3px solid var(--sr-accent-border)', paddingLeft: 10 }}>
-          Nemesis birds are species recently reported within your area that don't yet appear on your life list, ranked by how frequently they've been seen.
-        </p>
+        <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: '0 0 12px', borderLeft: '3px solid var(--sr-accent-border)', paddingLeft: 10 }}>
+          <p style={{ margin: '0 0 6px' }}>
+            Species observed near your configured location in the past 30 days that haven't appeared on your life list, sorted by most recently seen. Data comes from eBird's recent observations for the location and search radius set in Settings.
+          </p>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            {[
+              { color: '#EF4444', label: 'Seen in past 7 days' },
+              { color: '#F59E0B', label: '8–14 days ago' },
+              { color: 'var(--sr-text-disabled)', label: '15–30 days ago' },
+            ].map(d => (
+              <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
+                <span>{d.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
         {!mapDefaults ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
             <AlertCircle size={14} style={{ color: 'var(--sr-text-muted)', flexShrink: 0 }} />

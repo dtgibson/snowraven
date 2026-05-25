@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.1.17] - 2026-05-25
+
+### Changed
+- **Statistics — Mobile layout** — Statistics tab now adapts to narrow screens. SectionCard padding scales down with `clamp()`. Two-column grids (Geographic counties/states, Temporal day-of-week/start-hour) collapse to a single column below ~400px. The four-cell Effort metrics grid wraps to 2×2. Breeding filter buttons and Media interval controls wrap instead of overflowing.
+- **Statistics — Nemesis Birds description** — Corrected and expanded. Now accurately states species are sorted by most recently seen (not frequency, which was the previous incorrect description). Adds the 30-day observation window, the source (eBird observations for the configured location and radius from Settings), and an inline dot color legend (red = past 7 days, amber = 8–14 days, grey = 15–30 days).
+
 ## [0.1.16] - 2026-05-25
 
 ### Added
