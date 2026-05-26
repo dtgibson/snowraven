@@ -5,11 +5,15 @@
 # Credentials stay local — nothing is stored in GitHub.
 #
 # Required env vars (set in your shell before running):
-#   APPLE_API_KEY_PATH    path to your .p8 key file from App Store Connect
-#   APPLE_API_KEY_ID      10-character Key ID from App Store Connect
-#   APPLE_API_ISSUER_ID   Issuer ID UUID from App Store Connect
+#   APPLE_SIGNING_IDENTITY  your Developer ID Application cert name, e.g.:
+#                           "Developer ID Application: Dave Gibson (TEAMID)"
+#                           Find it: security find-identity -v -p codesigning | grep "Developer ID Application"
+#   APPLE_API_KEY_PATH      path to your .p8 key file from App Store Connect
+#   APPLE_API_KEY_ID        10-character Key ID from App Store Connect
+#   APPLE_API_ISSUER_ID     Issuer ID UUID from App Store Connect
 #
 # Example:
+#   export APPLE_SIGNING_IDENTITY="Developer ID Application: Dave Gibson (XXXXXXXXXX)"
 #   export APPLE_API_KEY_PATH=~/AuthKey_XXXXXXXXXX.p8
 #   export APPLE_API_KEY_ID=XXXXXXXXXX
 #   export APPLE_API_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
@@ -31,14 +35,16 @@ case "$(uname -m)" in
   *)       echo "Unsupported architecture: $(uname -m)" && exit 1 ;;
 esac
 
-BUNDLE_DIR="src-tauri/target/release/bundle"
+# Build outside iCloud Drive to avoid extended-attribute interference with codesign.
+export CARGO_TARGET_DIR="$HOME/.snowraven-build"
+BUNDLE_DIR="$CARGO_TARGET_DIR/release/bundle"
 DMG="$BUNDLE_DIR/dmg/SnowRaven_${VERSION}_${ARCH}.dmg"
 APP_TAR="$BUNDLE_DIR/macos/SnowRaven.app.tar.gz"
 APP_SIG="${APP_TAR}.sig"
 
 # ── Preflight checks ──────────────────────────────────────────────────────────
 
-for var in APPLE_API_KEY_PATH APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
+for var in APPLE_SIGNING_IDENTITY APPLE_API_KEY_PATH APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
   if [[ -z "${!var:-}" ]]; then
     echo "Error: $var is not set. See the usage comment at the top of this script."
     exit 1
@@ -58,12 +64,23 @@ fi
 echo "==> SnowRaven $TAG ($ARCH)"
 
 # ── Build ─────────────────────────────────────────────────────────────────────
+# TAURI_SIGNING_PRIVATE_KEY must be set before the build so Tauri generates
+# the .app.tar.gz updater bundle and .sig file automatically.
+
+export TAURI_SIGNING_PRIVATE_KEY
+TAURI_SIGNING_PRIVATE_KEY=$(cat "$SIGNING_KEY")
+export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 
 echo "==> Building..."
 npm run desktop:build
 
 if [[ ! -f "$DMG" ]]; then
   echo "Error: DMG not found at $DMG — build may have failed."
+  exit 1
+fi
+
+if [[ ! -f "$APP_TAR" ]]; then
+  echo "Error: Updater bundle not found at $APP_TAR — build may have failed."
   exit 1
 fi
 
@@ -79,13 +96,8 @@ xcrun notarytool submit "$DMG" \
 echo "==> Stapling..."
 xcrun stapler staple "$DMG"
 
-# ── Sign updater bundle ───────────────────────────────────────────────────────
+# ── Read updater signature ────────────────────────────────────────────────────
 
-echo "==> Signing updater bundle..."
-export TAURI_SIGNING_PRIVATE_KEY
-TAURI_SIGNING_PRIVATE_KEY=$(cat "$SIGNING_KEY")
-export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
-npx @tauri-apps/cli@^2 signer sign "$APP_TAR"
 SIG=$(cat "$APP_SIG")
 
 # ── Generate latest.json ──────────────────────────────────────────────────────
