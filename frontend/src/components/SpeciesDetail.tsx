@@ -513,8 +513,8 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
   // Auto-load from stored files
   useEffect(() => {
     let cancelled = false
-    setPhase({ tag: 'loading-saved' })
     async function autoLoad() {
+      setPhase({ tag: 'loading-saved' })
       try {
         const status = await storage.getFilesStatus()
         if (cancelled) return

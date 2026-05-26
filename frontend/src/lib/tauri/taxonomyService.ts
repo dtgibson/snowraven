@@ -74,15 +74,25 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
   const ebirdKey = await storage.getApiKey('ebird');
   const headers: Record<string, string> = ebirdKey ? { 'x-ebirdapitoken': ebirdKey } : {};
 
-  const res = await tauriFetch(
-    `${EBIRD_BASE}/ref/taxonomy/ebird?fmt=json&cat=species`,
-    { headers }
-  );
-  if (!res.ok) throw new Error(`eBird taxonomy fetch failed (HTTP ${res.status}).`);
+  let res: Awaited<ReturnType<typeof tauriFetch>>;
+  try {
+    res = await tauriFetch(
+      `${EBIRD_BASE}/ref/taxonomy/ebird?fmt=json&cat=species`,
+      { headers }
+    );
+  } catch (err) {
+    throw new Error(`Could not reach eBird (${err instanceof Error ? err.message : String(err)}). Check your internet connection.`, { cause: err });
+  }
+  if (!res.ok) throw new Error(`eBird returned HTTP ${res.status}. Check your API key in Settings.`);
 
-  const taxonomy = await res.json() as TaxonEntry[];
+  let taxonomy: TaxonEntry[];
+  try {
+    taxonomy = await res.json() as TaxonEntry[];
+  } catch {
+    throw new Error('eBird returned an unexpected response format. Try again later.');
+  }
   if (!Array.isArray(taxonomy) || taxonomy.length < 100) {
-    throw new Error('eBird taxonomy response was empty or incomplete. Check your API key and internet connection.');
+    throw new Error(`eBird taxonomy returned ${Array.isArray(taxonomy) ? taxonomy.length : 0} entries — expected 10,000+. Check your API key in Settings.`);
   }
   const bySci: Record<string, string> = {};
   const byCom: Record<string, string> = {};
@@ -111,12 +121,7 @@ interface SpeciesItem { commonName: string; scientificName: string }
 export async function getTaxonomyCodes(
   species: SpeciesItem[]
 ): Promise<{ codes: Record<string, string>; orders: Record<string, number> }> {
-  let cache: TaxonomyCache;
-  try {
-    cache = await ensureTaxonomy();
-  } catch {
-    return { codes: {}, orders: {} };
-  }
+  const cache = await ensureTaxonomy();
 
   const codes: Record<string, string> = {};
   const orders: Record<string, number> = {};

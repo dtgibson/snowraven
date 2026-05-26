@@ -941,14 +941,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           (phase.tag === 'ready' ? [...phase.observations] : []).map(o => [o.commonName, o.scientificName]),
         )
         const species = names.map(n => ({ commonName: n, scientificName: sciMap.get(n) ?? '' }))
-        try {
-          const d = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
-          setSpeciesCodeMap(prev => ({ ...prev, ...d.codes }))
-          codes = names.map(n => d.codes[n]).filter(Boolean).join(',')
-        } catch { /* ignore */ }
-      } catch { /* ignore */ }
+        const d = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
+        setSpeciesCodeMap(prev => ({ ...prev, ...d.codes }))
+        codes = names.map(n => d.codes[n]).filter(Boolean).join(',')
+      } catch (err) {
+        setTargetsError(err instanceof Error ? err.message : 'Could not load eBird taxonomy.')
+        return
+      }
     }
-    if (!codes) { setTargetsError('Could not look up species codes from eBird. Try rebuilding caches in Settings.'); return }
+    if (!codes) { setTargetsError('No eBird species codes found for the selected species.'); return }
 
     setTargetsLoading(true); setTargetsError('')
     try {

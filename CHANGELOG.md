@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.14] - 2026-05-26
+
+### Fixed
+- **"Find Target Sightings" still failing after cache rebuild** — The eBird taxonomy fetch error was being swallowed silently at two layers (in `getTaxonomyCodes` and in MapExplorer's on-demand fetch), so all failures showed the same generic message regardless of cause. The actual error (network failure, bad API key, unexpected response) is now surfaced directly. Also improved error specificity in `ensureTaxonomy`: network errors, non-200 HTTP responses, and malformed responses each produce a distinct, actionable message.
+- **CI lint failures** — `eslint-plugin-react-hooks` flagged synchronous `setPhase()` calls at the top of `useEffect` bodies in `BreedingCodeList`, `LifeList`, and `SpeciesDetail`. Moved the call inside the async `autoLoad` function in each component (semantically identical, no behavioral change).
+
 ## [0.3.13] - 2026-05-26
 
 ### Fixed

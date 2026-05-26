@@ -107,8 +107,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
 
   useEffect(() => {
     let cancelled = false
-    setPhase({ tag: 'loading-saved' })
     async function autoLoad() {
+      setPhase({ tag: 'loading-saved' })
       try {
         const status = await storage.getFilesStatus()
         if (cancelled) return
