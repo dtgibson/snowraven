@@ -665,6 +665,43 @@ interface ApiKeyStatus {
   openweather: string | null
 }
 
+// ---- Rebuild caches button ----
+
+function RebuildCachesButton() {
+  const [status, setStatus] = useState<'idle' | 'working'>('idle')
+
+  async function handleRebuild() {
+    setStatus('working')
+    try {
+      await new Promise<void>((resolve) => {
+        const req = indexedDB.deleteDatabase('snowraven-taxonomy')
+        req.onsuccess = () => resolve()
+        req.onerror = () => resolve()
+        req.onblocked = () => resolve()
+      })
+    } catch { /* best-effort */ }
+    const { relaunch } = await import('@tauri-apps/plugin-process')
+    await relaunch()
+  }
+
+  return (
+    <button
+      onClick={handleRebuild}
+      disabled={status === 'working'}
+      style={{
+        height: 32, padding: '0 14px',
+        background: status === 'working' ? 'var(--sr-surface-subtle)' : 'var(--sr-surface)',
+        color: status === 'working' ? 'var(--sr-text-disabled)' : 'var(--sr-text)',
+        border: '1px solid var(--sr-border)', borderRadius: 6,
+        fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+        cursor: status === 'working' ? 'not-allowed' : 'pointer',
+      }}
+    >
+      {status === 'working' ? 'Restarting…' : 'Rebuild caches & restart'}
+    </button>
+  )
+}
+
 interface SettingsProps {
   onKeysSaved?: () => void
   onFilesSaved?: () => void
@@ -1059,6 +1096,25 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
           onRestoreDefaults={onRestoreDefaults}
         />
       </div>
+
+      {isTauri() && (
+        <div style={{ marginTop: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+              Troubleshooting
+            </span>
+            <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
+          </div>
+          <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 16px' }}>
+              <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+                If the map or species lookups stop working, rebuilding the app's local caches usually fixes it. The app will restart.
+              </p>
+              <RebuildCachesButton />
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
     {helpOpen && <HelpDocs onClose={() => setHelpOpen(false)} />}

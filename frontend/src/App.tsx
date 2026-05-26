@@ -752,7 +752,7 @@ export default function App() {
           </span>
         )}
         {updateStatus.kind === 'ready-to-restart' && (
-          <span style={{ color: 'var(--sr-accent)' }}>Update installed — relaunch SnowRaven to apply</span>
+          <span style={{ color: 'var(--sr-accent)' }}>Update installed — restarting…</span>
         )}
         {updateStatus.kind === 'error' && (
           <span style={{ color: 'var(--sr-error)' }}>Could not check for updates</span>

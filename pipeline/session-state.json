@@ -1,11 +1,11 @@
 {
-  "activeFeature": "desktop-app-bugs",
+  "activeFeature": "map-and-updater-bugs",
   "sessionNumber": 1,
   "sessionType": "fix",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
+  "currentStage": 2,
+  "lastCompletedStage": 1,
   "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [],
-  "createdAt": "2026-05-26T12:00:00Z",
-  "updatedAt": "2026-05-26T12:45:00Z"
+  "createdAt": "2026-05-26T20:05:00Z",
+  "updatedAt": "2026-05-26T20:18:00Z"
 }

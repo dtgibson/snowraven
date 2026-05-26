@@ -19,7 +19,7 @@ interface TaxonomyCache {
 
 const DB_NAME = 'snowraven-taxonomy';
 const STORE_NAME = 'cache';
-const CACHE_KEY = 'taxonomy-v2024';
+const CACHE_KEY = 'taxonomy-v2025';
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -78,9 +78,12 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
     `${EBIRD_BASE}/ref/taxonomy/ebird?fmt=json&cat=species`,
     { headers }
   );
-  if (!res.ok) throw new Error('Could not fetch eBird taxonomy.');
+  if (!res.ok) throw new Error(`eBird taxonomy fetch failed (HTTP ${res.status}).`);
 
   const taxonomy = await res.json() as TaxonEntry[];
+  if (!Array.isArray(taxonomy) || taxonomy.length < 100) {
+    throw new Error('eBird taxonomy response was empty or incomplete. Check your API key and internet connection.');
+  }
   const bySci: Record<string, string> = {};
   const byCom: Record<string, string> = {};
   const byOrder: Record<string, number> = {};

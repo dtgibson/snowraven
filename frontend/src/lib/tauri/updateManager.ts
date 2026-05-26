@@ -41,4 +41,6 @@ export async function downloadAndInstall(
       onProgress?.({ downloaded, total });
     }
   });
+  const { relaunch } = await import('@tauri-apps/plugin-process');
+  await relaunch();
 }

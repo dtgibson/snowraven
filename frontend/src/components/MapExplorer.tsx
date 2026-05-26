@@ -948,7 +948,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         } catch { /* ignore */ }
       } catch { /* ignore */ }
     }
-    if (!codes) { setTargetsError('Could not resolve species codes. Check your eBird API key.'); return }
+    if (!codes) { setTargetsError('Could not look up species codes from eBird. Try rebuilding caches in Settings.'); return }
 
     setTargetsLoading(true); setTargetsError('')
     try {

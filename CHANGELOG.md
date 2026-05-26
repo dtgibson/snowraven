@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.13] - 2026-05-26
+
+### Fixed
+- **"Could not resolve species codes" on Find Target Sightings** — The eBird taxonomy cache (IndexedDB) was written empty during v0.3.11 when API key storage was broken. The stale 7-day cache kept returning empty results for every species lookup, producing a misleading "Check your eBird API key" error. Fixed by bumping the cache key to `taxonomy-v2025` (invalidating all stale caches), validating the fetched taxonomy has ≥100 entries before caching, and improving the error message to direct users to the cache rebuild tool.
+- **In-app updater not applying** — After downloading an update the app showed "relaunch to apply," but relaunching via the Dock could refocus the running process instead of quitting it, leaving the old binary running. The updater now auto-relaunches immediately after installation using `tauri-plugin-process`.
+
+### Added
+- **Settings → Troubleshooting: "Rebuild caches & restart" button** — Clears the app's local taxonomy cache (IndexedDB) and restarts cleanly. Fixes stale-cache issues without requiring a reinstall. Desktop app only.
+
 ## [0.3.12] - 2026-05-26
 
 ### Fixed
