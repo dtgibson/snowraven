@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.0] - 2026-05-25
+
+### Added
+- **TypeScript weather formatter** (`frontend/src/lib/weatherFormatter.ts`) -- Pure TypeScript port of `backend/formatters/weather.py`. Exports `formatWeather()`, `windDescription()`, `cardinal()`, `conditionEmoji()`, `formatRange()`, `formatLocalTime()`, and `bankersRound()`. Produces byte-for-byte identical output to the Python reference for all test fixtures. No new npm dependencies; no Node.js-only imports (browser-safe for Phase 3).
+- **Golden test suite** (`frontend/src/lib/weatherFormatter.test.ts`) -- 61 vitest tests covering all Beaufort boundaries, all 8 cardinal directions, banker's rounding at .5 boundaries, multi-hour aggregation, wind description sort order, wind direction insertion order, capitalize semantics, equal-value ranges, noon/midnight formatting, and a byte-for-byte match against the production fixture from `backend/tests/test_weather_router.py`.
+- **Golden reference script** (`frontend/src/lib/weatherFormatter.golden.py`) -- Python oracle script that runs the Python formatter logic against each test fixture and prints expected output. Documents how the TypeScript golden values were generated; re-run if the Python formatter changes.
+
 ## [0.2.0] - 2026-05-25
 
 ### Added

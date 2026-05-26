@@ -1,17 +1,17 @@
 {
-  "activeFeature": "desktop-app",
+  "activeFeature": "desktop-app-phase-1",
   "sessionNumber": 2,
   "sessionType": "feature",
-  "currentStage": 9,
-  "lastCompletedStage": 8,
+  "currentStage": 8,
+  "lastCompletedStage": 7,
   "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [
-    "pipeline/desktop-app/strategic-brief.md",
-    "pipeline/desktop-app/prd.md",
-    "pipeline/desktop-app/schema.md",
-    "pipeline/desktop-app/design-spec.md",
-    "pipeline/desktop-app/design.html"
+    "pipeline/desktop-app-phase-1/strategic-brief.md",
+    "pipeline/desktop-app-phase-1/prd.md",
+    "pipeline/desktop-app-phase-1/schema.md",
+    "pipeline/desktop-app-phase-1/design-spec.md",
+    "pipeline/desktop-app-phase-1/design.html"
   ],
-  "createdAt": "2026-05-25T04:45:00Z",
-  "updatedAt": "2026-05-25T07:45:00Z"
+  "createdAt": "2026-05-25T08:05:00Z",
+  "updatedAt": "2026-05-25T19:30:00Z"
 }

@@ -1,0 +1,193 @@
+# PRD — Desktop App Phase 1: Weather Formatter
+**Feature:** desktop-app-phase-1
+**Session:** 001
+**Date:** 2026-05-25
+**Stage:** 2 — The Planner
+**Source:** strategic-brief.md (approved)
+
+---
+
+## Feature Overview
+
+A pure TypeScript function that takes the same inputs as Python's `backend/formatters/weather.py` and produces byte-for-byte identical formatted weather text. Accompanied by a golden test suite that proves equivalence under the conditions that will exist when Phase 3 migrates the transport seam.
+
+---
+
+## User Stories
+
+**US-01** — As the Phase 3 engineer, I want a TypeScript weather formatter with proven Python equivalence, so that I can migrate the weather transport without changing output.
+
+**US-02** — As a developer running CI, I want golden tests that fail immediately on any formatting divergence, so that regressions are caught before they reach production.
+
+**US-03** — As a SnowRaven user on the desktop app, I want weather output that is identical to what the web version produces, so that the upgrade to the desktop app is invisible.
+
+---
+
+## Functional Requirements
+
+### Input Types
+
+**FR-01** — The formatter module shall export a `HourlyResponse` TypeScript interface matching the OpenWeather One Call timemachine response shape:
+```
+HourlyResponse {
+  data: [{
+    temp: number          // °F
+    humidity: number      // %
+    dew_point: number     // °F
+    wind_speed: number    // mph
+    wind_deg: number      // meteorological degrees (0–360)
+    clouds: number        // %
+    weather: [{ id: number; description: string }]
+    sunrise: number       // Unix timestamp
+    sunset: number        // Unix timestamp
+  }]
+}
+```
+
+**FR-02** — The formatter module shall export a `formatWeather(responses: HourlyResponse[], tzName: string): string` function. `tzName` is an IANA timezone name string (e.g. `"America/New_York"`). The function shall be pure — no side effects, no API calls, no fetch.
+
+### Beaufort Wind Description
+
+**FR-03** — The formatter shall export a `windDescription(mph: number): string` function with exactly these thresholds (≤ inclusive):
+
+| Max mph | Label |
+|---|---|
+| 1 | Calm |
+| 3 | Mostly calm |
+| 7 | Light breeze |
+| 12 | Gentle breeze |
+| 18 | Moderate breeze |
+| 24 | Fresh breeze |
+| 31 | Strong breeze |
+| 38 | Near gale |
+| ∞ | Gale |
+
+**FR-04** — `formatWeather` shall compute the Beaufort description for each hourly response's `wind_speed`, deduplicate while preserving first-occurrence order, sort the unique descriptions by Beaufort scale position (ascending, Calm first), and join with `" - "`.
+
+### Cardinal Wind Direction
+
+**FR-05** — The formatter shall export a `cardinal(degrees: number): string` function using exactly 8 directions in this order: `["N", "NE", "E", "SE", "S", "SW", "W", "NW"]`. Direction is computed as `directions[bankersRound(degrees / 45) % 8]` where `bankersRound` implements Python-compatible round-half-to-even (banker's rounding). Standard JavaScript `Math.round` shall not be used directly for this computation.
+
+**FR-06** — `formatWeather` shall compute the cardinal direction for each hourly response's `wind_deg`, deduplicate while preserving first-occurrence order (not sorted), and join with `" - "`.
+
+### Condition
+
+**FR-07** — The formatter shall export a `conditionEmoji(owmId: number): string` function with these OWM ID ranges:
+
+| Range | Emoji |
+|---|---|
+| 200–232 | ⛈️ |
+| 300–321 | 🌦️ |
+| 500–531 | 🌧️ |
+| 600–622 | ❄️ |
+| 700–781 | 🌫️ |
+| 800 | ☀️ |
+| 801 | 🌤️ |
+| 802 | ⛅ |
+| 803 | 🌥️ |
+| 804 | ☁️ |
+| anything else | 🌡️ |
+
+**FR-08** — The condition description shall be taken from `responses[0].data[0].weather[0].description` and transformed with `capitalize()` semantics: lowercase all characters, then uppercase the first character only. Example: `"overcast clouds"` → `"Overcast clouds"`.
+
+### Range Formatting
+
+**FR-09** — The formatter shall export a `formatRange(values: number[], unit: string): string` function that rounds each value using banker's rounding, then returns `"{min}{unit}"` if min equals max, or `"{min} - {max}{unit}"` otherwise.
+
+### Time Formatting
+
+**FR-10** — The formatter shall export a `formatLocalTime(unixTs: number, tzName: string): string` function that converts a Unix timestamp to local time in the given IANA timezone and returns it in the format `{H}:{MM}{am|pm}` — no leading zero on the hour, minutes zero-padded to 2 digits, AM/PM lowercase with no space. Examples: `"6:30am"`, `"12:45pm"`, `"10:05am"`.
+
+### Output Format
+
+**FR-11** — `formatWeather` shall return a string with exactly this line structure (newline-separated, no trailing newline after the attribution):
+
+```
+{emoji}
+{condition}
+Temperature: {tempRange}°F
+Wind: {windDescriptions}
+Wind Direction: {windDirections}
+Cloud Cover: {cloudRange}%
+Humidity: {humidityRange}%
+Dew point: {dewRange}°F
+Sunrise: {sunriseTime}
+Sunset: {sunsetTime}
+Weather generated by <a href="https://github.com/dtgibson/snowraven">SnowRaven</a>
+```
+
+Temperature, Cloud Cover, Humidity, and Dew point ranges are computed across all hourly responses using `formatRange`. Sunrise and Sunset are taken from `responses[0].data[0]`.
+
+### Golden Tests
+
+**FR-12** — The test suite shall include a Python helper script at `frontend/src/lib/weatherFormatter.golden.py` that runs the Python `format_weather` function on each test fixture and prints its output. This script is the reference oracle — the TypeScript expected values in the test file are generated from it.
+
+**FR-13** — The golden test suite shall cover all of the following cases:
+
+| Case | Description |
+|---|---|
+| Single hour, calm wind | One response, wind_speed ≤ 1 |
+| Single hour, gale | One response, wind_speed > 38 |
+| All Beaufort boundaries | Tests at exactly 1, 3, 7, 12, 18, 24, 31, 38 mph |
+| Multi-hour, same description | Two responses with different speeds but same Beaufort label |
+| Multi-hour, different descriptions | Two responses spanning two Beaufort labels |
+| All 8 cardinal directions | One test per direction; verify round-half-to-even at boundaries |
+| Multi-hour, same direction | Two responses with same cardinal — deduplicates to one |
+| Multi-hour, different directions | Two responses with different cardinals — order matches responses |
+| Equal-value range | All temp/humidity/dew values identical → single value, no " - " |
+| format_local_time: noon | sunrise or sunset at 12:xx local time |
+| format_local_time: midnight | sunrise or sunset at 12:xx am |
+| Condition capitalize | description with mixed case |
+| Real production fixture | One fixture matching the mock shape in `test_weather_router.py` |
+
+---
+
+## Non-Functional Requirements
+
+**NFR-01 — Browser compatibility:** The formatter shall import no Node.js-only modules. It must run in a browser context without modification (required for Phase 3 use inside TauriTransport).
+
+**NFR-02 — No new dependencies:** The formatter shall be implemented with no new npm packages. Banker's rounding and time formatting shall be implemented inline.
+
+**NFR-03 — Test isolation:** All golden tests shall pass with no DOM, no network calls, and no environment variables — pure vitest with the `node` test environment.
+
+---
+
+## Out of Scope
+
+- Timezone resolution from lat/lng (`timezonefinder` equivalent) — Phase 3 concern; the formatter accepts an already-resolved IANA timezone name
+- Any UI changes
+- Any Tauri plugin integration
+- Modifying the Python backend formatter
+- Phase 2, 3, or any other phase of the desktop app plan
+
+---
+
+## Open Questions
+
+**OQ-01:** Should the golden Python script be committed to the repository or treated as a one-time generation tool?
+*Default if unresolved:* Commit it. It documents how the golden values were produced and can be re-run if Python formatter behavior changes.
+
+**OQ-02:** The `bankersRound` function affects cardinal direction assignment at boundary degree values (e.g. 22.5°, 67.5°, etc.). In practice OpenWeather returns integer degree values — but should the tests explicitly cover half-degree boundaries?
+*Default if unresolved:* Yes — include at least one explicit banker's rounding case to document the intentional divergence from `Math.round`.
+
+---
+
+## Success Metrics
+
+| ID | What's Being Verified | Pass Condition |
+|---|---|---|
+| QA-01 | `windDescription` Beaufort thresholds | Returns correct label for wind speeds at each boundary (1, 3, 7, 12, 18, 24, 31, 38, 39) |
+| QA-02 | `cardinal` 8-direction mapping | Returns correct direction for inputs 0°, 45°, 90°, 135°, 180°, 225°, 270°, 315° |
+| QA-03 | `cardinal` banker's rounding | `cardinal(22.5)` returns "N" (not "NE"), matching Python behavior |
+| QA-04 | `formatRange` equal values | `formatRange([72, 72], '°F')` returns `"72°F"` |
+| QA-05 | `formatRange` range | `formatRange([68, 74], '°F')` returns `"68 - 74°F"` |
+| QA-06 | `formatLocalTime` no leading zero | `"6:30am"` not `"06:30am"` |
+| QA-07 | `formatLocalTime` noon | Returns `"12:xxpm"` correctly |
+| QA-08 | Wind descriptions sorted | Multi-speed input sorted by Beaufort order, not insertion order |
+| QA-09 | Wind directions not sorted | Multi-response input preserves insertion order |
+| QA-10 | Condition capitalize | `"overcast clouds"` → `"Overcast clouds"` |
+| QA-11 | Single-hour golden match | `formatWeather([singleFixture], tz)` output matches Python reference exactly |
+| QA-12 | Multi-hour golden match | `formatWeather([fixture1, fixture2], tz)` output matches Python reference exactly |
+| QA-13 | Attribution line | Output ends with the exact attribution HTML string |
+| QA-14 | All vitest tests pass | `npm run test` exits 0 with no skipped or failing tests |
+| QA-15 | CI passes | GitHub Actions pipeline green on push |

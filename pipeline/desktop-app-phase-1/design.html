@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weather Formatter — Developer Reference</title>
+<style>
+  :root {
+    --primary: #2D8653;
+    --primary-light: #e8f5ef;
+    --foreground: #0F1117;
+    --muted: #F4F4F5;
+    --border: #E4E4E7;
+    --radius: 0.5rem;
+    --text-secondary: #6b7280;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    color: var(--foreground);
+    background: #fff;
+    padding: 48px 32px;
+    max-width: 900px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* Header */
+  .doc-header {
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 20px;
+    margin-bottom: 40px;
+  }
+  .doc-header .badge {
+    display: inline-block;
+    background: var(--primary);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+  }
+  .doc-header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+  .doc-header p {
+    color: var(--text-secondary);
+    margin-top: 6px;
+    font-size: 13px;
+  }
+
+  /* Section */
+  section { margin-bottom: 48px; }
+  section h2 {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    margin-bottom: 16px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Code blocks */
+  pre, code {
+    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+    font-size: 13px;
+  }
+  pre {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    overflow-x: auto;
+    line-height: 1.7;
+  }
+  code {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 12px;
+  }
+
+  /* Syntax highlight helpers */
+  .kw { color: #7c3aed; }
+  .ty { color: #0369a1; }
+  .st { color: #065f46; }
+  .cm { color: #9ca3af; font-style: italic; }
+  .nu { color: #b45309; }
+
+  /* Live example layout */
+  .example-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .example-panel h3 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .example-panel .label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+  }
+  .output-block {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+  }
+  .output-line { display: block; line-height: 1.8; }
+  .output-line.attr {
+    color: var(--text-secondary);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+  }
+  th {
+    background: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #fafafa; }
+  .range-col { white-space: nowrap; color: var(--text-secondary); font-size: 12px; }
+  .label-col { font-weight: 500; }
+  .emoji-col { font-size: 18px; line-height: 1; }
+  .boundary-row td { background: var(--primary-light); }
+
+  /* Tables grid for side-by-side */
+  .tables-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .tables-grid h3 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  /* Behavioral rule cards */
+  .rules-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .rule-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .rule-card .rule-number {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    margin-bottom: 6px;
+  }
+  .rule-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: var(--foreground);
+  }
+  .rule-card p {
+    font-size: 13px;
+    color: #374151;
+    margin-bottom: 10px;
+    line-height: 1.6;
+  }
+  .rule-card pre {
+    font-size: 12px;
+    padding: 10px 14px;
+  }
+  .caution {
+    background: #fffbeb;
+    border: 1px solid #fbbf24;
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #92400e;
+    margin-top: 10px;
+  }
+
+  /* Full-width OWM table */
+  .owm-table-wrap { margin-top: 24px; }
+  .owm-table-wrap h3 {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <div class="badge">Developer Reference</div>
+  <h1>Weather Formatter — Phase 1</h1>
+  <p>Contract, live example, reference tables, and behavioral rules for Stage 5 implementation.
+     All example values drawn from the production fixture in <code>backend/tests/test_weather_router.py</code>.</p>
+</div>
+
+<!-- ─── Section 1: Function Contract ──────────────────────────── -->
+<section>
+  <h2>1 — Function Contract</h2>
+  <pre><span class="cm">// Input type</span>
+<span class="kw">interface</span> <span class="ty">HourlyResponse</span> {
+  data: [{
+    temp:        <span class="ty">number</span>   <span class="cm">// °F</span>
+    humidity:    <span class="ty">number</span>   <span class="cm">// %</span>
+    dew_point:   <span class="ty">number</span>   <span class="cm">// °F</span>
+    wind_speed:  <span class="ty">number</span>   <span class="cm">// mph</span>
+    wind_deg:    <span class="ty">number</span>   <span class="cm">// meteorological degrees 0–360</span>
+    clouds:      <span class="ty">number</span>   <span class="cm">// %</span>
+    weather: [{ id: <span class="ty">number</span>; description: <span class="ty">string</span> }]
+    sunrise:     <span class="ty">number</span>   <span class="cm">// Unix timestamp</span>
+    sunset:      <span class="ty">number</span>   <span class="cm">// Unix timestamp</span>
+  }]
+}
+
+<span class="cm">// Exported helpers</span>
+<span class="kw">export function</span> <span class="ty">bankersRound</span>(n: <span class="ty">number</span>): <span class="ty">number</span>
+<span class="kw">export function</span> <span class="ty">windDescription</span>(mph: <span class="ty">number</span>): <span class="ty">string</span>
+<span class="kw">export function</span> <span class="ty">cardinal</span>(degrees: <span class="ty">number</span>): <span class="ty">string</span>
+<span class="kw">export function</span> <span class="ty">conditionEmoji</span>(owmId: <span class="ty">number</span>): <span class="ty">string</span>
+<span class="kw">export function</span> <span class="ty">formatRange</span>(values: <span class="ty">number</span>[], unit: <span class="ty">string</span>): <span class="ty">string</span>
+<span class="kw">export function</span> <span class="ty">formatLocalTime</span>(unixTs: <span class="ty">number</span>, tzName: <span class="ty">string</span>): <span class="ty">string</span>
+
+<span class="cm">// Main export — pure function, no side effects</span>
+<span class="kw">export function</span> <span class="ty">formatWeather</span>(
+  responses: <span class="ty">HourlyResponse</span>[],
+  tzName:    <span class="ty">string</span>           <span class="cm">// IANA timezone, e.g. "America/New_York"</span>
+): <span class="ty">string</span></pre>
+</section>
+
+<!-- ─── Section 2: Live Example ───────────────────────────────── -->
+<section>
+  <h2>2 — Live Example</h2>
+  <div class="example-grid">
+    <div class="example-panel">
+      <h3>Input</h3>
+      <div class="label">responses[0] — production fixture</div>
+      <pre><span class="cm">// MOCK_OWM_RESPONSE from test_weather_router.py</span>
+{
+  data: [{
+    temp:       <span class="nu">54.3</span>,
+    humidity:   <span class="nu">89</span>,
+    dew_point:  <span class="nu">51.5</span>,
+    wind_speed: <span class="nu">8.3</span>,
+    wind_deg:   <span class="nu">270</span>,
+    clouds:     <span class="nu">100</span>,
+    weather: [{
+      id:          <span class="nu">804</span>,
+      description: <span class="st">"overcast clouds"</span>
+    }],
+    sunrise: <span class="nu">1714554480</span>,
+    sunset:  <span class="nu">1714603980</span>
+  }]
+}
+
+tzName: <span class="st">"America/New_York"</span></pre>
+    </div>
+    <div class="example-panel">
+      <h3>Expected Output</h3>
+      <div class="label">formatWeather([response], tzName) →</div>
+      <div class="output-block">
+        <code style="background:none;border:none;padding:0;font-size:13px;line-height:1.9;display:block;">
+          <span class="output-line">☁️</span>
+          <span class="output-line">Overcast clouds</span>
+          <span class="output-line">Temperature: 54°F</span>
+          <span class="output-line">Wind: Gentle breeze</span>
+          <span class="output-line">Wind Direction: W</span>
+          <span class="output-line">Cloud Cover: 100%</span>
+          <span class="output-line">Humidity: 89%</span>
+          <span class="output-line">Dew point: 52°F</span>
+          <span class="output-line">Sunrise: 5:07am</span>
+          <span class="output-line">Sunset: 6:52pm</span>
+          <span class="output-line attr">Weather generated by &lt;a href="..."&gt;SnowRaven&lt;/a&gt;</span>
+        </code>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text-secondary);">
+        <strong>Key derivations:</strong> 54.3 → 54 (banker's round) &nbsp;·&nbsp;
+        51.5 → 52 (nearest even) &nbsp;·&nbsp;
+        8.3 mph → Gentle breeze (≤12) &nbsp;·&nbsp;
+        270° → W &nbsp;·&nbsp;
+        804 → ☁️
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Section 3: Reference Tables ──────────────────────────── -->
+<section>
+  <h2>3 — Reference Tables</h2>
+
+  <div class="tables-grid">
+    <div>
+      <h3>Beaufort Scale</h3>
+      <table>
+        <thead>
+          <tr><th>Max mph</th><th>Label</th></tr>
+        </thead>
+        <tbody>
+          <tr class="boundary-row"><td class="range-col">≤ 1</td><td class="label-col">Calm</td></tr>
+          <tr class="boundary-row"><td class="range-col">≤ 3</td><td class="label-col">Mostly calm</td></tr>
+          <tr class="boundary-row"><td class="range-col">≤ 7</td><td class="label-col">Light breeze</td></tr>
+          <tr class="boundary-row"><td class="range-col">≤ 12</td><td class="label-col">Gentle breeze</td></tr>
+          <tr class="boundary-row"><td class="range-col">≤ 18</td><td class="label-col">Moderate breeze</td></tr>
+          <tr class="boundary-row"><td class="range-col">≤ 24</td><td class="label-col">Fresh breeze</td></tr>
+          <tr class="boundary-row"><td class="range-col">≤ 31</td><td class="label-col">Strong breeze</td></tr>
+          <tr class="boundary-row"><td class="range-col">≤ 38</td><td class="label-col">Near gale</td></tr>
+          <tr class="boundary-row"><td class="range-col">∞</td><td class="label-col">Gale</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">
+        Thresholds are inclusive (≤). First match wins.
+      </div>
+    </div>
+
+    <div>
+      <h3>Cardinal Directions</h3>
+      <table>
+        <thead>
+          <tr><th>Index</th><th>Direction</th><th>Center°</th><th>Degree range</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>0</td><td class="label-col">N</td><td class="range-col">0</td><td class="range-col">337.5 – 22.5</td></tr>
+          <tr><td>1</td><td class="label-col">NE</td><td class="range-col">45</td><td class="range-col">22.5 – 67.5</td></tr>
+          <tr><td>2</td><td class="label-col">E</td><td class="range-col">90</td><td class="range-col">67.5 – 112.5</td></tr>
+          <tr><td>3</td><td class="label-col">SE</td><td class="range-col">135</td><td class="range-col">112.5 – 157.5</td></tr>
+          <tr><td>4</td><td class="label-col">S</td><td class="range-col">180</td><td class="range-col">157.5 – 202.5</td></tr>
+          <tr><td>5</td><td class="label-col">SW</td><td class="range-col">225</td><td class="range-col">202.5 – 247.5</td></tr>
+          <tr><td>6</td><td class="label-col">W</td><td class="range-col">270</td><td class="range-col">247.5 – 292.5</td></tr>
+          <tr><td>7</td><td class="label-col">NW</td><td class="range-col">315</td><td class="range-col">292.5 – 337.5</td></tr>
+        </tbody>
+      </table>
+      <div style="font-size:11px;color:var(--text-secondary);margin-top:6px;">
+        Formula: <code>CARDINALS[bankersRound(deg / 45) % 8]</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="owm-table-wrap">
+    <h3>OWM Condition ID → Emoji</h3>
+    <table>
+      <thead>
+        <tr><th>OWM ID range</th><th>Emoji</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="range-col">200 – 232</td><td class="emoji-col">⛈️</td><td>Thunderstorm</td></tr>
+        <tr><td class="range-col">300 – 321</td><td class="emoji-col">🌦️</td><td>Drizzle</td></tr>
+        <tr><td class="range-col">500 – 531</td><td class="emoji-col">🌧️</td><td>Rain</td></tr>
+        <tr><td class="range-col">600 – 622</td><td class="emoji-col">❄️</td><td>Snow</td></tr>
+        <tr><td class="range-col">700 – 781</td><td class="emoji-col">🌫️</td><td>Atmosphere (fog, haze, dust…)</td></tr>
+        <tr><td class="range-col">800</td><td class="emoji-col">☀️</td><td>Clear sky</td></tr>
+        <tr><td class="range-col">801</td><td class="emoji-col">🌤️</td><td>Few clouds (11–25%)</td></tr>
+        <tr><td class="range-col">802</td><td class="emoji-col">⛅</td><td>Scattered clouds (25–50%)</td></tr>
+        <tr><td class="range-col">803</td><td class="emoji-col">🌥️</td><td>Broken clouds (51–84%)</td></tr>
+        <tr><td class="range-col">804</td><td class="emoji-col">☁️</td><td>Overcast clouds (85–100%)</td></tr>
+        <tr><td class="range-col">anything else</td><td class="emoji-col">🌡️</td><td>Fallback</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ─── Section 4: Behavioral Rules ──────────────────────────── -->
+<section>
+  <h2>4 — Behavioral Rules</h2>
+  <div class="rules-grid">
+
+    <div class="rule-card">
+      <div class="rule-number">Rule 1</div>
+      <h3>Banker's Rounding</h3>
+      <p>Python's built-in <code>round()</code> uses round-half-to-even. JavaScript's <code>Math.round()</code> uses round-half-away-from-zero. These differ at exactly the .5 boundary.</p>
+      <pre><span class="cm">// Python</span>
+round(0.5)  <span class="cm">→ 0  (rounds to even)</span>
+round(1.5)  <span class="cm">→ 2  (rounds to even)</span>
+round(2.5)  <span class="cm">→ 2  (rounds to even)</span>
+
+<span class="cm">// JavaScript Math.round — WRONG for this formatter</span>
+Math.round(0.5)  <span class="cm">→ 1</span>
+Math.round(2.5)  <span class="cm">→ 3</span>
+
+<span class="cm">// Required TypeScript implementation</span>
+<span class="kw">export function</span> bankersRound(n: number): number {
+  <span class="kw">const</span> floor = Math.floor(n)
+  <span class="kw">const</span> diff  = n - floor
+  <span class="kw">if</span> (diff === 0.5) <span class="kw">return</span> floor % 2 === 0 ? floor : floor + 1
+  <span class="kw">return</span> Math.round(n)
+}</pre>
+      <div class="caution">
+        ⚠ cardinal(22.5) must return "N" (index 0, even) not "NE" — this is QA-03 and a required test case.
+      </div>
+    </div>
+
+    <div class="rule-card">
+      <div class="rule-number">Rule 2</div>
+      <h3>Wind Description Sort Order</h3>
+      <p>Wind descriptions are collected across all hourly responses, deduplicated while preserving first-occurrence order, then <strong>sorted by Beaufort scale position</strong> (ascending, Calm first), then joined with <code>" - "</code>.</p>
+      <pre><span class="cm">// Two responses: 9 mph (Gentle), 20 mph (Moderate)</span>
+collect: ["Gentle breeze", "Moderate breeze"]
+dedup:   ["Gentle breeze", "Moderate breeze"]
+sort:    ["Gentle breeze", "Moderate breeze"]  <span class="cm">// already ascending</span>
+output:  "Gentle breeze - Moderate breeze"
+
+<span class="cm">// Two responses: 20 mph first, then 9 mph</span>
+collect: ["Moderate breeze", "Gentle breeze"]
+dedup:   ["Moderate breeze", "Gentle breeze"]
+sort:    ["Gentle breeze", "Moderate breeze"]  <span class="cm">// sorted, not insertion order</span>
+output:  "Gentle breeze - Moderate breeze"</pre>
+    </div>
+
+    <div class="rule-card">
+      <div class="rule-number">Rule 3</div>
+      <h3>Wind Direction Insertion Order</h3>
+      <p>Wind directions are collected across all hourly responses, deduplicated while <strong>preserving first-occurrence order</strong>, then joined with <code>" - "</code>. <em>Not sorted</em> — this is the intentional difference from wind descriptions.</p>
+      <pre><span class="cm">// Two responses: 270° (W) then 180° (S)</span>
+collect: ["W", "S"]
+dedup:   ["W", "S"]        <span class="cm">// insertion order preserved</span>
+output:  "W - S"
+
+<span class="cm">// Two responses: 180° (S) then 270° (W)</span>
+collect: ["S", "W"]
+output:  "S - W"           <span class="cm">// order flipped — correct</span>
+
+<span class="cm">// Two responses both 270° (W)</span>
+collect: ["W", "W"]
+dedup:   ["W"]             <span class="cm">// deduplicates to single value</span>
+output:  "W"</pre>
+    </div>
+
+    <div class="rule-card">
+      <div class="rule-number">Rule 4</div>
+      <h3>Capitalize Semantics</h3>
+      <p>The condition description is taken from <code>responses[0].data[0].weather[0].description</code> and transformed with Python's <code>str.capitalize()</code> semantics: <strong>lowercase all characters, then uppercase the first character only</strong>.</p>
+      <pre><span class="cm">// Python str.capitalize() behavior</span>
+"overcast clouds"   <span class="cm">→ "Overcast clouds"</span>
+"OVERCAST CLOUDS"   <span class="cm">→ "Overcast clouds"</span>
+"light Rain"        <span class="cm">→ "Light rain"</span>
+
+<span class="cm">// TypeScript implementation</span>
+<span class="kw">function</span> capitalize(s: string): string {
+  <span class="kw">if</span> (!s) <span class="kw">return</span> s
+  <span class="kw">const</span> lower = s.toLowerCase()
+  <span class="kw">return</span> lower[0].toUpperCase() + lower.slice(1)
+}</pre>
+      <div class="caution">
+        ⚠ Do not use <code>.charAt(0).toUpperCase() + s.slice(1)</code> — that preserves mixed-case in the rest of the string, which differs from Python.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+</body>
+</html>
