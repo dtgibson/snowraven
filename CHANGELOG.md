@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.7] - 2026-05-25
+
+### Changed
+- **Local release script** (`release.sh`) replaces the removed `tauri-release.yml` CI workflow. Run `./release.sh` after pushing a version bump to build, Apple-notarize, minisign, and publish the macOS desktop app. Apple credentials stay local -- nothing is stored in GitHub. The script generates `latest.json` and uploads it along with the DMG and updater bundle to the GitHub release.
+- **Removed `tauri-release.yml`** -- the CI workflow that built unsigned macOS binaries in GitHub Actions is replaced by the local release script.
+
+## [0.3.6] - 2026-05-25
+
+### Fixed
+- `transport.ts` used TypeScript parameter properties (`public readonly` in constructor args), disallowed by `erasableSyntaxOnly` in `tsc -b` (TypeScript 6.x project references mode). Replaced with explicit property declarations.
+- `MapExplorer.tsx` had `transport.get<unknown[]>('/map/recent-obs')` causing a type mismatch with `setTargetPins` (expected `TargetPin[] | null`). Changed to `transport.get<TargetPin[]>`.
+- `tauri-release.yml` used the wrong npm script name (`tauri` instead of `desktop:build`).
+
 ## [0.3.5] - 2026-05-25
 
 ### Changed

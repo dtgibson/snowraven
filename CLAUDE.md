@@ -9,7 +9,8 @@ decisions that all builders must follow.
 - Version is tracked in `frontend/package.json` (semver, patch increments for small features/fixes, minor for larger features)
 - `CHANGELOG.md` at the repo root must be updated with every version bump
 - **Always bump the version and update the changelog when adding a feature or fix**, even if the user does not ask
-- **Always create a matching GitHub release** after pushing a version bump: `gh release create v{version} --title "v{version}" --notes "..."` — the in-app update check depends on published releases
+- **After pushing a version bump, run `./release.sh`** to build, notarize, and publish the macOS desktop app. This script creates the GitHub release (or uploads to an existing one), signs the updater bundle, and generates `latest.json` for in-app update detection. Credentials (Apple API key, notarization) stay local — never stored in GitHub.
+- **Do not use `gh release create` directly** for desktop app releases — always use `release.sh` so the signed binary and `latest.json` are included. The in-app update check depends on `latest.json` being present in the release assets.
 
 ## Pipeline Overview
 
