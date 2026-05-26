@@ -128,6 +128,28 @@ You need two free API keys before installation:
 
 ---
 
+## Desktop app installation (Mac)
+
+The desktop app is a fully self-contained Mac application -- no Python, no server, no configuration files. Download, open, and enter your API keys.
+
+### 1. Download
+
+Go to the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and download `SnowRaven_x.x.x_aarch64.dmg` (Apple Silicon) or `SnowRaven_x.x.x_x64.dmg` (Intel).
+
+### 2. Install
+
+Open the DMG, drag SnowRaven to Applications, and launch it from there. On first launch, macOS may show a security prompt -- right-click the app and choose Open to bypass it.
+
+### 3. Enter API keys
+
+Open the Settings tab and enter your eBird and OpenWeather API keys. Keys are stored securely in your macOS Keychain. Data files you upload (eBird backup, ML export) are stored in the app data directory (`~/Library/Application Support/com.snowraven.app/`).
+
+### Updating
+
+Click **Check For Updates** in the app footer. If an update is available, click **Install update** to download and apply it -- the app will prompt you to relaunch when ready.
+
+---
+
 ## Raspberry Pi installation
 
 These instructions are for a Raspberry Pi running Raspberry Pi OS (64-bit recommended). The app will start automatically on boot and be accessible from any device on your local network.

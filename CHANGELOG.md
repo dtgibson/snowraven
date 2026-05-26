@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.5] - 2026-05-25
+
+### Changed
+- **Desktop app fully standalone** (Desktop App Phase 6) -- The desktop app no longer requires the Python backend for any operation. Verified: no direct `fetch()` calls, no `/settings/*` backend calls, and no `TauriTransport` paths that fall through to `WebTransport` in Tauri mode. All transport routes (`/weather/*`, `/version/check`, `/stats/nemesis`, `/nominatim/search`, `/map/hotspots`, `/map/recent-obs`) are handled by TypeScript service files. All storage operations (API keys, files, settings) use `TauriStorage`. The Python backend remains the runtime for Raspberry Pi / web server mode -- only the desktop app is standalone.
+- **README.md** -- Added "Desktop App Installation (Mac)" section with download, install, and update instructions. Updated desktop app description to reflect that it is fully self-contained.
+- **docs/HELP.md** -- Updated Settings > API Keys and Default Files descriptions to distinguish desktop (system keychain / local app data) from web/Pi (server `.env` / server disk) behavior.
+- **DECISIONS.md** -- Desktop app migration decision updated to record Phase 6 completion, full phase summary, and private key management guidance.
+
 ## [0.3.4] - 2026-05-25
 
 ### Added

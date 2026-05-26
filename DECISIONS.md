@@ -4,17 +4,25 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
-## Desktop app: two-seam architecture and phased migration — 2026-05-25
+## Desktop app: two-seam architecture and phased migration — 2026-05-25 (completed 2026-05-25)
 
 **Decision:** The desktop app is built around two permanent seams — transport (outbound HTTP via `TransportAdapter`) and storage (keys/settings/files via `StorageAdapter`). Phase 0 ships both seams with delegation-to-Web implementations; the backend is still required. Phases 1–6 migrate each capability to native Tauri implementations over future sessions.
 
 **Rationale:** Migrating all backend dependencies at once creates a high-risk, large-change release. The seam + phased approach lets each capability be proven against the Python backend as a reference oracle, then flipped when the TypeScript output matches. Phase 0 goes to production with zero user-visible change.
 
+**Migration complete (v0.4.0):** All six phases are done. The desktop app no longer requires the Python backend at all. Audit confirms no direct `fetch()` calls, no `/settings/*` calls, and no transport paths that fall through to `WebTransport` in Tauri mode. Phase summary:
+- Phase 0 (v0.2.0): Transport + storage seams established, Tauri project scaffolded
+- Phase 1 (v0.3.0): TypeScript weather formatter ported from Python (golden test suite)
+- Phase 2 (v0.3.1): OS keychain via `keyring` Rust crate for API keys
+- Phase 3 (v0.3.2): Direct external API calls via `tauri-plugin-http`; 6 TypeScript services; tz via `tzf-rs`
+- Phase 4 (v0.3.3): App data directory via `tauri-plugin-fs` for files + settings
+- Phase 5 (v0.3.4): In-app updater via `tauri-plugin-updater`; minisign keypair; CI release workflow
+- Phase 6 (v0.4.0): Verification + documentation; standalone confirmed
+
 **Implications:**
 - The `transport` singleton (`frontend/src/lib/transport.ts`) and `storage` singleton (`frontend/src/lib/storage.ts`) are the permanent seam layer. New Tauri-specific code must route through them — do not add `isTauri()` branches outside these two files.
-- Phase 3 constraint: API keys must travel as HTTP headers, not URL params, when `TauriTransport` calls external APIs directly. The eBird API accepts `X-eBird-Token` header; OpenWeather accepts `appid` as a query param but the header form should be used to avoid keys appearing in server logs.
-- `security.csp: null` in `tauri.conf.json` is acceptable for Phase 0 (no external content loaded at runtime). An explicit restrictive CSP must be in place before Phase 3 ships.
-- The Vite proxy list (`/weather`, `/taxonomy`, `/settings`, `/nominatim`, `/stats`, `/map`, `/version`) is the Phase 3 migration checklist — each entry is one proxy to decommission when its `TauriTransport` implementation is ready.
+- The Vite proxy (`/weather`, `/taxonomy`, `/settings`, `/nominatim`, `/stats`, `/map`, `/version`) is still needed for web/Pi development mode. The Python backend remains the web/Pi runtime.
+- The minisign private key is at `~/.tauri/snowraven-signing.key`. The corresponding public key is in `tauri.conf.json`. The private key must be set as `TAURI_SIGNING_PRIVATE_KEY` in GitHub Actions secrets for the `tauri-release.yml` CI to sign binaries. Without this secret, the CI build produces unsigned binaries that the updater cannot verify.
 
 ---
 
