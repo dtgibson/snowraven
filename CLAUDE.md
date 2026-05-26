@@ -78,12 +78,22 @@ Two permanent architectural seams route all platform-sensitive operations. Use t
 - **Storage:** `storage.getApiKey()` / `storage.getSetting()` / etc. from `frontend/src/lib/storage.ts` — for all key, setting, and file access. Do not call `/settings/*` endpoints directly from new components.
 - **Platform detection:** `isTauri()` from `frontend/src/lib/platform.ts` — single source of truth for branching on Tauri vs. web. Do not check `window.__TAURI_INTERNALS__` elsewhere.
 
-### Desktop storage split (Tauri)
+### Desktop storage (Tauri)
 
-`TauriStorage` in `storage.ts` uses two mechanisms — do not conflate them:
+`TauriStorage` in `storage.ts` uses **`tauri-plugin-fs` with `BaseDirectory.AppLocalData` for everything** — API keys, settings, file metadata, and CSV files. All data lives under `AppLocalData/data/`:
 
-- **API keys and JSON settings** (`getApiKey`, `setApiKey`, `deleteApiKey`, `getSetting`, `setSetting`, `deleteSetting`): use `localStorage` with key prefixes `sr-api-key-*` and `sr-setting-*`. localStorage is reliable in Tauri's WebKit WebView and requires no permissions or plugin calls. `tauri-plugin-fs` was tried for this purpose and failed silently in production — do not revert.
-- **Large file data** (`readFile`, `writeFile`, `deleteFile`, `getFilesStatus`): use `tauri-plugin-fs` with `BaseDirectory.AppLocalData`. This is correct for CSV data that cannot go in localStorage due to size.
+| File | Contents |
+|---|---|
+| `data/api-keys.json` | API keys (`ebird`, `openweather`) |
+| `data/settings.json` | App settings (map center, zoom, etc.) |
+| `data/metadata.json` | Uploaded file metadata |
+| `data/ebird-backup.csv` | eBird data file |
+| `data/ml-export.csv` | ML data file |
+
+Every write calls `mkdir(DATA_DIR, { recursive: true })` before writing to ensure the directory exists.
+
+**Do not use `localStorage`** — it is ephemeral in Tauri's WKWebView and cleared on every relaunch.  
+**Do not use the system Keychain** (`keyring` crate / `invoke('get_api_key', ...)`) — it requires entitlements not configured in this app and fails silently.
 
 Desktop development (requires Rust + `@tauri-apps/cli`):
 ```

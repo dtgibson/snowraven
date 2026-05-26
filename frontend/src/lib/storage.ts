@@ -84,22 +84,44 @@ class WebStorage implements StorageAdapter {
   }
 }
 
+// All persistent Tauri data lives in AppLocalData/data/:
+//   api-keys.json   — API keys (ebird, openweather)
+//   settings.json   — app settings (map center, zoom, etc.)
+//   metadata.json   — uploaded file metadata
+//   ebird-backup.csv
+//   ml-export.csv
+//
+// tauri-plugin-fs + AppLocalData is the single mechanism for all of it.
+// localStorage is NOT used — it is ephemeral in Tauri's WKWebView (cleared on every relaunch).
+// The system Keychain is NOT used — it requires entitlements not configured in this app.
 const DATA_DIR = 'data';
-const META_PATH = `${DATA_DIR}/metadata.json`;
+const API_KEYS_PATH = `${DATA_DIR}/api-keys.json`;
 const SETTINGS_PATH = `${DATA_DIR}/settings.json`;
+const META_PATH = `${DATA_DIR}/metadata.json`;
 const FILE_PATHS: Record<'ebird' | 'ml', string> = {
   ebird: `${DATA_DIR}/ebird-backup.csv`,
   ml: `${DATA_DIR}/ml-export.csv`,
 };
 
-// API keys: macOS system keychain via Rust keyring commands (invoke).
-// Settings and file data: tauri-plugin-fs with AppLocalData.
-// Both survive app updates. localStorage is NOT used — it is ephemeral in Tauri's WKWebView.
 class TauriStorage implements StorageAdapter {
+  // Reads a JSON file from AppLocalData. Returns {} if the file doesn't exist.
+  private async readJson<T extends Record<string, unknown>>(path: string): Promise<T> {
+    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    if (!await exists(path, { baseDir: BaseDirectory.AppLocalData })) return {} as T;
+    return JSON.parse(await readTextFile(path, { baseDir: BaseDirectory.AppLocalData })) as T;
+  }
+
+  // Writes a JSON file to AppLocalData, creating the data/ directory if needed.
+  private async writeJson(path: string, data: Record<string, unknown>): Promise<void> {
+    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    await writeTextFile(path, JSON.stringify(data), { baseDir: BaseDirectory.AppLocalData });
+  }
+
   async getApiKey(service: 'ebird' | 'openweather'): Promise<string | null> {
-    const { invoke } = await import('@tauri-apps/api/core');
     try {
-      const value = await invoke<string | null>('get_api_key', { service });
+      const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH);
+      const value = keys[service];
       return value && value.length > 0 ? value : null;
     } catch {
       return null;
@@ -107,58 +129,43 @@ class TauriStorage implements StorageAdapter {
   }
 
   async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
-    const { invoke } = await import('@tauri-apps/api/core');
-    await invoke('set_api_key', { service, value });
+    const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH).catch(() => ({} as Record<string, string>));
+    keys[service] = value;
+    await this.writeJson(API_KEYS_PATH, keys);
   }
 
   async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
-    const { invoke } = await import('@tauri-apps/api/core');
-    try {
-      await invoke('delete_api_key', { service });
-    } catch { /* best-effort — entry may not exist */ }
-  }
-
-  private async readSettings(): Promise<Record<string, unknown>> {
-    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    try {
-      if (!await exists(SETTINGS_PATH, { baseDir: BaseDirectory.AppLocalData })) return {};
-      return JSON.parse(await readTextFile(SETTINGS_PATH, { baseDir: BaseDirectory.AppLocalData })) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-
-  private async writeSettings(settings: Record<string, unknown>): Promise<void> {
-    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
-    await writeTextFile(SETTINGS_PATH, JSON.stringify(settings), { baseDir: BaseDirectory.AppLocalData });
+    const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH).catch(() => ({} as Record<string, string>));
+    delete keys[service];
+    await this.writeJson(API_KEYS_PATH, keys);
   }
 
   async getSetting<T>(key: string): Promise<T | null> {
-    const settings = await this.readSettings();
-    const value = settings[key];
-    return value !== undefined ? value as T : null;
+    try {
+      const settings = await this.readJson(SETTINGS_PATH);
+      const value = settings[key];
+      return value !== undefined ? value as T : null;
+    } catch {
+      return null;
+    }
   }
 
   async setSetting<T>(key: string, value: T): Promise<void> {
-    const settings = await this.readSettings();
-    settings[key] = value;
-    await this.writeSettings(settings);
+    const settings = await this.readJson(SETTINGS_PATH).catch(() => ({} as Record<string, unknown>));
+    settings[key] = value as unknown;
+    await this.writeJson(SETTINGS_PATH, settings);
   }
 
   async deleteSetting(key: string): Promise<void> {
-    const settings = await this.readSettings();
+    const settings = await this.readJson(SETTINGS_PATH).catch(() => ({} as Record<string, unknown>));
     delete settings[key];
-    await this.writeSettings(settings);
+    await this.writeJson(SETTINGS_PATH, settings);
   }
 
   async getFilesStatus(): Promise<FilesStatus> {
-    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
     try {
-      if (!await exists(META_PATH, { baseDir: BaseDirectory.AppLocalData })) {
-        return { ebird: null, ml: null };
-      }
-      return JSON.parse(await readTextFile(META_PATH, { baseDir: BaseDirectory.AppLocalData })) as FilesStatus;
+      const meta = await this.readJson<{ ebird?: FileMetadata | null; ml?: FileMetadata | null }>(META_PATH);
+      return { ebird: meta.ebird ?? null, ml: meta.ml ?? null };
     } catch {
       return { ebird: null, ml: null };
     }

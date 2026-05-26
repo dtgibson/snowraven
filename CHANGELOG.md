@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.16] - 2026-05-26
+
+### Fixed
+- **API keys and settings not persisting across relaunches or updates** — Consolidated all persistent storage to use `tauri-plugin-fs` with `BaseDirectory.AppLocalData`, the same mechanism that correctly persists uploaded CSV files. API keys are stored in `data/api-keys.json`, settings in `data/settings.json`. The system Keychain approach (v0.3.15) failed because it requires entitlements not configured in this app and fails silently. `localStorage` (v0.3.12–v0.3.14) was ephemeral and cleared on every relaunch. This is the definitive fix.
+
 ## [0.3.15] - 2026-05-26
 
 ### Fixed
