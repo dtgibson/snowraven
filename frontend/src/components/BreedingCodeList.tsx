@@ -9,6 +9,7 @@ import { BreedingCodeTable } from './BreedingCodeTable'
 import type { BreedingSortState, DateRangeState } from '../types'
 import { DATE_RANGE_CLEAR } from '../types'
 import { transport } from '../lib/transport'
+import { storage } from '../lib/storage'
 
 type Phase =
   | { tag: 'loading-saved' }
@@ -108,17 +109,14 @@ export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => voi
     let cancelled = false
     async function autoLoad() {
       try {
-        const statusRes = await fetch('/settings/files')
-        if (!statusRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
-        const status = await statusRes.json()
+        const status = await storage.getFilesStatus()
+        if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
-        const fileRes = await fetch('/settings/files/ebird')
-        if (!fileRes.ok || cancelled) {
+        const text = await storage.readFile('ebird')
+        if (!text || cancelled) {
           setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
           return
         }
-        const text = await fileRes.text()
-        if (cancelled) return
         const data = parseBreedingCodes(text)
         if (!data.hasBreedingCodeColumn) {
           setPhase({ tag: 'error', message: "The stored file doesn't look like an eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup." })

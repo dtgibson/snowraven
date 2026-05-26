@@ -21,6 +21,7 @@ import { SpeciesLinks } from './SpeciesLinks'
 import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
+import { storage } from '../lib/storage'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -514,24 +515,19 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
     let cancelled = false
     async function autoLoad() {
       try {
-        const statusRes = await fetch('/settings/files')
-        if (!statusRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
-        const status = await statusRes.json()
+        const status = await storage.getFilesStatus()
+        if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
 
         const mlUserId = extractUserId(status.ml?.filename ?? '')
 
-        const fetches: Promise<Response>[] = [fetch('/settings/files/ebird')]
-        if (status.ml) fetches.push(fetch('/settings/files/ml'))
-
-        const results = await Promise.all(fetches)
+        const [ebirdText, mlText] = await Promise.all([
+          storage.readFile('ebird'),
+          status.ml ? storage.readFile('ml') : Promise.resolve(null),
+        ])
         if (cancelled) return
 
-        const [ebirdRes, mlRes] = results
-        if (!ebirdRes.ok) { setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." }); return }
-
-        const ebirdText = await ebirdRes.text()
-        if (cancelled) return
+        if (!ebirdText) { setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." }); return }
 
         const observations = parseEbirdObservations(ebirdText)
 
@@ -539,8 +535,7 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
         let mlRows: MLExportRow[] = []
         let hasML = false
 
-        if (mlRes?.ok) {
-          const mlText = await mlRes.text()
+        if (mlText) {
           if (!cancelled) {
             try {
               const mlResult = parseMLExport(mlText)

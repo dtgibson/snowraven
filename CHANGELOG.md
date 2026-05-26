@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.3] - 2026-05-25
+
+### Added
+- **App data directory storage** (Desktop App Phase 4) -- In Tauri mode, all data files (eBird backup, ML export) and settings (map defaults) are stored in the OS app data directory via `tauri-plugin-fs`. The Python backend is no longer required for any data persistence in desktop mode.
+- **`getFilesStatus()` on `StorageAdapter`** -- Returns `FilesStatus` (ebird/ml metadata) and exported `FileMetadata` type. Replaces `GET /settings/files` backend calls throughout all components.
+- **`tauri-plugin-fs = "2"`** -- Added to Cargo.toml. Registered in `lib.rs`. File and settings storage uses `BaseDirectory.AppLocalData` (macOS: `~/Library/Application Support/com.snowraven.app/`).
+- **`@tauri-apps/plugin-fs`** -- Added to frontend dependencies for typed fs access in TauriStorage.
+
+### Changed
+- **`TauriStorage`** (`frontend/src/lib/storage.ts`) -- All methods now fully implemented without backend dependency: `readFile`/`writeFile`/`deleteFile` use `$APPLOCALDATA/data/`; `getSetting`/`setSetting`/`deleteSetting` use `$APPLOCALDATA/settings/{key}.json`; `getFilesStatus()` reads `$APPLOCALDATA/data/metadata.json`. Dynamic imports keep fs plugin code out of the web bundle.
+- **Settings.tsx** -- All backend fetch calls replaced with `storage.*` methods. File upload reads content in-browser then calls `storage.writeFile()`. Key save/delete use `storage.setApiKey()`/`storage.deleteApiKey()`. Map defaults use `storage.setSetting()`/`storage.deleteSetting()`.
+- **All data-loading components** (`BirdingStats`, `BreedingCodeList`, `LifeList`, `ListComparer`, `MapExplorer`, `SpeciesDetail`) -- Settings fetch calls replaced with `storage.getFilesStatus()`, `storage.readFile()`, `storage.getSetting()`, `storage.getApiKey()`.
+- **`capabilities/default.json`** -- Added scoped `fs:allow-*` permissions for `$APPLOCALDATA/**`.
+
 ## [0.3.2] - 2026-05-25
 
 ### Added

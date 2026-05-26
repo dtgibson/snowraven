@@ -5,6 +5,7 @@ import { applyTheme, readStoredPreference } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import { HelpDocs } from './HelpDocs'
+import { storage } from '../lib/storage'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -704,19 +705,16 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
   const savedChipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    fetch('/settings/files')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setStatus(data) })
+    storage.getFilesStatus()
+      .then(data => setStatus(data))
       .catch(() => {})
 
-    fetch('/settings/keys')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setKeys(data) })
+    Promise.all([storage.getApiKey('ebird'), storage.getApiKey('openweather')])
+      .then(([ebird, openweather]) => setKeys({ ebird, openweather }))
       .catch(() => {})
 
-    fetch('/settings/map-defaults')
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { lat: number; lng: number; dist: number } | null) => {
+    storage.getSetting<{ lat: number; lng: number; dist: number }>('map-defaults')
+      .then(data => {
         if (data) {
           setMapLat(String(data.lat))
           setMapLng(String(data.lng))
@@ -731,17 +729,19 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
   const handleUpload = async (slot: 'ebird' | 'ml', file: File) => {
     const setUploading = slot === 'ebird' ? setEbirdUploading : setMlUploading
     const setError = slot === 'ebird' ? setEbirdError : setMlError
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setError('Only .csv files are accepted.')
+      return
+    }
     setUploading(true)
     setError(null)
     try {
-      const form = new FormData()
-      form.append('file', file)
-      const res = await fetch(`/settings/files/${slot}`, { method: 'POST', body: form })
-      const data = await res.json()
-      if (!res.ok) { setError(data.detail ?? 'Upload failed. Please try again.'); return }
-      setStatus(prev => ({ ...prev, [slot]: { filename: data.filename, uploadedAt: data.uploadedAt } }))
+      const content = await file.text()
+      await storage.writeFile(slot, content, file.name)
+      const updatedStatus = await storage.getFilesStatus()
+      setStatus(updatedStatus)
     } catch {
-      setError('Could not reach the server. Is the backend running?')
+      setError('Upload failed. Please try again.')
     } finally {
       setUploading(false)
     }
@@ -751,11 +751,10 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
     const setError = slot === 'ebird' ? setEbirdError : setMlError
     setError(null)
     try {
-      const res = await fetch(`/settings/files/${slot}`, { method: 'DELETE' })
-      if (!res.ok) { const data = await res.json(); setError(data.detail ?? 'Delete failed.'); return }
+      await storage.deleteFile(slot)
       setStatus(prev => ({ ...prev, [slot]: null }))
     } catch {
-      setError('Could not reach the server. Is the backend running?')
+      setError('Delete failed. Please try again.')
     }
   }
 
@@ -769,22 +768,13 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
     setSaving(true)
     setError(null)
     try {
-      const res = await fetch(`/settings/keys/${slot}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ value: input.trim() }),
-      })
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.detail ?? 'Could not save key. Please try again.')
-        return
-      }
+      await storage.setApiKey(slot, input.trim())
       setKeys(prev => ({ ...prev, [slot]: input.trim() }))
       setEditing(false)
       setInput('')
       onKeysSaved?.()
     } catch {
-      setError('Could not reach the server. Is the backend running?')
+      setError('Could not save key. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -795,17 +785,12 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
     const setVisible = slot === 'ebird' ? setEbirdKeyVisible : setOpenweatherKeyVisible
     setError(null)
     try {
-      const res = await fetch(`/settings/keys/${slot}`, { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.detail ?? 'Could not clear key.')
-        return
-      }
+      await storage.deleteApiKey(slot)
       setKeys(prev => ({ ...prev, [slot]: null }))
       setVisible(false)
       onKeysSaved?.()
     } catch {
-      setError('Could not reach the server. Is the backend running?')
+      setError('Could not clear key.')
     }
   }
 
@@ -828,12 +813,7 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
     if (isNaN(dist) || dist <= 0) { setMapDefaultsStatus('error'); return }
     setMapDefaultsStatus('saving')
     try {
-      const res = await fetch('/settings/map-defaults', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ lat, lng, dist }),
-      })
-      if (!res.ok) { setMapDefaultsStatus('error'); return }
+      await storage.setSetting('map-defaults', { lat, lng, dist })
       setMapDefaultsHasSaved(true)
       if (savedChipTimerRef.current) clearTimeout(savedChipTimerRef.current)
       setMapDefaultsStatus('saved')
@@ -844,9 +824,7 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
   }
 
   const handleClearMapDefaults = async () => {
-    try {
-      await fetch('/settings/map-defaults', { method: 'DELETE' })
-    } catch { /* best-effort */ }
+    await storage.deleteSetting('map-defaults').catch(() => {})
     setMapLat(''); setMapLng(''); setMapDist('')
     setMapDefaultsHasSaved(false)
     setMapDefaultsStatus('idle')

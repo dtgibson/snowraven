@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2 } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
+import { storage } from './lib/storage'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
@@ -128,8 +129,11 @@ export default function App() {
 
   const fetchKeyStatus = useCallback(async () => {
     try {
-      const res = await fetch('/settings/keys')
-      if (res.ok) setKeyStatus(await res.json())
+      const [ebird, openweather] = await Promise.all([
+        storage.getApiKey('ebird'),
+        storage.getApiKey('openweather'),
+      ])
+      setKeyStatus({ ebird, openweather })
     } catch {
       // silently fail — notices just won't appear
     }

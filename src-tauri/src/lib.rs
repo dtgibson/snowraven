@@ -44,6 +44,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             get_api_key,
             set_api_key,

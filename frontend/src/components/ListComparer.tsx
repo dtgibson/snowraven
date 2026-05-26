@@ -6,6 +6,7 @@ import type { FileData, ComparisonResult, SortOrder } from '../types'
 import { DropZone } from './DropZone'
 import { ResultsView } from './ResultsView'
 import { transport } from '../lib/transport'
+import { storage } from '../lib/storage'
 
 export function ListComparer() {
   const [storedEbirdStatus, setStoredEbirdStatus] = useState<'loading' | 'available' | 'unavailable'>('loading')
@@ -22,10 +23,9 @@ export function ListComparer() {
   const [listBLabel, setListBLabel] = useState('Other List')
 
   useEffect(() => {
-    fetch('/settings/files')
-      .then(r => r.ok ? r.json() : null)
+    storage.getFilesStatus()
       .then(data => {
-        const hasEbird = data?.ebird != null
+        const hasEbird = data.ebird != null
         setStoredEbirdStatus(hasEbird ? 'available' : 'unavailable')
         if (!hasEbird) setListAMode('upload')
       })
@@ -86,12 +86,11 @@ export function ListComparer() {
     try {
       let listA = fileA
       if (listAMode === 'my-list') {
-        const res = await fetch('/settings/files/ebird')
-        if (!res.ok) {
+        const text = await storage.readFile('ebird')
+        if (!text) {
           setErrorA("Couldn't load your eBird backup from Settings. Try re-uploading it.")
           return
         }
-        const text = await res.text()
         listA = parseEbirdCSV('My List', text)
       }
       if (!listA) return

@@ -1,6 +1,16 @@
 import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from './platform';
 
+export interface FileMetadata {
+  filename: string;
+  uploadedAt: string;
+}
+
+export interface FilesStatus {
+  ebird: FileMetadata | null;
+  ml: FileMetadata | null;
+}
+
 export interface StorageAdapter {
   getApiKey(service: 'ebird' | 'openweather'): Promise<string | null>;
   setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void>;
@@ -8,6 +18,7 @@ export interface StorageAdapter {
   getSetting<T>(key: string): Promise<T | null>;
   setSetting<T>(key: string, value: T): Promise<void>;
   deleteSetting(key: string): Promise<void>;
+  getFilesStatus(): Promise<FilesStatus>;
   readFile(name: 'ebird' | 'ml'): Promise<string | null>;
   writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void>;
   deleteFile(name: 'ebird' | 'ml'): Promise<void>;
@@ -25,7 +36,7 @@ class WebStorage implements StorageAdapter {
     await fetch(`/settings/keys/${service}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: value }),
+      body: JSON.stringify({ value }),
     });
   }
 
@@ -51,6 +62,12 @@ class WebStorage implements StorageAdapter {
     await fetch(`/settings/${key}`, { method: 'DELETE' });
   }
 
+  async getFilesStatus(): Promise<FilesStatus> {
+    const res = await fetch('/settings/files');
+    if (!res.ok) return { ebird: null, ml: null };
+    return res.json() as Promise<FilesStatus>;
+  }
+
   async readFile(name: 'ebird' | 'ml'): Promise<string | null> {
     const res = await fetch(`/settings/files/${name}`);
     if (!res.ok) return null;
@@ -68,11 +85,19 @@ class WebStorage implements StorageAdapter {
   }
 }
 
+const DATA_DIR = 'data';
+const SETTINGS_DIR = 'settings';
+const META_PATH = `${DATA_DIR}/metadata.json`;
+const FILE_PATHS: Record<'ebird' | 'ml', string> = {
+  ebird: `${DATA_DIR}/ebird-backup.csv`,
+  ml: `${DATA_DIR}/ml-export.csv`,
+};
+
 // Phase 2: getApiKey/setApiKey/deleteApiKey use OS keychain via Rust commands.
 //   Bridge write to backend .env kept so the Python backend continues to work
 //   during the Phase 3 transition. Bridge failures are silently swallowed.
-// Phase 4: readFile/writeFile/deleteFile migrate to the app data directory (tauri-plugin-fs).
-//   getSetting/setSetting/deleteSetting migrate to tauri-plugin-store.
+// Phase 4: readFile/writeFile/deleteFile and getSetting/setSetting/deleteSetting
+//   use tauri-plugin-fs (AppLocalData directory). No backend required.
 class TauriStorage implements StorageAdapter {
   private web = new WebStorage();
 
@@ -95,27 +120,79 @@ class TauriStorage implements StorageAdapter {
   }
 
   async getSetting<T>(key: string): Promise<T | null> {
-    return this.web.getSetting<T>(key);
+    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const path = `${SETTINGS_DIR}/${key}.json`;
+    try {
+      if (!await exists(path, { baseDir: BaseDirectory.AppLocalData })) return null;
+      return JSON.parse(await readTextFile(path, { baseDir: BaseDirectory.AppLocalData })) as T;
+    } catch {
+      return null;
+    }
   }
 
   async setSetting<T>(key: string, value: T): Promise<void> {
-    return this.web.setSetting<T>(key, value);
+    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    await mkdir(SETTINGS_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    await writeTextFile(
+      `${SETTINGS_DIR}/${key}.json`,
+      JSON.stringify(value),
+      { baseDir: BaseDirectory.AppLocalData }
+    );
   }
 
   async deleteSetting(key: string): Promise<void> {
-    return this.web.deleteSetting(key);
+    const { remove, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const path = `${SETTINGS_DIR}/${key}.json`;
+    try {
+      if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
+        await remove(path, { baseDir: BaseDirectory.AppLocalData });
+      }
+    } catch { /* best-effort */ }
+  }
+
+  async getFilesStatus(): Promise<FilesStatus> {
+    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    try {
+      if (!await exists(META_PATH, { baseDir: BaseDirectory.AppLocalData })) {
+        return { ebird: null, ml: null };
+      }
+      return JSON.parse(await readTextFile(META_PATH, { baseDir: BaseDirectory.AppLocalData })) as FilesStatus;
+    } catch {
+      return { ebird: null, ml: null };
+    }
   }
 
   async readFile(name: 'ebird' | 'ml'): Promise<string | null> {
-    return this.web.readFile(name);
+    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const path = FILE_PATHS[name];
+    try {
+      if (!await exists(path, { baseDir: BaseDirectory.AppLocalData })) return null;
+      return await readTextFile(path, { baseDir: BaseDirectory.AppLocalData });
+    } catch {
+      return null;
+    }
   }
 
   async writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void> {
-    return this.web.writeFile(name, content, filename);
+    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    await writeTextFile(FILE_PATHS[name], content, { baseDir: BaseDirectory.AppLocalData });
+    const meta = await this.getFilesStatus();
+    meta[name] = { filename, uploadedAt: new Date().toISOString() };
+    await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
   }
 
   async deleteFile(name: 'ebird' | 'ml'): Promise<void> {
-    return this.web.deleteFile(name);
+    const { remove, exists, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const path = FILE_PATHS[name];
+    try {
+      if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
+        await remove(path, { baseDir: BaseDirectory.AppLocalData });
+      }
+    } catch { /* best-effort */ }
+    const meta = await this.getFilesStatus();
+    meta[name] = null;
+    await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
   }
 }
 

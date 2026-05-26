@@ -10,6 +10,7 @@ import { LifeListTable } from './LifeListTable'
 import type { MediaFilterState, SortState, DateRangeState, ObservationEntry } from '../types'
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
 import { transport } from '../lib/transport'
+import { storage } from '../lib/storage'
 
 type Phase =
   | { tag: 'loading-saved' }
@@ -201,16 +202,10 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     try {
       let ebirdObs: ObservationEntry[] | null = preloadedEbirdObs ?? null
       if (!ebirdObs) {
-        const statusRes = await fetch('/settings/files')
-        if (statusRes.ok) {
-          const status = await statusRes.json()
-          if (status.ebird) {
-            const ebirdRes = await fetch('/settings/files/ebird')
-            if (ebirdRes.ok) {
-              const ebirdText = await ebirdRes.text()
-              ebirdObs = parseEbirdObservations(ebirdText)
-            }
-          }
+        const status = await storage.getFilesStatus()
+        if (status.ebird) {
+          const ebirdText = await storage.readFile('ebird')
+          if (ebirdText) ebirdObs = parseEbirdObservations(ebirdText)
         }
       }
       if (ebirdObs) {
@@ -325,14 +320,13 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     let cancelled = false
     async function autoLoad() {
       try {
-        const statusRes = await fetch('/settings/files')
-        if (!statusRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
-        const status = await statusRes.json()
+        const status = await storage.getFilesStatus()
+        if (cancelled) return
         if (!status.ml) { setPhase({ tag: 'setup-required' }); return }
 
-        const [mlRes, ebirdRes] = await Promise.all([
-          status.ml ? fetch('/settings/files/ml') : Promise.resolve(null),
-          status.ebird ? fetch('/settings/files/ebird') : Promise.resolve(null),
+        const [mlText, ebirdText] = await Promise.all([
+          storage.readFile('ml'),
+          status.ebird ? storage.readFile('ebird') : Promise.resolve(null),
         ])
         if (cancelled) return
 
@@ -342,20 +336,16 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         let hasEbirdBackbone = false
         let ebirdObs: ObservationEntry[] = []
 
-        if (mlRes?.ok) {
-          const mlText = await mlRes.text()
-          if (detectFileType(mlText) === 'ml-export') {
-            const parsed = parseMLExport(mlText)
-            entries = parsed.entries
-            mediaMap = parsed.mediaMap
-            rows = parsed.rows
-            setMlUserId(parseMLUserId(status.ml.filename))
-            setRawRows(rows)
-          }
+        if (mlText && detectFileType(mlText) === 'ml-export') {
+          const parsed = parseMLExport(mlText)
+          entries = parsed.entries
+          mediaMap = parsed.mediaMap
+          rows = parsed.rows
+          setMlUserId(parseMLUserId(status.ml.filename))
+          setRawRows(rows)
         }
 
-        if (ebirdRes?.ok) {
-          const ebirdText = await ebirdRes.text()
+        if (ebirdText) {
           ebirdObs = parseEbirdObservations(ebirdText)
           setRawEbirdObs(ebirdObs)
           hasEbirdBackbone = true

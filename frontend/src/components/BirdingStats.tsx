@@ -20,6 +20,7 @@ import { BREEDING_CODE_MAP } from '../lib/breedingCodes'
 import { SetupRequired } from './SetupRequired'
 import type { ObservationEntry, ChecklistEntry } from '../types'
 import { transport } from '../lib/transport'
+import { storage } from '../lib/storage'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -263,38 +264,32 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     let cancelled = false
     async function load() {
       try {
-        const [statusRes, mapDefaultsRes] = await Promise.all([
-          fetch('/settings/files'),
-          fetch('/settings/map-defaults').catch(() => null),
+        const [status, mapDefaults] = await Promise.all([
+          storage.getFilesStatus(),
+          storage.getSetting<{ lat: number; lng: number; dist: number }>('map-defaults').catch(() => null),
         ])
 
-        if (!statusRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
-        const status: { ebird: { filename: string; uploadedAt: string } | null; ml: { filename: string } | null } =
-          await statusRes.json()
+        if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
 
-        if (mapDefaultsRes?.ok) {
-          const md = await mapDefaultsRes.json()
-          if (md && typeof md.lat === 'number' && typeof md.lng === 'number') {
-            setMapDefaults(md)
-          }
+        if (mapDefaults && typeof mapDefaults.lat === 'number' && typeof mapDefaults.lng === 'number') {
+          setMapDefaults(mapDefaults)
         }
 
-        const fetches: Promise<Response>[] = [fetch('/settings/files/ebird')]
-        if (status.ml) fetches.push(fetch('/settings/files/ml'))
-        const [ebirdRes, mlRes] = await Promise.all(fetches)
+        const [ebirdText, mlText] = await Promise.all([
+          storage.readFile('ebird'),
+          status.ml ? storage.readFile('ml') : Promise.resolve(null),
+        ])
 
-        if (!ebirdRes.ok || cancelled) {
+        if (!ebirdText || cancelled) {
           setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
           return
         }
 
-        const ebirdText = await ebirdRes.text()
         const observations = parseEbirdObservations(ebirdText)
 
         let mlRows: MLExportRow[] = []
-        if (mlRes?.ok) {
-          const mlText = await mlRes.text()
+        if (mlText) {
           try { mlRows = parseMLExport(mlText).rows } catch { /* ML export optional */ }
         }
 

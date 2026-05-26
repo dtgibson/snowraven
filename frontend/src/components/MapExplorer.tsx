@@ -10,6 +10,7 @@ import type { MLExportRow } from '../lib/parseMLExport'
 import type { ObservationEntry } from '../types'
 import { BREEDING_CODES } from '../lib/breedingCodes'
 import { transport, TransportError } from '../lib/transport'
+import { storage } from '../lib/storage'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -635,17 +636,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
 
   // Load eBird key status on mount
   useEffect(() => {
-    fetch('/settings/keys')
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { ebird: string | null } | null) => setHasEbirdKey(data ? data.ebird !== null : false))
+    storage.getApiKey('ebird')
+      .then(key => setHasEbirdKey(key !== null))
       .catch(() => setHasEbirdKey(false))
   }, [])
 
   // Pre-fill lat/lng/radius from saved map defaults on mount; pan map to saved location
   useEffect(() => {
-    fetch('/settings/map-defaults')
-      .then(r => r.ok ? r.json() : null)
-      .then((data: { lat: number; lng: number; dist: number } | null) => {
+    storage.getSetting<{ lat: number; lng: number; dist: number }>('map-defaults')
+      .then(data => {
         if (data && typeof data.lat === 'number' && typeof data.lng === 'number' && typeof data.dist === 'number') {
           setLat(String(data.lat))
           setLng(String(data.lng))
@@ -661,25 +660,21 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
     let cancelled = false
     async function load() {
       try {
-        const statusRes = await fetch('/settings/files')
-        if (!statusRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
-        const status: { ebird: { filename: string } | null; ml: { filename: string } | null } = await statusRes.json()
+        const status = await storage.getFilesStatus()
+        if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
 
-        const fetches: Promise<Response>[] = [fetch('/settings/files/ebird')]
-        if (status.ml) fetches.push(fetch('/settings/files/ml'))
+        const [ebirdText, mlText] = await Promise.all([
+          storage.readFile('ebird'),
+          status.ml ? storage.readFile('ml') : Promise.resolve(null),
+        ])
+        if (!ebirdText || cancelled) { setPhase({ tag: 'setup-required' }); return }
 
-        const results = await Promise.all(fetches)
-        const [ebirdRes, mlRes] = results
-        if (!ebirdRes.ok || cancelled) { setPhase({ tag: 'setup-required' }); return }
-
-        const ebirdText = await ebirdRes.text()
         const observations = parseEbirdObservations(ebirdText)
 
         let mlRows: MLExportRow[] = []
         let hasML = false
-        if (mlRes && mlRes.ok) {
-          const mlText = await mlRes.text()
+        if (mlText) {
           const result = parseMLExport(mlText)
           mlRows = result.rows
           hasML = mlRows.length > 0
