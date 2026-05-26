@@ -2,6 +2,23 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.2] - 2026-05-25
+
+### Added
+- **Direct external API calls in Tauri mode** (Desktop App Phase 3) -- In Tauri mode, all external API requests (eBird, OpenWeather, Nominatim, GitHub) are made directly from the desktop app without routing through the Python backend. Uses `tauri-plugin-http` to bypass browser CORS from `tauri://localhost`.
+- **Offline timezone lookup** (`get_timezone` Tauri command) -- Uses the `tzf-rs` Rust crate with an embedded timezone database to resolve IANA timezone names from lat/lng coordinates. Replaces the Python `timezonefinder` dependency for the weather workflow.
+- **TypeScript service layer** (`frontend/src/lib/tauri/`) -- Six service files call external APIs directly in Tauri mode: `weatherService.ts` (eBird checklist + OpenWeather historical + formatting), `taxonomyService.ts` (eBird taxonomy with 7-day IndexedDB cache), `mapService.ts` (eBird hotspots and recent observations), `statsService.ts` (nemesis/nearby species), `nominatimService.ts` (forward and reverse geocoding with rate limiting), `versionService.ts` (GitHub releases check using native app version via `@tauri-apps/api/app`).
+- **`TransportError` class** -- Exported from `transport.ts`; carries `status` and `detail` fields so component error handlers get structured error information from both Tauri service calls and HTTP error responses.
+- **`@tauri-apps/plugin-http`** -- Added to frontend dependencies for CORS-bypassed HTTP in Tauri mode.
+
+### Changed
+- **`TauriTransport`** (`frontend/src/lib/transport.ts`) -- Routes intercepted paths to the new TypeScript service layer; all other paths still fall through to `WebTransport` (backend). Dynamic imports keep Tauri service code out of the web bundle.
+- **`WebTransport`** -- Now extracts the JSON `detail` field from error responses and includes it in thrown `TransportError`.
+- **`lib.rs`** -- Added `get_timezone` command; registered `tauri_plugin_http`.
+- **15 `fetch()` calls** across `App.tsx`, `BirdingStats.tsx`, `BreedingCodeList.tsx`, `LifeList.tsx`, `ListComparer.tsx`, `MapExplorer.tsx`, `SpeciesDetail.tsx` migrated to `transport.get()` / `transport.post()`. Settings-related fetch calls unchanged (Phase 4).
+- **`Cargo.toml`** -- Added `tauri-plugin-http = "2"` and `tzf-rs = "0.4"`.
+- **`capabilities/default.json`** -- Added `"http:default"` permission.
+
 ## [0.3.1] - 2026-05-25
 
 ### Added

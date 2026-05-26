@@ -8,6 +8,7 @@ import type { BreedingCategory } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
 import type { BreedingSortState, DateRangeState } from '../types'
 import { DATE_RANGE_CLEAR } from '../types'
+import { transport } from '../lib/transport'
 
 type Phase =
   | { tag: 'loading-saved' }
@@ -92,15 +93,10 @@ export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => voi
 
   const fetchTaxonCodes = async (entries: BreedingEntry[]) => {
     try {
-      const res = await fetch('/taxonomy/codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })),
-        }),
-      })
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>(
+        '/taxonomy/codes',
+        { species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })) }
+      )
       setTaxonMap(data.codes ?? {})
       setTaxonOrders(data.orders ?? {})
     } catch {

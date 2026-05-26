@@ -9,6 +9,7 @@ import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { LifeListTable } from './LifeListTable'
 import type { MediaFilterState, SortState, DateRangeState, ObservationEntry } from '../types'
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
+import { transport } from '../lib/transport'
 
 type Phase =
   | { tag: 'loading-saved' }
@@ -181,15 +182,10 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
   const fetchTaxonCodes = async (entries: LifeListEntry[]) => {
     try {
-      const res = await fetch('/taxonomy/codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })),
-        }),
-      })
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>(
+        '/taxonomy/codes',
+        { species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })) }
+      )
       setTaxonMap(data.codes ?? {})
       setTaxonOrders(data.orders ?? {})
     } catch {
@@ -244,24 +240,20 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         if (!seen.has(key)) seen.set(key, { lat: r.latitude!, lng: r.longitude! })
       }
       try {
-        const res = await fetch('/nominatim/counties', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locations: [...seen.values()] }),
-        })
-        if (res.ok) {
-          const data = await res.json()
-          const byKey = new Map<string, string | null>()
-          for (const result of data.results) {
-            const key = `${Math.round(result.lat * 10000)},${Math.round(result.lng * 10000)}`
-            byKey.set(key, result.county ?? null)
-          }
-          for (const row of rows) {
-            if (row.county === null && row.latitude !== null && row.longitude !== null) {
-              const key = `${Math.round(row.latitude * 10000)},${Math.round(row.longitude * 10000)}`
-              const c = byKey.get(key)
-              if (c) row.county = c
-            }
+        const data = await transport.post<{ results: Array<{ lat: number; lng: number; county: string | null }> }>(
+          '/nominatim/counties',
+          { locations: [...seen.values()] }
+        )
+        const byKey = new Map<string, string | null>()
+        for (const result of data.results) {
+          const key = `${Math.round(result.lat * 10000)},${Math.round(result.lng * 10000)}`
+          byKey.set(key, result.county ?? null)
+        }
+        for (const row of rows) {
+          if (row.county === null && row.latitude !== null && row.longitude !== null) {
+            const key = `${Math.round(row.latitude * 10000)},${Math.round(row.longitude * 10000)}`
+            const c = byKey.get(key)
+            if (c) row.county = c
           }
         }
       } catch {

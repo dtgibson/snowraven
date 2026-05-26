@@ -1,4 +1,12 @@
 use keyring::Entry;
+use std::sync::OnceLock;
+use tzf_rs::DefaultFinder;
+
+static TZ_FINDER: OnceLock<DefaultFinder> = OnceLock::new();
+
+fn tz_finder() -> &'static DefaultFinder {
+    TZ_FINDER.get_or_init(DefaultFinder::new)
+}
 
 #[tauri::command]
 fn get_api_key(service: &str) -> Result<Option<String>, String> {
@@ -26,11 +34,22 @@ fn delete_api_key(service: &str) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+fn get_timezone(lat: f64, lng: f64) -> String {
+    tz_finder().get_tz_name(lng, lat).to_string()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![get_api_key, set_api_key, delete_api_key])
+        .plugin(tauri_plugin_http::init())
+        .invoke_handler(tauri::generate_handler![
+            get_api_key,
+            set_api_key,
+            delete_api_key,
+            get_timezone,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")
 }

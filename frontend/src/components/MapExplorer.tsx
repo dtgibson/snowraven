@@ -9,6 +9,7 @@ import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import type { ObservationEntry } from '../types'
 import { BREEDING_CODES } from '../lib/breedingCodes'
+import { transport, TransportError } from '../lib/transport'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -196,9 +197,7 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
     if (!q) return
     setLoading(true); setError('')
     try {
-      const res = await fetch(`/nominatim/search?q=${encodeURIComponent(q)}`)
-      if (!res.ok) { setError('Location search failed. Try again or enter coordinates manually.'); return }
-      const data: { lat: string; lon: string }[] = await res.json()
+      const data = await transport.get<{ lat: string; lon: string }[]>('/nominatim/search', { q })
       if (data.length === 0) { setError('No location found. Try a different search term.'); return }
       onLocate(parseFloat(data[0].lat), parseFloat(data[0].lon))
       setQuery('')
@@ -715,13 +714,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
       if (targetMap.size === 0) return
 
       const species = [...targetMap.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
-      const res = await fetch('/taxonomy/codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ species }),
-      })
-      if (!res.ok) return
-      const data: { codes: Record<string, string> } = await res.json()
+      const data = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
       setSpeciesCodeMap(data.codes)
     } catch { /* taxonomy unavailable — gracefully handled at fetch time */ }
   }, [])
@@ -899,15 +892,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
     setHotspotsLoading(true); setHotspotsError('')
     try {
       const distKm = Math.round(radius * 1.60934)
-      const res = await fetch(`/map/hotspots?lat=${latNum}&lng=${lngNum}&dist=${distKm}`)
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({})) as { detail?: string }
-        setHotspotsError(res.status === 401
-          ? 'eBird API key not configured. Add it in Settings.'
-          : (d.detail ?? 'Failed to fetch hotspots.'))
-        return
-      }
-      const data: { locId: string; locName: string; lat: number; lng: number }[] = await res.json()
+      const data = await transport.get<{ locId: string; locName: string; lat: number; lng: number }[]>('/map/hotspots', {
+        lat: String(latNum), lng: String(lngNum), dist: String(distKm),
+      })
       const hotspotLocIds = new Set(data.map(h => h.locId))
 
       const pins: HotspotPin[] = data.map(h => {
@@ -928,8 +915,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
 
       setHiddenKinds(new Set())
       setHotspotPins(pins); setLegendVisible(true)
-    } catch {
-      setHotspotsError('Could not reach the server. Is the backend running?')
+    } catch (err) {
+      const status = err instanceof TransportError ? err.status : undefined
+      const detail = err instanceof TransportError ? err.detail : undefined
+      setHotspotsError(status === 401
+        ? 'eBird API key not configured. Add it in Settings.'
+        : (detail ?? 'Failed to fetch hotspots.'))
     } finally {
       setHotspotsLoading(false)
     }
@@ -953,16 +944,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
           (phase.tag === 'ready' ? [...phase.observations] : []).map(o => [o.commonName, o.scientificName]),
         )
         const species = names.map(n => ({ commonName: n, scientificName: sciMap.get(n) ?? '' }))
-        const r = await fetch('/taxonomy/codes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ species }),
-        })
-        if (r.ok) {
-          const d: { codes: Record<string, string> } = await r.json()
+        try {
+          const d = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
           setSpeciesCodeMap(prev => ({ ...prev, ...d.codes }))
           codes = names.map(n => d.codes[n]).filter(Boolean).join(',')
-        }
+        } catch { /* ignore */ }
       } catch { /* ignore */ }
     }
     if (!codes) { setTargetsError('Could not resolve species codes. Check your eBird API key.'); return }
@@ -970,17 +956,16 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
     setTargetsLoading(true); setTargetsError('')
     try {
       const distKm = Math.round(radius * 1.60934)
-      const res = await fetch(`/map/recent-obs?lat=${latNum}&lng=${lngNum}&dist=${distKm}&codes=${encodeURIComponent(codes)}`)
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({})) as { detail?: string }
-        setTargetsError(res.status === 401
-          ? 'eBird API key not configured. Add it in Settings.'
-          : (d.detail ?? 'Failed to fetch recent sightings.'))
-        return
-      }
-      setTargetPins(await res.json())
-    } catch {
-      setTargetsError('Could not reach the server. Is the backend running?')
+      const pins = await transport.get<unknown[]>('/map/recent-obs', {
+        lat: String(latNum), lng: String(lngNum), dist: String(distKm), codes,
+      })
+      setTargetPins(pins)
+    } catch (err) {
+      const status = err instanceof TransportError ? err.status : undefined
+      const detail = err instanceof TransportError ? err.detail : undefined
+      setTargetsError(status === 401
+        ? 'eBird API key not configured. Add it in Settings.'
+        : (detail ?? 'Failed to fetch recent sightings.'))
     } finally {
       setTargetsLoading(false)
     }

@@ -20,6 +20,7 @@ import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingC
 import { SpeciesLinks } from './SpeciesLinks'
 import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
+import { transport } from '../lib/transport'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -497,13 +498,10 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
         if (!seen.has(o.commonName)) seen.set(o.commonName, o.scientificName)
       }
       const species = [...seen.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
-      const res = await fetch('/taxonomy/codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ species }),
-      })
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>(
+        '/taxonomy/codes',
+        { species }
+      )
       setTaxonOrders(data.orders ?? {})
       setTaxonMap(data.codes ?? {})
     } catch {

@@ -5,6 +5,7 @@ import { compareSpecies } from '../lib/compare'
 import type { FileData, ComparisonResult, SortOrder } from '../types'
 import { DropZone } from './DropZone'
 import { ResultsView } from './ResultsView'
+import { transport } from '../lib/transport'
 
 export function ListComparer() {
   const [storedEbirdStatus, setStoredEbirdStatus] = useState<'loading' | 'available' | 'unavailable'>('loading')
@@ -68,13 +69,10 @@ export function ListComparer() {
 
   const fetchTaxonCodes = async (names: string[]) => {
     try {
-      const res = await fetch('/taxonomy/codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ species: names.map(n => ({ commonName: n, scientificName: '' })) }),
-      })
-      if (!res.ok) return
-      const data = await res.json()
+      const data = await transport.post<{ codes: Record<string, string> }>(
+        '/taxonomy/codes',
+        { species: names.map(n => ({ commonName: n, scientificName: '' })) }
+      )
       setTaxonMap(data.codes ?? {})
     } catch {
       // silently fail — icons simply won't appear

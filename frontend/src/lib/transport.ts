@@ -5,13 +5,28 @@ export interface TransportAdapter {
   post<T>(path: string, body: unknown): Promise<T>;
 }
 
+export class TransportError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly detail?: string
+  ) {
+    super(message);
+    this.name = 'TransportError';
+  }
+}
+
 class WebTransport implements TransportAdapter {
   async get<T>(path: string, params?: Record<string, string>): Promise<T> {
     const url = params && Object.keys(params).length > 0
       ? `${path}?${new URLSearchParams(params).toString()}`
       : path;
     const res = await fetch(url);
-    if (!res.ok) throw new Error(`Transport error: ${res.status}`);
+    if (!res.ok) {
+      let detail: string | undefined;
+      try { detail = (await res.json() as { detail?: string }).detail; } catch { /* ok */ }
+      throw new TransportError(`Transport error: ${res.status}`, res.status, detail);
+    }
     return res.json() as Promise<T>;
   }
 
@@ -21,21 +36,77 @@ class WebTransport implements TransportAdapter {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw new Error(`Transport error: ${res.status}`);
+    if (!res.ok) {
+      let detail: string | undefined;
+      try { detail = (await res.json() as { detail?: string }).detail; } catch { /* ok */ }
+      throw new TransportError(`Transport error: ${res.status}`, res.status, detail);
+    }
     return res.json() as Promise<T>;
   }
 }
 
-// Phase 0: TauriTransport delegates to WebTransport while the backend is still required.
-// Phase 3: each proxy migrated here calls the external API directly instead of through FastAPI.
 class TauriTransport implements TransportAdapter {
   private web = new WebTransport();
 
   async get<T>(path: string, params?: Record<string, string>): Promise<T> {
+    // Route external API paths to direct Tauri service calls
+    if (path.startsWith('/weather/')) {
+      const { getWeather } = await import('./tauri/weatherService');
+      const checklistId = path.slice('/weather/'.length);
+      return getWeather(checklistId) as Promise<T>;
+    }
+
+    if (path === '/version/check') {
+      const { checkVersion } = await import('./tauri/versionService');
+      return checkVersion() as Promise<T>;
+    }
+
+    if (path === '/stats/nemesis') {
+      const { getNemesis } = await import('./tauri/statsService');
+      const lat = parseFloat(params?.lat ?? '0');
+      const lng = parseFloat(params?.lng ?? '0');
+      const dist = parseInt(params?.dist ?? '25', 10);
+      return getNemesis(lat, lng, dist) as Promise<T>;
+    }
+
+    if (path === '/nominatim/search') {
+      const { forwardGeocode } = await import('./tauri/nominatimService');
+      return forwardGeocode(params?.q ?? '') as Promise<T>;
+    }
+
+    if (path === '/map/hotspots') {
+      const { getHotspots } = await import('./tauri/mapService');
+      const lat = parseFloat(params?.lat ?? '0');
+      const lng = parseFloat(params?.lng ?? '0');
+      const dist = parseInt(params?.dist ?? '25', 10);
+      return getHotspots(lat, lng, dist) as Promise<T>;
+    }
+
+    if (path === '/map/recent-obs') {
+      const { getRecentObs } = await import('./tauri/mapService');
+      const lat = parseFloat(params?.lat ?? '0');
+      const lng = parseFloat(params?.lng ?? '0');
+      const dist = parseInt(params?.dist ?? '25', 10);
+      const codes = params?.codes ?? '';
+      return getRecentObs(lat, lng, dist, codes) as Promise<T>;
+    }
+
     return this.web.get<T>(path, params);
   }
 
   async post<T>(path: string, body: unknown): Promise<T> {
+    if (path === '/taxonomy/codes') {
+      const { getTaxonomyCodes } = await import('./tauri/taxonomyService');
+      const { species } = body as { species: Array<{ commonName: string; scientificName: string }> };
+      return getTaxonomyCodes(species) as Promise<T>;
+    }
+
+    if (path === '/nominatim/counties') {
+      const { reverseGeocodeCounties } = await import('./tauri/nominatimService');
+      const { locations } = body as { locations: Array<{ lat: number; lng: number }> };
+      return reverseGeocodeCounties(locations) as Promise<T>;
+    }
+
     return this.web.post<T>(path, body);
   }
 }

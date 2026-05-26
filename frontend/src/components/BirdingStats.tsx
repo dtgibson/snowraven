@@ -19,6 +19,7 @@ import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { BREEDING_CODE_MAP } from '../lib/breedingCodes'
 import { SetupRequired } from './SetupRequired'
 import type { ObservationEntry, ChecklistEntry } from '../types'
+import { transport } from '../lib/transport'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -308,15 +309,8 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           }
           const species = [...seenNames.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
           try {
-            const taxRes = await fetch('/taxonomy/codes', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ species }),
-            })
-            if (taxRes.ok && !cancelled) {
-              const data: { codes: Record<string, string> } = await taxRes.json()
-              setMlTaxonMap(data.codes)
-            }
+            const data = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
+            if (!cancelled) setMlTaxonMap(data.codes)
           } catch { /* taxonomy unavailable — falls back to taxaName */ }
         }
 
@@ -337,24 +331,21 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       setNemesisLoading(true)
       setNemesisError(null)
       try {
-        const r = await fetch(`/stats/nemesis?lat=${mapDefaults.lat}&lng=${mapDefaults.lng}&dist=${mapDefaults.dist}`)
-        if (!r.ok) throw new Error(String(r.status))
-        const data = await r.json()
+        const data = await transport.get<{ species: NemesisSpecies[] }>('/stats/nemesis', {
+          lat: String(mapDefaults.lat),
+          lng: String(mapDefaults.lng),
+          dist: String(mapDefaults.dist),
+        })
         if (!cancelled) {
           const species: NemesisSpecies[] = data.species ?? []
           setNemesisResult(species)
           const missing = species.map(s => s.commonName).filter(n => !mlTaxonMap[n])
           if (missing.length > 0) {
             try {
-              const taxRes = await fetch('/taxonomy/codes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ species: missing.map(n => ({ commonName: n, scientificName: '' })) }),
+              const taxData = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', {
+                species: missing.map(n => ({ commonName: n, scientificName: '' })),
               })
-              if (taxRes.ok && !cancelled) {
-                const taxData: { codes: Record<string, string> } = await taxRes.json()
-                setNemesisTaxonMap(taxData.codes)
-              }
+              if (!cancelled) setNemesisTaxonMap(taxData.codes)
             } catch { /* non-fatal */ }
           }
         }

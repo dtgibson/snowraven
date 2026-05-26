@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2 } from 'lucide-react'
+import { transport, TransportError } from './lib/transport'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
@@ -144,12 +145,9 @@ export default function App() {
     }
     setState({ status: 'loading' })
     try {
-      const res = await fetch(`/weather/${encodeURIComponent(id)}`)
-      const data = await res.json()
-      if (!res.ok) {
-        setState({ status: 'error', message: data.detail ?? 'Something went wrong. Please try again.' })
-        return
-      }
+      const data = await transport.get<{ formatted: string; checklist_id: string; loc_name: string; obs_dt: string }>(
+        `/weather/${encodeURIComponent(id)}`
+      )
       setState({ status: 'success', formatted: data.formatted, checklistId: data.checklist_id, locName: data.loc_name, obsDt: data.obs_dt })
       try {
         if (navigator.clipboard) {
@@ -168,8 +166,9 @@ export default function App() {
       } catch {
         // clipboard unavailable — user can still click Copy
       }
-    } catch {
-      setState({ status: 'error', message: 'Could not reach the server. Is the backend running?' })
+    } catch (err) {
+      const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
+      setState({ status: 'error', message: detail ?? 'Something went wrong. Please try again.' })
     }
   }, [input])
 
@@ -205,13 +204,7 @@ export default function App() {
     if (updateTimerRef.current) clearTimeout(updateTimerRef.current)
     setUpdateStatus({ kind: 'checking' })
     try {
-      const res = await fetch('/version/check')
-      const data = await res.json()
-      if (!res.ok) {
-        setUpdateStatus({ kind: 'error' })
-        updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
-        return
-      }
+      const data = await transport.get<{ current: string; latest: string; up_to_date: boolean }>('/version/check')
       if (data.up_to_date) {
         setUpdateStatus({ kind: 'up-to-date', current: data.current })
         updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
