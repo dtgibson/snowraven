@@ -85,61 +85,47 @@ class WebStorage implements StorageAdapter {
 }
 
 const DATA_DIR = 'data';
-const SETTINGS_DIR = 'settings';
 const META_PATH = `${DATA_DIR}/metadata.json`;
 const FILE_PATHS: Record<'ebird' | 'ml', string> = {
   ebird: `${DATA_DIR}/ebird-backup.csv`,
   ml: `${DATA_DIR}/ml-export.csv`,
 };
 
-// All storage (API keys, settings, files) uses tauri-plugin-fs (AppLocalData directory).
-// No backend or OS keychain required. Keys are stored as getSetting/setSetting JSON files.
+// API keys and settings use localStorage (reliable in Tauri WebViews, no permissions needed,
+// persists across launches and app updates). Large file data uses tauri-plugin-fs.
 class TauriStorage implements StorageAdapter {
   private web = new WebStorage();
 
   async getApiKey(service: 'ebird' | 'openweather'): Promise<string | null> {
-    return this.getSetting<string>(`api-key-${service}`);
+    const value = localStorage.getItem(`sr-api-key-${service}`);
+    return value && value.length > 0 ? value : null;
   }
 
   async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
-    await this.setSetting(`api-key-${service}`, value);
+    localStorage.setItem(`sr-api-key-${service}`, value);
     this.web.setApiKey(service, value).catch(() => {});
   }
 
   async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
-    await this.deleteSetting(`api-key-${service}`).catch(() => {});
+    localStorage.removeItem(`sr-api-key-${service}`);
     this.web.deleteApiKey(service).catch(() => {});
   }
 
   async getSetting<T>(key: string): Promise<T | null> {
-    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    const path = `${SETTINGS_DIR}/${key}.json`;
     try {
-      if (!await exists(path, { baseDir: BaseDirectory.AppLocalData })) return null;
-      return JSON.parse(await readTextFile(path, { baseDir: BaseDirectory.AppLocalData })) as T;
+      const raw = localStorage.getItem(`sr-setting-${key}`);
+      return raw ? JSON.parse(raw) as T : null;
     } catch {
       return null;
     }
   }
 
   async setSetting<T>(key: string, value: T): Promise<void> {
-    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    await mkdir(SETTINGS_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
-    await writeTextFile(
-      `${SETTINGS_DIR}/${key}.json`,
-      JSON.stringify(value),
-      { baseDir: BaseDirectory.AppLocalData }
-    );
+    localStorage.setItem(`sr-setting-${key}`, JSON.stringify(value));
   }
 
   async deleteSetting(key: string): Promise<void> {
-    const { remove, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    const path = `${SETTINGS_DIR}/${key}.json`;
-    try {
-      if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
-        await remove(path, { baseDir: BaseDirectory.AppLocalData });
-      }
-    } catch { /* best-effort */ }
+    localStorage.removeItem(`sr-setting-${key}`);
   }
 
   async getFilesStatus(): Promise<FilesStatus> {

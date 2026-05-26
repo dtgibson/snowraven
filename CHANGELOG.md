@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.12] - 2026-05-26
+
+### Fixed
+- **API keys not persisting** — `tauri-plugin-fs` writes to `AppLocalData` were failing silently in production. The `setSetting` call appeared to succeed (no error in the UI) but nothing was written to disk, so keys were lost on every relaunch and cleared on every update. API keys and settings (including map defaults) now use `localStorage`, which is reliable in Tauri's WebView, requires no permissions or plugins, and persists correctly across launches and app updates.
+
 ## [0.3.11] - 2026-05-26
 
 ### Fixed
