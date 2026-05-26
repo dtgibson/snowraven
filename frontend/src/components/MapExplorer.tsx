@@ -951,7 +951,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
     setTargetsLoading(true); setTargetsError('')
     try {
       const distKm = Math.round(radius * 1.60934)
-      const pins = await transport.get<unknown[]>('/map/recent-obs', {
+      const pins = await transport.get<TargetPin[]>('/map/recent-obs', {
         lat: String(latNum), lng: String(lngNum), dist: String(distKm), codes,
       })
       setTargetPins(pins)

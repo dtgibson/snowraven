@@ -6,13 +6,14 @@ export interface TransportAdapter {
 }
 
 export class TransportError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number,
-    public readonly detail?: string
-  ) {
+  readonly status: number;
+  readonly detail?: string;
+
+  constructor(message: string, status: number, detail?: string) {
     super(message);
     this.name = 'TransportError';
+    this.status = status;
+    this.detail = detail;
   }
 }
 
