@@ -16,13 +16,13 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 - Phase 2 (v0.3.1): OS keychain via `keyring` Rust crate for API keys
 - Phase 3 (v0.3.2): Direct external API calls via `tauri-plugin-http`; 6 TypeScript services; tz via `tzf-rs`
 - Phase 4 (v0.3.3): App data directory via `tauri-plugin-fs` for files + settings
-- Phase 5 (v0.3.4): In-app updater via `tauri-plugin-updater`; minisign keypair; CI release workflow
-- Phase 6 (v0.4.0): Verification + documentation; standalone confirmed
+- Phase 5 (v0.3.4): In-app updater via `tauri-plugin-updater`; minisign keypair; local `release.sh` script
+- Phase 6 (v0.3.7): Verification + documentation; standalone confirmed; first notarized macOS release
 
 **Implications:**
 - The `transport` singleton (`frontend/src/lib/transport.ts`) and `storage` singleton (`frontend/src/lib/storage.ts`) are the permanent seam layer. New Tauri-specific code must route through them — do not add `isTauri()` branches outside these two files.
 - The Vite proxy (`/weather`, `/taxonomy`, `/settings`, `/nominatim`, `/stats`, `/map`, `/version`) is still needed for web/Pi development mode. The Python backend remains the web/Pi runtime.
-- The minisign private key is at `~/.tauri/snowraven-signing.key`. The corresponding public key is in `tauri.conf.json`. The private key must be set as `TAURI_SIGNING_PRIVATE_KEY` in GitHub Actions secrets for the `tauri-release.yml` CI to sign binaries. Without this secret, the CI build produces unsigned binaries that the updater cannot verify.
+- The minisign private key is at `~/.tauri/snowraven-signing.key`. The corresponding public key is in `tauri.conf.json`. Run `./release.sh` (local Mac script) to build, notarize, sign the updater bundle, and publish to GitHub — credentials stay local. The script requires `APPLE_SIGNING_IDENTITY`, `APPLE_API_KEY_PATH`, `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER_ID` to be set in the shell before running.
 
 ---
 
@@ -32,7 +32,7 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Rationale:** Tauri bundles the OS system webview (WebKit on macOS, WebView2 on Windows) instead of Chromium, giving a binary roughly 4 MB vs 100 MB+ for Electron, lower memory overhead, and native OS appearance for dialogs and menus. The Rust core is a natural security boundary and the Tauri plugin system (stronghold, http, fs, updater) covers every Phase 2–5 capability.
 
-**Implications:** Minor rendering differences across platforms are expected and acceptable — platforms use native OS conventions, not pixel-identical layouts. Building the desktop app requires the Rust toolchain and `@tauri-apps/cli`. The app identifier is `com.snowraven.app`; the Tauri project lives in `src-tauri/` at the repo root.
+**Implications:** Minor rendering differences across platforms are expected and acceptable — platforms use native OS conventions, not pixel-identical layouts. Building the desktop app requires the Rust toolchain and `@tauri-apps/cli`. The app identifier is `com.snowraven`; the Tauri project lives in `src-tauri/` at the repo root.
 
 ---
 
