@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-32 versions shipped. Last shipped: **Desktop app foundation (Phase 0)** -- Tauri v2 project structure, transport and storage seams, platform detection; architectural foundation for the Mac and Windows standalone app; no user-visible change to the web app in Phase 0.
+33 versions shipped. Last shipped: **Desktop app foundation (Phase 1)** -- pure TypeScript port of the Python weather formatter with a 61-test golden suite proving byte-for-byte equivalence; first milestone toward a fully standalone Tauri app.
 
-Previously: **In-app help documentation** -- full-screen overlay accessible from the top of Settings; `docs/HELP.md` bundled at build time via Vite `?raw` import; always available offline; covers all tabs, API key setup, and file instructions.
+Previously: **Desktop app foundation (Phase 0)** -- Tauri v2 project structure, transport and storage seams, platform detection; architectural foundation for the Mac and Windows standalone app; no user-visible change to the web app.
 
 ---
 

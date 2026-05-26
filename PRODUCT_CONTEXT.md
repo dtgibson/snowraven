@@ -707,6 +707,34 @@ The architectural foundation for a signed, distributable Mac and Windows desktop
 - `package.json` (repo root) — `desktop:dev` and `desktop:build` scripts via `@tauri-apps/cli`
 - `frontend/vite.config.ts` — `clearScreen: false` for Tauri terminal compatibility
 
+### Desktop App Foundation — Phase 1 (complete — May 2026)
+
+A pure TypeScript port of `backend/formatters/weather.py` with a golden test suite proving byte-for-byte equivalence with Python output. This is the first milestone toward a fully standalone Tauri app — when Phase 6 ships, the backend will be decommissioned and the TypeScript formatter will serve as the production implementation.
+
+**What it does:**
+- `weatherFormatter.ts` implements all six formatting functions in TypeScript with zero new npm packages (browser-native `Intl` APIs only)
+- A 61-test golden suite in `weatherFormatter.test.ts` verifies exact match against the Python formatter — any future drift between the two implementations will fail CI
+- `weatherFormatter.golden.py` inlines the Python formatter functions (minus the `timezonefinder` dependency) and prints labeled test fixture outputs for comparison; run from the repo root with no venv required
+
+**Behavioral rules enforced by the test suite:**
+- `bankersRound()` implements Python's round-half-to-even: `22.5°` → `"N"` (index 0, even), not `"NE"`
+- 8 cardinal directions: `["N","NE","E","SE","S","SW","W","NW"]`
+- Beaufort descriptions: deduplicated + sorted by ascending Beaufort order (calm → gale), joined `" - "`
+- Wind directions: deduplicated preserving insertion order (NOT sorted), joined `" - "`
+- `capitalize()` semantics: lowercase all, uppercase first character — matches Python's `str.capitalize()`
+- `formatLocalTime` uses `Intl.DateTimeFormat` (browser-native, no leading zero on hour): `"5:08am"` not `"05:08am"`
+
+**Key files:**
+- `frontend/src/lib/weatherFormatter.ts` — TypeScript formatter (`HourlyResponse` interface + all six exported functions)
+- `frontend/src/lib/weatherFormatter.test.ts` — 61 golden tests (runs as part of `npm run test`)
+- `frontend/src/lib/weatherFormatter.golden.py` — inlined Python reference for generating fixture expectations
+
+**NFR constraints (remain in effect through all future phases):**
+- NFR-01: No Node.js-only imports — `weatherFormatter.ts` must run in the browser and in Tauri (uses only `Intl` APIs)
+- NFR-02: No new npm packages — zero dependencies added
+
+**Phase 3 note:** The `ATTRIBUTION` constant in `weatherFormatter.ts` contains HTML. When Phase 3 (TauriTransport direct API calls) ships, the Tauri `csp: null` placeholder must be replaced with an explicit CSP before the attribution HTML is injected into the DOM.
+
 ### In-App Help Documentation (complete -- May 2026)
 
 A full-screen documentation overlay accessible from the top of the Settings tab. `docs/HELP.md` at the repo root is the single source of truth -- imported at build time via Vite's `?raw` loader and bundled as a string literal, making documentation always available offline with no runtime network call. The same file is rendered by GitHub at a predictable URL.
