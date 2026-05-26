@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.10] - 2026-05-26
+
+### Fixed
+- **Frontend not rebuilt on release** — `release.sh` ran `tauri build` without first rebuilding the React frontend, so the old `frontend/dist/` from v0.3.8 was bundled into the v0.3.9 binary. All v0.3.9 fixes were in source but not in the shipped app. Added explicit `npm --prefix frontend run build` step to `release.sh`, and added `beforeBuildCommand` to `tauri.conf.json` as a safeguard for direct `tauri build` invocations.
+- **Settings page showed incorrect storage description** — "stored on the server" and "stored on this server" text now shows platform-correct descriptions: "stored in this app's local data directory" in the desktop app, server language on web/Pi.
+- **Updater bundle renamed** — GitHub release asset `SnowRaven.app.tar.gz` renamed to `SnowRaven-updater.app.tar.gz` to avoid confusion with the installer DMG.
+
 ## [0.3.9] - 2026-05-26
 
 ### Fixed

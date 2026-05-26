@@ -71,7 +71,12 @@ export TAURI_SIGNING_PRIVATE_KEY
 TAURI_SIGNING_PRIVATE_KEY=$(cat "$SIGNING_KEY")
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 
-echo "==> Building..."
+# Build the frontend first — tauri.conf.json has no beforeBuildCommand,
+# so without this the old frontend/dist would be bundled into the binary.
+echo "==> Building frontend..."
+npm --prefix frontend run build
+
+echo "==> Building Tauri app..."
 npm run desktop:build
 
 if [[ ! -f "$DMG" ]]; then
@@ -96,6 +101,13 @@ xcrun notarytool submit "$DMG" \
 echo "==> Stapling..."
 xcrun stapler staple "$DMG"
 
+# ── Rename updater bundle to avoid confusion with the installer DMG ──────────
+
+UPDATER_TAR="/tmp/SnowRaven-updater.app.tar.gz"
+UPDATER_SIG="${UPDATER_TAR}.sig"
+cp "$APP_TAR" "$UPDATER_TAR"
+cp "$APP_SIG" "$UPDATER_SIG"
+
 # ── Read updater signature ────────────────────────────────────────────────────
 
 SIG=$(cat "$APP_SIG")
@@ -112,7 +124,7 @@ cat > /tmp/latest.json << ENDJSON
   "platforms": {
     "darwin-$ARCH": {
       "signature": "$SIG",
-      "url": "$DOWNLOAD_BASE/SnowRaven.app.tar.gz"
+      "url": "$DOWNLOAD_BASE/SnowRaven-updater.app.tar.gz"
     }
   }
 }
@@ -125,8 +137,8 @@ echo "==> Publishing $TAG..."
 if gh release view "$TAG" --repo "$REPO" &>/dev/null; then
   gh release upload "$TAG" \
     "$DMG" \
-    "$APP_TAR" \
-    "$APP_SIG" \
+    "$UPDATER_TAR" \
+    "$UPDATER_SIG" \
     /tmp/latest.json \
     --repo "$REPO" \
     --clobber
@@ -135,8 +147,8 @@ else
     --title "$TAG" \
     --notes "See CHANGELOG.md for details." \
     "$DMG" \
-    "$APP_TAR" \
-    "$APP_SIG" \
+    "$UPDATER_TAR" \
+    "$UPDATER_SIG" \
     /tmp/latest.json \
     --repo "$REPO"
 fi

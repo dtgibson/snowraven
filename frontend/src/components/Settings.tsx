@@ -6,6 +6,7 @@ import type { ThemePreference } from '../lib/theme'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import { HelpDocs } from './HelpDocs'
 import { storage } from '../lib/storage'
+import { isTauri } from '../lib/platform'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -921,7 +922,9 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
       </div>
 
       <p style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
-        Keys are stored in the server's .env file and take effect immediately — no restart needed. They stay configured across app restarts.
+        {isTauri()
+          ? 'Keys are stored in this app\'s local data directory and take effect immediately — no restart needed.'
+          : 'Keys are stored in the server\'s .env file and take effect immediately — no restart needed. They stay configured across app restarts.'}
       </p>
 
       <SectionHeader label="Default Files" />
@@ -950,7 +953,9 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
       </div>
 
       <p style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
-        Files are stored on this server and load automatically when you open the relevant tab.
+        {isTauri()
+          ? 'Files are stored in this app\'s local data directory and load automatically when you open the relevant tab.'
+          : 'Files are stored on this server and load automatically when you open the relevant tab.'}
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
