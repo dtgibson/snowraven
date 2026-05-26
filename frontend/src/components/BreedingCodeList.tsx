@@ -81,7 +81,7 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => void }) {
+export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSettings: () => void; filesVersion?: number }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<Set<string>>(new Set())
   const [categoryFilter, setCategoryFilter] = useState<Set<BreedingCategory>>(new Set())
@@ -107,6 +107,7 @@ export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => voi
 
   useEffect(() => {
     let cancelled = false
+    setPhase({ tag: 'loading-saved' })
     async function autoLoad() {
       try {
         const status = await storage.getFilesStatus()
@@ -130,7 +131,7 @@ export function BreedingCodeList({ onGoToSettings }: { onGoToSettings: () => voi
     }
     autoLoad()
     return () => { cancelled = true }
-  }, [])
+  }, [filesVersion])
 
   // These useMemos must be declared before any early return so that the
   // hook call order stays the same on every render regardless of phase.

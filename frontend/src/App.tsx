@@ -86,7 +86,10 @@ export default function App() {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
+  const [filesVersion, setFilesVersion] = useState(0)
   const [mediaListFilter, setMediaListFilter] = useState<'is-target' | undefined>(undefined)
+
+  const handleFilesSaved = useCallback(() => setFilesVersion(v => v + 1), [])
 
   const navigateToMediaList = useCallback(() => {
     setActiveTab('life-list')
@@ -602,6 +605,7 @@ export default function App() {
           onGoToSettings={() => setActiveTab('settings')}
           requestedFilter={mediaListFilter}
           onRequestedFilterConsumed={resetMediaListFilter}
+          filesVersion={filesVersion}
         />
       </div>
 
@@ -615,7 +619,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} />
+        <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} />
       </div>
 
       {/* Species Detail tab content */}
@@ -628,7 +632,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <SpeciesDetail onGoToSettings={() => setActiveTab('settings')} />
+        <SpeciesDetail onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} />
       </div>
 
       {/* Map Explorer tab content */}
@@ -669,6 +673,7 @@ export default function App() {
       >
         <Settings
           onKeysSaved={fetchKeyStatus}
+          onFilesSaved={handleFilesSaved}
           tabOrder={tabLayout.order}
           tabHidden={tabLayout.hidden}
           onReorder={handleReorder}

@@ -104,7 +104,7 @@ SIG=$(cat "$APP_SIG")
 
 DOWNLOAD_BASE="https://github.com/$REPO/releases/download/$TAG"
 
-cat > /tmp/snowraven-latest.json << ENDJSON
+cat > /tmp/latest.json << ENDJSON
 {
   "version": "$VERSION",
   "notes": "See CHANGELOG.md for details.",
@@ -127,7 +127,7 @@ if gh release view "$TAG" --repo "$REPO" &>/dev/null; then
     "$DMG" \
     "$APP_TAR" \
     "$APP_SIG" \
-    /tmp/snowraven-latest.json \
+    /tmp/latest.json \
     --repo "$REPO" \
     --clobber
 else
@@ -137,7 +137,7 @@ else
     "$DMG" \
     "$APP_TAR" \
     "$APP_SIG" \
-    /tmp/snowraven-latest.json \
+    /tmp/latest.json \
     --repo "$REPO"
 fi
 

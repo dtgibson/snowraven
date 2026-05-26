@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from './platform';
 
 export interface FileMetadata {
@@ -93,29 +92,22 @@ const FILE_PATHS: Record<'ebird' | 'ml', string> = {
   ml: `${DATA_DIR}/ml-export.csv`,
 };
 
-// Phase 2: getApiKey/setApiKey/deleteApiKey use OS keychain via Rust commands.
-//   Bridge write to backend .env kept so the Python backend continues to work
-//   during the Phase 3 transition. Bridge failures are silently swallowed.
-// Phase 4: readFile/writeFile/deleteFile and getSetting/setSetting/deleteSetting
-//   use tauri-plugin-fs (AppLocalData directory). No backend required.
+// All storage (API keys, settings, files) uses tauri-plugin-fs (AppLocalData directory).
+// No backend or OS keychain required. Keys are stored as getSetting/setSetting JSON files.
 class TauriStorage implements StorageAdapter {
   private web = new WebStorage();
 
   async getApiKey(service: 'ebird' | 'openweather'): Promise<string | null> {
-    try {
-      return await invoke<string | null>('get_api_key', { service });
-    } catch {
-      return this.web.getApiKey(service);
-    }
+    return this.getSetting<string>(`api-key-${service}`);
   }
 
   async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
-    await invoke('set_api_key', { service, value });
+    await this.setSetting(`api-key-${service}`, value);
     this.web.setApiKey(service, value).catch(() => {});
   }
 
   async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
-    await invoke('delete_api_key', { service });
+    await this.deleteSetting(`api-key-${service}`).catch(() => {});
     this.web.deleteApiKey(service).catch(() => {});
   }
 

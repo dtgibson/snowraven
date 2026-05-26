@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.9] - 2026-05-26
+
+### Fixed
+- **"Could not check for updates"** — `release.sh` was uploading `latest.json` as `snowraven-latest.json`, causing a 404 from the Tauri updater endpoint. Asset is now named `latest.json` to match the endpoint URL.
+- **Files not refreshing after upload** — Life List, Breeding Codes, and Species Detail tabs never re-ran their file-loading effect after Settings uploaded a new file, because they are display-toggled (never unmounted). A `filesVersion` counter in App.tsx is incremented on upload and passed to each tab; their load effects are now re-triggered when a file is saved.
+- **API keys lost on relaunch** — Keys stored in the macOS keychain are tied to the code signature of the binary that created them. New app builds could not read entries from prior builds, and the keychain fallback silently returned `null`. API keys are now stored in the app's local data directory (file-based, via `setSetting`) and persist correctly across updates.
+
 ## [0.3.8] - 2026-05-26
 
 ### Fixed

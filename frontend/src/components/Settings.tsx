@@ -666,6 +666,7 @@ interface ApiKeyStatus {
 
 interface SettingsProps {
   onKeysSaved?: () => void
+  onFilesSaved?: () => void
   tabOrder: ConfigurableTab[]
   tabHidden: Set<ConfigurableTab>
   onReorder: (newOrder: ConfigurableTab[]) => void
@@ -673,7 +674,7 @@ interface SettingsProps {
   onRestoreDefaults: () => void
 }
 
-export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
+export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
   const [helpOpen, setHelpOpen] = useState(false)
   const [status, setStatus] = useState<StoredFilesStatus>({ ebird: null, ml: null })
   const [keys, setKeys] = useState<ApiKeyStatus>({ ebird: null, openweather: null })
@@ -740,6 +741,7 @@ export function Settings({ onKeysSaved, tabOrder, tabHidden, onReorder, onToggle
       await storage.writeFile(slot, content, file.name)
       const updatedStatus = await storage.getFilesStatus()
       setStatus(updatedStatus)
+      onFilesSaved?.()
     } catch {
       setError('Upload failed. Please try again.')
     } finally {

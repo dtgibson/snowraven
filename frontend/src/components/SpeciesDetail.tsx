@@ -425,7 +425,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }) {
+export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings: () => void; filesVersion?: number }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -513,6 +513,7 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
   // Auto-load from stored files
   useEffect(() => {
     let cancelled = false
+    setPhase({ tag: 'loading-saved' })
     async function autoLoad() {
       try {
         const status = await storage.getFilesStatus()
@@ -557,7 +558,7 @@ export function SpeciesDetail({ onGoToSettings }: { onGoToSettings: () => void }
     }
     autoLoad()
     return () => { cancelled = true }
-  }, [])
+  }, [filesVersion])
 
   // ── Derived data ───────────────────────────────────────────────────────
 

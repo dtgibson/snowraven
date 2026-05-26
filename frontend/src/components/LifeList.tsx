@@ -152,10 +152,11 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterConsumed }: {
+export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterConsumed, filesVersion }: {
   onGoToSettings: () => void
   requestedFilter?: 'is-target'
   onRequestedFilterConsumed?: () => void
+  filesVersion?: number
 }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<MediaFilterState>(MEDIA_FILTER_CLEAR)
@@ -318,6 +319,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
   useEffect(() => {
     let cancelled = false
+    setPhase({ tag: 'loading-saved' })
     async function autoLoad() {
       try {
         const status = await storage.getFilesStatus()
@@ -366,7 +368,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     }
     autoLoad()
     return () => { cancelled = true }
-  }, [])
+  }, [filesVersion])
 
   // ── Auto-loading saved file ───────────────────────────────────────────────
   if (phase.tag === 'loading-saved') {
