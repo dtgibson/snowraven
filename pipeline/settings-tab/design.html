@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — Settings Tab Design</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #fff;
+    color: #0F1117;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 52px;
+    border-bottom: 1px solid #E4E4E7;
+    flex-shrink: 0;
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .app-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #2D8653;
+    letter-spacing: -0.01em;
+  }
+
+  .app-version {
+    font-size: 11px;
+    color: #A1A1AA;
+    font-weight: 400;
+    margin-left: 6px;
+  }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 0 20px;
+    border-bottom: 1px solid #E4E4E7;
+    background: #fff;
+    flex-shrink: 0;
+    overflow-x: auto;
+  }
+
+  .tab {
+    padding: 10px 16px 9px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #71717A;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color 0.12s, border-color 0.12s;
+    user-select: none;
+  }
+
+  .tab:hover { color: #0F1117; }
+
+  .tab.active {
+    color: #2D8653;
+    border-bottom-color: #2D8653;
+    font-weight: 600;
+  }
+
+  /* ── Main content ── */
+  .content {
+    flex: 1;
+    padding: 28px 20px 40px;
+    max-width: 680px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  /* ── Section ── */
+  .section {
+    margin-bottom: 28px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #71717A;
+  }
+
+  .section-divider {
+    flex: 1;
+    height: 1px;
+    background: #E4E4E7;
+  }
+
+  /* ── Settings card ── */
+  .settings-card {
+    border: 1px solid #E4E4E7;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  /* ── File row ── */
+  .file-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 18px;
+  }
+
+  .file-row + .file-row {
+    border-top: 1px solid #F4F4F5;
+  }
+
+  .file-icon-wrap {
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    background: #F4F4F5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .file-icon-wrap.has-file {
+    background: #E8F5EE;
+  }
+
+  .file-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .file-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #0F1117;
+    margin-bottom: 1px;
+  }
+
+  .file-sublabel {
+    font-size: 12px;
+    color: #71717A;
+  }
+
+  .file-status {
+    font-size: 12px;
+    color: #71717A;
+  }
+
+  .file-status.saved {
+    color: #0F1117;
+  }
+
+  .file-meta {
+    font-size: 11.5px;
+    color: #A1A1AA;
+    margin-top: 1px;
+  }
+
+  .file-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+  }
+
+  .btn-primary {
+    background: #2D8653;
+    color: #fff;
+    border-color: #2D8653;
+  }
+  .btn-primary:hover { background: #236842; border-color: #236842; }
+
+  .btn-outline {
+    background: #fff;
+    color: #71717A;
+    border-color: #E4E4E7;
+  }
+  .btn-outline:hover { background: #F9FAFB; color: #0F1117; border-color: #D1D1D6; }
+
+  .btn-ghost-green {
+    background: #E8F5EE;
+    color: #2D8653;
+    border-color: rgba(45,134,83,0.25);
+  }
+  .btn-ghost-green:hover { background: #D4EEE0; border-color: rgba(45,134,83,0.4); }
+
+  .btn-destructive {
+    background: #fff;
+    color: #DC2626;
+    border-color: #FECACA;
+  }
+  .btn-destructive:hover { background: #FEF2F2; border-color: #FCA5A5; }
+
+  .btn-disabled {
+    background: #F4F4F5;
+    color: #A1A1AA;
+    border-color: #E4E4E7;
+    cursor: not-allowed;
+  }
+
+  /* ── Empty state chip ── */
+  .no-file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 12px;
+    background: #F4F4F5;
+    color: #A1A1AA;
+    font-size: 11.5px;
+    font-weight: 500;
+  }
+
+  /* ── Saved file display ── */
+  .saved-filename {
+    font-size: 13px;
+    font-weight: 500;
+    color: #0F1117;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+  }
+
+  .saved-date {
+    font-size: 11.5px;
+    color: #A1A1AA;
+    margin-top: 1px;
+  }
+
+  /* ── Description text under section card ── */
+  .section-note {
+    font-size: 12px;
+    color: #A1A1AA;
+    margin-top: 10px;
+    padding: 0 2px;
+  }
+
+  /* ── Tab panel ── */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Placeholder panels for other tabs ── */
+  .placeholder-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 300px;
+    color: #A1A1AA;
+    font-size: 13px;
+    border: 2px dashed #E4E4E7;
+    border-radius: 10px;
+    margin-top: 28px;
+  }
+
+  /* ── Inline tab in the Breeding Codes / Media List showing saved file indicator ── */
+  .saved-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    background: #E8F5EE;
+    border: 1.5px solid rgba(45,134,83,0.25);
+    color: #2D8653;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* ── Toggle demo note ── */
+  .demo-note {
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #92400E;
+    margin-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+
+<!-- App header -->
+<header class="app-header">
+  <div style="display:flex;align-items:baseline;gap:2px">
+    <span class="app-name">SnowRaven</span>
+    <span class="app-version">v0.0.25</span>
+  </div>
+  <div style="font-size:11px;color:#A1A1AA">Self-hosted · <a href="#" style="color:#A1A1AA;text-decoration:none">Check for updates</a></div>
+</header>
+
+<!-- Tab bar -->
+<nav class="tab-bar" id="tabBar">
+  <div class="tab" onclick="switchTab('weather')">Weather</div>
+  <div class="tab" onclick="switchTab('breeding')">Breeding Codes</div>
+  <div class="tab" onclick="switchTab('media')">Media List</div>
+  <div class="tab" onclick="switchTab('comparer')">Life List Comparer</div>
+  <div class="tab active" onclick="switchTab('settings')">Settings</div>
+</nav>
+
+<!-- ── Settings tab ── -->
+<div class="tab-panel active" id="panel-settings">
+  <div class="content">
+
+    <div class="demo-note">
+      Interactive mockup — click "Clear" to see the empty state, then "Upload file" to restore. The eBird backup row starts empty; the ML export row starts with a saved file.
+    </div>
+
+    <!-- Default Files section -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Default Files</span>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="settings-card">
+
+        <!-- eBird Backup row — starts EMPTY -->
+        <div class="file-row" id="ebird-row">
+          <div class="file-icon-wrap" id="ebird-icon">
+            <!-- Bird icon (empty state) -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+          </div>
+          <div class="file-info">
+            <div class="file-label">eBird Backup</div>
+            <div class="file-sublabel" id="ebird-sublabel">Used by the Breeding Codes tab</div>
+          </div>
+          <div class="file-actions" id="ebird-actions">
+            <span class="no-file-chip">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              No file saved
+            </span>
+            <button class="btn btn-outline" onclick="uploadEbird()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Upload file
+            </button>
+            <button class="btn btn-disabled" disabled>Clear</button>
+          </div>
+        </div>
+
+        <!-- ML Export row — starts SAVED -->
+        <div class="file-row" id="ml-row">
+          <div class="file-icon-wrap has-file" id="ml-icon">
+            <!-- Check icon (saved state) -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/>
+            </svg>
+          </div>
+          <div class="file-info">
+            <div class="file-label">ML Export</div>
+            <div id="ml-sublabel">
+              <div class="saved-filename">ML__20260501_USER7739482.csv</div>
+              <div class="saved-date">Saved 14 May 2026 at 11:42 PM</div>
+            </div>
+          </div>
+          <div class="file-actions" id="ml-actions">
+            <button class="btn btn-ghost-green" onclick="uploadML()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Upload new
+            </button>
+            <button class="btn btn-destructive" onclick="clearML()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+              Clear
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="section-note">Files are stored on this server and load automatically when you open the relevant tab. Uploading a different file within a tab is session-only and won't replace your saved default.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Breeding Codes tab (shows saved-file indicator) ── -->
+<div class="tab-panel" id="panel-breeding">
+  <div class="content">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button style="height:30px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;border:1.5px solid rgba(45,134,83,0.25);background:#E8F5EE;color:#2D8653">All</button>
+      <button style="height:30px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;border:1.5px solid #E4E4E7;background:#fff;color:#71717A">NY</button>
+      <button style="height:30px;padding:0 12px;border-radius:6px;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;border:1.5px solid #E4E4E7;background:#fff;color:#71717A">CN</button>
+      <div style="width:1px;height:20px;background:#E4E4E7;align-self:center"></div>
+      <div style="display:inline-flex;border:1.5px solid #E4E4E7;border-radius:6px;overflow:hidden">
+        <button style="height:28px;padding:0 13px;border:none;background:#2D8653;color:#fff;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer">A–Z</button>
+        <button style="height:28px;padding:0 13px;border:none;background:#fff;color:#71717A;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;border-left:1.5px solid #E4E4E7">Taxonomic</button>
+      </div>
+      <div style="flex:1"></div>
+      <div class="saved-indicator">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        MyEBirdData.csv
+      </div>
+      <button style="height:28px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;border:1.5px solid #E4E4E7;background:none;color:#71717A">Load different file</button>
+    </div>
+    <div class="placeholder-panel">Breeding codes table — unchanged from current</div>
+  </div>
+</div>
+
+<!-- ── Media List tab (shows saved-file indicator) ── -->
+<div class="tab-panel" id="panel-media">
+  <div class="content">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="display:inline-flex;border:1.5px solid #E4E4E7;border-radius:6px;overflow:hidden">
+        <button style="height:28px;padding:0 13px;border:none;background:#2D8653;color:#fff;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer">A–Z</button>
+        <button style="height:28px;padding:0 13px;border:none;background:#fff;color:#71717A;font-size:12px;font-weight:500;font-family:inherit;cursor:pointer;border-left:1.5px solid #E4E4E7">Taxonomic</button>
+      </div>
+      <div style="width:1px;height:20px;background:#E4E4E7;align-self:center"></div>
+      <button style="height:28px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;border:1.5px solid rgba(45,134,83,0.25);background:#E8F5EE;color:#2D8653">Has photo</button>
+      <div style="flex:1"></div>
+      <div class="saved-indicator">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        ML__20260501_USER7739482.csv
+      </div>
+      <button style="height:28px;padding:0 10px;border-radius:6px;font-size:11px;font-weight:500;font-family:inherit;cursor:pointer;border:1.5px solid #E4E4E7;background:none;color:#71717A">Load different file</button>
+    </div>
+    <div class="placeholder-panel">Media list table — unchanged from current</div>
+  </div>
+</div>
+
+<!-- Other placeholder tabs -->
+<div class="tab-panel" id="panel-weather">
+  <div class="content">
+    <div class="placeholder-panel">Weather lookup — unchanged from current</div>
+  </div>
+</div>
+
+<div class="tab-panel" id="panel-comparer">
+  <div class="content">
+    <div class="placeholder-panel">Life List Comparer — unchanged from current</div>
+  </div>
+</div>
+
+<script>
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      const names = ['weather','breeding','media','comparer','settings']
+      t.classList.toggle('active', names[i] === name)
+    })
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+    document.getElementById('panel-' + name).classList.add('active')
+  }
+
+  // ── eBird row toggle ──
+  let ebirdSaved = false
+
+  function uploadEbird() {
+    ebirdSaved = true
+    renderEbird()
+  }
+
+  function clearEbird() {
+    ebirdSaved = false
+    renderEbird()
+  }
+
+  function renderEbird() {
+    const icon = document.getElementById('ebird-icon')
+    const sublabel = document.getElementById('ebird-sublabel')
+    const actions = document.getElementById('ebird-actions')
+
+    if (ebirdSaved) {
+      icon.className = 'file-icon-wrap has-file'
+      icon.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg>`
+      sublabel.innerHTML = `<div class="saved-filename">MyEBirdData.csv</div><div class="saved-date">Saved just now</div>`
+      actions.innerHTML = `
+        <button class="btn btn-ghost-green" onclick="uploadEbird()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload new
+        </button>
+        <button class="btn btn-destructive" onclick="clearEbird()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          Clear
+        </button>`
+    } else {
+      icon.className = 'file-icon-wrap'
+      icon.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`
+      sublabel.innerHTML = `<div class="file-sublabel">Used by the Breeding Codes tab</div>`
+      actions.innerHTML = `
+        <span class="no-file-chip">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          No file saved
+        </span>
+        <button class="btn btn-outline" onclick="uploadEbird()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload file
+        </button>
+        <button class="btn btn-disabled" disabled>Clear</button>`
+    }
+  }
+
+  // ── ML row toggle ──
+  let mlSaved = true
+
+  function uploadML() {
+    mlSaved = true
+    renderML()
+  }
+
+  function clearML() {
+    mlSaved = false
+    renderML()
+  }
+
+  function renderML() {
+    const icon = document.getElementById('ml-icon')
+    const sublabel = document.getElementById('ml-sublabel')
+    const actions = document.getElementById('ml-actions')
+
+    if (mlSaved) {
+      icon.className = 'file-icon-wrap has-file'
+      icon.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg>`
+      sublabel.innerHTML = `<div class="saved-filename">ML__20260501_USER7739482.csv</div><div class="saved-date">Saved 14 May 2026 at 11:42 PM</div>`
+      actions.innerHTML = `
+        <button class="btn btn-ghost-green" onclick="uploadML()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload new
+        </button>
+        <button class="btn btn-destructive" onclick="clearML()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          Clear
+        </button>`
+    } else {
+      icon.className = 'file-icon-wrap'
+      icon.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>`
+      sublabel.innerHTML = `<div class="file-sublabel">Used by the Media List tab</div>`
+      actions.innerHTML = `
+        <span class="no-file-chip">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          No file saved
+        </span>
+        <button class="btn btn-outline" onclick="uploadML()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload file
+        </button>
+        <button class="btn btn-disabled" disabled>Clear</button>`
+    }
+  }
+</script>
+</body>
+</html>

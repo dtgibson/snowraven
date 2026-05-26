@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Key Settings — Design</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #F4F4F5; font-size: 14px; color: #0F1117; -webkit-font-smoothing: antialiased; padding: 40px 32px; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #71717A; margin-bottom: 36px; }
+  .section { margin-bottom: 40px; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #71717A; margin-bottom: 14px; }
+
+  /* Settings panel */
+  .settings-panel { width: 100%; max-width: 680px; }
+
+  /* Section header */
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .section-header-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #71717A; white-space: nowrap; }
+  .section-header-rule { flex: 1; height: 1px; background: #E4E4E7; }
+
+  /* Card */
+  .card { border: 1px solid #E4E4E7; border-radius: 10px; background: #fff; overflow: hidden; margin-bottom: 8px; }
+  .card-divider { border-top: 1px solid #F4F4F5; }
+
+  /* Row */
+  .row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+  .row-icon { width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .row-icon-grey { background: #F4F4F5; }
+  .row-icon-green { background: #E8F5EE; }
+  .row-body { flex: 1; min-width: 0; }
+  .row-label { font-size: 13.5px; font-weight: 600; color: #0F1117; }
+  .row-sublabel { font-size: 13px; color: #A1A1AA; margin-top: 2px; }
+  .row-value { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  .row-masked { font-size: 13px; color: #0F1117; letter-spacing: 2px; font-family: monospace; }
+  .row-revealed { font-size: 12px; color: #0F1117; font-family: monospace; word-break: break-all; }
+  .row-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  /* Chips */
+  .chip-empty { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; background: #F4F4F5; border-radius: 12px; font-size: 11px; font-weight: 500; color: #A1A1AA; }
+
+  /* Buttons */
+  .btn { height: 32px; padding: 0 12px; border-radius: 6px; font-size: 12px; font-weight: 500; font-family: inherit; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-default { border: 1.5px solid #E4E4E7; background: #fff; color: #0F1117; }
+  .btn-green { border: 1.5px solid rgba(45,134,83,0.25); background: #E8F5EE; color: #2D8653; }
+  .btn-red { border: 1.5px solid #FECACA; background: #fff; color: #DC2626; }
+  .btn-disabled { border: 1.5px solid #E4E4E7; background: #F4F4F5; color: #A1A1AA; cursor: not-allowed; }
+  .btn-primary { border: 1.5px solid rgba(45,134,83,0.25); background: #2D8653; color: #fff; }
+
+  /* Toggle link */
+  .toggle-link { font-size: 12px; font-weight: 500; color: #2D8653; cursor: pointer; text-decoration: none; background: none; border: none; padding: 0; font-family: inherit; }
+
+  /* Input */
+  .key-input { height: 32px; padding: 0 10px; border: 1.5px solid #E4E4E7; border-radius: 6px; font-size: 13px; font-family: monospace; color: #0F1117; background: #fff; outline: none; width: 100%; }
+  .key-input:focus { border-color: #2D8653; }
+  .key-input::placeholder { font-family: inherit; color: #A1A1AA; font-size: 12px; }
+
+  /* Input row (edit mode) */
+  .input-row { display: flex; align-items: center; gap: 8px; padding: 0 16px 14px; }
+  .input-row-full { flex: 1; }
+
+  /* Error */
+  .row-error { margin: 0 16px 10px; padding: 7px 11px; background: #FEF2F2; border-radius: 6px; font-size: 12px; color: #DC2626; }
+
+  /* Footnote */
+  .footnote { font-size: 12px; color: #A1A1AA; line-height: 1.5; margin-top: 10px; }
+
+  /* SVG icons */
+  svg { display: block; }
+
+  /* Annotation */
+  .annotation { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 10px 14px; background: #F8F9FA; border-radius: 8px; border: 1px solid #E4E4E7; }
+  .annotation-mark { font-size: 11px; font-weight: 600; color: #71717A; flex-shrink: 0; padding-top: 1px; }
+  .annotation-text { font-size: 12px; color: #3F4451; line-height: 1.5; }
+
+  /* Grid */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 40px; }
+  .state-card { background: #fff; border: 1px solid #E4E4E7; border-radius: 10px; padding: 16px; }
+  .state-title { font-size: 11px; font-weight: 600; color: #71717A; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<h1>API Key Settings</h1>
+<p class="subtitle">Stage 4 design mockup — Settings tab with API Keys section</p>
+
+<!-- ==================== FULL SETTINGS TAB ==================== -->
+<div class="section">
+  <div class="section-label">Full Settings tab — mixed state (one key set, one not)</div>
+  <div class="settings-panel">
+
+    <!-- API Keys section -->
+    <div class="section-header">
+      <span class="section-header-label">API Keys</span>
+      <div class="section-header-rule"></div>
+    </div>
+
+    <div class="card" style="margin-bottom: 8px;">
+      <!-- eBird API Key — SET, masked -->
+      <div class="row">
+        <div class="row-icon row-icon-green">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div class="row-body">
+          <div class="row-label">eBird API Key</div>
+          <div class="row-value">
+            <span class="row-masked">••••••••••••••••</span>
+            <button class="toggle-link">Show</button>
+          </div>
+        </div>
+        <div class="row-actions">
+          <button class="btn btn-default">Update</button>
+          <button class="btn btn-red">Clear</button>
+        </div>
+      </div>
+
+      <!-- OpenWeather API Key — NOT SET -->
+      <div class="card-divider">
+        <div class="row">
+          <div class="row-icon row-icon-grey">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="row-body">
+            <div class="row-label">OpenWeather API Key</div>
+            <div class="row-sublabel">Not configured</div>
+          </div>
+          <div class="row-actions">
+            <span class="chip-empty">No key saved</span>
+            <button class="btn btn-default">Add key</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="footnote" style="margin-bottom: 24px;">Keys are stored in the server's .env file and take effect immediately — no restart needed. They stay configured across app restarts.</p>
+
+    <!-- Default Files section -->
+    <div class="section-header">
+      <span class="section-header-label">Default Files</span>
+      <div class="section-header-rule"></div>
+    </div>
+
+    <div class="card">
+      <!-- eBird backup — SET -->
+      <div class="row">
+        <div class="row-icon row-icon-green">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <polyline points="9 15 12 18 15 15"/>
+            <line x1="12" y1="12" x2="12" y2="18"/>
+          </svg>
+        </div>
+        <div class="row-body">
+          <div class="row-label">eBird Backup</div>
+          <div class="row-value">
+            <span style="font-size:13px;font-weight:500;color:#0F1117;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">MyEBirdData.csv</span>
+            <span style="font-size:12px;color:#A1A1AA;white-space:nowrap">· Saved 14 May 2026 at 11:42 PM</span>
+          </div>
+        </div>
+        <div class="row-actions">
+          <button class="btn btn-green">Upload new</button>
+          <button class="btn btn-red">Clear</button>
+        </div>
+      </div>
+
+      <!-- ML Export — NOT SET -->
+      <div class="card-divider">
+        <div class="row">
+          <div class="row-icon row-icon-grey">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+              <polyline points="13 2 13 9 20 9"/>
+              <circle cx="12" cy="14" r="3"/>
+              <line x1="12" y1="11" x2="12" y2="11"/>
+            </svg>
+          </div>
+          <div class="row-body">
+            <div class="row-label">ML Export</div>
+            <div class="row-sublabel">Used by the Media List tab</div>
+          </div>
+          <div class="row-actions">
+            <span class="chip-empty">No file saved</span>
+            <button class="btn btn-default">Upload file</button>
+            <button class="btn btn-disabled">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="footnote">Files are stored on this server and load automatically when you open the relevant tab. Uploading a different file within a tab is session-only and won't replace your saved default.</p>
+
+  </div>
+</div>
+
+<!-- ==================== KEY ROW STATES ==================== -->
+<div class="section">
+  <div class="section-label">Key row states</div>
+  <div class="grid2">
+
+    <!-- Not set -->
+    <div class="state-card">
+      <div class="state-title">Not set</div>
+      <div style="border: 1px solid #E4E4E7; border-radius: 8px; overflow: hidden;">
+        <div class="row" style="padding: 12px 14px;">
+          <div class="row-icon row-icon-grey" style="width:34px;height:34px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="row-body">
+            <div class="row-label" style="font-size:13px;">eBird API Key</div>
+            <div class="row-sublabel" style="font-size:12px;">Not configured</div>
+          </div>
+          <div class="row-actions">
+            <span class="chip-empty">No key saved</span>
+            <button class="btn btn-default" style="height:30px;font-size:11px;">Add key</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editing (not set) -->
+    <div class="state-card">
+      <div class="state-title">Editing — not set</div>
+      <div style="border: 1px solid #E4E4E7; border-radius: 8px; overflow: hidden;">
+        <div class="row" style="padding: 12px 14px; padding-bottom: 8px;">
+          <div class="row-icon row-icon-grey" style="width:34px;height:34px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="row-body">
+            <div class="row-label" style="font-size:13px;">eBird API Key</div>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-row-full">
+            <input class="key-input" type="text" placeholder="Paste your API key" style="height:30px;font-size:12px;" />
+          </div>
+          <button class="btn btn-disabled" style="height:30px;font-size:11px;">Save</button>
+          <button class="btn btn-default" style="height:30px;font-size:11px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Set, masked -->
+    <div class="state-card">
+      <div class="state-title">Set — masked (default)</div>
+      <div style="border: 1px solid #E4E4E7; border-radius: 8px; overflow: hidden;">
+        <div class="row" style="padding: 12px 14px;">
+          <div class="row-icon row-icon-green" style="width:34px;height:34px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="row-body">
+            <div class="row-label" style="font-size:13px;">eBird API Key</div>
+            <div class="row-value">
+              <span class="row-masked" style="font-size:12px;">••••••••••••••••</span>
+              <button class="toggle-link" style="font-size:11px;">Show</button>
+            </div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-default" style="height:30px;font-size:11px;">Update</button>
+            <button class="btn btn-red" style="height:30px;font-size:11px;">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Set, revealed -->
+    <div class="state-card">
+      <div class="state-title">Set — revealed</div>
+      <div style="border: 1px solid #E4E4E7; border-radius: 8px; overflow: hidden;">
+        <div class="row" style="padding: 12px 14px;">
+          <div class="row-icon row-icon-green" style="width:34px;height:34px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="row-body">
+            <div class="row-label" style="font-size:13px;">eBird API Key</div>
+            <div class="row-value">
+              <span class="row-revealed" style="font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">a1b2c3d4e5f6g7h8i9j0k1l2m3</span>
+              <button class="toggle-link" style="font-size:11px;">Hide</button>
+            </div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-default" style="height:30px;font-size:11px;">Update</button>
+            <button class="btn btn-red" style="height:30px;font-size:11px;">Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editing (set — update flow) -->
+    <div class="state-card">
+      <div class="state-title">Editing — update existing key</div>
+      <div style="border: 1px solid #E4E4E7; border-radius: 8px; overflow: hidden;">
+        <div class="row" style="padding: 12px 14px; padding-bottom: 8px;">
+          <div class="row-icon row-icon-green" style="width:34px;height:34px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="row-body">
+            <div class="row-label" style="font-size:13px;">eBird API Key</div>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-row-full">
+            <input class="key-input" type="text" placeholder="Enter new key to replace" value="a1b2c3d4e5f6..." style="height:30px;font-size:12px;" />
+          </div>
+          <button class="btn btn-primary" style="height:30px;font-size:11px;">Save</button>
+          <button class="btn btn-default" style="height:30px;font-size:11px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div class="state-card">
+      <div class="state-title">Error state</div>
+      <div style="border: 1px solid #E4E4E7; border-radius: 8px; overflow: hidden;">
+        <div class="row" style="padding: 12px 14px; padding-bottom: 8px;">
+          <div class="row-icon row-icon-grey" style="width:34px;height:34px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="row-body">
+            <div class="row-label" style="font-size:13px;">OpenWeather API Key</div>
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-row-full">
+            <input class="key-input" type="text" value="bad-key" style="height:30px;font-size:12px;border-color:#FCA5A5;" />
+          </div>
+          <button class="btn btn-primary" style="height:30px;font-size:11px;">Save</button>
+          <button class="btn btn-default" style="height:30px;font-size:11px;">Cancel</button>
+        </div>
+        <div class="row-error">Could not reach the server. Is the backend running?</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ==================== ANNOTATION ==================== -->
+<div class="section">
+  <div class="section-label">Design notes</div>
+  <div style="display: flex; flex-direction: column; gap: 8px;">
+    <div class="annotation">
+      <span class="annotation-mark">1</span>
+      <span class="annotation-text">API Keys sits above Default Files — it's the more critical first-run configuration. Both sections use the identical header pattern (uppercase label + horizontal rule).</span>
+    </div>
+    <div class="annotation">
+      <span class="annotation-mark">2</span>
+      <span class="annotation-text">Lock icon replaces the file icon for key rows. Green when set, grey when not — same colour logic as the file rows' FileCheck/FileQuestion icons.</span>
+    </div>
+    <div class="annotation">
+      <span class="annotation-mark">3</span>
+      <span class="annotation-text">The input field expands inline below the row header (not in a modal or separate page). Save is disabled until the user types something. Cancel collapses the input without saving.</span>
+    </div>
+    <div class="annotation">
+      <span class="annotation-mark">4</span>
+      <span class="annotation-text">Show/Hide is a text toggle next to the masked value — not a button with border. Keeps the action lightweight; it's a display preference, not a data operation.</span>
+    </div>
+    <div class="annotation">
+      <span class="annotation-mark">5</span>
+      <span class="annotation-text">The footnote under the API Keys card explains the immediate-effect behaviour without requiring the user to know what .env means.</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

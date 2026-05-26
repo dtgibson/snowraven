@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Phase 2 — OS Keychain Design Reference</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 760px; margin: 48px auto; padding: 0 24px; color: #18181b; line-height: 1.6; }
+  h1 { font-size: 1.5rem; font-weight: 700; color: #2D8653; border-bottom: 2px solid #2D8653; padding-bottom: 8px; }
+  h2 { font-size: 1.05rem; font-weight: 600; margin-top: 2rem; color: #3f3f46; }
+  code { font-family: "SF Mono", "Fira Code", monospace; background: #f4f4f5; padding: 2px 6px; border-radius: 4px; font-size: 0.88em; }
+  pre { background: #18181b; color: #e4e4e7; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 0.85rem; }
+  .flow { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px 20px; margin: 1rem 0; }
+  .arrow { color: #2D8653; font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+  .new { background: #dcfce7; color: #166534; }
+  .unchanged { background: #fef9c3; color: #713f12; }
+</style>
+</head>
+<body>
+
+<h1>Desktop App Phase 2 — OS Keychain</h1>
+<p>Infrastructure reference for the Tauri API key storage migration. No UI changes.</p>
+
+<h2>Write Path</h2>
+<div class="flow">
+  Settings UI <span class="arrow">→</span> <code>storage.setApiKey('ebird', key)</code> <span class="arrow">→</span> <code>TauriStorage</code> <span class="badge new">updated</span><br><br>
+  <span style="margin-left:1.5rem">→ <code>invoke('set_api_key', {service, value})</code> <span class="badge new">primary (OS Keychain)</span></span><br>
+  <span style="margin-left:1.5rem">→ <code>POST /settings/keys/ebird</code> <span class="badge unchanged">bridge (best-effort)</span></span>
+</div>
+
+<h2>Read Path</h2>
+<div class="flow">
+  <code>storage.getApiKey('ebird')</code> <span class="arrow">→</span> <code>invoke('get_api_key', {service})</code> <span class="arrow">→</span> OS Keychain <span class="arrow">→</span> key or null
+</div>
+
+<h2>Rust Commands (lib.rs)</h2>
+<pre>
+#[tauri::command]
+fn get_api_key(service: &str) -&gt; Result&lt;Option&lt;String&gt;, String&gt;
+
+#[tauri::command]
+fn set_api_key(service: &str, value: &str) -&gt; Result&lt;(), String&gt;
+
+#[tauri::command]
+fn delete_api_key(service: &str) -&gt; Result&lt;(), String&gt;
+</pre>
+
+<h2>Keychain Entry Layout</h2>
+<pre>
+Service:  "SnowRaven"
+Account:  "ebird"       | "openweather"
+Value:    [key string]
+
+macOS    → Keychain Access → generic password
+Windows  → Credential Manager → generic credential
+Linux    → Secret Service (libsecret)
+</pre>
+
+<h2>New Dependencies</h2>
+<table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+  <tr style="background:#f4f4f5"><th style="text-align:left;padding:6px 12px">Layer</th><th style="text-align:left;padding:6px 12px">Package</th><th style="text-align:left;padding:6px 12px">Purpose</th></tr>
+  <tr><td style="padding:6px 12px">Rust</td><td style="padding:6px 12px"><code>keyring = "3"</code></td><td style="padding:6px 12px">Native OS keychain access</td></tr>
+  <tr style="background:#f9f9f9"><td style="padding:6px 12px">TypeScript</td><td style="padding:6px 12px"><code>@tauri-apps/api ^2</code></td><td style="padding:6px 12px">Typed invoke() for Tauri commands</td></tr>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Design — Print / Export View</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #F4F4F5;
+    color: #0F1117;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .frame {
+    max-width: 1100px;
+    margin: 32px auto;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #E4E4E7;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+  }
+
+  /* ── App header ── */
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 52px;
+    border-bottom: 1px solid #E4E4E7;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .app-logo {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0F1117;
+    letter-spacing: -0.3px;
+  }
+  .app-logo span { color: #2D8653; }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid #E4E4E7;
+    background: #fff;
+    padding: 0 24px;
+    gap: 0;
+  }
+  .tab {
+    padding: 0 16px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #71717A;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: color 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: inherit;
+  }
+  .tab.active {
+    color: #2D8653;
+    border-bottom-color: #2D8653;
+  }
+
+  /* ── Tab panels ── */
+  .tab-panel { display: none; padding: 20px 24px; min-height: 520px; flex-direction: column; }
+  .tab-panel.active { display: flex; }
+
+  /* ── Controls row ── */
+  .controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .pill-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 30px; padding: 0 12px;
+    border-radius: 6px; font-size: 12px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+    border: 1.5px solid #E4E4E7; background: #fff; color: #71717A;
+    transition: all 0.15s;
+  }
+  .pill.active-pos { border-color: rgba(45,134,83,0.25); background: #E8F5EE; color: #2D8653; }
+  .pill.active-neg { border-color: rgba(239,68,68,0.3); background: #FEF2F2; color: #DC2626; }
+  .pill-sep { width: 1px; height: 20px; background: #E4E4E7; flex-shrink: 0; }
+
+  .right-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .count-label { font-size: 12px; color: #71717A; }
+
+  .sort-group {
+    display: flex; border-radius: 6px; overflow: hidden;
+    border: 1.5px solid #E4E4E7;
+  }
+  .sort-btn {
+    height: 28px; padding: 0 10px; font-size: 11px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+    border: none; border-left: 1.5px solid #E4E4E7; background: #fff; color: #71717A;
+  }
+  .sort-btn:first-child { border-left: none; }
+  .sort-btn.active { background: #F4F4F5; color: #0F1117; }
+
+  .ghost-btn {
+    height: 28px; padding: 0 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 500; font-family: inherit; cursor: pointer;
+    border: 1.5px solid #E4E4E7; background: none; color: #71717A;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
+    transition: all 0.15s;
+  }
+  .ghost-btn:hover { background: #F4F4F5; color: #0F1117; }
+
+  /* ── Print button — the new element ── */
+  .print-btn {
+    height: 28px; padding: 0 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 500; font-family: inherit; cursor: pointer;
+    border: 1.5px solid rgba(45,134,83,0.35);
+    background: none; color: #2D8653;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
+    transition: all 0.15s;
+  }
+  .print-btn:hover { background: #E8F5EE; }
+
+  /* ── Species table ── */
+  .species-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 13px; flex: 1;
+  }
+  .species-table th {
+    text-align: left; padding: 8px 10px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: #71717A;
+    border-bottom: 1px solid #E4E4E7;
+    background: #FAFAFA;
+    position: sticky; top: 0;
+  }
+  .species-table td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #F0F0F0;
+    vertical-align: middle;
+  }
+  .species-table tr:last-child td { border-bottom: none; }
+  .species-table tr:hover td { background: #FAFAFA; }
+  .species-name { font-weight: 500; color: #0F1117; }
+  .sci-name { font-size: 11px; color: #9CA3AF; font-style: italic; }
+  .media-check { color: #2D8653; font-size: 13px; }
+  .media-dash { color: #D1D5DB; font-size: 13px; }
+  .media-col { text-align: center; width: 60px; }
+
+  /* ── Scroll container ── */
+  .scroll-wrap { flex: 1; overflow-y: auto; min-height: 0; border: 1px solid #E4E4E7; border-radius: 8px; }
+
+  /* ── Comparer layout ── */
+  .comparer-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; gap: 12px; flex-wrap: wrap;
+  }
+  .comparer-label { font-size: 14px; color: #71717A; }
+  .comparer-label strong { font-weight: 600; color: #0F1117; }
+  .comparer-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+  .sort-group-lg {
+    display: flex; border-radius: 6px; overflow: hidden;
+    border: 1.5px solid #E4E4E7;
+  }
+  .sort-btn-lg {
+    height: 34px; padding: 0 12px; font-size: 13px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+    border: none; border-left: 1.5px solid #E4E4E7; background: #fff; color: #71717A;
+  }
+  .sort-btn-lg:first-child { border-left: none; }
+  .sort-btn-lg.active { background: #F4F4F5; color: #0F1117; }
+
+  .ghost-btn-lg {
+    height: 34px; padding: 0 14px; border-radius: 6px;
+    font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer;
+    border: 1.5px solid rgba(45,134,83,0.22); background: none; color: #2D8653;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    transition: all 0.15s;
+  }
+  .ghost-btn-lg:hover { background: #E8F5EE; }
+
+  .print-btn-lg {
+    height: 34px; padding: 0 14px; border-radius: 6px;
+    font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer;
+    border: 1.5px solid rgba(45,134,83,0.35);
+    background: none; color: #2D8653;
+    white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    transition: all 0.15s;
+  }
+  .print-btn-lg:hover { background: #E8F5EE; }
+
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    border: 1px solid #E4E4E7; border-radius: 10px;
+    overflow: hidden; margin-bottom: 16px; flex-shrink: 0;
+  }
+  .stat-cell {
+    background: #fff; padding: 16px 18px;
+    border-right: 1px solid #E4E4E7;
+    display: flex; flex-direction: column; gap: 4;
+  }
+  .stat-cell:last-child { border-right: none; }
+  .stat-value { font-size: 26px; font-weight: 600; letter-spacing: -0.5px; line-height: 1; color: #0F1117; }
+  .stat-value.highlight { color: #2D8653; }
+  .stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #71717A; }
+
+  .panels-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 12px; flex: 1; min-height: 0;
+  }
+  .panel {
+    border: 1px solid #E4E4E7; border-radius: 8px;
+    display: flex; flex-direction: column; overflow: hidden;
+    min-height: 0;
+  }
+  .panel-header {
+    padding: 10px 14px; border-bottom: 1px solid #E4E4E7;
+    background: #FAFAFA; display: flex; align-items: center;
+    justify-content: space-between; flex-shrink: 0;
+  }
+  .panel-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #0F1117; }
+  .panel-count { font-size: 11px; color: #2D8653; font-weight: 600; }
+  .panel-body { overflow-y: auto; flex: 1; }
+  .panel-item { padding: 7px 14px; font-size: 13px; color: #0F1117; border-bottom: 1px solid #F0F0F0; }
+  .panel-item:last-child { border-bottom: none; }
+
+  /* ── Print preview modal ── */
+  .print-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(15,17,23,0.6);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .print-overlay.show { display: flex; }
+
+  .print-sheet {
+    background: #fff;
+    width: 100%;
+    max-width: 760px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    padding: 48px 56px;
+    position: relative;
+    font-family: Inter, system-ui, sans-serif;
+  }
+  .print-close {
+    position: absolute; top: 16px; right: 16px;
+    width: 32px; height: 32px; border-radius: 6px;
+    border: 1px solid #E4E4E7; background: #fff;
+    font-size: 18px; cursor: pointer; color: #71717A;
+    display: flex; align-items: center; justify-content: center;
+    font-family: inherit; line-height: 1;
+    transition: all 0.15s;
+  }
+  .print-close:hover { background: #F4F4F5; color: #0F1117; }
+
+  .print-badge {
+    display: inline-block;
+    background: #E8F5EE; color: #2D8653;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 4px 10px; border-radius: 4px;
+    margin-bottom: 24px;
+  }
+  .print-title { font-size: 22px; font-weight: 600; letter-spacing: -0.4px; color: #0F1117; margin-bottom: 4px; }
+  .print-subtitle { font-size: 13px; color: #71717A; margin-bottom: 32px; }
+  .print-divider { border: none; border-top: 1px solid #E4E4E7; margin: 20px 0; }
+
+  .print-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .print-table th {
+    text-align: left; padding: 6px 8px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: #71717A;
+    border-bottom: 1.5px solid #E4E4E7;
+  }
+  .print-table td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #F4F4F5;
+    color: #0F1117;
+  }
+  .print-table .media-col { text-align: center; width: 52px; }
+  .print-table .check { color: #2D8653; }
+  .print-table .dash { color: #D1D5DB; }
+
+  .print-section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.09em; color: #71717A; margin-bottom: 8px;
+  }
+  .print-species-list { list-style: none; columns: 2; column-gap: 24px; }
+  .print-species-list li { font-size: 13px; color: #0F1117; padding: 3px 0; break-inside: avoid; }
+
+  /* ── Design notes ── */
+  .notes-section {
+    padding: 20px 24px;
+    background: #F9FAFB;
+    border-top: 1px solid #E4E4E7;
+    display: flex; gap: 32px; flex-wrap: wrap;
+  }
+  .note-group { flex: 1; min-width: 200px; }
+  .note-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #9CA3AF; margin-bottom: 8px;
+  }
+  .note-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    font-size: 12px; color: #52525B; line-height: 1.5; margin-bottom: 6px;
+  }
+  .note-dot { width: 5px; height: 5px; border-radius: 50%; background: #2D8653; flex-shrink: 0; margin-top: 6px; }
+
+  /* ── Printer icon SVG ── */
+  .icon { display: inline-block; vertical-align: middle; }
+
+  /* ── Annotation callout ── */
+  .callout {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #FFF9E6; border: 1px solid #F5D26B;
+    border-radius: 6px; padding: 5px 10px;
+    font-size: 11px; color: #92600A; font-weight: 500;
+    margin-left: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ App Frame ══════════════════════════════════════════════════════════ -->
+<div class="frame">
+
+  <!-- App header -->
+  <div class="app-header">
+    <span class="app-logo">Snow<span>Raven</span></span>
+    <span style="font-size:11px;color:#9CA3AF;">Self-hosted Birding Tools · <span style="color:#2D8653;cursor:pointer;">Check For Updates</span></span>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <button class="tab" onclick="showTab('weather')">Weather</button>
+    <button class="tab active" id="tab-media" onclick="showTab('media')">Media Life List</button>
+    <button class="tab" onclick="showTab('comparer')">Life List Comparer</button>
+  </div>
+
+  <!-- ── Media Life List ─────────────────────────────────────────────── -->
+  <div class="tab-panel active" id="panel-media">
+
+    <div class="controls-row">
+      <!-- Filter pills -->
+      <div class="pill-group">
+        <button class="pill active-pos">All</button>
+        <div class="pill-sep"></div>
+        <button class="pill">
+          <svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          No photo
+        </button>
+        <button class="pill">
+          <svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          No audio
+        </button>
+        <button class="pill">
+          <svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          No video
+        </button>
+        <div class="pill-sep"></div>
+        <button class="pill">
+          <svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Has photo
+        </button>
+        <button class="pill">
+          <svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          Has audio
+        </button>
+        <button class="pill">
+          <svg class="icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          Has video
+        </button>
+      </div>
+
+      <!-- Right controls -->
+      <div class="right-controls">
+        <span class="count-label">312 species</span>
+        <div class="sort-group">
+          <button class="sort-btn active">Taxonomic</button>
+          <button class="sort-btn">A–Z</button>
+        </div>
+        <button class="ghost-btn">↓ Show all</button>
+
+        <!-- NEW: Print button -->
+        <button class="print-btn" onclick="showPrintPreview('media')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          Print
+        </button>
+        <span class="callout">New</span>
+
+        <button class="ghost-btn">Load new file</button>
+      </div>
+    </div>
+
+    <!-- Species table -->
+    <div class="scroll-wrap" style="max-height:400px;">
+      <table class="species-table">
+        <thead>
+          <tr>
+            <th>Species</th>
+            <th class="media-col">Seen</th>
+            <th class="media-col">Photo</th>
+            <th class="media-col">Audio</th>
+            <th class="media-col">Video</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><div class="species-name">American Robin</div><div class="sci-name">Turdus migratorius</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td></tr>
+          <tr><td><div class="species-name">Anna's Hummingbird</div><div class="sci-name">Calypte anna</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">Black Phoebe</div><div class="sci-name">Sayornis nigricans</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">California Towhee</div><div class="sci-name">Melozone crissalis</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">Cedar Waxwing</div><div class="sci-name">Bombycilla cedrorum</div></td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td><td class="media-col media-dash">—</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">Dark-eyed Junco</div><div class="sci-name">Junco hyemalis</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">House Finch</div><div class="sci-name">Haemorhous mexicanus</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td></tr>
+          <tr><td><div class="species-name">Lesser Goldfinch</div><div class="sci-name">Spinus psaltria</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">Nuttall's Woodpecker</div><div class="sci-name">Dryobates nuttallii</div></td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td><td class="media-col media-dash">—</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">Song Sparrow</div><div class="sci-name">Melospiza melodia</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td></tr>
+          <tr><td><div class="species-name">Spotted Towhee</div><div class="sci-name">Pipilo maculatus</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">Western Scrub-Jay</div><div class="sci-name">Aphelocoma californica</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">White-crowned Sparrow</div><div class="sci-name">Zonotrichia leucophrys</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td></tr>
+          <tr><td><div class="species-name">Yellow-rumped Warbler</div><div class="sci-name">Setophaga coronata</div></td><td class="media-col media-check">✓</td><td class="media-col media-check">✓</td><td class="media-col media-dash">—</td><td class="media-col media-dash">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Life List Comparer ──────────────────────────────────────────── -->
+  <div class="tab-panel" id="panel-comparer" style="min-height:540px;">
+
+    <!-- Comparer header row -->
+    <div class="comparer-header">
+      <p class="comparer-label">
+        Comparing <strong>MyEBirdData_2024.csv</strong> and <strong>MyEBirdData_2025.csv</strong>
+      </p>
+      <div class="comparer-actions">
+        <div class="sort-group-lg">
+          <button class="sort-btn-lg active">Taxonomic</button>
+          <button class="sort-btn-lg">A–Z</button>
+        </div>
+        <button class="ghost-btn-lg">↓ Show all</button>
+
+        <!-- NEW: Print button -->
+        <button class="print-btn-lg" onclick="showPrintPreview('comparer')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          Print
+        </button>
+        <span class="callout">New</span>
+
+        <button class="ghost-btn-lg">← Compare new files</button>
+      </div>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="stats-bar">
+      <div class="stat-cell"><span class="stat-value">312</span><span class="stat-label">2024 total</span></div>
+      <div class="stat-cell"><span class="stat-value">289</span><span class="stat-label">2025 total</span></div>
+      <div class="stat-cell"><span class="stat-value highlight">247</span><span class="stat-label">In both</span></div>
+      <div class="stat-cell"><span class="stat-value">65</span><span class="stat-label">2024 only</span></div>
+      <div class="stat-cell"><span class="stat-value">42</span><span class="stat-label">2025 only</span></div>
+    </div>
+
+    <!-- Panels -->
+    <div class="panels-grid" style="height:340px;">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">In Both</span>
+          <span class="panel-count">247</span>
+        </div>
+        <div class="panel-body">
+          <div class="panel-item">American Robin</div>
+          <div class="panel-item">Anna's Hummingbird</div>
+          <div class="panel-item">Black Phoebe</div>
+          <div class="panel-item">California Towhee</div>
+          <div class="panel-item">Cedar Waxwing</div>
+          <div class="panel-item">Dark-eyed Junco</div>
+          <div class="panel-item">House Finch</div>
+          <div class="panel-item">Lesser Goldfinch</div>
+          <div class="panel-item">Song Sparrow</div>
+          <div class="panel-item">Spotted Towhee</div>
+          <div class="panel-item">Western Scrub-Jay</div>
+          <div class="panel-item">White-crowned Sparrow</div>
+          <div class="panel-item">Yellow-rumped Warbler</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">2024 only</span>
+          <span class="panel-count">65</span>
+        </div>
+        <div class="panel-body">
+          <div class="panel-item">Allen's Hummingbird</div>
+          <div class="panel-item">Black-headed Grosbeak</div>
+          <div class="panel-item">Bullock's Oriole</div>
+          <div class="panel-item">Cliff Swallow</div>
+          <div class="panel-item">Common Yellowthroat</div>
+          <div class="panel-item">Lawrence's Goldfinch</div>
+          <div class="panel-item">MacGillivray's Warbler</div>
+          <div class="panel-item">Pacific-slope Flycatcher</div>
+          <div class="panel-item">Purple Martin</div>
+          <div class="panel-item">Swainson's Thrush</div>
+          <div class="panel-item">Warbling Vireo</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">2025 only</span>
+          <span class="panel-count">42</span>
+        </div>
+        <div class="panel-body">
+          <div class="panel-item">American Bittern</div>
+          <div class="panel-item">Black-crowned Night-Heron</div>
+          <div class="panel-item">California Gull</div>
+          <div class="panel-item">Canvasback</div>
+          <div class="panel-item">Greater Scaup</div>
+          <div class="panel-item">Northern Harrier</div>
+          <div class="panel-item">Peregrine Falcon</div>
+          <div class="panel-item">Redhead</div>
+          <div class="panel-item">Ring-necked Duck</div>
+          <div class="panel-item">Ruddy Duck</div>
+          <div class="panel-item">Tundra Swan</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Weather (placeholder) ──────────────────────────────────────── -->
+  <div class="tab-panel" id="panel-weather">
+    <div style="display:flex;align-items:center;justify-content:center;flex:1;color:#9CA3AF;font-size:13px;">
+      Weather tab — unchanged, no Print button
+    </div>
+  </div>
+
+  <!-- ── Design notes ─────────────────────────────────────────────── -->
+  <div class="notes-section">
+    <div class="note-group">
+      <div class="note-label">Print button</div>
+      <div class="note-item"><div class="note-dot"></div>Ghost button with green border — same weight as "Show all" and "Compare new files" but with brand green to signal a distinct action</div>
+      <div class="note-item"><div class="note-dot"></div>Printer icon (Lucide) gives instant meaning — no ambiguity about what it does</div>
+      <div class="note-item"><div class="note-dot"></div>Positioned before "Load new file" / "Compare new files" so destructive-reset is always last</div>
+    </div>
+    <div class="note-group">
+      <div class="note-label">Print output (click Print to preview)</div>
+      <div class="note-item"><div class="note-dot"></div>Header, tab bar, filter pills, sort controls, and all buttons hidden</div>
+      <div class="note-item"><div class="note-dot"></div>All species auto-expand — no manual "Show all" required</div>
+      <div class="note-item"><div class="note-dot"></div>Clean typography at 12px — readable at standard paper sizes</div>
+    </div>
+    <div class="note-group">
+      <div class="note-label">Implementation</div>
+      <div class="note-item"><div class="note-dot"></div>CSS <code style="font-size:11px;background:#F4F4F5;padding:1px 5px;border-radius:3px;">@media print</code> hides chrome; <code style="font-size:11px;background:#F4F4F5;padding:1px 5px;border-radius:3px;">beforeprint</code> event auto-expands lists</div>
+      <div class="note-item"><div class="note-dot"></div>No backend changes — entirely frontend</div>
+      <div class="note-item"><div class="note-dot"></div>Weather tab unaffected</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Print Preview Overlay ════════════════════════════════════════════ -->
+
+<!-- Media Life List print preview -->
+<div class="print-overlay" id="overlay-media">
+  <div class="print-sheet">
+    <button class="print-close" onclick="hidePrintPreview()">✕</button>
+    <div class="print-badge">Print Preview — Media Life List</div>
+    <div class="print-title">Media Life List</div>
+    <div class="print-subtitle">312 species · All · Taxonomic order</div>
+    <hr class="print-divider" />
+    <table class="print-table">
+      <thead>
+        <tr>
+          <th>Species</th>
+          <th class="media-col">Seen</th>
+          <th class="media-col">Photo</th>
+          <th class="media-col">Audio</th>
+          <th class="media-col">Video</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>American Robin</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td></tr>
+        <tr><td>Anna's Hummingbird</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col dash">—</td></tr>
+        <tr><td>Black Phoebe</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col dash">—</td><td class="media-col dash">—</td></tr>
+        <tr><td>California Towhee</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col dash">—</td></tr>
+        <tr><td>Cedar Waxwing</td><td class="media-col check">✓</td><td class="media-col dash">—</td><td class="media-col dash">—</td><td class="media-col dash">—</td></tr>
+        <tr><td>Dark-eyed Junco</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col dash">—</td></tr>
+        <tr><td>House Finch</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td></tr>
+        <tr><td>Lesser Goldfinch</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col dash">—</td><td class="media-col dash">—</td></tr>
+        <tr><td>Nuttall's Woodpecker</td><td class="media-col check">✓</td><td class="media-col dash">—</td><td class="media-col dash">—</td><td class="media-col dash">—</td></tr>
+        <tr><td>Song Sparrow</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td></tr>
+        <tr><td>Spotted Towhee</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col dash">—</td></tr>
+        <tr><td>White-crowned Sparrow</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col dash">—</td></tr>
+        <tr><td>Yellow-rumped Warbler</td><td class="media-col check">✓</td><td class="media-col check">✓</td><td class="media-col dash">—</td><td class="media-col dash">—</td></tr>
+        <tr style="opacity:0.35"><td colspan="5" style="font-size:11px;color:#9CA3AF;padding-top:8px;">… 299 more species</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:24px;font-size:11px;color:#9CA3AF;text-align:center;">
+      Header, tab bar, filter pills, sort controls, and buttons are all hidden from printed output.
+    </div>
+  </div>
+</div>
+
+<!-- Life List Comparer print preview -->
+<div class="print-overlay" id="overlay-comparer">
+  <div class="print-sheet">
+    <button class="print-close" onclick="hidePrintPreview()">✕</button>
+    <div class="print-badge">Print Preview — Life List Comparer</div>
+    <div class="print-title">Life List Comparison</div>
+    <div class="print-subtitle">MyEBirdData_2024.csv · MyEBirdData_2025.csv · 312 vs 289 species</div>
+    <hr class="print-divider" />
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:8px;">
+      <div style="font-size:24px;font-weight:600;color:#2D8653;">247</div>
+      <div style="font-size:24px;font-weight:600;color:#0F1117;">65</div>
+      <div style="font-size:24px;font-weight:600;color:#0F1117;">42</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#71717A;">In both</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#71717A;">2024 only</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#71717A;">2025 only</div>
+    </div>
+
+    <hr class="print-divider" />
+    <div class="print-section-title" style="margin-top:16px;">In Both (247)</div>
+    <ul class="print-species-list" style="margin-bottom:20px;">
+      <li>American Robin</li><li>Anna's Hummingbird</li><li>Black Phoebe</li>
+      <li>California Towhee</li><li>Cedar Waxwing</li><li>Dark-eyed Junco</li>
+      <li>House Finch</li><li>Lesser Goldfinch</li><li>Song Sparrow</li>
+      <li>Spotted Towhee</li><li>Western Scrub-Jay</li><li>White-crowned Sparrow</li>
+      <li>Yellow-rumped Warbler</li>
+      <li style="opacity:0.4;font-size:11px;color:#9CA3AF;">… 234 more</li>
+    </ul>
+
+    <hr class="print-divider" />
+    <div class="print-section-title" style="margin-top:16px;">2024 Only (65)</div>
+    <ul class="print-species-list" style="margin-bottom:20px;">
+      <li>Allen's Hummingbird</li><li>Black-headed Grosbeak</li><li>Bullock's Oriole</li>
+      <li>Cliff Swallow</li><li>Common Yellowthroat</li><li>Lawrence's Goldfinch</li>
+      <li>MacGillivray's Warbler</li><li>Pacific-slope Flycatcher</li>
+      <li style="opacity:0.4;font-size:11px;color:#9CA3AF;">… 57 more</li>
+    </ul>
+
+    <hr class="print-divider" />
+    <div class="print-section-title" style="margin-top:16px;">2025 Only (42)</div>
+    <ul class="print-species-list">
+      <li>American Bittern</li><li>Black-crowned Night-Heron</li><li>California Gull</li>
+      <li>Canvasback</li><li>Greater Scaup</li><li>Northern Harrier</li>
+      <li>Peregrine Falcon</li><li>Redhead</li>
+      <li style="opacity:0.4;font-size:11px;color:#9CA3AF;">… 34 more</li>
+    </ul>
+
+    <div style="margin-top:24px;font-size:11px;color:#9CA3AF;text-align:center;">
+      Header, tab bar, sort controls, and buttons are all hidden from printed output. All species shown regardless of scroll state.
+    </div>
+  </div>
+</div>
+
+<script>
+  function showTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+    document.getElementById('panel-' + name).classList.add('active')
+    const tabs = ['weather','media','comparer']
+    document.querySelectorAll('.tab')[tabs.indexOf(name)].classList.add('active')
+  }
+
+  function showPrintPreview(type) {
+    document.getElementById('overlay-' + type).classList.add('show')
+    document.body.style.overflow = 'hidden'
+  }
+
+  function hidePrintPreview() {
+    document.querySelectorAll('.print-overlay').forEach(o => o.classList.remove('show'))
+    document.body.style.overflow = ''
+  }
+
+  document.querySelectorAll('.print-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) hidePrintPreview()
+    })
+  })
+</script>
+</body>
+</html>

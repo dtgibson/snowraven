@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — Media Life List (ML Export Upload)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #fff;
+    color: #0F1117;
+    font-size: 14px;
+    line-height: 1.5;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── App shell ── */
+  .app-header {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 20px;
+    border-bottom: 1px solid #E4E4E7;
+    background: #fff;
+    flex-shrink: 0;
+    height: 48px;
+  }
+  .app-logo {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0F1117;
+    letter-spacing: -0.01em;
+    margin-right: 24px;
+    white-space: nowrap;
+  }
+  .app-logo span { color: #2D8653; }
+  .tab-btn {
+    height: 48px;
+    padding: 0 14px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: #71717A;
+    white-space: nowrap;
+    transition: color 0.12s, border-color 0.12s;
+  }
+  .tab-btn.active { color: #0F1117; border-bottom-color: #2D8653; }
+  .tab-btn:hover:not(.active) { color: #0F1117; }
+
+  /* ── Main area ── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 20px;
+    overflow: hidden;
+  }
+
+  /* ── State toggle (prototype control) ── */
+  .proto-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    background: #F4F4F5;
+    border-radius: 8px;
+    font-size: 11px;
+    color: #71717A;
+    flex-shrink: 0;
+  }
+  .proto-bar strong { color: #0F1117; font-weight: 600; }
+  .proto-btn {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: #fff;
+    color: #0F1117;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .proto-btn.on {
+    border-color: rgba(45,134,83,0.3);
+    background: #E8F5EE;
+    color: #2D8653;
+  }
+
+  /* ── Upload screen ── */
+  .upload-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  .upload-primary {
+    border: 2px dashed #2D8653;
+    border-radius: 12px;
+    background: #fff;
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    position: relative;
+    flex: 1;
+  }
+  .upload-primary:hover { background: #F0FAF4; }
+
+  .badge-preferred {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: #E8F5EE;
+    color: #2D8653;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(45,134,83,0.2);
+  }
+
+  .upload-icon-wrap {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #E8F5EE;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+  }
+
+  .upload-primary-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0F1117;
+    letter-spacing: -0.01em;
+  }
+
+  .upload-primary-sub {
+    font-size: 12px;
+    color: #2D8653;
+    font-weight: 500;
+  }
+
+  .upload-instruction {
+    font-size: 12px;
+    color: #71717A;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .upload-browse {
+    font-size: 12px;
+    color: #71717A;
+    margin-top: 2px;
+  }
+
+  .divider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .divider-line { flex: 1; height: 1px; background: #E4E4E7; }
+  .divider-label { font-size: 11px; color: #A1A1AA; white-space: nowrap; }
+
+  .upload-secondary {
+    border: 1.5px dashed #E4E4E7;
+    border-radius: 10px;
+    background: #fff;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+  }
+  .upload-secondary:hover { background: #FAFAFA; border-color: #D4D4D8; }
+
+  .upload-secondary-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #F4F4F5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .upload-secondary-text { flex: 1; }
+  .upload-secondary-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #0F1117;
+  }
+  .upload-secondary-sub {
+    font-size: 11px;
+    color: #71717A;
+    margin-top: 2px;
+  }
+
+  /* ── Results screen ── */
+  .results-screen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    gap: 0;
+  }
+
+  .controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .filter-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 30px;
+    padding: 0 11px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: #fff;
+    color: #71717A;
+    transition: all 0.1s;
+    white-space: nowrap;
+  }
+  .pill:hover { border-color: #D4D4D8; color: #0F1117; }
+  .pill.active-neg {
+    border-color: rgba(239,68,68,0.3);
+    background: #FEF2F2;
+    color: #DC2626;
+  }
+  .pill.active-all {
+    border-color: rgba(45,134,83,0.25);
+    background: #E8F5EE;
+    color: #2D8653;
+  }
+  .pill.active-pos {
+    border-color: rgba(45,134,83,0.25);
+    background: #E8F5EE;
+    color: #2D8653;
+  }
+
+  .pill-group-sep {
+    width: 1px;
+    height: 20px;
+    background: #E4E4E7;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .controls-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .count-label {
+    font-size: 12px;
+    color: #71717A;
+    white-space: nowrap;
+  }
+
+  .sort-control {
+    display: flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1.5px solid #E4E4E7;
+  }
+  .sort-btn {
+    height: 28px;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: #fff;
+    color: #71717A;
+    transition: background 0.1s, color 0.1s;
+  }
+  .sort-btn + .sort-btn { border-left: 1.5px solid #E4E4E7; }
+  .sort-btn.active { background: #F4F4F5; color: #0F1117; }
+
+  .ghost-btn {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid #E4E4E7;
+    background: none;
+    color: #71717A;
+    white-space: nowrap;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+  }
+  .ghost-btn:hover { background: #F4F4F5; color: #0F1117; }
+
+  /* ── Species table ── */
+  .table-wrap {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid #E4E4E7;
+    border-radius: 8px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    background: #F4F4F5;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #71717A;
+    text-align: left;
+    letter-spacing: 0.02em;
+    border-bottom: 1px solid #E4E4E7;
+    white-space: nowrap;
+  }
+  thead th:not(:first-child) { text-align: center; }
+
+  tbody tr {
+    border-bottom: 1px solid #F4F4F5;
+    transition: background 0.08s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #FAFAFA; }
+
+  td {
+    padding: 9px 12px;
+    vertical-align: middle;
+  }
+  td:not(:first-child) { text-align: center; }
+
+  .species-name { font-weight: 500; color: #0F1117; }
+  .sci-name { font-size: 11px; color: #A1A1AA; font-style: italic; margin-top: 1px; }
+
+  .check { color: #2D8653; font-size: 14px; }
+  .dash { color: #D4D4D8; font-size: 13px; }
+
+  .seen-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    background: #E8F5EE;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* SVG icons inlined */
+  svg { display: inline-block; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<!-- App header -->
+<header class="app-header">
+  <div class="app-logo">Snow<span>Raven</span></div>
+  <button class="tab-btn">Weather</button>
+  <button class="tab-btn active">Media Life List</button>
+  <button class="tab-btn">Life List Comparer</button>
+</header>
+
+<!-- Prototype toggle -->
+<div class="main">
+  <div class="proto-bar">
+    <strong>Design preview</strong> — toggle between states:
+    <button class="proto-btn on" id="btn-upload" onclick="show('upload')">Upload screen</button>
+    <button class="proto-btn" id="btn-results" onclick="show('results')">Results screen</button>
+  </div>
+
+  <!-- Upload screen -->
+  <div class="upload-screen" id="state-upload">
+
+    <!-- Primary: ML export -->
+    <div class="upload-primary" onclick="show('results')">
+      <div class="badge-preferred">Recommended</div>
+
+      <div class="upload-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </div>
+
+      <div class="upload-primary-label">Upload your Macaulay Library export</div>
+      <div class="upload-primary-sub">Instant results — no network lookups</div>
+
+      <div class="upload-instruction">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Sign in to Macaulay Library → My Media → Save Spreadsheet
+      </div>
+
+      <div class="upload-browse">Drop file here, or click to browse</div>
+    </div>
+
+    <!-- Divider -->
+    <div class="divider-row">
+      <div class="divider-line"></div>
+      <div class="divider-label">or use your eBird backup</div>
+      <div class="divider-line"></div>
+    </div>
+
+    <!-- Secondary: eBird CSV -->
+    <div class="upload-secondary">
+      <div class="upload-secondary-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#71717A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <div class="upload-secondary-text">
+        <div class="upload-secondary-label">MyEBirdData.csv</div>
+        <div class="upload-secondary-sub">Looks up media coverage online — may take a moment for large lists</div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4D4D8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </div>
+
+  </div>
+
+  <!-- Results screen -->
+  <div class="results-screen" id="state-results" style="display:none">
+
+    <div class="controls-row">
+      <!-- Filter pills -->
+      <div class="filter-pills" id="pills">
+        <button class="pill active-all" onclick="setPill(this, 'all')">All</button>
+        <div class="pill-group-sep"></div>
+        <button class="pill" onclick="setPill(this, 'no-photo')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          No photo
+        </button>
+        <button class="pill" onclick="setPill(this, 'no-audio')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          No audio
+        </button>
+        <button class="pill" onclick="setPill(this, 'no-video')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          No video
+        </button>
+        <div class="pill-group-sep"></div>
+        <button class="pill" onclick="setPill(this, 'has-photo')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Has photo
+        </button>
+        <button class="pill" onclick="setPill(this, 'has-audio')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          Has audio
+        </button>
+        <button class="pill" onclick="setPill(this, 'has-video')">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          Has video
+        </button>
+      </div>
+
+      <!-- Right controls -->
+      <div class="controls-right">
+        <span class="count-label" id="count-label">312 species</span>
+        <div class="sort-control">
+          <button class="sort-btn active">A–Z</button>
+        </div>
+        <button class="ghost-btn">↓ Show all</button>
+        <button class="ghost-btn" onclick="show('upload')">Load new file</button>
+      </div>
+    </div>
+
+    <!-- Species table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Species</th>
+            <th>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Seen
+            </th>
+            <th>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              Photo
+            </th>
+            <th>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+              Audio
+            </th>
+            <th>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              Video
+            </th>
+          </tr>
+        </thead>
+        <tbody id="species-tbody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const species = [
+  { name: "American Robin",       sci: "Turdus migratorius",       photo: true,  audio: true,  video: false },
+  { name: "Anna's Hummingbird",   sci: "Calypte anna",             photo: true,  audio: false, video: false },
+  { name: "Barn Swallow",         sci: "Hirundo rustica",          photo: true,  audio: false, video: false },
+  { name: "Black-capped Chickadee", sci: "Poecile atricapillus",   photo: true,  audio: true,  video: false },
+  { name: "Cedar Waxwing",        sci: "Bombycilla cedrorum",      photo: true,  audio: false, video: false },
+  { name: "Common Yellowthroat",  sci: "Geothlypis trichas",       photo: false, audio: true,  video: false },
+  { name: "Dark-eyed Junco",      sci: "Junco hyemalis",           photo: true,  audio: true,  video: false },
+  { name: "Great Blue Heron",     sci: "Ardea herodias",           photo: true,  audio: false, video: true  },
+  { name: "Hermit Thrush",        sci: "Catharus guttatus",        photo: false, audio: true,  video: false },
+  { name: "House Finch",          sci: "Haemorhous mexicanus",     photo: true,  audio: true,  video: false },
+  { name: "Killdeer",             sci: "Charadrius vociferus",     photo: true,  audio: false, video: false },
+  { name: "Mourning Dove",        sci: "Zenaida macroura",         photo: true,  audio: false, video: false },
+  { name: "Northern Flicker",     sci: "Colaptes auratus",         photo: true,  audio: true,  video: false },
+  { name: "Peregrine Falcon",     sci: "Falco peregrinus",         photo: true,  audio: false, video: false },
+  { name: "Pine Siskin",          sci: "Spinus pinus",             photo: false, audio: false, video: false },
+  { name: "Red-tailed Hawk",      sci: "Buteo jamaicensis",        photo: true,  audio: false, video: false },
+  { name: "Ruby-crowned Kinglet", sci: "Corthylio calendula",      photo: true,  audio: false, video: false },
+  { name: "Song Sparrow",         sci: "Melospiza melodia",        photo: true,  audio: true,  video: false },
+  { name: "Spotted Sandpiper",    sci: "Actitis macularius",       photo: true,  audio: false, video: false },
+  { name: "White-crowned Sparrow",sci: "Zonotrichia leucophrys",   photo: true,  audio: true,  video: false },
+  { name: "Wilson's Warbler",     sci: "Cardellina pusilla",       photo: true,  audio: false, video: false },
+  { name: "Yellow-rumped Warbler",sci: "Setophaga coronata",       photo: true,  audio: false, video: false },
+];
+
+let activePill = 'all';
+
+function check(has) {
+  if (has) return `<span class="check">✓</span>`;
+  return `<span class="dash">—</span>`;
+}
+
+function renderTable() {
+  let rows = species;
+  if (activePill === 'no-photo')  rows = species.filter(s => !s.photo);
+  if (activePill === 'no-audio')  rows = species.filter(s => !s.audio);
+  if (activePill === 'no-video')  rows = species.filter(s => !s.video);
+  if (activePill === 'has-photo') rows = species.filter(s => s.photo);
+  if (activePill === 'has-audio') rows = species.filter(s => s.audio);
+  if (activePill === 'has-video') rows = species.filter(s => s.video);
+
+  const label = activePill === 'all'
+    ? `${species.length} species`
+    : `${rows.length} of ${species.length} species`;
+  document.getElementById('count-label').textContent = label;
+
+  document.getElementById('species-tbody').innerHTML = rows.map(s => `
+    <tr>
+      <td>
+        <div class="species-name">${s.name}</div>
+        <div class="sci-name">${s.sci}</div>
+      </td>
+      <td><div class="seen-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div></td>
+      <td>${check(s.photo)}</td>
+      <td>${check(s.audio)}</td>
+      <td>${check(s.video)}</td>
+    </tr>
+  `).join('');
+}
+
+function setPill(el, key) {
+  activePill = key;
+  document.querySelectorAll('.pill').forEach(p => {
+    p.classList.remove('active-all', 'active-neg', 'active-pos');
+  });
+  if (key === 'all') el.classList.add('active-all');
+  else if (key.startsWith('no-')) el.classList.add('active-neg');
+  else el.classList.add('active-pos');
+  renderTable();
+}
+
+function show(state) {
+  document.getElementById('state-upload').style.display = state === 'upload' ? 'flex' : 'none';
+  document.getElementById('state-results').style.display = state === 'results' ? 'flex' : 'none';
+  document.getElementById('btn-upload').classList.toggle('on', state === 'upload');
+  document.getElementById('btn-results').classList.toggle('on', state === 'results');
+  if (state === 'results') renderTable();
+}
+
+renderTable();
+</script>
+
+</body>
+</html>

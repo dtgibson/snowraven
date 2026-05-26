@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breeding Code Category Filters — Design</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #F4F4F5; font-size: 14px; color: #0F1117; -webkit-font-smoothing: antialiased; padding: 40px 32px; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; color: #0F1117; }
+  .subtitle { font-size: 13px; color: #71717A; margin-bottom: 36px; }
+  .section { margin-bottom: 40px; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #71717A; margin-bottom: 14px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #E4E4E7; overflow: hidden; }
+  .card-inner { padding: 20px 20px 14px; }
+
+  /* ---- Pills ---- */
+  .filter-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 12px; border-radius: 6px;
+    font-size: 12px; font-weight: 500; font-family: inherit;
+    cursor: pointer; border: 1.5px solid transparent; background: none;
+  }
+  .pill-inactive { border-color: #E4E4E7; background: #fff; color: #71717A; }
+  .pill-all-active { border-color: rgba(45,134,83,0.25); background: #E8F5EE; color: #2D8653; }
+
+  /* Category active states */
+  .pill-confirmed-active { border-color: rgba(59,7,100,0.3); background: rgba(59,7,100,0.08); color: #3B0764; }
+  .pill-probable-active  { border-color: rgba(147,51,234,0.3); background: rgba(147,51,234,0.08); color: #7E22CE; }
+  .pill-possible-active  { border-color: rgba(192,132,252,0.5); background: rgba(192,132,252,0.15); color: #7E22CE; }
+
+  /* Individual code active states */
+  .pill-t4-active { border-color: rgba(59,7,100,0.3); background: rgba(59,7,100,0.08); color: #3B0764; }
+  .pill-t3-active { border-color: rgba(107,33,168,0.3); background: rgba(107,33,168,0.08); color: #6B21A8; }
+  .pill-t2-active { border-color: rgba(147,51,234,0.3); background: rgba(147,51,234,0.08); color: #7E22CE; }
+  .pill-t1-active { border-color: rgba(192,132,252,0.5); background: rgba(192,132,252,0.15); color: #7E22CE; }
+
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .dot-t4 { background: #3B0764; }
+  .dot-t3 { background: #6B21A8; }
+  .dot-t2 { background: #9333EA; }
+  .dot-t1 { background: #C084FC; }
+
+  .divider { width: 1px; height: 20px; background: #E4E4E7; flex-shrink: 0; align-self: center; }
+
+  /* Sort toggle */
+  .sort-toggle { display: inline-flex; border: 1.5px solid #E4E4E7; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+  .sort-btn {
+    height: 30px; padding: 0 13px; border: none; font-size: 12px; font-weight: 500;
+    font-family: inherit; cursor: pointer; white-space: nowrap;
+  }
+  .sort-btn-active { background: #2D8653; color: #fff; }
+  .sort-btn-inactive { background: #fff; color: #71717A; border-left: 1.5px solid #E4E4E7; }
+
+  /* Toolbar right side */
+  .toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .toolbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .count-label { font-size: 12px; color: #71717A; }
+  .ghost-btn {
+    height: 28px; padding: 0 10px; border-radius: 6px; font-size: 11px; font-weight: 500;
+    font-family: inherit; cursor: pointer; border: 1.5px solid #E4E4E7;
+    background: none; color: #71717A; white-space: nowrap;
+  }
+
+  /* Table */
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th { text-align: left; font-size: 11px; font-weight: 600; color: #71717A; padding: 0 12px 8px; letter-spacing: 0.03em; }
+  .table td { padding: 9px 12px; border-top: 1px solid #F4F4F5; }
+  .table tr:hover td { background: #FAFAFA; }
+  .code-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 20px; padding: 0 7px; border-radius: 4px;
+    font-size: 11px; font-weight: 500;
+  }
+  .badge-t4 { background: rgba(59,7,100,0.08); color: #3B0764; }
+  .badge-t3 { background: rgba(107,33,168,0.08); color: #6B21A8; }
+  .badge-t2 { background: rgba(147,51,234,0.08); color: #7E22CE; }
+  .badge-t1 { background: rgba(192,132,252,0.15); color: #7E22CE; }
+  .dot-sm { width: 6px; height: 6px; border-radius: 50%; }
+  .count-cell { font-variant-numeric: tabular-nums; }
+
+  /* Annotation callouts */
+  .annotation { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 10px 14px; background: #F8F9FA; border-radius: 8px; border: 1px solid #E4E4E7; }
+  .annotation-mark { font-size: 11px; font-weight: 600; color: #71717A; flex-shrink: 0; padding-top: 1px; }
+  .annotation-text { font-size: 12px; color: #3F4451; line-height: 1.5; }
+
+  /* State grid */
+  .state-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .state-card { background: #fff; border-radius: 10px; border: 1px solid #E4E4E7; padding: 16px; }
+  .state-title { font-size: 11px; font-weight: 600; color: #71717A; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
+
+  /* Comparison row */
+  .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .ba-card { background: #fff; border-radius: 10px; border: 1px solid #E4E4E7; padding: 16px; }
+  .ba-title { font-size: 11px; font-weight: 600; margin-bottom: 12px; }
+  .ba-before { color: #B91C1C; }
+  .ba-after { color: #2D8653; }
+</style>
+</head>
+<body>
+
+<h1>Breeding Code Category Filters</h1>
+<p class="subtitle">Stage 4 design mockup — filter row with Confirmed / Probable / Possible category pills</p>
+
+<!-- ==================== SECTION 1: Primary state ==================== -->
+<div class="section">
+  <div class="section-label">State 1 — All filters off (default)</div>
+  <div class="card">
+    <div class="card-inner">
+      <div class="toolbar">
+        <div class="filter-row">
+          <!-- All -->
+          <button class="pill pill-all-active">All</button>
+          <!-- Category pills (text-only, no dot) -->
+          <button class="pill pill-inactive">Confirmed</button>
+          <button class="pill pill-inactive">Probable</button>
+          <button class="pill pill-inactive">Possible</button>
+          <!-- Divider -->
+          <div class="divider"></div>
+          <!-- Individual code pills -->
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>NY</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>NE</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>FL</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>FY</button>
+          <button class="pill pill-inactive"><div class="dot dot-t3"></div>NB</button>
+          <button class="pill pill-inactive"><div class="dot dot-t3"></div>CN</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>P</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>C</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>S7</button>
+          <button class="pill pill-inactive"><div class="dot dot-t1"></div>S</button>
+          <!-- Divider before sort -->
+          <div class="divider"></div>
+          <div class="sort-toggle">
+            <button class="sort-btn sort-btn-active">A–Z</button>
+            <button class="sort-btn sort-btn-inactive">Taxonomic</button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <span class="count-label">47 species</span>
+          <button class="ghost-btn">↓ Show all</button>
+          <button class="ghost-btn">Load different file</button>
+        </div>
+      </div>
+
+      <!-- Mock table rows -->
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Species</th>
+            <th>Codes</th>
+            <th style="text-align:right">Obs.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>American Robin</td>
+            <td>
+              <span class="code-badge badge-t4"><div class="dot-sm dot-t4" style="background:#3B0764"></div>NY</span>
+              <span class="code-badge badge-t4" style="margin-left:4px"><div class="dot-sm dot-t4" style="background:#3B0764"></div>FY</span>
+            </td>
+            <td class="count-cell" style="text-align:right">3</td>
+          </tr>
+          <tr>
+            <td>Song Sparrow</td>
+            <td>
+              <span class="code-badge badge-t3"><div class="dot-sm" style="background:#6B21A8;border-radius:50%;width:6px;height:6px"></div>NB</span>
+              <span class="code-badge badge-t2" style="margin-left:4px"><div class="dot-sm" style="background:#9333EA;border-radius:50%;width:6px;height:6px"></div>S7</span>
+            </td>
+            <td class="count-cell" style="text-align:right">2</td>
+          </tr>
+          <tr>
+            <td>Yellow Warbler</td>
+            <td><span class="code-badge badge-t2"><div class="dot-sm" style="background:#9333EA;border-radius:50%;width:6px;height:6px"></div>C</span></td>
+            <td class="count-cell" style="text-align:right">1</td>
+          </tr>
+          <tr>
+            <td>Cedar Waxwing</td>
+            <td><span class="code-badge badge-t1"><div class="dot-sm" style="background:#C084FC;border-radius:50%;width:6px;height:6px"></div>S</span></td>
+            <td class="count-cell" style="text-align:right">1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="annotation">
+    <span class="annotation-mark">→</span>
+    <span class="annotation-text">Category pills appear left of the divider, right of "All". They are text-only (no tier dot). Inactive appearance matches existing individual code pills: grey border, white background.</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 2: Confirmed active ==================== -->
+<div class="section">
+  <div class="section-label">State 2 — "Confirmed" active</div>
+  <div class="card">
+    <div class="card-inner">
+      <div class="toolbar">
+        <div class="filter-row">
+          <button class="pill pill-inactive">All</button>
+          <button class="pill pill-confirmed-active">Confirmed</button>
+          <button class="pill pill-inactive">Probable</button>
+          <button class="pill pill-inactive">Possible</button>
+          <div class="divider"></div>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>NY</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>NE</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>FL</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>FY</button>
+          <button class="pill pill-inactive"><div class="dot dot-t3"></div>NB</button>
+          <button class="pill pill-inactive"><div class="dot dot-t3"></div>CN</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>P</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>C</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>S7</button>
+          <button class="pill pill-inactive"><div class="dot dot-t1"></div>S</button>
+          <div class="divider"></div>
+          <div class="sort-toggle">
+            <button class="sort-btn sort-btn-active">A–Z</button>
+            <button class="sort-btn sort-btn-inactive">Taxonomic</button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <span class="count-label">2 of 47 species</span>
+          <button class="ghost-btn">↓ Show all</button>
+          <button class="ghost-btn">Load different file</button>
+        </div>
+      </div>
+      <table class="table">
+        <thead>
+          <tr><th>Species</th><th>Codes</th><th style="text-align:right">Obs.</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>American Robin</td>
+            <td>
+              <span class="code-badge badge-t4"><div class="dot-sm dot-t4" style="background:#3B0764;border-radius:50%;width:6px;height:6px"></div>NY</span>
+              <span class="code-badge badge-t4" style="margin-left:4px"><div class="dot-sm" style="background:#3B0764;border-radius:50%;width:6px;height:6px"></div>FY</span>
+            </td>
+            <td class="count-cell" style="text-align:right">3</td>
+          </tr>
+          <tr>
+            <td>Song Sparrow</td>
+            <td><span class="code-badge badge-t3"><div class="dot-sm" style="background:#6B21A8;border-radius:50%;width:6px;height:6px"></div>NB</span></td>
+            <td class="count-cell" style="text-align:right">2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="annotation">
+    <span class="annotation-mark">→</span>
+    <span class="annotation-text">"Confirmed" active: dark purple background/border/text (tier 4 palette). Count label updates. Species with only Probable or Possible codes are hidden. Song Sparrow qualifies via NB (tier 3, also Confirmed).</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 3: Two categories active ==================== -->
+<div class="section">
+  <div class="section-label">State 3 — "Confirmed" + "Probable" both active (AND across categories)</div>
+  <div class="card">
+    <div class="card-inner">
+      <div class="toolbar">
+        <div class="filter-row">
+          <button class="pill pill-inactive">All</button>
+          <button class="pill pill-confirmed-active">Confirmed</button>
+          <button class="pill pill-probable-active">Probable</button>
+          <button class="pill pill-inactive">Possible</button>
+          <div class="divider"></div>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>NY</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>NE</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>FL</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>FY</button>
+          <button class="pill pill-inactive"><div class="dot dot-t3"></div>NB</button>
+          <button class="pill pill-inactive"><div class="dot dot-t3"></div>CN</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>P</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>C</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>S7</button>
+          <button class="pill pill-inactive"><div class="dot dot-t1"></div>S</button>
+          <div class="divider"></div>
+          <div class="sort-toggle">
+            <button class="sort-btn sort-btn-active">A–Z</button>
+            <button class="sort-btn sort-btn-inactive">Taxonomic</button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <span class="count-label">1 of 47 species</span>
+          <button class="ghost-btn">↓ Show all</button>
+          <button class="ghost-btn">Load different file</button>
+        </div>
+      </div>
+      <table class="table">
+        <thead>
+          <tr><th>Species</th><th>Codes</th><th style="text-align:right">Obs.</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Song Sparrow</td>
+            <td>
+              <span class="code-badge badge-t3"><div class="dot-sm" style="background:#6B21A8;border-radius:50%;width:6px;height:6px"></div>NB</span>
+              <span class="code-badge badge-t2" style="margin-left:4px"><div class="dot-sm" style="background:#9333EA;border-radius:50%;width:6px;height:6px"></div>S7</span>
+            </td>
+            <td class="count-cell" style="text-align:right">2</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="annotation">
+    <span class="annotation-mark">→</span>
+    <span class="annotation-text">Both "Confirmed" and "Probable" active: AND logic — species must have at least one code from each category. Song Sparrow qualifies (NB=Confirmed, S7=Probable). American Robin drops out — it has Confirmed codes but no Probable ones.</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 4: Category + individual code ==================== -->
+<div class="section">
+  <div class="section-label">State 4 — Category + individual code pill composing</div>
+  <div class="card">
+    <div class="card-inner">
+      <div class="toolbar">
+        <div class="filter-row">
+          <button class="pill pill-inactive">All</button>
+          <button class="pill pill-confirmed-active">Confirmed</button>
+          <button class="pill pill-inactive">Probable</button>
+          <button class="pill pill-inactive">Possible</button>
+          <div class="divider"></div>
+          <button class="pill pill-t4-active"><div class="dot dot-t4"></div>FY</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>NY</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>NE</button>
+          <button class="pill pill-inactive"><div class="dot dot-t4"></div>FL</button>
+          <button class="pill pill-inactive"><div class="dot dot-t3"></div>NB</button>
+          <button class="pill pill-inactive"><div class="dot dot-t3"></div>CN</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>P</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>C</button>
+          <button class="pill pill-inactive"><div class="dot dot-t2"></div>S7</button>
+          <button class="pill pill-inactive"><div class="dot dot-t1"></div>S</button>
+          <div class="divider"></div>
+          <div class="sort-toggle">
+            <button class="sort-btn sort-btn-active">A–Z</button>
+            <button class="sort-btn sort-btn-inactive">Taxonomic</button>
+          </div>
+        </div>
+        <div class="toolbar-right">
+          <span class="count-label">1 of 47 species</span>
+          <button class="ghost-btn">↓ Show all</button>
+          <button class="ghost-btn">Load different file</button>
+        </div>
+      </div>
+      <table class="table">
+        <thead>
+          <tr><th>Species</th><th>Codes</th><th style="text-align:right">Obs.</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>American Robin</td>
+            <td>
+              <span class="code-badge badge-t4"><div class="dot-sm" style="background:#3B0764;border-radius:50%;width:6px;height:6px"></div>NY</span>
+              <span class="code-badge badge-t4" style="margin-left:4px"><div class="dot-sm" style="background:#3B0764;border-radius:50%;width:6px;height:6px"></div>FY</span>
+            </td>
+            <td class="count-cell" style="text-align:right">3</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="annotation">
+    <span class="annotation-mark">→</span>
+    <span class="annotation-text">"Confirmed" + "FY" individually active: species must satisfy both — at least one Confirmed code, and specifically have FY. This narrows Confirmed results (2 species) down to only those that also have FY (1 species). Individual code pills behave exactly as before; categories are additive constraints.</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 5: Pill states reference ==================== -->
+<div class="section">
+  <div class="section-label">Pill state reference</div>
+  <div class="state-grid">
+    <div class="state-card">
+      <div class="state-title">Inactive (all categories)</div>
+      <div class="filter-row">
+        <button class="pill pill-inactive">Confirmed</button>
+        <button class="pill pill-inactive">Probable</button>
+        <button class="pill pill-inactive">Possible</button>
+      </div>
+      <p style="font-size:11px;color:#71717A;margin-top:10px">Border #E4E4E7 · background #fff · text #71717A</p>
+    </div>
+    <div class="state-card">
+      <div class="state-title">Active — each category</div>
+      <div class="filter-row" style="flex-direction:column;align-items:flex-start;gap:8px">
+        <button class="pill pill-confirmed-active">Confirmed</button>
+        <button class="pill pill-probable-active">Probable</button>
+        <button class="pill pill-possible-active">Possible</button>
+      </div>
+      <p style="font-size:11px;color:#71717A;margin-top:10px">Each uses its highest-tier colour — tier 4, 2, 1 respectively</p>
+    </div>
+    <div class="state-card">
+      <div class="state-title">Individual code pills — unchanged</div>
+      <div class="filter-row">
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>NY</button>
+        <button class="pill pill-t4-active"><div class="dot dot-t4"></div>FY</button>
+        <button class="pill pill-inactive"><div class="dot dot-t2"></div>S7</button>
+        <button class="pill pill-t2-active"><div class="dot dot-t2"></div>C</button>
+      </div>
+      <p style="font-size:11px;color:#71717A;margin-top:10px">Existing pill style — unchanged by this feature</p>
+    </div>
+    <div class="state-card">
+      <div class="state-title">No codes present for a category</div>
+      <div class="filter-row">
+        <button class="pill pill-all-active">All</button>
+        <button class="pill pill-inactive">Confirmed</button>
+        <button class="pill pill-inactive">Probable</button>
+        <!-- Possible hidden — no tier 1 codes in data -->
+        <div class="divider"></div>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>NY</button>
+        <button class="pill pill-inactive"><div class="dot dot-t3"></div>NB</button>
+        <button class="pill pill-inactive"><div class="dot dot-t2"></div>P</button>
+      </div>
+      <p style="font-size:11px;color:#71717A;margin-top:10px">"Possible" hidden — no tier 1 codes in this user's data</p>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SECTION 6: Before/after ==================== -->
+<div class="section">
+  <div class="section-label">Before / after — filter row</div>
+  <div class="before-after">
+    <div class="ba-card">
+      <div class="ba-title ba-before">Before — individual codes only</div>
+      <div class="filter-row">
+        <button class="pill pill-all-active">All</button>
+        <div class="divider"></div>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>NY</button>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>NE</button>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>FL</button>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>FY</button>
+        <button class="pill pill-inactive"><div class="dot dot-t3"></div>NB</button>
+        <button class="pill pill-inactive"><div class="dot dot-t3"></div>CN</button>
+        <button class="pill pill-inactive"><div class="dot dot-t2"></div>P</button>
+        <button class="pill pill-inactive"><div class="dot dot-t2"></div>S7</button>
+        <button class="pill pill-inactive"><div class="dot dot-t1"></div>S</button>
+      </div>
+      <p style="font-size:12px;color:#71717A;margin-top:12px;line-height:1.5">To see all confirmed species: click 9+ individual pills. Categories not visible in the UI.</p>
+    </div>
+    <div class="ba-card">
+      <div class="ba-title ba-after">After — category pills added</div>
+      <div class="filter-row">
+        <button class="pill pill-inactive">All</button>
+        <button class="pill pill-confirmed-active">Confirmed</button>
+        <button class="pill pill-inactive">Probable</button>
+        <button class="pill pill-inactive">Possible</button>
+        <div class="divider"></div>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>NY</button>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>NE</button>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>FL</button>
+        <button class="pill pill-inactive"><div class="dot dot-t4"></div>FY</button>
+        <button class="pill pill-inactive"><div class="dot dot-t3"></div>NB</button>
+        <button class="pill pill-inactive"><div class="dot dot-t3"></div>CN</button>
+        <button class="pill pill-inactive"><div class="dot dot-t2"></div>P</button>
+        <button class="pill pill-inactive"><div class="dot dot-t2"></div>S7</button>
+        <button class="pill pill-inactive"><div class="dot dot-t1"></div>S</button>
+      </div>
+      <p style="font-size:12px;color:#71717A;margin-top:12px;line-height:1.5">One click on "Confirmed" shows all confirmed species. Individual code pills unchanged and still fully functional.</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

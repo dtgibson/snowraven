@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.1] - 2026-05-25
+
+### Added
+- **OS keychain for API keys** (Desktop App Phase 2) -- In Tauri mode, eBird and OpenWeather API keys are stored in the OS native keychain (macOS Keychain, Windows Credential Manager) via the `keyring` Rust crate. Three Tauri commands exposed: `get_api_key`, `set_api_key`, `delete_api_key`. `TauriStorage` updated to use these commands. Keys persist across app restarts. Bridge write to the Python backend `.env` kept for Phase 3 transition compatibility.
+- **`@tauri-apps/api`** -- Added to `frontend/package.json` dependencies for typed `invoke()` access to Tauri commands from TypeScript.
+
 ## [0.3.0] - 2026-05-25
 
 ### Added

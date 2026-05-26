@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { isTauri } from './platform';
 
 export interface StorageAdapter {
@@ -67,22 +68,30 @@ class WebStorage implements StorageAdapter {
   }
 }
 
-// Phase 0: TauriStorage delegates to WebStorage while the backend is still required.
-// Phase 2: getApiKey/setApiKey/deleteApiKey migrate to OS keychain (tauri-plugin-stronghold).
+// Phase 2: getApiKey/setApiKey/deleteApiKey use OS keychain via Rust commands.
+//   Bridge write to backend .env kept so the Python backend continues to work
+//   during the Phase 3 transition. Bridge failures are silently swallowed.
 // Phase 4: readFile/writeFile/deleteFile migrate to the app data directory (tauri-plugin-fs).
+//   getSetting/setSetting/deleteSetting migrate to tauri-plugin-store.
 class TauriStorage implements StorageAdapter {
   private web = new WebStorage();
 
   async getApiKey(service: 'ebird' | 'openweather'): Promise<string | null> {
-    return this.web.getApiKey(service);
+    try {
+      return await invoke<string | null>('get_api_key', { service });
+    } catch {
+      return this.web.getApiKey(service);
+    }
   }
 
   async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
-    return this.web.setApiKey(service, value);
+    await invoke('set_api_key', { service, value });
+    this.web.setApiKey(service, value).catch(() => {});
   }
 
   async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
-    return this.web.deleteApiKey(service);
+    await invoke('delete_api_key', { service });
+    this.web.deleteApiKey(service).catch(() => {});
   }
 
   async getSetting<T>(key: string): Promise<T | null> {

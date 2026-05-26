@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Breeding Code List — Design Mockup</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F4F4F5;
+      color: #0F1117;
+      padding: 32px;
+      min-height: 100vh;
+    }
+
+    h2 {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #71717A;
+      margin-bottom: 14px;
+    }
+
+    .section { margin-bottom: 40px; }
+
+    /* ── Tab bar (context) ─────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      gap: 2px;
+      background: #fff;
+      border: 1px solid #E4E4E7;
+      border-radius: 8px;
+      padding: 4px;
+      width: fit-content;
+      margin-bottom: 20px;
+    }
+    .tab {
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 6px;
+      border: none;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #71717A;
+      background: none;
+    }
+    .tab.active {
+      background: #F4F4F5;
+      color: #0F1117;
+    }
+
+    /* ── Controls row ──────────────────────────────────── */
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px;
+      padding: 0 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1.5px solid #E4E4E7;
+      background: #fff;
+      color: #71717A;
+      white-space: nowrap;
+    }
+    .pill.all-active {
+      border-color: rgba(45,134,83,0.25);
+      background: #E8F5EE;
+      color: #2D8653;
+    }
+    .pill.code-active-t4 {
+      border-color: rgba(59,7,100,0.3);
+      background: rgba(59,7,100,0.08);
+      color: #3B0764;
+    }
+    .pill.code-active-t2 {
+      border-color: rgba(147,51,234,0.3);
+      background: rgba(147,51,234,0.08);
+      color: #7E22CE;
+    }
+
+    .pill-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .right-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .count-label {
+      font-size: 12px;
+      color: #71717A;
+    }
+
+    .ghost-btn {
+      height: 28px;
+      padding: 0 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1.5px solid #E4E4E7;
+      background: none;
+      color: #71717A;
+      white-space: nowrap;
+    }
+
+    /* ── Table card ────────────────────────────────────── */
+    .table-card {
+      border: 1px solid #E4E4E7;
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: fixed;
+    }
+
+    thead tr {
+      position: sticky;
+      top: 0;
+      background: #F9FAFB;
+      box-shadow: inset 0 -1px 0 #E4E4E7;
+      z-index: 2;
+    }
+
+    th {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #71717A;
+      padding: 10px 6px;
+      text-align: center;
+      user-select: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    th.name-col {
+      text-align: left;
+      padding: 10px 14px;
+      min-width: 190px;
+      width: 190px;
+      position: sticky;
+      left: 0;
+      background: #F9FAFB;
+      z-index: 3;
+      box-shadow: 1px 0 0 #E4E4E7;
+    }
+
+    th.active { color: #0F1117; }
+
+    .sort-indicator {
+      font-size: 10px;
+      color: #2D8653;
+      margin-left: 2px;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #F4F4F5;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover td { background: #FAFAFA; }
+    tbody tr:hover td.sticky-name { background: #FAFAFA; }
+
+    td {
+      padding: 7px 6px;
+      vertical-align: middle;
+      text-align: center;
+      width: 44px;
+    }
+
+    td.sticky-name {
+      text-align: left;
+      padding: 7px 14px;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #0F1117;
+      position: sticky;
+      left: 0;
+      background: #fff;
+      z-index: 1;
+      box-shadow: 1px 0 0 #E4E4E7;
+      min-width: 190px;
+      width: 190px;
+    }
+
+    /* ── Breeding code circles ─────────────────────────── */
+    .circle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+
+    .t4 { background: #3B0764; }
+    .t3 { background: #6B21A8; }
+    .t2 { background: #9333EA; }
+    .t1 { background: #C084FC; }
+
+    /* ── Column category labels ────────────────────────── */
+    .cat-header {
+      background: #F9FAFB;
+      border-bottom: 1px solid #E4E4E7;
+      display: flex;
+      gap: 1px;
+    }
+
+    /* ── Legend ────────────────────────────────────────── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 12px 16px;
+      border-top: 1px solid #F4F4F5;
+      background: #FAFAFA;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #71717A;
+    }
+    .legend-circle {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ── Callout ───────────────────────────────────────── */
+    .callout {
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #78350F;
+      margin-top: 14px;
+      line-height: 1.55;
+    }
+    .callout strong { font-weight: 600; }
+
+    /* ── Upload screen ─────────────────────────────────── */
+    .upload-card {
+      border: 2px dashed #E4E4E7;
+      border-radius: 10px;
+      background: #fff;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      max-width: 560px;
+    }
+    .upload-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: #F4F4F5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    /* ── Filter active state annotation ───────────────── */
+    .annotation {
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #14532D;
+      margin-top: 14px;
+      line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── Tab context ── -->
+  <div class="tab-bar">
+    <button class="tab">☁ Weather</button>
+    <button class="tab">📋 Media Life List</button>
+    <button class="tab">⚖ Compare Lists</button>
+    <button class="tab active">🧬 Breeding</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════
+       SECTION 1: Full table — default state (All, sorted A–Z)
+       ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <h2>Ready state — All species, sorted A–Z by name</h2>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="pills">
+        <!-- All pill active -->
+        <button class="pill all-active">All</button>
+
+        <!-- Tier 4 pills -->
+        <button class="pill">
+          <span class="pill-dot t4"></span>NY
+        </button>
+        <button class="pill">
+          <span class="pill-dot t4"></span>NE
+        </button>
+        <button class="pill">
+          <span class="pill-dot t4"></span>CF
+        </button>
+        <button class="pill">
+          <span class="pill-dot t4"></span>FY
+        </button>
+        <button class="pill">
+          <span class="pill-dot t4"></span>FL
+        </button>
+        <button class="pill">
+          <span class="pill-dot t4"></span>ON
+        </button>
+        <!-- Tier 3 pills -->
+        <button class="pill">
+          <span class="pill-dot t3"></span>NB
+        </button>
+        <button class="pill">
+          <span class="pill-dot t3"></span>CN
+        </button>
+        <!-- Tier 2 pills -->
+        <button class="pill">
+          <span class="pill-dot t2"></span>B
+        </button>
+        <button class="pill">
+          <span class="pill-dot t2"></span>T
+        </button>
+        <button class="pill">
+          <span class="pill-dot t2"></span>S7
+        </button>
+        <!-- Tier 1 pills -->
+        <button class="pill">
+          <span class="pill-dot t1"></span>S
+        </button>
+      </div>
+      <div class="right-controls">
+        <span class="count-label">8 species</span>
+        <button class="ghost-btn">↓ Show all</button>
+        <button class="ghost-btn">Load new file</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-card">
+      <div class="table-scroll">
+        <table style="width: auto; min-width: 100%;">
+          <thead>
+            <tr>
+              <th class="name-col active">
+                Entries <span class="sort-indicator">↑</span>
+              </th>
+              <!-- Tier 4 confirmed highest -->
+              <th title="Nest with Young">NY</th>
+              <th title="Nest with Eggs">NE</th>
+              <th title="Carrying Food">CF</th>
+              <th title="Feeding Young">FY</th>
+              <th title="Recently Fledged Young">FL</th>
+              <th title="Occupied Nest">ON</th>
+              <!-- Tier 3 confirmed also -->
+              <th title="Nest Building">NB</th>
+              <th title="Carrying Nesting Material">CN</th>
+              <!-- Tier 2 probable -->
+              <th title="Wren/Woodpecker Nest Building">B</th>
+              <th title="Territorial Defense">T</th>
+              <th title="Singing Bird 7+ Days">S7</th>
+              <!-- Tier 1 possible -->
+              <th title="Singing Bird">S</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="sticky-name">Acorn Woodpecker</td>
+              <td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td>
+              <td></td>
+              <td><div class="circle t3" style="margin:auto;">1</div></td>
+              <td></td>
+              <td><div class="circle t2" style="margin:auto;">3</div></td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">American Robin</td>
+              <td></td><td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">3</div></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td></td><td></td><td></td><td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">1</div></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">Anna's Hummingbird</td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">Black-headed Grosbeak</td>
+              <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">2</div></td>
+              <td><div class="circle t1" style="margin:auto;">1</div></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">House Wren</td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td><td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">2</div></td>
+              <td></td>
+              <td><div class="circle t2" style="margin:auto;">4</div></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">Red-tailed Hawk</td>
+              <td></td><td></td><td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td><td></td><td></td><td></td><td></td><td></td>
+              <td><div class="circle t1" style="margin:auto;">3</div></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">Steller's Jay</td>
+              <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+              <td><div class="circle t3" style="margin:auto;">1</div></td>
+              <td></td>
+              <td><div class="circle t2" style="margin:auto;">2</div></td>
+              <td></td><td></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">Western Bluebird</td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td><div class="circle t4" style="margin:auto;">3</div></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-circle t4"></div>
+          Confirmed (highest) — NY NE FS FY CF FL ON UN DD
+        </div>
+        <div class="legend-item">
+          <div class="legend-circle t3"></div>
+          Confirmed — NB CN
+        </div>
+        <div class="legend-item">
+          <div class="legend-circle t2"></div>
+          Probable — PE B A N C T P M S7
+        </div>
+        <div class="legend-item">
+          <div class="legend-circle t1"></div>
+          Possible — S H F
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <strong>Only codes present in the loaded data appear as columns and filter pills.</strong>
+      This user has 12 of the 23 possible codes — only those 12 columns are shown.
+      The table scrolls horizontally when columns exceed viewport width; the species name column stays pinned left.
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════
+       SECTION 2: Sorted by NY descending
+       ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <h2>Sorted by NY (Nest with Young) — highest first</h2>
+    <div class="controls">
+      <div class="pills">
+        <button class="pill all-active">All</button>
+        <button class="pill code-active-t4">
+          <span class="pill-dot t4"></span>NY
+        </button>
+        <!-- remaining pills muted -->
+        <button class="pill"><span class="pill-dot t4"></span>NE</button>
+        <button class="pill"><span class="pill-dot t4"></span>CF</button>
+        <button class="pill"><span class="pill-dot t4"></span>FY</button>
+        <button class="pill"><span class="pill-dot t4"></span>FL</button>
+        <button class="pill"><span class="pill-dot t4"></span>ON</button>
+        <button class="pill"><span class="pill-dot t3"></span>NB</button>
+        <button class="pill"><span class="pill-dot t3"></span>CN</button>
+        <button class="pill"><span class="pill-dot t2"></span>B</button>
+        <button class="pill"><span class="pill-dot t2"></span>T</button>
+        <button class="pill"><span class="pill-dot t2"></span>S7</button>
+        <button class="pill"><span class="pill-dot t1"></span>S</button>
+      </div>
+      <div class="right-controls">
+        <span class="count-label">8 species</span>
+        <button class="ghost-btn">↓ Show all</button>
+        <button class="ghost-btn">Load new file</button>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-scroll">
+        <table style="width: auto; min-width: 100%;">
+          <thead>
+            <tr>
+              <th class="name-col">Entries</th>
+              <th class="active" title="Nest with Young">NY <span class="sort-indicator">↓</span></th>
+              <th title="Nest with Eggs">NE</th>
+              <th title="Carrying Food">CF</th>
+              <th title="Feeding Young">FY</th>
+              <th title="Recently Fledged Young">FL</th>
+              <th title="Occupied Nest">ON</th>
+              <th title="Nest Building">NB</th>
+              <th title="Carrying Nesting Material">CN</th>
+              <th title="Wren/Woodpecker Nest Building">B</th>
+              <th title="Territorial Defense">T</th>
+              <th title="Singing Bird 7+ Days">S7</th>
+              <th title="Singing Bird">S</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="sticky-name">Anna's Hummingbird</td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+            </tr>
+            <!-- All others have 0 for NY — sorted alphabetically among ties -->
+            <tr>
+              <td class="sticky-name">Acorn Woodpecker</td>
+              <td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td><td></td>
+              <td><div class="circle t3" style="margin:auto;">1</div></td>
+              <td></td>
+              <td><div class="circle t2" style="margin:auto;">3</div></td>
+              <td></td><td></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">American Robin</td>
+              <td></td><td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">3</div></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td></td><td></td><td></td><td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">1</div></td>
+              <td></td>
+            </tr>
+            <tr style="opacity:0.5;">
+              <td class="sticky-name">Black-headed Grosbeak</td>
+              <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">2</div></td>
+              <td><div class="circle t1" style="margin:auto;">1</div></td>
+            </tr>
+            <tr style="opacity:0.5;">
+              <td class="sticky-name">House Wren</td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td><td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">2</div></td>
+              <td></td>
+              <td><div class="circle t2" style="margin:auto;">4</div></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-circle t4"></div>Confirmed (highest)</div>
+        <div class="legend-item"><div class="legend-circle t3"></div>Confirmed</div>
+        <div class="legend-item"><div class="legend-circle t2"></div>Probable</div>
+        <div class="legend-item"><div class="legend-circle t1"></div>Possible</div>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>Sorting by NY (Nest with Young):</strong> Anna's Hummingbird rises to the top (1 record).
+      Ties at 0 are broken alphabetically. The NY column header shows ↓.
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════
+       SECTION 3: Filter pill active — S7 only
+       ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <h2>Filter active — S7 (Singing Bird 7+ Days)</h2>
+    <div class="controls">
+      <div class="pills">
+        <button class="pill">All</button>
+        <button class="pill"><span class="pill-dot t4"></span>NY</button>
+        <button class="pill"><span class="pill-dot t4"></span>NE</button>
+        <button class="pill"><span class="pill-dot t4"></span>CF</button>
+        <button class="pill"><span class="pill-dot t4"></span>FY</button>
+        <button class="pill"><span class="pill-dot t4"></span>FL</button>
+        <button class="pill"><span class="pill-dot t4"></span>ON</button>
+        <button class="pill"><span class="pill-dot t3"></span>NB</button>
+        <button class="pill"><span class="pill-dot t3"></span>CN</button>
+        <button class="pill"><span class="pill-dot t2"></span>B</button>
+        <button class="pill"><span class="pill-dot t2"></span>T</button>
+        <button class="pill code-active-t2">
+          <span class="pill-dot t2"></span>S7
+        </button>
+        <button class="pill"><span class="pill-dot t1"></span>S</button>
+      </div>
+      <div class="right-controls">
+        <span class="count-label">3 of 8 species</span>
+        <button class="ghost-btn">↓ Show all</button>
+        <button class="ghost-btn">Load new file</button>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="table-scroll">
+        <table style="width: auto; min-width: 100%;">
+          <thead>
+            <tr>
+              <th class="name-col active">Entries <span class="sort-indicator">↑</span></th>
+              <th title="Nest with Young">NY</th>
+              <th title="Nest with Eggs">NE</th>
+              <th title="Carrying Food">CF</th>
+              <th title="Feeding Young">FY</th>
+              <th title="Recently Fledged Young">FL</th>
+              <th title="Occupied Nest">ON</th>
+              <th title="Nest Building">NB</th>
+              <th title="Carrying Nesting Material">CN</th>
+              <th title="Wren/Woodpecker Nest Building">B</th>
+              <th title="Territorial Defense">T</th>
+              <th title="Singing Bird 7+ Days">S7</th>
+              <th title="Singing Bird">S</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- only species with S7 > 0 shown -->
+            <tr>
+              <td class="sticky-name">American Robin</td>
+              <td></td><td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">3</div></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td></td><td></td><td></td><td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">1</div></td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">Black-headed Grosbeak</td>
+              <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">2</div></td>
+              <td><div class="circle t1" style="margin:auto;">1</div></td>
+            </tr>
+            <tr>
+              <td class="sticky-name">House Wren</td>
+              <td></td>
+              <td><div class="circle t4" style="margin:auto;">1</div></td>
+              <td></td><td></td><td></td>
+              <td><div class="circle t4" style="margin:auto;">2</div></td>
+              <td></td><td></td>
+              <td><div class="circle t2" style="margin:auto;">2</div></td>
+              <td></td>
+              <td><div class="circle t2" style="margin:auto;">4</div></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-circle t4"></div>Confirmed (highest)</div>
+        <div class="legend-item"><div class="legend-circle t3"></div>Confirmed</div>
+        <div class="legend-item"><div class="legend-circle t2"></div>Probable</div>
+        <div class="legend-item"><div class="legend-circle t1"></div>Possible</div>
+      </div>
+    </div>
+    <div class="annotation">
+      <strong>Filter: S7 active.</strong> Only 3 of 8 species have a Singing Bird 7+ Days record — the count label updates to "3 of 8 species".
+      All columns remain visible even when filtering; the full picture of each matching species is preserved.
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════
+       SECTION 4: Design spec summary
+       ════════════════════════════════════════════════════ -->
+  <div class="section">
+    <h2>Design Spec</h2>
+    <div class="annotation" style="background:#F0FDF4;border-color:#BBF7D0;color:#14532D;">
+      <strong>Circle dimensions:</strong> 28px diameter · border-radius 50% · white text · 11px 700-weight<br>
+      <strong>Tier colors:</strong>
+      Tier 4 <code>#3B0764</code> ·
+      Tier 3 <code>#6B21A8</code> ·
+      Tier 2 <code>#9333EA</code> ·
+      Tier 1 <code>#C084FC</code><br>
+      <strong>Code columns:</strong> 44px wide · header font 11px uppercase 600 · full label in <code>title</code> tooltip<br>
+      <strong>Species column:</strong> 190px · sticky left · <code>box-shadow: 1px 0 0 #E4E4E7</code> separator<br>
+      <strong>Table scroll:</strong> <code>overflow-x: auto</code> on wrapper · species column always visible<br>
+      <strong>Filter pills:</strong> 12px dot + code label · active border/bg tinted with tier color · flex-wrap<br>
+      <strong>Sort indicator:</strong> ↑ ↓ in <code>#2D8653</code> · active header in <code>#0F1117</code> · inactive in <code>#71717A</code>
+    </div>
+  </div>
+
+</body>
+</html>

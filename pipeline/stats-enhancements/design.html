@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven: Stats Enhancements Design</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #F4F4F5;
+    color: #0F1117;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 32px 24px 64px;
+  }
+  h1 { font-size: 13px; font-weight: 600; color: #71717A; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 20px; }
+  .page { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #A1A1AA; margin-bottom: 10px;
+  }
+
+  /* Card */
+  .card {
+    background: #FFFFFF;
+    border: 1px solid #E4E4E7;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .card-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 18px 11px;
+    border-bottom: 1px solid #F4F4F5;
+  }
+  .card-head-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: #E8F5EE; color: #2D8653;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .card-head-title { font-size: 13px; font-weight: 600; color: #0F1117; }
+  .card-body { padding: 16px 18px; }
+
+  /* Milestone pills */
+  .milestone-grid { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+  .milestone-pill {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 10px 14px; border-radius: 10px;
+    border: 1.5px solid #E4E4E7; background: #FAFAFA;
+    min-width: 70px; gap: 3px;
+    position: relative;
+  }
+  .milestone-pill.unreached { opacity: 0.28; }
+
+  /* Tier backgrounds + borders */
+  .milestone-pill.t1.reached { background: linear-gradient(160deg, #F2FAF5 0%, #E8F5EE 100%); border-color: rgba(45,134,83,0.28); }
+  .milestone-pill.t2.reached { background: linear-gradient(160deg, #E5F3EC 0%, #D8EDE4 100%); border-color: rgba(28,100,60,0.32); }
+  .milestone-pill.t3.reached { background: linear-gradient(160deg, #D6EAE0 0%, #C6E2D5 100%); border-color: rgba(18,74,44,0.38); }
+  .milestone-pill.t4.reached { background: linear-gradient(160deg, #FEFAEC 0%, #FEF3C7 100%); border-color: rgba(146,64,14,0.32); }
+
+  /* Tier number colors */
+  .milestone-num { font-size: 20px; font-weight: 700; line-height: 1; }
+  .milestone-pill.t1 .milestone-num { color: #2D8653; }
+  .milestone-pill.t2 .milestone-num { color: #1C6443; }
+  .milestone-pill.t3 .milestone-num { color: #14502E; }
+  .milestone-pill.t4 .milestone-num { color: #92400E; }
+  .milestone-pill.unreached .milestone-num { color: #A1A1AA; }
+
+  /* Small checkmark badge top-right on reached pills */
+  .milestone-check {
+    position: absolute; top: 5px; right: 6px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #2D8653; color: #fff;
+    font-size: 8px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .milestone-pill.t4 .milestone-check { background: #B45309; }
+
+  .milestone-species { font-size: 10px; color: #71717A; text-align: center; max-width: 84px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .milestone-date { font-size: 10px; }
+  .milestone-pill.t1.reached .milestone-date { color: #5EA07C; }
+  .milestone-pill.t2.reached .milestone-date { color: #3E7A56; }
+  .milestone-pill.t3.reached .milestone-date { color: #2D6644; }
+  .milestone-pill.t4.reached .milestone-date { color: #B45309; }
+  .milestone-pill.unreached .milestone-date { color: #A1A1AA; }
+
+  /* Year table */
+  .year-table { width: 100%; border-collapse: collapse; }
+  .year-table th {
+    font-size: 11px; font-weight: 600; color: #A1A1AA;
+    text-align: left; padding: 6px 10px; border-bottom: 1px solid #F4F4F5;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .year-table th.right { text-align: right; }
+  .year-table td { padding: 9px 10px; border-bottom: 1px solid #F4F4F5; vertical-align: middle; }
+  .year-table tr:last-child td { border-bottom: none; }
+  .year-label { font-size: 13px; font-weight: 600; color: #0F1117; }
+  .year-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .year-bar { height: 8px; border-radius: 4px; background: #E8F5EE; overflow: hidden; flex: 1; min-width: 40px; max-width: 100px; }
+  .year-bar-fill { height: 100%; border-radius: 4px; background: #2D8653; }
+  .year-count { font-size: 12px; font-weight: 600; color: #0F1117; min-width: 28px; text-align: right; }
+  .year-species { font-size: 12px; font-weight: 500; color: #2D8653; text-align: right; min-width: 36px; }
+  .year-bestday a, .year-bestday span {
+    font-size: 12px; font-weight: 500; text-align: right; display: block;
+  }
+  .year-bestday a { color: #2D8653; text-decoration: none; }
+  .year-bestday a:hover { text-decoration: underline; }
+  .year-bestday span { color: #71717A; }
+  td.right { text-align: right; }
+
+  /* Bird pills */
+  .bird-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .bird-pill {
+    font-size: 12px; font-weight: 500;
+    padding: 4px 10px; border-radius: 20px;
+    background: #F4F4F5; border: 1px solid #E4E4E7;
+    color: #0F1117; white-space: nowrap;
+  }
+
+  /* Nemesis */
+  .nemesis-list { display: flex; flex-direction: column; gap: 6px; }
+  .nemesis-row { display: flex; align-items: center; gap: 8px; }
+  .nemesis-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .nemesis-name { font-size: 13px; flex: 1; }
+  .nemesis-name a { color: #2D8653; text-decoration: none; font-weight: 500; }
+  .nemesis-name a:hover { text-decoration: underline; }
+  .nemesis-date { font-size: 11px; color: #A1A1AA; }
+
+  /* Map mock */
+  .map-container {
+    border-radius: 8px; overflow: hidden;
+    border: 1px solid #E4E4E7;
+    position: relative; height: 320px;
+    margin-top: 4px;
+  }
+  .map-legend {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 14px;
+    background: #FAFAFA; border-top: 1px solid #F4F4F5;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #71717A; }
+
+  /* SVG map bg */
+  .map-svg { width: 100%; height: 100%; display: block; }
+
+  /* Tab/section nav */
+  .nav-note {
+    font-size: 12px; color: #A1A1AA;
+    padding: 8px 0; text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .change-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 10px;
+    background: #E8F5EE; color: #2D8653; letter-spacing: 0.03em;
+    text-transform: uppercase; margin-left: 8px; vertical-align: middle;
+  }
+
+  /* Divider */
+  .divider { height: 1px; background: #F4F4F5; margin: 4px 0; }
+
+  .empty-state { font-size: 13px; color: #A1A1AA; padding: 4px 0; }
+
+  /* Section group label */
+  .group-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #A1A1AA; margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <p class="nav-note">Stats Enhancements: annotated design preview · Six sections shown in context</p>
+
+  <!-- ── LIFE LIST ACCUMULATION: MILESTONES ─────────────────────────── -->
+  <p class="section-label">Life List Accumulation · Milestones <span class="change-badge">Denser schedule</span></p>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      </div>
+      <span class="card-head-title">Life List Milestones</span>
+    </div>
+    <div class="card-body">
+      <div class="milestone-grid">
+        <!-- Tier 1: every 10, 10–90 -->
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">10</span>
+          <span class="milestone-species">Black-capped Chickadee</span>
+          <span class="milestone-date">Mar 2018</span>
+        </div>
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">20</span>
+          <span class="milestone-species">White-breasted Nuthatch</span>
+          <span class="milestone-date">Apr 2018</span>
+        </div>
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">30</span>
+          <span class="milestone-species">Yellow Warbler</span>
+          <span class="milestone-date">May 2018</span>
+        </div>
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">40</span>
+          <span class="milestone-species">Indigo Bunting</span>
+          <span class="milestone-date">May 2018</span>
+        </div>
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">50</span>
+          <span class="milestone-species">Baltimore Oriole</span>
+          <span class="milestone-date">Jun 2018</span>
+        </div>
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">60</span>
+          <span class="milestone-species">Common Loon</span>
+          <span class="milestone-date">Sep 2018</span>
+        </div>
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">70</span>
+          <span class="milestone-species">Northern Harrier</span>
+          <span class="milestone-date">Oct 2018</span>
+        </div>
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">80</span>
+          <span class="milestone-species">Dunlin</span>
+          <span class="milestone-date">Nov 2018</span>
+        </div>
+        <div class="milestone-pill reached t1">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">90</span>
+          <span class="milestone-species">American Bittern</span>
+          <span class="milestone-date">Dec 2018</span>
+        </div>
+        <!-- Tier 2: every 25, 100–475 -->
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">100</span>
+          <span class="milestone-species">Greater Scaup</span>
+          <span class="milestone-date">Jan 2019</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">125</span>
+          <span class="milestone-species">Snowy Owl</span>
+          <span class="milestone-date">Feb 2019</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">150</span>
+          <span class="milestone-species">Cerulean Warbler</span>
+          <span class="milestone-date">May 2019</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">175</span>
+          <span class="milestone-species">Connecticut Warbler</span>
+          <span class="milestone-date">Sep 2019</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">200</span>
+          <span class="milestone-species">Pacific Golden-Plover</span>
+          <span class="milestone-date">Oct 2019</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">250</span>
+          <span class="milestone-species">Kirtland's Warbler</span>
+          <span class="milestone-date">Jun 2020</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">300</span>
+          <span class="milestone-species">Ross's Goose</span>
+          <span class="milestone-date">Mar 2021</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">350</span>
+          <span class="milestone-species">Thayer's Gull</span>
+          <span class="milestone-date">Jan 2022</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">400</span>
+          <span class="milestone-species">Black Rail</span>
+          <span class="milestone-date">Jun 2022</span>
+        </div>
+        <div class="milestone-pill reached t2">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">450</span>
+          <span class="milestone-species">LeConte's Sparrow</span>
+          <span class="milestone-date">Oct 2022</span>
+        </div>
+        <!-- Tier 3: every 50, 500–950 -->
+        <div class="milestone-pill reached t3">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">500</span>
+          <span class="milestone-species">Whooping Crane</span>
+          <span class="milestone-date">Mar 2023</span>
+        </div>
+        <div class="milestone-pill reached t3">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">550</span>
+          <span class="milestone-species">Elegant Trogon</span>
+          <span class="milestone-date">Aug 2023</span>
+        </div>
+        <div class="milestone-pill reached t3">
+          <span class="milestone-check">✓</span>
+          <span class="milestone-num">600</span>
+          <span class="milestone-species">Steller's Jay</span>
+          <span class="milestone-date">Dec 2023</span>
+        </div>
+        <!-- Unreached: still tier 3 -->
+        <div class="milestone-pill unreached t3">
+          <span class="milestone-num">650</span>
+          <span class="milestone-date">Not yet</span>
+        </div>
+        <div class="milestone-pill unreached t3">
+          <span class="milestone-num">700</span>
+          <span class="milestone-date">Not yet</span>
+        </div>
+        <div class="milestone-pill unreached t3">
+          <span class="milestone-num">750</span>
+          <span class="milestone-date">Not yet</span>
+        </div>
+        <div class="milestone-pill unreached t3">
+          <span class="milestone-num">1000</span>
+          <span class="milestone-date">Not yet</span>
+        </div>
+        <!-- Tier 4: 1250+ -->
+        <div class="milestone-pill unreached t4">
+          <span class="milestone-num">1250</span>
+          <span class="milestone-date">Not yet</span>
+        </div>
+        <div class="milestone-pill unreached t4">
+          <span class="milestone-num">1500</span>
+          <span class="milestone-date">Not yet</span>
+        </div>
+        <div class="milestone-pill unreached t4">
+          <span class="milestone-num">2000</span>
+          <span class="milestone-date">Not yet</span>
+        </div>
+        <div class="milestone-pill unreached t4">
+          <span class="milestone-num">3000</span>
+          <span class="milestone-date">Not yet</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CHECKLISTS BY YEAR ─────────────────────────────────────────── -->
+  <p class="section-label">Temporal Stats · By Year <span class="change-badge">+ Species &amp; Best Day</span></p>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <span class="card-head-title">Checklists by Year</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+      <table class="year-table">
+        <thead>
+          <tr>
+            <th style="width:64px;">Year</th>
+            <th>Checklists</th>
+            <th class="right" style="width:72px;">Species</th>
+            <th class="right" style="width:80px;">Best Day</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="year-label">2018</span></td>
+            <td>
+              <div class="year-bar-wrap">
+                <div class="year-bar"><div class="year-bar-fill" style="width:28%"></div></div>
+                <span class="year-count">47</span>
+              </div>
+            </td>
+            <td class="right"><span class="year-species">94</span></td>
+            <td class="year-bestday right"><a href="#">18 sp.</a></td>
+          </tr>
+          <tr>
+            <td><span class="year-label">2019</span></td>
+            <td>
+              <div class="year-bar-wrap">
+                <div class="year-bar"><div class="year-bar-fill" style="width:52%"></div></div>
+                <span class="year-count">87</span>
+              </div>
+            </td>
+            <td class="right"><span class="year-species">162</span></td>
+            <td class="year-bestday right"><a href="#">27 sp.</a></td>
+          </tr>
+          <tr>
+            <td><span class="year-label">2020</span></td>
+            <td>
+              <div class="year-bar-wrap">
+                <div class="year-bar"><div class="year-bar-fill" style="width:71%"></div></div>
+                <span class="year-count">119</span>
+              </div>
+            </td>
+            <td class="right"><span class="year-species">201</span></td>
+            <td class="year-bestday right"><a href="#">34 sp.</a></td>
+          </tr>
+          <tr>
+            <td><span class="year-label">2021</span></td>
+            <td>
+              <div class="year-bar-wrap">
+                <div class="year-bar"><div class="year-bar-fill" style="width:88%"></div></div>
+                <span class="year-count">148</span>
+              </div>
+            </td>
+            <td class="right"><span class="year-species">228</span></td>
+            <td class="year-bestday right"><a href="#">41 sp.</a></td>
+          </tr>
+          <tr>
+            <td><span class="year-label">2022</span></td>
+            <td>
+              <div class="year-bar-wrap">
+                <div class="year-bar"><div class="year-bar-fill" style="width:100%"></div></div>
+                <span class="year-count">168</span>
+              </div>
+            </td>
+            <td class="right"><span class="year-species">244</span></td>
+            <td class="year-bestday right"><a href="#">47 sp.</a></td>
+          </tr>
+          <tr>
+            <td><span class="year-label">2023</span></td>
+            <td>
+              <div class="year-bar-wrap">
+                <div class="year-bar"><div class="year-bar-fill" style="width:93%"></div></div>
+                <span class="year-count">156</span>
+              </div>
+            </td>
+            <td class="right"><span class="year-species">237</span></td>
+            <td class="year-bestday right"><a href="#">43 sp.</a></td>
+          </tr>
+          <tr>
+            <td><span class="year-label">2024</span></td>
+            <td>
+              <div class="year-bar-wrap">
+                <div class="year-bar"><div class="year-bar-fill" style="width:79%"></div></div>
+                <span class="year-count">133</span>
+              </div>
+            </td>
+            <td class="right"><span class="year-species">219</span></td>
+            <td class="year-bestday right"><a href="#">38 sp.</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── TOP LOCATIONS MAP ──────────────────────────────────────────── -->
+  <p class="section-label">Geographic Stats · Top Locations Map <span class="change-badge">New</span></p>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <span class="card-head-title">Top Locations Map</span>
+    </div>
+
+    <div class="map-container">
+      <svg class="map-svg" viewBox="0 0 680 320" xmlns="http://www.w3.org/2000/svg">
+        <!-- Map background tiles (light OSM style) -->
+        <rect width="680" height="320" fill="#EEF0E8"/>
+        <!-- Roads / water rough shapes to look map-like -->
+        <path d="M0,180 Q120,160 200,175 Q300,190 380,170 Q460,150 560,165 Q630,175 680,160" stroke="#DCDDD5" stroke-width="6" fill="none"/>
+        <path d="M0,140 Q80,130 160,145 Q240,160 340,135 Q420,115 520,140 Q600,160 680,145" stroke="#DCDDD5" stroke-width="3" fill="none"/>
+        <path d="M220,0 Q230,80 225,160 Q220,240 230,320" stroke="#C8DAEA" stroke-width="18" fill="none" opacity="0.6"/>
+        <path d="M420,0 Q415,60 425,130 Q430,200 420,320" stroke="#DCDDD5" stroke-width="4" fill="none"/>
+        <rect x="60" y="90" width="40" height="25" rx="2" fill="#E8E8E0" stroke="#D8D8D0" stroke-width="0.5"/>
+        <rect x="110" y="100" width="60" height="20" rx="2" fill="#E8E8E0" stroke="#D8D8D0" stroke-width="0.5"/>
+        <rect x="480" y="70" width="50" height="30" rx="2" fill="#E8E8E0" stroke="#D8D8D0" stroke-width="0.5"/>
+        <rect x="540" y="80" width="35" height="22" rx="2" fill="#E8E8E0" stroke="#D8D8D0" stroke-width="0.5"/>
+        <rect x="310" y="200" width="70" height="40" rx="2" fill="#E8E8E0" stroke="#D8D8D0" stroke-width="0.5"/>
+        <path d="M0,250 Q100,240 180,255 Q280,270 380,250 Q460,235 560,248 Q630,258 680,245" stroke="#D4D6CE" stroke-width="2" fill="none"/>
+
+        <!-- ── Top-by-Checklists pins: GREEN CIRCLES numbered 1–5 ── -->
+
+        <!-- Pin 1: Radnor Lake -->
+        <circle cx="195" cy="148" r="14" fill="#2D8653" stroke="white" stroke-width="2"/>
+        <text x="195" y="153" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">1</text>
+
+        <!-- Pin 2: Shelby Bottoms -->
+        <circle cx="310" cy="128" r="14" fill="#2D8653" stroke="white" stroke-width="2"/>
+        <text x="310" y="133" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">2</text>
+
+        <!-- Pin 3: Bells Bend -->
+        <circle cx="148" cy="200" r="14" fill="#2D8653" stroke="white" stroke-width="2"/>
+        <text x="148" y="205" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">3</text>
+
+        <!-- Pin 4: Warner Parks -->
+        <circle cx="240" cy="220" r="14" fill="#2D8653" stroke="white" stroke-width="2"/>
+        <text x="240" y="225" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">4</text>
+
+        <!-- Pin 5: Long Hunter SP -->
+        <circle cx="420" cy="185" r="14" fill="#2D8653" stroke="white" stroke-width="2"/>
+        <text x="420" y="190" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">5</text>
+
+        <!-- ── Top-by-Species pins: BLUE SQUARES numbered 1–5 ── -->
+
+        <!-- Pin 1: Radnor Lake — same location, offset slightly -->
+        <rect x="209" y="130" width="28" height="28" rx="4" fill="#3B82F6" stroke="white" stroke-width="2"/>
+        <text x="223" y="149" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">1</text>
+
+        <!-- Pin 2: Old Hickory Lake -->
+        <rect x="468" y="98" width="28" height="28" rx="4" fill="#3B82F6" stroke="white" stroke-width="2"/>
+        <text x="482" y="117" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">2</text>
+
+        <!-- Pin 3: Percy Priest Lake -->
+        <rect x="525" y="148" width="28" height="28" rx="4" fill="#3B82F6" stroke="white" stroke-width="2"/>
+        <text x="539" y="167" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">3</text>
+
+        <!-- Pin 4: Shelby Bottoms — same location, offset -->
+        <rect x="324" y="110" width="28" height="28" rx="4" fill="#3B82F6" stroke="white" stroke-width="2"/>
+        <text x="338" y="129" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">4</text>
+
+        <!-- Pin 5: Edwin Warner -->
+        <rect x="114" y="226" width="28" height="28" rx="4" fill="#3B82F6" stroke="white" stroke-width="2"/>
+        <text x="128" y="245" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="Inter,system-ui,sans-serif">5</text>
+
+        <!-- Attribution -->
+        <text x="676" y="316" text-anchor="end" fill="#A1A1AA" font-size="9" font-family="Inter,system-ui,sans-serif">© OpenStreetMap contributors</text>
+      </svg>
+    </div>
+
+    <div class="map-legend">
+      <div class="legend-item">
+        <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#2D8653" stroke="white" stroke-width="1.5"/><text x="8" y="12" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="Inter,sans-serif">1</text></svg>
+        Top by checklists
+      </div>
+      <div class="legend-item">
+        <svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="3" fill="#3B82F6" stroke="white" stroke-width="1.5"/><text x="8" y="12" text-anchor="middle" fill="white" font-size="8" font-weight="700" font-family="Inter,sans-serif">1</text></svg>
+        Top by species
+      </div>
+      <div class="legend-item" style="margin-left: auto; font-size: 11px; color: #A1A1AA;">
+        Numbered 1–10 · same location = both pins
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FUN STATS: SINGLE-CHECKLIST BIRDS (renamed) ───────────────── -->
+  <p class="section-label">Fun Stats <span class="change-badge">Renamed + New section</span></p>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      </div>
+      <span class="card-head-title">Single-Checklist Birds</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size: 12px; color: #71717A; margin-bottom: 12px;">Species you've seen on exactly one checklist · 23 birds</p>
+      <div class="bird-pills">
+        <div class="bird-pill">American Avocet</div>
+        <div class="bird-pill">Barnacle Goose</div>
+        <div class="bird-pill">Black-bellied Whistling-Duck</div>
+        <div class="bird-pill">Black-legged Kittiwake</div>
+        <div class="bird-pill">Brown Booby</div>
+        <div class="bird-pill">Cave Swallow</div>
+        <div class="bird-pill">Dovekie</div>
+        <div class="bird-pill">Eurasian Wigeon</div>
+        <div class="bird-pill">Ferruginous Hawk</div>
+        <div class="bird-pill">Fork-tailed Flycatcher</div>
+        <div class="bird-pill">Gyrfalcon</div>
+        <div class="bird-pill">Harris's Sparrow</div>
+        <div class="bird-pill">Ivory Gull</div>
+        <div class="bird-pill">King Eider</div>
+        <div class="bird-pill">Lark Bunting</div>
+        <div class="bird-pill">MacGillivray's Warbler</div>
+        <div class="bird-pill">McKay's Bunting</div>
+        <div class="bird-pill">Northern Wheatear</div>
+        <div class="bird-pill">Pacific Wren</div>
+        <div class="bird-pill">Smew</div>
+        <div class="bird-pill">Swainson's Warbler</div>
+        <div class="bird-pill">Western Grebe</div>
+        <div class="bird-pill">Yellow-headed Blackbird</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FUN STATS: ONE-AND-DONE BIRDS (new) ───────────────────────── -->
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      </div>
+      <span class="card-head-title">One-and-Done Birds</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size: 12px; color: #71717A; margin-bottom: 12px;">Species where your total individual count is exactly 1 · 11 birds</p>
+      <div class="bird-pills">
+        <div class="bird-pill">American White Pelican</div>
+        <div class="bird-pill">Bald Eagle</div>
+        <div class="bird-pill">Black Scoter</div>
+        <div class="bird-pill">Buff-breasted Sandpiper</div>
+        <div class="bird-pill">Calliope Hummingbird</div>
+        <div class="bird-pill">Curlew Sandpiper</div>
+        <div class="bird-pill">Long-tailed Duck</div>
+        <div class="bird-pill">Pacific Golden-Plover</div>
+        <div class="bird-pill">Ruff</div>
+        <div class="bird-pill">Trumpeter Swan</div>
+        <div class="bird-pill">Whooping Crane</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── NEMESIS BIRDS ──────────────────────────────────────────────── -->
+  <p class="section-label">Fun Stats · Nemesis Birds <span class="change-badge">Linked</span></p>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-head-icon">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+      </div>
+      <span class="card-head-title">Nemesis Birds</span>
+    </div>
+    <div class="card-body">
+      <div class="nemesis-list">
+        <div class="nemesis-row">
+          <div class="nemesis-dot" style="background:#EF4444;"></div>
+          <span class="nemesis-name"><a href="https://ebird.org/species/prowar" target="_blank">Prothonotary Warbler</a></span>
+          <span class="nemesis-date">May 21</span>
+        </div>
+        <div class="nemesis-row">
+          <div class="nemesis-dot" style="background:#EF4444;"></div>
+          <span class="nemesis-name"><a href="https://ebird.org/species/pilwoo" target="_blank">Pileated Woodpecker</a></span>
+          <span class="nemesis-date">May 20</span>
+        </div>
+        <div class="nemesis-row">
+          <div class="nemesis-dot" style="background:#F59E0B;"></div>
+          <span class="nemesis-name"><a href="https://ebird.org/species/yeewoo" target="_blank">Yellow-bellied Sapsucker</a></span>
+          <span class="nemesis-date">May 14</span>
+        </div>
+        <div class="nemesis-row">
+          <div class="nemesis-dot" style="background:#F59E0B;"></div>
+          <span class="nemesis-name"><a href="https://ebird.org/species/batpig1" target="_blank">Baltimore Oriole</a></span>
+          <span class="nemesis-date">May 12</span>
+        </div>
+        <div class="nemesis-row">
+          <div class="nemesis-dot" style="background:#A1A1AA;"></div>
+          <span class="nemesis-name"><a href="https://ebird.org/species/seaspa" target="_blank">Seaside Sparrow</a></span>
+          <span class="nemesis-date">May 6</span>
+        </div>
+        <div class="nemesis-row">
+          <div class="nemesis-dot" style="background:#A1A1AA;"></div>
+          <span class="nemesis-name"><span style="font-size:13px; color:#0F1117;">Henslow's Sparrow</span></span>
+          <span class="nemesis-date">May 4</span>
+        </div>
+      </div>
+      <p style="font-size: 11px; color: #A1A1AA; margin-top: 10px;">Last row shows plain text fallback when taxon code is unavailable</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

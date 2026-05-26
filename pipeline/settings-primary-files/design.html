@@ -1,0 +1,1542 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design — Settings-First File Model</title>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #2D8653;
+    --primary-hover: #246b43;
+    --primary-fg: #FFFFFF;
+    --bg: #FFFFFF;
+    --fg: #0F1117;
+    --card: #FFFFFF;
+    --card-fg: #0F1117;
+    --muted: #F4F4F5;
+    --muted-fg: #71717A;
+    --accent: #E8F5EE;
+    --accent-fg: #1A5C38;
+    --secondary: #F0FAF4;
+    --secondary-fg: #2D8653;
+    --border: #E4E4E7;
+    --radius: 0.5rem;
+    --warning-bg: #FFF7ED;
+    --warning-border: #FED7AA;
+    --warning-fg: #9A3412;
+    --warning-icon: #EA580C;
+  }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #F8F8F9;
+    color: var(--fg);
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── Layout ── */
+  .app {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  .app-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px 0 0;
+    margin-bottom: 0;
+  }
+
+  .app-logo {
+    width: 28px;
+    height: 28px;
+    background: var(--primary);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .app-logo svg { color: white; }
+
+  .app-name {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--fg);
+  }
+
+  /* ── Tab Bar ── */
+  .tab-bar {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--border);
+    margin-top: 20px;
+    margin-bottom: 0;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    padding: 10px 16px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted-fg);
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .tab-btn:hover { color: var(--fg); }
+
+  .tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+  }
+
+  /* ── Scenario Selector ── */
+  .scenario-bar {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    margin: 20px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .scenario-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-fg);
+    flex-shrink: 0;
+  }
+
+  .scenario-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .scenario-pill {
+    padding: 4px 12px;
+    font-size: 12.5px;
+    font-weight: 500;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--muted-fg);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .scenario-pill:hover { border-color: var(--primary); color: var(--primary); }
+
+  .scenario-pill.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+  }
+
+  /* ── Tab Content ── */
+  .tab-content {
+    padding-top: 28px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  .card-body {
+    padding: 20px 18px;
+  }
+
+  /* ── SetupRequired ── */
+  .setup-required {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 52px 32px 48px;
+    gap: 0;
+  }
+
+  .setup-icon-ring {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    flex-shrink: 0;
+  }
+
+  .setup-icon-ring svg { color: var(--muted-fg); }
+
+  .setup-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--fg);
+    letter-spacing: -0.2px;
+    margin-bottom: 10px;
+  }
+
+  .setup-body {
+    font-size: 14px;
+    color: var(--muted-fg);
+    max-width: 420px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+
+  .setup-instructions {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    text-align: left;
+    max-width: 440px;
+    width: 100%;
+    margin-bottom: 28px;
+  }
+
+  .setup-instructions-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted-fg);
+    margin-bottom: 10px;
+  }
+
+  .setup-step {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 13px;
+    color: var(--fg);
+    margin-bottom: 7px;
+    line-height: 1.45;
+  }
+
+  .setup-step:last-child { margin-bottom: 0; }
+
+  .setup-step-num {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--border);
+    color: var(--muted-fg);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .setup-step code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    background: var(--border);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--fg);
+  }
+
+  .setup-settings-path {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--primary);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .setup-settings-path svg { color: var(--muted-fg); }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    font-size: 13.5px;
+    font-weight: 500;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: var(--primary);
+    color: var(--primary-fg);
+  }
+
+  .btn-primary:hover { background: var(--primary-hover); }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--fg);
+  }
+
+  .btn-outline:hover { background: var(--muted); }
+
+  .btn-sm {
+    padding: 5px 12px;
+    font-size: 12.5px;
+  }
+
+  /* ── Toolbar ── */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    flex-wrap: wrap;
+  }
+
+  .toolbar-filename {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 100px;
+    border: 1px solid #c3e6d4;
+  }
+
+  /* ── API Key Notices ── */
+  .key-notices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .key-notice {
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .key-notice-icon {
+    color: var(--warning-icon);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .key-notice-content { flex: 1; }
+
+  .key-notice-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--fg);
+    margin-bottom: 4px;
+  }
+
+  .key-notice-body {
+    font-size: 13px;
+    color: var(--muted-fg);
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .key-notice-path {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--fg);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background: rgba(0,0,0,0.05);
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  .key-notice-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .key-link {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--primary);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .key-link:hover { text-decoration: underline; }
+
+  /* ── Weather Input ── */
+  .weather-section { max-width: 600px; }
+
+  .input-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--fg);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .input-text {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--fg);
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .input-text:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(45,134,83,0.12); }
+
+  .input-helper {
+    font-size: 12px;
+    color: var(--muted-fg);
+    margin-top: 6px;
+  }
+
+  /* ── ListComparer ── */
+  .comparer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 680px) {
+    .comparer-grid { grid-template-columns: 1fr; }
+  }
+
+  .list-slot-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted-fg);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .list-slot-label-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--fg);
+    text-transform: none;
+    letter-spacing: -0.1px;
+  }
+
+  .mode-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .mode-btn {
+    flex: 1;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    color: var(--muted-fg);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    text-align: center;
+  }
+
+  .mode-btn:hover { border-color: var(--primary); color: var(--fg); }
+
+  .mode-btn.active {
+    border-color: var(--primary);
+    background: var(--secondary);
+    color: var(--primary);
+  }
+
+  .my-list-preview {
+    background: var(--muted);
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    text-align: center;
+  }
+
+  .my-list-preview-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+  }
+
+  .my-list-preview-icon svg { color: var(--primary); }
+
+  .my-list-preview-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+    margin-bottom: 2px;
+  }
+
+  .my-list-preview-meta {
+    font-size: 12px;
+    color: var(--muted-fg);
+  }
+
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 28px 20px;
+    text-align: center;
+    background: var(--muted);
+    transition: border-color 0.15s, background 0.15s;
+    cursor: pointer;
+  }
+
+  .dropzone:hover {
+    border-color: var(--primary);
+    background: var(--accent);
+  }
+
+  .dropzone-icon { color: var(--muted-fg); margin-bottom: 10px; }
+  .dropzone-text { font-size: 13px; color: var(--muted-fg); }
+  .dropzone-text span { color: var(--primary); font-weight: 500; }
+
+  .comparer-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  /* ── Results View ── */
+  .results-summary {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  .results-summary-cell {
+    flex: 1;
+    padding: 12px 16px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+
+  .results-summary-cell:last-child { border-right: none; }
+
+  .results-summary-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--fg);
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+    margin-bottom: 3px;
+  }
+
+  .results-summary-value.green { color: var(--primary); }
+
+  .results-summary-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-fg);
+  }
+
+  .results-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  @media (max-width: 700px) {
+    .results-panels { grid-template-columns: 1fr; }
+  }
+
+  .results-panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .results-panel-header {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--muted);
+  }
+
+  .results-panel-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--fg);
+  }
+
+  .results-panel-count {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted-fg);
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 1px 8px;
+    border-radius: 100px;
+  }
+
+  .results-panel-list {
+    padding: 8px 0;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .results-panel-item {
+    padding: 5px 14px;
+    font-size: 13px;
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .results-panel-item:hover { background: var(--muted); }
+
+  /* ── Divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+
+  /* ── Section heading ── */
+  .section-heading {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-fg);
+    margin-bottom: 12px;
+    margin-top: 28px;
+  }
+
+  .section-heading:first-child { margin-top: 0; }
+
+  /* ── Design note badge ── */
+  .design-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 500;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #1D4ED8;
+    padding: 3px 9px;
+    border-radius: 100px;
+    margin-left: 8px;
+  }
+
+  /* ── Annotation panel ── */
+  .annotations {
+    background: #FAFAFA;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-top: 24px;
+    font-size: 13px;
+    color: var(--muted-fg);
+    line-height: 1.6;
+  }
+
+  .annotations strong { color: var(--fg); font-weight: 600; }
+
+  .annotations ul {
+    padding-left: 18px;
+    margin-top: 6px;
+  }
+
+  .annotations li { margin-bottom: 4px; }
+
+  /* ── "New" badge ── */
+  .badge-new {
+    display: inline-flex;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: var(--primary);
+    color: white;
+    padding: 1px 6px;
+    border-radius: 100px;
+    vertical-align: middle;
+    margin-left: 4px;
+    position: relative;
+    top: -1px;
+  }
+
+  /* ── Horizontal split ── */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 680px) { .split { grid-template-columns: 1fr; } }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="app-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 2C6.48 2 2 6.48 2 12"/><path d="M12 22a2 2 0 0 1-2-2v-6l-3-3 8-8 3 3v8a2 2 0 0 1-2 2h-4z"/></svg>
+    </div>
+    <span class="app-name">SnowRaven</span>
+  </header>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn" onclick="switchTab('weather', this)">Weather</button>
+    <button class="tab-btn" onclick="switchTab('list', this)">List Comparer</button>
+    <button class="tab-btn" onclick="switchTab('media', this)">Media Life List</button>
+    <button class="tab-btn active" onclick="switchTab('breeding', this)">Breeding Codes</button>
+    <button class="tab-btn" onclick="switchTab('species', this)">Species Detail</button>
+    <button class="tab-btn" onclick="switchTab('settings', this)">Settings</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       BREEDING CODES TAB — Setup Required state
+       ════════════════════════════════════════════════════════════ -->
+  <div id="tab-breeding" class="tab-content">
+
+    <div class="scenario-bar">
+      <span class="scenario-label">State</span>
+      <div class="scenario-pills">
+        <button class="scenario-pill active" onclick="breedingScenario('setup', this)">No file in Settings</button>
+        <button class="scenario-pill" onclick="breedingScenario('ready', this)">File loaded</button>
+      </div>
+    </div>
+
+    <!-- Setup Required state -->
+    <div id="breeding-setup">
+      <div class="card" style="margin-top: 20px;">
+        <div class="setup-required">
+          <div class="setup-icon-ring">
+            <i data-lucide="upload-cloud" width="28" height="28"></i>
+          </div>
+          <div class="setup-title">eBird Backup Required</div>
+          <div class="setup-body">
+            The Breeding Codes tab loads automatically from your stored eBird backup.
+            You haven't saved one yet — here's how to get it.
+          </div>
+
+          <div class="setup-instructions">
+            <div class="setup-instructions-title">How to get your eBird backup</div>
+            <div class="setup-step">
+              <div class="setup-step-num">1</div>
+              <div>Go to <strong>ebird.org</strong> → My eBird → Download My Data</div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">2</div>
+              <div>Download the file — it will be named <code>MyEBirdData.csv</code></div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">3</div>
+              <div>Upload it in <strong>Settings → Default Files → eBird Backup</strong></div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">4</div>
+              <div>This tab will load automatically on every visit from then on</div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="void 0">
+            <i data-lucide="settings" width="15" height="15"></i>
+            Go to Settings
+          </button>
+        </div>
+      </div>
+
+      <div class="annotations">
+        <strong>Design notes — Setup Required card</strong>
+        <ul>
+          <li>Same icon ring, instruction box, and button style used across Breeding Codes, Media Life List, and Species Detail (NFR-01 consistency)</li>
+          <li>No drop zone, no "Load file" button anywhere — this is the only state before Settings is configured (FR-01)</li>
+          <li>"Go to Settings" button switches the active tab to Settings (FR-03)</li>
+          <li>Step numbering mirrors the exact eBird export path users need to follow (FR-02)</li>
+          <li>Monospace filename badge makes the expected filename scannable at a glance</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Ready state (no upload buttons) -->
+    <div id="breeding-ready" style="display:none;">
+      <div class="card" style="margin-top: 20px;">
+        <div class="toolbar">
+          <div class="toolbar-filename">
+            <i data-lucide="check-circle-2" width="12" height="12"></i>
+            MyEBirdData.csv
+          </div>
+          <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-outline btn-sm">A–Z</button>
+            <button class="btn btn-outline btn-sm" style="background: var(--muted);">Taxonomic</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="color: var(--muted-fg); font-size: 13px; text-align: center; padding: 20px 0;">
+            Breeding code matrix renders here &mdash; same as before, without "Load new file" or "Load different file" buttons.
+          </div>
+        </div>
+      </div>
+      <div class="annotations">
+        <strong>Design notes — Ready state (Breeding Codes)</strong>
+        <ul>
+          <li>Green filename chip shows the stored file source (unchanged from current implementation)</li>
+          <li>"Load new file" and "Load different file" buttons are absent — Settings is the only way to change the file (FR-04)</li>
+          <li>All sort controls, filter pills, and table content remain identical to the current ready state</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       MEDIA LIFE LIST TAB — Setup Required + filename warning
+       ════════════════════════════════════════════════════════════ -->
+  <div id="tab-media" class="tab-content" style="display:none;">
+
+    <div class="scenario-bar">
+      <span class="scenario-label">State</span>
+      <div class="scenario-pills">
+        <button class="scenario-pill active" onclick="mediaScenario('setup', this)">No ML export in Settings</button>
+        <button class="scenario-pill" onclick="mediaScenario('warning', this)">ML loaded — bad filename</button>
+        <button class="scenario-pill" onclick="mediaScenario('ready', this)">ML loaded — correct filename</button>
+      </div>
+    </div>
+
+    <!-- Setup Required state -->
+    <div id="media-setup">
+      <div class="card" style="margin-top: 20px;">
+        <div class="setup-required">
+          <div class="setup-icon-ring">
+            <i data-lucide="upload-cloud" width="28" height="28"></i>
+          </div>
+          <div class="setup-title">Macaulay Library Export Required</div>
+          <div class="setup-body">
+            The Media Life List loads automatically from your stored ML export.
+            You haven't saved one yet — here's how to get it.
+          </div>
+
+          <div class="setup-instructions">
+            <div class="setup-instructions-title">How to get your ML export</div>
+            <div class="setup-step">
+              <div class="setup-step-num">1</div>
+              <div>Go to <strong>macaulaylibrary.org</strong> → My Media</div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">2</div>
+              <div>Click <strong>Save Spreadsheet</strong> — do not rename the downloaded file</div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">3</div>
+              <div>Upload it in <strong>Settings → Default Files → ML Export</strong></div>
+            </div>
+            <div class="setup-step">
+              <div class="setup-step-num">4</div>
+              <div>This tab will load automatically on every visit from then on</div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary">
+            <i data-lucide="settings" width="15" height="15"></i>
+            Go to Settings
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ready with filename warning -->
+    <div id="media-warning" style="display:none;">
+      <div class="card" style="margin-top: 20px;">
+        <div class="toolbar">
+          <div class="toolbar-filename">
+            <i data-lucide="check-circle-2" width="12" height="12"></i>
+            My Birds 2026.csv
+          </div>
+        </div>
+
+        <!-- Proactive filename warning banner -->
+        <div style="padding: 14px 18px; border-bottom: 1px solid var(--border);">
+          <div class="key-notice" style="border-color: var(--warning-border);">
+            <i data-lucide="alert-triangle" width="16" height="16" class="key-notice-icon"></i>
+            <div class="key-notice-content">
+              <div class="key-notice-title">Personal media links unavailable</div>
+              <div class="key-notice-body">
+                Your ML export filename was renamed, so your user ID can't be detected.
+                Media count links will filter by species only, not filtered to your uploads.
+              </div>
+              <div class="key-notice-actions">
+                <div style="font-size: 12.5px; color: var(--fg);">
+                  Re-download from <strong>macaulaylibrary.org → My Media → Save Spreadsheet</strong> without renaming the file.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <div style="color: var(--muted-fg); font-size: 13px; text-align: center; padding: 20px 0;">
+            Media life list table renders here — data loaded and displayed normally.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ready (clean) -->
+    <div id="media-ready" style="display:none;">
+      <div class="card" style="margin-top: 20px;">
+        <div class="toolbar">
+          <div class="toolbar-filename">
+            <i data-lucide="check-circle-2" width="12" height="12"></i>
+            ML__20260115_USER1234567.csv
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="color: var(--muted-fg); font-size: 13px; text-align: center; padding: 20px 0;">
+            Media life list table renders here — no warnings, personal links fully functional.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       SPECIES DETAIL TAB — Setup Required state (same pattern)
+       ════════════════════════════════════════════════════════════ -->
+  <div id="tab-species" class="tab-content" style="display:none;">
+    <div class="card" style="margin-top: 20px;">
+      <div class="setup-required">
+        <div class="setup-icon-ring">
+          <i data-lucide="upload-cloud" width="28" height="28"></i>
+        </div>
+        <div class="setup-title">eBird Backup Required</div>
+        <div class="setup-body">
+          Species Detail loads automatically from your stored eBird backup.
+          Upload it once in Settings and this tab will always be ready.
+        </div>
+
+        <div class="setup-instructions">
+          <div class="setup-instructions-title">Where to upload</div>
+          <div class="setup-step">
+            <div class="setup-step-num">1</div>
+            <div>Get <code>MyEBirdData.csv</code> from <strong>ebird.org → My eBird → Download My Data</strong></div>
+          </div>
+          <div class="setup-step">
+            <div class="setup-step-num">2</div>
+            <div>Upload it in <strong>Settings → Default Files → eBird Backup</strong></div>
+          </div>
+          <div class="setup-step">
+            <div class="setup-step-num">3</div>
+            <div>This tab will load automatically on every visit</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary">
+          <i data-lucide="settings" width="15" height="15"></i>
+          Go to Settings
+        </button>
+      </div>
+    </div>
+
+    <div class="annotations">
+      <strong>Design notes — Species Detail setup state</strong>
+      <ul>
+        <li>Same SetupRequired component as Breeding Codes — identical icon, card, button (NFR-01)</li>
+        <li>Instructions condensed to 3 steps (no ML export mention — Species Detail only needs eBird backup)</li>
+        <li>"Load different file" button removed from all states (FR-12)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       LIST COMPARER TAB — "My List" / "Other List" + mode selector
+       ════════════════════════════════════════════════════════════ -->
+  <div id="tab-list" class="tab-content" style="display:none;">
+
+    <div class="scenario-bar">
+      <span class="scenario-label">State</span>
+      <div class="scenario-pills">
+        <button class="scenario-pill active" onclick="listScenario('upload-setup', this)">Stored file available — setup</button>
+        <button class="scenario-pill" onclick="listScenario('upload-mode', this)">Upload a file for My List</button>
+        <button class="scenario-pill" onclick="listScenario('no-stored', this)">No stored file</button>
+        <button class="scenario-pill" onclick="listScenario('results', this)">Results view</button>
+      </div>
+    </div>
+
+    <!-- Upload setup (default — stored file, "Use my list" mode) -->
+    <div id="list-upload-setup">
+      <div style="margin-top: 20px;">
+        <div class="comparer-grid">
+
+          <!-- List A — My List, "Use my list" selected -->
+          <div>
+            <div class="list-slot-label">
+              <span class="list-slot-label-name">My List</span>
+              <span class="badge-new">new</span>
+            </div>
+            <div class="mode-selector">
+              <button class="mode-btn active">
+                <i data-lucide="check-circle-2" width="14" height="14"></i>
+                Use my list
+              </button>
+              <button class="mode-btn" onclick="listScenario('upload-mode', document.querySelector('.scenario-pill'))">
+                <i data-lucide="upload" width="14" height="14"></i>
+                Upload a file
+              </button>
+            </div>
+            <div class="my-list-preview">
+              <div class="my-list-preview-icon">
+                <i data-lucide="file-check-2" width="20" height="20"></i>
+              </div>
+              <div class="my-list-preview-name">MyEBirdData.csv</div>
+              <div class="my-list-preview-meta">Stored eBird backup · 4,312 species</div>
+            </div>
+          </div>
+
+          <!-- List B — Other List -->
+          <div>
+            <div class="list-slot-label">
+              <span class="list-slot-label-name">Other List</span>
+              <span class="badge-new">new</span>
+            </div>
+            <div class="dropzone">
+              <div class="dropzone-icon">
+                <i data-lucide="upload-cloud" width="28" height="28"></i>
+              </div>
+              <div class="dropzone-text">
+                Drop <code style="font-size:12px; background:var(--border); padding:1px 5px; border-radius:3px;">MyEBirdData.csv</code> here,
+                or <span>click to browse</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparer-actions">
+          <button class="btn btn-primary" disabled style="opacity: 0.45; cursor: not-allowed;">
+            <i data-lucide="git-compare" width="15" height="15"></i>
+            Compare Lists
+          </button>
+        </div>
+      </div>
+
+      <div class="annotations">
+        <strong>Design notes — List Comparer setup (stored file available)</strong>
+        <ul>
+          <li>List A is relabelled "My List" and List B is "Other List" throughout (FR-13, FR-14)</li>
+          <li>"Use my list" mode is selected by default when a stored eBird backup is available (FR-15)</li>
+          <li>The stored file preview card reassures the user which file will be used — filename and approximate species count</li>
+          <li>List B always shows the DropZone regardless of Settings state (FR-19)</li>
+          <li>Compare button disabled until List B is loaded</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Upload mode for List A -->
+    <div id="list-upload-mode" style="display:none;">
+      <div style="margin-top: 20px;">
+        <div class="comparer-grid">
+
+          <!-- List A — Upload a file mode -->
+          <div>
+            <div class="list-slot-label">
+              <span class="list-slot-label-name">My List</span>
+            </div>
+            <div class="mode-selector">
+              <button class="mode-btn" onclick="listScenario('upload-setup', null)">
+                <i data-lucide="check-circle-2" width="14" height="14"></i>
+                Use my list
+              </button>
+              <button class="mode-btn active">
+                <i data-lucide="upload" width="14" height="14"></i>
+                Upload a file
+              </button>
+            </div>
+            <div class="dropzone">
+              <div class="dropzone-icon">
+                <i data-lucide="upload-cloud" width="28" height="28"></i>
+              </div>
+              <div class="dropzone-text">
+                Drop <code style="font-size:12px; background:var(--border); padding:1px 5px; border-radius:3px;">MyEBirdData.csv</code> here,
+                or <span>click to browse</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- List B -->
+          <div>
+            <div class="list-slot-label">
+              <span class="list-slot-label-name">Other List</span>
+            </div>
+            <div class="dropzone">
+              <div class="dropzone-icon">
+                <i data-lucide="upload-cloud" width="28" height="28"></i>
+              </div>
+              <div class="dropzone-text">
+                Drop <code style="font-size:12px; background:var(--border); padding:1px 5px; border-radius:3px;">MyEBirdData.csv</code> here,
+                or <span>click to browse</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparer-actions">
+          <button class="btn btn-primary" disabled style="opacity: 0.45; cursor: not-allowed;">
+            <i data-lucide="git-compare" width="15" height="15"></i>
+            Compare Lists
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- No stored file — only DropZone for List A -->
+    <div id="list-no-stored" style="display:none;">
+      <div style="margin-top: 20px;">
+        <div class="comparer-grid">
+
+          <!-- List A — no stored file, just DropZone -->
+          <div>
+            <div class="list-slot-label">
+              <span class="list-slot-label-name">My List</span>
+            </div>
+            <!-- No mode selector — no stored file -->
+            <div class="dropzone">
+              <div class="dropzone-icon">
+                <i data-lucide="upload-cloud" width="28" height="28"></i>
+              </div>
+              <div class="dropzone-text">
+                Drop <code style="font-size:12px; background:var(--border); padding:1px 5px; border-radius:3px;">MyEBirdData.csv</code> here,
+                or <span>click to browse</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- List B -->
+          <div>
+            <div class="list-slot-label">
+              <span class="list-slot-label-name">Other List</span>
+            </div>
+            <div class="dropzone">
+              <div class="dropzone-icon">
+                <i data-lucide="upload-cloud" width="28" height="28"></i>
+              </div>
+              <div class="dropzone-text">
+                Drop <code style="font-size:12px; background:var(--border); padding:1px 5px; border-radius:3px;">MyEBirdData.csv</code> here,
+                or <span>click to browse</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="comparer-actions">
+          <button class="btn btn-primary" disabled style="opacity: 0.45; cursor: not-allowed;">
+            <i data-lucide="git-compare" width="15" height="15"></i>
+            Compare Lists
+          </button>
+        </div>
+      </div>
+      <div class="annotations">
+        <strong>Design notes — No stored eBird backup</strong>
+        <ul>
+          <li>No mode selector is shown — only the DropZone for List A (FR-18)</li>
+          <li>List A is still labelled "My List" even without a stored file (FR-18)</li>
+          <li>Behaviour identical to the current List Comparer, just with the new label</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Results view -->
+    <div id="list-results" style="display:none;">
+      <div style="margin-top: 20px;">
+
+        <div class="results-summary">
+          <div class="results-summary-cell">
+            <div class="results-summary-value">4,312</div>
+            <div class="results-summary-label">My List</div>
+          </div>
+          <div class="results-summary-cell">
+            <div class="results-summary-value">387</div>
+            <div class="results-summary-label">Other List</div>
+          </div>
+          <div class="results-summary-cell">
+            <div class="results-summary-value green">362</div>
+            <div class="results-summary-label">In Both</div>
+          </div>
+          <div class="results-summary-cell">
+            <div class="results-summary-value">3,950</div>
+            <div class="results-summary-label">My List Only</div>
+          </div>
+          <div class="results-summary-cell">
+            <div class="results-summary-value">25</div>
+            <div class="results-summary-label">Other List Only</div>
+          </div>
+        </div>
+
+        <div class="results-panels">
+          <div class="results-panel">
+            <div class="results-panel-header">
+              <span class="results-panel-title">In Both</span>
+              <span class="results-panel-count">362</span>
+            </div>
+            <div class="results-panel-list">
+              <div class="results-panel-item">American Robin</div>
+              <div class="results-panel-item">Black-capped Chickadee</div>
+              <div class="results-panel-item">Blue Jay</div>
+              <div class="results-panel-item">Dark-eyed Junco</div>
+              <div class="results-panel-item">House Finch</div>
+              <div style="padding: 5px 14px; font-size: 12px; color: var(--muted-fg);">+ 357 more</div>
+            </div>
+          </div>
+
+          <div class="results-panel">
+            <div class="results-panel-header">
+              <span class="results-panel-title">My List Only</span>
+              <span class="results-panel-count">3,950</span>
+            </div>
+            <div class="results-panel-list">
+              <div class="results-panel-item">Acadian Flycatcher</div>
+              <div class="results-panel-item">Alder Flycatcher</div>
+              <div class="results-panel-item">Allen's Hummingbird</div>
+              <div class="results-panel-item">American Avocet</div>
+              <div class="results-panel-item">American Bittern</div>
+              <div style="padding: 5px 14px; font-size: 12px; color: var(--muted-fg);">+ 3,945 more</div>
+            </div>
+          </div>
+
+          <div class="results-panel">
+            <div class="results-panel-header">
+              <span class="results-panel-title">Other List Only</span>
+              <span class="results-panel-count">25</span>
+            </div>
+            <div class="results-panel-list">
+              <div class="results-panel-item">Bar-tailed Godwit</div>
+              <div class="results-panel-item">Brambling</div>
+              <div class="results-panel-item">Common Snipe</div>
+              <div class="results-panel-item">Eurasian Wigeon</div>
+              <div class="results-panel-item">Little Egret</div>
+              <div style="padding: 5px 14px; font-size: 12px; color: var(--muted-fg);">+ 20 more</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; margin-top: 20px;">
+          <button class="btn btn-outline">
+            <i data-lucide="refresh-cw" width="14" height="14"></i>
+            Compare new files
+          </button>
+        </div>
+      </div>
+
+      <div class="annotations">
+        <strong>Design notes — Results view labels</strong>
+        <ul>
+          <li>Panel headers are "In Both", "My List Only", "Other List Only" — no generic or unlabelled headers (FR-20)</li>
+          <li>Summary bar labels: "My List" and "Other List" (not "List A" / "List B")</li>
+          <li>No other changes to the results view — same layout, same logic</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       WEATHER TAB — API key notices
+       ════════════════════════════════════════════════════════════ -->
+  <div id="tab-weather" class="tab-content" style="display:none;">
+
+    <div class="scenario-bar">
+      <span class="scenario-label">State</span>
+      <div class="scenario-pills">
+        <button class="scenario-pill active" onclick="weatherScenario('both', this)">Both keys missing</button>
+        <button class="scenario-pill" onclick="weatherScenario('ebird', this)">eBird key only</button>
+        <button class="scenario-pill" onclick="weatherScenario('openweather', this)">OpenWeather key only</button>
+        <button class="scenario-pill" onclick="weatherScenario('ok', this)">Both configured</button>
+      </div>
+    </div>
+
+    <div class="weather-section" style="margin-top: 24px;">
+
+      <!-- Key notices — both missing -->
+      <div id="weather-both" class="key-notices">
+        <div class="key-notice">
+          <i data-lucide="alert-triangle" width="16" height="16" class="key-notice-icon"></i>
+          <div class="key-notice-content">
+            <div class="key-notice-title">eBird API key not configured</div>
+            <div class="key-notice-body">
+              Checklist lookups require an eBird API key. Without it, no checklist data can be fetched.
+            </div>
+            <div class="key-notice-path">Settings → API Keys → eBird API Key</div>
+            <div class="key-notice-actions">
+              <button class="btn btn-primary btn-sm">
+                <i data-lucide="settings" width="13" height="13"></i>
+                Go to Settings
+              </button>
+              <a href="#" class="key-link">
+                Get a key at ebird.org
+                <i data-lucide="external-link" width="11" height="11"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div class="key-notice">
+          <i data-lucide="alert-triangle" width="16" height="16" class="key-notice-icon"></i>
+          <div class="key-notice-content">
+            <div class="key-notice-title">OpenWeather API key not configured</div>
+            <div class="key-notice-body">
+              Historical weather data requires an OpenWeather API key with the "One Call by Call" subscription (first 1,000 calls/day free).
+            </div>
+            <div class="key-notice-path">Settings → API Keys → OpenWeather API Key</div>
+            <div class="key-notice-actions">
+              <button class="btn btn-primary btn-sm">
+                <i data-lucide="settings" width="13" height="13"></i>
+                Go to Settings
+              </button>
+              <a href="#" class="key-link">
+                Get a key at openweathermap.org
+                <i data-lucide="external-link" width="11" height="11"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key notice — eBird only -->
+      <div id="weather-ebird" class="key-notices" style="display:none;">
+        <div class="key-notice">
+          <i data-lucide="alert-triangle" width="16" height="16" class="key-notice-icon"></i>
+          <div class="key-notice-content">
+            <div class="key-notice-title">eBird API key not configured</div>
+            <div class="key-notice-body">
+              Checklist lookups require an eBird API key. Without it, no checklist data can be fetched.
+            </div>
+            <div class="key-notice-path">Settings → API Keys → eBird API Key</div>
+            <div class="key-notice-actions">
+              <button class="btn btn-primary btn-sm">
+                <i data-lucide="settings" width="13" height="13"></i>
+                Go to Settings
+              </button>
+              <a href="#" class="key-link">
+                Get a key at ebird.org
+                <i data-lucide="external-link" width="11" height="11"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key notice — OpenWeather only -->
+      <div id="weather-openweather" class="key-notices" style="display:none;">
+        <div class="key-notice">
+          <i data-lucide="alert-triangle" width="16" height="16" class="key-notice-icon"></i>
+          <div class="key-notice-content">
+            <div class="key-notice-title">OpenWeather API key not configured</div>
+            <div class="key-notice-body">
+              Historical weather data requires an OpenWeather API key with the "One Call by Call" subscription (first 1,000 calls/day free).
+            </div>
+            <div class="key-notice-path">Settings → API Keys → OpenWeather API Key</div>
+            <div class="key-notice-actions">
+              <button class="btn btn-primary btn-sm">
+                <i data-lucide="settings" width="13" height="13"></i>
+                Go to Settings
+              </button>
+              <a href="#" class="key-link">
+                Get a key at openweathermap.org
+                <i data-lucide="external-link" width="11" height="11"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input — always visible regardless of key state -->
+      <div>
+        <label class="input-label" for="checklist-input">eBird Checklist ID or URL</label>
+        <div class="input-row">
+          <input id="checklist-input" type="text" class="input-text" placeholder="S334315671 or full eBird URL">
+          <button class="btn btn-primary">
+            <i data-lucide="cloud-sun" width="15" height="15"></i>
+            Get Weather
+          </button>
+        </div>
+        <div class="input-helper">Paste a checklist ID like S334315671 or the full ebird.org URL</div>
+      </div>
+    </div>
+
+    <div class="annotations">
+      <strong>Design notes — Weather tab API key notices</strong>
+      <ul>
+        <li>Both notices can appear simultaneously when both keys are missing (FR-24)</li>
+        <li>Checklist ID input and "Get Weather" button remain visible and usable in all states (FR-25)</li>
+        <li>Each notice: which key, Settings path in monospace, "Go to Settings" button, and external link to obtain the key (FR-22, FR-23)</li>
+        <li>Notice uses orange/amber tone (warning-bg/border) to distinguish from errors — these are guidance states, not failures</li>
+        <li>"Go to Settings" consistent with other setup guidance across tabs (Q-02 resolved: yes, include the button)</li>
+        <li>Notices disappear once keys are configured — no page reload required (state updates when Settings tab saves a key)</li>
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+  // Init Lucide icons
+  lucide.createIcons();
+
+  // Tab switching
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).style.display = 'block';
+    if (el) el.classList.add('active');
+    lucide.createIcons();
+  }
+
+  // Show initial tab
+  document.getElementById('tab-breeding').style.display = 'block';
+
+  // Breeding scenarios
+  function breedingScenario(state, el) {
+    document.querySelectorAll('[id^="breeding-"]').forEach(e => e.style.display = 'none');
+    document.getElementById('breeding-' + state).style.display = 'block';
+    document.querySelectorAll('#tab-breeding .scenario-pill').forEach(p => p.classList.remove('active'));
+    if (el) el.classList.add('active');
+    lucide.createIcons();
+  }
+
+  // Media scenarios
+  function mediaScenario(state, el) {
+    document.querySelectorAll('[id^="media-"]').forEach(e => e.style.display = 'none');
+    document.getElementById('media-' + state).style.display = 'block';
+    document.querySelectorAll('#tab-media .scenario-pill').forEach(p => p.classList.remove('active'));
+    if (el) el.classList.add('active');
+    lucide.createIcons();
+  }
+
+  // List scenarios
+  function listScenario(state, el) {
+    document.querySelectorAll('[id^="list-"]').forEach(e => e.style.display = 'none');
+    document.getElementById('list-' + state).style.display = 'block';
+    document.querySelectorAll('#tab-list .scenario-pill').forEach(p => p.classList.remove('active'));
+    // Find the right pill
+    document.querySelectorAll('#tab-list .scenario-pill').forEach(p => {
+      const map = {
+        'upload-setup': 0, 'upload-mode': 1, 'no-stored': 2, 'results': 3
+      };
+      if (p.textContent.includes('Stored') && state === 'upload-setup') p.classList.add('active');
+      if (p.textContent.includes('Upload a file') && state === 'upload-mode') p.classList.add('active');
+      if (p.textContent.includes('No stored') && state === 'no-stored') p.classList.add('active');
+      if (p.textContent.includes('Results') && state === 'results') p.classList.add('active');
+    });
+    lucide.createIcons();
+  }
+
+  // Weather scenarios
+  function weatherScenario(state, el) {
+    ['both','ebird','openweather'].forEach(id => {
+      const el = document.getElementById('weather-' + id);
+      if (el) el.style.display = 'none';
+    });
+    if (state !== 'ok') {
+      const target = document.getElementById('weather-' + state);
+      if (target) target.style.display = 'flex';
+    }
+    document.querySelectorAll('#tab-weather .scenario-pill').forEach(p => p.classList.remove('active'));
+    if (el) el.classList.add('active');
+    lucide.createIcons();
+  }
+
+  // Fix: key-notices display
+  document.querySelectorAll('.key-notices').forEach(el => {
+    if (el.style.display !== 'none') el.style.display = 'flex';
+    el.style.flexDirection = 'column';
+  });
+</script>
+</body>
+</html>

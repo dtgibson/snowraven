@@ -1,41 +1,75 @@
-# Session Handoff — Tab Order & Visibility Settings (v0.1.15)
+# Handoff — Desktop App Foundation Phase 1
 
-**Feature complete.** Both sessions ran to completion.
+**Status:** Complete — both sessions finished, all stages approved, context updated.
 
 ---
 
-## What was built
+## What Was Built
 
-Users can now reorder and hide tabs from the Settings panel. Preferences persist per-browser in localStorage with no server involvement. The Settings tab is always fixed last and cannot be hidden. At least one tab must remain visible at all times — hiding the active tab auto-switches to the next visible one.
+A pure TypeScript port of `backend/formatters/weather.py` with a 61-test golden suite proving byte-for-byte output equivalence with the Python implementation.
 
-## Artifacts and files produced
+This is the first milestone toward a fully standalone Tauri desktop app. When Phase 6 ships (backend decommission), `weatherFormatter.ts` will become the production formatter. Until then it runs dormant in the codebase, validated by CI on every push.
 
-**Session 1 (planning):**
-- `pipeline/tab-order-settings/strategic-brief.md`
-- `pipeline/tab-order-settings/prd.md`
-- `pipeline/tab-order-settings/schema.md`
-- `pipeline/tab-order-settings/design-spec.md`
-- `pipeline/tab-order-settings/design.html`
+---
 
-**Session 2 (implementation):**
-- `frontend/src/lib/tabLayout.ts` — core utility (load, save, clear, types, defaults)
-- `frontend/src/lib/tabLayout.test.ts` — 12 unit tests, all passing
-- `frontend/src/App.tsx` — tab bar made dynamic; lazy state initialization; callbacks wired
-- `frontend/src/components/Settings.tsx` — TabLayoutSection sub-component added
+## All Artifacts and Files
 
-**Context updates:**
-- `PRODUCT_CONTEXT.md` — Tab Order & Visibility Settings section added
-- `DECISIONS.md` — localStorage rationale and lazy-initializer pattern recorded
-- `CHANGELOG.md` — v0.1.15 entry added
+**Session 1 — Planning artifacts:**
+- `pipeline/desktop-app-phase-1/strategic-brief.md`
+- `pipeline/desktop-app-phase-1/prd.md`
+- `pipeline/desktop-app-phase-1/schema.md`
+- `pipeline/desktop-app-phase-1/design-spec.md`
+- `pipeline/desktop-app-phase-1/design.html`
 
-## Deployment
+**Session 2 — Code delivered:**
+- `frontend/src/lib/weatherFormatter.ts` — TypeScript formatter (HourlyResponse interface + 6 exported functions)
+- `frontend/src/lib/weatherFormatter.test.ts` — 61 golden tests
+- `frontend/src/lib/weatherFormatter.golden.py` — inlined Python reference for fixture generation
 
-- **Version:** v0.1.15
-- **Release:** https://github.com/dtgibson/snowraven/releases/tag/v0.1.15
-- **CI:** All tests green (161/161); TypeScript clean; pushed to main
+**Version bump:** 0.2.0 → 0.3.0 (minor; Phase 1 milestone)
+- `frontend/package.json`
+- `src-tauri/tauri.conf.json`
+- `CHANGELOG.md`
 
-## Status
+**Context updated:**
+- `PRODUCT_CONTEXT.md` — Phase 1 section added
+- `ROADMAP.md` — Shipped count 32 → 33, Last shipped updated, Phase 0 moved to Previously
 
-Feature is complete. No follow-up items.
+---
 
-To start a new feature: `/new-feature`
+## Key Behavioral Rules (enforced by test suite)
+
+- `bankersRound()` matches Python's round-half-to-even: 22.5 → 0 (index 0 = "N")
+- 8 cardinal directions only: N NE E SE S SW W NW
+- Wind descriptions sorted by Beaufort order (ascending), deduplicated
+- Wind directions preserve insertion order (not sorted), deduplicated
+- `capitalize()` = lowercase all + uppercase first char (Python str.capitalize())
+- `formatLocalTime` uses Intl.DateTimeFormat — no leading zero on hour
+
+---
+
+## NFR Constraints (remain in effect for all future phases)
+
+- NFR-01: No Node.js-only imports — weatherFormatter.ts must run in both browser and Tauri
+- NFR-02: No new npm packages — zero dependencies added
+
+---
+
+## Phase Roadmap (unchanged)
+
+- **Phase 1** complete (this session) — TypeScript weather formatter + golden tests
+- Phase 2: TauriStorage → OS keychain (Mac Keychain / Windows Credential Manager)
+- Phase 3: TauriTransport → direct external API calls (set CSP before this ships)
+- Phase 4: TauriStorage → app data directory; IndexedDB for taxonomy cache
+- Phase 5: Tauri updater plugin; in-app auto-update
+- Phase 6: Backend decommission; fully standalone distribution
+
+---
+
+## Starting the Next Feature
+
+Run `/new-feature` to begin. The ROADMAP.md Up Next section shows:
+1. Mobile app — native iOS/Android with the full feature set
+2. Accessibility, clarity, and simplification
+
+Session state is clear — no active feature.
