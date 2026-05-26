@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.8] - 2026-05-26
+
+### Fixed
+- Changed bundle identifier from `com.snowraven.app` to `com.snowraven` to avoid macOS conflict with the `.app` bundle extension.
+
 ## [0.3.7] - 2026-05-25
 
 ### Changed
