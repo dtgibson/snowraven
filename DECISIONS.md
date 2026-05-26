@@ -4,6 +4,18 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Desktop app bug post-mortem: tauri-plugin-fs settings storage silently failed — 2026-05-26
+
+**Decision:** `TauriStorage.getApiKey` / `setApiKey` / `deleteApiKey` and `getSetting` / `setSetting` / `deleteSetting` now use `localStorage` instead of `tauri-plugin-fs`. Large file data (CSV uploads, metadata) continues to use `tauri-plugin-fs` with `BaseDirectory.AppLocalData`.
+
+**What broke:** Phase 4 shipped `tauri-plugin-fs`-based JSON settings in `AppLocalData/settings/`. In production, `setSetting` appeared to succeed (no JS exception, UI updated immediately) but nothing was written to disk. `getSetting` then returned null on the next read or app launch. API keys were lost on every relaunch; live key saves weren't reflected in other tabs. The root cause was never surfaced because the `getSetting` catch block swallowed all errors and returned null.
+
+**What fixed it:** Replaced all three settings methods with synchronous `localStorage` calls (`sr-api-key-*`, `sr-setting-*` key prefixes). localStorage is reliable in Tauri's WebKit WebView, requires no permissions or plugin registration, and persists correctly across app launches and bundle replacements (the WebKit data store is not cleared by the Tauri updater).
+
+**Implications:** `TauriStorage.getSetting` / `setSetting` / `deleteSetting` use localStorage. Do not revert to tauri-plugin-fs for JSON settings — the silent failure is difficult to diagnose and was reproduced across multiple versions. `tauri-plugin-fs` remains in use for actual file content (CSV data, metadata.json) where localStorage is inappropriate. The `SETTINGS_DIR` constant was removed from `storage.ts`; `DATA_DIR` and `META_PATH` remain.
+
+---
+
 ## Desktop app: two-seam architecture and phased migration — 2026-05-25 (completed 2026-05-25)
 
 **Decision:** The desktop app is built around two permanent seams — transport (outbound HTTP via `TransportAdapter`) and storage (keys/settings/files via `StorageAdapter`). Phase 0 ships both seams with delegation-to-Web implementations; the backend is still required. Phases 1–6 migrate each capability to native Tauri implementations over future sessions.
@@ -534,6 +546,8 @@ For sync-only state updates, the same wrapper works: `const run = async () => { 
 **Rationale:** `.env` is for secrets (API keys). Map coordinates are not sensitive and shouldn't be mixed with credential storage. `localStorage` would be per-browser and would not survive clearing browser data or using a different browser. The `data/` fixed-filename pattern (established by `ebird-backup.csv`, `ml-export.csv`, `metadata.json`) keeps all persistent user data server-side in one place, consistent and backup-friendly.
 
 **Implications:** `GET /settings/map-defaults` returns 404 when no defaults are saved (file absent), not `null` in a 200 body — consistent with the existing file endpoint pattern. The 404 is the canonical signal for "no defaults stored." Do not change this to a 200 with null. MapExplorer and Settings both handle 404 as a no-op (leave inputs blank).
+
+**Desktop correction (v0.3.12):** In the Tauri desktop app, map defaults are stored in `localStorage` under `sr-setting-map-defaults` via `storage.setSetting()` / `storage.getSetting()` in `TauriStorage`. The file-based rationale above applies to the web/Pi runtime only. `tauri-plugin-fs` proved unreliable for JSON settings (writes failed silently), so all `TauriStorage.getSetting` / `setSetting` calls now use localStorage instead.
 
 ## Tab Filters: 3-tier county resolution for ML export — 2026-05-20
 

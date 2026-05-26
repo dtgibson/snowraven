@@ -78,6 +78,13 @@ Two permanent architectural seams route all platform-sensitive operations. Use t
 - **Storage:** `storage.getApiKey()` / `storage.getSetting()` / etc. from `frontend/src/lib/storage.ts` — for all key, setting, and file access. Do not call `/settings/*` endpoints directly from new components.
 - **Platform detection:** `isTauri()` from `frontend/src/lib/platform.ts` — single source of truth for branching on Tauri vs. web. Do not check `window.__TAURI_INTERNALS__` elsewhere.
 
+### Desktop storage split (Tauri)
+
+`TauriStorage` in `storage.ts` uses two mechanisms — do not conflate them:
+
+- **API keys and JSON settings** (`getApiKey`, `setApiKey`, `deleteApiKey`, `getSetting`, `setSetting`, `deleteSetting`): use `localStorage` with key prefixes `sr-api-key-*` and `sr-setting-*`. localStorage is reliable in Tauri's WebKit WebView and requires no permissions or plugin calls. `tauri-plugin-fs` was tried for this purpose and failed silently in production — do not revert.
+- **Large file data** (`readFile`, `writeFile`, `deleteFile`, `getFilesStatus`): use `tauri-plugin-fs` with `BaseDirectory.AppLocalData`. This is correct for CSV data that cannot go in localStorage due to size.
+
 Desktop development (requires Rust + `@tauri-apps/cli`):
 ```
 npm run desktop:dev    # Tauri dev mode
