@@ -103,6 +103,7 @@ interface LocationGroup {
 interface MapExplorerProps {
   onGoToSettings: () => void
   onNavigateToMediaList: () => void
+  keysVersion?: number
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -582,7 +583,7 @@ function DefaultCenterSetter({ center, onDone }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplorerProps) {
+export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion }: MapExplorerProps) {
   const [phase, setPhase] = useState<MapPhase>({ tag: 'loading-saved' })
   const [viewMode, setViewMode] = useState<ViewMode>('sightings')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('pins')
@@ -634,12 +635,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
   const [speciesCodeMap, setSpeciesCodeMap] = useState<Record<string, string>>({})
   const [hasEbirdKey, setHasEbirdKey]       = useState<boolean | null>(null)
 
-  // Load eBird key status on mount
+  // Load eBird key status — re-runs when a key is saved in Settings
   useEffect(() => {
     storage.getApiKey('ebird')
       .then(key => setHasEbirdKey(key !== null))
       .catch(() => setHasEbirdKey(false))
-  }, [])
+  }, [keysVersion])
 
   // Pre-fill lat/lng/radius from saved map defaults on mount; pan map to saved location
   useEffect(() => {
@@ -911,11 +912,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
       setHiddenKinds(new Set())
       setHotspotPins(pins); setLegendVisible(true)
     } catch (err) {
-      const status = err instanceof TransportError ? err.status : undefined
-      const detail = err instanceof TransportError ? err.detail : undefined
-      setHotspotsError(status === 401
+      const e = err as { status?: number; detail?: string }
+      const errStatus = err instanceof TransportError ? err.status : e.status
+      const errDetail = err instanceof TransportError ? err.detail : (e.detail ?? (err instanceof Error ? err.message : undefined))
+      setHotspotsError(errStatus === 401
         ? 'eBird API key not configured. Add it in Settings.'
-        : (detail ?? 'Failed to fetch hotspots.'))
+        : (errDetail ?? 'Failed to fetch hotspots.'))
     } finally {
       setHotspotsLoading(false)
     }
@@ -956,11 +958,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList }: MapExplor
       })
       setTargetPins(pins)
     } catch (err) {
-      const status = err instanceof TransportError ? err.status : undefined
-      const detail = err instanceof TransportError ? err.detail : undefined
-      setTargetsError(status === 401
+      const e = err as { status?: number; detail?: string }
+      const errStatus = err instanceof TransportError ? err.status : e.status
+      const errDetail = err instanceof TransportError ? err.detail : (e.detail ?? (err instanceof Error ? err.message : undefined))
+      setTargetsError(errStatus === 401
         ? 'eBird API key not configured. Add it in Settings.'
-        : (detail ?? 'Failed to fetch recent sightings.'))
+        : (errDetail ?? 'Failed to fetch recent sightings.'))
     } finally {
       setTargetsLoading(false)
     }

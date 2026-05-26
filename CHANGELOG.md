@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.11] - 2026-05-26
+
+### Fixed
+- **Map hotspot/sightings key check not live** — Map Explorer read `hasEbirdKey` once at mount and never updated it after a key was saved in Settings, leaving the search button disabled until relaunch. Now re-reads when `keysVersion` increments (same pattern as `filesVersion` for files).
+- **"Failed to fetch hotspots" masked real error** — Map service throws plain `Error` objects with `status`/`detail` properties, but the catch blocks in Map Explorer checked `instanceof TransportError`, which always failed. Real errors (403, network failure, missing key) were all silently replaced with the generic fallback message. Catch blocks now read `status` and `detail` from the error regardless of type, so users see the actual failure reason.
+
 ## [0.3.10] - 2026-05-26
 
 ### Fixed

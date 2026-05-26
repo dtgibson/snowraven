@@ -87,6 +87,7 @@ export default function App() {
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
   const [filesVersion, setFilesVersion] = useState(0)
+  const [keysVersion, setKeysVersion] = useState(0)
   const [mediaListFilter, setMediaListFilter] = useState<'is-target' | undefined>(undefined)
 
   const handleFilesSaved = useCallback(() => setFilesVersion(v => v + 1), [])
@@ -140,6 +141,7 @@ export default function App() {
         storage.getApiKey('openweather'),
       ])
       setKeyStatus({ ebird, openweather })
+      setKeysVersion(v => v + 1)
     } catch {
       // silently fail — notices just won't appear
     }
@@ -645,7 +647,7 @@ export default function App() {
           overflow: 'hidden',
         }}
       >
-        <MapExplorer onGoToSettings={() => setActiveTab('settings')} onNavigateToMediaList={navigateToMediaList} />
+        <MapExplorer onGoToSettings={() => setActiveTab('settings')} onNavigateToMediaList={navigateToMediaList} keysVersion={keysVersion} />
       </div>
 
       {/* Statistics tab content */}
