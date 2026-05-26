@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "SnowRaven",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "identifier": "com.snowraven.app",
   "build": {
     "frontendDist": "../frontend/dist",
@@ -19,6 +19,14 @@
     ],
     "security": {
       "csp": null
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY2MzYzM0JGQjYzMENGOApSV1Q0REdQN08yTmpCdkpLNS9GQjZFajB5ZmF1TFVTY254SExKVEU5cWhtSW1iVW4xdyswU2ZaVgo=",
+      "endpoints": [
+        "https://github.com/dtgibson/snowraven/releases/latest/download/latest.json"
+      ]
     }
   },
   "bundle": {

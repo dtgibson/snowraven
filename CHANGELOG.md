@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.4] - 2026-05-25
+
+### Added
+- **In-app updater** (Desktop App Phase 5) -- In Tauri mode, "Check For Updates" now uses `tauri-plugin-updater` to detect, download, and install updates directly within the app. Progress is shown as a percentage while downloading. After install, the app prompts to relaunch to apply the update. Fallback to the existing GitHub API version check on error.
+- **Tauri release CI** (`.github/workflows/tauri-release.yml`) -- New workflow triggered on GitHub release publication. Builds and signs the macOS desktop app binary, generates `latest.json` (the Tauri updater manifest), and uploads both as release assets. Uses `TAURI_SIGNING_PRIVATE_KEY` secret for minisign binary signing; Apple notarization secrets are optional slots.
+- **Ed25519 minisign keypair** -- Generated for binary update signing. Public key stored in `tauri.conf.json`. Private key (base64) must be set as the `TAURI_SIGNING_PRIVATE_KEY` GitHub Actions secret; local copy at `~/.tauri/snowraven-signing.key`.
+- **`updateManager.ts`** (`frontend/src/lib/tauri/updateManager.ts`) -- Wraps `@tauri-apps/plugin-updater`: `checkForUpdate()` returns structured result (up-to-date / available / error); `downloadAndInstall()` streams download progress.
+- **`@tauri-apps/plugin-updater`** -- Added to frontend dependencies. Registered in `lib.rs` as `tauri_plugin_updater::Builder::new().build()`. Permission `updater:default` added to `capabilities/default.json`.
+
+### Changed
+- **Update available UI** -- Desktop app now shows "Install update" button (triggers in-app download + install) instead of "run ./update.sh". Web/Pi mode still shows the shell script instruction. New footer states: `downloading` (with % progress) and `ready-to-restart`.
+
 ## [0.3.3] - 2026-05-25
 
 ### Added

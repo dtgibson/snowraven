@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2 } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { storage } from './lib/storage'
+import { isTauri } from './lib/platform'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
@@ -31,6 +32,8 @@ type UpdateStatus =
   | { kind: 'checking' }
   | { kind: 'up-to-date'; current: string }
   | { kind: 'available'; latest: string }
+  | { kind: 'downloading'; progress: number | null }
+  | { kind: 'ready-to-restart' }
   | { kind: 'error' }
 
 function extractChecklistId(raw: string): string {
@@ -204,23 +207,51 @@ export default function App() {
   }
 
   const handleUpdateCheck = useCallback(async () => {
-    if (updateStatus.kind === 'checking') return
+    if (updateStatus.kind === 'checking' || updateStatus.kind === 'downloading') return
     if (updateTimerRef.current) clearTimeout(updateTimerRef.current)
     setUpdateStatus({ kind: 'checking' })
     try {
-      const data = await transport.get<{ current: string; latest: string; up_to_date: boolean }>('/version/check')
-      if (data.up_to_date) {
-        setUpdateStatus({ kind: 'up-to-date', current: data.current })
-        updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
+      if (isTauri()) {
+        const { checkForUpdate } = await import('./lib/tauri/updateManager')
+        const result = await checkForUpdate()
+        if (result.status === 'up-to-date') {
+          setUpdateStatus({ kind: 'up-to-date', current: result.current })
+          updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
+        } else if (result.status === 'available') {
+          setUpdateStatus({ kind: 'available', latest: result.latest })
+        } else {
+          setUpdateStatus({ kind: 'error' })
+          updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
+        }
       } else {
-        setUpdateStatus({ kind: 'available', latest: data.latest })
-        updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 8000)
+        const data = await transport.get<{ current: string; latest: string; up_to_date: boolean }>('/version/check')
+        if (data.up_to_date) {
+          setUpdateStatus({ kind: 'up-to-date', current: data.current })
+          updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
+        } else {
+          setUpdateStatus({ kind: 'available', latest: data.latest })
+          updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 8000)
+        }
       }
     } catch {
       setUpdateStatus({ kind: 'error' })
       updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
     }
   }, [updateStatus.kind])
+
+  const handleInstallUpdate = useCallback(async () => {
+    setUpdateStatus({ kind: 'downloading', progress: null })
+    try {
+      const { downloadAndInstall } = await import('./lib/tauri/updateManager')
+      await downloadAndInstall(({ downloaded, total }) => {
+        setUpdateStatus({ kind: 'downloading', progress: total ? downloaded / total : null })
+      })
+      setUpdateStatus({ kind: 'ready-to-restart' })
+    } catch {
+      setUpdateStatus({ kind: 'error' })
+      updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
+    }
+  }, [])
 
   const isLoading = state.status === 'loading'
   const hasError = state.status === 'error'
@@ -684,10 +715,37 @@ export default function App() {
           <span style={{ color: 'var(--sr-accent)' }}>Up to date (v{updateStatus.current})</span>
         )}
         {updateStatus.kind === 'available' && (
-          <span style={{ color: 'var(--sr-warning)' }}>
-            v{updateStatus.latest} available — run{' '}
-            <code style={{ fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace' }}>./update.sh</code>
+          isTauri() ? (
+            <span style={{ color: 'var(--sr-warning)' }}>
+              v{updateStatus.latest} available —{' '}
+              <button
+                onClick={handleInstallUpdate}
+                style={{
+                  background: 'none', border: 'none', padding: 0, font: 'inherit',
+                  color: 'var(--sr-warning)', cursor: 'pointer', fontWeight: 600,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+              >
+                Install update
+              </button>
+            </span>
+          ) : (
+            <span style={{ color: 'var(--sr-warning)' }}>
+              v{updateStatus.latest} available — run{' '}
+              <code style={{ fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace' }}>./update.sh</code>
+            </span>
+          )
+        )}
+        {updateStatus.kind === 'downloading' && (
+          <span style={{ color: 'var(--sr-text-muted)' }}>
+            {updateStatus.progress !== null
+              ? `Downloading… ${Math.round(updateStatus.progress * 100)}%`
+              : 'Downloading update…'}
           </span>
+        )}
+        {updateStatus.kind === 'ready-to-restart' && (
+          <span style={{ color: 'var(--sr-accent)' }}>Update installed — relaunch SnowRaven to apply</span>
         )}
         {updateStatus.kind === 'error' && (
           <span style={{ color: 'var(--sr-error)' }}>Could not check for updates</span>

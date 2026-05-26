@@ -102,7 +102,7 @@ An interactive map with three view modes: My Sightings (your personal recent obs
 
 The Settings tab lets you configure API keys, save default files, set a default location, and customize the tab layout so everything loads automatically each session.
 
-**API keys:** Enter your eBird and OpenWeather API keys directly in the app. Keys are saved to the server's `.env` file and take effect immediately -- no restart needed. Saved keys are masked by default with a Show/Hide toggle.
+**API keys:** Enter your eBird and OpenWeather API keys directly in the app. In the desktop app, keys are stored securely in your system keychain. In web/Pi mode, keys are saved to the server's `.env` file. Changes take effect immediately -- no restart needed. Saved keys are masked by default with a Show/Hide toggle.
 
 **Default files:** Upload your eBird backup CSV and Macaulay Library export once and they load automatically whenever you open the Breeding Codes, Media List, Species Detail, Statistics, or Life List Comparer tabs.
 
@@ -292,9 +292,9 @@ python -m pytest tests/ -v
 
 ### Desktop app (Tauri)
 
-The repo includes a Tauri v2 project at `src-tauri/` for building the Mac and Windows standalone app. Phase 0 establishes the Tauri project structure alongside the web app; the desktop app still requires the backend during this phase.
+The repo includes a Tauri v2 project at `src-tauri/` for building the Mac and Windows standalone app. The desktop app is fully self-contained -- no Python backend or server is required. API keys are stored in the OS keychain. Data files and settings are stored in the app data directory. All external API calls (eBird, OpenWeather, Nominatim) are made directly from the app. In-app updates are available from the app footer.
 
-Prerequisites: [Rust](https://rustup.rs/) and the Tauri CLI (`npm install -g @tauri-apps/cli@next`).
+Prerequisites: [Rust](https://rustup.rs/) and the Tauri CLI (`npm install -g @tauri-apps/cli`).
 
 ```bash
 # Run the desktop app in development mode (starts Tauri + Vite dev server)

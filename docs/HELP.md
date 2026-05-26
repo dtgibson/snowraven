@@ -247,11 +247,11 @@ Set your color scheme: System (follows your operating system preference), Light,
 
 ### API Keys
 
-Enter and manage your eBird and OpenWeather API keys. Keys are saved to the server's .env file and take effect immediately -- no restart needed. Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.
+Enter and manage your eBird and OpenWeather API keys. Keys are saved securely -- in the desktop app, they are stored in your system keychain (macOS Keychain, Windows Credential Manager); in web/Pi mode, they are saved to the server's .env file. Changes take effect immediately without a restart. Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.
 
 ### Default Files
 
-Upload your eBird backup CSV and Macaulay Library export. Each file is stored on the server and loads automatically when you open the relevant tab. Use Upload new to replace a stored file, or Clear to remove it.
+Upload your eBird backup CSV and Macaulay Library export. Each file is stored for you -- in the desktop app, in the local app data directory; in web/Pi mode, on the server. Files load automatically when you open the relevant tab. Use Upload new to replace a stored file, or Clear to remove it.
 
 ### Default Location
 
