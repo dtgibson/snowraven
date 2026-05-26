@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.15] - 2026-05-26
+
+### Fixed
+- **API keys wiped on every update and relaunch** — The root cause: Tauri v2's WKWebView uses an ephemeral localStorage that does not survive app relaunches or updates. API key storage now uses the macOS system keychain via `invoke('get_api_key' / 'set_api_key' / 'delete_api_key')` — the Rust `keyring` commands were already implemented in v0.3.12 Phase 2 but were never wired to the TypeScript storage layer. Settings (map center, zoom, etc.) are now stored in `data/settings.json` via `tauri-plugin-fs` with `BaseDirectory.AppLocalData`, the same mechanism that correctly persists CSV files across updates.
+
 ## [0.3.14] - 2026-05-26
 
 ### Fixed

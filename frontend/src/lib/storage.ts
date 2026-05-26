@@ -86,46 +86,70 @@ class WebStorage implements StorageAdapter {
 
 const DATA_DIR = 'data';
 const META_PATH = `${DATA_DIR}/metadata.json`;
+const SETTINGS_PATH = `${DATA_DIR}/settings.json`;
 const FILE_PATHS: Record<'ebird' | 'ml', string> = {
   ebird: `${DATA_DIR}/ebird-backup.csv`,
   ml: `${DATA_DIR}/ml-export.csv`,
 };
 
-// API keys and settings use localStorage (reliable in Tauri WebViews, no permissions needed,
-// persists across launches and app updates). Large file data uses tauri-plugin-fs.
+// API keys: macOS system keychain via Rust keyring commands (invoke).
+// Settings and file data: tauri-plugin-fs with AppLocalData.
+// Both survive app updates. localStorage is NOT used — it is ephemeral in Tauri's WKWebView.
 class TauriStorage implements StorageAdapter {
-  private web = new WebStorage();
-
   async getApiKey(service: 'ebird' | 'openweather'): Promise<string | null> {
-    const value = localStorage.getItem(`sr-api-key-${service}`);
-    return value && value.length > 0 ? value : null;
-  }
-
-  async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
-    localStorage.setItem(`sr-api-key-${service}`, value);
-    this.web.setApiKey(service, value).catch(() => {});
-  }
-
-  async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
-    localStorage.removeItem(`sr-api-key-${service}`);
-    this.web.deleteApiKey(service).catch(() => {});
-  }
-
-  async getSetting<T>(key: string): Promise<T | null> {
+    const { invoke } = await import('@tauri-apps/api/core');
     try {
-      const raw = localStorage.getItem(`sr-setting-${key}`);
-      return raw ? JSON.parse(raw) as T : null;
+      const value = await invoke<string | null>('get_api_key', { service });
+      return value && value.length > 0 ? value : null;
     } catch {
       return null;
     }
   }
 
+  async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('set_api_key', { service, value });
+  }
+
+  async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
+    const { invoke } = await import('@tauri-apps/api/core');
+    try {
+      await invoke('delete_api_key', { service });
+    } catch { /* best-effort — entry may not exist */ }
+  }
+
+  private async readSettings(): Promise<Record<string, unknown>> {
+    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    try {
+      if (!await exists(SETTINGS_PATH, { baseDir: BaseDirectory.AppLocalData })) return {};
+      return JSON.parse(await readTextFile(SETTINGS_PATH, { baseDir: BaseDirectory.AppLocalData })) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+
+  private async writeSettings(settings: Record<string, unknown>): Promise<void> {
+    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+    await writeTextFile(SETTINGS_PATH, JSON.stringify(settings), { baseDir: BaseDirectory.AppLocalData });
+  }
+
+  async getSetting<T>(key: string): Promise<T | null> {
+    const settings = await this.readSettings();
+    const value = settings[key];
+    return value !== undefined ? value as T : null;
+  }
+
   async setSetting<T>(key: string, value: T): Promise<void> {
-    localStorage.setItem(`sr-setting-${key}`, JSON.stringify(value));
+    const settings = await this.readSettings();
+    settings[key] = value;
+    await this.writeSettings(settings);
   }
 
   async deleteSetting(key: string): Promise<void> {
-    localStorage.removeItem(`sr-setting-${key}`);
+    const settings = await this.readSettings();
+    delete settings[key];
+    await this.writeSettings(settings);
   }
 
   async getFilesStatus(): Promise<FilesStatus> {
