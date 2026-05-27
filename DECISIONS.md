@@ -4,6 +4,22 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Desktop app bug post-mortem: updater called exit(0) instead of relaunch() — 2026-05-26
+
+**What broke (v0.3.13–v0.3.17):** After downloading an in-app update, the app exited but never relaunched automatically. Users had to manually click the Dock icon. If they were slow to relaunch, the experience was seamless (new binary had already replaced the old one on disk); if they missed it, the app just felt broken.
+
+**Wrong fix (v0.3.17):** The changelog entry for v0.3.17 claimed "Tauri's updater spawns a background shell script that sleeps 1s, replaces the bundle, then calls `open -a` to relaunch." This was factually incorrect. Based on that wrong model, the code was changed from `relaunch()` to `exit(0)`, with a comment explaining that `relaunch()` would "pre-empt the shell script." No shell script exists.
+
+**Actual mechanism (from Tauri v2.10.1 source):** `downloadAndInstall` on macOS calls `install_inner`, which synchronously: extracts the new bundle to a temp dir → renames the current `.app` to a backup temp dir → renames the new bundle to the original path → returns `Ok(())`. The Rust temp dirs are dropped on function return. By the time the JS `await` resolves, the new binary is already on disk at `current_exe`. There is no shell script.
+
+**Actual fix (v0.3.19):** Changed back to `relaunch()`. `relaunch()` calls `Command::new(current_exe).spawn()` — since `current_exe` now points to the new binary (synchronous replacement already completed), this launches the correct updated version, then exits.
+
+**Second bug fixed (v0.3.19):** `release.sh` mapped `x86_64 → x64` when building `latest.json`, writing `darwin-x64` as the platform key. Tauri's `updater_arch()` returns `"x86_64"` on Intel Macs, so the platform key `darwin-x86_64` was never present in `latest.json`. Intel Mac users never saw any update offered. Fixed by mapping `x86_64 → x86_64`.
+
+**Implications:** Never `exit(0)` after `downloadAndInstall`. Always `relaunch()`. The synchronous replacement is complete before the Promise resolves. See CLAUDE.md Versioning section for the standing rule.
+
+---
+
 ## Desktop app bug post-mortem: tauri-plugin-fs settings storage silently failed — 2026-05-26
 
 **Decision:** `TauriStorage.getApiKey` / `setApiKey` / `deleteApiKey` and `getSetting` / `setSetting` / `deleteSetting` now use `localStorage` instead of `tauri-plugin-fs`. Large file data (CSV uploads, metadata) continues to use `tauri-plugin-fs` with `BaseDirectory.AppLocalData`.

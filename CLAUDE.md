@@ -11,6 +11,8 @@ decisions that all builders must follow.
 - **Always bump the version and update the changelog when adding a feature or fix**, even if the user does not ask
 - **After pushing a version bump, run `./release.sh`** to build, notarize, and publish the macOS desktop app. This script creates the GitHub release (or uploads to an existing one), signs the updater bundle, and generates `latest.json` for in-app update detection. Credentials (Apple API key, notarization) stay local — never stored in GitHub.
 - **Do not use `gh release create` directly** for desktop app releases — always use `release.sh` so the signed binary and `latest.json` are included. The in-app update check depends on `latest.json` being present in the release assets.
+- **Tauri v2 macOS updater mechanism:** `downloadAndInstall` performs synchronous in-place bundle replacement — no shell script, no sleep, no `open -a`. The `.app` bundle is fully replaced on disk before the Promise resolves. After `downloadAndInstall` returns, call `relaunch()` (not `exit(0)`). `relaunch()` spawns `current_exe` (now the new binary) and exits cleanly. `exit(0)` just terminates the process with no relaunch, leaving the user with no running app.
+- **`release.sh` Intel arch:** The platform key in `latest.json` for Intel Macs must be `darwin-x86_64`. Tauri's `updater_arch()` returns `"x86_64"` on Intel — if `release.sh` maps this to `"x64"`, Intel users never see any update as available.
 
 ## Pipeline Overview
 
