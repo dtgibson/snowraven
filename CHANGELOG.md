@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.4.0] - 2026-05-26
+
+### Added
+- **Map Explorer — Use my location** — the "Use my location" button in the Map Explorer now works in the desktop app. Clicking it requests location permission from macOS and centers the map on your current coordinates. If coordinates were empty, it also auto-triggers the active view mode (Hotspots or Media Targets). Platform-specific error messages guide you to the right fix if permission is denied. In Tauri dev mode the button shows a clear developer message since CoreLocation requires a production build's secure protocol context.
+
 ## [0.3.21] - 2026-05-27
 
 ### Fixed

@@ -11,6 +11,8 @@ import type { ObservationEntry } from '../types'
 import { BREEDING_CODES } from '../lib/breedingCodes'
 import { transport, TransportError } from '../lib/transport'
 import { storage } from '../lib/storage'
+import { getCurrentLocation } from '../lib/location'
+import type { LocationError } from '../lib/location'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -602,6 +604,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [lng, setLng]         = useState('')
   const [radius, setRadius]   = useState(25)
   const [geoError, setGeoError] = useState('')
+  const [isLocating, setIsLocating] = useState(false)
 
   // Hotspot state
   const [hotspotPins, setHotspotPins]         = useState<HotspotPin[] | null>(null)
@@ -862,25 +865,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // ── Actions ───────────────────────────────────────────────────────────────────
 
-  const handleUseMyLocation = useCallback(() => {
-    setGeoError('')
-    if (!navigator.geolocation || !window.isSecureContext) {
-      setGeoError('Location detection requires HTTPS. Enter coordinates manually.')
-      return
-    }
-    navigator.geolocation.getCurrentPosition(
-      pos => { setLat(pos.coords.latitude.toFixed(5)); setLng(pos.coords.longitude.toFixed(5)) },
-      err => {
-        if (err.code === 1) {
-          setGeoError('Location access was denied. Enter coordinates manually.')
-        } else {
-          setGeoError('Location unavailable. Enter coordinates manually.')
-        }
-      },
-      { timeout: 10000 },
-    )
-  }, [])
-
   const handleFindHotspots = useCallback(async (overrideLat?: number, overrideLng?: number) => {
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
@@ -970,6 +954,38 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
   }, [lat, lng, radius, phase, targetSpecies, speciesCodeMap, manualTargets])
 
+  const handleUseMyLocation = useCallback(async () => {
+    setGeoError('')
+    setIsLocating(true)
+    const wasEmpty = !lat && !lng
+    try {
+      const loc = await getCurrentLocation()
+      setLat(loc.lat.toFixed(5))
+      setLng(loc.lng.toFixed(5))
+      if (wasEmpty) {
+        if (viewMode === 'hotspots') handleFindHotspots(loc.lat, loc.lng)
+        else if (viewMode === 'targets') handleFindSightings(loc.lat, loc.lng)
+      }
+    } catch (err) {
+      const e = err as LocationError
+      if (e.code === 'permission-denied') {
+        setGeoError(
+          e.platform === 'tauri'
+            ? 'Location access was denied. Grant permission in System Settings → Privacy & Security → Location Services.'
+            : 'Location access was denied. Allow location access in your browser settings.',
+        )
+      } else if (e.code === 'timeout') {
+        setGeoError('Location request timed out. Try again or enter coordinates manually.')
+      } else if (e.code === 'dev-mode') {
+        setGeoError("Location requires a production build. Run 'npm run desktop:build' to test.")
+      } else {
+        setGeoError('Unable to determine your location. Try again or enter coordinates manually.')
+      }
+    } finally {
+      setIsLocating(false)
+    }
+  }, [lat, lng, viewMode, handleFindHotspots, handleFindSightings])
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   if (phase.tag === 'loading-saved') {
@@ -986,17 +1002,24 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     <div style={{ marginBottom: 16 }}>
       <button
         onClick={handleUseMyLocation}
+        disabled={isLocating}
         style={{
           display: 'flex', alignItems: 'center', gap: 7,
           width: '100%', height: 34, padding: '0 12px',
-          background: 'none', border: '1.5px solid var(--sr-border)',
+          background: isLocating ? 'var(--sr-surface-subtle)' : 'none',
+          border: '1.5px solid var(--sr-border)',
           borderRadius: 6, fontSize: 12.5, fontWeight: 500,
-          fontFamily: 'inherit', color: 'var(--sr-text)', cursor: 'pointer',
+          fontFamily: 'inherit',
+          color: isLocating ? 'var(--sr-text-muted)' : 'var(--sr-text)',
+          cursor: isLocating ? 'default' : 'pointer',
           marginBottom: 8, boxSizing: 'border-box',
         }}
       >
-        <Navigation size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)' }} />
-        Use my location
+        {isLocating
+          ? <Loader2 size={13} strokeWidth={2} style={{ animation: 'spin 0.7s linear infinite', color: 'var(--sr-accent)', flexShrink: 0 }} />
+          : <Navigation size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
+        }
+        {isLocating ? 'Locating…' : 'Use my location'}
       </button>
       {geoError && <div style={{ fontSize: 11, color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
       <div style={{ display: 'flex', gap: 6 }}>

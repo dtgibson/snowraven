@@ -98,6 +98,8 @@ A comprehensive analytics dashboard built from your eBird backup. Nine cards cov
 
 An interactive map with three view modes: My Sightings (your personal recent observations with a heatmap overlay), Hotspots (eBird hotspots near a location, colored by whether you've visited them), and Media Targets (recent sightings of species you're missing media for). Requires an eBird API key.
 
+Click **Use my location** in the map controls to center the map on your current position. On first use, the OS will prompt for location permission. In the desktop app, this uses macOS CoreLocation via the secure app protocol — no location data leaves your device.
+
 ### Settings
 
 The Settings tab lets you configure API keys, save default files, set a default location, and customize the tab layout so everything loads automatically each session.

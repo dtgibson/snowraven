@@ -14,6 +14,9 @@
     "updater:default",
     "process:allow-restart",
     "process:allow-exit",
+    "geolocation:allow-check-permissions",
+    "geolocation:allow-request-permissions",
+    "geolocation:allow-get-current-position",
     {
       "identifier": "fs:allow-read-text-file",
       "allow": [{ "path": "$APPLOCALDATA/**" }]

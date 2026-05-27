@@ -171,6 +171,8 @@ The dot next to each species name shows how recently it was seen:
 
 The Map Explorer tab provides three views of your birding locations and nearby activity. An eBird API key is required for all three modes.
 
+Click **Use my location** in the map controls to center the map on your current position. On first use, the OS will prompt for location permission. If permission is denied, you can restore it in System Settings → Privacy & Security → Location Services (desktop) or your browser's site permissions (web).
+
 ### My Sightings
 
 Shows your personal recent observations on a map with a heatmap overlay. Use the species filter to show only observations of a specific species. Use the breeding status and date-range filters to narrow results further.
