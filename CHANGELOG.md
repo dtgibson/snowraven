@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.19] - 2026-05-26
+
+### Fixed
+- **In-app updater exits without relaunching** — Tauri v2's macOS updater performs synchronous in-place bundle replacement inside `downloadAndInstall` — no shell script, no sleep delay. By the time `downloadAndInstall` resolves, the new binary is already on disk at the original `.app` path. The previous code called `exit(0)` after installation, which simply terminated the process without relaunching. Users saw no app after the update and had to manually click the Dock icon; if they relaunched quickly they'd get the new version, but the experience was broken. Fixed by calling `relaunch()` instead: it spawns `current_exe` (now the new binary) and exits, giving users a seamless automatic relaunch into the updated version.
+- **In-app updates never offered on Intel Macs** — `release.sh` mapped `x86_64 → x64` when building `latest.json`, producing `darwin-x64` as the platform key. Tauri's updater looks for `darwin-x86_64` on Intel Macs — a mismatch that caused Intel users to never see any update as available. Fixed by using `x86_64` in the arch mapping so `latest.json` uses the correct `darwin-x86_64` key.
+
 ## [0.3.18] - 2026-05-26
 
 ### Fixed

@@ -41,11 +41,11 @@ export async function downloadAndInstall(
       onProgress?.({ downloaded, total });
     }
   });
-  // Use exit(0) not relaunch() — Tauri's updater spawns a shell script that sleeps 1s,
-  // replaces the .app bundle, then calls `open -a` to relaunch. Calling relaunch() first
-  // starts a new instance of the OLD binary immediately, so `open -a` finds the app
-  // already running and just focuses the old window. exit(0) lets the script run
-  // uncontested: it replaces the bundle and relaunches into the new binary.
-  const { exit } = await import('@tauri-apps/plugin-process');
-  await exit(0);
+  // Tauri v2's macOS updater does synchronous in-place bundle replacement inside
+  // downloadAndInstall — no shell script, no sleep, no `open -a`. By the time the
+  // await above resolves, the new binary is already on disk at the original .app path.
+  // relaunch() spawns current_exe (which is now the new binary) then exits.
+  // exit(0) would just exit without relaunching, leaving the user with no app.
+  const { relaunch } = await import('@tauri-apps/plugin-process');
+  await relaunch();
 }

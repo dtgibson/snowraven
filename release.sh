@@ -31,7 +31,7 @@ TAG="v$VERSION"
 
 case "$(uname -m)" in
   arm64)   ARCH="aarch64" ;;
-  x86_64)  ARCH="x64" ;;
+  x86_64)  ARCH="x86_64" ;;
   *)       echo "Unsupported architecture: $(uname -m)" && exit 1 ;;
 esac
 
