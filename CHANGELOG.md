@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.24] - 2026-05-26
+
+### Improved
+- **Map Explorer — "Use my location" now re-centers the map and places a pin** — after location is detected, the map automatically pans to your position and a blue pin marks the detected location. Previously the coordinate fields were populated but the map stayed wherever it was. The pin clears if you edit the coordinates manually.
+
 ## [0.3.23] - 2026-05-26
 
 ### Fixed

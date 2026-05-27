@@ -191,6 +191,16 @@ function MapPanner({ target, onDone }: { target: { lat: number; lng: number } | 
   return null
 }
 
+function DetectedLocationPin({ position }: { position: { lat: number; lng: number } }) {
+  return (
+    <CircleMarker
+      center={[position.lat, position.lng]}
+      radius={9}
+      pathOptions={{ color: '#fff', weight: 2.5, fillColor: '#1D6BCC', fillOpacity: 1 }}
+    />
+  )
+}
+
 function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => void }) {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -627,6 +637,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [panTarget, setPanTarget]             = useState<{ lat: number; lng: number } | null>(null)
   const handlePanDone                         = useCallback(() => setPanTarget(null), [])
 
+  // Detected location pin (set by "Use my location", cleared when user edits coords manually)
+  const [detectedLocation, setDetectedLocation] = useState<{ lat: number; lng: number } | null>(null)
+
   // Mobile sidebar overlay state
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -962,6 +975,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       const loc = await getCurrentLocation()
       setLat(loc.lat.toFixed(5))
       setLng(loc.lng.toFixed(5))
+      setDetectedLocation({ lat: loc.lat, lng: loc.lng })
+      setPanTarget({ lat: loc.lat, lng: loc.lng })
       if (wasEmpty) {
         if (viewMode === 'hotspots') handleFindHotspots(loc.lat, loc.lng)
         else if (viewMode === 'targets') handleFindSightings(loc.lat, loc.lng)
@@ -986,7 +1001,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     } finally {
       setIsLocating(false)
     }
-  }, [lat, lng, viewMode, handleFindHotspots, handleFindSightings])
+  }, [lat, lng, viewMode, handleFindHotspots, handleFindSightings, setPanTarget, setDetectedLocation])
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -1025,9 +1040,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       </button>
       {geoError && <div style={{ fontSize: 11, color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
       <div style={{ display: 'flex', gap: 6 }}>
-        <input type="number" placeholder="Latitude" value={lat} onChange={e => setLat(e.target.value)}
+        <input type="number" placeholder="Latitude" value={lat} onChange={e => { setLat(e.target.value); setDetectedLocation(null) }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
-        <input type="number" placeholder="Longitude" value={lng} onChange={e => setLng(e.target.value)}
+        <input type="number" placeholder="Longitude" value={lng} onChange={e => { setLng(e.target.value); setDetectedLocation(null) }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
       </div>
     </div>
@@ -1547,6 +1562,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <AutoSizeMap />
               <MapPanner target={panTarget} onDone={handlePanDone} />
               <DefaultCenterSetter center={defaultCenter} onDone={handleDefaultCenterDone} />
+              {detectedLocation && <DetectedLocationPin position={detectedLocation} />}
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
