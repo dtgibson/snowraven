@@ -580,7 +580,7 @@ An interactive map tab with three view modes for exploring birding locations: si
 
 **Location access ("Use my location" button — v0.3.22, fixed v0.3.23):**
 - `CenterPointControl` sidebar section contains a "Use my location" button; clicking it calls `handleUseMyLocation`
-- `handleUseMyLocation` calls `getCurrentLocation()` from `frontend/src/lib/location.ts`; on success sets `lat`/`lng` state and auto-triggers the active view's fetch if coords were previously empty
+- `handleUseMyLocation` calls `getCurrentLocation()` from `frontend/src/lib/location.ts`; on success sets `lat`/`lng` state, calls `setPanTarget` to re-center the map, sets `detectedLocation` to show a blue `CircleMarker` pin at the detected position, and auto-triggers the active view's fetch if coords were previously empty; editing the lat/lng inputs manually clears `detectedLocation`
 - `isLocating` state drives loading UI: spinner (`Loader2`) + "Locating…" label while request is in flight; button disabled during request
 - Error codes: `permission-denied` (platform-specific message), `timeout`, `dev-mode` (Tauri dev mode), `insecure-context` (HTTP origin on web), `unavailable` (fallback)
 - **Tauri desktop path:** calls `invoke('get_location')` — a native Rust command in `src-tauri/src/location.rs` that uses `CLLocationManager` directly via `objc2-core-location`. `navigator.geolocation` cannot work in Tauri because wry's `WKWebView` UIDelegate does not implement `webView:requestGeolocationPermissionFor:`, the method macOS 12+ requires to show the system permission dialog. `com.apple.security.personal-information.location` entitlement is required under hardened runtime and is embedded via `src-tauri/entitlements.plist`.
