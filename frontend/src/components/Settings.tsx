@@ -1015,7 +1015,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Latitude</div>
               <input
                 type="number"
-                placeholder="e.g. 37.8716"
+                placeholder="e.g. 37.8275"
                 value={mapLat}
                 onChange={e => setMapLat(e.target.value)}
                 style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
@@ -1027,7 +1027,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Longitude</div>
               <input
                 type="number"
-                placeholder="e.g. -122.2727"
+                placeholder="e.g. -122.4238"
                 value={mapLng}
                 onChange={e => setMapLng(e.target.value)}
                 style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
@@ -1039,7 +1039,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
               <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Radius (mi)</div>
               <input
                 type="number"
-                placeholder="25"
+                placeholder="5"
                 value={mapDist}
                 onChange={e => setMapDist(e.target.value)}
                 style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}

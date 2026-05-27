@@ -375,7 +375,7 @@ export default function App() {
                 border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
                 fontSize: 13, color: 'var(--sr-warning)',
               }}>
-                <span>OpenWeather API key not configured — weather lookups won't return conditions.</span>
+                <span>OpenWeather API key not configured — weather lookups won't return conditions. If you don't use weather features, you can disable or move this tab in Settings.</span>
                 <button
                   onClick={() => setActiveTab('settings')}
                   style={{

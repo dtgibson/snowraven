@@ -264,7 +264,7 @@ This pulls the latest code, rebuilds the frontend, updates backend dependencies,
 
 ---
 
-## Local installation (Mac/Linux)
+## Local installation (Linux)
 
 ```bash
 git clone https://github.com/dtgibson/snowraven.git

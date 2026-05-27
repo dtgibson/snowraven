@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.20] - 2026-05-26
+
+### Changed
+- **Weather tab** — when OpenWeather API key is missing, the warning now also mentions that the Weather tab can be disabled or moved in Settings, for users who don't want weather features
+- **README** — "Local installation (Mac/Linux)" section renamed to "Local installation (Linux)" to avoid sending Mac users down the server install path instead of the desktop binary
+- **Settings** — default location placeholder coordinates updated to Point Reyes National Seashore (37.8275, -122.4238) with a 5-mile radius example
+
 ## [0.3.19] - 2026-05-26
 
 ### Fixed
