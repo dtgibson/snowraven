@@ -14,6 +14,8 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 **Implications:** `TauriStorage.getSetting` / `setSetting` / `deleteSetting` use localStorage. Do not revert to tauri-plugin-fs for JSON settings — the silent failure is difficult to diagnose and was reproduced across multiple versions. `tauri-plugin-fs` remains in use for actual file content (CSV data, metadata.json) where localStorage is inappropriate. The `SETTINGS_DIR` constant was removed from `storage.ts`; `DATA_DIR` and `META_PATH` remain.
 
+**REVERSED (v0.3.16):** This fix proved incomplete. `localStorage` in Tauri's WKWebView was not reliably persistent for API keys — keys were lost on relaunch in subsequent testing. The actual root cause was `mkdir` not being called before `writeTextFile` in `tauri-plugin-fs`. All `TauriStorage` methods now use `tauri-plugin-fs` + `AppLocalData` exclusively. See: "Desktop app bug post-mortem: tauri-plugin-fs mkdir omission caused silent write failure — 2026-05-26." Do not use localStorage for API keys or settings in Tauri.
+
 ---
 
 ## Desktop app: two-seam architecture and phased migration — 2026-05-25 (completed 2026-05-25)
@@ -25,7 +27,7 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 **Migration complete (v0.4.0):** All six phases are done. The desktop app no longer requires the Python backend at all. Audit confirms no direct `fetch()` calls, no `/settings/*` calls, and no transport paths that fall through to `WebTransport` in Tauri mode. Phase summary:
 - Phase 0 (v0.2.0): Transport + storage seams established, Tauri project scaffolded
 - Phase 1 (v0.3.0): TypeScript weather formatter ported from Python (golden test suite)
-- Phase 2 (v0.3.1): OS keychain via `keyring` Rust crate for API keys
+- Phase 2 (v0.3.1): OS keychain via `keyring` Rust crate for API keys — **reversed in v0.3.16**; keychain requires `com.apple.security.keychain-access-groups` macOS entitlement (not configured) and fails silently; API keys now use `tauri-plugin-fs` + `AppLocalData` alongside file data
 - Phase 3 (v0.3.2): Direct external API calls via `tauri-plugin-http`; 6 TypeScript services; tz via `tzf-rs`
 - Phase 4 (v0.3.3): App data directory via `tauri-plugin-fs` for files + settings
 - Phase 5 (v0.3.4): In-app updater via `tauri-plugin-updater`; minisign keypair; local `release.sh` script
@@ -549,6 +551,8 @@ For sync-only state updates, the same wrapper works: `const run = async () => { 
 
 **Desktop correction (v0.3.12):** In the Tauri desktop app, map defaults are stored in `localStorage` under `sr-setting-map-defaults` via `storage.setSetting()` / `storage.getSetting()` in `TauriStorage`. The file-based rationale above applies to the web/Pi runtime only. `tauri-plugin-fs` proved unreliable for JSON settings (writes failed silently), so all `TauriStorage.getSetting` / `setSetting` calls now use localStorage instead.
 
+**Reversed (v0.3.16):** The localStorage approach for settings (including map defaults) was found to be unreliable and has been reversed. All `TauriStorage.getSetting` / `setSetting` calls now use `tauri-plugin-fs` + `AppLocalData/data/settings.json` via a `writeJson` helper that always calls `mkdir` before writing. Do not use localStorage for settings in Tauri.
+
 ## Tab Filters: 3-tier county resolution for ML export — 2026-05-20
 
 **Decision:** ML export county resolution runs in three passes: (1) read the `County` column from the ML CSV if present; (2) cross-reference against the eBird backup by location name (using `rawRows` from `parseEbirdObservations`); (3) call `POST /nominatim/counties` with unresolved lat/lng pairs. Passes run in sequence; each row stops after the first pass that resolves it.
@@ -556,3 +560,56 @@ For sync-only state updates, the same wrapper works: `const run = async () => { 
 **Rationale:** The ML export often has a `County` column that covers most rows immediately. eBird backup cross-reference resolves most of the remainder without any network call. Nominatim is only invoked for rows that couldn't be resolved locally, minimizing outbound requests and respecting OSM rate limits.
 
 **Implications:** County resolution is async and runs after the ML parse completes. `countyResolution: 'idle' | 'resolving' | 'done'` drives the loading indicator in the county dropdown. Filters are available before resolution completes — `countyFilter` just won't have all counties until `'done'`. Any future feature that needs county data from ML exports should reuse this same `resolveMLCounties` pattern and the shared `nominatim.py` rate limiter.
+
+---
+
+## Desktop app bug post-mortem: tauri-plugin-fs mkdir omission caused silent write failure — 2026-05-26
+
+**Reversal of prior entry:** The entry dated 2026-05-26 ("tauri-plugin-fs settings storage silently failed") concluded that `localStorage` was the correct fix for API key and settings persistence. That fix proved incomplete and has been reversed. All `TauriStorage` methods now use `tauri-plugin-fs` + `AppLocalData` exclusively.
+
+**What the prior fix missed:** `localStorage` is unreliable for persistent storage in Tauri's WKWebView — API keys written in one session were lost on relaunch. The real root cause of the original silent failure was that `mkdir` was not called before `writeTextFile`. When the `AppLocalData/data/` directory does not yet exist (fresh install, first write after deletion), `writeTextFile` returns without error but writes nothing to disk.
+
+**Actual fix (v0.3.16):** All writes go through a `writeJson(path, data)` private helper that always calls `await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true })` before `writeTextFile`. All reads go through `readJson<T>(path)` which checks `exists()` before `readTextFile`. Storage paths:
+- `data/api-keys.json` — eBird and OpenWeather API keys (`getApiKey` / `setApiKey` / `deleteApiKey`)
+- `data/settings.json` — app settings via `getSetting` / `setSetting` / `deleteSetting`
+- `data/metadata.json` — stored file metadata (original filename, upload date)
+- `data/ebird-backup.csv`, `data/ml-export.csv` — large file data (unchanged)
+
+**Implications:**
+- Do not use `localStorage` for API keys or settings in Tauri — unreliable in WKWebView across app launches.
+- Do not use the system Keychain (`keyring` crate) — requires macOS `com.apple.security.keychain-access-groups` entitlement that is not configured; fails silently at runtime.
+- The `mkdir-before-write` pattern is mandatory. Omitting it produces silent failures: `writeTextFile` does not throw when the parent directory is absent, but nothing is written.
+- All `TauriStorage` methods use `tauri-plugin-fs`. Do not split storage between localStorage and tauri-plugin-fs — maintain one source of truth per data type.
+
+---
+
+## Desktop app: tauri-plugin-http v2.5.x requires explicit URL scope in capabilities — 2026-05-26
+
+**Bug (v0.3.18):** All `tauriFetch` calls to external HTTPS endpoints (eBird API, OpenWeather, Nominatim) were blocked after plugin updates. Taxonomy lookups failed silently, Map Explorer returned no results, and the symptom resembled lost API keys (it wasn't — the fetch calls were throwing permission errors that were swallowed upstream).
+
+**Cause:** `tauri-plugin-http` v2.5.x separates plugin command enablement from URL access. `"http:default"` in capabilities registers the plugin's IPC command set (the JS `fetch` shim is wired up) but grants access to no URLs. A separate `"http:allow-fetch"` permission with an explicit `allow` URL pattern is required for any network request to succeed.
+
+**Fix:** Added to `src-tauri/capabilities/default.json`:
+```json
+{ "identifier": "http:allow-fetch", "allow": [{ "url": "https://**" }] }
+```
+
+**Implications:** Any Tauri v2 project using `tauri-plugin-http` v2.5.x or later must include `http:allow-fetch` with a URL scope alongside `http:default`. `http:default` alone is not sufficient. The `https://**` pattern allows all HTTPS origins — scope it more narrowly if needed. When `http:allow-fetch` is missing, `tauriFetch` throws a permission error at runtime; if the caller has a silent catch, this manifests as mysteriously empty results rather than a visible error.
+
+---
+
+## Desktop app: silent catch blocks masked root cause of taxonomy lookup failure — 2026-05-26
+
+**Bug:** Map Explorer "Find Target Sightings" always showed "Could not look up species codes from eBird. Try rebuilding caches in Settings." The error persisted after rebuilding caches and with a valid eBird API key configured.
+
+**Root cause:** Two independent silent catch blocks formed a nested error-swallowing chain:
+1. `getTaxonomyCodes` in `taxonomyService.ts` had `catch { return [] }` — converted every error (network failure, HTTP error, permission error) into an empty array, making a failed fetch indistinguishable from a successful empty response.
+2. `MapExplorer.tsx`'s on-demand taxonomy fetch had `catch { /* ignore */ }` — silently swallowed the empty result, leaving `speciesCodeMap` empty so `.filter(Boolean)` dropped all species codes.
+
+Both failures were active simultaneously with the missing `http:allow-fetch` scope, so fixing either one in isolation still produced an error (just from a different point in the chain). The compounded silent failures made the root cause appear to be a cache or key issue rather than a capability misconfiguration.
+
+**Fix:**
+- `getTaxonomyCodes`: errors now propagate with descriptive messages (`'Could not reach eBird...'` for network errors, `'eBird returned HTTP N. Check your API key in Settings.'` for HTTP errors, response validation errors); network errors wrapped with `{ cause: err }` to satisfy the `preserve-caught-error` ESLint rule.
+- `MapExplorer.tsx` on-demand fetch: `catch` now calls `setTargetsError(err instanceof Error ? err.message : '...')` and returns early.
+
+**Implications:** Never use bare `catch { return [] }` or `catch { /* ignore */ }` in async code paths that produce UI results. Silent catches convert any error into ambiguous empty state, making bugs undiagnosable and allowing independent failures to compound invisibly. Any catch block that does not re-throw must at minimum set a visible error state. The `preserve-caught-error` ESLint rule (which requires `{ cause: err }` on `new Error()` wrapping a caught error) is a load-bearing lint rule — do not disable it.

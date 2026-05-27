@@ -226,6 +226,7 @@ A Settings tab (rightmost in the tab bar) where users upload and persistently st
 - Clear button removes the stored file from disk and clears metadata; disabled when no file is stored
 - On app mount, Breeding Codes, Media List, and Species Detail tabs start in `loading-saved` phase (spinner), auto-fetch their stored file, parse it, and enter the ready state automatically
 - `onKeysSaved` callback prop on `<Settings>` triggers a re-fetch of key status in App.tsx when a key is saved or deleted
+- **Rebuild Caches (Tauri only):** A "Troubleshooting" section (visible only when `isTauri()` is true) contains a "Rebuild Caches" button that deletes the `snowraven-taxonomy` IndexedDB database (key: `taxonomy-v2025`) and calls `relaunch()` to restart the app with a fresh taxonomy fetch on next load
 
 **Key files:**
 - `backend/routers/settings.py` — 7 endpoints: `GET /settings/files`, `POST/GET/DELETE /settings/files/ebird`, `POST/GET/DELETE /settings/files/ml`; writes to fixed paths in `data/`
@@ -694,9 +695,9 @@ The architectural foundation for a signed, distributable Mac and Windows desktop
 
 **Migration phases (future pipeline sessions):**
 - Phase 1: Weather formatter golden tests — TypeScript formatter that matches Python output
-- Phase 2: `TauriStorage` → OS keychain (Mac Keychain / Windows Credential Manager via stronghold plugin)
+- Phase 2: `TauriStorage` → OS keychain (Mac Keychain / Windows Credential Manager via stronghold plugin) — **abandoned**: keychain requires `com.apple.security.keychain-access-groups` macOS entitlement (not configured) and fails silently; API keys moved to `tauri-plugin-fs` + `AppLocalData` in Phase 4
 - Phase 3: `TauriTransport` → direct external API calls (eBird, OpenWeather, Nominatim); API keys travel as HTTP headers, not URL params; CSP must be explicitly set before this ships
-- Phase 4: `TauriStorage` → app data directory; IndexedDB for taxonomy cache
+- Phase 4: `TauriStorage` → app data directory via `tauri-plugin-fs` + `AppLocalData`; all persistent data (API keys, settings, file metadata, CSV files) stored in `AppLocalData/data/`; `mkdir` must be called before every write (directory may not pre-exist on fresh install)
 - Phase 5: Tauri updater plugin; in-app auto-update replaces the current GitHub releases check
 - Phase 6: backend decommission; fully standalone distribution
 
