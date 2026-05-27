@@ -156,108 +156,17 @@ Click **Check For Updates** in the app footer. If an update is available, click 
 
 ---
 
-## Raspberry Pi installation
+## Raspberry Pi / Linux installation
 
-These instructions are for a Raspberry Pi running Raspberry Pi OS (64-bit recommended). The app will start automatically on boot and be accessible from any device on your local network.
-
-### 1. Install system dependencies
+Run one command on your Pi (or any Debian/Ubuntu machine):
 
 ```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y git python3 python3-pip python3-venv nodejs npm
+curl -fsSL https://raw.githubusercontent.com/dtgibson/snowraven/main/install.sh | bash
 ```
 
-Verify versions (Node 18+ and Python 3.10+ required):
+The installer will ask whether you want a **service install** (auto-starts on boot, recommended for Pi) or a **local install** (you run `./start.sh` manually). It handles everything: system packages, Node.js, the repo, frontend build, Python virtualenv, API key setup, and the systemd unit if you chose service mode.
 
-```bash
-node --version
-python3 --version
-```
-
-### 2. Clone the repository
-
-```bash
-cd ~
-git clone https://github.com/dtgibson/snowraven.git
-cd snowraven
-```
-
-### 3. Configure API keys
-
-The easiest way is through the app itself. Once the service is running (step 6), open SnowRaven in your browser, go to the **Settings** tab, and enter your keys there. They save to the server's `.env` file immediately.
-
-If you prefer to set them before first run:
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-Replace the placeholder values with your real keys:
-
-```
-EBIRD_API_KEY=your-ebird-api-key-here
-OPENWEATHER_API_KEY=your-openweather-api-key-here
-```
-
-Save with `Ctrl+O`, exit with `Ctrl+X`.
-
-### 4. Build the frontend
-
-```bash
-cd ~/snowraven/frontend
-npm ci
-npm run build
-```
-
-### 5. Set up the Python environment
-
-```bash
-cd ~/snowraven/backend
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-```
-
-### 6. Test that it works
-
-```bash
-cd ~/snowraven/backend
-.venv/bin/uvicorn main:app --host 0.0.0.0 --port 1620
-```
-
-Open a browser on another device and go to `http://<your-pi-ip>:1620`. You should see the SnowRaven interface. Press `Ctrl+C` to stop.
-
-To find your Pi's IP address: `hostname -I`
-
-### 7. Install the systemd service (auto-start on boot)
-
-```bash
-sudo cp ~/snowraven/deploy/snowraven.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable snowraven
-sudo systemctl start snowraven
-```
-
-Check that it started correctly:
-
-```bash
-sudo systemctl status snowraven
-```
-
-SnowRaven will now start automatically whenever the Pi boots. It will be available at `http://<your-pi-ip>:1620`.
-
-### Managing the service
-
-```bash
-# Stop the service
-sudo systemctl stop snowraven
-
-# Restart after a config change
-sudo systemctl restart snowraven
-
-# View logs
-sudo journalctl -u snowraven -f
-```
+API keys can be entered during install or skipped and added later in the app's Settings tab.
 
 ### Updating to a new version
 
@@ -268,24 +177,17 @@ cd ~/snowraven
 
 This pulls the latest code, rebuilds the frontend, updates backend dependencies, and restarts the service if it's managed by systemd. You can also check for available updates from the app's footer without leaving the browser.
 
----
-
-## Local installation (Linux)
+### Managing the service (service installs only)
 
 ```bash
-git clone https://github.com/dtgibson/snowraven.git
-cd snowraven
-./start.sh
-```
+# Stop the service
+sudo systemctl stop snowraven
 
-Open `http://localhost:1620`, then go to the **Settings** tab to enter your API keys. They'll be saved to `backend/.env` automatically.
+# Restart after a config change
+sudo systemctl restart snowraven
 
-Alternatively, set the keys before starting:
-
-```bash
-cp .env.example .env
-# Edit .env and add your API keys
-./start.sh
+# View logs
+sudo journalctl -u snowraven -f
 ```
 
 ---

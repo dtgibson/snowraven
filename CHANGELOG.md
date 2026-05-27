@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.27] - 2026-05-27
+
+### Added
+- **Linux installer (`install.sh`)** — one-command installer for Raspberry Pi and Debian/Ubuntu systems. Prompts for a service install (systemd, auto-starts on boot) or a local install (dependencies + build, user starts manually). Installs system packages, clones the repo, builds the frontend, creates a Python virtualenv, prompts for API keys (skippable — configurable later via Settings), deploys the systemd unit for service mode, and prints a success block with both the `hostname.local` and LAN IP URLs. Safe to run via `curl | bash` (all logic inside `main()`); idempotent on re-run (existing `.env` preserved, existing repo updated via `git pull`).
+
 ## [0.3.26] - 2026-05-27
 
 ### Fixed
