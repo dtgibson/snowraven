@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.26] - 2026-05-27
+
+### Fixed
+- **Dark mode — white flash on overscroll and unbounded tables (mobile)** — `html` and `body` had no `background-color`, so iOS Safari's rubber-band overscroll and any content overflow (e.g. Unbounded toggle in Breeding Codes / Media List) exposed the browser's default white background. Fixed by setting `background-color: var(--sr-bg)` on both elements; the token resolves to `#09090B` in dark mode and `#F9FAFB` in light mode automatically.
+
 ## [0.3.25] - 2026-05-27
 
 ### Improved
