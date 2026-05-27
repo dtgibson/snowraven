@@ -1,6 +1,6 @@
 # SnowRaven Documentation
 
-SnowRaven is a self-hosted toolkit for birders who use eBird. It runs on a Raspberry Pi or any computer on your local network and gives you weather lookups, life list analytics, media coverage tracking, breeding code history, and more -- all from a single browser tab.
+SnowRaven is a toolkit for birders who use eBird. It runs as a standalone desktop app on Mac, or as a self-hosted server on a Raspberry Pi or any computer on your local network. It gives you weather lookups, life list analytics, media coverage tracking, breeding code history, and more.
 
 This documentation covers every tab, how to obtain the API keys the app requires, and how to download and upload the data files that unlock most features.
 

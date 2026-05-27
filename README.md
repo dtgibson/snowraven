@@ -24,19 +24,40 @@ If you like this, the idea and inspiration really came from someone else, so [wh
 
 Weather data comes from the [OpenWeather One Call API 3.0](https://openweathermap.org/api/one-call-3) timemachine endpoint. Checklist metadata (date, location, duration) comes from the [eBird API](https://documenter.getpostman.com/view/664302/S1ENwy59).
 
-### Breeding Codes
+### Species Detail
 
-See every species you've recorded a breeding code for, displayed as a matrix across all 23 eBird breeding codes. Each cell shows how many times you've recorded that code for that species, with colors following eBird's four-tier system -- darkest for Confirmed, lightest for Possible. Requires your eBird backup saved in Settings.
+Explore your complete history with any species -- sighting stats, breeding codes, co-occurring species, field notes, your most-visited locations, a map of all observation coordinates, and embedded media from Macaulay Library. Select any species from the searchable dropdown and every section updates instantly. Requires your eBird backup saved in Settings.
 
 **How it works:**
 
-1. Save your `MyEBirdData.csv` in the Settings tab under Default Files
-2. Open Breeding Codes -- your matrix loads automatically
-3. Click any column header to sort by that code's count; click the species column to sort alphabetically or by taxonomic order
-4. Use the filter pills to focus on a single code or evidence category (Confirmed, Probable, Possible)
-5. A legend at the bottom maps tier colors to their categories and codes
+1. Save your `MyEBirdData.csv` in Settings -- Species Detail loads it automatically
+2. Select a species from the dropdown -- type to search by common or scientific name
+3. The Summary card shows your media coverage (Photo/Audio/Video) and highest breeding evidence category
+4. The Sightings card shows checklist count, total individuals, personal best, and first/last seen dates -- each linked to the original checklist
+5. Breeding Codes lists every code you've recorded with tier color, abbreviation, and count
+6. Reported With shows the species most frequently appearing on the same checklists, ranked by co-occurrence percentage
+7. Top Locations ranks where you've found the species most often, with links to each location on eBird
+8. The map plots every observation coordinate -- click any pin to see the checklist dates recorded at that spot
+9. Comments archives all your per-species field notes, filterable by keyword and sortable by date
+10. Recent Media embeds your most recently uploaded photo, audio recording, and video from Macaulay Library (requires ML export in Settings)
 
-Slash species, hybrids, and `sp.` entries are excluded. Subspecies parentheticals (e.g. "Yellow-rumped Warbler (Myrtle)") are merged into the parent species entry.
+**Toolbar options:**
+
+- Show subspecies: off by default; merges subspecies variants into the parent species. Toggle on to split "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" into separate entries.
+- Show sp./slash: off by default; hides uncertain identifications. Toggle on to include sp. and slash species in the selector.
+- County and date-range filters appear when your eBird backup contains county data.
+
+If your ML export is also saved in Settings, media counts in the Summary card become active and the Recent Media section appears automatically.
+
+### Statistics
+
+A comprehensive analytics dashboard built from your eBird backup. Nine cards cover your life list totals and accumulation chart, firsts and milestones, temporal patterns (by year, month, day, and hour), geographic stats with a location map, effort and methodology, data quality, breeding stats, media trends (requires ML export), and Top Local Target Species -- birds seen near your configured home location in the past 30 days that are missing from your life list. Requires your eBird backup saved in Settings.
+
+### Map Explorer
+
+An interactive map with three view modes: My Sightings (your personal recent observations with a heatmap overlay), Hotspots (eBird hotspots near a location, colored by whether you've visited them), and Media Targets (recent sightings of species you're missing media for). Requires an eBird API key.
+
+Click **Use my location** in the map controls to center the map on your current position and drop a blue pin at the detected location. On first use, the OS will prompt for location permission. In the desktop app, this uses macOS CoreLocation via the secure app protocol -- no location data leaves your device.
 
 ### Media List
 
@@ -54,6 +75,22 @@ Save your eBird backup and Macaulay Library export in Settings to unlock the ful
 6. Click any column header to sort by name, photo count, audio count, video count, or total
 7. Use the Is Target pill to quickly find species missing at least one media type
 
+County and date-range filters appear in the toolbar when county data is available.
+
+### Breeding Codes
+
+See every species you've recorded a breeding code for, displayed as a matrix across all 23 eBird breeding codes. Each cell shows how many times you've recorded that code for that species, with colors following eBird's four-tier system -- darkest for Confirmed, lightest for Possible. Requires your eBird backup saved in Settings.
+
+**How it works:**
+
+1. Save your `MyEBirdData.csv` in the Settings tab under Default Files
+2. Open Breeding Codes -- your matrix loads automatically
+3. Click any column header to sort by that code's count; click the species column to sort alphabetically or by taxonomic order
+4. Use the filter pills to focus on a single code or evidence category (Confirmed, Probable, Possible)
+5. A legend at the bottom maps tier colors to their categories and codes
+
+Slash species, hybrids, and `sp.` entries are excluded. Subspecies parentheticals (e.g. "Yellow-rumped Warbler (Myrtle)") are merged into the parent species entry.
+
 ### Life List Comparer
 
 Compare your life list against another birder's to see which species you share and which are unique to each list. Your list loads automatically from Settings if you've saved your eBird backup. Each species name links directly to its eBird account and Birds of the World page.
@@ -66,39 +103,6 @@ Compare your life list against another birder's to see which species you share a
 4. Click the eBird or Birds of the World icon next to a species name to open its species account
 5. Use the Taxonomic / A-Z toggle to switch sort order
 6. Use **Show all** to expand all panels to full length for printing
-
-### Species Detail
-
-Explore your complete history with any species -- sighting stats, breeding codes, field notes, your most-visited locations, a map of all observation coordinates, and embedded media from Macaulay Library. Select any species from the searchable dropdown and every section updates instantly. Requires your eBird backup saved in Settings.
-
-**How it works:**
-
-1. Save your `MyEBirdData.csv` in Settings -- Species Detail loads it automatically
-2. Select a species from the dropdown -- type to search by common or scientific name
-3. The Summary card shows your media coverage (Photo/Audio/Video) and highest breeding evidence category
-4. The Sightings card shows checklist count, total individuals, personal best, and first/last seen dates -- each linked to the original checklist
-5. Breeding Codes lists every code you've recorded with tier color, abbreviation, and count
-6. Top Locations ranks where you've found the species most often, with links to each location on eBird
-7. The map plots every observation coordinate -- click any pin to see the checklist dates recorded at that spot
-8. Comments archives all your per-species field notes, filterable by keyword and sortable by date
-9. Recent Media embeds your most recently uploaded photo, audio recording, and video from Macaulay Library (requires ML export in Settings)
-
-**Toolbar options:**
-
-- Show subspecies: off by default; merges subspecies variants into the parent species. Toggle on to split "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" into separate entries.
-- Show sp./slash: off by default; hides uncertain identifications. Toggle on to include sp. and slash species in the selector.
-
-If your ML export is also saved in Settings, media counts in the Summary card become active and the Recent Media section appears automatically.
-
-### Statistics
-
-A comprehensive analytics dashboard built from your eBird backup. Nine cards cover your life list totals and accumulation chart, firsts and milestones, temporal patterns (by year, month, day, and hour), geographic stats with a location map, effort and methodology, data quality, breeding stats, media trends (requires ML export), and Top Local Target Species -- birds seen near your configured home location in the past 30 days that are missing from your life list. Requires your eBird backup saved in Settings.
-
-### Map Explorer
-
-An interactive map with three view modes: My Sightings (your personal recent observations with a heatmap overlay), Hotspots (eBird hotspots near a location, colored by whether you've visited them), and Media Targets (recent sightings of species you're missing media for). Requires an eBird API key.
-
-Click **Use my location** in the map controls to center the map on your current position. On first use, the OS will prompt for location permission. In the desktop app, this uses macOS CoreLocation via the secure app protocol — no location data leaves your device.
 
 ### Settings
 

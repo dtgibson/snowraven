@@ -1,11 +1,11 @@
 {
-  "activeFeature": null,
+  "activeFeature": "docs-tab-order-and-accuracy",
   "sessionNumber": 1,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [],
-  "createdAt": "2026-05-26T10:10:00Z",
-  "updatedAt": "2026-05-26T10:55:00Z"
+  "createdAt": "2026-05-26T11:00:00Z",
+  "updatedAt": "2026-05-26T11:25:00Z"
 }
