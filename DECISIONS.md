@@ -4,6 +4,25 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Desktop app bug post-mortem: updater installed v0.3.7 on every update — 2026-05-27
+
+**What broke:** Every in-app update installed the original v0.3.7 binary regardless of what version `latest.json` advertised. After updating, the About screen showed 0.3.7 and the updater immediately offered the same update again.
+
+**Root cause — two compounding issues:**
+
+1. **`createUpdaterArtifacts` not set:** `@tauri-apps/cli` v2.11.2+ changed the default for `createUpdaterArtifacts` from `true` to `false`. Without this setting explicitly enabled in `tauri.conf.json`, `tauri build` creates the `.app` and `.dmg` but skips the `.app.tar.gz` updater bundle. The original v0.3.7 build used an older CLI version where the default was `true`, so that one bundle was created. All subsequent builds silently skipped it.
+
+2. **Stale artifact went undetected:** `release.sh` had no version verification step. It found the old v0.3.7 `.app.tar.gz` (timestamped 11:01 AM from the first ever build), signed it with the current key, and uploaded it with the new version in `latest.json`. The signature matched the bundle, so Tauri's verification passed — and users received v0.3.7.
+
+**Fix (v0.3.21):**
+- Added `"createUpdaterArtifacts": true` to `bundle` in `tauri.conf.json` — Tauri now generates `.app.tar.gz` and `.sig` on every build
+- `release.sh` now deletes stale bundle artifacts before building and touches `src-tauri/src/main.rs` to force Cargo to relink
+- `release.sh` now reads `CFBundleShortVersionString` from the built bundle's `Info.plist` and aborts if it doesn't match the expected version
+
+**Implications:** Never remove `createUpdaterArtifacts: true` from `tauri.conf.json`. The version guard in `release.sh` is a safety net — if it ever fires, the build did not produce a usable updater bundle and the release must not proceed.
+
+---
+
 ## Desktop app bug post-mortem: updater called exit(0) instead of relaunch() — 2026-05-26
 
 **What broke (v0.3.13–v0.3.17):** After downloading an in-app update, the app exited but never relaunched automatically. Users had to manually click the Dock icon. If they were slow to relaunch, the experience was seamless (new binary had already replaced the old one on disk); if they missed it, the app just felt broken.

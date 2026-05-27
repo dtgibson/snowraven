@@ -13,6 +13,8 @@ decisions that all builders must follow.
 - **Do not use `gh release create` directly** for desktop app releases — always use `release.sh` so the signed binary and `latest.json` are included. The in-app update check depends on `latest.json` being present in the release assets.
 - **Tauri v2 macOS updater mechanism:** `downloadAndInstall` performs synchronous in-place bundle replacement — no shell script, no sleep, no `open -a`. The `.app` bundle is fully replaced on disk before the Promise resolves. After `downloadAndInstall` returns, call `relaunch()` (not `exit(0)`). `relaunch()` spawns `current_exe` (now the new binary) and exits cleanly. `exit(0)` just terminates the process with no relaunch, leaving the user with no running app.
 - **`release.sh` Intel arch:** The platform key in `latest.json` for Intel Macs must be `darwin-x86_64`. Tauri's `updater_arch()` returns `"x86_64"` on Intel — if `release.sh` maps this to `"x64"`, Intel users never see any update as available.
+- **`createUpdaterArtifacts: true` is required in `tauri.conf.json`** — `@tauri-apps/cli` v2.11.2+ defaults this to `false`. Without it, `tauri build` creates the `.app` and `.dmg` but skips the `.app.tar.gz` updater bundle entirely. The setting must be in `bundle.createUpdaterArtifacts`.
+- **`release.sh` version guard:** After the build, `release.sh` reads `CFBundleShortVersionString` from the bundle's `Info.plist` and aborts if it doesn't match `tauri.conf.json`. This catches stale-artifact issues before anything is uploaded to GitHub.
 
 ## Pipeline Overview
 
