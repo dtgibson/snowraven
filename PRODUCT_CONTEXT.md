@@ -578,14 +578,16 @@ An interactive map tab with three view modes for exploring birding locations: si
 - No `sr-panel` wrapper or padding; MapContainer fills the right side with `flex: 1`
 - MapContainer always rendered; `setup-required` state only replaces the sidebar content in My Sightings mode
 
-**Location access ("Use my location" button — v0.3.22):**
+**Location access ("Use my location" button — v0.3.22, fixed v0.3.23):**
 - `CenterPointControl` sidebar section contains a "Use my location" button; clicking it calls `handleUseMyLocation`
 - `handleUseMyLocation` calls `getCurrentLocation()` from `frontend/src/lib/location.ts`; on success sets `lat`/`lng` state and auto-triggers the active view's fetch if coords were previously empty
 - `isLocating` state drives loading UI: spinner (`Loader2`) + "Locating…" label while request is in flight; button disabled during request
-- Error codes: `permission-denied` (platform-specific message pointing to System Settings or browser settings), `timeout`, `dev-mode` (shown in Tauri dev mode where `http://localhost:5173` blocks geolocation), `unavailable` (fallback)
-- **Platform path:** In Tauri production builds, served from `snowraven://` custom protocol which WKWebView treats as a secure context — `navigator.geolocation` works and delegates to CoreLocation. In Tauri dev mode, `navigator.geolocation` is `undefined` (non-HTTPS origin). On web/Pi, standard browser geolocation.
-- `tauri-plugin-geolocation` is registered in `src-tauri/src/lib.rs` and its macOS capabilities are in `default.json`, but the macOS desktop implementation is a no-op stub — only useful for future iOS/Android builds. All desktop location access uses `navigator.geolocation`.
-- `src-tauri/Info.plist` contains `NSLocationWhenInUseUsageDescription` — auto-merged by Tauri into the app bundle; required for the macOS system permission dialog.
+- Error codes: `permission-denied` (platform-specific message), `timeout`, `dev-mode` (Tauri dev mode), `insecure-context` (HTTP origin on web), `unavailable` (fallback)
+- **Tauri desktop path:** calls `invoke('get_location')` — a native Rust command in `src-tauri/src/location.rs` that uses `CLLocationManager` directly via `objc2-core-location`. `navigator.geolocation` cannot work in Tauri because wry's `WKWebView` UIDelegate does not implement `webView:requestGeolocationPermissionFor:`, the method macOS 12+ requires to show the system permission dialog. `com.apple.security.personal-information.location` entitlement is required under hardened runtime and is embedded via `src-tauri/entitlements.plist`.
+- **Tauri dev mode:** `invoke` is skipped; `dev-mode` error shown immediately (CLLocationManager requires a signed production build with the entitlement embedded).
+- **Web path:** checks `!window.isSecureContext` first — on HTTP origins (e.g. Pi on LAN), browsers silently deny geolocation without prompting; shows "requires HTTPS" message. On secure origins, uses `navigator.geolocation`.
+- `tauri-plugin-geolocation` remains registered for future iOS/Android use; its macOS desktop implementation is a no-op stub and is not used.
+- `src-tauri/Info.plist` contains `NSLocationWhenInUseUsageDescription` — required for the macOS system permission dialog.
 
 **Key files:**
 - `frontend/src/components/MapExplorer.tsx` — full tab component; `sidebarOpen` state; `Filter`, `X` icons; defaults fetch on mount; mobile overlay layout in JSX
@@ -599,8 +601,10 @@ An interactive map tab with three view modes for exploring birding locations: si
 - `data/map-defaults.json` — written by POST, deleted by DELETE; absent = no defaults saved
 - `frontend/vite.config.ts` — `/map` and `/nominatim` proxies; `/settings` already proxied, covers `/settings/map-defaults`
 - `frontend/src/App.tsx` — `'map-explorer'` tab
+- `src-tauri/src/location.rs` — `get_location` Tauri command; `CLLocationManager` + `LocationDelegate` via `objc2-core-location`; `thread_local` `LOCATION_SESSION` keeps manager/delegate alive during async callback
+- `src-tauri/entitlements.plist` — `com.apple.security.personal-information.location` for hardened runtime
 - `src-tauri/Info.plist` — `NSLocationWhenInUseUsageDescription` for macOS location permission dialog
-- `src-tauri/capabilities/default.json` — `geolocation:allow-check-permissions`, `geolocation:allow-request-permissions`, `geolocation:allow-get-current-position`
+- `src-tauri/capabilities/default.json` — `geolocation:allow-check-permissions`, `geolocation:allow-request-permissions`, `geolocation:allow-get-current-position` (for future iOS/Android)
 
 ### Species Detail Enhancements — Weekly Interval, Checklists Graph, Frequency Stat (complete — May 2026)
 

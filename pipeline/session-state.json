@@ -1,11 +1,11 @@
 {
-  "activeFeature": "location-permission-denied-no-prompt",
+  "activeFeature": null,
   "sessionNumber": 1,
-  "sessionType": "fix",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "complete",
   "confirmedArtifacts": [],
   "createdAt": "2026-05-26T08:00:00Z",
-  "updatedAt": "2026-05-26T09:30:00Z"
+  "updatedAt": "2026-05-26T10:00:00Z"
 }

@@ -651,16 +651,21 @@ Both failures were active simultaneously with the missing `http:allow-fetch` sco
 
 ---
 
-## Desktop app: tauri-plugin-geolocation macOS desktop impl is a no-op stub — 2026-05-26
+## Desktop app: location requires a native CLLocationManager command, not navigator.geolocation — 2026-05-26 (revised 2026-05-26)
 
-**Context (v0.3.22):** When implementing "Use my location" in the Map Explorer, the initial approach was to use `tauri-plugin-geolocation` as the Tauri path for location access, matching how it is used for iOS/Android mobile.
+**Context:** When implementing "Use my location" in the Map Explorer, two approaches were attempted and failed before reaching the correct solution.
 
-**Discovery:** The macOS desktop implementation (`tauri-plugin-geolocation-2.3.2/src/desktop.rs`) is a complete no-op stub. `get_current_position` returns `Ok(Position::default())` — all-zero coordinates — with a `// TODO:` comment. The plugin has no macOS desktop implementation; it is iOS/Android only.
+**Attempt 1 (wrong):** Use `tauri-plugin-geolocation`. Discovery: the macOS desktop implementation (`desktop.rs`) is a complete no-op stub — `get_current_position` returns all-zero coordinates. Plugin is iOS/Android only.
 
-**Fix:** `frontend/src/lib/location.ts` uses `navigator.geolocation` for both Tauri and web paths. In Tauri production builds, the app is served from the `snowraven://` custom protocol, which WKWebView treats as a secure context, so `navigator.geolocation` is available and delegates to macOS CoreLocation. In Tauri dev mode (`http://localhost:5173`), `navigator.geolocation` is `undefined` (non-HTTPS origin blocks it) — this is detected with `isTauri() && import.meta.env.DEV` and returns a `'dev-mode'` error code.
+**Attempt 2 (wrong):** Use `navigator.geolocation` in production Tauri builds (served from `snowraven://` custom protocol, which WKWebView treats as a secure context). Discovery: wry's `WryWebViewUIDelegate` implements `WKUIDelegate` for file panels and media capture, but does NOT implement `webView:requestGeolocationPermissionFor:initiatedByFrame:decisionHandler:` — the delegate method macOS 12+ requires to show the system location permission dialog. Without it, every `getCurrentPosition()` call is silently denied with `PERMISSION_DENIED` before the OS is consulted. No SnowRaven entry ever appears in System Settings → Location Services.
+
+**Fix (v0.3.23):** Native Rust Tauri command `get_location` in `src-tauri/src/location.rs` using `CLLocationManager` directly via `objc2-core-location`. Bypasses WKWebView's geolocation mechanism entirely. Also required: `com.apple.security.personal-information.location` entitlement in `src-tauri/entitlements.plist` — without it, hardened runtime silently blocks CoreLocation.
 
 **Implications:**
-- Do not use `tauri-plugin-geolocation` for macOS desktop location access — it returns zeros silently.
-- `navigator.geolocation` is the correct path for Tauri macOS desktop (production builds only).
-- `tauri-plugin-geolocation` is kept registered in `lib.rs` and `capabilities/default.json` for future iOS/Android support, but no TypeScript code invokes it on the current desktop path.
-- Testing geolocation always requires a production build (`npm run desktop:build`). Dev mode will always show the `'dev-mode'` error regardless of plugin configuration.
+- Do not use `tauri-plugin-geolocation` for macOS desktop — no-op stub.
+- Do not use `navigator.geolocation` for Tauri desktop location — wry's UIDelegate doesn't implement the macOS 12+ geolocation permission method; all requests are silently denied.
+- The correct path is `invoke('get_location')` → Rust CLLocationManager command.
+- `tauri-plugin-geolocation` remains registered for future iOS/Android; TypeScript never invokes it on desktop.
+- Entitlement `com.apple.security.personal-information.location` is required in `entitlements.plist` for CLLocationManager to work under hardened runtime.
+- Testing location always requires a production build with signing and the entitlement embedded. Dev mode shows `'dev-mode'` error immediately.
+- Web over HTTP shows `'insecure-context'` error — browsers silently deny geolocation on non-secure origins without any dialog.
