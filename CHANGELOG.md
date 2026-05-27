@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.18] - 2026-05-26
+
+### Fixed
+- **Map Explorer taxonomy fetch blocked — "url not allowed on the configured scope"** — `tauri-plugin-http` v2.5.x changed its default behavior: `http:default` enables the plugin commands but no longer grants access to external URLs. All HTTPS requests from `tauriFetch` (eBird taxonomy, weather, hotspots, Nominatim) were silently blocked. Added `http:allow-fetch` with `allow: [{ url: "https://**" }]` to the capability to restore external network access.
+
 ## [0.3.17] - 2026-05-26
 
 ### Fixed
