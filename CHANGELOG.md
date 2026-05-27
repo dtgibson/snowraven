@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.21] - 2026-05-27
+
+### Fixed
+- **In-app updater installs v0.3.7 instead of the current version** — Tauri only regenerates the `.app.tar.gz` updater bundle when the Rust binary is actually recompiled. All versions after v0.3.7 changed only `tauri.conf.json` (version bump) with no Rust source changes, so Cargo produced incremental builds and Tauri skipped bundle regeneration. Every `release.sh` run since v0.3.7 uploaded the same stale v0.3.7 bundle while `latest.json` advertised the new version. Tauri's signature verification passed (the signature matched the stale bundle), so users received v0.3.7. Fixed by deleting stale bundle artifacts and touching `src-tauri/src/main.rs` before each build to force a full relink, plus a post-build version guard that aborts if the bundle version doesn't match the expected version.
+
 ## [0.3.20] - 2026-05-26
 
 ### Changed

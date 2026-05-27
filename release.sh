@@ -71,8 +71,17 @@ export TAURI_SIGNING_PRIVATE_KEY
 TAURI_SIGNING_PRIVATE_KEY=$(cat "$SIGNING_KEY")
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
 
-# Build the frontend first — tauri.conf.json has no beforeBuildCommand,
-# so without this the old frontend/dist would be bundled into the binary.
+# Delete stale updater bundle artifacts before building.
+# Tauri only regenerates .app.tar.gz when the Rust binary is recompiled.
+# When only tauri.conf.json changes (version bump), Cargo produces an
+# incremental build with no binary output and Tauri skips bundle regeneration,
+# leaving a stale artifact from the last full compile. Deleting it forces
+# Tauri to create a fresh bundle. Touching main.rs forces Cargo to relink.
+echo "==> Cleaning stale updater bundle artifacts..."
+rm -f "$BUNDLE_DIR/macos/SnowRaven.app.tar.gz"
+rm -f "$BUNDLE_DIR/macos/SnowRaven.app.tar.gz.sig"
+touch src-tauri/src/main.rs
+
 echo "==> Building frontend..."
 npm --prefix frontend run build
 
@@ -88,6 +97,17 @@ if [[ ! -f "$APP_TAR" ]]; then
   echo "Error: Updater bundle not found at $APP_TAR — build may have failed."
   exit 1
 fi
+
+# Verify the bundle version matches the expected version before uploading.
+# A mismatch means the stale artifact was not regenerated — abort rather
+# than publish an update that installs the wrong binary.
+BUNDLE_VERSION=$(defaults read "$BUNDLE_DIR/macos/SnowRaven.app/Contents/Info" CFBundleShortVersionString 2>/dev/null)
+if [[ "$BUNDLE_VERSION" != "$VERSION" ]]; then
+  echo "Error: Bundle version ($BUNDLE_VERSION) does not match expected version ($VERSION)."
+  echo "The updater bundle was not regenerated correctly. Aborting."
+  exit 1
+fi
+echo "==> Bundle version verified: $BUNDLE_VERSION"
 
 # ── Notarize ─────────────────────────────────────────────────────────────────
 
