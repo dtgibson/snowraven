@@ -64,8 +64,9 @@ fi
 echo "==> SnowRaven $TAG ($ARCH)"
 
 # ── Build ─────────────────────────────────────────────────────────────────────
-# TAURI_SIGNING_PRIVATE_KEY must be set before the build so Tauri generates
-# the .app.tar.gz updater bundle and .sig file automatically.
+# Two things are required for Tauri to generate the .app.tar.gz updater bundle:
+#   1. bundle.createUpdaterArtifacts: true in tauri.conf.json
+#   2. TAURI_SIGNING_PRIVATE_KEY set in the environment before the build
 
 export TAURI_SIGNING_PRIVATE_KEY
 TAURI_SIGNING_PRIVATE_KEY=$(cat "$SIGNING_KEY")
