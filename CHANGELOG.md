@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.23] - 2026-05-26
+
+### Fixed
+- **Map Explorer — "Use my location" never prompts for permission (desktop)** — wry's `WKWebView` UIDelegate does not implement `webView:requestGeolocationPermissionFor:initiatedByFrame:decisionHandler:`, the method macOS 12+ requires to show the system location permission dialog. As a result, every `navigator.geolocation.getCurrentPosition()` call was silently denied before macOS was ever consulted, and no SnowRaven entry appeared in Location Services. Fixed by implementing a native `CLLocationManager`-based Tauri command (`get_location`) in Rust (`src-tauri/src/location.rs`) that bypasses WKWebView entirely. The app's `com.apple.security.personal-information.location` entitlement was also missing — hardened runtime requires it for any CoreLocation access.
+- **Map Explorer — "Use my location" shows misleading "access denied" over HTTP (web)** — browsers silently return `PERMISSION_DENIED` for geolocation requests from non-secure origins (HTTP) without showing any dialog. The error message "Location access was denied" implied the user had actively denied permission. Fixed by detecting `!window.isSecureContext` before attempting geolocation and showing "Location requires HTTPS. Enter coordinates manually or access the app via localhost."
+
 ## [0.3.22] - 2026-05-26
 
 ### Added

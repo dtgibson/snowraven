@@ -978,6 +978,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         setGeoError('Location request timed out. Try again or enter coordinates manually.')
       } else if (e.code === 'dev-mode') {
         setGeoError("Location requires a production build. Run 'npm run desktop:build' to test.")
+      } else if (e.code === 'insecure-context') {
+        setGeoError('Location requires HTTPS. Enter coordinates manually or access the app via localhost.')
       } else {
         setGeoError('Unable to determine your location. Try again or enter coordinates manually.')
       }

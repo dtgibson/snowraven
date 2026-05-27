@@ -1,3 +1,6 @@
+#[cfg(target_os = "macos")]
+mod location;
+
 use keyring::Entry;
 use std::sync::OnceLock;
 use tzf_rs::DefaultFinder;
@@ -53,6 +56,8 @@ pub fn run() {
             set_api_key,
             delete_api_key,
             get_timezone,
+            #[cfg(target_os = "macos")]
+            location::get_location,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")

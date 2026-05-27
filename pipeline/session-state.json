@@ -1,17 +1,11 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 2,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "approved",
-  "confirmedArtifacts": [
-    "pipeline/map-location-access/strategic-brief.md",
-    "pipeline/map-location-access/prd.md",
-    "pipeline/map-location-access/schema.md",
-    "pipeline/map-location-access/design-spec.md",
-    "pipeline/map-location-access/design.html"
-  ],
-  "createdAt": "2026-05-26T04:00:00Z",
-  "updatedAt": "2026-05-26T07:30:00Z"
+  "activeFeature": "location-permission-denied-no-prompt",
+  "sessionNumber": 1,
+  "sessionType": "fix",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
+  "confirmedArtifacts": [],
+  "createdAt": "2026-05-26T08:00:00Z",
+  "updatedAt": "2026-05-26T09:30:00Z"
 }
