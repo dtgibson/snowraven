@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-33 versions shipped. Last shipped: **Desktop app foundation (Phase 1)** -- pure TypeScript port of the Python weather formatter with a 61-test golden suite proving byte-for-byte equivalence; first milestone toward a fully standalone Tauri app.
+34 versions shipped. Last shipped: **Linux installer (`install.sh`)** -- one-command installer for Raspberry Pi and Debian/Ubuntu systems; handles system packages, Node.js, repo clone/pull, frontend build, Python venv, API key setup, and optional systemd service registration.
 
-Previously: **Desktop app foundation (Phase 0)** -- Tauri v2 project structure, transport and storage seams, platform detection; architectural foundation for the Mac and Windows standalone app; no user-visible change to the web app.
+Previously: **Desktop app foundation (Phase 1)** -- pure TypeScript port of the Python weather formatter with a 61-test golden suite proving byte-for-byte equivalence; first milestone toward a fully standalone Tauri app.
 
 ---
 

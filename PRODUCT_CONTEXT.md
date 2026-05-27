@@ -773,6 +773,25 @@ A full-screen documentation overlay accessible from the top of the Settings tab.
 - `frontend/src/components/Settings.tsx` -- Help & Documentation section (first section), `helpOpen` state, `HelpDocs` mount
 - `frontend/vite.config.ts` -- `server.fs.allow: ['..']` enables dev server to resolve the `?raw` import outside `frontend/`
 
+### Linux Installer (`install.sh`) (complete — May 2026)
+
+A single shell script at the repo root that installs SnowRaven on Raspberry Pi or any Debian/Ubuntu system in one command. Two modes: service install (systemd, auto-starts on boot) and local install (dependencies + build, user starts manually).
+
+**What it does:**
+- Curl-pipe safe: all logic inside `main()` called at the end — a partial download via `curl | bash` cannot execute an incomplete script
+- Pre-flight: reads `/etc/os-release` to confirm Debian/Ubuntu/Raspberry Pi OS; checks for `sudo`; exits before modifying anything on failure
+- Numbered mode prompt (1 = service, 2 = local); re-prompts once on invalid input then exits
+- Installs system packages via `apt`: `git`, `python3`, `python3-pip`, `python3-venv`; installs Node.js 20 LTS via NodeSource if `node` is absent or < v18
+- Clones repo or runs `git pull` on an existing install; detects existing install via `start.sh` presence and offers abort or update
+- Runs `npm ci && npm run build` in `frontend/`; creates `backend/.venv` and installs `backend/requirements.txt`
+- Prompts for API keys with explicit skip note ("press Enter to skip — add later in Settings"); writes `backend/.env` with `chmod 600`; preserves an existing `.env` untouched
+- Service mode: `sed` substitutes `User=pi` → `$USER` and hardcoded paths → install dir in `deploy/snowraven.service`; installs to `/etc/systemd/system/`; runs `daemon-reload`, `enable`, `start`; on failure prints last 20 `journalctl` lines
+- Success block prints both `hostname.local` and LAN IP URLs; local mode also prints the exact start command
+- Interactive prompts work in `curl | bash` mode by reading from `/dev/tty` when stdin is not a TTY
+
+**Key files:**
+- `install.sh` — one-command installer at repo root; chmod +x; `set -euo pipefail` + `trap ERR`
+
 ## Key Decisions
 
 **eBird coordinate fallback strategy**
