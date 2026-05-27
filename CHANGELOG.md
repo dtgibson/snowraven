@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.25] - 2026-05-27
+
+### Improved
+- **Statistics — Effort & Methodology: complete checklists bar** — the complete-checklist rate is now displayed as a two-segment bar (blue/grey) at the top of the Effort & Methodology card, above Protocol Distribution. Travelling and Stationary sub-bars show the completion rate for each protocol type. Count labels ("N of M complete") appear beside each bar's heading. The old text sentence at the bottom of the card is removed.
+- **Statistics — Data Quality: count method and comment coverage** — the Count method, Checklist comments, and Species notes bars now all follow the same label+count pattern, with raw counts displayed beside each heading. Species notes is a new bar showing what percentage of individual observation rows carry a species-level annotation. "Comment coverage" is renamed "Checklist comments" to distinguish it from species notes.
+
 ## [0.3.24] - 2026-05-26
 
 ### Improved

@@ -611,6 +611,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     let totalDistanceKm = 0, distanceCount = 0
     const observerDist = new Map<number, number>()
     let completeCount = 0, allObsCount = 0
+    const protocolComplete = new Map<string, { complete: number; total: number }>()
     let totalSpeciesHours = 0, speciesHourCount = 0
     let totalSpeciesDist = 0, speciesDistCount = 0
 
@@ -648,6 +649,12 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       if (c.allObsReported !== null) {
         allObsCount++
         if (c.allObsReported) completeCount++
+        if (proto) {
+          const pc = protocolComplete.get(proto) ?? { complete: 0, total: 0 }
+          pc.total++
+          if (c.allObsReported) pc.complete++
+          protocolComplete.set(proto, pc)
+        }
       }
     }
 
@@ -680,6 +687,9 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       sppPerHour: speciesHourCount > 0 ? totalSpeciesHours / speciesHourCount : null,
       sppPerMi: speciesDistCount > 0 ? totalSpeciesDist / speciesDistCount : null,
       completeRatio: allObsCount > 0 ? completeCount / allObsCount : null,
+      completeCount,
+      allObsCount,
+      protocolComplete,
     }
   }, [checklists])
 
@@ -712,13 +722,18 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       })
 
     const checksWithComments = checklists.filter(c => c.checklistComments.trim().length > 0).length
+    const obsWithSpeciesComments = filteredObs.filter(o => o.speciesComments.trim().length > 0).length
 
     return {
+      numericCount,
+      xCount,
       numericRatio: total > 0 ? numericCount / total : null,
       xRatio: total > 0 ? xCount / total : null,
       biggestCounts,
       checksWithComments,
       commentRatio: checklists.length > 0 ? checksWithComments / checklists.length : null,
+      obsWithSpeciesComments,
+      speciesCommentRatio: filteredObs.length > 0 ? obsWithSpeciesComments / filteredObs.length : null,
     }
   }, [filteredObs, checklists])
 
@@ -1596,6 +1611,63 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
       {/* ── Section 5: Effort & Methodology ───────────────────────────────── */}
       <SectionCard title="Effort & Methodology" icon={<Clock size={16} />}>
 
+        {effort.completeRatio !== null && (() => {
+          const completePct = Math.round(effort.completeRatio * 100)
+          const incompletePct = 100 - completePct
+          return (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Complete checklists</p>
+                <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(effort.completeCount)} of {fmt(effort.allObsCount)} complete</span>
+              </div>
+              <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 10 }}>
+                <div style={{ width: `${completePct}%`, background: 'var(--sr-chart-blue-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {completePct >= 8 && (
+                    <span style={{ fontSize: 11, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{completePct}%</span>
+                  )}
+                </div>
+                <div style={{ flex: 1, background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {incompletePct >= 8 && (
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{incompletePct}%</span>
+                  )}
+                </div>
+              </div>
+              {(() => {
+                const subBars = effort.protocolRows
+                  .filter(r => /traveling|stationary/i.test(r.name))
+                  .map(r => ({ name: r.name, pc: effort.protocolComplete.get(r.name) }))
+                  .filter(({ pc }) => pc && pc.total > 0) as { name: string; pc: { complete: number; total: number } }[]
+                if (subBars.length === 0) return null
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                    {subBars.map(({ name, pc }) => {
+                      const pct = Math.round((pc.complete / pc.total) * 100)
+                      const incompletePct = 100 - pct
+                      return (
+                        <div key={name}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
+                            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{name}</span>
+                            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(pc.complete)} of {fmt(pc.total)} complete</span>
+                          </div>
+                          <div style={{ height: 20, borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
+                            <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                              {pct >= 10 && <span style={{ fontSize: 10, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{pct}%</span>}
+                            </div>
+                            <div style={{ flex: 1, background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                              {incompletePct >= 10 && <span style={{ fontSize: 10, color: 'var(--sr-text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{incompletePct}%</span>}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+              {effort.protocolRows.length > 0 && <Divider />}
+            </>
+          )
+        })()}
+
         {effort.protocolRows.length > 0 && (
           <>
             <SubLabel>Protocol distribution</SubLabel>
@@ -1728,46 +1800,78 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
           </>
         )}
 
-        {effort.completeRatio !== null && (
-          <>
-            <Divider />
-            <p style={{ fontSize: 13, margin: 0 }}>
-              <span style={{ fontWeight: 600 }}>{Math.round(effort.completeRatio * 100)}%</span>
-              <span style={{ color: 'var(--sr-text-muted)' }}> of checklists reported all species observed (complete checklists)</span>
-            </p>
-          </>
-        )}
       </SectionCard>
 
       {/* ── Section 6: Data Quality ────────────────────────────────────────── */}
       <SectionCard title="Data Quality" icon={<ShieldCheck size={16} />}>
 
-        {quality.numericRatio !== null && quality.xRatio !== null && (
-          <>
-            <SubLabel>Count method</SubLabel>
-            <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
-              <div style={{ width: `${Math.round(quality.numericRatio * 100)}%`, background: 'var(--sr-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {quality.numericRatio > 0.1 && <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>{Math.round(quality.numericRatio * 100)}% numeric</span>}
+        {quality.numericRatio !== null && quality.xRatio !== null && (() => {
+          const numPct = Math.round(quality.numericRatio * 100)
+          const xPct = Math.round(quality.xRatio * 100)
+          const total = quality.numericCount + quality.xCount
+          return (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Count method</p>
+                <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(quality.numericCount)} numeric · {fmt(quality.xCount)} X / {fmt(total)} observations</span>
               </div>
-              <div style={{ flex: 1, background: 'var(--sr-chart-slate)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {quality.xRatio > 0.1 && <span style={{ fontSize: 12, color: 'var(--sr-text)', fontWeight: 600 }}>{Math.round(quality.xRatio * 100)}% X</span>}
+              <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
+                <div style={{ width: `${numPct}%`, background: 'var(--sr-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {numPct >= 8 && <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>{numPct}% numeric</span>}
+                </div>
+                <div style={{ flex: 1, background: 'var(--sr-chart-slate)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {xPct >= 8 && <span style={{ fontSize: 12, color: 'var(--sr-text)', fontWeight: 600 }}>{xPct}% X</span>}
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )
+        })()}
 
-        {quality.commentRatio !== null && (
+        {(quality.commentRatio !== null || quality.speciesCommentRatio !== null) && (
           <>
             <Divider />
-            <SubLabel>Comment coverage</SubLabel>
-            <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
-              <div style={{ width: `${Math.round(quality.commentRatio * 100)}%`, background: 'var(--sr-graph-photo)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {quality.commentRatio > 0.1 && <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>{Math.round(quality.commentRatio * 100)}% with notes</span>}
+            {quality.commentRatio !== null && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Checklist comments</p>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(quality.checksWithComments)} of {fmt(checklists.length)} checklists</span>
+                </div>
+                {(() => {
+                  const pct = Math.round(quality.commentRatio * 100)
+                  return (
+                    <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex' }}>
+                      <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {pct >= 8 && <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>{pct}%</span>}
+                      </div>
+                      <div style={{ flex: 1, background: 'var(--sr-chart-blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {(100 - pct) >= 8 && <span style={{ fontSize: 12, color: 'var(--sr-text)', fontWeight: 600 }}>{100 - pct}%</span>}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
-              <div style={{ flex: 1, background: 'var(--sr-chart-blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {(1 - quality.commentRatio) > 0.1 && <span style={{ fontSize: 12, color: 'var(--sr-text)', fontWeight: 600 }}>{Math.round((1 - quality.commentRatio) * 100)}% no notes</span>}
+            )}
+            {quality.speciesCommentRatio !== null && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Species notes</p>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(quality.obsWithSpeciesComments)} of {fmt(filteredObs.length)} observations</span>
+                </div>
+                {(() => {
+                  const pct = Math.round(quality.speciesCommentRatio * 100)
+                  return (
+                    <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex' }}>
+                      <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {pct >= 8 && <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>{pct}%</span>}
+                      </div>
+                      <div style={{ flex: 1, background: 'var(--sr-chart-blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {(100 - pct) >= 8 && <span style={{ fontSize: 12, color: 'var(--sr-text)', fontWeight: 600 }}>{100 - pct}%</span>}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
-            </div>
+            )}
           </>
         )}
 
