@@ -648,3 +648,19 @@ Both failures were active simultaneously with the missing `http:allow-fetch` sco
 - `MapExplorer.tsx` on-demand fetch: `catch` now calls `setTargetsError(err instanceof Error ? err.message : '...')` and returns early.
 
 **Implications:** Never use bare `catch { return [] }` or `catch { /* ignore */ }` in async code paths that produce UI results. Silent catches convert any error into ambiguous empty state, making bugs undiagnosable and allowing independent failures to compound invisibly. Any catch block that does not re-throw must at minimum set a visible error state. The `preserve-caught-error` ESLint rule (which requires `{ cause: err }` on `new Error()` wrapping a caught error) is a load-bearing lint rule — do not disable it.
+
+---
+
+## Desktop app: tauri-plugin-geolocation macOS desktop impl is a no-op stub — 2026-05-26
+
+**Context (v0.3.22):** When implementing "Use my location" in the Map Explorer, the initial approach was to use `tauri-plugin-geolocation` as the Tauri path for location access, matching how it is used for iOS/Android mobile.
+
+**Discovery:** The macOS desktop implementation (`tauri-plugin-geolocation-2.3.2/src/desktop.rs`) is a complete no-op stub. `get_current_position` returns `Ok(Position::default())` — all-zero coordinates — with a `// TODO:` comment. The plugin has no macOS desktop implementation; it is iOS/Android only.
+
+**Fix:** `frontend/src/lib/location.ts` uses `navigator.geolocation` for both Tauri and web paths. In Tauri production builds, the app is served from the `snowraven://` custom protocol, which WKWebView treats as a secure context, so `navigator.geolocation` is available and delegates to macOS CoreLocation. In Tauri dev mode (`http://localhost:5173`), `navigator.geolocation` is `undefined` (non-HTTPS origin blocks it) — this is detected with `isTauri() && import.meta.env.DEV` and returns a `'dev-mode'` error code.
+
+**Implications:**
+- Do not use `tauri-plugin-geolocation` for macOS desktop location access — it returns zeros silently.
+- `navigator.geolocation` is the correct path for Tauri macOS desktop (production builds only).
+- `tauri-plugin-geolocation` is kept registered in `lib.rs` and `capabilities/default.json` for future iOS/Android support, but no TypeScript code invokes it on the current desktop path.
+- Testing geolocation always requires a production build (`npm run desktop:build`). Dev mode will always show the `'dev-mode'` error regardless of plugin configuration.
