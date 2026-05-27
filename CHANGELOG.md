@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.17] - 2026-05-26
+
+### Fixed
+- **In-app updater installs but never applies the new binary** — Tauri's macOS updater spawns a background shell script that sleeps 1 second, replaces the `.app` bundle, then calls `open -a` to relaunch. The previous code called `relaunch()` immediately after installation, which started a new instance of the old binary before the script could run. When the script's `open -a` fired, macOS found the app already running and focused the old window instead of launching the new binary. Fixed by calling `exit(0)` instead, so the app closes cleanly, the script replaces the bundle uncontested, and `open -a` launches the new binary.
+
 ## [0.3.16] - 2026-05-26
 
 ### Fixed

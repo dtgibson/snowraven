@@ -9,6 +9,7 @@
     "http:default",
     "updater:default",
     "process:allow-restart",
+    "process:allow-exit",
     {
       "identifier": "fs:allow-read-text-file",
       "allow": [{ "path": "$APPLOCALDATA/**" }]

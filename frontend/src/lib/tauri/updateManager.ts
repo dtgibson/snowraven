@@ -41,6 +41,11 @@ export async function downloadAndInstall(
       onProgress?.({ downloaded, total });
     }
   });
-  const { relaunch } = await import('@tauri-apps/plugin-process');
-  await relaunch();
+  // Use exit(0) not relaunch() — Tauri's updater spawns a shell script that sleeps 1s,
+  // replaces the .app bundle, then calls `open -a` to relaunch. Calling relaunch() first
+  // starts a new instance of the OLD binary immediately, so `open -a` finds the app
+  // already running and just focuses the old window. exit(0) lets the script run
+  // uncontested: it replaces the bundle and relaunches into the new binary.
+  const { exit } = await import('@tauri-apps/plugin-process');
+  await exit(0);
 }
