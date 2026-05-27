@@ -78,7 +78,7 @@ FastAPI serves the built frontend as static files automatically.
 
 Two permanent architectural seams route all platform-sensitive operations. Use them in new code — do not bypass them.
 
-- **Transport:** `transport.get()` / `transport.post()` from `frontend/src/lib/transport.ts` — for all outbound HTTP calls. Phase 3 target: `TauriTransport` will call external APIs directly.
+- **Transport:** `transport.get()` / `transport.post()` from `frontend/src/lib/transport.ts` — for all outbound HTTP calls. In Tauri mode, `TauriTransport` routes each API path directly to a TypeScript service (weather, map, taxonomy, nominatim, stats, version). In web/Pi mode, `WebTransport` delegates to the Python backend.
 - **Storage:** `storage.getApiKey()` / `storage.getSetting()` / etc. from `frontend/src/lib/storage.ts` — for all key, setting, and file access. Do not call `/settings/*` endpoints directly from new components.
 - **Platform detection:** `isTauri()` from `frontend/src/lib/platform.ts` — single source of truth for branching on Tauri vs. web. Do not check `window.__TAURI_INTERNALS__` elsewhere.
 

@@ -1,11 +1,11 @@
 {
-  "activeFeature": null,
+  "activeFeature": "prune-stale-migration-comment",
   "sessionNumber": 1,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
   "confirmedArtifacts": [],
-  "createdAt": "2026-05-26T11:00:00Z",
-  "updatedAt": "2026-05-26T11:32:00Z"
+  "createdAt": "2026-05-27T09:00:00Z",
+  "updatedAt": "2026-05-27T09:20:00Z"
 }
