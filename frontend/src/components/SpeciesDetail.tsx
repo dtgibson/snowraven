@@ -159,6 +159,7 @@ function ToggleSwitch({ label, checked, onChange }: { label: string; checked: bo
       role="switch"
       aria-checked={checked}
       onClick={onChange}
+      tabIndex={0}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 7,
         height: 30, padding: '0 10px 0 8px', borderRadius: 6,
@@ -432,6 +433,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
   const [selectorQuery, setSelectorQuery] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [activeOptionIdx, setActiveOptionIdx] = useState(-1)
 
   const [mergeSubspecies, setMergeSubspecies] = useState(true)
   const [showSpuh, setShowSpuh] = useState(false)
@@ -486,11 +488,19 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
     function onPointerDown(e: MouseEvent) {
       if (selectorRef.current && !selectorRef.current.contains(e.target as Node)) {
         setDropdownOpen(false)
+        setActiveOptionIdx(-1)
       }
     }
     document.addEventListener('mousedown', onPointerDown)
     return () => document.removeEventListener('mousedown', onPointerDown)
   }, [])
+
+  useEffect(() => {
+    if (activeOptionIdx >= 0) {
+      const el = document.getElementById(`species-option-${activeOptionIdx}`)
+      el?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [activeOptionIdx])
 
   const fetchTaxonData = async (obs: ObservationEntry[]) => {
     try {
@@ -891,7 +901,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           {phase.message}
         </div>
-        <button
+        <button tabIndex={0}
           onClick={onGoToSettings}
           style={{
             height: 32, padding: '0 14px', borderRadius: 6,
@@ -933,18 +943,39 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
             placeholder="Choose a species…"
             onChange={e => {
               setSelectorQuery(e.target.value)
+              setActiveOptionIdx(-1)
               if (!dropdownOpen) setDropdownOpen(true)
             }}
             onFocus={() => {
               setSelectorQuery('')
+              setActiveOptionIdx(-1)
               setDropdownOpen(true)
             }}
             onKeyDown={e => {
-              if (e.key === 'Escape') { setDropdownOpen(false); (e.target as HTMLInputElement).blur() }
+              if (e.key === 'Escape') { setDropdownOpen(false); setActiveOptionIdx(-1); (e.target as HTMLInputElement).blur() }
+              if (e.key === 'Tab') { setDropdownOpen(false); setActiveOptionIdx(-1) }
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                if (!dropdownOpen) setDropdownOpen(true)
+                setActiveOptionIdx(i => Math.min(i + 1, filteredSpeciesList.length - 1))
+              }
+              if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setActiveOptionIdx(i => Math.max(i - 1, -1))
+              }
+              if (e.key === 'Enter' && dropdownOpen) {
+                e.preventDefault()
+                const target = activeOptionIdx >= 0 ? filteredSpeciesList[activeOptionIdx] : filteredSpeciesList[0]
+                if (target) { selectSpecies(target); setSelectorQuery(''); setDropdownOpen(false); setActiveOptionIdx(-1) }
+              }
             }}
+            role="combobox"
             aria-label="Select species"
             aria-expanded={dropdownOpen}
+            aria-autocomplete="list"
+            aria-controls="species-listbox"
             aria-haspopup="listbox"
+            aria-activedescendant={dropdownOpen && activeOptionIdx >= 0 ? `species-option-${activeOptionIdx}` : undefined}
             style={{
               width: '100%', height: 40, padding: '0 36px 0 38px',
               border: `1.5px solid ${dropdownOpen ? 'var(--sr-accent)' : 'var(--sr-border)'}`,
@@ -972,6 +1003,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
           <div
             ref={dropdownListRef}
             role="listbox"
+            id="species-listbox"
             style={{
               position: 'absolute', top: '100%', left: 0, right: 0,
               background: 'var(--sr-surface)',
@@ -986,25 +1018,30 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                 No species match this search.
               </div>
             ) : (
-              filteredSpeciesList.map(name => {
+              filteredSpeciesList.map((name, idx) => {
                 const isSelected = name === selectedSpecies
+                const isActive = idx === activeOptionIdx
                 return (
                   <div
                     key={name}
+                    id={`species-option-${idx}`}
                     role="option"
                     aria-selected={isSelected}
                     onClick={() => {
                       selectSpecies(name)
                       setSelectorQuery('')
                       setDropdownOpen(false)
+                      setActiveOptionIdx(-1)
                     }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '9px 14px', cursor: 'pointer',
-                      background: isSelected ? 'var(--sr-accent-bg)' : 'transparent',
+                      background: isActive ? 'var(--sr-accent-bg-hover)' : isSelected ? 'var(--sr-accent-bg)' : 'transparent',
+                      outline: isActive ? `2px solid var(--sr-accent)` : 'none',
+                      outlineOffset: '-2px',
                     }}
-                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface-subtle)' }}
-                    onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                    onMouseEnter={e => { if (!isSelected && !isActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface-subtle)' }}
+                    onMouseLeave={e => { if (!isSelected && !isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
                   >
                     <span style={{ width: 16, flexShrink: 0, color: 'var(--sr-accent)' }}>
                       {isSelected && <Check size={13} strokeWidth={3} />}
@@ -1086,7 +1123,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
           </div>
 
           {hasLocationFilter && (
-            <button
+            <button tabIndex={0}
               onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
@@ -1153,7 +1190,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                 fontSize: 12, color: 'var(--sr-accent)',
               }}>
                 <span style={{ fontWeight: 500 }}>{parts.join(' · ')}</span>
-                <button
+                <button tabIndex={0}
                   onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
@@ -1188,7 +1225,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                   const count = mediaCounts[type]
                   const state: 'unavailable' | 'has' | 'none' = !hasML ? 'unavailable' : count > 0 ? 'has' : 'none'
                   return (
-                    <button
+                    <button tabIndex={0}
                       key={type}
                       title={!hasML ? 'Load ML export in Settings for media data' : undefined}
                       style={{
@@ -1389,25 +1426,25 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
               <SectionCard>
                 <SectionHead icon={<SlidersHorizontal size={14} strokeWidth={2.2} />} title="Graph Options" />
                 <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div role="group" aria-label="Graph interval" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
                       Interval
                     </span>
                     <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
                       {(['weekly', 'monthly', 'yearly'] as const).map(v => (
-                        <button key={v} onClick={() => setGraphInterval(v)} style={graphInterval === v ? btnActive : btnInactive}>
+                        <button key={v} tabIndex={0} aria-pressed={graphInterval === v} onClick={() => setGraphInterval(v)} style={graphInterval === v ? btnActive : btnInactive}>
                           {v === 'weekly' ? 'Weekly' : v === 'monthly' ? 'Monthly' : 'Yearly'}
                         </button>
                       ))}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div role="group" aria-label="Graph view mode" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
                       View
                     </span>
                     <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
                       {(['per-period', 'cumulative'] as const).map(v => (
-                        <button key={v} onClick={() => setViewMode(v)} style={viewMode === v ? btnActive : btnInactive}>
+                        <button key={v} tabIndex={0} aria-pressed={viewMode === v} onClick={() => setViewMode(v)} style={viewMode === v ? btnActive : btnInactive}>
                           {v === 'per-period' ? 'Per Period' : 'Cumulative'}
                         </button>
                       ))}
@@ -1524,7 +1561,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                     ))}
                     {/* Expand / collapse */}
                     {coOccurrence.results.length > 10 && (
-                      <button
+                      <button tabIndex={0}
                         onClick={() => setShowAllCoOccurrence(prev => !prev)}
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1575,7 +1612,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                   })}
 
                   {locationsSorted.length > 10 && (
-                    <button
+                    <button tabIndex={0}
                       onClick={() => setShowAllLocations(prev => !prev)}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -1622,7 +1659,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                   background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2,
                 }}>
                   {(['pins', 'heatmap'] as const).map((mode) => (
-                    <button
+                    <button tabIndex={0}
                       key={mode}
                       onClick={() => setMapMode(mode)}
                       style={{
@@ -1721,7 +1758,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
               {/* Sort toggle */}
               <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
                 {(['newest', 'oldest'] as const).map((dir, i) => (
-                  <button
+                  <button tabIndex={0}
                     key={dir}
                     onClick={() => setCommentSort(dir)}
                     style={{
@@ -1786,7 +1823,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                 ))}
 
                 {!showAllComments && allComments.length > COMMENTS_PAGE && (
-                  <button
+                  <button tabIndex={0}
                     onClick={() => setShowAllComments(true)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,

@@ -159,7 +159,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
             boxShadow: 'inset 0 -1px 0 var(--sr-border)',
           }}>
             <th
+              scope="col"
               onClick={() => handleHeaderClick('name')}
+              aria-sort={sort.column === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
               style={{
                 ...thBase,
                 padding: '10px 14px',
@@ -177,7 +179,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
             ] as [string, SortColumn, React.ReactNode][]).map(([label, col, icon]) => (
               <th
                 key={label}
+                scope="col"
                 onClick={() => handleHeaderClick(col)}
+                aria-sort={sort.column === col ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 style={{
                   ...thBase,
                   padding: '10px 14px',
@@ -194,7 +198,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
               </th>
             ))}
             <th
+              scope="col"
               onClick={() => handleHeaderClick('total')}
+              aria-sort={sort.column === 'total' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
               style={{
                 ...thBase,
                 padding: '10px 14px',

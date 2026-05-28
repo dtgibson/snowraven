@@ -109,7 +109,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
           <thead>
             <tr>
               <th
+                scope="col"
                 onClick={() => handleHeaderClick('name')}
+                aria-sort={sort.column === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 style={{
                   ...thBase,
                   ...(wideMode ? {} : { left: 0, zIndex: 3, boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)' }),
@@ -127,7 +129,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                 return (
                   <th
                     key={code}
+                    scope="col"
                     onClick={() => handleHeaderClick(code)}
+                    aria-sort={sort.column === code ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     title={def.label}
                     style={{
                       ...thBase,
@@ -154,7 +158,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   onMouseEnter={() => setHoveredRow(entry.commonName)}
                   onMouseLeave={() => setHoveredRow(null)}
                 >
-                  <td style={{
+                  <th scope="row" style={{
                     padding: '9px 12px',
                     ...(wideMode ? {} : { position: 'sticky', left: 0, zIndex: 1, boxShadow: '1px 0 0 var(--sr-border)' }),
                     background: rowBg,
@@ -163,6 +167,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     maxWidth: 220,
                     borderTop: '1px solid var(--sr-border-subtle)',
                     verticalAlign: 'middle',
+                    fontWeight: 'normal',
                   }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -177,7 +182,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                         </span>
                       )}
                     </div>
-                  </td>
+                  </th>
                   {codesPresent.map(code => {
                     const count = entry.codes[code] ?? 0
                     const def = BREEDING_CODE_MAP.get(code)!
@@ -192,23 +197,27 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                           borderTop: '1px solid var(--sr-border-subtle)',
                         }}
                       >
-                        {count > 0 && (
-                          <div style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: '50%',
-                            background: TIER_COLORS[def.tier],
-                            color: '#fff',
-                            fontSize: 11,
-                            fontWeight: 700,
-                            letterSpacing: '-0.3px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}>
-                            {count}
-                          </div>
-                        )}
+                        {count > 0 && (() => {
+                          const tierCategoryName = def.tier >= 3 ? 'Confirmed' : def.tier === 2 ? 'Probable' : 'Possible'
+                          return (
+                            <div style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: '50%',
+                              background: TIER_COLORS[def.tier],
+                              color: def.tier === 1 ? 'var(--sr-tier-1-text)' : '#fff',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              letterSpacing: '-0.3px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}>
+                              {count}
+                              <span className="sr-only">, {tierCategoryName}</span>
+                            </div>
+                          )
+                        })()}
                       </td>
                     )
                   })}

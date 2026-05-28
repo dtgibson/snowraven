@@ -311,7 +311,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
             SnowRaven Documentation
           </span>
         </div>
-        <button
+        <button tabIndex={0}
           ref={closeRef}
           onClick={onClose}
           aria-label="Close documentation"
@@ -355,7 +355,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
               Contents
             </div>
             {TOC.map(item => (
-              <button
+              <button tabIndex={0}
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
                 style={{

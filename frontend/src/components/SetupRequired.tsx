@@ -78,7 +78,7 @@ export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequi
         ))}
       </div>
 
-      <button
+      <button tabIndex={0}
         onClick={onGoToSettings}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 7,

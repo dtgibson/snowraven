@@ -72,7 +72,7 @@ function buildComprehensiveEntries(
 
 function ToggleSwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
-    <button
+    <button tabIndex={0}
       role="switch"
       aria-checked={checked}
       onClick={onChange}
@@ -406,7 +406,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           {phase.message}
         </div>
-        <button
+        <button tabIndex={0}
           onClick={onGoToSettings}
           style={{
             height: 32, padding: '0 14px', borderRadius: 6,
@@ -521,9 +521,10 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
       }}>
         {/* Filter pills */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false) }}>All</button>
-          <button style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</button>
-          <button
+          <button tabIndex={0} aria-pressed={isFilterClear} style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false) }}>All</button>
+          <button tabIndex={0} aria-pressed={filterHasMedia} style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</button>
+          <button tabIndex={0}
+            aria-pressed={filterIsTarget}
             style={filterIsTarget ? {
               ...pillStyle('none'),
               background: 'var(--sr-is-target-bg)', color: 'var(--sr-is-target-text)',
@@ -537,39 +538,41 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
           <div style={pillSep} />
 
-          <button style={pillStyle(filter.photo === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('photo', 'no')}>
+          <button tabIndex={0} aria-pressed={filter.photo === 'no'} style={pillStyle(filter.photo === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('photo', 'no')}>
             <Camera size={11} strokeWidth={2.5} />No photo
           </button>
-          <button style={pillStyle(filter.audio === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('audio', 'no')}>
+          <button tabIndex={0} aria-pressed={filter.audio === 'no'} style={pillStyle(filter.audio === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('audio', 'no')}>
             <Mic size={11} strokeWidth={2.5} />No audio
           </button>
-          <button style={pillStyle(filter.video === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('video', 'no')}>
+          <button tabIndex={0} aria-pressed={filter.video === 'no'} style={pillStyle(filter.video === 'no' ? 'negative' : 'none')} onClick={() => toggleDimension('video', 'no')}>
             <Video size={11} strokeWidth={2.5} />No video
           </button>
 
           <div style={pillSep} />
 
-          <button style={pillStyle(filter.photo === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('photo', 'has')}>
+          <button tabIndex={0} aria-pressed={filter.photo === 'has'} style={pillStyle(filter.photo === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('photo', 'has')}>
             <Camera size={11} strokeWidth={2.5} />Has photo
           </button>
-          <button style={pillStyle(filter.audio === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('audio', 'has')}>
+          <button tabIndex={0} aria-pressed={filter.audio === 'has'} style={pillStyle(filter.audio === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('audio', 'has')}>
             <Mic size={11} strokeWidth={2.5} />Has audio
           </button>
-          <button style={pillStyle(filter.video === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('video', 'has')}>
+          <button tabIndex={0} aria-pressed={filter.video === 'has'} style={pillStyle(filter.video === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('video', 'has')}>
             <Video size={11} strokeWidth={2.5} />Has video
           </button>
 
           <div style={pillSep} />
 
           {/* A–Z / Taxonomic sort toggle */}
-          <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
-            <button
+          <div role="group" aria-label="Sort order" style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+            <button tabIndex={0}
+              aria-pressed={sort.nameSortMode === 'az'}
               style={{ ...sortToggleBtn(sort.nameSortMode === 'az'), borderRight: '1.5px solid var(--sr-accent-border)' }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
             >
               A–Z
             </button>
-            <button
+            <button tabIndex={0}
+              aria-pressed={sort.nameSortMode === 'taxonomic'}
               style={sortToggleBtn(sort.nameSortMode === 'taxonomic')}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
             >
@@ -670,8 +673,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
         {/* Right controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
-          <button
+          <span aria-live="polite" style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
+          <button tabIndex={0}
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}
             title={wideMode ? 'Collapse table into scroll box' : 'Expand table — scroll the whole page on mobile'}
@@ -689,7 +692,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           fontSize: 12, color: 'var(--sr-accent)', flexShrink: 0,
         }}>
           <span style={{ fontWeight: 500 }}>{filterStripText}</span>
-          <button
+          <button tabIndex={0}
             onClick={() => { setCountyFilter(null); setDateRange(DATE_RANGE_CLEAR) }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',

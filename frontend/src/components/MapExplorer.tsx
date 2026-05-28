@@ -233,7 +233,7 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
           onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }}
         />
-        <button
+        <button tabIndex={0}
           onClick={handleSearch}
           disabled={loading || !query.trim()}
           title="Search"
@@ -507,7 +507,7 @@ function SegControl({ options, value, onChange }: {
   return (
     <div style={{ display: 'flex', background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2 }}>
       {options.map(opt => (
-        <button
+        <button tabIndex={0}
           key={opt.value}
           onClick={() => onChange(opt.value)}
           style={{
@@ -559,7 +559,7 @@ function KeyNotice({ onGoToSettings }: { onGoToSettings: () => void }) {
         <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>eBird API key required. Add it in Settings to use this feature.</span>
       </div>
-      <button
+      <button tabIndex={0}
         onClick={onGoToSettings}
         style={{
           background: 'none', border: 'none', padding: 0, fontSize: 11, fontWeight: 600,
@@ -599,6 +599,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [phase, setPhase] = useState<MapPhase>({ tag: 'loading-saved' })
   const [viewMode, setViewMode] = useState<ViewMode>('sightings')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('pins')
+
+  const sidebarRef = useRef<HTMLDivElement>(null)
+  const filtersButtonRef = useRef<HTMLButtonElement>(null)
 
   // My Sightings filters
   const [filterOpen, setFilterOpen]         = useState(true)
@@ -642,6 +645,43 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // Mobile sidebar overlay state
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Focus trap for mobile sidebar
+  useEffect(() => {
+    if (!sidebarOpen) return
+    const sidebar = sidebarRef.current
+    if (!sidebar) return
+
+    const focusable = sidebar.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    )
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    first?.focus()
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSidebarOpen(false)
+        filtersButtonRef.current?.focus()
+      }
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault()
+            last?.focus()
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault()
+            first?.focus()
+          }
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [sidebarOpen])
 
   // Initial map center from saved defaults
   const [defaultCenter, setDefaultCenter] = useState<{ lat: number; lng: number; zoom: number } | null>(null)
@@ -1017,7 +1057,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   const CenterPointControl = (
     <div style={{ marginBottom: 16 }}>
-      <button
+      <button tabIndex={0}
         onClick={handleUseMyLocation}
         disabled={isLocating}
         style={{
@@ -1066,7 +1106,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {/* Collapsible filter panel */}
         <div>
-          <button
+          <button tabIndex={0}
             onClick={() => setFilterOpen(o => !o)}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1176,7 +1216,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       }} />
       {CenterPointControl}
       {RadiusControl}
-      <button
+      <button tabIndex={0}
         onClick={() => handleFindHotspots()}
         disabled={hotspotsLoading || hasEbirdKey === false}
         style={{
@@ -1217,7 +1257,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               const count = hotspotPins.filter(p => p.kind === row.kind).length
               const isHidden = hiddenKinds.has(row.kind)
               return (
-                <button
+                <button tabIndex={0}
                   key={row.label}
                   onClick={() => setHiddenKinds(prev => {
                     const next = new Set(prev)
@@ -1273,7 +1313,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             <div style={{ padding: '10px 12px', background: 'var(--sr-surface-subtle)', borderRadius: 8, border: '1px solid var(--sr-border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--sr-map-target)', flexShrink: 0 }} />
-                <button
+                <button tabIndex={0}
                   onClick={onNavigateToMediaList}
                   style={{
                     fontSize: 14, fontWeight: 700, color: 'var(--sr-accent)',
@@ -1325,7 +1365,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         </div>
       )}
 
-      <button
+      <button tabIndex={0}
         onClick={() => handleFindSightings()}
         disabled={targetsFetchDisabled}
         style={{
@@ -1360,7 +1400,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{displayedTargetPins.length} species</span>
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-              <button
+              <button tabIndex={0}
                 onClick={() => setTargetTypeFilter(new Set())}
                 style={{
                   display: 'inline-flex', alignItems: 'center', padding: '3px 9px',
@@ -1376,7 +1416,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {(['Photo', 'Audio', 'Video'] as const).map(type => {
                 const isActive = targetTypeFilter.has(type)
                 return (
-                  <button
+                  <button tabIndex={0}
                     key={type}
                     onClick={() => setTargetTypeFilter(prev => {
                       const next = new Set(prev)
@@ -1416,7 +1456,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 const { bg, text } = tierColors(tier)
                 const isSelected = selectedTargetKey === key
                 return (
-                  <button
+                  <button tabIndex={0}
                     key={key}
                     onClick={() => { setSelectedTargetKey(key); setPanTarget({ lat: pin.lat, lng: pin.lng }) }}
                     style={{
@@ -1427,7 +1467,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                       cursor: 'pointer', textAlign: 'left',
                     }}
                   >
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: bg, border: `1px solid ${text === 'white' ? 'transparent' : 'var(--sr-border)'}`, flexShrink: 0 }} />
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: bg, border: `1px solid ${text === 'white' ? 'transparent' : 'var(--sr-border)'}`, flexShrink: 0 }}>
+                      <span className="sr-only">
+                        {tier === 'fresh' ? 'Recent (≤7 days)' : tier === 'mid' ? 'Seen 8–14 days ago' : 'Seen 15–30 days ago'}
+                      </span>
+                    </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.comName}</div>
                       <div style={{ fontSize: 10, color: 'var(--sr-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</div>
@@ -1453,14 +1497,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
       {/* Mode bar */}
-      <div style={{ display: 'flex', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--sr-border)', background: 'var(--sr-surface)', flexShrink: 0 }}>
+      <div role="group" aria-label="Map view mode" style={{ display: 'flex', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--sr-border)', background: 'var(--sr-surface)', flexShrink: 0 }}>
         {([
           { mode: 'sightings' as ViewMode, label: 'My Sightings',  icon: <MapPin size={14} strokeWidth={2.5} /> },
           { mode: 'hotspots' as ViewMode,  label: 'Hotspots',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg> },
           { mode: 'targets' as ViewMode,   label: 'Media Targets', icon: <Camera size={14} strokeWidth={2.5} /> },
         ] as { mode: ViewMode; label: string; icon: React.ReactNode }[]).map(({ mode, label, icon }) => (
-          <button
+          <button tabIndex={0}
             key={mode}
+            aria-pressed={viewMode === mode}
             onClick={() => {
               setViewMode(mode)
               if (mode === 'hotspots' || mode === 'targets') {
@@ -1505,13 +1550,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
         {/* Sidebar */}
         <div
+          ref={sidebarRef}
           className={`sr-map-sidebar-overlay${sidebarOpen ? '' : ' sr-map-sidebar-hidden'}`}
           style={{ width: 268, flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)' }}
         >
           {/* Mobile-only header with close button */}
           <div className="sr-map-sidebar-close">
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>Map Filters</span>
-            <button
+            <button tabIndex={0}
               onClick={() => setSidebarOpen(false)}
               aria-label="Close filters"
               style={{
@@ -1532,7 +1578,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         <div style={{ flex: 1, position: 'relative' }}>
           {/* Floating Filters button — mobile only, hidden while sidebar is open */}
           {!sidebarOpen && (
-            <button
+            <button tabIndex={0}
+              ref={filtersButtonRef}
               className="sr-map-filters-btn"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open map filters"
@@ -1558,6 +1605,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               zoom={4}
               style={{ height: '100%', width: '100%' }}
               zoomControl
+              aria-label="Interactive birding map"
             >
               <AutoSizeMap />
               <MapPanner target={panTarget} onDone={handlePanDone} />

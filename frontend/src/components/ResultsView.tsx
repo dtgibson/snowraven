@@ -54,7 +54,7 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
         <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
           <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }}>
             {(['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
-              <button
+              <button tabIndex={0}
                 key={s}
                 onClick={() => onSortChange(s)}
                 style={{
@@ -75,7 +75,7 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
               </button>
             ))}
           </div>
-          <button
+          <button tabIndex={0}
             onClick={onReset}
             style={{
               display: 'flex',

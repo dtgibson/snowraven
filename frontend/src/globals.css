@@ -51,6 +51,7 @@
   --sr-tier-3: #6B21A8;
   --sr-tier-2: #9333EA;
   --sr-tier-1: #C084FC;
+  --sr-tier-1-text: #3B0764;   /* dark text on tier-1 badge — passes AA */
   /* RGB values for rgba() usage in pill backgrounds */
   --sr-tier-4-rgb: 59,7,100;
   --sr-tier-3-rgb: 107,33,168;
@@ -136,6 +137,7 @@
   --sr-tier-3: #7C3AED;
   --sr-tier-2: #A855F7;
   --sr-tier-1: #C084FC;
+  --sr-tier-1-text: #1A0030;   /* dark text on tier-1 badge in dark mode */
   --sr-tier-4-rgb: 107,33,168;
   --sr-tier-3-rgb: 124,58,237;
   --sr-tier-2-rgb: 168,85,247;
@@ -328,6 +330,42 @@ h1, h2, h3, h4, h5, h6 {
   inset: 0;
   background: rgba(0, 0, 0, 0.42);
   z-index: 1100;
+}
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Global focus ring — explicit selectors to override Tailwind's base reset */
+button:focus-visible,
+a:focus-visible,
+[role="tab"]:focus-visible,
+[role="button"]:focus-visible,
+[role="switch"]:focus-visible,
+[role="radio"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--sr-accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.12);
+}
+
+/* Inputs use a border-hugging ring */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 0;
+  border-color: var(--sr-accent) !important;
+  box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.12);
 }
 
 @media (max-width: 640px) {

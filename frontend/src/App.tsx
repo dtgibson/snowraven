@@ -305,7 +305,29 @@ export default function App() {
 
       {/* Tab bar — order and visibility controlled by tabLayout state */}
       <div style={{ borderBottom: '1px solid var(--sr-border)', display: 'flex', justifyContent: 'center', padding: '0 24px', flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <nav style={{ display: 'flex', maxWidth: 880, width: '100%' }} role="tablist">
+        <nav
+          aria-label="Main navigation"
+          style={{ display: 'flex', maxWidth: 880, width: '100%' }}
+          role="tablist"
+          onKeyDown={e => {
+            const visibleTabs: Tab[] = [
+              ...tabLayout.order.filter(tab => !tabLayout.hidden.has(tab)),
+              'settings',
+            ]
+            const idx = visibleTabs.indexOf(activeTab)
+            if (e.key === 'ArrowRight') {
+              e.preventDefault()
+              const next = visibleTabs[(idx + 1) % visibleTabs.length]
+              setActiveTab(next)
+              document.getElementById(`tab-${next}`)?.focus()
+            } else if (e.key === 'ArrowLeft') {
+              e.preventDefault()
+              const prev = visibleTabs[(idx - 1 + visibleTabs.length) % visibleTabs.length]
+              setActiveTab(prev)
+              document.getElementById(`tab-${prev}`)?.focus()
+            }
+          }}
+        >
           {tabLayout.order
             .filter(tab => !tabLayout.hidden.has(tab))
             .map(tab => (
@@ -313,6 +335,9 @@ export default function App() {
                 key={tab}
                 role="tab"
                 aria-selected={activeTab === tab}
+                aria-controls={`panel-${tab}`}
+                id={`tab-${tab}`}
+                tabIndex={activeTab === tab ? 0 : -1}
                 style={tabStyle(tab)}
                 onClick={() => setActiveTab(tab)}
               >
@@ -324,6 +349,9 @@ export default function App() {
           <button
             role="tab"
             aria-selected={activeTab === 'settings'}
+            aria-controls="panel-settings"
+            id="tab-settings"
+            tabIndex={activeTab === 'settings' ? 0 : -1}
             style={tabStyle('settings')}
             onClick={() => setActiveTab('settings')}
           >
@@ -337,8 +365,13 @@ export default function App() {
       </div>
 
       {/* Weather tab content */}
+      <main>
       <div
         role="tabpanel"
+        id="panel-weather"
+        aria-labelledby="tab-weather"
+        aria-live="polite"
+        aria-atomic="true"
         className="sr-panel"
         style={{
           display: activeTab === 'weather' ? 'flex' : 'none',
@@ -357,7 +390,7 @@ export default function App() {
                 fontSize: 13, color: 'var(--sr-warning)',
               }}>
                 <span>eBird API key not configured — weather lookups require an eBird API key.</span>
-                <button
+                <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
                     background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600,
@@ -376,7 +409,7 @@ export default function App() {
                 fontSize: 13, color: 'var(--sr-warning)',
               }}>
                 <span>OpenWeather API key not configured — weather lookups won't return conditions. If you don't use weather features, you can disable or move this tab in Settings.</span>
-                <button
+                <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
                     background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600,
@@ -427,11 +460,10 @@ export default function App() {
                 fontFamily: 'inherit',
                 color: 'inherit',
                 background: 'var(--sr-surface)',
-                outline: 'none',
                 minWidth: 0,
               }}
             />
-            <button
+            <button tabIndex={0}
               onClick={handleLookup}
               disabled={isLoading}
               style={{
@@ -532,7 +564,7 @@ export default function App() {
                 }}>
                   Weather output
                 </span>
-                <button
+                <button tabIndex={0}
                   onClick={handleCopy}
                   aria-label="Copy weather output to clipboard"
                   style={{
@@ -583,6 +615,8 @@ export default function App() {
       {/* List Comparer tab content */}
       <div
         role="tabpanel"
+        id="panel-comparer"
+        aria-labelledby="tab-comparer"
         className="sr-panel"
         style={{
           display: activeTab === 'comparer' ? 'flex' : 'none',
@@ -596,6 +630,8 @@ export default function App() {
       {/* Life List tab content */}
       <div
         role="tabpanel"
+        id="panel-life-list"
+        aria-labelledby="tab-life-list"
         className="sr-panel"
         style={{
           display: activeTab === 'life-list' ? 'flex' : 'none',
@@ -614,6 +650,8 @@ export default function App() {
       {/* Breeding Codes tab content */}
       <div
         role="tabpanel"
+        id="panel-breeding-codes"
+        aria-labelledby="tab-breeding-codes"
         className="sr-panel"
         style={{
           display: activeTab === 'breeding-codes' ? 'flex' : 'none',
@@ -627,6 +665,8 @@ export default function App() {
       {/* Species Detail tab content */}
       <div
         role="tabpanel"
+        id="panel-species-detail"
+        aria-labelledby="tab-species-detail"
         className="sr-panel"
         style={{
           display: activeTab === 'species-detail' ? 'flex' : 'none',
@@ -640,6 +680,8 @@ export default function App() {
       {/* Map Explorer tab content */}
       <div
         role="tabpanel"
+        id="panel-map-explorer"
+        aria-labelledby="tab-map-explorer"
         style={{
           display: activeTab === 'map-explorer' ? 'flex' : 'none',
           flexDirection: 'column',
@@ -653,6 +695,8 @@ export default function App() {
       {/* Statistics tab content */}
       <div
         role="tabpanel"
+        id="panel-birding-stats"
+        aria-labelledby="tab-birding-stats"
         className="sr-panel"
         style={{
           display: activeTab === 'birding-stats' ? 'flex' : 'none',
@@ -666,6 +710,8 @@ export default function App() {
       {/* Settings tab content */}
       <div
         role="tabpanel"
+        id="panel-settings"
+        aria-labelledby="tab-settings"
         className="sr-panel"
         style={{
           display: activeTab === 'settings' ? 'flex' : 'none',
@@ -683,9 +729,10 @@ export default function App() {
           onRestoreDefaults={handleRestoreDefaults}
         />
       </div>
+      </main>
 
       {/* Footer */}
-      <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
+      <p role="contentinfo" style={{ textAlign: 'center', fontSize: 12, color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
         <a
           href="https://github.com/dtgibson/snowraven"
           target="_blank"
@@ -698,7 +745,7 @@ export default function App() {
         </a>
         {' · Self-hosted Birding Tools · '}
         {updateStatus.kind === 'idle' && (
-          <button
+          <button tabIndex={0}
             onClick={handleUpdateCheck}
             style={{
               background: 'none',
@@ -716,16 +763,16 @@ export default function App() {
           </button>
         )}
         {updateStatus.kind === 'checking' && (
-          <span style={{ color: 'var(--sr-text-muted)' }}>Checking…</span>
+          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>Checking…</span>
         )}
         {updateStatus.kind === 'up-to-date' && (
-          <span style={{ color: 'var(--sr-accent)' }}>Up to date (v{updateStatus.current})</span>
+          <span aria-live="polite" style={{ color: 'var(--sr-accent)' }}>Up to date (v{updateStatus.current})</span>
         )}
         {updateStatus.kind === 'available' && (
           isTauri() ? (
             <span style={{ color: 'var(--sr-warning)' }}>
               v{updateStatus.latest} available —{' '}
-              <button
+              <button tabIndex={0}
                 onClick={handleInstallUpdate}
                 style={{
                   background: 'none', border: 'none', padding: 0, font: 'inherit',

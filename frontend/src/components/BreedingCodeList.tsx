@@ -201,7 +201,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           {phase.message}
         </div>
-        <button
+        <button tabIndex={0}
           onClick={onGoToSettings}
           style={{
             height: 32, padding: '0 14px', borderRadius: 6,
@@ -276,7 +276,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
         gap: 12, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap',
       }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button
+          <button tabIndex={0}
+            aria-pressed={filter.size === 0 && categoryFilter.size === 0}
             style={{
               display: 'inline-flex', alignItems: 'center',
               height: 30, padding: '0 12px', borderRadius: 6,
@@ -295,8 +296,9 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
             .map(({ key, label }) => {
               const active = categoryFilter.has(key)
               return (
-                <button
+                <button tabIndex={0}
                   key={key}
+                  aria-pressed={active}
                   style={categoryPillStyle(key, active)}
                   onClick={() => {
                     setCategoryFilter(prev => {
@@ -316,8 +318,9 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
             const def = BREEDING_CODE_MAP.get(code)!
             const active = filter.has(code)
             return (
-              <button
+              <button tabIndex={0}
                 key={code}
+                aria-pressed={active}
                 style={codePillStyle(def.tier, active)}
                 onClick={() => {
                   setFilter(prev => {
@@ -341,8 +344,9 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
           <div style={{ width: 1, height: 20, background: 'var(--sr-border)', flexShrink: 0, alignSelf: 'center' }} />
 
           {/* A–Z / Taxonomic sort toggle */}
-          <div style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
-            <button
+          <div role="group" aria-label="Sort order" style={{ display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+            <button tabIndex={0}
+              aria-pressed={sort.nameSortMode === 'az'}
               style={{
                 height: 30, padding: '0 13px', border: 'none',
                 borderRight: '1.5px solid var(--sr-accent-border)',
@@ -354,7 +358,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
             >
               A–Z
             </button>
-            <button
+            <button tabIndex={0}
+              aria-pressed={sort.nameSortMode === 'taxonomic'}
               style={{
                 height: 30, padding: '0 13px', border: 'none',
                 background: sort.nameSortMode === 'taxonomic' ? 'var(--sr-accent-bg)' : 'transparent',
@@ -445,8 +450,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
-          <button
+          <span aria-live="polite" style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
+          <button tabIndex={0}
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}
             title={wideMode ? 'Collapse table into scroll box' : 'Expand table — scroll the whole page on mobile'}
@@ -464,7 +469,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
           fontSize: 12, color: 'var(--sr-accent)', flexShrink: 0,
         }}>
           <span style={{ fontWeight: 500 }}>{filterStripText}</span>
-          <button
+          <button tabIndex={0}
             onClick={() => { setCountyFilter(null); setDateRange(DATE_RANGE_CLEAR) }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',

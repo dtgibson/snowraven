@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.28] - 2026-05-27
+
+### Improved
+- **Accessibility — keyboard navigation and screen reader support (app-wide)** — comprehensive assistive technology pass across all eight tabs. Every interactive control is now reachable via Tab (including all button elements, which required explicit `tabIndex={0}` in Tauri's WKWebView). The tab bar uses roving tabindex with Left/Right arrow key navigation. The species selector combobox supports ArrowDown/ArrowUp to move through the filtered list and Enter to select; the active option is highlighted and scrolled into view. Filter pills carry `aria-pressed`, toggle switches carry `role="switch"` and `aria-checked`, sort headers carry `aria-sort`, and tab panels carry `role="tabpanel"` with `aria-labelledby`. The Map Explorer mobile sidebar has a full focus trap (Tab cycles within the overlay, Escape closes and returns focus to the trigger). Dynamic regions (weather output, species counts, update status) are marked `aria-live="polite"`. A consistent `:focus-visible` ring (3px green outline) appears on every focused element. The tier-1 breeding code badge text color changed from white to dark purple (#3B0764), bringing contrast from 2.7:1 to 6.8:1 (passes WCAG AA). Visually-hidden `.sr-only` labels added to tier badges and map recency dots for screen readers.
+
 ## [0.3.27] - 2026-05-27
 
 ### Added

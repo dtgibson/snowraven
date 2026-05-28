@@ -1066,7 +1066,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               <SubLabel>Life list accumulation</SubLabel>
               <div style={{ display: 'flex', gap: 4 }}>
                 {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
-                  <button
+                  <button tabIndex={0}
                     key={g}
                     onClick={() => setAccGranularity(g)}
                     style={{
@@ -1524,7 +1524,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               County names link to their state/province eBird region page.
             </p>
             {geo.topCounties.length > 8 && (
-              <button
+              <button tabIndex={0}
                 onClick={() => setShowAllCounties(v => !v)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
@@ -2026,7 +2026,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                   { key: 'probable', label: 'Probable', color: 'var(--sr-tier-2)' },
                   { key: 'possible', label: 'Possible', color: 'var(--sr-tier-1)' },
                 ] as const).map(f => (
-                  <button
+                  <button tabIndex={0}
                     key={f.key}
                     onClick={() => setBreedingFilter(f.key)}
                     style={{
@@ -2115,7 +2115,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             {mediaInterval !== 'total' ? (
               <div style={{ display: 'flex', gap: 4 }}>
                 {(['per-period', 'cumulative'] as const).map(m => (
-                  <button
+                  <button tabIndex={0}
                     key={m}
                     onClick={() => setMediaViewMode(m)}
                     style={{
@@ -2134,7 +2134,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             {/* Interval control */}
             <div style={{ display: 'flex', gap: 4 }}>
               {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
-                <button
+                <button tabIndex={0}
                   key={g}
                   onClick={() => setMediaInterval(g)}
                   style={{
@@ -2275,7 +2275,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             <AlertCircle size={14} style={{ color: 'var(--sr-text-muted)', flexShrink: 0 }} />
             <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: 0 }}>
               Set a default location in{' '}
-              <button onClick={onGoToSettings} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--sr-accent)', fontSize: 'inherit', fontFamily: 'inherit', fontWeight: 600 }}>
+              <button tabIndex={0} onClick={onGoToSettings} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--sr-accent)', fontSize: 'inherit', fontFamily: 'inherit', fontWeight: 600 }}>
                 Settings
               </button>{' '}
               to see Nemesis Birds nearby.

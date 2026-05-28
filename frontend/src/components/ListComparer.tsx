@@ -177,7 +177,7 @@ export function ListComparer() {
                 overflow: 'hidden',
               }}>
                 {(['my-list', 'upload'] as const).map((mode, i) => (
-                  <button
+                  <button tabIndex={0}
                     key={mode}
                     onClick={() => setListAMode(mode)}
                     style={{
@@ -245,7 +245,7 @@ export function ListComparer() {
             </p>
           )}
 
-          <button
+          <button tabIndex={0}
             onClick={handleCompare}
             disabled={!canCompare}
             aria-disabled={!canCompare}

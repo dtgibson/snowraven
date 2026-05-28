@@ -98,10 +98,12 @@ function AppearanceRow() {
         <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sr-text)', marginBottom: 10 }}>
           Color scheme
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div role="radiogroup" aria-label="Color theme" style={{ display: 'flex', gap: 6 }}>
           {options.map(({ key, label }) => (
-            <button
+            <button tabIndex={0}
               key={key}
+              role="radio"
+              aria-checked={preference === key}
               style={toggleBtnStyle(key)}
               onClick={() => selectTheme(key)}
             >
@@ -128,7 +130,7 @@ function AppearanceRow() {
             Your preference will be saved in this browser's local storage — on this device only. Nothing is sent to the server.
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
+            <button tabIndex={0}
               onClick={savePreference}
               style={{
                 height: 30,
@@ -146,7 +148,7 @@ function AppearanceRow() {
             >
               Save preference
             </button>
-            <button
+            <button tabIndex={0}
               onClick={dismissConsent}
               style={{
                 height: 30,
@@ -233,7 +235,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
             </div>
           )}
 
-          <button
+          <button tabIndex={0}
             onClick={() => inputRef.current?.click()}
             disabled={uploading}
             style={{
@@ -251,7 +253,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
             {uploading ? 'Uploading…' : info ? 'Upload new' : 'Upload file'}
           </button>
 
-          <button
+          <button tabIndex={0}
             onClick={onDelete}
             disabled={!info}
             style={{
@@ -339,8 +341,9 @@ function KeyRow({
                 }}>
                   {visible ? value : '••••••••••••••••'}
                 </span>
-                <button
+                <button tabIndex={0}
                   onClick={onToggleVisible}
+                  aria-label={visible ? 'Hide API key' : 'Show API key'}
                   style={{
                     background: 'none', border: 'none', padding: 0,
                     fontSize: 12, fontWeight: 500, color: 'var(--sr-accent)',
@@ -368,7 +371,7 @@ function KeyRow({
                 No key saved
               </div>
             )}
-            <button
+            <button tabIndex={0}
               onClick={onStartEdit}
               style={{
                 height: 32, padding: '0 12px',
@@ -379,7 +382,7 @@ function KeyRow({
             >
               {isSet ? 'Update' : 'Add key'}
             </button>
-            <button
+            <button tabIndex={0}
               onClick={onDelete}
               disabled={!isSet}
               style={{
@@ -416,7 +419,7 @@ function KeyRow({
             onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
             onKeyDown={e => { if (e.key === 'Enter' && input.trim()) onSave() }}
           />
-          <button
+          <button tabIndex={0}
             onClick={onSave}
             disabled={!input.trim() || saving}
             style={{
@@ -431,7 +434,7 @@ function KeyRow({
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
-          <button
+          <button tabIndex={0}
             onClick={onCancelEdit}
             style={{
               height: 32, padding: '0 12px',
@@ -552,6 +555,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
         <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
       </div>
 
+      <p className="sr-only">Note: reordering tabs requires a mouse or touch device. Keyboard reordering is not supported in this version.</p>
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
         <p style={{ padding: '11px 16px', fontSize: 12, color: 'var(--sr-text-muted)', lineHeight: 1.5, borderBottom: '1px solid var(--sr-border-subtle)' }}>
           Drag to reorder. Use the eye icon to show or hide individual tabs.
@@ -597,7 +601,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                 )}
 
                 {/* Eye toggle */}
-                <button
+                <button tabIndex={0}
                   aria-label={(hidden ? 'Show ' : 'Hide ') + TAB_LABELS[tab] + ' tab'}
                   disabled={isLastVisible}
                   title={isLastVisible ? 'At least one tab must remain visible' : undefined}
@@ -638,7 +642,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10, marginBottom: 8 }}>
-        <button
+        <button tabIndex={0}
           onClick={handleRestore}
           disabled={isDefault}
           style={{
@@ -685,7 +689,7 @@ function RebuildCachesButton() {
   }
 
   return (
-    <button
+    <button tabIndex={0}
       onClick={handleRebuild}
       disabled={status === 'working'}
       style={{
@@ -899,7 +903,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
             Setup guides, feature walkthroughs, and API key instructions. Available offline.
           </div>
         </div>
-        <button
+        <button tabIndex={0}
           onClick={() => setHelpOpen(true)}
           style={{
             height: 34, padding: '0 16px', flexShrink: 0,
@@ -1049,7 +1053,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
+            <button tabIndex={0}
               onClick={handleSaveMapDefaults}
               disabled={mapDefaultsStatus === 'saving'}
               style={{
@@ -1063,7 +1067,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
             >
               {mapDefaultsStatus === 'saving' ? 'Saving…' : 'Save'}
             </button>
-            <button
+            <button tabIndex={0}
               onClick={handleClearMapDefaults}
               disabled={!mapDefaultsHasSaved}
               style={{
