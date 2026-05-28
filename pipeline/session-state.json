@@ -1,12 +1,12 @@
 {
-  "activeFeature": "desktop-persistence-and-readme",
-  "sessionNumber": 1,
-  "sessionType": "fix",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": ["pipeline/desktop-persistence-and-readme/bug-brief.md", "pipeline/desktop-persistence-and-readme/qa-report.md", "pipeline/desktop-persistence-and-readme/security-review.md"],
-  "awaitingHuman": { "gateId": "stage-5-deploy", "stage": 5, "openedAt": "2026-05-28T06:20:00Z" },
-  "createdAt": "2026-05-28T05:40:00Z",
-  "updatedAt": "2026-05-28T06:20:00Z"
+  "activeFeature": null,
+  "sessionNumber": null,
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": null,
+  "lastCheckpointStatus": "abandoned",
+  "confirmedArtifacts": [],
+  "awaitingHuman": null,
+  "createdAt": "2026-05-28T07:00:00Z",
+  "updatedAt": "2026-05-28T07:15:00Z"
 }

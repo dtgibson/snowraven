@@ -840,6 +840,11 @@ The main tab navigation adapts to available width. On desktop it is the existing
 - `frontend/src/lib/tabLayout.ts` — `visibleTabs(layout)` helper and `Tab` type, shared by App and TabNav
 - `frontend/src/App.tsx` — builds `navItems`, renders `<TabNav>`
 
+## Considered and Rejected
+
+### Recent Arrivals (Map Explorer)
+Reached Stage 1 (strategy only). Abandoned because the eBird API can't support it: nearby (geo) observation lookups cap at 30 days back, and there's no radius-scoped historical endpoint, so detecting a 3–9 month absence within X miles of a point isn't feasible without coarse county-level sampling or accumulating history over time. See DECISIONS.md (2026-05-28) for the full rationale.
+
 ## Key Decisions
 
 **WKWebView (Tauri) requires explicit `tabIndex={0}` on all `<button>` elements**

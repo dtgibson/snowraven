@@ -4,6 +4,15 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Abandoned — Recent Arrivals (Map Explorer) — 2026-05-28
+
+**Stage reached:** Stage 1 (The Strategist) — strategy only, no artifacts written, no code.
+**Idea:** A "Recent Arrivals" section in the Map Explorer showing birds reported within X miles of the user's point that had not been reported in the area for a slider-selected 3+/6+/9+ months, using the eBird API.
+**Reason:** The eBird API can't support the core requirement. Nearby (geo) observation lookups are capped at 30 days back, and there is no eBird endpoint that returns observations within a lat/lng radius over a multi-month window. Detecting a 3–9 month *absence* by radius would require either county-level historic sampling (coarser than the radius, many calls, rate-limit pressure) or accumulating area history over time (no retroactive data). None delivered the user's actual definition well enough to be worth building.
+**Decision:** Abandoned. If revisited, the blocker is the eBird API's lack of radius-scoped historical observation data — not effort. eBird's `obs/geo/recent/notable` flag is the nearest feasible primitive but does not match the 3/6/9-month rule.
+
+---
+
 ## Bug post-mortem: desktop tab layout reset on every relaunch — 2026-05-28
 
 **What broke (through v0.3.29):** In the Tauri desktop app, reordering or hiding tabs did not survive a relaunch — the layout reset to defaults. Web/Pi was unaffected.
