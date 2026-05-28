@@ -4,6 +4,23 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Windows desktop app — build/release approach + post-mortem — 2026-05-28 (v0.4.0)
+
+**Decision:** Ship a native Windows client built in GitHub Actions, signed locally. CI (`windows-build.yml`) builds the installer with a throwaway key; `release.sh` re-signs with the real key and assembles one release with a multi-platform `latest.json`. This keeps the signing key off GitHub (consistent with the Apple-credentials stance) and makes `release.sh` the single source of the manifest, avoiding macOS/Windows entries clobbering each other.
+
+**Rationale:** Dave can't readily build Windows on his Mac, and macOS can't cross-build Tauri Windows bundles, so CI is required. Keeping the key local was preferred over fully-automated CI signing.
+
+**Deferred (now roadmap items):** native Windows geolocation ("Use my location" shows a coming-later note) and Windows Authenticode signing (unsigned → SmartScreen prompt). The in-app updater works unsigned (minisign).
+
+**Build post-mortem — three issues only a real Windows build surfaced** (the local macOS build and Ubuntu CI never compiled the Tauri lib for Windows):
+1. `tzf-rs` was declared under the macOS-only target table but used by the cross-platform `get_timezone` command → "unresolved import" on Windows. Cross-platform Rust deps must be in `[dependencies]`.
+2. The Windows updater target is the NSIS installer (`*-setup.exe` + `.sig`), not a `.nsis.zip` — the original CI/release design assumed an archive that Tauri v2 doesn't produce on Windows.
+3. `tauri signer sign` rejects `--private-key-path` when `TAURI_SIGNING_PRIVATE_KEY` is already in the env; the Windows-install signing step must rely on the env key (no `-f`).
+
+**Implications:** See CLAUDE.md → Versioning → "Windows desktop release" for the standing rules. Pending real-hardware confirmation (QA-07): install + in-app update on Windows 11.
+
+---
+
 ## Abandoned — Recent Arrivals (Map Explorer) — 2026-05-28
 
 **Stage reached:** Stage 1 (The Strategist) — strategy only, no artifacts written, no code.

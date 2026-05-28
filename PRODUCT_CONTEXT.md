@@ -840,6 +840,22 @@ The main tab navigation adapts to available width. On desktop it is the existing
 - `frontend/src/lib/tabLayout.ts` — `visibleTabs(layout)` helper and `Tab` type, shared by App and TabNav
 - `frontend/src/App.tsx` — builds `navItems`, renders `<TabNav>`
 
+### Windows Desktop App (complete — May 2026, v0.4.0)
+
+A native Windows build of the Tauri app at full parity with the macOS and Pi/web clients. Desktop clients now ship in parallel (Pi/web, macOS, Windows). The app was ~90% portable already (transport/storage/platform seams, `AppLocalData`); this closed the Windows-specific gaps.
+
+**How it ships:**
+- `.github/workflows/windows-build.yml` (`windows-latest`, on `v*` tag) builds the NSIS installer; `release.sh` fetches it, signs it locally with the real minisign key, and publishes it to the same GitHub release as macOS, with one `latest.json` carrying both `darwin-aarch64` and `windows-x86_64`. See CLAUDE.md → Versioning → "Windows desktop release" for the full mechanism and gotchas.
+- Distributed unsigned (SmartScreen prompt on first launch); in-app updater unaffected.
+
+**Platform divergence:**
+- "Use my location" is degraded on Windows: `isWindows()` (in `platform.ts`) gates `MapExplorer`'s `CenterPointControl` to show a "coming later" note instead of the button; `location.ts` has an `unsupported-platform` guard. Everything else (radius, address search, manual coords, all tabs) is unchanged. Native Windows geolocation is deferred (roadmap).
+- No Rust changes were needed — the macOS CoreLocation code is already `cfg(target_os = "macos")`.
+
+**Key files:**
+- `.github/workflows/windows-build.yml`, `release.sh` (multi-platform assembler)
+- `frontend/src/lib/platform.ts` (`isWindows`), `frontend/src/lib/location.ts`, `frontend/src/components/MapExplorer.tsx`
+
 ## Considered and Rejected
 
 ### Recent Arrivals (Map Explorer)

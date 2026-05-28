@@ -16,6 +16,16 @@ decisions that all builders must follow.
 - **`createUpdaterArtifacts: true` is required in `tauri.conf.json`** — `@tauri-apps/cli` v2.11.2+ defaults this to `false`. Without it, `tauri build` creates the `.app` and `.dmg` but skips the `.app.tar.gz` updater bundle entirely. The setting must be in `bundle.createUpdaterArtifacts`.
 - **`release.sh` version guard:** After the build, `release.sh` reads `CFBundleShortVersionString` from the bundle's `Info.plist` and aborts if it doesn't match `tauri.conf.json`. This catches stale-artifact issues before anything is uploaded to GitHub.
 
+### Windows desktop release (v0.4.0+)
+
+- **Windows builds run in GitHub Actions** (`.github/workflows/windows-build.yml`, `windows-latest`), triggered by pushing a `v*` tag. The build uses a *throwaway* signing key (discarded) only so Tauri produces the artifacts; `release.sh` re-signs locally with the real key. The real minisign key never goes to GitHub — same keep-it-local stance as the Apple credentials.
+- **`release.sh` is the single multi-platform assembler.** It builds + notarizes macOS, then `gh run download`s the CI Windows installer, signs it locally, and writes ONE `latest.json` with both `darwin-aarch64` and `windows-x86_64` entries. `SKIP_WINDOWS=1` publishes macOS-only (emergencies).
+- **Release rhythm:** bump version → commit → push to main → push the `vX.Y.Z` tag (starts Windows CI) → wait for CI → run `./release.sh`. The tag must be pushed *before* `release.sh` so the CI artifacts exist to fetch.
+- **The Windows updater target is the NSIS installer itself (`*-setup.exe`), NOT a `.nsis.zip`.** Tauri v2 signs the installer (`.exe.sig`) for updates on Windows; there is no separate archive. The `latest.json` `windows-x86_64.url` points to the `-setup.exe`.
+- **Cross-platform Rust deps must live in `[dependencies]`, not `[target.'cfg(target_os = "macos")'.dependencies]`.** `tzf-rs` (used by the cross-platform `get_timezone` command) was mis-scoped there and broke the Windows build with "unresolved import." The macOS-only block is only for genuinely macOS-only crates (objc2*, the CoreLocation stack).
+- **`tauri signer sign`: don't pass `--private-key-path` (`-f`) when `TAURI_SIGNING_PRIVATE_KEY` is already exported** — the env key and the path flag are mutually exclusive. `release.sh` exports the env key for the macOS build, so the Windows-install signing step relies on the env, no flags.
+- **Windows is distributed unsigned** (no Authenticode) for now — first launch shows a SmartScreen "unknown publisher" prompt. The in-app updater is unaffected (minisign verification, not Authenticode).
+
 ## Pipeline Overview
 
 This project uses the Weft framework. Run /new-feature to start a new feature.
