@@ -179,7 +179,10 @@ else
 
   echo "==> Signing Windows installer locally..."
   # Re-sign with the real key (CI used a throwaway key whose sig we ignore).
-  npx @tauri-apps/cli signer sign -f "$SIGNING_KEY" -p "" "$WIN_EXE"
+  # TAURI_SIGNING_PRIVATE_KEY (+ _PASSWORD) are already exported above for the
+  # macOS build, so signer sign uses them — do NOT also pass --private-key-path,
+  # the two key sources are mutually exclusive.
+  npx @tauri-apps/cli signer sign "$WIN_EXE"
   WIN_SIG=$(cat "${WIN_EXE}.sig")
   WIN_EXE_SIG="${WIN_EXE}.sig"
   WIN_EXE_NAME=$(basename "$WIN_EXE")
