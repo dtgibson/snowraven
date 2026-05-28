@@ -103,6 +103,8 @@ Every write calls `mkdir(DATA_DIR, { recursive: true })` before writing to ensur
 **Do not use `localStorage`** — it is ephemeral in Tauri's WKWebView and cleared on every relaunch.  
 **Do not use the system Keychain** (`keyring` crate / `invoke('get_api_key', ...)`) — it requires entitlements not configured in this app and fails silently.
 
+**Persist all UI settings through the `storage` seam, never `localStorage` directly.** Anything that must survive a desktop relaunch (e.g. the tab layout) goes through `storage.getSetting`/`setSetting`. The web/Pi path may still read `localStorage` synchronously inside the seam for a flash-free first paint, but the seam — not `localStorage` — is the source of truth on desktop. (See the tab-layout post-mortem in DECISIONS.md.)
+
 Desktop development (requires Rust + `@tauri-apps/cli`):
 ```
 npm run desktop:dev    # Tauri dev mode

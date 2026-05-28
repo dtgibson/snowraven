@@ -4,6 +4,18 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Bug post-mortem: desktop tab layout reset on every relaunch — 2026-05-28
+
+**What broke (through v0.3.29):** In the Tauri desktop app, reordering or hiding tabs did not survive a relaunch — the layout reset to defaults. Web/Pi was unaffected.
+
+**Root cause:** `tabLayout.ts` persisted to `localStorage`, which is ephemeral in Tauri's WKWebView (cleared on every relaunch). It was the only persisted setting bypassing the `storage` seam that API keys, map center, and default location already use.
+
+**Fix (v0.3.30):** Route tab-layout persistence through the `storage` seam on desktop (file-backed, hydrated on mount), keeping the synchronous `localStorage` read on web/Pi for a flash-free first paint. Validation/serialization factored into `parseLayout`/`serializeLayout`. Also corrected four docs (README ×3, HELP.md) that wrongly claimed desktop API keys live in the Keychain.
+
+**Implications:** Persisted UI settings must go through the `storage` seam, never `localStorage` directly — see CLAUDE.md. A minor first-paint frame at the default layout can occur on desktop launch before the seam hydrates (file read); acceptable.
+
+---
+
 ## Responsive navigation: dropdown over bottom bar, overflow-driven collapse — 2026-05-27
 
 **Decision:** On narrow screens the tab navigation collapses to a dropdown (not a bottom tab bar), and it collapses based on measured overflow rather than a fixed pixel breakpoint.
