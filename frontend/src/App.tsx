@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2 } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { storage } from './lib/storage'
@@ -10,11 +10,14 @@ import { MapExplorer } from './components/MapExplorer'
 import { Settings } from './components/Settings'
 import { SpeciesDetail } from './components/SpeciesDetail'
 import { BirdingStats } from './components/BirdingStats'
+import { TabNav, type NavItem } from './components/TabNav'
 import {
   type ConfigurableTab,
+  type Tab,
   type TabLayoutState,
   loadTabLayout,
   saveTabLayout,
+  visibleTabs,
   DEFAULT_TAB_ORDER,
   TAB_LABELS,
 } from './lib/tabLayout'
@@ -24,8 +27,6 @@ type AppState =
   | { status: 'loading' }
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
-
-type Tab = ConfigurableTab | 'settings'
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -262,23 +263,26 @@ export default function App() {
   const hasError = state.status === 'error'
   const hasResult = state.status === 'success'
 
-  const tabStyle = (tab: Tab): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '10px 16px',
-    border: 'none',
-    borderBottom: `2px solid ${activeTab === tab ? 'var(--sr-accent)' : 'transparent'}`,
-    background: 'none',
-    fontFamily: 'var(--font-sans)',
-    fontSize: 14,
-    fontWeight: 500,
-    color: activeTab === tab ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-    cursor: 'pointer',
-    marginBottom: -1,
-    transition: 'color 0.15s, border-color 0.15s',
-    whiteSpace: 'nowrap',
-  })
+  // Navigable destinations in saved order, hidden tabs removed, Settings last.
+  // Shared by both the desktop bar and the compact dropdown (see TabNav).
+  const navItems: NavItem[] = useMemo(() => {
+    const items: NavItem[] = visibleTabs(tabLayout).map(tab => ({
+      id: tab,
+      label: TAB_LABELS[tab],
+      icon: TAB_ICONS[tab],
+    }))
+    items.push({
+      id: 'settings',
+      label: 'Settings',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      ),
+    })
+    return items
+  }, [tabLayout])
 
   return (
     <div style={{
@@ -303,66 +307,8 @@ export default function App() {
         </p>
       </div>
 
-      {/* Tab bar — order and visibility controlled by tabLayout state */}
-      <div style={{ borderBottom: '1px solid var(--sr-border)', display: 'flex', justifyContent: 'center', padding: '0 24px', flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <nav
-          aria-label="Main navigation"
-          style={{ display: 'flex', maxWidth: 880, width: '100%' }}
-          role="tablist"
-          onKeyDown={e => {
-            const visibleTabs: Tab[] = [
-              ...tabLayout.order.filter(tab => !tabLayout.hidden.has(tab)),
-              'settings',
-            ]
-            const idx = visibleTabs.indexOf(activeTab)
-            if (e.key === 'ArrowRight') {
-              e.preventDefault()
-              const next = visibleTabs[(idx + 1) % visibleTabs.length]
-              setActiveTab(next)
-              document.getElementById(`tab-${next}`)?.focus()
-            } else if (e.key === 'ArrowLeft') {
-              e.preventDefault()
-              const prev = visibleTabs[(idx - 1 + visibleTabs.length) % visibleTabs.length]
-              setActiveTab(prev)
-              document.getElementById(`tab-${prev}`)?.focus()
-            }
-          }}
-        >
-          {tabLayout.order
-            .filter(tab => !tabLayout.hidden.has(tab))
-            .map(tab => (
-              <button
-                key={tab}
-                role="tab"
-                aria-selected={activeTab === tab}
-                aria-controls={`panel-${tab}`}
-                id={`tab-${tab}`}
-                tabIndex={activeTab === tab ? 0 : -1}
-                style={tabStyle(tab)}
-                onClick={() => setActiveTab(tab)}
-              >
-                {TAB_ICONS[tab]}
-                {TAB_LABELS[tab]}
-              </button>
-            ))
-          }
-          <button
-            role="tab"
-            aria-selected={activeTab === 'settings'}
-            aria-controls="panel-settings"
-            id="tab-settings"
-            tabIndex={activeTab === 'settings' ? 0 : -1}
-            style={tabStyle('settings')}
-            onClick={() => setActiveTab('settings')}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-            Settings
-          </button>
-        </nav>
-      </div>
+      {/* Tab navigation — bar on desktop, dropdown on narrow screens (see TabNav) */}
+      <TabNav items={navItems} activeTab={activeTab} onSelect={setActiveTab} />
 
       {/* Weather tab content */}
       <main>

@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.29] - 2026-05-27
+
+### Added
+- **Responsive tab navigation** — the main tab bar now adapts to the available width. On desktop it stays the familiar horizontal bar; when the tabs would no longer fit (narrow windows, phone browsers viewing the Pi install) it collapses into a compact dropdown that shows the current tab and opens to the full list. The dropdown honors the user's saved tab order and hidden-tab choices, with Settings pinned below a divider and the active row highlighted with a checkmark. The collapse point is measured from actual overflow rather than a fixed breakpoint, so it holds at any tab count or zoom level. Keyboard navigation and ARIA semantics are preserved in both layouts, and the menu layers above the Map Explorer.
+
 ## [0.3.28] - 2026-05-27
 
 ### Improved

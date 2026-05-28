@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { loadTabLayout, saveTabLayout, clearTabLayout, DEFAULT_TAB_ORDER } from './tabLayout'
+import { loadTabLayout, saveTabLayout, clearTabLayout, visibleTabs, DEFAULT_TAB_ORDER } from './tabLayout'
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -118,6 +118,33 @@ describe('clearTabLayout', () => {
     const state = loadTabLayout()
     expect(state.order).toEqual(DEFAULT_TAB_ORDER)
     expect(state.hidden.size).toBe(0)
+  })
+})
+
+describe('visibleTabs', () => {
+  it('returns all tabs in saved order when none are hidden (QA-07)', () => {
+    const order = ['birding-stats', 'weather', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'comparer'] as const
+    const result = visibleTabs({ order: [...order], hidden: new Set() })
+    expect(result).toEqual(order)
+  })
+
+  it('omits hidden tabs while preserving order (QA-07)', () => {
+    const result = visibleTabs({
+      order: [...DEFAULT_TAB_ORDER],
+      hidden: new Set(['comparer', 'breeding-codes']),
+    })
+    expect(result).not.toContain('comparer')
+    expect(result).not.toContain('breeding-codes')
+    expect(result[0]).toBe('weather')
+    expect(result).toHaveLength(DEFAULT_TAB_ORDER.length - 2)
+  })
+
+  it('returns an empty list when every configurable tab is hidden (QA-12)', () => {
+    const result = visibleTabs({
+      order: [...DEFAULT_TAB_ORDER],
+      hidden: new Set(DEFAULT_TAB_ORDER),
+    })
+    expect(result).toEqual([])
   })
 })
 

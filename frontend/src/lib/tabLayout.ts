@@ -27,9 +27,20 @@ export const TAB_LABELS: Record<ConfigurableTab, string> = {
   'comparer':       'Life List Comparer',
 }
 
+export type Tab = ConfigurableTab | 'settings'
+
 export interface TabLayoutState {
   order: ConfigurableTab[]
   hidden: Set<ConfigurableTab>
+}
+
+/**
+ * The configurable tabs that should be shown, in the user's saved order,
+ * with hidden tabs removed. Both the desktop bar and the compact dropdown
+ * render from this list (each appends Settings itself).
+ */
+export function visibleTabs(layout: TabLayoutState): ConfigurableTab[] {
+  return layout.order.filter(tab => !layout.hidden.has(tab))
 }
 
 const KNOWN_TABS = new Set<string>(DEFAULT_TAB_ORDER)

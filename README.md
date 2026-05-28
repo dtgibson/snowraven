@@ -114,7 +114,7 @@ The Settings tab lets you configure API keys, save default files, set a default 
 
 **Default location:** Set a home location (latitude, longitude, and radius) used by the Map Explorer and the Top Local Target Species card in Statistics.
 
-**Tab layout:** Reorder and show or hide individual tabs. The Settings tab is always last.
+**Tab layout:** Reorder and show or hide individual tabs. The Settings tab is always last. On narrow screens and mobile browsers the tab bar automatically collapses into a compact dropdown that follows the same order and visibility choices, so all tabs stay reachable without horizontal scrolling.
 
 ---
 
