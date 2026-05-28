@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design — Map Location Access</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary:              #2D8653;
+    --primary-foreground:   #FFFFFF;
+    --background:           #FFFFFF;
+    --foreground:           #0F1117;
+    --card:                 #FFFFFF;
+    --muted:                #F4F4F5;
+    --muted-foreground:     #71717A;
+    --accent:               #E8F5EE;
+    --accent-foreground:    #1A5C38;
+    --secondary:            #F0FAF4;
+    --secondary-foreground: #2D8653;
+    --destructive:          #EF4444;
+    --border:               #E4E4E7;
+    --input:                #E4E4E7;
+    --ring:                 #2D8653;
+    --radius:               0.5rem;
+    --sr-surface:           #FAFAFA;
+    --sr-text:              #0F1117;
+    --sr-text-muted:        #71717A;
+    --sr-error:             #EF4444;
+  }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #F1F3F5;
+    color: var(--foreground);
+    min-height: 100vh;
+    padding: 32px;
+  }
+
+  h1 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 24px;
+  }
+
+  .layout {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  /* ── Sidebar card ── */
+  .sidebar {
+    width: 268px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
+  }
+
+  .sidebar-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 8px;
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    height: 28px;
+    border: none;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .tab-btn.active {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+
+  .tab-btn.inactive {
+    background: var(--background);
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
+  }
+
+  .sidebar-body {
+    padding: 14px 16px;
+  }
+
+  /* ── Address search ── */
+  .address-search {
+    position: relative;
+    margin-bottom: 14px;
+  }
+
+  .address-input {
+    width: 100%;
+    height: 34px;
+    padding: 0 36px 0 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--sr-text);
+    background: var(--background);
+    outline: none;
+  }
+
+  .address-input::placeholder { color: var(--muted-foreground); }
+
+  .address-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted-foreground);
+    pointer-events: none;
+  }
+
+  /* ── Location block ── */
+  .location-block {
+    margin-bottom: 14px;
+  }
+
+  /* Locate button — default state */
+  .locate-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    height: 34px;
+    padding: 0 12px;
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--sr-text);
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .locate-btn:hover { border-color: var(--primary); background: var(--accent); }
+  .locate-btn .icon { color: var(--primary); flex-shrink: 0; }
+
+  /* Loading state */
+  .locate-btn.loading {
+    color: var(--muted-foreground);
+    cursor: default;
+    border-color: var(--border);
+    background: var(--muted);
+  }
+
+  .locate-btn.loading:hover { border-color: var(--border); background: var(--muted); }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .spinner {
+    width: 13px;
+    height: 13px;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  /* Error message */
+  .geo-error {
+    font-size: 11px;
+    color: var(--sr-error);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  /* Lat/lng inputs */
+  .coord-row {
+    display: flex;
+    gap: 6px;
+  }
+
+  .coord-input {
+    flex: 1;
+    height: 34px;
+    padding: 0 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+    color: var(--sr-text);
+    background: var(--sr-surface);
+    outline: none;
+    min-width: 0;
+  }
+
+  .coord-input::placeholder { color: var(--muted-foreground); }
+
+  /* Coord inputs with resolved value */
+  .coord-input.resolved {
+    border-color: var(--primary);
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+
+  /* ── Radius control ── */
+  .radius-block { margin-bottom: 14px; }
+
+  .seg-control {
+    display: flex;
+    gap: 3px;
+    background: var(--muted);
+    border-radius: 6px;
+    padding: 3px;
+  }
+
+  .seg-btn {
+    flex: 1;
+    height: 26px;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.12s;
+    color: var(--muted-foreground);
+    background: transparent;
+  }
+
+  .seg-btn.active {
+    background: var(--background);
+    color: var(--foreground);
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  /* ── Fetch button ── */
+  .fetch-btn {
+    width: 100%;
+    height: 34px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: none;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: opacity 0.15s;
+  }
+
+  .fetch-btn:hover { opacity: 0.9; }
+
+  /* ── State labels ── */
+  .state-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Description panel ── */
+  .desc-panel {
+    flex: 1;
+    min-width: 260px;
+    max-width: 420px;
+  }
+
+  .state-card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  .state-card h2 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .state-card h2 .badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .badge.default { background: var(--muted); color: var(--muted-foreground); }
+  .badge.loading { background: #FEF3C7; color: #92400E; }
+  .badge.success { background: var(--secondary); color: var(--secondary-foreground); }
+  .badge.error   { background: #FEF2F2; color: #B91C1C; }
+
+  .state-card p {
+    font-size: 12.5px;
+    color: var(--muted-foreground);
+    line-height: 1.55;
+  }
+
+  /* Platform notes */
+  .platform-note {
+    background: var(--secondary);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--accent-foreground);
+    line-height: 1.5;
+  }
+
+  .platform-note strong { font-weight: 600; }
+
+  /* ── SVG icons inline ── */
+  svg { display: inline-block; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<h1>Map Location Access — Design Mockup</h1>
+
+<div class="layout">
+
+  <!-- ── Column 1: Three state variants ───────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+
+    <!-- STATE 1: Default -->
+    <div>
+      <div class="state-label">Default state</div>
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="tab-bar">
+            <button class="tab-btn inactive">My Sightings</button>
+            <button class="tab-btn active">Hotspots</button>
+            <button class="tab-btn inactive">Targets</button>
+          </div>
+        </div>
+        <div class="sidebar-body">
+
+          <div class="address-search">
+            <input class="address-input" type="text" placeholder="Search for a place…" />
+            <span class="address-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </span>
+          </div>
+
+          <div class="location-block">
+            <button class="locate-btn" onmouseenter="this.style.borderColor='#2D8653';this.style.background='#E8F5EE';" onmouseleave="this.style.borderColor='';this.style.background='';">
+              <svg class="icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="9"/></svg>
+              Use my location
+            </button>
+            <div class="coord-row">
+              <input class="coord-input" type="number" placeholder="Latitude" />
+              <input class="coord-input" type="number" placeholder="Longitude" />
+            </div>
+          </div>
+
+          <div class="radius-block">
+            <div class="sidebar-label">Radius</div>
+            <div class="seg-control">
+              <button class="seg-btn">5 mi</button>
+              <button class="seg-btn">10 mi</button>
+              <button class="seg-btn active">25 mi</button>
+              <button class="seg-btn">50 mi</button>
+            </div>
+          </div>
+
+          <button class="fetch-btn">Find Hotspots</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE 2: Loading -->
+    <div>
+      <div class="state-label">Loading state — acquiring position</div>
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="tab-bar">
+            <button class="tab-btn inactive">My Sightings</button>
+            <button class="tab-btn active">Hotspots</button>
+            <button class="tab-btn inactive">Targets</button>
+          </div>
+        </div>
+        <div class="sidebar-body">
+
+          <div class="address-search">
+            <input class="address-input" type="text" placeholder="Search for a place…" />
+            <span class="address-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </span>
+          </div>
+
+          <div class="location-block">
+            <button class="locate-btn loading" disabled>
+              <div class="spinner"></div>
+              Locating…
+            </button>
+            <div class="coord-row">
+              <input class="coord-input" type="number" placeholder="Latitude" />
+              <input class="coord-input" type="number" placeholder="Longitude" />
+            </div>
+          </div>
+
+          <div class="radius-block">
+            <div class="sidebar-label">Radius</div>
+            <div class="seg-control">
+              <button class="seg-btn">5 mi</button>
+              <button class="seg-btn">10 mi</button>
+              <button class="seg-btn active">25 mi</button>
+              <button class="seg-btn">50 mi</button>
+            </div>
+          </div>
+
+          <button class="fetch-btn">Find Hotspots</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE 3: Resolved — coords populated -->
+    <div>
+      <div class="state-label">Resolved — coordinates populated</div>
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="tab-bar">
+            <button class="tab-btn inactive">My Sightings</button>
+            <button class="tab-btn active">Hotspots</button>
+            <button class="tab-btn inactive">Targets</button>
+          </div>
+        </div>
+        <div class="sidebar-body">
+
+          <div class="address-search">
+            <input class="address-input" type="text" placeholder="Search for a place…" />
+            <span class="address-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </span>
+          </div>
+
+          <div class="location-block">
+            <button class="locate-btn" style="border-color:#2D8653;color:#1A5C38;background:#E8F5EE;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Location found
+            </button>
+            <div class="coord-row">
+              <input class="coord-input resolved" type="number" value="37.82750" />
+              <input class="coord-input resolved" type="number" value="-122.42380" />
+            </div>
+          </div>
+
+          <div class="radius-block">
+            <div class="sidebar-label">Radius</div>
+            <div class="seg-control">
+              <button class="seg-btn">5 mi</button>
+              <button class="seg-btn">10 mi</button>
+              <button class="seg-btn active">25 mi</button>
+              <button class="seg-btn">50 mi</button>
+            </div>
+          </div>
+
+          <button class="fetch-btn">Find Hotspots</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE 4: Error — permission denied -->
+    <div>
+      <div class="state-label">Error — permission denied (macOS)</div>
+      <div class="sidebar">
+        <div class="sidebar-header">
+          <div class="tab-bar">
+            <button class="tab-btn inactive">My Sightings</button>
+            <button class="tab-btn inactive">Hotspots</button>
+            <button class="tab-btn active">Targets</button>
+          </div>
+        </div>
+        <div class="sidebar-body">
+
+          <div class="address-search">
+            <input class="address-input" type="text" placeholder="Search for a place…" />
+            <span class="address-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </span>
+          </div>
+
+          <div class="location-block">
+            <button class="locate-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2D8653" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="9"/></svg>
+              Use my location
+            </button>
+            <div class="geo-error">
+              Location access was denied. Grant permission in System Settings → Privacy &amp; Security → Location Services.
+            </div>
+            <div class="coord-row">
+              <input class="coord-input" type="number" placeholder="Latitude" />
+              <input class="coord-input" type="number" placeholder="Longitude" />
+            </div>
+          </div>
+
+          <div class="radius-block">
+            <div class="sidebar-label">Radius</div>
+            <div class="seg-control">
+              <button class="seg-btn active">5 mi</button>
+              <button class="seg-btn">10 mi</button>
+              <button class="seg-btn">25 mi</button>
+              <button class="seg-btn">50 mi</button>
+            </div>
+          </div>
+
+          <button class="fetch-btn">Find Targets</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end column 1 -->
+
+  <!-- ── Column 2: State explanations ─────────────────────────── -->
+  <div class="desc-panel">
+
+    <div class="state-card">
+      <h2>
+        Button states
+        <span class="badge default">Overview</span>
+      </h2>
+      <p>The "Use my location" button already exists in the Hotspots and Media Targets sidebars. This feature upgrades its behavior — adding a loading state, platform-specific error messages, and proper Tauri plugin support so it actually works in the desktop app.</p>
+    </div>
+
+    <div class="state-card">
+      <h2>
+        Default
+        <span class="badge default">State 1</span>
+      </h2>
+      <p>Button shows the crosshair/locate icon and "Use my location" label. Hover reveals a green border and light green background — consistent with the existing accent treatment. Lat/lng inputs below are empty, ready to be filled.</p>
+    </div>
+
+    <div class="state-card">
+      <h2>
+        Acquiring position
+        <span class="badge loading">State 2</span>
+      </h2>
+      <p>Spinner replaces the icon; label changes to "Locating…"; button shifts to muted background and is disabled. The lat/lng inputs remain visible but unchanged. Spinner animation runs until the position resolves or times out (10 second limit).</p>
+    </div>
+
+    <div class="state-card">
+      <h2>
+        Location found
+        <span class="badge success">State 3</span>
+      </h2>
+      <p>Button briefly shows a check mark and "Location found" in green. Coordinate inputs fill with the resolved values and gain a green border + light background to signal they were just populated. If the fields were previously empty, the active mode's fetch fires automatically.</p>
+    </div>
+
+    <div class="state-card">
+      <h2>
+        Error
+        <span class="badge error">State 4</span>
+      </h2>
+      <p>Error message appears between the button and the lat/lng inputs. On macOS Tauri, the message directs the user to System Settings. On the web (Pi), it says "Allow location access in your browser settings." A "Position unavailable" or timeout error shows a simpler fallback message.</p>
+
+      <div class="platform-note">
+        <strong>Tauri path:</strong> <code>tauri-plugin-geolocation</code> → <code>requestPermissions()</code> → <code>getCurrentPosition()</code><br><br>
+        <strong>Web path:</strong> <code>navigator.geolocation.getCurrentPosition()</code> — already works in browsers, unblocked by the existing HTTPS/isSecureContext check removal
+      </div>
+    </div>
+
+    <div class="state-card">
+      <h2>
+        What changes in the code
+        <span class="badge default">Engineering notes</span>
+      </h2>
+      <p style="margin-bottom:10px;">
+        <strong style="font-size:12px;color:#0F1117;">1. Tauri dependency</strong><br>
+        Add <code>tauri-plugin-geolocation</code> to <code>Cargo.toml</code>, register in capabilities, add <code>NSLocationWhenInUseUsageDescription</code> to bundle config.
+      </p>
+      <p style="margin-bottom:10px;">
+        <strong style="font-size:12px;color:#0F1117;">2. New utility: <code>location.ts</code></strong><br>
+        Platform-branching <code>getCurrentLocation()</code> function — returns <code>{ lat, lng }</code> or throws a typed error. Called from <code>MapExplorer</code>, testable in isolation.
+      </p>
+      <p style="margin-bottom:10px;">
+        <strong style="font-size:12px;color:#0F1117;">3. <code>handleUseMyLocation</code> upgrade</strong><br>
+        Add <code>isLocating</code> state. Call <code>getCurrentLocation()</code>. On success, set lat/lng and trigger fetch if fields were empty. On error, set typed error message.
+      </p>
+      <p>
+        <strong style="font-size:12px;color:#0F1117;">4. Remove <code>isSecureContext</code> check</strong><br>
+        The current guard blocks the button in Tauri (where isSecureContext is false). The Tauri path doesn't need this check — the plugin handles permissions natively.
+      </p>
+    </div>
+
+  </div><!-- end desc-panel -->
+
+</div><!-- end layout -->
+
+</body>
+</html>

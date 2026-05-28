@@ -27,6 +27,7 @@ data/
 
 # Tauri / Rust build output
 src-tauri/target/
+src-tauri/gen/
 
 # Root package manager
 node_modules/
