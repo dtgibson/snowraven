@@ -1,12 +1,12 @@
 {
-  "activeFeature": null,
-  "sessionNumber": null,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": null,
-  "lastCheckpointStatus": "abandoned",
-  "confirmedArtifacts": [],
+  "activeFeature": "windows-desktop-app",
+  "sessionNumber": 1,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "approved",
+  "confirmedArtifacts": ["pipeline/windows-desktop-app/strategic-brief.md", "pipeline/windows-desktop-app/prd.md", "pipeline/windows-desktop-app/schema.md", "pipeline/windows-desktop-app/design-spec.md", "pipeline/windows-desktop-app/design.html", "pipeline/windows-desktop-app/pr.md", "pipeline/windows-desktop-app/qa-report.md", "pipeline/windows-desktop-app/security-review.md"],
   "awaitingHuman": null,
-  "createdAt": "2026-05-28T07:00:00Z",
-  "updatedAt": "2026-05-28T07:15:00Z"
+  "createdAt": "2026-05-28T07:30:00Z",
+  "updatedAt": "2026-05-28T09:42:00Z"
 }

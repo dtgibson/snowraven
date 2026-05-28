@@ -1,0 +1,65 @@
+name: Windows Build
+
+# Builds the Windows installer + updater archive for a release.
+# Option A: this job does NOT have the real signing key. It produces the
+# updater archive using a throwaway key (discarded), and release.sh re-signs
+# the archive locally with the real key. The artifacts are uploaded for
+# release.sh to fetch via `gh run download`.
+#
+# Trigger: push a version tag (vX.Y.Z), or run manually.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Build Windows installer + updater
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm --prefix frontend ci
+
+      - name: Build Windows app (throwaway updater signature)
+        run: |
+          # Tauri only emits the .nsis.zip updater archive when a signing key is
+          # present at build time. CI must not hold the real key, so generate an
+          # ephemeral one just to produce the archive — its signature is discarded
+          # and release.sh re-signs the same bytes with the real key.
+          npx @tauri-apps/cli signer generate -w "$RUNNER_TEMP/sr-ci.key" -p ""
+          export TAURI_SIGNING_PRIVATE_KEY="$(cat "$RUNNER_TEMP/sr-ci.key")"
+          export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+          npm run desktop:build
+
+      - name: Collect installer + updater archive
+        run: |
+          mkdir -p dist-windows
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe dist-windows/
+          cp src-tauri/target/release/bundle/nsis/*-setup.nsis.zip dist-windows/
+          ls -la dist-windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: dist-windows/*
+          if-no-files-found: error

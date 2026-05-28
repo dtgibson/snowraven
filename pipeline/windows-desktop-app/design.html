@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Windows geolocation note (Design)</title>
+<style>
+  :root {
+    --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-surface-subtle: #F4F4F5;
+    --sr-text: #0F1117; --sr-text-muted: #71717A; --sr-border: #E4E4E7;
+    --sr-border-medium: #C4C4CE; --sr-accent: #2D8653; --sr-accent-bg: #E8F5EE;
+    --radius: 8px; --font-sans: 'Inter', system-ui, sans-serif;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A;
+    --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA; --sr-border: #27272A;
+    --sr-border-medium: #3F3F46; --sr-accent: #34A86A; --sr-accent-bg: #16271E;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--font-sans); background: var(--sr-bg); color: var(--sr-text); padding: 32px 20px 64px; }
+  .head { max-width: 760px; margin: 0 auto 24px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .head h1 { font-size: 21px; font-weight: 700; letter-spacing: -0.5px; margin: 0; }
+  .head p { margin: 4px 0 0; font-size: 13px; color: var(--sr-text-muted); }
+  .ctrl { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border-radius: var(--radius); border: 1px solid var(--sr-border-medium); background: var(--sr-surface); color: var(--sr-text); cursor: pointer; }
+  .ctrl:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+
+  .cols { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 680px) { .cols { grid-template-columns: 1fr; } }
+  .panelLabel { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--sr-text-muted); margin-bottom: 8px; }
+
+  /* sidebar control mock */
+  .sidebar { width: 268px; max-width: 100%; background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; padding: 16px; }
+  .section-title { font-size: 13px; font-weight: 600; margin: 0 0 10px; }
+  .field-label { font-size: 12px; color: var(--sr-text-muted); margin: 10px 0 4px; }
+  .input { width: 100%; padding: 8px 10px; border: 1px solid var(--sr-border-medium); border-radius: 6px; background: var(--sr-surface); color: var(--sr-text); font-family: inherit; font-size: 13px; }
+  .row2 { display: flex; gap: 8px; }
+  .row2 .input { width: 50%; }
+  .search-row { display: flex; gap: 8px; }
+  .search-row .input { flex: 1; }
+  .icon-btn { flex-shrink: 0; width: 34px; border: 1px solid var(--sr-border-medium); border-radius: 6px; background: var(--sr-surface); color: var(--sr-text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+  /* the macOS "Use my location" button (for comparison) */
+  .loc-btn { width: 100%; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 12px; border: 1px solid var(--sr-accent); border-radius: 6px; background: var(--sr-accent-bg); color: var(--sr-accent); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .loc-btn svg { width: 15px; height: 15px; }
+
+  /* the Windows note (the actual deliverable) */
+  .geo-note { margin-top: 12px; display: flex; gap: 9px; padding: 10px 11px; background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); border-radius: 6px; }
+  .geo-note svg { width: 15px; height: 15px; color: var(--sr-text-muted); flex-shrink: 0; margin-top: 1px; }
+  .geo-note .txt { font-size: 12px; line-height: 1.45; color: var(--sr-text-muted); }
+  .geo-note .txt strong { color: var(--sr-text); font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <h1>Windows — "Use my location" note</h1>
+      <p>The only UI change. Left: macOS/web today. Right: Windows. Same tokens, calm "coming later" tone.</p>
+    </div>
+    <button class="ctrl" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme')==='light'?'dark':'light')">Toggle light / dark</button>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="panelLabel">macOS / web (unchanged)</div>
+      <div class="sidebar">
+        <p class="section-title">Center point</p>
+        <div class="search-row">
+          <input class="input" placeholder="Search address or place" />
+          <button class="icon-btn" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+        </div>
+        <div class="field-label">Latitude / Longitude</div>
+        <div class="row2"><input class="input" value="44.4280" /><input class="input" value="-72.0151" /></div>
+        <button class="loc-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
+          Use my location
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="panelLabel">Windows (this feature)</div>
+      <div class="sidebar">
+        <p class="section-title">Center point</p>
+        <div class="search-row">
+          <input class="input" placeholder="Search address or place" />
+          <button class="icon-btn" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+        </div>
+        <div class="field-label">Latitude / Longitude</div>
+        <div class="row2"><input class="input" value="44.4280" /><input class="input" value="-72.0151" /></div>
+        <div class="geo-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          <span class="txt"><strong>Location detection is coming to Windows.</strong> For now, search for an address above or enter coordinates to set your center point.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

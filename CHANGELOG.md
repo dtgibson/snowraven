@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.4.0] - 2026-05-28
+
+### Added
+- **Windows desktop app** — SnowRaven now ships a native Windows build alongside the macOS and Raspberry Pi/web clients, with full feature parity: weather lookup, species detail, statistics, map explorer, breeding codes, life list comparer, settings, in-app help, and in-app updates. Built automatically by GitHub Actions (no Windows machine needed to ship) and published to the same GitHub release as the macOS build, served by a single multi-platform `latest.json`. Distributed unsigned for now, so first launch shows a one-time Windows SmartScreen "unknown publisher" prompt (More info → Run anyway); the in-app updater is unaffected.
+
+### Notes
+- "Use my location" in the Map Explorer is not yet available on Windows — the app shows a brief note pointing to address search and manual coordinates instead. Native Windows geolocation is planned for a later release.
+
 ## [0.3.30] - 2026-05-28
 
 ### Fixed

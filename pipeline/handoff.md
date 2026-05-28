@@ -1,28 +1,28 @@
-# Handoff — desktop-persistence-and-readme (Complete)
+# Handoff — windows-desktop-app
 
-**Fix:** Desktop tab-layout persistence + stale Keychain docs
-**Status:** Complete — shipped to web/Pi and macOS desktop (v0.3.30), chronicled
-**Date:** 2026-05-28
+## What We Accomplished
+Built the Windows desktop app feature: windows-build.yml CI (Option A, throwaway key), release.sh multi-platform assembler (fetch CI artifacts, sign Windows updater locally, combined latest.json), isWindows() detection + tests, Windows geolocation note in MapExplorer, location.ts guard. Types/lint/build/bash/YAML clean; 246 tests; no web/Mac regression (confirmed live).
+
+## What Has Been Saved
+- pipeline/windows-desktop-app/ — strategic-brief, prd, schema, design-spec, design.html, pr.md
+- .github/workflows/windows-build.yml
+- release.sh (multi-platform assembler)
+- frontend/src/lib/platform.ts (isWindows), location.ts (guard + code), platform.test.ts (tests)
+- frontend/src/components/MapExplorer.tsx (Windows note)
+
+## Where We Are
+Stage 5 (The Engineer) complete and approved. Next is Stage 6 — The Tester.
+
+## OPEN REMINDER (carry forward; raise at Deploy + Completion)
+- After the FIRST Windows release is published, Dave does a real-world test on the Windows 11 machine: install + confirm the in-app updater updates (QA-07; validates the throwaway-key/local-re-sign trick). Raise at Stage 8 (Deployer) right after publishing AND at Stage 9 completion.
+
+## Verification reality
+- Verifiable now/at deploy: suite, build, no-regression, CI build, release.sh assembly, latest.json shape, secrets hygiene.
+- Real Windows runtime (install/update/geolocation note) = the Windows 11 smoke test (QA-05..09), reserved for that machine.
+
+## Resume Prompt
+To resume this session: run `/weft` in a Claude Code session in this project. It reads saved state and picks up exactly here.
 
 ---
 
-## What We Accomplished
-Tab reorder/hide now persists in the desktop app across relaunches — it was being saved to `localStorage`, which Tauri's WKWebView wipes on relaunch, so it's now routed through the file-backed `storage` seam (the web/Pi synchronous, flash-free path is unchanged). Also corrected four doc references that wrongly claimed the desktop app stores API keys in the Keychain.
-
-## What Has Been Saved
-- pipeline/desktop-persistence-and-readme/ — bug-brief.md, qa-report.md, security-review.md
-- frontend/src/lib/tabLayout.ts (parseLayout/serializeLayout, SerializedLayout), tabLayout.test.ts
-- frontend/src/App.tsx (persistLayout via storage seam on desktop, hydrate-on-mount)
-- README.md, docs/HELP.md (Keychain → app local data directory)
-- frontend/package.json, src-tauri/tauri.conf.json (v0.3.30), CHANGELOG.md
-- CLAUDE.md, PRODUCT_CONTEXT.md, DECISIONS.md (context update)
-
-## Where We Are
-Fix complete. All six stages approved. CI green; macOS desktop release v0.3.30 notarized and published with latest.json.
-
-## Open item for the user
-- Confirm the desktop fix end-to-end: update to v0.3.30, reorder/hide a tab, fully quit, relaunch — layout should persist. (Not verifiable in the build environment.)
-
-## This fix is complete.
-
-To start the next thing, run `/weft`.
+Project: snowraven. Feature: windows-desktop-app. Last completed stage: 5 (The Engineer). Next stage: 6 (The Tester / agents/qa.md). Load pipeline/session-state.json and all artifacts under pipeline/windows-desktop-app/, then continue the feature flow.

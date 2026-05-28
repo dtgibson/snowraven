@@ -129,13 +129,73 @@ UPDATER_SIG="${UPDATER_TAR}.sig"
 cp "$APP_TAR" "$UPDATER_TAR"
 cp "$APP_SIG" "$UPDATER_SIG"
 
-# ── Read updater signature ────────────────────────────────────────────────────
+# ── Read macOS updater signature ───────────────────────────────────────────────
 
-SIG=$(cat "$APP_SIG")
-
-# ── Generate latest.json ──────────────────────────────────────────────────────
+MAC_SIG=$(cat "$APP_SIG")
 
 DOWNLOAD_BASE="https://github.com/$REPO/releases/download/$TAG"
+
+# ── Fetch + sign Windows artifacts (Option A) ──────────────────────────────────
+# CI (windows-build.yml) builds the Windows installer + unsigned updater archive.
+# We sign the updater archive HERE with the local key, so the signing key never
+# leaves this machine. Rhythm: push the $TAG tag first so CI builds, wait for the
+# Windows Build workflow to finish, then run this script.
+# Set SKIP_WINDOWS=1 to publish a macOS-only release (Windows users will NOT get
+# this update — emergencies only).
+
+WIN_PLATFORM_JSON=""
+WIN_ASSETS=()
+if [[ "${SKIP_WINDOWS:-0}" == "1" ]]; then
+  echo "==> SKIP_WINDOWS=1 — publishing macOS-only (no Windows entry in latest.json)."
+else
+  echo "==> Fetching Windows build artifacts from CI..."
+  WIN_DIR="/tmp/snowraven-windows"
+  rm -rf "$WIN_DIR" && mkdir -p "$WIN_DIR"
+
+  WIN_RUN_ID=$(gh run list --repo "$REPO" --workflow windows-build.yml \
+    --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+  if [[ -z "$WIN_RUN_ID" ]]; then
+    echo "Error: no successful 'Windows Build' run found."
+    echo "Push the $TAG tag and wait for the Windows Build workflow to finish,"
+    echo "or re-run with SKIP_WINDOWS=1 for a macOS-only release."
+    exit 1
+  fi
+
+  gh run download "$WIN_RUN_ID" --repo "$REPO" -n windows-build -D "$WIN_DIR"
+
+  WIN_EXE=$(ls "$WIN_DIR"/*-setup.exe 2>/dev/null | head -1 || true)
+  WIN_NSIS_ZIP=$(ls "$WIN_DIR"/*-setup.nsis.zip 2>/dev/null | head -1 || true)
+  if [[ -z "$WIN_EXE" || -z "$WIN_NSIS_ZIP" ]]; then
+    echo "Error: Windows installer or updater archive missing from CI artifacts (run $WIN_RUN_ID)."
+    exit 1
+  fi
+
+  # Guard: the CI build must be for this version, not a stale run.
+  if [[ "$WIN_EXE" != *"$VERSION"* ]]; then
+    echo "Error: Windows installer ($WIN_EXE) does not match version $VERSION."
+    echo "The latest Windows Build run is for a different version — push/rebuild the $TAG tag."
+    exit 1
+  fi
+
+  echo "==> Signing Windows updater archive locally..."
+  npx @tauri-apps/cli signer sign -f "$SIGNING_KEY" -p "" "$WIN_NSIS_ZIP"
+  WIN_SIG=$(cat "${WIN_NSIS_ZIP}.sig")
+
+  # Stable names so the latest.json URLs are stable per tag (mirrors the mac updater).
+  WIN_UPDATER="/tmp/SnowRaven-updater-x64-setup.nsis.zip"
+  WIN_UPDATER_SIG="${WIN_UPDATER}.sig"
+  cp "$WIN_NSIS_ZIP" "$WIN_UPDATER"
+  cp "${WIN_NSIS_ZIP}.sig" "$WIN_UPDATER_SIG"
+
+  WIN_ASSETS=( "$WIN_EXE" "$WIN_UPDATER" "$WIN_UPDATER_SIG" )
+  WIN_PLATFORM_JSON=",
+    \"windows-x86_64\": {
+      \"signature\": \"$WIN_SIG\",
+      \"url\": \"$DOWNLOAD_BASE/SnowRaven-updater-x64-setup.nsis.zip\"
+    }"
+fi
+
+# ── Generate latest.json (macOS + Windows) ─────────────────────────────────────
 
 cat > /tmp/latest.json << ENDJSON
 {
@@ -144,9 +204,9 @@ cat > /tmp/latest.json << ENDJSON
   "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "platforms": {
     "darwin-$ARCH": {
-      "signature": "$SIG",
+      "signature": "$MAC_SIG",
       "url": "$DOWNLOAD_BASE/SnowRaven-updater.app.tar.gz"
-    }
+    }$WIN_PLATFORM_JSON
   }
 }
 ENDJSON
@@ -155,22 +215,17 @@ ENDJSON
 
 echo "==> Publishing $TAG..."
 
+# Note: the guarded expansion ${arr[@]+"${arr[@]}"} is safe under `set -u` even
+# when WIN_ASSETS is empty (SKIP_WINDOWS=1), including on macOS's older bash 3.2.
+ASSETS=( "$DMG" "$UPDATER_TAR" "$UPDATER_SIG" ${WIN_ASSETS[@]+"${WIN_ASSETS[@]}"} /tmp/latest.json )
+
 if gh release view "$TAG" --repo "$REPO" &>/dev/null; then
-  gh release upload "$TAG" \
-    "$DMG" \
-    "$UPDATER_TAR" \
-    "$UPDATER_SIG" \
-    /tmp/latest.json \
-    --repo "$REPO" \
-    --clobber
+  gh release upload "$TAG" "${ASSETS[@]}" --repo "$REPO" --clobber
 else
   gh release create "$TAG" \
     --title "$TAG" \
     --notes "See CHANGELOG.md for details." \
-    "$DMG" \
-    "$UPDATER_TAR" \
-    "$UPDATER_SIG" \
-    /tmp/latest.json \
+    "${ASSETS[@]}" \
     --repo "$REPO"
 fi
 

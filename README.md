@@ -156,6 +156,32 @@ Click **Check For Updates** in the app footer. If an update is available, click 
 
 ---
 
+## Desktop app installation (Windows)
+
+The desktop app is also a fully self-contained Windows application -- no Python, no server. It has the same features as the Mac app.
+
+### 1. Download
+
+Go to the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and download `SnowRaven_x.x.x_x64-setup.exe`.
+
+### 2. Install
+
+Run the installer. Because the app is not yet code-signed, Windows SmartScreen may show an "unknown publisher" warning on first launch -- click **More info**, then **Run anyway**. (The in-app updater is cryptographically verified regardless, so updates are safe.)
+
+### 3. Enter API keys
+
+Open the Settings tab and enter your eBird and OpenWeather API keys. Keys, settings, and uploaded data files are stored in the app's local data directory.
+
+### Updating
+
+Same as macOS -- click **Check For Updates** in the app footer.
+
+### Note
+
+"Use my location" in the Map Explorer is not available on Windows yet -- use the address search or enter coordinates to set your center point. Native Windows location detection is planned for a later release.
+
+---
+
 ## Raspberry Pi / Linux installation
 
 Run one command on your Pi (or any Debian/Ubuntu machine):

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { isTauri } from './platform'
+import { isTauri, isWindows } from './platform'
 
 export interface Location {
   lat: number
@@ -7,7 +7,7 @@ export interface Location {
 }
 
 export interface LocationError {
-  code: 'permission-denied' | 'unavailable' | 'timeout' | 'dev-mode' | 'insecure-context'
+  code: 'permission-denied' | 'unavailable' | 'timeout' | 'dev-mode' | 'insecure-context' | 'unsupported-platform'
   platform?: 'tauri' | 'web'
 }
 
@@ -20,6 +20,13 @@ export interface LocationError {
 //   and returns PERMISSION_DENIED immediately without showing a dialog.
 export async function getCurrentLocation(): Promise<Location> {
   if (isTauri()) {
+    // The native get_location command is macOS-only (CLLocationManager). Windows
+    // has no native implementation yet, so degrade gracefully. The UI hides the
+    // "Use my location" button on Windows; this is a safety net if it's ever shown.
+    if (isWindows()) {
+      const err: LocationError = { code: 'unsupported-platform', platform: 'tauri' }
+      throw err
+    }
     if (import.meta.env.DEV) {
       const err: LocationError = { code: 'dev-mode' }
       throw err
