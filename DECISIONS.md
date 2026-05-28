@@ -4,6 +4,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Responsive navigation: dropdown over bottom bar, overflow-driven collapse — 2026-05-27
+
+**Decision:** On narrow screens the tab navigation collapses to a dropdown (not a bottom tab bar), and it collapses based on measured overflow rather than a fixed pixel breakpoint.
+
+**Rationale:** A bottom bar tops out at ~5 destinations and the app has 8; a dropdown scales to any count and reuses the existing tab order/visibility model for free. Overflow-driven collapse avoids a "dead zone" where a fixed breakpoint leaves the bar overflowing but not yet collapsed — it holds at any tab count, label length, or zoom level.
+
+**Implications:** The planned native mobile app should inherit this dropdown pattern rather than inventing a separate navigation. Future floating overlays on map-hosting views must clear Leaflet's z-index (see CLAUDE.md).
+
+---
+
 ## Desktop app bug post-mortem: updater installed v0.3.7 on every update — 2026-05-27
 
 **What broke:** Every in-app update installed the original v0.3.7 binary regardless of what version `latest.json` advertised. After updating, the About screen showed 0.3.7 and the updater immediately offered the same update again.

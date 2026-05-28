@@ -825,6 +825,21 @@ A single shell script at the repo root that installs SnowRaven on Raspberry Pi o
 **Key files:**
 - `install.sh` — one-command installer at repo root; chmod +x; `set -euo pipefail` + `trap ERR`
 
+### Responsive Tab Navigation (complete — May 2026, v0.3.29)
+
+The main tab navigation adapts to available width. On desktop it is the existing horizontal bar; when the tabs would overflow (narrow windows, mobile browsers viewing the Pi install) it collapses into a compact dropdown showing the current tab that opens to the full list. Solves the overflow that previously made the bar unusable on phones, and establishes the navigation pattern the planned native mobile app will inherit.
+
+**What it does:**
+- Collapse is driven by **measured overflow**, not a fixed breakpoint: a hidden probe measures the bar's natural width against available width via `ResizeObserver`, decided in `useLayoutEffect` (pre-paint, no flash). Holds at any tab count or zoom.
+- The dropdown lists configurable tabs in the user's saved order with hidden tabs omitted (reusing the same `tabLayout` state as the bar), Settings pinned below a divider, active row highlighted with a checkmark.
+- Preserves the desktop bar's `tablist` semantics and roving arrow-key navigation; the dropdown is a custom accessible listbox (aria-haspopup/expanded/selected, arrow/Home/End/Escape, outside-click and focus-return).
+- Menu sits at `z-index: 1200` so it layers above the Leaflet map on the Map Explorer tab.
+
+**Key files:**
+- `frontend/src/components/TabNav.tsx` — responsive navigation (bar + dropdown); the single source of nav rendering
+- `frontend/src/lib/tabLayout.ts` — `visibleTabs(layout)` helper and `Tab` type, shared by App and TabNav
+- `frontend/src/App.tsx` — builds `navItems`, renders `<TabNav>`
+
 ## Key Decisions
 
 **WKWebView (Tauri) requires explicit `tabIndex={0}` on all `<button>` elements**

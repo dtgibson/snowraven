@@ -60,6 +60,10 @@ cd backend && python -m pytest tests/ -v
 - New tokens go in both `:root` and `[data-theme="dark"]` before use
 - The `data-theme` attribute on `<html>` is set by the anti-flash script in `index.html` and updated by `applyTheme()` in `src/lib/theme.ts`
 
+### Overlays and stacking
+
+- **Floating overlays (dropdowns, menus, popovers) that can appear over a map must use a `z-index` above Leaflet's layers.** Leaflet panes and controls reach ~1000; use `z-index: 1200` (as the responsive tab dropdown does in `TabNav.tsx`). The Map Explorer is reachable on most views, so any new overlay should assume a map may be beneath it.
+
 ### Documentation
 
 - **`docs/HELP.md` is the single source of truth for all in-app help content.** When a feature is added or changed, update this file to reflect the current behavior before pushing.
