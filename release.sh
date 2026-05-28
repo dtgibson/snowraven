@@ -163,10 +163,10 @@ else
 
   gh run download "$WIN_RUN_ID" --repo "$REPO" -n windows-build -D "$WIN_DIR"
 
+  # On Windows the NSIS installer (*-setup.exe) IS the updater target.
   WIN_EXE=$(ls "$WIN_DIR"/*-setup.exe 2>/dev/null | head -1 || true)
-  WIN_NSIS_ZIP=$(ls "$WIN_DIR"/*-setup.nsis.zip 2>/dev/null | head -1 || true)
-  if [[ -z "$WIN_EXE" || -z "$WIN_NSIS_ZIP" ]]; then
-    echo "Error: Windows installer or updater archive missing from CI artifacts (run $WIN_RUN_ID)."
+  if [[ -z "$WIN_EXE" ]]; then
+    echo "Error: Windows installer (*-setup.exe) missing from CI artifacts (run $WIN_RUN_ID)."
     exit 1
   fi
 
@@ -177,21 +177,20 @@ else
     exit 1
   fi
 
-  echo "==> Signing Windows updater archive locally..."
-  npx @tauri-apps/cli signer sign -f "$SIGNING_KEY" -p "" "$WIN_NSIS_ZIP"
-  WIN_SIG=$(cat "${WIN_NSIS_ZIP}.sig")
+  echo "==> Signing Windows installer locally..."
+  # Re-sign with the real key (CI used a throwaway key whose sig we ignore).
+  npx @tauri-apps/cli signer sign -f "$SIGNING_KEY" -p "" "$WIN_EXE"
+  WIN_SIG=$(cat "${WIN_EXE}.sig")
+  WIN_EXE_SIG="${WIN_EXE}.sig"
+  WIN_EXE_NAME=$(basename "$WIN_EXE")
 
-  # Stable names so the latest.json URLs are stable per tag (mirrors the mac updater).
-  WIN_UPDATER="/tmp/SnowRaven-updater-x64-setup.nsis.zip"
-  WIN_UPDATER_SIG="${WIN_UPDATER}.sig"
-  cp "$WIN_NSIS_ZIP" "$WIN_UPDATER"
-  cp "${WIN_NSIS_ZIP}.sig" "$WIN_UPDATER_SIG"
-
-  WIN_ASSETS=( "$WIN_EXE" "$WIN_UPDATER" "$WIN_UPDATER_SIG" )
+  # The installer serves as both the user download and the updater target;
+  # latest.json is regenerated each release so the versioned URL is always current.
+  WIN_ASSETS=( "$WIN_EXE" "$WIN_EXE_SIG" )
   WIN_PLATFORM_JSON=",
     \"windows-x86_64\": {
       \"signature\": \"$WIN_SIG\",
-      \"url\": \"$DOWNLOAD_BASE/SnowRaven-updater-x64-setup.nsis.zip\"
+      \"url\": \"$DOWNLOAD_BASE/$WIN_EXE_NAME\"
     }"
 fi
 

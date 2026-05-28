@@ -40,22 +40,21 @@ jobs:
           npm ci
           npm --prefix frontend ci
 
-      - name: Build Windows app (throwaway updater signature)
+      - name: Build Windows app
         run: |
-          # Tauri only emits the .nsis.zip updater archive when a signing key is
-          # present at build time. CI must not hold the real key, so generate an
-          # ephemeral one just to produce the archive — its signature is discarded
-          # and release.sh re-signs the same bytes with the real key.
+          # On Windows the Tauri updater target is the NSIS installer itself
+          # (*-setup.exe), not a separate archive. CI must not hold the real key,
+          # so build with an ephemeral throwaway key (its .sig is discarded);
+          # release.sh re-signs the installer locally with the real key.
           npx @tauri-apps/cli signer generate -w "$RUNNER_TEMP/sr-ci.key" -p ""
           export TAURI_SIGNING_PRIVATE_KEY="$(cat "$RUNNER_TEMP/sr-ci.key")"
           export TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
           npm run desktop:build
 
-      - name: Collect installer + updater archive
+      - name: Collect installer
         run: |
           mkdir -p dist-windows
           cp src-tauri/target/release/bundle/nsis/*-setup.exe dist-windows/
-          cp src-tauri/target/release/bundle/nsis/*-setup.nsis.zip dist-windows/
           ls -la dist-windows
 
       - uses: actions/upload-artifact@v4
