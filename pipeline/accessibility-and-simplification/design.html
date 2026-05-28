@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — Accessibility Design Spec</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #2D8653;
+    --green-dark: #1A5C38;
+    --green-light: #E8F5EE;
+    --bg: #FFFFFF;
+    --surface: #F4F4F5;
+    --border: #E4E4E7;
+    --text: #0F1117;
+    --muted: #71717A;
+    --radius: 0.5rem;
+    --tier4: #3B0764;
+    --tier3: #6D28D9;
+    --tier2: #9333EA;
+    --tier1: #C084FC;
+    --amber: #F59E0B;
+    --amber-bg: #FFFBEB;
+    --amber-border: #FDE68A;
+    --red: #EF4444;
+  }
+
+  body {
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #F8F9FA;
+    color: var(--text);
+    line-height: 1.5;
+    font-size: 16px;
+  }
+
+  /* ─── Header ─── */
+  .header {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: var(--green);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-mark svg { color: #fff; }
+  .header-text h1 { font-size: 18px; font-weight: 600; color: var(--text); }
+  .header-text p { font-size: 13px; color: var(--muted); }
+  .badge-feature {
+    margin-left: auto;
+    background: var(--green-light);
+    color: var(--green-dark);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+  }
+
+  /* ─── Layout ─── */
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  .section { margin-bottom: 56px; }
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 6px;
+  }
+  .section-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .section-desc {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 28px;
+    max-width: 600px;
+  }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .card-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  /* ─── Before / After ─── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .compare-panel {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+  .compare-panel.after { background: var(--green-light); }
+  .compare-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .compare-label.after-label { color: var(--green-dark); }
+  .fail-dot { width: 8px; height: 8px; background: var(--red); border-radius: 50%; }
+  .pass-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; }
+
+  /* ─── Tier badges ─── */
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .tier-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .tier-badge-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  /* Before: all white text */
+  .before-t4 { background: var(--tier4); color: white; }
+  .before-t3 { background: var(--tier3); color: white; }
+  .before-t2 { background: var(--tier2); color: white; }
+  .before-t1 { background: var(--tier1); color: white; } /* ← fails */
+
+  /* After: tier-1 uses dark text */
+  .after-t4 { background: var(--tier4); color: white; }
+  .after-t3 { background: var(--tier3); color: white; }
+  .after-t2 { background: var(--tier2); color: white; }
+  .after-t1 { background: var(--tier1); color: #3B0764; } /* ← fixed */
+
+  .contrast-note {
+    font-size: 11px;
+    margin-top: 10px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+  .contrast-fail { background: #FEF2F2; color: #991B1B; }
+  .contrast-pass { background: #F0FDF4; color: #166534; }
+
+  /* ─── Focus Demo ─── */
+  .focus-demo {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+  .focus-note {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Demo elements with proper focus rings */
+  .demo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 44px;
+    outline: none;
+    transition: background 0.15s;
+  }
+  .demo-btn:hover { background: var(--green-dark); }
+  .demo-btn:focus-visible {
+    outline: 3px solid var(--green);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.15);
+  }
+
+  .demo-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    min-height: 44px;
+    outline: none;
+    transition: all 0.15s;
+  }
+  .demo-pill:hover { border-color: var(--green); color: var(--green); }
+  .demo-pill:focus-visible {
+    outline: 3px solid var(--green);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.15);
+  }
+  .demo-pill[aria-pressed="true"] {
+    background: var(--green);
+    color: white;
+    border-color: var(--green);
+  }
+
+  .demo-input {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 44px;
+    outline: none;
+    width: 200px;
+    transition: border-color 0.15s;
+  }
+  .demo-input:hover { border-color: var(--green); }
+  .demo-input:focus-visible {
+    border-color: var(--green);
+    outline: 3px solid var(--green);
+    outline-offset: 0px;
+    box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.15);
+  }
+
+  .demo-tab {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    min-height: 44px;
+    outline: none;
+    transition: all 0.15s;
+  }
+  .demo-tab:hover { color: var(--text); }
+  .demo-tab[aria-selected="true"] {
+    color: var(--green);
+    border-bottom-color: var(--green);
+  }
+  .demo-tab:focus-visible {
+    outline: 3px solid var(--green);
+    outline-offset: -1px;
+    border-radius: 4px;
+  }
+
+  /* ─── Toggle ─── */
+  .demo-toggle-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    min-height: 44px;
+    padding: 6px 0;
+  }
+  .demo-toggle {
+    position: relative;
+    width: 40px; height: 22px;
+    background: var(--border);
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    outline: none;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .demo-toggle[aria-checked="true"] { background: var(--green); }
+  .demo-toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .demo-toggle[aria-checked="true"]::after { transform: translateX(18px); }
+  .demo-toggle:focus-visible {
+    outline: 3px solid var(--green);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px rgba(45, 134, 83, 0.15);
+  }
+  .demo-toggle-label { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  /* ─── ARIA Pattern Reference ─── */
+  .pattern-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 680px) { .pattern-grid, .compare-grid { grid-template-columns: 1fr; } }
+
+  .pattern-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .pattern-head {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pattern-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pattern-name span {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--green);
+    background: var(--green-light);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .pattern-target {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+  }
+  .pattern-code {
+    background: #1E1E2E;
+    color: #CDD6F4;
+    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+    font-size: 11.5px;
+    line-height: 1.7;
+    padding: 14px 16px;
+    overflow-x: auto;
+    tab-size: 2;
+  }
+  .code-attr { color: #89B4FA; }
+  .code-val { color: #A6E3A1; }
+  .code-tag { color: #F38BA8; }
+  .code-comment { color: #6C7086; font-style: italic; }
+
+  /* ─── sr-only spec ─── */
+  .sronly-demo {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  .sronly-visual { flex: 1; }
+  .sronly-code { flex: 1; }
+  .sronly-visual-label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 10px; }
+  .sronly-badge-wrap { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* ─── Map recency spec ─── */
+  .recency-row { display: flex; flex-direction: column; gap: 8px; }
+  .recency-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .recency-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-fresh { background: #22C55E; }
+  .dot-mid { background: var(--amber); }
+  .dot-old { background: #9CA3AF; }
+  .recency-text { color: var(--text); }
+  .recency-sr { font-size: 11px; color: var(--muted); font-family: monospace; }
+
+  /* ─── Warning card ─── */
+  .warning-card {
+    background: var(--amber-bg);
+    border: 1px solid var(--amber-border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .warning-icon { color: var(--amber); flex-shrink: 0; margin-top: 1px; }
+  .warning-title { font-size: 14px; font-weight: 600; color: #92400E; }
+  .warning-body { font-size: 13px; color: #92400E; margin-top: 2px; }
+
+  /* ─── Touch targets ─── */
+  .target-demo {
+    background: var(--surface);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .target-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .target-item { text-align: center; }
+  .target-label { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .target-size { font-size: 11px; font-weight: 600; color: var(--green); }
+
+  /* Show target boxes on hover in the target-demo */
+  .target-outline {
+    outline: 2px dashed #CBD5E1;
+    outline-offset: 0;
+    position: relative;
+  }
+
+  /* ─── Checklist ─── */
+  .checklist { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text);
+  }
+  .check { color: var(--green); flex-shrink: 0; margin-top: 1px; }
+  .file-tag {
+    display: inline;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 12px;
+    background: var(--surface);
+    color: var(--green-dark);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  /* Tab bar demo */
+  .tabbar-demo {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .tabbar-nav {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0 8px;
+  }
+  .tabbar-panel {
+    padding: 20px 24px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .tabbar-attrs {
+    margin-top: 12px;
+    background: #1E1E2E;
+    color: #CDD6F4;
+    font-family: 'SF Mono', 'Fira Code', Consolas, monospace;
+    font-size: 11px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo-mark">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>SnowRaven</h1>
+    <p>Accessibility — Design Specification</p>
+  </div>
+  <div class="badge-feature">Session 1 · Stage 4</div>
+</div>
+
+<div class="container">
+
+  <!-- ── Intro ── -->
+  <div class="section">
+    <div class="section-label">Overview</div>
+    <div class="section-title">What this spec covers</div>
+    <div class="section-desc">Most accessibility improvements are invisible — ARIA attributes, keyboard handlers, focus traps. This document covers the changes that are visible, the patterns that apply across components, and the exact ARIA markup the Engineer will implement.</div>
+    <div class="card">
+      <ul class="checklist">
+        <li><span class="check">✓</span><span><strong>1 contrast fix</strong> — tier-1 breeding code badge text (visible color change)</span></li>
+        <li><span class="check">✓</span><span><strong>Focus ring styling</strong> — verified visible on all interactive elements in both themes</span></li>
+        <li><span class="check">✓</span><span><strong>Touch target sizing</strong> — 44×44px minimum on all interactive controls</span></li>
+        <li><span class="check">✓</span><span><strong>Visually-hidden labels</strong> — tier names and recency labels added for screen readers</span></li>
+        <li><span class="check">✓</span><span><strong>ARIA patterns</strong> — tab bar, filter pills, toggle switches, combobox, live regions across all tabs</span></li>
+        <li><span class="check">✓</span><span><strong>Semantic HTML</strong> — form labels, heading hierarchy, table roles across all tabs</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ── Section 1: Visible Changes ── -->
+  <div class="section">
+    <div class="section-label">Visible Changes</div>
+    <div class="section-title">1. Tier-1 badge contrast fix</div>
+    <div class="section-desc">The only color change in this pass. Tier-1 ("Possible") breeding code badges use a light purple background. White text on that background fails WCAG AA (2.7:1). Switching to the dark purple text (#3B0764) brings contrast to 6.8:1 — well above the 4.5:1 threshold.</div>
+
+    <div class="compare-grid">
+      <div class="compare-panel">
+        <div class="compare-label">
+          <span class="fail-dot"></span> Before — Fails AA (2.7:1)
+        </div>
+        <div class="badge-row">
+          <div>
+            <div class="tier-badge before-t4">NY</div>
+            <div class="tier-badge-label" style="font-size:10px;color:var(--muted)">Tier 4</div>
+          </div>
+          <div>
+            <div class="tier-badge before-t3">PE</div>
+            <div class="tier-badge-label" style="font-size:10px;color:var(--muted)">Tier 3</div>
+          </div>
+          <div>
+            <div class="tier-badge before-t2">S7</div>
+            <div class="tier-badge-label" style="font-size:10px;color:var(--muted)">Tier 2</div>
+          </div>
+          <div>
+            <div class="tier-badge before-t1">S</div>
+            <div class="tier-badge-label" style="font-size:10px;color:var(--red);font-weight:600">Tier 1 ✗</div>
+          </div>
+        </div>
+        <div class="contrast-note contrast-fail">Tier 1: #C084FC bg + white text = 2.7:1 — fails AA</div>
+      </div>
+      <div class="compare-panel after">
+        <div class="compare-label after-label">
+          <span class="pass-dot"></span> After — Passes AA (6.8:1)
+        </div>
+        <div class="badge-row">
+          <div>
+            <div class="tier-badge after-t4">NY</div>
+            <div class="tier-badge-label" style="font-size:10px;color:var(--muted)">Tier 4</div>
+          </div>
+          <div>
+            <div class="tier-badge after-t3">PE</div>
+            <div class="tier-badge-label" style="font-size:10px;color:var(--muted)">Tier 3</div>
+          </div>
+          <div>
+            <div class="tier-badge after-t2">S7</div>
+            <div class="tier-badge-label" style="font-size:10px;color:var(--muted)">Tier 2</div>
+          </div>
+          <div>
+            <div class="tier-badge after-t1">S</div>
+            <div class="tier-badge-label" style="font-size:10px;color:var(--green);font-weight:600">Tier 1 ✓</div>
+          </div>
+        </div>
+        <div class="contrast-note contrast-pass">Tier 1: #C084FC bg + #3B0764 text = 6.8:1 — passes AA</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 2: Warning Card ── -->
+  <div class="section">
+    <div class="section-title" style="font-size:18px;">2. Warning card — icon + text label</div>
+    <div class="section-desc">The API key missing card uses amber color to signal a warning. Adding an explicit "Warning:" label and icon means the alert is understood without relying on color alone (FR-26).</div>
+    <div class="card">
+      <div class="warning-card">
+        <div class="warning-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <path d="M12 9v4"/><path d="M12 17h.01"/>
+          </svg>
+        </div>
+        <div>
+          <div class="warning-title">Warning: API keys not configured</div>
+          <div class="warning-body">Add your eBird and OpenWeather API keys in Settings to enable weather lookups and map features. <a href="#" style="color:#92400E;font-weight:600;">Go to Settings →</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 3: Focus States ── -->
+  <div class="section">
+    <div class="section-label">Focus States</div>
+    <div class="section-title">3. Focus ring — interactive demo</div>
+    <div class="section-desc">Tab through the elements below to see the focus ring. All interactive controls receive a 3px green outline with a soft glow on `:focus-visible`. This applies to buttons, filter pills, inputs, tab buttons, and toggles across all tabs.</div>
+
+    <!-- Tab bar demo -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">Tab bar (FR-01, FR-02)</div>
+      <div class="card-sub">Tab through with keyboard — note focus ring and ARIA attributes in markup below</div>
+      <div class="tabbar-demo">
+        <nav aria-label="Main navigation">
+          <div class="tabbar-nav" role="tablist">
+            <button class="demo-tab" role="tab" aria-selected="true" aria-controls="panel-weather" id="tab-weather">Weather</button>
+            <button class="demo-tab" role="tab" aria-selected="false" aria-controls="panel-species" id="tab-species" tabindex="-1">Species Detail</button>
+            <button class="demo-tab" role="tab" aria-selected="false" aria-controls="panel-breeding" id="tab-breeding" tabindex="-1">Breeding Codes</button>
+          </div>
+        </nav>
+        <div class="tabbar-panel" role="tabpanel" id="panel-weather" aria-labelledby="tab-weather">
+          Weather tab content — active panel
+        </div>
+      </div>
+      <div class="tabbar-attrs">
+<span class="code-tag">&lt;div</span> <span class="code-attr">role</span>=<span class="code-val">"tablist"</span><span class="code-tag">&gt;</span>
+  <span class="code-tag">&lt;button</span> <span class="code-attr">role</span>=<span class="code-val">"tab"</span> <span class="code-attr">aria-selected</span>=<span class="code-val">"true"</span> <span class="code-attr">aria-controls</span>=<span class="code-val">"panel-weather"</span><span class="code-tag">&gt;</span>Weather<span class="code-tag">&lt;/button&gt;</span>
+  <span class="code-tag">&lt;button</span> <span class="code-attr">role</span>=<span class="code-val">"tab"</span> <span class="code-attr">aria-selected</span>=<span class="code-val">"false"</span> <span class="code-attr">aria-controls</span>=<span class="code-val">"panel-species"</span> <span class="code-attr">tabindex</span>=<span class="code-val">"-1"</span><span class="code-tag">&gt;</span>Species Detail<span class="code-tag">&lt;/button&gt;</span>
+<span class="code-tag">&lt;/div&gt;</span>
+<span class="code-tag">&lt;div</span> <span class="code-attr">role</span>=<span class="code-val">"tabpanel"</span> <span class="code-attr">id</span>=<span class="code-val">"panel-weather"</span> <span class="code-attr">aria-labelledby</span>=<span class="code-val">"tab-weather"</span><span class="code-tag">&gt;</span>…<span class="code-tag">&lt;/div&gt;</span>
+      </div>
+    </div>
+
+    <div class="focus-demo">
+      <div>
+        <button class="demo-btn" aria-label="Get weather">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          Get weather
+        </button>
+        <div class="target-label">Button · 44px min</div>
+      </div>
+      <div>
+        <button class="demo-pill" aria-pressed="false" onclick="this.setAttribute('aria-pressed', this.getAttribute('aria-pressed')==='true'?'false':'true'); this.style.background = this.getAttribute('aria-pressed')==='true'?'var(--green)':''; this.style.color = this.getAttribute('aria-pressed')==='true'?'white':''; this.style.borderColor = this.getAttribute('aria-pressed')==='true'?'var(--green)':'';">
+          Confirmed
+        </button>
+        <div class="target-label">Filter pill · aria-pressed</div>
+      </div>
+      <div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label for="demo-input-1" style="font-size:12px;font-weight:600;color:var(--text);">Checklist ID</label>
+          <input class="demo-input" id="demo-input-1" type="text" placeholder="S12345678" aria-label="eBird checklist ID or URL">
+        </div>
+        <div class="target-label">Input with &lt;label&gt; · FR-28</div>
+      </div>
+      <div>
+        <label class="demo-toggle-wrap">
+          <button class="demo-toggle" role="switch" aria-checked="false" onclick="var c=this.getAttribute('aria-checked')==='true'; this.setAttribute('aria-checked',(!c).toString());">
+          </button>
+          <span class="demo-toggle-label">Show subspecies</span>
+        </label>
+        <div class="target-label">Toggle · role=switch · aria-checked</div>
+      </div>
+    </div>
+    <div class="focus-note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      Press Tab to cycle through elements above. Focus ring: 3px solid #2D8653 with offset and glow.
+    </div>
+  </div>
+
+  <!-- ── Section 4: ARIA Patterns ── -->
+  <div class="section">
+    <div class="section-label">ARIA Patterns</div>
+    <div class="section-title">4. Patterns applied across all tabs</div>
+    <div class="section-desc">Each pattern below maps to one or more functional requirements. These are the exact ARIA structures the Engineer will implement.</div>
+
+    <div class="pattern-grid">
+
+      <div class="pattern-card">
+        <div class="pattern-head">
+          <div class="pattern-name">Filter pills <span>FR-07</span></div>
+          <div class="pattern-target">LifeList, BreedingCodeList, MapExplorer</div>
+        </div>
+        <pre class="pattern-code"><span class="code-tag">&lt;button</span>
+  <span class="code-attr">aria-pressed</span>=<span class="code-val">"true"</span>
+<span class="code-tag">&gt;</span>
+  Confirmed
+<span class="code-tag">&lt;/button&gt;</span>
+
+<span class="code-tag">&lt;button</span>
+  <span class="code-attr">aria-pressed</span>=<span class="code-val">"false"</span>
+<span class="code-tag">&gt;</span>
+  Probable
+<span class="code-tag">&lt;/button&gt;</span></pre>
+      </div>
+
+      <div class="pattern-card">
+        <div class="pattern-head">
+          <div class="pattern-name">Toggle switches <span>FR-08</span></div>
+          <div class="pattern-target">SpeciesDetail, LifeList, BreedingCodeList</div>
+        </div>
+        <pre class="pattern-code"><span class="code-tag">&lt;button</span>
+  <span class="code-attr">role</span>=<span class="code-val">"switch"</span>
+  <span class="code-attr">aria-checked</span>=<span class="code-val">"false"</span>
+<span class="code-tag">&gt;</span>
+  Show subspecies
+<span class="code-tag">&lt;/button&gt;</span></pre>
+      </div>
+
+      <div class="pattern-card">
+        <div class="pattern-head">
+          <div class="pattern-name">Sort column headers <span>FR-09</span></div>
+          <div class="pattern-target">LifeListTable, BreedingCodeTable</div>
+        </div>
+        <pre class="pattern-code"><span class="code-tag">&lt;th</span>
+  <span class="code-attr">scope</span>=<span class="code-val">"col"</span>
+  <span class="code-attr">aria-sort</span>=<span class="code-val">"descending"</span>
+<span class="code-tag">&gt;</span>Photo ↓<span class="code-tag">&lt;/th&gt;</span>
+
+<span class="code-tag">&lt;th</span>
+  <span class="code-attr">scope</span>=<span class="code-val">"col"</span>
+  <span class="code-attr">aria-sort</span>=<span class="code-val">"none"</span>
+<span class="code-tag">&gt;</span>Audio<span class="code-tag">&lt;/th&gt;</span></pre>
+      </div>
+
+      <div class="pattern-card">
+        <div class="pattern-head">
+          <div class="pattern-name">Live region — weather result <span>FR-13</span></div>
+          <div class="pattern-target">App.tsx weather panel</div>
+        </div>
+        <pre class="pattern-code"><span class="code-tag">&lt;div</span>
+  <span class="code-attr">aria-live</span>=<span class="code-val">"polite"</span>
+  <span class="code-attr">aria-atomic</span>=<span class="code-val">"true"</span>
+<span class="code-tag">&gt;</span>
+  <span class="code-comment">/* weather result or error */</span>
+<span class="code-tag">&lt;/div&gt;</span></pre>
+      </div>
+
+      <div class="pattern-card">
+        <div class="pattern-head">
+          <div class="pattern-name">Loading state <span>FR-14</span></div>
+          <div class="pattern-target">BreedingCodeList, LifeList, SpeciesDetail</div>
+        </div>
+        <pre class="pattern-code"><span class="code-tag">&lt;div</span>
+  <span class="code-attr">aria-busy</span>=<span class="code-val">"true"</span>
+  <span class="code-attr">aria-label</span>=<span class="code-val">"Loading data…"</span>
+<span class="code-tag">&gt;</span>
+  <span class="code-comment">/* spinner */</span>
+<span class="code-tag">&lt;/div&gt;</span>
+
+<span class="code-comment">/* clears to aria-busy="false" on load */</span></pre>
+      </div>
+
+      <div class="pattern-card">
+        <div class="pattern-head">
+          <div class="pattern-name">Segmented control <span>FR-12</span></div>
+          <div class="pattern-target">BirdingStats, SpeciesDetail, ListComparer</div>
+        </div>
+        <pre class="pattern-code"><span class="code-tag">&lt;div</span> <span class="code-attr">role</span>=<span class="code-val">"group"</span>
+  <span class="code-attr">aria-label</span>=<span class="code-val">"Graph interval"</span><span class="code-tag">&gt;</span>
+  <span class="code-tag">&lt;button</span> <span class="code-attr">aria-pressed</span>=<span class="code-val">"true"</span><span class="code-tag">&gt;</span>
+    Monthly
+  <span class="code-tag">&lt;/button&gt;</span>
+  <span class="code-tag">&lt;button</span> <span class="code-attr">aria-pressed</span>=<span class="code-val">"false"</span><span class="code-tag">&gt;</span>
+    Yearly
+  <span class="code-tag">&lt;/button&gt;</span>
+<span class="code-tag">&lt;/div&gt;</span></pre>
+      </div>
+
+      <div class="pattern-card">
+        <div class="pattern-head">
+          <div class="pattern-name">Appearance theme selector <span>FR-11</span></div>
+          <div class="pattern-target">Settings.tsx AppearanceRow</div>
+        </div>
+        <pre class="pattern-code"><span class="code-tag">&lt;div</span> <span class="code-attr">role</span>=<span class="code-val">"radiogroup"</span>
+  <span class="code-attr">aria-label</span>=<span class="code-val">"Theme"</span><span class="code-tag">&gt;</span>
+  <span class="code-tag">&lt;button</span> <span class="code-attr">role</span>=<span class="code-val">"radio"</span>
+    <span class="code-attr">aria-checked</span>=<span class="code-val">"true"</span><span class="code-tag">&gt;</span>
+    System
+  <span class="code-tag">&lt;/button&gt;</span>
+  <span class="code-tag">&lt;button</span> <span class="code-attr">role</span>=<span class="code-val">"radio"</span>
+    <span class="code-attr">aria-checked</span>=<span class="code-val">"false"</span><span class="code-tag">&gt;</span>
+    Light
+  <span class="code-tag">&lt;/button&gt;</span>
+<span class="code-tag">&lt;/div&gt;</span></pre>
+      </div>
+
+      <div class="pattern-card">
+        <div class="pattern-head">
+          <div class="pattern-name">Species combobox <span>FR-10</span></div>
+          <div class="pattern-target">SpeciesDetail.tsx</div>
+        </div>
+        <pre class="pattern-code"><span class="code-tag">&lt;input</span>
+  <span class="code-attr">role</span>=<span class="code-val">"combobox"</span>
+  <span class="code-attr">aria-expanded</span>=<span class="code-val">"true"</span>
+  <span class="code-attr">aria-autocomplete</span>=<span class="code-val">"list"</span>
+  <span class="code-attr">aria-activedescendant</span>=<span class="code-val">"opt-3"</span>
+  <span class="code-attr">aria-controls</span>=<span class="code-val">"species-list"</span>
+<span class="code-tag">/&gt;</span>
+<span class="code-tag">&lt;ul</span> <span class="code-attr">id</span>=<span class="code-val">"species-list"</span>
+  <span class="code-attr">role</span>=<span class="code-val">"listbox"</span><span class="code-tag">&gt;</span>
+  <span class="code-tag">&lt;li</span> <span class="code-attr">role</span>=<span class="code-val">"option"</span>
+    <span class="code-attr">aria-selected</span>=<span class="code-val">"true"</span>
+    <span class="code-attr">id</span>=<span class="code-val">"opt-3"</span><span class="code-tag">&gt;</span>
+    American Robin
+  <span class="code-tag">&lt;/li&gt;</span>
+<span class="code-tag">&lt;/ul&gt;</span></pre>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Section 5: sr-only + Recency ── -->
+  <div class="section">
+    <div class="section-label">Non-Color Alternatives</div>
+    <div class="section-title">5. Visually-hidden labels</div>
+    <div class="section-desc">The <code style="font-family:monospace;font-size:13px;background:var(--surface);padding:1px 5px;border-radius:3px;">.sr-only</code> utility class hides text visually while keeping it accessible to screen readers. Used for breeding tier names and map recency labels.</div>
+
+    <div class="compare-grid" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-title">Breeding code badge — screen reader reads</div>
+        <div class="card-sub">Visually: purple circle with "S". VoiceOver: "S, Possible"</div>
+        <div class="tabbar-attrs">
+<span class="code-tag">&lt;div</span> <span class="code-attr">class</span>=<span class="code-val">"tier-badge tier-1"</span><span class="code-tag">&gt;</span>
+  S
+  <span class="code-tag">&lt;span</span> <span class="code-attr">class</span>=<span class="code-val">"sr-only"</span><span class="code-tag">&gt;</span>
+    , Possible
+  <span class="code-tag">&lt;/span&gt;</span>
+<span class="code-tag">&lt;/div&gt;</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Map recency dot — screen reader reads</div>
+        <div class="card-sub">Visually: green dot. VoiceOver: "American Robin — Recent (≤7 days)"</div>
+        <div class="recency-row">
+          <div class="recency-item">
+            <div class="recency-dot dot-fresh"></div>
+            <div>
+              <div class="recency-text">American Robin — Brown's Island</div>
+              <div class="recency-sr">sr-only: "Recent (≤7 days)"</div>
+            </div>
+          </div>
+          <div class="recency-item">
+            <div class="recency-dot dot-mid"></div>
+            <div>
+              <div class="recency-text">Yellow Warbler — River Trail</div>
+              <div class="recency-sr">sr-only: "Seen 8–14 days ago"</div>
+            </div>
+          </div>
+          <div class="recency-item">
+            <div class="recency-dot dot-old"></div>
+            <div>
+              <div class="recency-text">Indigo Bunting — Oak Meadow</div>
+              <div class="recency-sr">sr-only: "Seen 15–30 days ago"</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">.sr-only CSS utility (globals.css)</div>
+      <div class="card-sub">Added once; used throughout. Visually hidden but fully accessible to screen readers.</div>
+      <div class="tabbar-attrs">
+<span class="code-comment">/* Add to globals.css if not already present */</span>
+<span class="code-attr">.sr-only</span> {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Section 6: Files Touched ── -->
+  <div class="section">
+    <div class="section-label">Implementation Scope</div>
+    <div class="section-title">6. Files the Engineer will modify</div>
+    <div class="section-desc">No new files required. All changes are applied to existing components.</div>
+    <div class="card">
+      <ul class="checklist">
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/App.tsx</span> — tab bar ARIA roles, weather live region, landmark regions, key notices</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/globals.css</span> — .sr-only utility, :focus-visible ring, tier-1 badge text color fix, contrast token audit</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/LifeList.tsx</span> — filter pill aria-pressed, toggle role=switch, count label aria-live, aria-busy on load</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/LifeListTable.tsx</span> — th scope, aria-sort, table semantics</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/BreedingCodeList.tsx</span> — filter pill aria-pressed, category pill aria-pressed, aria-busy on load</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/BreedingCodeTable.tsx</span> — table semantics, aria-sort, tier-1 text color, sr-only tier name span</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/SpeciesDetail.tsx</span> — combobox ARIA, role=switch toggles, segmented control role=group, section headings, aria-busy</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/BirdingStats.tsx</span> — segmented control role=group, section heading hierarchy</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/MapExplorer.tsx</span> — mobile sidebar focus trap + Escape, recency sr-only labels, map container aria-label</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/Settings.tsx</span> — theme selector radiogroup, icon button aria-labels, form input labels</span></li>
+        <li><span class="check">→</span><span><span class="file-tag">frontend/src/components/HelpDocs.tsx</span> — verify focus trap, Escape close, focus return</span></li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Make pills toggle on click
+  document.querySelectorAll('.demo-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const pressed = pill.getAttribute('aria-pressed') === 'true';
+      pill.setAttribute('aria-pressed', (!pressed).toString());
+    });
+  });
+</script>
+
+</body>
+</html>

@@ -773,6 +773,39 @@ A full-screen documentation overlay accessible from the top of the Settings tab.
 - `frontend/src/components/Settings.tsx` -- Help & Documentation section (first section), `helpOpen` state, `HelpDocs` mount
 - `frontend/vite.config.ts` -- `server.fs.allow: ['..']` enables dev server to resolve the `?raw` import outside `frontend/`
 
+### Accessibility Pass (complete — May 2026, v0.3.28)
+
+A best-efforts assistive technology accessibility pass across all eight tabs, covering screen reader support, keyboard navigation, and color contrast. No WCAG certification — scoped to meaningful, verifiable improvements.
+
+**What it does:**
+- **Keyboard navigation — app-wide:** All 82+ `<button>` elements now carry explicit `tabIndex={0}`. This is required in Tauri's WKWebView (which follows Safari's macOS default of skipping buttons in Tab navigation unless `tabIndex` is explicitly set). New buttons must always include `tabIndex={0}`.
+- **Tab bar — roving tabindex:** The `<nav role="tablist">` uses roving tabindex: the active tab has `tabIndex={0}`, all others have `tabIndex={-1}`. Left/Right arrow keys cycle between tabs and move focus programmatically. This is the correct ARIA tablist pattern — Tab exits the tab bar entirely.
+- **Species combobox — full keyboard nav:** ArrowDown/ArrowUp moves a visible highlight through the filtered list (auto-scrolls into view). Enter selects the highlighted option (or the first when nothing is highlighted). Escape closes the dropdown. Tab closes without selecting and lets focus move on. `aria-activedescendant` points to the active option; each option has `id="species-option-{idx}"`.
+- **ARIA attributes:**
+  - Tab bar: `role="tablist"` on nav; `role="tab"`, `aria-selected`, `aria-controls` on each button; `role="tabpanel"`, `aria-labelledby`, `id` on each panel
+  - Filter pills: `aria-pressed` on all pill buttons (BreedingCodeList, LifeList, SpeciesDetail)
+  - Toggles: `role="switch"` and `aria-checked` on all ToggleSwitch instances
+  - Table headers: `scope="col"` + `aria-sort` on all sortable columns in BreedingCodeTable and LifeListTable; `scope="row"` on species name cells
+  - Species combobox: `role="combobox"`, `aria-expanded`, `aria-autocomplete="list"`, `aria-controls`, `aria-haspopup="listbox"`, `aria-activedescendant`; listbox has `role="listbox"`, each option has `role="option"` and `aria-selected`
+  - Settings theme selector: `role="radiogroup"` on the group; `role="radio"` and `aria-checked` on each option
+- **Focus rings:** Explicit `:focus-visible` rules in `globals.css` using element/role selectors (`button:focus-visible`, `[role="tab"]:focus-visible`, etc.) to win over Tailwind's base reset. 3px green outline + 6px glow shadow. Inputs use a border-hugging 2px ring.
+- **Focus trap — Map Explorer mobile sidebar:** On open, focus moves to first focusable element inside the sidebar. Tab/Shift-Tab cycle within. Escape closes and returns focus to the "Filters" trigger button.
+- **Live regions:** `aria-live="polite" aria-atomic="true"` on the weather output container; `aria-live="polite"` on species count labels and footer update-check status.
+- **Visually-hidden labels:** `.sr-only` utility class in `globals.css`. Used for tier badge category names ("Possible", "Probable", etc.) and map recency dot labels in MapExplorer.
+- **Tier-1 badge contrast:** `#C084FC` background + white text = 2.7:1 (fails AA). Changed to `var(--sr-tier-1-text)` = `#3B0764` = 6.8:1 (passes AA). New token in both `:root` and `[data-theme="dark"]`.
+
+**Key files changed:**
+- `frontend/src/globals.css` — `:focus-visible` rules, `.sr-only`, `--sr-tier-1-text` token
+- `frontend/src/App.tsx` — tab bar roving tabindex + arrow key navigation, tabpanel ARIA, `<main>` wrapper, `role="contentinfo"` on footer, live regions
+- `frontend/src/components/SpeciesDetail.tsx` — combobox ARIA + keyboard nav (ArrowDown/Up/Enter/activeOptionIdx), `tabIndex={0}` on all buttons
+- `frontend/src/components/BreedingCodeList.tsx` — `aria-pressed` on pills, `role="group"` on sort toggle, `aria-live` on count, `tabIndex={0}` on buttons
+- `frontend/src/components/LifeList.tsx` — same as BreedingCodeList
+- `frontend/src/components/BreedingCodeTable.tsx` — `scope="col"` + `aria-sort` on headers, `scope="row"` on species cells, `var(--sr-tier-1-text)` for tier-1 badge, `.sr-only` tier category
+- `frontend/src/components/LifeListTable.tsx` — `scope="col"` + `aria-sort` on all five column headers
+- `frontend/src/components/MapExplorer.tsx` — focus trap (sidebarRef + filtersButtonRef + useEffect), `aria-label` on MapContainer, recency `.sr-only` labels, `tabIndex={0}` on all buttons
+- `frontend/src/components/Settings.tsx` — `role="radiogroup"` + `role="radio"` on theme selector, `tabIndex={0}` on all buttons
+- `frontend/src/components/BirdingStats.tsx`, `HelpDocs.tsx`, `ListComparer.tsx`, `ResultsView.tsx`, `SetupRequired.tsx` — `tabIndex={0}` on all buttons
+
 ### Linux Installer (`install.sh`) (complete — May 2026)
 
 A single shell script at the repo root that installs SnowRaven on Raspberry Pi or any Debian/Ubuntu system in one command. Two modes: service install (systemd, auto-starts on boot) and local install (dependencies + build, user starts manually).
@@ -793,6 +826,9 @@ A single shell script at the repo root that installs SnowRaven on Raspberry Pi o
 - `install.sh` — one-command installer at repo root; chmod +x; `set -euo pipefail` + `trap ERR`
 
 ## Key Decisions
+
+**WKWebView (Tauri) requires explicit `tabIndex={0}` on all `<button>` elements**
+Safari/WKWebView follows macOS's default Tab behavior: Tab focuses form controls (`input`, `select`, `textarea`) and links (`a[href]`), but skips `<button>` elements unless `tabIndex` is explicitly set. This means every new `<button>` added to any component must include `tabIndex={0}`. The one exception is the tab bar's roving tabindex pattern — those buttons have `tabIndex={activeTab === tab ? 0 : -1}` intentionally and must NOT get `tabIndex={0}`. `<Button>` (capitalized) from shadcn/ui handles tabIndex internally. This was discovered during the v0.3.28 accessibility pass and fixed globally across all 11 component files.
 
 **eBird coordinate fallback strategy**
 The eBird checklist view API does not return lat/lng. Coordinates are fetched
