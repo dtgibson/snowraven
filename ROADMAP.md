@@ -16,6 +16,8 @@ Previously: **Linux installer (`install.sh`)** -- one-command installer for Rasp
 
 ## Up Next
 
-1. **Mobile app** — A native mobile app for iOS App Store distribution, with an Android release to follow. Designed for the full feature set on a phone-sized screen.
+1. **Windows desktop app** — A native Windows build of the Tauri app with full feature parity: everything the web/Pi and macOS clients do (weather lookup, all tabs, map explorer, settings, in-app updates, local data storage). The goal is parallel desktop releases — Pi/web, macOS, and Windows all available — before any mobile work begins. Build it mindful that a mobile app follows: keep platform-sensitive code behind the existing transport/storage/platform seams and avoid desktop-only assumptions so the mobile client can reuse the same shared core.
 
-2. **Accessibility, clarity, and simplification** — Make the app more accessible, cleaner, and easier to use. Audit the UI for complexity that can be removed, streamline the most common workflows, and ensure the app is usable by people who rely on assistive technology.
+2. **Mobile app** — A native mobile app for iOS App Store distribution, with an Android release to follow. Designed for the full feature set on a phone-sized screen. Inherits the responsive navigation and the platform seams hardened during the Windows release.
+
+3. **Accessibility, clarity, and simplification** — Make the app more accessible, cleaner, and easier to use. Audit the UI for complexity that can be removed, streamline the most common workflows, and ensure the app is usable by people who rely on assistive technology.
