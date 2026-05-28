@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.3.30] - 2026-05-28
+
+### Fixed
+- **Desktop tab layout now persists across relaunches** — reordering or hiding tabs in the desktop app previously reset to defaults on every relaunch, because the layout was saved to `localStorage`, which Tauri's WKWebView wipes on relaunch. The layout now persists through the same app-data-directory storage that API keys and other settings use. The web/Pi version is unchanged (it reads the layout synchronously for a flash-free first paint).
+
+### Documentation
+- Corrected four references (README and in-app help) that incorrectly stated the desktop app stores API keys in the macOS/system Keychain. The desktop app stores keys in its local data directory; the Keychain was never used (it requires entitlements this app does not ship).
+
 ## [0.3.29] - 2026-05-27
 
 ### Added

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { loadTabLayout, saveTabLayout, clearTabLayout, visibleTabs, DEFAULT_TAB_ORDER } from './tabLayout'
+import { loadTabLayout, saveTabLayout, clearTabLayout, visibleTabs, parseLayout, serializeLayout, DEFAULT_TAB_ORDER, type TabLayoutState } from './tabLayout'
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -118,6 +118,52 @@ describe('clearTabLayout', () => {
     const state = loadTabLayout()
     expect(state.order).toEqual(DEFAULT_TAB_ORDER)
     expect(state.hidden.size).toBe(0)
+  })
+})
+
+describe('parseLayout (used by both the localStorage and storage-seam paths)', () => {
+  it('normalizes a valid serialized layout', () => {
+    const state = parseLayout({
+      order: ['birding-stats', 'weather', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'comparer'],
+      hidden: ['comparer'],
+    })
+    expect(state.order[0]).toBe('birding-stats')
+    expect(state.hidden.has('comparer')).toBe(true)
+    expect(state.hidden.size).toBe(1)
+  })
+
+  it('drops unknown tab IDs and appends missing tabs', () => {
+    const state = parseLayout({
+      order: ['weather', 'unknown-future-tab', 'species-detail'],
+      hidden: ['also-unknown'],
+    })
+    expect(state.order).not.toContain('unknown-future-tab')
+    expect(state.order).toContain('comparer') // appended
+    expect(state.hidden.size).toBe(0)
+  })
+
+  it('falls back to default for malformed input', () => {
+    expect(parseLayout(null).order).toEqual(DEFAULT_TAB_ORDER)
+    expect(parseLayout('nope').order).toEqual(DEFAULT_TAB_ORDER)
+    expect(parseLayout({ order: 'bad' }).order).toEqual(DEFAULT_TAB_ORDER)
+  })
+})
+
+describe('serializeLayout', () => {
+  it('converts the hidden Set to an array and round-trips through parseLayout', () => {
+    const original: TabLayoutState = {
+      order: ['birding-stats', 'weather', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'comparer'],
+      hidden: new Set(['comparer', 'life-list']),
+    }
+    const serialized = serializeLayout(original)
+    expect(Array.isArray(serialized.hidden)).toBe(true)
+    expect(serialized.hidden).toEqual(expect.arrayContaining(['comparer', 'life-list']))
+
+    const restored = parseLayout(serialized)
+    expect(restored.order).toEqual([...original.order])
+    expect(restored.hidden.has('comparer')).toBe(true)
+    expect(restored.hidden.has('life-list')).toBe(true)
+    expect(restored.hidden.size).toBe(2)
   })
 })
 

@@ -15,12 +15,19 @@ import {
   type ConfigurableTab,
   type Tab,
   type TabLayoutState,
+  type SerializedLayout,
   loadTabLayout,
   saveTabLayout,
+  parseLayout,
+  serializeLayout,
   visibleTabs,
   DEFAULT_TAB_ORDER,
   TAB_LABELS,
 } from './lib/tabLayout'
+
+// Settings-seam key for the tab layout (desktop persistence — localStorage is
+// ephemeral in Tauri's WKWebView, so the layout must go through the storage seam).
+const TAB_LAYOUT_SETTING = 'tabLayout'
 
 type AppState =
   | { status: 'idle' }
@@ -74,7 +81,10 @@ const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
 }
 
 export default function App() {
-  // loadTabLayout reads localStorage synchronously — initial state is correct before first paint (NFR-04)
+  // Web/Pi: loadTabLayout reads localStorage synchronously, so the saved layout
+  // is correct on first paint (no flash). Desktop: localStorage is wiped on every
+  // WKWebView relaunch, so this starts at the default and the saved layout is
+  // hydrated from the storage seam in the effect below.
   const [tabLayout, setTabLayout] = useState<TabLayoutState>(loadTabLayout)
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const layout = loadTabLayout()
@@ -100,13 +110,44 @@ export default function App() {
 
   const resetMediaListFilter = useCallback(() => setMediaListFilter(undefined), [])
 
+  // Persist the layout durably per platform: storage seam on desktop (file-backed,
+  // survives relaunch), localStorage on web/Pi (durable there and read synchronously
+  // for a flash-free first paint).
+  const persistLayout = useCallback((next: TabLayoutState) => {
+    if (isTauri()) {
+      void storage.setSetting<SerializedLayout>(TAB_LAYOUT_SETTING, serializeLayout(next))
+    } else {
+      saveTabLayout(next)
+    }
+  }, [])
+
+  // Desktop only: hydrate the saved layout from the storage seam after mount,
+  // since localStorage was cleared on relaunch. Web reads it synchronously above.
+  useEffect(() => {
+    if (!isTauri()) return
+    let cancelled = false
+    void storage.getSetting<SerializedLayout>(TAB_LAYOUT_SETTING).then(raw => {
+      if (cancelled || !raw) return
+      const restored = parseLayout(raw)
+      setTabLayout(restored)
+      // If the saved layout hides the tab we defaulted to, move to the first visible one.
+      setActiveTab(current => {
+        if (current === 'settings') return current
+        return restored.hidden.has(current as ConfigurableTab)
+          ? (visibleTabs(restored)[0] ?? 'settings')
+          : current
+      })
+    })
+    return () => { cancelled = true }
+  }, [])
+
   const handleReorder = useCallback((newOrder: ConfigurableTab[]) => {
     setTabLayout(prev => {
       const next = { ...prev, order: newOrder }
-      saveTabLayout(next)
+      persistLayout(next)
       return next
     })
-  }, [])
+  }, [persistLayout])
 
   const handleToggleVisibility = useCallback((tab: ConfigurableTab) => {
     setTabLayout(prev => {
@@ -124,16 +165,16 @@ export default function App() {
         })
       }
       const next = { ...prev, hidden: newHidden }
-      saveTabLayout(next)
+      persistLayout(next)
       return next
     })
-  }, [])
+  }, [persistLayout])
 
   const handleRestoreDefaults = useCallback(() => {
     const next: TabLayoutState = { order: [...DEFAULT_TAB_ORDER], hidden: new Set() }
     setTabLayout(next)
-    saveTabLayout(next)
-  }, [])
+    persistLayout(next)
+  }, [persistLayout])
 
   const fetchKeyStatus = useCallback(async () => {
     try {

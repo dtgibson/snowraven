@@ -249,7 +249,7 @@ Set your color scheme: System (follows your operating system preference), Light,
 
 ### API Keys
 
-Enter and manage your eBird and OpenWeather API keys. Keys are saved securely -- in the desktop app, they are stored in your system keychain (macOS Keychain, Windows Credential Manager); in web/Pi mode, they are saved to the server's .env file. Changes take effect immediately without a restart. Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.
+Enter and manage your eBird and OpenWeather API keys. Keys are saved securely -- in the desktop app, they are stored in the app's local data directory; in web/Pi mode, they are saved to the server's .env file. Changes take effect immediately without a restart. Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.
 
 ### Default Files
 

@@ -1,21 +1,20 @@
-# Handoff — responsive-tab-bar
+# Handoff — desktop-persistence-and-readme
 
 ## What We Accomplished
-The responsive navigation is built, verified live, and QA-passed: 239 tests green, types and lint clean, all 16 acceptance criteria met. The bar collapses to a dropdown the moment tabs would overflow, renders above the map, and works in light and dark.
+Fixed desktop tab-layout persistence (storage seam instead of ephemeral localStorage; web path unchanged) and corrected four stale Keychain doc references. QA passed: 243 tests, build/lint clean, web verified live, no Keychain refs remain. Desktop relaunch to be confirmed by user.
 
 ## What Has Been Saved
-- pipeline/responsive-tab-bar/ — strategic-brief.md, prd.md, schema.md, design-spec.md, design.html, pr.md, qa-report.md
-- frontend/src/components/TabNav.tsx (new)
-- frontend/src/lib/tabLayout.ts (Tab type + visibleTabs helper)
-- frontend/src/lib/tabLayout.test.ts (visibleTabs tests)
-- frontend/src/App.tsx (renders TabNav)
+- pipeline/desktop-persistence-and-readme/bug-brief.md, qa-report.md
+- frontend/src/lib/tabLayout.ts, tabLayout.test.ts
+- frontend/src/App.tsx
+- README.md, docs/HELP.md
 
 ## Where We Are
-Stage 6 (The Tester) is complete and approved. Next is Stage 7 — The Auditor, who runs a security pass before deployment.
+Stage 3 (The Tester) complete and approved. Next is Stage 4 — The Auditor, a quick security pass on the fix.
 
-## Pending (not yet done)
-- Version bump + CHANGELOG entry — deferred to Stage 8 (deploy), where release.sh validates the version.
-- README / HELP.md mention of responsive nav — Stage 9 (Chronicler) to decide.
+## Notes
+- Convention flag for Stage 6: persisted UI settings should go through the storage seam, never localStorage directly.
+- Desktop relaunch persistence to be confirmed by user on next desktop launch.
 
 ## Resume Prompt
 
@@ -23,4 +22,4 @@ To resume this session: run `/weft` in a Claude Code session in this project. It
 
 ---
 
-Project: snowraven. Feature: responsive-tab-bar. Last completed stage: 6 (The Tester). Next stage: 7 (The Auditor / agents/security.md). Load pipeline/session-state.json and all artifacts under pipeline/responsive-tab-bar/, then continue the feature flow.
+Project: snowraven. Fix: desktop-persistence-and-readme. Last completed stage: 3 (The Tester). Next stage: 4 (The Auditor / agents/security.md). Load pipeline/session-state.json and the bug-brief + qa-report, then continue the fix flow.
