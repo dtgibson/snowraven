@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Camera, ChevronDown, Filter, Info, Loader2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { AlertCircle, Camera, ChevronDown, Filter, Loader2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
@@ -13,7 +13,7 @@ import { transport, TransportError } from '../lib/transport'
 import { storage } from '../lib/storage'
 import { getCurrentLocation } from '../lib/location'
 import type { LocationError } from '../lib/location'
-import { isTauri, isWindows } from '../lib/platform'
+import { isWindows } from '../lib/platform'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1027,7 +1027,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       if (e.code === 'permission-denied') {
         setGeoError(
           e.platform === 'tauri'
-            ? 'Location access was denied. Grant permission in System Settings → Privacy & Security → Location Services.'
+            ? (isWindows()
+                ? 'Turn on location in Windows Settings → Privacy & security → Location, then try again.'
+                : 'Location access was denied. Grant permission in System Settings → Privacy & Security → Location Services.')
             : 'Location access was denied. Allow location access in your browser settings.',
         )
       } else if (e.code === 'timeout') {
@@ -1058,46 +1060,28 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   const CenterPointControl = (
     <div style={{ marginBottom: 16 }}>
-      {isTauri() && isWindows() ? (
-        // Windows has no native geolocation yet — show a calm "coming later" note
-        // in place of the button. Coordinates and address search remain the path forward.
-        <div style={{
-          display: 'flex', gap: 8, padding: '10px 11px', marginBottom: 8,
-          background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-          borderRadius: 6, boxSizing: 'border-box',
-        }}>
-          <Info size={14} strokeWidth={2} aria-hidden="true" style={{ color: 'var(--sr-text-muted)', flexShrink: 0, marginTop: 1 }} />
-          <span style={{ fontSize: 12, lineHeight: 1.45, color: 'var(--sr-text-muted)' }}>
-            <strong style={{ color: 'var(--sr-text)', fontWeight: 600 }}>Location detection is coming to Windows.</strong>{' '}
-            For now, enter coordinates below or use the address search to set your center point.
-          </span>
-        </div>
-      ) : (
-        <>
-          <button tabIndex={0}
-            onClick={handleUseMyLocation}
-            disabled={isLocating}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 7,
-              width: '100%', height: 34, padding: '0 12px',
-              background: isLocating ? 'var(--sr-surface-subtle)' : 'none',
-              border: '1.5px solid var(--sr-border)',
-              borderRadius: 6, fontSize: 12.5, fontWeight: 500,
-              fontFamily: 'inherit',
-              color: isLocating ? 'var(--sr-text-muted)' : 'var(--sr-text)',
-              cursor: isLocating ? 'default' : 'pointer',
-              marginBottom: 8, boxSizing: 'border-box',
-            }}
-          >
-            {isLocating
-              ? <Loader2 size={13} strokeWidth={2} style={{ animation: 'spin 0.7s linear infinite', color: 'var(--sr-accent)', flexShrink: 0 }} />
-              : <Navigation size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
-            }
-            {isLocating ? 'Locating…' : 'Use my location'}
-          </button>
-          {geoError && <div style={{ fontSize: 11, color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
-        </>
-      )}
+      <button tabIndex={0}
+        onClick={handleUseMyLocation}
+        disabled={isLocating}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 7,
+          width: '100%', height: 34, padding: '0 12px',
+          background: isLocating ? 'var(--sr-surface-subtle)' : 'none',
+          border: '1.5px solid var(--sr-border)',
+          borderRadius: 6, fontSize: 12.5, fontWeight: 500,
+          fontFamily: 'inherit',
+          color: isLocating ? 'var(--sr-text-muted)' : 'var(--sr-text)',
+          cursor: isLocating ? 'default' : 'pointer',
+          marginBottom: 8, boxSizing: 'border-box',
+        }}
+      >
+        {isLocating
+          ? <Loader2 size={13} strokeWidth={2} style={{ animation: 'spin 0.7s linear infinite', color: 'var(--sr-accent)', flexShrink: 0 }} />
+          : <Navigation size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
+        }
+        {isLocating ? 'Locating…' : 'Use my location'}
+      </button>
+      {geoError && <div style={{ fontSize: 11, color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
       <div style={{ display: 'flex', gap: 6 }}>
         <input type="number" placeholder="Latitude" value={lat} onChange={e => { setLat(e.target.value); setDetectedLocation(null) }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />

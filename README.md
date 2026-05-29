@@ -57,7 +57,7 @@ A comprehensive analytics dashboard built from your eBird backup. Nine cards cov
 
 An interactive map with three view modes: My Sightings (your personal recent observations with a heatmap overlay), Hotspots (eBird hotspots near a location, colored by whether you've visited them), and Media Targets (recent sightings of species you're missing media for). Requires an eBird API key.
 
-Click **Use my location** in the map controls to center the map on your current position and drop a blue pin at the detected location. On first use, the OS will prompt for location permission. In the desktop app, this uses macOS CoreLocation via the secure app protocol -- no location data leaves your device.
+Click **Use my location** in the map controls to center the map on your current position and drop a blue pin at the detected location. In the desktop app this uses the native OS location service -- CoreLocation on macOS, the Windows Geolocation API on Windows -- and no location data leaves your device. macOS prompts for permission on first use; on Windows, enable location under Settings → Privacy & security → Location if it is off.
 
 ### Media List
 
@@ -175,10 +175,6 @@ Open the Settings tab and enter your eBird and OpenWeather API keys. Keys, setti
 ### Updating
 
 Same as macOS -- click **Check For Updates** in the app footer.
-
-### Note
-
-"Use my location" in the Map Explorer is not available on Windows yet -- use the address search or enter coordinates to set your center point. Native Windows location detection is planned for a later release.
 
 ---
 

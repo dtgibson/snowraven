@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<title>SnowRaven — Windows geolocation states (Design)</title>
+<style>
+  :root {
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5;
+    --sr-text:#0F1117; --sr-text-muted:#71717A; --sr-border:#E4E4E7;
+    --sr-accent:#2D8653; --sr-error:#DC2626; --font-sans:'Inter',system-ui,sans-serif;
+  }
+  [data-theme="dark"]{
+    --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A;
+    --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-border:#27272A;
+    --sr-accent:#34A86A; --sr-error:#F87171;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font-sans);background:var(--sr-bg);color:var(--sr-text);padding:32px 20px 60px;}
+  .head{max-width:720px;margin:0 auto 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+  .head h1{font-size:20px;font-weight:700;letter-spacing:-0.5px;margin:0;}
+  .head p{margin:4px 0 0;font-size:13px;color:var(--sr-text-muted);}
+  .ctrl{font-family:inherit;font-size:13px;font-weight:500;padding:8px 14px;border-radius:8px;border:1px solid var(--sr-border);background:var(--sr-surface);color:var(--sr-text);cursor:pointer;}
+  .cols{max-width:720px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media (max-width:640px){.cols{grid-template-columns:1fr;}}
+  .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--sr-text-muted);margin-bottom:8px;}
+  .sidebar{width:268px;max-width:100%;background:var(--sr-surface);border:1px solid var(--sr-border);border-radius:12px;padding:16px;}
+  .section-title{font-size:13px;font-weight:600;margin:0 0 10px;}
+  .loc-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 12px;border:1.5px solid var(--sr-border);border-radius:6px;background:none;color:var(--sr-text);font-family:inherit;font-size:12.5px;font-weight:500;cursor:pointer;margin-bottom:8px;}
+  .loc-btn svg{width:13px;height:13px;color:var(--sr-accent);}
+  .geo-error{font-size:11px;color:var(--sr-error);margin-bottom:6px;line-height:1.45;}
+  .field-label{font-size:12px;color:var(--sr-text-muted);margin:10px 0 4px;}
+  .row2{display:flex;gap:6px;}
+  .input{height:34px;padding:0 8px;border:1.5px solid var(--sr-border);border-radius:6px;font-size:12px;font-family:inherit;color:var(--sr-text);background:var(--sr-surface);min-width:0;flex:1;}
+</style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <h1>Windows — "Use my location" states</h1>
+      <p>The button is the existing component (now shown on Windows). New: the "location off" guidance copy, in the existing inline-error style.</p>
+    </div>
+    <button class="ctrl" onclick="document.documentElement.setAttribute('data-theme',document.documentElement.getAttribute('data-theme')==='light'?'dark':'light')">Toggle light / dark</button>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="label">Normal (location allowed)</div>
+      <div class="sidebar">
+        <p class="section-title">Center point</p>
+        <button class="loc-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
+          Use my location
+        </button>
+        <div class="field-label">Latitude / Longitude</div>
+        <div class="row2"><input class="input" value="44.4280" /><input class="input" value="-72.0151" /></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="label">Location off / denied (Windows)</div>
+      <div class="sidebar">
+        <p class="section-title">Center point</p>
+        <button class="loc-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/></svg>
+          Use my location
+        </button>
+        <div class="geo-error">Turn on location in Windows Settings → Privacy &amp; security → Location, then try again.</div>
+        <div class="field-label">Latitude / Longitude</div>
+        <div class="row2"><input class="input" value="" placeholder="Latitude" /><input class="input" value="" placeholder="Longitude" /></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,12 +1,12 @@
 {
-  "activeFeature": "windows-desktop-app",
+  "activeFeature": "windows-geolocation",
   "sessionNumber": 1,
   "sessionType": "feature",
   "currentStage": 8,
   "lastCompletedStage": 7,
-  "lastCheckpointStatus": "approved",
-  "confirmedArtifacts": ["pipeline/windows-desktop-app/strategic-brief.md", "pipeline/windows-desktop-app/prd.md", "pipeline/windows-desktop-app/schema.md", "pipeline/windows-desktop-app/design-spec.md", "pipeline/windows-desktop-app/design.html", "pipeline/windows-desktop-app/pr.md", "pipeline/windows-desktop-app/qa-report.md", "pipeline/windows-desktop-app/security-review.md"],
-  "awaitingHuman": null,
-  "createdAt": "2026-05-28T07:30:00Z",
-  "updatedAt": "2026-05-28T09:42:00Z"
+  "lastCheckpointStatus": "in-progress",
+  "confirmedArtifacts": ["pipeline/windows-geolocation/strategic-brief.md", "pipeline/windows-geolocation/prd.md", "pipeline/windows-geolocation/schema.md", "pipeline/windows-geolocation/design-spec.md", "pipeline/windows-geolocation/design.html", "pipeline/windows-geolocation/pr.md", "pipeline/windows-geolocation/qa-report.md", "pipeline/windows-geolocation/security-review.md"],
+  "awaitingHuman": { "gateId": "stage-8-deploy", "stage": 8, "openedAt": "2026-05-28T23:42:00Z" },
+  "createdAt": "2026-05-28T22:00:00Z",
+  "updatedAt": "2026-05-28T23:42:00Z"
 }

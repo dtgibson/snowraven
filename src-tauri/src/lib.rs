@@ -1,5 +1,7 @@
 #[cfg(target_os = "macos")]
 mod location;
+#[cfg(target_os = "windows")]
+mod location_windows;
 
 use keyring::Entry;
 use std::sync::OnceLock;
@@ -58,6 +60,8 @@ pub fn run() {
             get_timezone,
             #[cfg(target_os = "macos")]
             location::get_location,
+            #[cfg(target_os = "windows")]
+            location_windows::get_location,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application")

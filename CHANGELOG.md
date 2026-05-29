@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.4.1] - 2026-05-28
+
+### Added
+- **"Use my location" now works on Windows** — the Windows desktop app gained native location detection (via the Windows Geolocation API), bringing it to full parity with the macOS and Pi/web clients. Click "Use my location" in the Map Explorer to center the map on your position. If Windows location is turned off, the app points you to Settings → Privacy & security → Location. The v0.4.0 "coming later" note is gone.
+
 ## [0.4.0] - 2026-05-28
 
 ### Added
