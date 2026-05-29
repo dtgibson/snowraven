@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-36 versions shipped. Last shipped: **Windows desktop app (v0.4.0)** -- a native Windows build at full parity with the macOS and Pi/web clients, built by GitHub Actions and published to the same release with a multi-platform `latest.json`. Desktop clients now ship in parallel (Pi/web, macOS, Windows). Distributed unsigned for now; "Use my location" is deferred on Windows.
+37 versions shipped. Last shipped: **Windows geolocation (v0.4.1)** -- native "Use my location" on Windows via the Windows Geolocation API, completing Windows parity with the macOS and Pi/web clients.
 
-Previously: **Responsive tab navigation** -- the tab bar collapses into a dropdown when tabs would overflow; sets the navigation pattern the mobile app will inherit.
+Previously: **Windows desktop app (v0.4.0)** -- a native Windows build built by GitHub Actions and published to the same release with a multi-platform `latest.json`; desktop clients now ship in parallel (Pi/web, macOS, Windows).
 
 ---
 
@@ -20,4 +20,4 @@ Previously: **Responsive tab navigation** -- the tab bar collapses into a dropdo
 
 2. **Accessibility, clarity, and simplification** — Make the app more accessible, cleaner, and easier to use. Audit the UI for complexity that can be removed, streamline the most common workflows, and ensure the app is usable by people who rely on assistive technology.
 
-3. **Native Windows geolocation + Windows code signing** — Two deferred follow-ups from the Windows release: implement "Use my location" on Windows (currently shows a "coming later" note), and add Authenticode signing to remove the SmartScreen warning.
+3. **Windows code signing** — Add Authenticode signing to the Windows build to remove the first-launch SmartScreen "unknown publisher" warning. (Native Windows geolocation, the other half of this item, shipped in v0.4.1.)

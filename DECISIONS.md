@@ -4,6 +4,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Windows geolocation — deferred item resolved — 2026-05-28 (v0.4.1)
+
+**Decision:** Implemented native Windows "Use my location" using the official `windows` crate's `Geolocation.Geolocator`, gated `#[cfg(target_os = "windows")]`, mirroring the macOS module's `Coords`/`get_location` contract. This resolves the geolocation deferral recorded in the v0.4.0 post-mortem.
+
+**Rationale:** Chose the native `windows` crate over `tauri-plugin-geolocation` (unreliable desktop support); it mirrors the macOS CoreLocation approach and keeps the frontend uniform (one `invoke` path). The Windows CI compile validated the build first try.
+
+**Implications:** Windows is now at full parity. Remaining Windows follow-up: Authenticode signing (roadmap). Unpackaged `.exe` has no per-app location prompt — denial = the global Windows location setting is off, hence the Settings-pointing message.
+
+---
+
 ## Windows desktop app — build/release approach + post-mortem — 2026-05-28 (v0.4.0)
 
 **Decision:** Ship a native Windows client built in GitHub Actions, signed locally. CI (`windows-build.yml`) builds the installer with a throwaway key; `release.sh` re-signs with the real key and assembles one release with a multi-platform `latest.json`. This keeps the signing key off GitHub (consistent with the Apple-credentials stance) and makes `release.sh` the single source of the manifest, avoiding macOS/Windows entries clobbering each other.

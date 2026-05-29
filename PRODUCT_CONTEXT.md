@@ -848,9 +848,14 @@ A native Windows build of the Tauri app at full parity with the macOS and Pi/web
 - `.github/workflows/windows-build.yml` (`windows-latest`, on `v*` tag) builds the NSIS installer; `release.sh` fetches it, signs it locally with the real minisign key, and publishes it to the same GitHub release as macOS, with one `latest.json` carrying both `darwin-aarch64` and `windows-x86_64`. See CLAUDE.md → Versioning → "Windows desktop release" for the full mechanism and gotchas.
 - Distributed unsigned (SmartScreen prompt on first launch); in-app updater unaffected.
 
-**Platform divergence:**
-- "Use my location" is degraded on Windows: `isWindows()` (in `platform.ts`) gates `MapExplorer`'s `CenterPointControl` to show a "coming later" note instead of the button; `location.ts` has an `unsupported-platform` guard. Everything else (radius, address search, manual coords, all tabs) is unchanged. Native Windows geolocation is deferred (roadmap).
-- No Rust changes were needed — the macOS CoreLocation code is already `cfg(target_os = "macos")`.
+**Platform divergence:** None as of v0.4.1 — Windows reached full parity when native geolocation shipped (see below). At v0.4.0 launch, "Use my location" was degraded on Windows with a "coming later" note; that was resolved in v0.4.1.
+
+### Windows Geolocation (complete — May 2026, v0.4.1)
+
+Native "Use my location" on Windows, completing parity with macOS and Pi/web.
+- `src-tauri/src/location_windows.rs` (`#[cfg(target_os = "windows")]`) — a `get_location` command using the `windows` crate's `Geolocator` (WinRT calls via `spawn_blocking`); returns the same `Coords { lat, lng }` and `"permission-denied"` convention as the macOS module, so the frontend uses one `invoke('get_location')` path on both desktop OSes. Registered for Windows in `lib.rs`; `windows` crate under `[target.'cfg(target_os = "windows")'.dependencies]`.
+- Frontend: the v0.4.0 degrade (note + `unsupported-platform` guard) was removed; the button always renders. A Windows-specific denied message points to Settings → Privacy & security → Location (unpackaged `.exe` has no per-app prompt — `RequestAccessAsync` reflects the global location setting).
+- `isWindows()` (`platform.ts`) is retained solely to select that Windows denied message.
 
 **Key files:**
 - `.github/workflows/windows-build.yml`, `release.sh` (multi-platform assembler)
