@@ -80,6 +80,7 @@ cd backend && python -m pytest tests/ -v
 - `HelpDocs.tsx` imports `docs/HELP.md` via Vite's `?raw` loader (`import helpText from '../../../docs/HELP.md?raw'`). Content is bundled at build time — no runtime fetch. Offline-available by design.
 - `vite.config.ts` sets `server.fs.allow: ['..']` to allow the dev server to resolve the `?raw` import outside the `frontend/` root. This is dev-only — production resolves at compile time.
 - **Also review and update `README.md`** before every push to ensure it reflects the current feature set.
+- **`PRIVACY_POLICY.md` and `ACCESSIBILITY.md` (repo root) are published, user-facing statements — keep them true.** The privacy policy asserts SnowRaven collects nothing and runs no server: if any feature ever adds analytics, telemetry, crash reporting, an account, or a new third-party service, update `PRIVACY_POLICY.md` in the same change (a stale privacy policy is a liability, not just a doc bug). Update `ACCESSIBILITY.md` when accessibility behavior changes. Neither is bundled into the app, so they don't require a version bump on their own.
 
 ### Production build
 ```

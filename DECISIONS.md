@@ -4,6 +4,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Privacy stance: local-first, zero data collection — 2026-05-29
+
+**Decision:** SnowRaven collects no user data — no analytics, telemetry, crash reporting, accounts, or developer-operated server. The user's data (eBird backup, ML export, settings, API keys) stays on their own device or self-hosted machine and is theirs to control. This is now stated publicly in `PRIVACY_POLICY.md`. The app's only outbound traffic is the user-initiated, user-key-authenticated calls to eBird, OpenWeather, and Nominatim, made directly to those providers with no intermediary.
+
+**Rationale:** Matches the founding self-hosted ethos and is a genuine differentiator. Formalizing it publicly makes it a commitment, not just an implementation detail.
+
+**Implications:** Adding any data collection, analytics, telemetry, or new third-party dependency is now a decision that must be revisited here AND reflected in `PRIVACY_POLICY.md` in the same change (see CLAUDE.md → Documentation). Do not add such things silently.
+
+---
+
 ## Windows geolocation — deferred item resolved — 2026-05-28 (v0.4.1)
 
 **Decision:** Implemented native Windows "Use my location" using the official `windows` crate's `Geolocation.Geolocator`, gated `#[cfg(target_os = "windows")]`, mirroring the macOS module's `Coords`/`get_location` contract. This resolves the geolocation deferral recorded in the v0.4.0 post-mortem.
