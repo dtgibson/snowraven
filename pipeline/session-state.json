@@ -1,12 +1,12 @@
 {
-  "activeFeature": "docs-ml-export-and-ordering",
+  "activeFeature": "privacy-and-accessibility-docs",
   "sessionNumber": 1,
   "sessionType": "maintain",
   "currentStage": 5,
   "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": ["pipeline/docs-ml-export-and-ordering/change-brief.md", "pipeline/docs-ml-export-and-ordering/qa-report.md", "pipeline/docs-ml-export-and-ordering/security-review.md"],
-  "awaitingHuman": { "gateId": "stage-5-deploy", "stage": 5, "openedAt": "2026-05-29T01:48:00Z" },
-  "createdAt": "2026-05-29T00:40:00Z",
-  "updatedAt": "2026-05-29T01:48:00Z"
+  "lastCheckpointStatus": "approved",
+  "confirmedArtifacts": ["pipeline/privacy-and-accessibility-docs/change-brief.md", "pipeline/privacy-and-accessibility-docs/qa-report.md", "pipeline/privacy-and-accessibility-docs/security-review.md"],
+  "awaitingHuman": null,
+  "createdAt": "2026-05-29T02:30:00Z",
+  "updatedAt": "2026-05-29T03:24:00Z"
 }

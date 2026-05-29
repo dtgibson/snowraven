@@ -6,6 +6,8 @@ Self-hosted birding tools for your eBird workflow.
 
 [Full documentation](docs/HELP.md) covers every tab, API key setup, and how to download and upload the data files that unlock most features.
 
+See also the [Privacy Policy](PRIVACY_POLICY.md) (your data stays on your device — SnowRaven collects nothing) and the [Accessibility statement](ACCESSIBILITY.md).
+
 ## Tools
 
 ### Weather Lookup
