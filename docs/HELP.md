@@ -67,7 +67,9 @@ eBird generates the export with all observations up to the download date. Re-upl
 
 Your ML export is a spreadsheet of all the media you have uploaded to the Macaulay Library -- photos, audio recordings, and videos -- including catalog IDs, media types, and the species associated with each item.
 
-To download it, sign in at [macaulaylibrary.org](https://macaulaylibrary.org), go to My Media, and click "Save Spreadsheet." In SnowRaven, upload it in Settings under Default Files. The filename will contain your Macaulay Library user ID.
+To download it, sign in at [macaulaylibrary.org](https://macaulaylibrary.org) and go to My Media. Set the media-type filter to **All** rather than Birds, so the export includes every item you have uploaded, then click "Save Spreadsheet."
+
+In SnowRaven, upload the file in Settings under Default Files, and **leave the filename unchanged**. The downloaded filename contains your Macaulay Library user ID, and SnowRaven reads that ID from the filename to link directly to your own media pages. If you rename the file, those links still work but are no longer personalized to your account.
 
 The ML export is used by: Media List (media counts and species coverage), Species Detail (embedded recent media and media count indicators), and Statistics (the Media card). These features are not available from the eBird backup alone.
 
@@ -171,7 +173,7 @@ The dot next to each species name shows how recently it was seen:
 
 The Map Explorer tab provides three views of your birding locations and nearby activity. An eBird API key is required for all three modes.
 
-Click **Use my location** in the map controls to center the map on your current position and place a blue pin at the detected location. On first use, the OS will prompt for location permission. If permission is denied, you can restore it in System Settings → Privacy & Security → Location Services (desktop) or your browser's site permissions (web).
+Click **Use my location** in the map controls to center the map on your current position and place a blue pin at the detected location. The desktop app uses your operating system's native location service (macOS and Windows both supported). If location is off or denied, restore it in System Settings → Privacy & Security → Location Services on macOS, or Settings → Privacy & security → Location on Windows; in web/Pi mode, use your browser's site permissions.
 
 ### My Sightings
 
@@ -262,3 +264,5 @@ Set a home location used by the Map Explorer and the Top Local Target Species ca
 ### Tab Layout
 
 Reorder and show or hide individual tabs. Drag rows to reorder. Click the eye icon to toggle a tab's visibility. At least one tab must remain visible at all times. The Settings tab is always last and cannot be hidden.
+
+On narrow screens and mobile browsers the tab bar automatically collapses into a compact dropdown that follows the same order and visibility choices, so every tab stays reachable without horizontal scrolling.

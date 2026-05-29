@@ -1,12 +1,12 @@
 {
-  "activeFeature": "windows-geolocation",
+  "activeFeature": "docs-ml-export-and-ordering",
   "sessionNumber": 1,
-  "sessionType": "feature",
-  "currentStage": 8,
-  "lastCompletedStage": 7,
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
   "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": ["pipeline/windows-geolocation/strategic-brief.md", "pipeline/windows-geolocation/prd.md", "pipeline/windows-geolocation/schema.md", "pipeline/windows-geolocation/design-spec.md", "pipeline/windows-geolocation/design.html", "pipeline/windows-geolocation/pr.md", "pipeline/windows-geolocation/qa-report.md", "pipeline/windows-geolocation/security-review.md"],
-  "awaitingHuman": { "gateId": "stage-8-deploy", "stage": 8, "openedAt": "2026-05-28T23:42:00Z" },
-  "createdAt": "2026-05-28T22:00:00Z",
-  "updatedAt": "2026-05-28T23:42:00Z"
+  "confirmedArtifacts": ["pipeline/docs-ml-export-and-ordering/change-brief.md", "pipeline/docs-ml-export-and-ordering/qa-report.md", "pipeline/docs-ml-export-and-ordering/security-review.md"],
+  "awaitingHuman": { "gateId": "stage-5-deploy", "stage": 5, "openedAt": "2026-05-29T01:48:00Z" },
+  "createdAt": "2026-05-29T00:40:00Z",
+  "updatedAt": "2026-05-29T01:48:00Z"
 }

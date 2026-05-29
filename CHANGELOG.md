@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.4.2] - 2026-05-29
+
+### Changed
+- **Clearer Macaulay Library export instructions** — the in-app help and README now tell you to set the My Media filter to "All" (not just Birds) before saving your export, and to leave the downloaded filename unchanged. The filename carries your Macaulay Library user ID, which SnowRaven uses to link straight to your own media pages; renaming the file makes those links generic. Also refreshed the help docs for completeness: the Tab Layout section now describes the responsive dropdown on narrow screens, and the Map Explorer location notes cover macOS, Windows, and web.
+
 ## [0.4.1] - 2026-05-28
 
 ### Added

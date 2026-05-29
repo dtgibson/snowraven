@@ -67,7 +67,7 @@ Save your eBird backup and Macaulay Library export in Settings to unlock the ful
 
 **How it works:**
 
-1. Save your files in Settings under Default Files -- eBird backup and/or ML export
+1. Save your files in Settings under Default Files -- eBird backup and/or ML export. When exporting your Macaulay Library media, set the filter to **All** (not just Birds) and leave the downloaded filename unchanged so SnowRaven can read your user ID for personalized media links. See the [documentation](docs/HELP.md) for the full steps.
 2. Open Media List -- your life list loads automatically with photo, audio, and video counts per species
 3. Click any count to open that species' personal media on the Macaulay Library in a new tab
 4. Click the eBird or Birds of the World icon next to a species name to open its species account
