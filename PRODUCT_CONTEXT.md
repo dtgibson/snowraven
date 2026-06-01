@@ -606,6 +606,24 @@ An interactive map tab with three view modes for exploring birding locations: si
 - `src-tauri/Info.plist` — `NSLocationWhenInUseUsageDescription` for macOS location permission dialog
 - `src-tauri/capabilities/default.json` — `geolocation:allow-check-permissions`, `geolocation:allow-request-permissions`, `geolocation:allow-get-current-position` (for future iOS/Android)
 
+### Map Explorer — Atlas Blocks + Nearest Unvisited Hotspots (complete — June 2026, v0.5.0)
+
+Two additions to the Map Explorer Hotspots mode.
+
+**California atlas blocks overlay:**
+- An "Atlas blocks" toggle (in the Hotspots panel, between the legend and the nearest list) overlays official California Breeding Bird Atlas block boundaries. Default off; data lazy-loads on first enable.
+- **Geometry is generated at runtime, not bundled.** The blocks are a regular grid (USGS 7.5' quad / 6, 2 cols × 3 rows). The bundled asset `frontend/src/assets/ca-atlas-blocks.json` is a compact gazetteer — one record per quad `{ sw:[lat,lng], name, id, pos? }` (2,878 quads, ~160 KB raw / 34 KB gz, lazy chunk). `generateBlocks()` expands each quad into its 6 named block rectangles; `pos` lists present positions for the 232 partial edge quads. Verified an exact 1:1 match with the 16,527 official blocks.
+- Generated from the official KML by `scripts/convert-atlas-blocks.mjs` (dependency-free, one-off). Block code (quad `id` + position, e.g. `32117F2CE`) drives the eBird link `https://ebird.org/atlascalifornia/block/<code>`.
+- `AtlasBlockLayer.tsx` (react-leaflet child) renders only viewport-intersecting blocks via `blocksInBounds`; a ~400-feature cap shows a "Zoom in to see atlas blocks" hint; outside California nothing draws. Outline style via `.sr-atlas-block` + `--sr-map-atlas` token; **transparent fill (`fillOpacity:0`) makes block interiors clickable** (a name→eBird-link popup). Offline-capable, no runtime third-party fetch.
+
+**Nearest unvisited hotspots:**
+- `nearestUnvisited` memo lists the 10 closest `kind:'unvisited'` hotspots by distance (reusing `distanceMiles`); rendered below the legend as links to `https://ebird.org/hotspot/{locId}`.
+
+**Key files:**
+- `frontend/src/lib/atlasBlocks.ts` (+ `.test.ts`, 11 cases) — `generateBlocks`, `blocksInBounds`, types
+- `frontend/src/components/AtlasBlockLayer.tsx`, `MapExplorer.tsx` (toggle + state + nearest list)
+- `frontend/src/assets/ca-atlas-blocks.json`, `scripts/convert-atlas-blocks.mjs`, `globals.css` (`--sr-map-atlas`, `.sr-atlas-block`)
+
 ### Species Detail Enhancements — Weekly Interval, Checklists Graph, Frequency Stat (complete — May 2026)
 
 Three additions to the Species Detail tab shipped in v0.1.11.

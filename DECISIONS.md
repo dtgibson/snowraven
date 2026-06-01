@@ -4,6 +4,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Atlas blocks: generate geometry from a gazetteer, don't bundle polygons — 2026-06-01 (v0.5.0)
+
+**Decision:** The California atlas block overlay bundles a compact per-quad gazetteer (~2,878 records, 160 KB) and generates the 16,527 block rectangles + names at runtime, rather than bundling the official polygons (~1–2 MB).
+
+**Rationale:** The blocks are a perfectly regular grid (USGS 7.5' quad / 6, all clean axis-aligned rectangles — verified across all 16,527). The only irreducible data is the quad name, id, SW corner, and (for edge quads) which positions exist; geometry is derivable. Regenerating from the gazetteer was verified an exact 1:1 match with the official block set, so generation is faithful, not approximate. Keeps the overlay small, lazy-loaded, and offline-capable (no runtime Google Drive / third-party fetch), consistent with the local-first stance.
+
+**Implications:** The bundled asset is produced by `scripts/convert-atlas-blocks.mjs` from the official KML; re-run only if the atlas data changes. The approach generalizes to other state atlases (same quad-grid scheme) if ever added. Two standing conventions came out of this and live in CLAUDE.md: outline-only Leaflet polygons need a transparent fill for interior clicks; and the block popup's HTML-string construction must be re-checked if block data ever becomes non-static (injection guard).
+
+---
+
 ## Privacy stance: local-first, zero data collection — 2026-05-29
 
 **Decision:** SnowRaven collects no user data — no analytics, telemetry, crash reporting, accounts, or developer-operated server. The user's data (eBird backup, ML export, settings, API keys) stays on their own device or self-hosted machine and is theirs to control. This is now stated publicly in `PRIVACY_POLICY.md`. The app's only outbound traffic is the user-initiated, user-key-authenticated calls to eBird, OpenWeather, and Nominatim, made directly to those providers with no intermediary.

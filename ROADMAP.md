@@ -8,9 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-37 versions shipped. Last shipped: **Windows geolocation (v0.4.1)** -- native "Use my location" on Windows via the Windows Geolocation API, completing Windows parity with the macOS and Pi/web clients.
+39 versions shipped. Last shipped: **Map Explorer — California atlas blocks + nearest unvisited hotspots (v0.5.0)** -- a toggle overlays official California Breeding Bird Atlas block boundaries (generated at runtime from a compact bundled gazetteer, click a block to open it on eBird), and the Hotspots panel auto-lists the ten closest unvisited hotspots as eBird links.
 
-Previously: **Windows desktop app (v0.4.0)** -- a native Windows build built by GitHub Actions and published to the same release with a multi-platform `latest.json`; desktop clients now ship in parallel (Pi/web, macOS, Windows).
+Previously: **Windows geolocation (v0.4.1)** -- native "Use my location" on Windows, completing Windows parity; and the in-app help/privacy/accessibility doc passes (v0.4.2).
 
 ---
 
