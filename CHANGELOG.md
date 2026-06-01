@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.1] - 2026-06-01
+
+### Improved
+- **Map Explorer heatmap is more useful** — the My Sightings heatmap now spreads enough to show where your sightings cluster, instead of reading as isolated dots. A new "Heatmap Intensity" slider (in the My Sightings panel, heatmap mode) lets you dial the coverage from tighter to broader and hotter — handy for reading density at different zoom levels and for making sparse, low-count areas stand out.
+
 ## [0.5.0] - 2026-06-01
 
 ### Added

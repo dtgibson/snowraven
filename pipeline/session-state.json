@@ -1,12 +1,12 @@
 {
-  "activeFeature": "map-atlas-blocks-and-nearest-hotspots",
+  "activeFeature": "heatmap-coverage",
   "sessionNumber": 1,
-  "sessionType": "feature",
-  "currentStage": 8,
-  "lastCompletedStage": 7,
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
   "lastCheckpointStatus": "in-progress",
-  "confirmedArtifacts": ["pipeline/map-atlas-blocks-and-nearest-hotspots/strategic-brief.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/prd.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/schema.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/design-spec.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/design.html", "pipeline/map-atlas-blocks-and-nearest-hotspots/pr.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/qa-report.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/security-review.md"],
-  "awaitingHuman": { "gateId": "stage-8-deploy", "stage": 8, "openedAt": "2026-06-01T08:20:00Z" },
-  "createdAt": "2026-05-29T04:00:00Z",
-  "updatedAt": "2026-06-01T08:20:00Z"
+  "confirmedArtifacts": ["pipeline/heatmap-coverage/change-brief.md", "pipeline/heatmap-coverage/pr.md", "pipeline/heatmap-coverage/qa-report.md", "pipeline/heatmap-coverage/security-review.md"],
+  "awaitingHuman": { "gateId": "stage-5-deploy", "stage": 5, "openedAt": "2026-06-01T10:35:00Z" },
+  "createdAt": "2026-06-01T09:15:00Z",
+  "updatedAt": "2026-06-01T10:35:00Z"
 }

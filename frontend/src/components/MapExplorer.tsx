@@ -256,7 +256,23 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
   )
 }
 
-function HeatmapLayer({ points }: { points: [number, number, number][] }) {
+// Intensity slider (1–10) → heat footprint + saturation. The default (5) spreads
+// far enough that neighboring sightings merge into a density gradient (radius 40),
+// vs. the old fixed radius 25 that read as isolated dots. Toward the top the
+// footprint broadens (10 → radius 80) and `max` eases down so the gradient runs
+// hotter. The values are deliberately bounded: pushing radius/blur much higher with
+// a very low `max` makes leaflet.heat band the faint, far-spread tails into
+// triangular artifacts, so radius tops out ~80, blur is 0.5× radius, and max floors
+// at 0.75. Because the radius is in screen pixels, the slider also lets the user
+// compensate for how the same data reads at different zoom levels.
+const HEAT_INTENSITY_DEFAULT = 5
+// Smooth quadratic anchored at 1→18, 5→40, 10→80 px.
+function heatRadius(intensity: number): number { return Math.round(13.9 + 3.83 * intensity + 0.278 * intensity * intensity) }
+function heatBlur(intensity: number): number { return Math.round(heatRadius(intensity) * 0.5) }
+// Lower max = hotter. 1→1.0 (subtle) … 10→0.75 (warmer, without over-saturating).
+function heatMax(intensity: number): number { return +(1.0 - (intensity - 1) * (0.25 / 9)).toFixed(2) }
+
+function HeatmapLayer({ points, intensity }: { points: [number, number, number][]; intensity: number }) {
   const map = useMap()
   const layerRef = useRef<L.Layer | null>(null)
 
@@ -268,7 +284,7 @@ function HeatmapLayer({ points }: { points: [number, number, number][] }) {
     const apply = () => {
       if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      layerRef.current = (L as any).heatLayer(points, { radius: 25, blur: 15, maxZoom: 17 }).addTo(map)
+      layerRef.current = (L as any).heatLayer(points, { radius: heatRadius(intensity), blur: heatBlur(intensity), max: heatMax(intensity), maxZoom: 17 }).addTo(map)
     }
     if (heatLoaded.current) {
       apply()
@@ -281,12 +297,12 @@ function HeatmapLayer({ points }: { points: [number, number, number][] }) {
     return () => {
       if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
     }
-  }, [map, points])
+  }, [map, points, intensity])
 
   return null
 }
 
-function SightingMarkers({ locations, displayMode }: { locations: LocationGroup[]; displayMode: DisplayMode }) {
+function SightingMarkers({ locations, displayMode, heatIntensity }: { locations: LocationGroup[]; displayMode: DisplayMode; heatIntensity: number }) {
   const map = useMap()
   const hasFitted = useRef(false)
 
@@ -310,12 +326,19 @@ function SightingMarkers({ locations, displayMode }: { locations: LocationGroup[
     return () => { map.off('resize', tryFit) }
   }, [locations, map])
 
+  // Per-point heat weight scales with the slider so HIGH intensity makes even
+  // sparse, low-count sightings burn hot (not just dense clusters). The divisor is
+  // the obs count that reaches full heat: 20 at intensity 1 (count-proportional, the
+  // original behavior) down to 2 at intensity 10 (almost any sighting saturates).
   const heatPoints = useMemo(
-    (): [number, number, number][] => locations.map(l => [l.lat, l.lng, Math.min(l.count / 20, 1)]),
-    [locations],
+    (): [number, number, number][] => {
+      const divisor = Math.max(2, 20 - (heatIntensity - 1) * 2)
+      return locations.map(l => [l.lat, l.lng, Math.min(l.count / divisor, 1)])
+    },
+    [locations, heatIntensity],
   )
 
-  if (displayMode === 'heatmap') return <HeatmapLayer points={heatPoints} />
+  if (displayMode === 'heatmap') return <HeatmapLayer points={heatPoints} intensity={heatIntensity} />
 
   return (
     <>
@@ -602,6 +625,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [phase, setPhase] = useState<MapPhase>({ tag: 'loading-saved' })
   const [viewMode, setViewMode] = useState<ViewMode>('sightings')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('pins')
+  const [heatIntensity, setHeatIntensity] = useState(HEAT_INTENSITY_DEFAULT)
 
   const sidebarRef = useRef<HTMLDivElement>(null)
   const filtersButtonRef = useRef<HTMLButtonElement>(null)
@@ -1230,6 +1254,28 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             value={displayMode}
             onChange={v => setDisplayMode(v as DisplayMode)}
           />
+          {displayMode === 'heatmap' && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <SidebarLabel>Heatmap Intensity</SidebarLabel>
+                <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{heatIntensity}</span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={10}
+                step={1}
+                value={heatIntensity}
+                onChange={e => setHeatIntensity(Number(e.target.value))}
+                aria-label="Heatmap intensity"
+                style={{ width: '100%', accentColor: 'var(--sr-accent)', cursor: 'pointer' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--sr-text-muted)', marginTop: 2 }}>
+                <span>Tighter</span>
+                <span>Broader</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1720,7 +1766,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               {viewMode === 'sightings' && !isSetupRequired && (
-                <SightingMarkers locations={filteredLocations} displayMode={displayMode} />
+                <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} />
               )}
               {viewMode === 'hotspots' && hotspotPins && (
                 <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} />

@@ -177,7 +177,9 @@ Click **Use my location** in the map controls to center the map on your current 
 
 ### My Sightings
 
-Shows your personal recent observations on a map with a heatmap overlay. Use the species filter to show only observations of a specific species. Use the breeding status and date-range filters to narrow results further.
+Shows your personal recent observations on a map. Use the species filter to show only observations of a specific species. Use the breeding status and date-range filters to narrow results further.
+
+Switch between Pins and Heatmap with the Map View toggle. In Heatmap mode, a Heatmap Intensity slider lets you dial the coverage from tighter to broader and hotter -- higher settings spread each sighting farther and make even sparse, low-count areas stand out, which also helps when reading density at different zoom levels.
 
 ### Hotspots
 
