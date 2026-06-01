@@ -74,6 +74,7 @@ cd backend && python -m pytest tests/ -v
 
 - **Floating overlays (dropdowns, menus, popovers) that can appear over a map must use a `z-index` above Leaflet's layers.** Leaflet panes and controls reach ~1000; use `z-index: 1200` (as the responsive tab dropdown does in `TabNav.tsx`). The Map Explorer is reachable on most views, so any new overlay should assume a map may be beneath it.
 - **Outline-only Leaflet polygons need a transparent fill (`fillOpacity: 0`), not `pointer-events` overrides, to make their interior clickable.** Leaflet's own `path.leaflet-interactive` CSS rule outranks a class-based `pointer-events: all` on specificity. The atlas-block overlay (`AtlasBlockLayer.tsx`) relies on this.
+- **`leaflet.heat` bands faint far-spread tails into triangular artifacts when `radius` is very large AND `max` is very low.** When tuning the My Sightings heatmap, keep radius bounded (~≤80 px), blur ~0.5× radius, and floor `max` ≥ ~0.75; drive "intensity" via per-point weight (the obs-count divisor), not by crushing `max`. See `heatRadius`/`heatBlur`/`heatMax` in `MapExplorer.tsx`.
 
 ### Security — standing checks
 
