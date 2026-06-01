@@ -1,12 +1,12 @@
 {
-  "activeFeature": "privacy-and-accessibility-docs",
+  "activeFeature": "map-atlas-blocks-and-nearest-hotspots",
   "sessionNumber": 1,
-  "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "approved",
-  "confirmedArtifacts": ["pipeline/privacy-and-accessibility-docs/change-brief.md", "pipeline/privacy-and-accessibility-docs/qa-report.md", "pipeline/privacy-and-accessibility-docs/security-review.md"],
-  "awaitingHuman": null,
-  "createdAt": "2026-05-29T02:30:00Z",
-  "updatedAt": "2026-05-29T03:24:00Z"
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
+  "confirmedArtifacts": ["pipeline/map-atlas-blocks-and-nearest-hotspots/strategic-brief.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/prd.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/schema.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/design-spec.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/design.html", "pipeline/map-atlas-blocks-and-nearest-hotspots/pr.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/qa-report.md", "pipeline/map-atlas-blocks-and-nearest-hotspots/security-review.md"],
+  "awaitingHuman": { "gateId": "stage-8-deploy", "stage": 8, "openedAt": "2026-06-01T08:20:00Z" },
+  "createdAt": "2026-05-29T04:00:00Z",
+  "updatedAt": "2026-06-01T08:20:00Z"
 }

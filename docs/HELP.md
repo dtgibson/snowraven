@@ -183,6 +183,10 @@ Shows your personal recent observations on a map with a heatmap overlay. Use the
 
 Fetches eBird hotspots near a location. Hotspots you have visited (matched against your eBird backup) appear as green pins. Unvisited hotspots appear as blue pins. Locations from your personal location history appear as orange pins. Click any legend row to hide or show that category. Enter a place name or coordinates to search, then click Fetch hotspots.
 
+Below the legend, the panel lists the ten closest hotspots you have not visited, ranked by distance from your center point; each row links to that hotspot's page on eBird.
+
+At the bottom of the panel, an **Atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. Blocks are drawn for the area currently in view -- if you are zoomed too far out, a "Zoom in to see atlas blocks" hint appears instead of drawing the whole state. Click any block to open its page on the eBird California atlas. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn.
+
 ### Media Targets
 
 Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. The sidebar shows the 10 nearest target pins ranked by distance. Clicking a row pans the map to that location.

@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Camera, ChevronDown, Filter, Loader2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { AlertCircle, Camera, ChevronDown, ExternalLink, Filter, Loader2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
@@ -14,6 +14,8 @@ import { storage } from '../lib/storage'
 import { getCurrentLocation } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { isWindows } from '../lib/platform'
+import { AtlasBlockLayer } from './AtlasBlockLayer'
+import type { AtlasData } from '../lib/atlasBlocks'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -627,6 +629,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [legendVisible, setLegendVisible]     = useState(false)
   const [hiddenKinds, setHiddenKinds]         = useState<Set<HotspotPin['kind']>>(new Set())
 
+  // Atlas block overlay state (California Breeding Bird Atlas)
+  const [atlasEnabled, setAtlasEnabled]       = useState(false)
+  const [atlasData, setAtlasData]             = useState<AtlasData | null>(null)
+  const [atlasLoading, setAtlasLoading]       = useState(false)
+  const [atlasTooMany, setAtlasTooMany]       = useState(false)
+
   // Target state
   const [targetPins, setTargetPins]           = useState<TargetPin[] | null>(null)
   const [targetsLoading, setTargetsLoading]   = useState(false)
@@ -916,6 +924,37 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       .slice(0, 10)
       .map(pin => ({ pin, dist: distanceMiles(latNum, lngNum, pin.lat, pin.lng) }))
   }, [displayedTargetPins, lat, lng])
+
+  // Ten closest UNVISITED hotspots from the current hotspot search, by distance
+  // from the center point. Rendered in the Hotspots sidebar as eBird links.
+  const nearestUnvisited = useMemo(() => {
+    const latNum = parseFloat(lat)
+    const lngNum = parseFloat(lng)
+    if (isNaN(latNum) || isNaN(lngNum) || !hotspotPins) return []
+    return hotspotPins
+      .filter((p): p is Extract<HotspotPin, { kind: 'unvisited' }> => p.kind === 'unvisited')
+      .map(pin => ({ pin, dist: distanceMiles(latNum, lngNum, pin.lat, pin.lng) }))
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 10)
+  }, [hotspotPins, lat, lng])
+
+  // Atlas overlay toggle — lazy-loads the block gazetteer on first enable so it
+  // never affects initial app load, then just shows/hides the layer.
+  const handleToggleAtlas = useCallback(async () => {
+    const next = !atlasEnabled
+    setAtlasEnabled(next)
+    if (next && !atlasData && !atlasLoading) {
+      setAtlasLoading(true)
+      try {
+        const mod = await import('../assets/ca-atlas-blocks.json')
+        setAtlasData(((mod as { default?: unknown }).default ?? mod) as unknown as AtlasData)
+      } catch {
+        // Asset failed to load — leave data null; the overlay simply won't draw.
+      } finally {
+        setAtlasLoading(false)
+      }
+    }
+  }, [atlasEnabled, atlasData, atlasLoading])
 
   // ── Actions ───────────────────────────────────────────────────────────────────
 
@@ -1283,6 +1322,65 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             })}
         </div>
       )}
+
+      {/* Map overlays — California Breeding Bird Atlas blocks (between legend and nearest list) */}
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
+        <SidebarLabel>Map Overlays</SidebarLabel>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Atlas blocks</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={atlasEnabled}
+            aria-label="Show California atlas blocks"
+            tabIndex={0}
+            onClick={handleToggleAtlas}
+            style={{
+              width: 38, height: 22, borderRadius: 11, border: 'none', flexShrink: 0,
+              background: atlasEnabled ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
+              position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 2, left: atlasEnabled ? 18 : 2, width: 18, height: 18,
+              borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+            }} />
+          </button>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+          {atlasLoading
+            ? 'Loading atlas blocks…'
+            : 'California Breeding Bird Atlas blocks. Shown for the current map area.'}
+        </div>
+      </div>
+
+      {nearestUnvisited.length > 0 && (
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
+          <SidebarLabel>Nearest Unvisited Hotspots</SidebarLabel>
+          {nearestUnvisited.map(({ pin, dist }) => (
+            <a
+              key={pin.locId}
+              href={`https://ebird.org/hotspot/${pin.locId}`}
+              target="_blank"
+              rel="noreferrer"
+              tabIndex={0}
+              className="sr-nearest-unvisited-row"
+              style={{
+                display: 'flex', alignItems: 'baseline', gap: 8, width: '100%',
+                padding: '7px 8px', marginBottom: 2, borderRadius: 6,
+                textDecoration: 'none', color: 'inherit',
+              }}
+            >
+              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--sr-map-unvisited)', flexShrink: 0, alignSelf: 'center' }} aria-hidden="true" />
+              <span className="sr-nearest-unvisited-name" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', fontSize: 12.5, color: 'var(--sr-text)', overflow: 'hidden' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</span>
+                <ExternalLink size={11} strokeWidth={2} aria-hidden="true" style={{ marginLeft: 5, flexShrink: 0, color: 'var(--sr-text-muted)' }} />
+              </span>
+              <span style={{ fontSize: 11.5, color: 'var(--sr-text-muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{dist.toFixed(1)} mi</span>
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   )
 
@@ -1613,6 +1711,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <AutoSizeMap />
               <MapPanner target={panTarget} onDone={handlePanDone} />
               <DefaultCenterSetter center={defaultCenter} onDone={handleDefaultCenterDone} />
+              {atlasEnabled && (
+                <AtlasBlockLayer data={atlasData} onTooManyChange={setAtlasTooMany} />
+              )}
               {detectedLocation && <DetectedLocationPin position={detectedLocation} />}
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -1628,6 +1729,22 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} />
               )}
             </MapContainer>
+          )}
+          {atlasEnabled && atlasTooMany && (
+            <div
+              role="status"
+              style={{
+                position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
+                zIndex: 1000, display: 'flex', alignItems: 'center', gap: 7,
+                background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
+                borderRadius: 20, padding: '7px 14px', fontSize: 12,
+                color: 'var(--sr-text-muted)', boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
+                whiteSpace: 'nowrap', pointerEvents: 'none',
+              }}
+            >
+              <Search size={14} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
+              Zoom in to see atlas blocks
+            </div>
           )}
         </div>
       </div>

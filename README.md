@@ -59,6 +59,8 @@ A comprehensive analytics dashboard built from your eBird backup. Nine cards cov
 
 An interactive map with three view modes: My Sightings (your personal recent observations with a heatmap overlay), Hotspots (eBird hotspots near a location, colored by whether you've visited them), and Media Targets (recent sightings of species you're missing media for). Requires an eBird API key.
 
+In Hotspots mode, the panel lists the ten closest hotspots you haven't visited yet, each linking to its eBird page. An "Atlas blocks" toggle overlays the official California Breeding Bird Atlas block boundaries for the area you're viewing; click any block to open it on the eBird California atlas.
+
 Click **Use my location** in the map controls to center the map on your current position and drop a blue pin at the detected location. In the desktop app this uses the native OS location service -- CoreLocation on macOS, the Windows Geolocation API on Windows -- and no location data leaves your device. macOS prompts for permission on first use; on Windows, enable location under Settings → Privacy & security → Location if it is off.
 
 ### Media List

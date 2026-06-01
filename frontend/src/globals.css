@@ -86,6 +86,9 @@
   --sr-map-target-mid:      #5EA07C;
   --sr-map-target-old:      #A8D4BB;
   --sr-map-target-old-text: #1A5C38;
+  /* Atlas block grid overlay — neutral slate, distinct from data pins */
+  --sr-map-atlas:           #475569;
+  --sr-map-atlas-rgb:       71,85,105;
 }
 
 [data-theme="dark"] {
@@ -171,7 +174,23 @@
   --sr-map-target-mid:      #6EE7B7;
   --sr-map-target-old:      #A7F3D0;
   --sr-map-target-old-text: #0D3321;
+  --sr-map-atlas:           #94A3B8;
+  --sr-map-atlas-rgb:       148,163,184;
 }
+
+/* Nearest-unvisited hotspot rows (Map Explorer hotspots sidebar) */
+.sr-nearest-unvisited-row:hover { background: var(--sr-surface-subtle); }
+.sr-nearest-unvisited-row:hover .sr-nearest-unvisited-name { color: var(--sr-accent); }
+
+/* Atlas block outlines (Map Explorer overlay). Stroke set as a CSS property so
+   the var() resolves and reacts to light/dark — Leaflet's `color` option writes
+   the SVG stroke attribute, where custom properties don't resolve. */
+/* Stroke is the visible grid. The fill is painted but fully transparent
+   (fill-opacity: 0) so it never obscures pins, yet Leaflet's own
+   `pointer-events: auto` (= visiblePainted) hit-tests the fill area — making the
+   whole block INTERIOR clickable. Clicking inside a block selects that block,
+   instead of a shared edge line that's ambiguous between two neighbors. */
+.sr-atlas-block { stroke: var(--sr-map-atlas); stroke-width: 2; stroke-opacity: 0.85; fill: var(--sr-map-atlas); fill-opacity: 0; }
 
 /* External favicon images — lighten in dark mode so they remain visible */
 [data-theme="dark"] img.sr-favicon {

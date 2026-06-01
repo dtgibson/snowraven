@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.0] - 2026-06-01
+
+### Added
+- **Map Explorer — California Breeding Bird Atlas blocks** — a new "Atlas blocks" toggle in the Hotspots panel overlays the official California atlas block boundaries on the map. Blocks draw for the area you're viewing (zoom in if you're too far out), and clicking a block opens its page on the eBird California atlas. The block boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download.
+- **Map Explorer — nearest unvisited hotspots** — the Hotspots panel now automatically lists the ten closest hotspots you haven't visited, ranked by distance, each linking straight to its eBird hotspot page.
+
 ## [0.4.2] - 2026-05-29
 
 ### Changed

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Atlas blocks + nearest hotspots (Design)</title>
+<style>
+  :root{
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5;
+    --sr-text:#0F1117; --sr-text-muted:#71717A; --sr-border:#E4E4E7; --sr-border-medium:#C4C4CE;
+    --sr-accent:#2D8653; --sr-accent-bg:#E8F5EE;
+    --sr-map-visited:#2D8653; --sr-map-unvisited:#5B7FA6; --sr-map-personal:#C9842A;
+    --sr-map-atlas:#475569; --sr-map-atlas-rgb:71,85,105;
+    --font-sans:'Inter',system-ui,sans-serif;
+  }
+  [data-theme="dark"]{
+    --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A;
+    --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-border:#27272A; --sr-border-medium:#3F3F46;
+    --sr-accent:#34A86A; --sr-accent-bg:#16271E;
+    --sr-map-visited:#34D399; --sr-map-unvisited:#7BA7C9; --sr-map-personal:#E0A060;
+    --sr-map-atlas:#94A3B8; --sr-map-atlas-rgb:148,163,184;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font-sans);background:var(--sr-bg);color:var(--sr-text);padding:28px 20px 64px;}
+  .head{max-width:1000px;margin:0 auto 20px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+  .head h1{font-size:20px;font-weight:700;letter-spacing:-0.5px;margin:0;}
+  .head p{margin:4px 0 0;font-size:13px;color:var(--sr-text-muted);}
+  .ctrl{font-family:inherit;font-size:13px;font-weight:500;padding:8px 14px;border-radius:8px;border:1px solid var(--sr-border-medium);background:var(--sr-surface);color:var(--sr-text);cursor:pointer;}
+
+  .stage{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:288px 1fr;gap:18px;align-items:start;}
+  @media (max-width:760px){.stage{grid-template-columns:1fr;}}
+
+  /* sidebar */
+  .sidebar{background:var(--sr-surface);border:1px solid var(--sr-border);border-radius:12px;overflow:hidden;}
+  .sec{padding:14px 16px;border-bottom:1px solid var(--sr-border);}
+  .sec:last-child{border-bottom:none;}
+  .find-btn{width:100%;height:38px;border:none;border-radius:7px;background:var(--sr-accent);color:#fff;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;}
+  .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--sr-text-muted);margin:0 0 9px;}
+
+  /* toggle switch (matches app ToggleSwitch) */
+  .switchrow{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .switchrow .name{font-size:13px;font-weight:500;}
+  .switch{width:38px;height:22px;border-radius:11px;background:var(--sr-border-medium);position:relative;cursor:pointer;border:none;flex-shrink:0;transition:background .15s;}
+  .switch.on{background:var(--sr-accent);}
+  .switch .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;}
+  .switch.on .knob{left:18px;}
+  .switch-hint{font-size:11px;color:var(--sr-text-muted);margin-top:6px;line-height:1.4;}
+
+  /* legend */
+  .legrow{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;}
+  .pin{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+
+  /* nearest list */
+  .nrow{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;text-decoration:none;color:inherit;}
+  .nrow:hover{background:var(--sr-surface-subtle);}
+  .nrow:hover .nm{color:var(--sr-accent);}
+  .nrow .nm{font-size:12.5px;color:var(--sr-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:flex;align-items:center;}
+  .nrow .nm svg{width:11px;height:11px;color:var(--sr-text-muted);margin-left:5px;flex-shrink:0;}
+  .nrow .di{font-size:11.5px;color:var(--sr-text-muted);font-variant-numeric:tabular-nums;flex-shrink:0;}
+  .nrow .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--sr-map-unvisited);margin-right:7px;flex-shrink:0;}
+
+  /* map */
+  .map{position:relative;border:1px solid var(--sr-border);border-radius:12px;overflow:hidden;min-height:420px;
+    background:
+      linear-gradient(0deg, rgba(120,140,120,0.10), rgba(120,140,120,0.10)),
+      repeating-linear-gradient(0deg, #e9efe6 0 22px, #e4ebe0 22px 44px);}
+  [data-theme="dark"] .map{background:linear-gradient(0deg, rgba(40,50,45,0.4), rgba(40,50,45,0.4)), repeating-linear-gradient(0deg,#1c2420 0 22px,#1a221e 22px 44px);}
+  .maplabel{position:absolute;top:10px;left:12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--sr-text-muted);background:var(--sr-surface);padding:4px 8px;border-radius:6px;border:1px solid var(--sr-border);}
+  /* atlas grid overlay */
+  .grid{position:absolute;inset:36px 20px 20px 20px;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(var(--sr-map-atlas-rgb),0.85) 0 1px, transparent 1px 70px),
+      repeating-linear-gradient(0deg, rgba(var(--sr-map-atlas-rgb),0.85) 0 1px, transparent 1px 56px);
+  }
+  .pinmark{position:absolute;width:14px;height:14px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+  .popup{position:absolute;background:var(--sr-surface);border:1px solid var(--sr-border);border-radius:8px;padding:7px 11px;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.18);}
+  .popup .pn{font-weight:600;}
+  .popup .ps{font-size:11px;color:var(--sr-text-muted);margin-top:2px;}
+
+  .hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:var(--sr-surface);border:1px solid var(--sr-border);border-radius:20px;padding:7px 14px;font-size:12px;color:var(--sr-text-muted);box-shadow:0 4px 14px rgba(0,0,0,.12);display:flex;align-items:center;gap:7px;}
+  .hint svg{width:14px;height:14px;color:var(--sr-accent);}
+
+  .twocol{max-width:1000px;margin:18px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  @media (max-width:760px){.twocol{grid-template-columns:1fr;}}
+  .mini{position:relative;border:1px solid var(--sr-border);border-radius:12px;overflow:hidden;height:200px;background:repeating-linear-gradient(0deg,#e9efe6 0 22px,#e4ebe0 22px 44px);}
+  [data-theme="dark"] .mini{background:repeating-linear-gradient(0deg,#1c2420 0 22px,#1a221e 22px 44px);}
+  .minilabel{position:absolute;top:8px;left:10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--sr-text-muted);background:var(--sr-surface);padding:3px 7px;border-radius:5px;border:1px solid var(--sr-border);}
+</style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <h1>Map Explorer — Atlas blocks + nearest unvisited</h1>
+      <p>Sidebar gets an Atlas-blocks toggle and a "nearest unvisited hotspots" list. The map gains a reference grid with name-on-click.</p>
+    </div>
+    <button class="ctrl" onclick="document.documentElement.setAttribute('data-theme',document.documentElement.getAttribute('data-theme')==='light'?'dark':'light')">Toggle light / dark</button>
+  </div>
+
+  <div class="stage">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sec"><button class="find-btn">Find Hotspots</button></div>
+
+      <div class="sec">
+        <p class="lbl">Map overlays</p>
+        <div class="switchrow">
+          <span class="name">Atlas blocks</span>
+          <button class="switch on" onclick="this.classList.toggle('on')"><span class="knob"></span></button>
+        </div>
+        <div class="switch-hint">California Breeding Bird Atlas blocks. Shown for the current map area.</div>
+      </div>
+
+      <div class="sec">
+        <p class="lbl">Legend</p>
+        <div class="legrow"><span class="pin" style="background:var(--sr-map-visited)"></span> Visited</div>
+        <div class="legrow"><span class="pin" style="background:var(--sr-map-unvisited)"></span> Unvisited</div>
+        <div class="legrow"><span class="pin" style="background:var(--sr-map-personal)"></span> Personal</div>
+      </div>
+
+      <div class="sec">
+        <p class="lbl">Nearest unvisited hotspots</p>
+        <div id="nlist"></div>
+      </div>
+    </div>
+
+    <!-- Map (zoomed in: grid visible) -->
+    <div class="map">
+      <span class="maplabel">Zoomed in · blocks shown</span>
+      <div class="grid"></div>
+      <div class="pinmark" style="background:var(--sr-map-unvisited);top:120px;left:180px;"></div>
+      <div class="pinmark" style="background:var(--sr-map-visited);top:210px;left:340px;"></div>
+      <div class="pinmark" style="background:var(--sr-map-personal);top:280px;left:120px;"></div>
+      <div class="popup" style="top:96px;left:208px;">
+        <div class="pn">Mount Diablo NE</div>
+        <div class="ps">California Breeding Bird Atlas block</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="twocol">
+    <div class="mini">
+      <span class="minilabel">Zoomed out · too many blocks</span>
+      <div class="hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v6M8 11h6"/></svg>
+        Zoom in to see atlas blocks
+      </div>
+    </div>
+    <div class="mini">
+      <span class="minilabel">Outside California · nothing drawn</span>
+    </div>
+  </div>
+
+<script>
+  const HOTSPOTS=[
+    ['Coyote Hills Regional Park',2.1],['Garin / Dry Creek Pioneer',3.4],['Lake Chabot Regional Park',4.0],
+    ['Sunol Regional Wilderness',5.2],['Del Valle Regional Park',6.8],['Mines Road',7.5],
+    ['Mount Diablo SP — summit',8.1],['Brushy Peak Preserve',9.3],['Arroyo del Valle Trail',10.4],['Bethany Reservoir',11.9],
+  ];
+  const extIcon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+  document.getElementById('nlist').innerHTML = HOTSPOTS.map(([n,d])=>
+    `<a class="nrow" href="#" target="_blank" rel="noreferrer"><span class="nm"><span class="dot"></span>${n}${extIcon}</span><span class="di">${d.toFixed(1)} mi</span></a>`
+  ).join('');
+</script>
+</body>
+</html>

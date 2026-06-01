@@ -73,6 +73,11 @@ cd backend && python -m pytest tests/ -v
 ### Overlays and stacking
 
 - **Floating overlays (dropdowns, menus, popovers) that can appear over a map must use a `z-index` above Leaflet's layers.** Leaflet panes and controls reach ~1000; use `z-index: 1200` (as the responsive tab dropdown does in `TabNav.tsx`). The Map Explorer is reachable on most views, so any new overlay should assume a map may be beneath it.
+- **Outline-only Leaflet polygons need a transparent fill (`fillOpacity: 0`), not `pointer-events` overrides, to make their interior clickable.** Leaflet's own `path.leaflet-interactive` CSS rule outranks a class-based `pointer-events: all` on specificity. The atlas-block overlay (`AtlasBlockLayer.tsx`) relies on this.
+
+### Security — standing checks
+
+- **Leaflet popup HTML is built from a template string (`AtlasBlockLayer.tsx` `bindPopup`).** This is safe ONLY because the interpolated block name/code come from the bundled, converter-generated `ca-atlas-blocks.json` (trusted static data, no user input), and the code is `encodeURIComponent`-wrapped. **Re-check this on any change to the atlas-block feature or its data source:** if block data ever becomes dynamic or user-supplied, the popup must switch to DOM construction or escape interpolated values to avoid HTML injection. Flag this in every security review that touches the Map Explorer atlas overlay.
 
 ### Documentation
 
