@@ -671,6 +671,25 @@ Two parity improvements (Improve lane).
 - `frontend/src/App.tsx` — `handleLookup`/`handleCopy` use `copyText`
 - `src-tauri/` — `Cargo.toml`, `src/lib.rs`, `capabilities/default.json` (clipboard plugin)
 
+### Map Explorer — Mobile Fullscreen + Ocean-Tone Backdrop (complete — June 2026, v0.5.4)
+
+Improve-lane mobile usability pass on the Map Explorer.
+
+**Mobile fullscreen toggle:**
+- On screens ≤640px, a circular fullscreen (maximize) button appears next to the floating Filters button in all three Map Explorer modes. Tapping it expands the map to fill the entire viewport — the app header, tab dropdown, and mode tabs are hidden — for maximum map area on a phone. Tapping the minimize icon restores the normal layout.
+- Implemented as a CSS overlay (not the browser Fullscreen API, which is unreliable in iOS Safari/WKWebView): `mapFullscreen` state in `App.tsx` switches the Map Explorer `tabpanel` to `position: fixed; inset: 0; width: 100vw; height: 100dvh; z-index: 1200; background: var(--sr-bg)`. `100dvh` accommodates the mobile browser toolbar.
+- The toggle and Filters button share a mobile-only flex cluster (`.sr-map-fab-cluster`, shown only ≤640px) so they sit side-by-side without overlap regardless of label width.
+- Edge handling: background scroll locked while fullscreen (cleared on exit/tab-leave); the in-map "Go to Settings" and "target species" navigations clear fullscreen so no other tab inherits the overlay. Button is keyboard-focusable with `aria-pressed`.
+
+**Ocean-tone map backdrop:**
+- Leaflet's default container background is a flat grey (`#ddd`) that shows as bands around the world map when zoomed out or before tiles load. Now tinted to the OSM ocean tone via a new `--sr-map-void` token so uncovered areas read as sea.
+- The override uses a doubled-class selector `.leaflet-container.leaflet-container` to outrank Leaflet's own rule, which bundles after `globals.css` and ties on specificity.
+
+**Key files:**
+- `frontend/src/App.tsx` — `mapFullscreen` state, fixed-overlay panel style, scroll-lock effect, props to MapExplorer, fullscreen-clearing nav callbacks
+- `frontend/src/components/MapExplorer.tsx` — `isFullscreen`/`onToggleFullscreen` props; fullscreen button in the `.sr-map-fab-cluster`
+- `frontend/src/globals.css` — `.sr-map-fab-cluster`, `.sr-map-fullscreen-btn`, `.leaflet-container.leaflet-container` backdrop, `--sr-map-void` token (both themes)
+
 ### Species Detail Enhancements — Weekly Interval, Checklists Graph, Frequency Stat (complete — May 2026)
 
 Three additions to the Species Detail tab shipped in v0.1.11.

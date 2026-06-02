@@ -1,13 +1,13 @@
 {
-  "activeFeature": "map-explorer-mobile-fullscreen",
+  "activeFeature": null,
   "sessionNumber": 3,
   "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
-  "releasedVersion": "0.5.3",
+  "currentStage": 6,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "complete",
+  "releasedVersion": "0.5.4",
   "confirmedArtifacts": ["pipeline/map-explorer-mobile-fullscreen/change-brief.md", "pipeline/map-explorer-mobile-fullscreen/qa-report.md", "pipeline/map-explorer-mobile-fullscreen/security-review.md"],
   "awaitingHuman": null,
   "createdAt": "2026-06-02T18:00:00Z",
-  "updatedAt": "2026-06-02T18:00:00Z"
+  "updatedAt": "2026-06-02T23:00:00Z"
 }

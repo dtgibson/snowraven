@@ -4,6 +4,34 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Map Explorer mobile fullscreen via a CSS overlay, not the Fullscreen API — 2026-06-02 (v0.5.4)
+
+**Decision:** On small screens (≤640px) the Map Explorer can go fullscreen
+via a toggle next to Filters. "Fullscreen" is a CSS overlay — the map
+panel becomes `position: fixed; inset: 0; height: 100dvh; z-index: 1200`
+(state `mapFullscreen` in `App.tsx`) — not the browser Fullscreen API
+(`requestFullscreen`).
+
+**Rationale:** The browser Fullscreen API is unreliable on iOS Safari /
+WKWebView (limited support, gesture constraints, and it fights the mobile
+toolbar). A CSS overlay is deterministic, themeable, and `100dvh` handles
+the dynamic browser toolbar. Mobile-only (gated behind the existing 640px
+breakpoint) because desktop has ample room and no need.
+
+**Implications:** The two in-map navigations that change tabs ("Go to
+Settings", "target species") clear `mapFullscreen` so no other tab
+inherits the overlay; background scroll is locked while fullscreen. The
+backdrop grey was fixed by tinting `.leaflet-container` to a new
+`--sr-map-void` ocean token — and that override needs **raised
+specificity** (doubled class) because Leaflet's own `.leaflet-container`
+rule is bundled after `globals.css` and ties on specificity (recorded in
+CLAUDE.md).
+
+**Maintenance note:** GitHub will redirect the `windows-latest` CI runner
+to `windows-2025-vs2026` by **2026-06-15**. `windows-build.yml` should pin
+the runner image before then to avoid a surprise breakage. (A background
+task was spun off for this.)
+
 ## Desktop clipboard auto-copy: a clipboard seam, not navigator.clipboard — 2026-06-02 (v0.5.3)
 
 **Decision:** Weather auto-copy on the desktop apps goes through a new

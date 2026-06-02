@@ -1,32 +1,35 @@
-# Handoff — heatmap-parity-and-desktop-clipboard (Improve lane)
+# Handoff — map-explorer-mobile-fullscreen (Improve lane)
 
 ## What We Accomplished
-Shipped **v0.5.3** — two parity improvements:
-1. **Heatmap intensity on Species Detail** — same 1–10 slider as the Map Explorer, via a shared `frontend/src/lib/heat.ts` model. Default 5, resets on species change. My Sightings unchanged.
-2. **Desktop clipboard auto-copy** — weather now auto-copies on lookup in the macOS/Windows apps (was silently failing: async clipboard write lost user-activation in WKWebView/WebView2). Fixed with a clipboard seam (`frontend/src/lib/clipboard.ts copyText()`) using the native Tauri clipboard plugin on desktop, `navigator.clipboard` on web.
-Plus opportunistic cleanup: the two pre-existing BirdingStats lint warnings (lint now 0 problems).
+Shipped **v0.5.4** — Map Explorer mobile usability:
+1. **Fullscreen toggle** (≤640px) next to Filters — expands the map to fill the viewport (header, tab dropdown, mode tabs hidden); CSS overlay (`position:fixed; inset:0; 100dvh; z-index:1200`), not the browser Fullscreen API.
+2. **Ocean-tone map backdrop** — `.leaflet-container` tinted to `--sr-map-void` (#AAD3DF) so the area around the world reads as sea, not grey. Override uses doubled-class specificity to beat Leaflet's own CSS.
 
 ## Where We Are
-**Improvement complete — all 6 stages done.** v0.5.3 is live on GitHub for both platforms, `latest.json` published, updater will detect it.
+**Improvement complete — all 6 stages done.** v0.5.4 is live on GitHub for both platforms; `latest.json` published; updater will detect it.
 
 ## Release facts
-- Version `0.5.3` in `frontend/package.json`, `src-tauri/tauri.conf.json`, `CHANGELOG.md`. **Patch bump** (per standing rule).
-- Tag `v0.5.3`; release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.3
-- Assets verified: latest.json, macOS updater bundle + .sig, aarch64.dmg (notarized + stapled), x64-setup.exe + .sig. `latest.json` version 0.5.3, both platforms.
+- Version `0.5.4` (patch) in `frontend/package.json`, `src-tauri/tauri.conf.json`, `CHANGELOG.md`.
+- Tag `v0.5.4`; release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.4
+- Assets verified: latest.json, macOS updater bundle + .sig, aarch64.dmg (notarized + stapled), x64-setup.exe + .sig. `latest.json` 0.5.4, both platforms.
+
+## Feedback rounds (resolved live, confirmed by Dave)
+1. Fullscreen button overlapped Filters → flex cluster (`.sr-map-fab-cluster`).
+2. Backdrop still grey → CSS cascade-order issue; fixed with doubled-class specificity.
 
 ## Chronicle updates made
-- `PRODUCT_CONTEXT.md` — new "Heatmap Intensity Parity + Desktop Clipboard Auto-Copy (v0.5.3)" entry.
-- `DECISIONS.md` — two decisions: clipboard seam (not navigator.clipboard); shared heat model.
-- `ROADMAP.md` — Shipped updated to v0.5.3 (42 versions).
-- `CLAUDE.md` — new clipboard seam convention under Desktop app seams.
-- Docs: `docs/HELP.md` (Species Detail heatmap slider; Weather auto-copy across platforms).
+- `PRODUCT_CONTEXT.md` — new v0.5.4 entry.
+- `DECISIONS.md` — CSS-overlay fullscreen decision + CI-runner maintenance note.
+- `ROADMAP.md` — Shipped → v0.5.4 (43 versions).
+- `CLAUDE.md` — two conventions: Leaflet CSS override needs raised specificity; mobile map fullscreen = CSS overlay + shared FAB cluster.
+- Docs: `docs/HELP.md`, `README.md` Map Explorer sections.
 
-## Outstanding (Dave, on desktop)
-- **Confirm desktop auto-copy live in v0.5.3** — install/update, do a weather lookup, verify clipboard has the text with no click. (Code path verified; couldn't click-test from build host.)
-- Still carried: verify Windows install + in-app updater end-to-end.
+## Outstanding
+- **CI runner deprecation:** GitHub redirects `windows-latest` → `windows-2025-vs2026` by **2026-06-15**. Pin the runner image in `.github/workflows/windows-build.yml` before then. (Background task spun off.)
+- Carried: verify Windows install + in-app updater end-to-end on a Windows machine.
 
 ## Resume Prompt
 No active feature. Run `/weft` to start the next lane.
 
 ---
-Project: snowraven. Feature: heatmap-parity-and-desktop-clipboard — COMPLETE (v0.5.3 shipped). No active session.
+Project: snowraven. Feature: map-explorer-mobile-fullscreen — COMPLETE (v0.5.4 shipped). No active session.

@@ -8,7 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-42 versions shipped. Last shipped: **Heatmap intensity parity + desktop clipboard auto-copy (v0.5.3)** -- the Species Detail map's Heatmap mode gained the same 1–10 intensity slider as the Map Explorer (shared `lib/heat.ts` model), and weather now auto-copies to the clipboard in the macOS/Windows desktop apps (native Tauri clipboard via a new clipboard seam), matching the web app.
+43 versions shipped. Last shipped: **Map Explorer mobile fullscreen + ocean-tone backdrop (v0.5.4)** -- on small screens a fullscreen button next to Filters expands the map to fill the whole viewport (header, tab selector, and mode tabs hidden); and the empty area around the world map now uses an ocean tone instead of grey.
+
+Previously: **Heatmap intensity parity + desktop clipboard auto-copy (v0.5.3)** -- the Species Detail map's Heatmap mode gained the same 1–10 intensity slider as the Map Explorer (shared `lib/heat.ts` model), and weather now auto-copies to the clipboard in the macOS/Windows desktop apps (native Tauri clipboard via a new clipboard seam), matching the web app.
 
 Previously: **Map Explorer — shade atlas blocks by your highest breeding code (v0.5.2)** -- with the atlas overlay on, a "Shade by My Highest Breeding Code" toggle tints each block by the strongest breeding code the user has personally entered there (client-side spatial join over the loaded eBird backup), and a separate "Use Textures" toggle (off by default) adds a per-tier hatch pattern for colorblind-friendly, color-independent reading. The overlay now appears in all three map views and draws from higher zoom levels.
 
