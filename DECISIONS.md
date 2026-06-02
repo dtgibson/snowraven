@@ -4,6 +4,48 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Desktop clipboard auto-copy: a clipboard seam, not navigator.clipboard — 2026-06-02 (v0.5.3)
+
+**Decision:** Weather auto-copy on the desktop apps goes through a new
+**clipboard seam** (`frontend/src/lib/clipboard.ts copyText()`) that uses
+the native Tauri clipboard-manager plugin in Tauri mode and
+`navigator.clipboard` (+ legacy `execCommand`) on web. Components never
+call `navigator.clipboard` or the plugin directly.
+
+**Rationale:** The on-lookup auto-copy runs *after* the weather `fetch`
+await, which loses the user-activation that WKWebView/WebView2 require
+for the async Clipboard API — so `navigator.clipboard.writeText` threw
+`NotAllowedError` and was silently swallowed on desktop (the manual Copy
+button worked because it runs inside a click). The native plugin writes
+via the OS with no gesture requirement, fixing it cleanly. A seam keeps
+the platform branch in one place, matching the existing
+transport/storage/platform seams.
+
+**Implications:** New first-party dep `tauri-plugin-clipboard-manager`,
+in Cargo `[dependencies]` (cross-platform, NOT the macOS-only target
+table — the v0.4.0 `tzf-rs` lesson) so the Windows build stays green.
+Capability grants `clipboard-manager:allow-write-text` only — write, not
+read; no runtime OS prompt, so no permission button was needed. Future
+clipboard use must go through `copyText` (recorded in CLAUDE.md).
+
+## Heatmap intensity model shared across maps — 2026-06-02 (v0.5.3)
+
+**Decision:** The v0.5.1 heatmap intensity math (`heatRadius/heatBlur/
+heatMax` + per-point `heatWeight` divisor, `HEAT_INTENSITY_DEFAULT`)
+now lives in one module, `frontend/src/lib/heat.ts`, used by both the
+Map Explorer (My Sightings) and Species Detail heatmaps.
+
+**Rationale:** The Species Detail heatmap was hardcoded and had no
+intensity control; porting the slider by duplicating the formulas would
+have created two sources of truth that could drift. Extracting to a
+shared module gives identical behavior and one place to tune.
+
+**Implications:** Any future heatmap (e.g. if a Statistics map ever
+becomes a heatmap) should consume `lib/heat.ts` rather than re-deriving
+radius/blur/max.
+
+---
+
 ## Atlas block shading: by the user's own codes, with textures as an opt-in — 2026-06-01 (v0.5.2)
 
 **Decision:** The "Shade by My Highest Breeding Code" overlay tints each atlas block by the strongest breeding code the *user* has personally entered there — never a community/anyone aggregate. The shading is a pure client-side spatial join (`buildBreedingByBlock` over `pointToBlockCode`) against the already-loaded eBird backup. Colorblind accessibility is provided by a *separate* "Use Textures" toggle that overlays a per-tier hatch pattern, and that toggle is **off by default**.

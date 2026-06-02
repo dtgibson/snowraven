@@ -98,11 +98,12 @@ FastAPI serves the built frontend as static files automatically.
 
 ### Desktop app seams
 
-Two permanent architectural seams route all platform-sensitive operations. Use them in new code — do not bypass them.
+Permanent architectural seams route all platform-sensitive operations. Use them in new code — do not bypass them.
 
 - **Transport:** `transport.get()` / `transport.post()` from `frontend/src/lib/transport.ts` — for all outbound HTTP calls. In Tauri mode, `TauriTransport` routes each API path directly to a TypeScript service (weather, map, taxonomy, nominatim, stats, version). In web/Pi mode, `WebTransport` delegates to the Python backend.
 - **Storage:** `storage.getApiKey()` / `storage.getSetting()` / etc. from `frontend/src/lib/storage.ts` — for all key, setting, and file access. Do not call `/settings/*` endpoints directly from new components.
 - **Platform detection:** `isTauri()` from `frontend/src/lib/platform.ts` — single source of truth for branching on Tauri vs. web. Do not check `window.__TAURI_INTERNALS__` elsewhere.
+- **Clipboard:** `copyText()` from `frontend/src/lib/clipboard.ts` — for all clipboard writes. In Tauri mode it uses the native `@tauri-apps/plugin-clipboard-manager` (no user-gesture requirement, so auto-copy after an `await` works); on web it uses `navigator.clipboard` with an `execCommand` fallback. **Do not call `navigator.clipboard` directly** — an async clipboard write that runs after an `await` (outside a click) throws `NotAllowedError` in WKWebView/WebView2 and is silently lost on desktop. The capability grants `clipboard-manager:allow-write-text` only (write, not read).
 
 ### Desktop storage (Tauri)
 

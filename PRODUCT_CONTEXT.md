@@ -649,6 +649,28 @@ Extends the atlas overlay so it can be tinted by the user's own breeding evidenc
 - `frontend/src/components/MapExplorer.tsx` — shared `atlasOverlayControls` in all three sidebars, shade/texture state
 - `frontend/src/globals.css` — `.sr-atlas-tier-1..4` (pattern fills), `.sr-atlas-fill-1..4` (flat fills)
 
+### Heatmap Intensity Parity + Desktop Clipboard Auto-Copy (complete — June 2026, v0.5.3)
+
+Two parity improvements (Improve lane).
+
+**Heatmap intensity on Species Detail:**
+- The Species Detail Sighting Locations map's Heatmap mode gained the same 1–10 "Heatmap Intensity" slider as the Map Explorer's My Sightings map (shown only in Heatmap mode, in the map section header). Default 5; resets to 5 on species change.
+- The heat math is now shared in `frontend/src/lib/heat.ts` (`heatRadius`, `heatBlur`, `heatMax`, `heatWeight`, `HEAT_INTENSITY_DEFAULT`) — single source of truth for both maps, so they behave identically. `MapExplorer.tsx` was refactored to import it (no behavior change).
+
+**Desktop clipboard auto-copy:**
+- On a successful weather lookup, the formatted text auto-copies to the clipboard in the macOS and Windows desktop apps, matching the web/Pi client. Previously this silently failed on desktop: the auto-copy runs after the weather `fetch` await, losing the user-activation WKWebView/WebView2 require for the async Clipboard API, so `navigator.clipboard.writeText` threw `NotAllowedError` and was swallowed (the manual Copy button worked because it runs inside a click).
+- Fix: a clipboard seam `frontend/src/lib/clipboard.ts` (`copyText()`) using the native `@tauri-apps/plugin-clipboard-manager` on desktop (no gesture requirement) and `navigator.clipboard` + `execCommand` fallback on web. `App.tsx` routes both the auto-copy and the Copy button through it.
+- Tauri wiring: `tauri-plugin-clipboard-manager` in Cargo `[dependencies]` (cross-platform), registered in `lib.rs`, capability `clipboard-manager:allow-write-text` (write only — no clipboard read). No permission button needed (no runtime OS prompt for clipboard write).
+- Also cleaned the two pre-existing `BirdingStats.tsx` lint warnings (dead `eslint-disable` removed; intentional `exhaustive-deps` omission documented to prevent a nemesis-refetch loop).
+
+**Key files:**
+- `frontend/src/lib/heat.ts` (NEW) — shared heatmap intensity model
+- `frontend/src/lib/clipboard.ts` (NEW) — clipboard seam (`copyText`)
+- `frontend/src/components/SpeciesDetail.tsx` — intensity slider + state; `HeatmapLayer` takes `intensity`
+- `frontend/src/components/MapExplorer.tsx` — imports shared `lib/heat.ts`
+- `frontend/src/App.tsx` — `handleLookup`/`handleCopy` use `copyText`
+- `src-tauri/` — `Cargo.toml`, `src/lib.rs`, `capabilities/default.json` (clipboard plugin)
+
 ### Species Detail Enhancements — Weekly Interval, Checklists Graph, Frequency Stat (complete — May 2026)
 
 Three additions to the Species Detail tab shipped in v0.1.11.

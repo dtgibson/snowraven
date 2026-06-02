@@ -1,31 +1,32 @@
 # Handoff — heatmap-parity-and-desktop-clipboard (Improve lane)
 
-## What We're Doing
-Two parity improvements:
-1. Port the v0.5.1 heatmap intensity slider to the Species Detail map.
-2. Make weather auto-copy to the clipboard work in the macOS/Windows desktop apps (web already works).
+## What We Accomplished
+Shipped **v0.5.3** — two parity improvements:
+1. **Heatmap intensity on Species Detail** — same 1–10 slider as the Map Explorer, via a shared `frontend/src/lib/heat.ts` model. Default 5, resets on species change. My Sightings unchanged.
+2. **Desktop clipboard auto-copy** — weather now auto-copies on lookup in the macOS/Windows apps (was silently failing: async clipboard write lost user-activation in WKWebView/WebView2). Fixed with a clipboard seam (`frontend/src/lib/clipboard.ts copyText()`) using the native Tauri clipboard plugin on desktop, `navigator.clipboard` on web.
+Plus opportunistic cleanup: the two pre-existing BirdingStats lint warnings (lint now 0 problems).
 
 ## Where We Are
-Stage 2 (The Engineer) complete. Next: Stage 3 — The Tester.
+**Improvement complete — all 6 stages done.** v0.5.3 is live on GitHub for both platforms, `latest.json` published, updater will detect it.
 
-## What Was Built (Stage 2)
-**Improvement 1 — heatmap parity**
-- NEW `frontend/src/lib/heat.ts` — shared `heatRadius/heatBlur/heatMax/heatWeight` + `HEAT_INTENSITY_DEFAULT` (single source of truth).
-- `MapExplorer.tsx` — removed local copies, imports from lib, uses `heatWeight` (no behavior change).
-- `SpeciesDetail.tsx` — `HeatmapLayer` now takes `intensity`; `heatPoints` weighted via `heatWeight`; `heatIntensity` state (default 5, resets on species change); 1–10 slider in the map section header, Heatmap mode only.
+## Release facts
+- Version `0.5.3` in `frontend/package.json`, `src-tauri/tauri.conf.json`, `CHANGELOG.md`. **Patch bump** (per standing rule).
+- Tag `v0.5.3`; release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.3
+- Assets verified: latest.json, macOS updater bundle + .sig, aarch64.dmg (notarized + stapled), x64-setup.exe + .sig. `latest.json` version 0.5.3, both platforms.
 
-**Improvement 2 — desktop clipboard auto-copy**
-- NEW `frontend/src/lib/clipboard.ts` — `copyText()` seam: native Tauri clipboard plugin on desktop, `navigator.clipboard` + execCommand fallback on web.
-- `App.tsx` — `handleLookup` auto-copy and `handleCopy` both route through `copyText`.
-- Tauri wiring: `@tauri-apps/plugin-clipboard-manager` (JS, package.json), `tauri-plugin-clipboard-manager = "2"` in Cargo `[dependencies]` (cross-platform, not the macOS-only table), `.plugin(tauri_plugin_clipboard_manager::init())` in `lib.rs`, `"clipboard-manager:allow-write-text"` in `capabilities/default.json`.
-- No permission button — the plugin grants write at build time; no OS runtime prompt. (Confirmed with user at Stage 1 gate.)
+## Chronicle updates made
+- `PRODUCT_CONTEXT.md` — new "Heatmap Intensity Parity + Desktop Clipboard Auto-Copy (v0.5.3)" entry.
+- `DECISIONS.md` — two decisions: clipboard seam (not navigator.clipboard); shared heat model.
+- `ROADMAP.md` — Shipped updated to v0.5.3 (42 versions).
+- `CLAUDE.md` — new clipboard seam convention under Desktop app seams.
+- Docs: `docs/HELP.md` (Species Detail heatmap slider; Weather auto-copy across platforms).
 
-## Verification status
-- typecheck ✓, lint ✓ (only pre-existing BirdingStats warnings), build ✓, 266 tests ✓, `cargo check` ✓ (clipboard plugin + capability validate).
-- Heatmap slider verifiable live (dev server). **Desktop auto-copy needs the packaged macOS/Windows app — Dave to confirm** (web path unchanged).
+## Outstanding (Dave, on desktop)
+- **Confirm desktop auto-copy live in v0.5.3** — install/update, do a weather lookup, verify clipboard has the text with no click. (Code path verified; couldn't click-test from build host.)
+- Still carried: verify Windows install + in-app updater end-to-end.
 
 ## Resume Prompt
-Run `/weft` to resume at Stage 3 (The Tester).
+No active feature. Run `/weft` to start the next lane.
 
 ---
-Project: snowraven. Feature: heatmap-parity-and-desktop-clipboard (Improve). Last completed stage: 2 (Engineer). Next: 3 (Tester).
+Project: snowraven. Feature: heatmap-parity-and-desktop-clipboard — COMPLETE (v0.5.3 shipped). No active session.
