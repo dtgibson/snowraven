@@ -95,6 +95,8 @@ export default function App() {
   const [input, setInput] = useState('')
   const [state, setState] = useState<AppState>({ status: 'idle' })
   const [copied, setCopied] = useState(false)
+  // Mobile-only: Map Explorer occupies the full viewport when true.
+  const [mapFullscreen, setMapFullscreen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
   const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
@@ -191,6 +193,15 @@ export default function App() {
   }, [])
 
   useEffect(() => { const run = async () => { await fetchKeyStatus() }; run() }, [fetchKeyStatus])
+
+  // Lock background scroll while the map is fullscreen (the panel covers everything).
+  // Guarded on the active tab so it self-clears if navigation leaves the map tab.
+  useEffect(() => {
+    if (!(mapFullscreen && activeTab === 'map-explorer')) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [mapFullscreen, activeTab])
 
   const handleLookup = useCallback(async () => {
     const id = extractChecklistId(input)
@@ -643,11 +654,19 @@ export default function App() {
         style={{
           display: activeTab === 'map-explorer' ? 'flex' : 'none',
           flexDirection: 'column',
-          height: 'calc(100vh - 178px)',
           overflow: 'hidden',
+          ...(mapFullscreen
+            ? { position: 'fixed', inset: 0, width: '100vw', height: '100dvh', zIndex: 1200, background: 'var(--sr-bg)' }
+            : { height: 'calc(100vh - 178px)' }),
         }}
       >
-        <MapExplorer onGoToSettings={() => setActiveTab('settings')} onNavigateToMediaList={navigateToMediaList} keysVersion={keysVersion} />
+        <MapExplorer
+          onGoToSettings={() => { setMapFullscreen(false); setActiveTab('settings') }}
+          onNavigateToMediaList={() => { setMapFullscreen(false); navigateToMediaList() }}
+          keysVersion={keysVersion}
+          isFullscreen={mapFullscreen}
+          onToggleFullscreen={() => setMapFullscreen(v => !v)}
+        />
       </div>
 
       {/* Statistics tab content */}

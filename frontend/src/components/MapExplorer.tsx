@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Camera, ChevronDown, ExternalLink, Filter, Loader2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { AlertCircle, Camera, ChevronDown, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
@@ -112,6 +112,10 @@ interface MapExplorerProps {
   onGoToSettings: () => void
   onNavigateToMediaList: () => void
   keysVersion?: number
+  /** True when the map occupies the full viewport (mobile fullscreen). */
+  isFullscreen?: boolean
+  /** Toggle mobile fullscreen. When absent, the fullscreen button is hidden. */
+  onToggleFullscreen?: () => void
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -613,7 +617,7 @@ function DefaultCenterSetter({ center, onDone }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion }: MapExplorerProps) {
+export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion, isFullscreen, onToggleFullscreen }: MapExplorerProps) {
   const [phase, setPhase] = useState<MapPhase>({ tag: 'loading-saved' })
   const [viewMode, setViewMode] = useState<ViewMode>('sightings')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('pins')
@@ -1819,17 +1823,33 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
         {/* Map area */}
         <div style={{ flex: 1, position: 'relative' }}>
-          {/* Floating Filters button — mobile only, hidden while sidebar is open */}
+          {/* Floating map controls — mobile only, hidden while the sidebar is open.
+              Fullscreen toggle sits to the LEFT of Filters in a flex cluster so the
+              two never overlap regardless of the Filters label width. */}
           {!sidebarOpen && (
-            <button tabIndex={0}
-              ref={filtersButtonRef}
-              className="sr-map-filters-btn"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open map filters"
-            >
-              <Filter size={14} strokeWidth={2.5} />
-              Filters
-            </button>
+            <div className="sr-map-fab-cluster">
+              {onToggleFullscreen && (
+                <button tabIndex={0}
+                  className="sr-map-fullscreen-btn"
+                  onClick={onToggleFullscreen}
+                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                  aria-pressed={!!isFullscreen}
+                >
+                  {isFullscreen
+                    ? <Minimize2 size={16} strokeWidth={2.5} />
+                    : <Maximize2 size={16} strokeWidth={2.5} />}
+                </button>
+              )}
+              <button tabIndex={0}
+                ref={filtersButtonRef}
+                className="sr-map-filters-btn"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open map filters"
+              >
+                <Filter size={14} strokeWidth={2.5} />
+                Filters
+              </button>
+            </div>
           )}
           {isSetupRequired && viewMode === 'sightings' ? (
             <SetupRequired

@@ -1,13 +1,13 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 2,
+  "activeFeature": "map-explorer-mobile-fullscreen",
+  "sessionNumber": 3,
   "sessionType": "maintain",
-  "currentStage": 6,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
   "releasedVersion": "0.5.3",
-  "confirmedArtifacts": ["pipeline/heatmap-parity-and-desktop-clipboard/change-brief.md", "pipeline/heatmap-parity-and-desktop-clipboard/qa-report.md", "pipeline/heatmap-parity-and-desktop-clipboard/security-review.md"],
+  "confirmedArtifacts": ["pipeline/map-explorer-mobile-fullscreen/change-brief.md", "pipeline/map-explorer-mobile-fullscreen/qa-report.md", "pipeline/map-explorer-mobile-fullscreen/security-review.md"],
   "awaitingHuman": null,
-  "createdAt": "2026-06-02T05:30:00Z",
-  "updatedAt": "2026-06-02T17:30:00Z"
+  "createdAt": "2026-06-02T18:00:00Z",
+  "updatedAt": "2026-06-02T18:00:00Z"
 }

@@ -2,7 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [0.5.3] - 2026-06-02
+## [0.5.4] - 2026-06-02
+
+### Improved
+- **Map Explorer is easier to use on phones** — on small screens, a fullscreen button now sits next to Filters in the Map Explorer. Tap it and the map expands to fill the entire screen, hiding the app header, tab selector, and mode tabs so you get the maximum map area; tap again to return. The other tabs are unchanged, and the button only appears on small/mobile screens.
+- **Cleaner map edges** — the empty area around the world map (visible when zoomed out or before tiles load) now uses an ocean tone instead of a flat grey, so it blends with the sea instead of looking like a rendering gap.
+
 
 ### Improved
 - **Heatmap intensity control on the Species Detail map** — the per-species sighting map's Heatmap mode now has the same 1–10 "Heatmap Intensity" slider as the Map Explorer's My Sightings map. Dial it from tighter to broader and hotter to read sighting density at any zoom, with sparse low-count locations made easy to spot. The two heatmaps now behave identically.

@@ -173,6 +173,8 @@ The dot next to each species name shows how recently it was seen:
 
 The Map Explorer tab provides three views of your birding locations and nearby activity. An eBird API key is required for all three modes.
 
+On small or mobile screens, a **fullscreen button** appears next to the Filters button. Tap it to expand the map to fill the entire screen -- the app header, tab selector, and mode tabs are hidden so you get the maximum map area on a phone. Tap it again (the button becomes a minimize icon) to return to the normal layout. The button only appears on small screens; the other tabs are unaffected.
+
 Click **Use my location** in the map controls to center the map on your current position and place a blue pin at the detected location. The desktop app uses your operating system's native location service (macOS and Windows both supported). If location is off or denied, restore it in System Settings → Privacy & Security → Location Services on macOS, or Settings → Privacy & security → Location on Windows; in web/Pi mode, use your browser's site permissions.
 
 ### My Sightings

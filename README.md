@@ -57,7 +57,7 @@ A comprehensive analytics dashboard built from your eBird backup. Nine cards cov
 
 ### Map Explorer
 
-An interactive map with three view modes: My Sightings (your personal recent observations with a heatmap overlay), Hotspots (eBird hotspots near a location, colored by whether you've visited them), and Media Targets (recent sightings of species you're missing media for). Requires an eBird API key.
+An interactive map with three view modes: My Sightings (your personal recent observations with a heatmap overlay), Hotspots (eBird hotspots near a location, colored by whether you've visited them), and Media Targets (recent sightings of species you're missing media for). Requires an eBird API key. On small/mobile screens, a fullscreen button next to Filters expands the map to fill the whole screen.
 
 In Hotspots mode, the panel lists the ten closest hotspots you haven't visited yet, each linking to its eBird page. An "Atlas blocks" toggle (available in all three view modes) overlays the official California Breeding Bird Atlas block boundaries for the area you're viewing; click any block to open it on the eBird California atlas. With the overlay on, "Shade by My Highest Breeding Code" tints each block by the strongest breeding code you've personally entered there, and a "Use Textures" toggle adds a per-level hatch pattern for colorblind-friendly, color-independent reading.
 
