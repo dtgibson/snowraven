@@ -624,6 +624,31 @@ Two additions to the Map Explorer Hotspots mode.
 - `frontend/src/components/AtlasBlockLayer.tsx`, `MapExplorer.tsx` (toggle + state + nearest list)
 - `frontend/src/assets/ca-atlas-blocks.json`, `scripts/convert-atlas-blocks.mjs`, `globals.css` (`--sr-map-atlas`, `.sr-atlas-block`)
 
+### Map Explorer — Shade Atlas Blocks by Your Highest Breeding Code (complete — June 2026, v0.5.2)
+
+Extends the atlas overlay so it can be tinted by the user's own breeding evidence, and surfaces the whole overlay in every map view.
+
+**Shade by My Highest Breeding Code:**
+- When the atlas blocks overlay is on, a "Shade by My Highest Breeding Code" toggle (default off) tints each block by the strongest breeding code the *user* has personally entered there — never a community aggregate. Disabled with a "Load your eBird backup in Settings" hint when no backup is loaded.
+- **Client-side spatial join.** `buildBreedingByBlock(data, observations)` (in `atlasBreeding.ts`) does one pass over the loaded eBird observations: each obs with a recognized breeding code + coords is assigned to its atlas block via `pointToBlockCode` (quad-grid arithmetic in `atlasBlocks.ts`: snap to quad SW corner through `buildQuadIndex`, compute col/row, return `quad.id` + position code). Each block keeps the strongest code (lowest rank in `BREEDING_CODES`) and a total count of the user's breeding records there. Only blocks with ≥1 personal breeding record are returned. No backend, no network.
+- Shaded blocks render with a real fill (so interiors stay clickable); the popup adds "Highest breeding code: {label} ({code})" and "{N} of your breeding records (any level) in this block". Tier colors reuse `--sr-tier-1..4` purples (Confirmed darkest → Observed lightest), light/dark via tokens.
+
+**Use Textures (colorblind accessibility):**
+- A separate "Use Textures" toggle (default off) overlays a distinct hatch pattern per breeding tier so levels are distinguishable in grayscale, without relying on color. Off by default because hatches reduce base-map legibility; opt in for color-independent reading.
+- `AtlasTierPatterns.tsx` injects a hidden SVG `<defs>` with four `<pattern>`s (`sr-atlas-tier-1..4`): sparse dots (tier 1) → single diagonal (tier 2) → spaced cross-hatch (tiers 3, 4). Pattern colors use `rgba(var(--sr-tier-N-rgb), α)` so they track the theme. Spacing/alpha tuned over several live iterations to keep map labels readable. `globals.css`: `.sr-atlas-tier-N { fill: url(#sr-atlas-tier-N) }` (textured) and `.sr-atlas-fill-N` (flat translucent color) — Leaflet writes `fill` as an attribute where `var()` won't resolve, so the CSS class carries the `url(#…)`/rgba.
+
+**Overlay in all three map views + wider zoom reach:**
+- The atlas controls (blocks toggle + shade toggle + Use Textures toggle + legend) were extracted into one shared `atlasOverlayControls` block in `MapExplorer.tsx` and rendered in My Sightings (bottom of panel, below Map View), Hotspots (mid-panel), and Media Targets (above Nearest Targets). State (`shadeByBreeding`, `useTextures`) is shared across modes; `breedingByBlock` is a `useMemo` over the loaded observations.
+- `AtlasBlockLayer.tsx` per-feature `style` switches between textured class, flat-fill class, and outline-only (`fillOpacity:0`); the feature `cap` was raised 400 → 5000 so blocks are visible from higher zoom levels.
+
+**Key files:**
+- `frontend/src/lib/atlasBreeding.ts` (+ `.test.ts`) — `buildBreedingByBlock`, `BlockBreeding`, `BreedingObs`
+- `frontend/src/lib/atlasBlocks.ts` — `buildQuadIndex`, `pointToBlockCode`, `gridSnap` (+ tests)
+- `frontend/src/components/AtlasTierPatterns.tsx` — per-tier SVG pattern `<defs>`
+- `frontend/src/components/AtlasBlockLayer.tsx` — shaded/flat/outline styles, breeding popup fields, cap 5000
+- `frontend/src/components/MapExplorer.tsx` — shared `atlasOverlayControls` in all three sidebars, shade/texture state
+- `frontend/src/globals.css` — `.sr-atlas-tier-1..4` (pattern fills), `.sr-atlas-fill-1..4` (flat fills)
+
 ### Species Detail Enhancements — Weekly Interval, Checklists Graph, Frequency Stat (complete — May 2026)
 
 Three additions to the Species Detail tab shipped in v0.1.11.

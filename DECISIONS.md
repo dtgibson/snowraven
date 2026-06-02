@@ -4,6 +4,16 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Atlas block shading: by the user's own codes, with textures as an opt-in — 2026-06-01 (v0.5.2)
+
+**Decision:** The "Shade by My Highest Breeding Code" overlay tints each atlas block by the strongest breeding code the *user* has personally entered there — never a community/anyone aggregate. The shading is a pure client-side spatial join (`buildBreedingByBlock` over `pointToBlockCode`) against the already-loaded eBird backup. Colorblind accessibility is provided by a *separate* "Use Textures" toggle that overlays a per-tier hatch pattern, and that toggle is **off by default**.
+
+**Rationale:** Personal-only data keeps the feature honest (it reflects your own atlasing progress, not crowd data the app doesn't have) and stays within the local-first/zero-collection stance — no new network calls or backend. Textures were made a distinct, default-off toggle because the hatch patterns, however tuned, reduce base-map legibility; users who don't need color-independent encoding get the cleanest map, and those who do can opt in. Spacing/alpha were tuned over several live iterations so labels under the lightest/densest tiers stay readable.
+
+**Implications:** Requires the eBird backup to be loaded (toggle is disabled with a Settings hint otherwise). The overlay (blocks + shading + textures) was generalized into one shared control rendered in all three map views (My Sightings, Hotspots, Media Targets). The block popup gained breeding fields — still trusted/static data, so the standing CLAUDE.md injection-guard check was re-confirmed, not changed. The atlas draw cap was raised 400 → 5000 to make blocks visible from higher zoom; revisit if it ever costs perceptible render time on large viewports.
+
+---
+
 ## Atlas blocks: generate geometry from a gazetteer, don't bundle polygons — 2026-06-01 (v0.5.0)
 
 **Decision:** The California atlas block overlay bundles a compact per-quad gazetteer (~2,878 records, 160 KB) and generates the 16,527 block rectangles + names at runtime, rather than bundling the official polygons (~1–2 MB).
