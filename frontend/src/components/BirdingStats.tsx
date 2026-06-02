@@ -201,7 +201,6 @@ function SubLabel({ children }: { children: React.ReactNode }) {
 
 function circleIcon(rank: number) {
   return L.divIcon({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     html: `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#2D8653"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="system-ui,sans-serif">${rank}</text></svg>`,
     className: '',
     iconSize: [24, 24],
@@ -352,6 +351,9 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
     }
     run()
     return () => { cancelled = true }
+    // mlTaxonMap is read only to skip already-resolved species; including it as a
+    // dep would re-fire the nemesis fetch on every taxon-map update (refetch loop).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapDefaults, phase.tag])
 
   // Raw data — stable refs so useMemos don't thrash when phase tag changes

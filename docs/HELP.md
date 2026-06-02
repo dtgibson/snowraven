@@ -79,7 +79,7 @@ The ML export is used by: Media List (media counts and species coverage), Specie
 
 The Weather tab retrieves historical weather data for any eBird checklist. Paste a checklist ID (for example, `S12345678`) or a full eBird checklist URL and click Get weather. The result is a formatted text block matching the output format used by raincrow.app -- ready to paste directly into your eBird checklist comment field.
 
-The weather summary includes temperature range, wind speed and direction with Beaufort description, humidity, dew point, precipitation, conditions, and sunrise and sunset times. An Edit on eBird link opens your checklist's comment field directly in a new tab.
+The weather summary includes temperature range, wind speed and direction with Beaufort description, humidity, dew point, precipitation, conditions, and sunrise and sunset times. The formatted result is copied to your clipboard automatically on a successful lookup -- on the web, the Raspberry Pi server, and the macOS and Windows desktop apps alike -- so you can paste it straight in. A Copy button is always available too. An Edit on eBird link opens your checklist's comment field directly in a new tab.
 
 Both your eBird API key and OpenWeather API key must be configured in Settings for this tab to work.
 
@@ -99,7 +99,7 @@ The tab shows the following sections for each species:
 - Breeding Codes: every breeding code you have recorded for the species, with tier color, abbreviation, full label, and count.
 - Reported With: species most frequently appearing on the same checklists as the selected species, ranked by co-occurrence percentage.
 - Top Locations: ranked list of locations where you have observed the species, with links to each location on eBird.
-- Sighting Locations map: an interactive map with a pin at every unique observation coordinate. Click any pin to see the dates and checklist links for that location. Toggle between Pins and Heatmap view.
+- Sighting Locations map: an interactive map with a pin at every unique observation coordinate. Click any pin to see the dates and checklist links for that location. Toggle between Pins and Heatmap view; in Heatmap mode a Heatmap Intensity slider (1–10) lets you dial the coverage from tighter to broader and hotter, the same control as the Map Explorer's My Sightings map.
 - Comments: all your per-species field notes from the eBird backup, sortable by date and filterable by keyword.
 - Recent Media: the most recently uploaded photo, audio recording, and video from your Macaulay Library, embedded inline. Requires ML export and at least one item in the catalog for this species.
 

@@ -2,7 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [0.5.2] - 2026-06-01
+## [0.5.3] - 2026-06-02
+
+### Improved
+- **Heatmap intensity control on the Species Detail map** — the per-species sighting map's Heatmap mode now has the same 1–10 "Heatmap Intensity" slider as the Map Explorer's My Sightings map. Dial it from tighter to broader and hotter to read sighting density at any zoom, with sparse low-count locations made easy to spot. The two heatmaps now behave identically.
+
+### Fixed
+- **Weather now auto-copies to the clipboard in the macOS and Windows desktop apps** — on a successful checklist lookup, the formatted weather is copied automatically, matching the web app. Previously the auto-copy silently failed on desktop (the system clipboard rejected the write because it happened after the network request, outside a click). The desktop apps now use the native OS clipboard directly. No extra permission or click is needed; the manual Copy button still works as before.
+
 
 ### Added
 - **Map Explorer — shade atlas blocks by your highest breeding code** — when the California atlas blocks overlay is on, a new "Shade by My Highest Breeding Code" toggle tints each block by the strongest breeding code *you* have personally entered there (Confirmed darkest, down to Observed). The shading is based only on your own records, never anyone else's. Clicking a shaded block shows the highest code and how many of your breeding records (of any level) fall inside it.

@@ -18,6 +18,7 @@ import { AtlasBlockLayer } from './AtlasBlockLayer'
 import { AtlasTierPatterns } from './AtlasTierPatterns'
 import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
+import { HEAT_INTENSITY_DEFAULT, heatRadius, heatBlur, heatMax, heatWeight } from '../lib/heat'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -267,13 +268,6 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
 // triangular artifacts, so radius tops out ~80, blur is 0.5× radius, and max floors
 // at 0.75. Because the radius is in screen pixels, the slider also lets the user
 // compensate for how the same data reads at different zoom levels.
-const HEAT_INTENSITY_DEFAULT = 5
-// Smooth quadratic anchored at 1→18, 5→40, 10→80 px.
-function heatRadius(intensity: number): number { return Math.round(13.9 + 3.83 * intensity + 0.278 * intensity * intensity) }
-function heatBlur(intensity: number): number { return Math.round(heatRadius(intensity) * 0.5) }
-// Lower max = hotter. 1→1.0 (subtle) … 10→0.75 (warmer, without over-saturating).
-function heatMax(intensity: number): number { return +(1.0 - (intensity - 1) * (0.25 / 9)).toFixed(2) }
-
 function HeatmapLayer({ points, intensity }: { points: [number, number, number][]; intensity: number }) {
   const map = useMap()
   const layerRef = useRef<L.Layer | null>(null)
@@ -328,15 +322,11 @@ function SightingMarkers({ locations, displayMode, heatIntensity }: { locations:
     return () => { map.off('resize', tryFit) }
   }, [locations, map])
 
-  // Per-point heat weight scales with the slider so HIGH intensity makes even
-  // sparse, low-count sightings burn hot (not just dense clusters). The divisor is
-  // the obs count that reaches full heat: 20 at intensity 1 (count-proportional, the
-  // original behavior) down to 2 at intensity 10 (almost any sighting saturates).
+  // Per-point heat weight scales with the slider (see lib/heat.ts) so HIGH
+  // intensity makes even sparse, low-count sightings burn hot.
   const heatPoints = useMemo(
-    (): [number, number, number][] => {
-      const divisor = Math.max(2, 20 - (heatIntensity - 1) * 2)
-      return locations.map(l => [l.lat, l.lng, Math.min(l.count / divisor, 1)])
-    },
+    (): [number, number, number][] =>
+      locations.map(l => [l.lat, l.lng, heatWeight(l.count, heatIntensity)]),
     [locations, heatIntensity],
   )
 

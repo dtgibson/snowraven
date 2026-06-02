@@ -3,6 +3,7 @@ import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink,
 import { transport, TransportError } from './lib/transport'
 import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
+import { copyText } from './lib/clipboard'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
@@ -203,23 +204,13 @@ export default function App() {
         `/weather/${encodeURIComponent(id)}`
       )
       setState({ status: 'success', formatted: data.formatted, checklistId: data.checklist_id, locName: data.loc_name, obsDt: data.obs_dt })
-      try {
-        if (navigator.clipboard) {
-          await navigator.clipboard.writeText(data.formatted)
-        } else {
-          const el = document.createElement('textarea')
-          el.value = data.formatted
-          el.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
-          document.body.appendChild(el)
-          el.select()
-          document.execCommand('copy')
-          document.body.removeChild(el)
-        }
+      // Auto-copy via the clipboard seam — uses the native Tauri clipboard on
+      // desktop (no user-gesture requirement) and navigator.clipboard on web.
+      if (await copyText(data.formatted)) {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
-      } catch {
-        // clipboard unavailable — user can still click Copy
       }
+      // If the copy failed, the user can still click Copy.
     } catch (err) {
       const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
       setState({ status: 'error', message: detail ?? 'Something went wrong. Please try again.' })
@@ -228,27 +219,7 @@ export default function App() {
 
   const handleCopy = async () => {
     if (state.status !== 'success') return
-
-    if (navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(state.formatted)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-        return
-      } catch {
-        // fall through to legacy method
-      }
-    }
-
-    // Legacy fallback — works over plain HTTP on local network
-    const el = document.getElementById('output-pre')
-    if (el) {
-      const range = document.createRange()
-      range.selectNode(el)
-      window.getSelection()?.removeAllRanges()
-      window.getSelection()?.addRange(range)
-      document.execCommand('copy')
-    }
+    await copyText(state.formatted)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }

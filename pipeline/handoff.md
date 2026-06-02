@@ -1,30 +1,31 @@
-# Handoff — atlas-shade-by-breeding-code
+# Handoff — heatmap-parity-and-desktop-clipboard (Improve lane)
 
-## What We Accomplished
-Shipped **v0.5.2** — "Shade Atlas Blocks by Your Highest Breeding Code" in the Map Explorer. When the atlas overlay is on, a "Shade by My Highest Breeding Code" toggle tints each block by the strongest breeding code the *user* personally entered there (client-side spatial join over the loaded eBird backup). A separate "Use Textures" toggle (off by default) adds a per-tier hatch pattern for colorblind-friendly, color-independent reading. The overlay (blocks + shading + textures) now appears in all three map views (My Sightings, Hotspots, Media Targets) and draws from higher zoom levels (cap 400 → 5000).
+## What We're Doing
+Two parity improvements:
+1. Port the v0.5.1 heatmap intensity slider to the Species Detail map.
+2. Make weather auto-copy to the clipboard work in the macOS/Windows desktop apps (web already works).
 
 ## Where We Are
-**Feature complete — all 9 stages done.** v0.5.2 is live on GitHub for both platforms (darwin-aarch64 + windows-x86_64), `latest.json` published, in-app updater will detect it.
+Stage 2 (The Engineer) complete. Next: Stage 3 — The Tester.
 
-## Release facts
-- Version `0.5.2` in `frontend/package.json`, `src-tauri/tauri.conf.json`, `CHANGELOG.md`.
-- Tag `v0.5.2`; release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.2
-- Assets verified: latest.json, macOS updater bundle + .sig, aarch64.dmg (notarized + stapled), x64-setup.exe + .sig.
-- **Process note:** initial bump was wrongly minor (0.6.0); corrected to patch (0.5.2) per Dave's standing rule. Memory `feedback_versioning.md` reinforced — patch-only unless Dave explicitly says otherwise.
+## What Was Built (Stage 2)
+**Improvement 1 — heatmap parity**
+- NEW `frontend/src/lib/heat.ts` — shared `heatRadius/heatBlur/heatMax/heatWeight` + `HEAT_INTENSITY_DEFAULT` (single source of truth).
+- `MapExplorer.tsx` — removed local copies, imports from lib, uses `heatWeight` (no behavior change).
+- `SpeciesDetail.tsx` — `HeatmapLayer` now takes `intensity`; `heatPoints` weighted via `heatWeight`; `heatIntensity` state (default 5, resets on species change); 1–10 slider in the map section header, Heatmap mode only.
 
-## Chronicle updates made
-- `PRODUCT_CONTEXT.md` — new "Shade Atlas Blocks by Your Highest Breeding Code (v0.5.2)" feature entry.
-- `DECISIONS.md` — decision: shade by user's own codes only + textures as default-off opt-in.
-- `ROADMAP.md` — Shipped updated to v0.5.2 (41 versions).
-- `CLAUDE.md` — new standing convention: Leaflet pattern/texture fills via injected `<defs>` + `fill: url(#id)` CSS class.
-- Docs: `docs/HELP.md`, `README.md` Map Explorer sections updated.
+**Improvement 2 — desktop clipboard auto-copy**
+- NEW `frontend/src/lib/clipboard.ts` — `copyText()` seam: native Tauri clipboard plugin on desktop, `navigator.clipboard` + execCommand fallback on web.
+- `App.tsx` — `handleLookup` auto-copy and `handleCopy` both route through `copyText`.
+- Tauri wiring: `@tauri-apps/plugin-clipboard-manager` (JS, package.json), `tauri-plugin-clipboard-manager = "2"` in Cargo `[dependencies]` (cross-platform, not the macOS-only table), `.plugin(tauri_plugin_clipboard_manager::init())` in `lib.rs`, `"clipboard-manager:allow-write-text"` in `capabilities/default.json`.
+- No permission button — the plugin grants write at build time; no OS runtime prompt. (Confirmed with user at Stage 1 gate.)
 
-## Outstanding (Dave, on Windows 11)
-- Verify Windows install + in-app updater end-to-end (carried from prior features).
+## Verification status
+- typecheck ✓, lint ✓ (only pre-existing BirdingStats warnings), build ✓, 266 tests ✓, `cargo check` ✓ (clipboard plugin + capability validate).
+- Heatmap slider verifiable live (dev server). **Desktop auto-copy needs the packaged macOS/Windows app — Dave to confirm** (web path unchanged).
 
 ## Resume Prompt
-No active feature. Run `/weft` to start the next lane.
+Run `/weft` to resume at Stage 3 (The Tester).
 
 ---
-
-Project: snowraven. Feature: atlas-shade-by-breeding-code — COMPLETE (v0.5.2 shipped). No active session.
+Project: snowraven. Feature: heatmap-parity-and-desktop-clipboard (Improve). Last completed stage: 2 (Engineer). Next: 3 (Tester).

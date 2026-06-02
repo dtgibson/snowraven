@@ -1,13 +1,13 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 1,
-  "sessionType": "feature",
-  "currentStage": 9,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "complete",
+  "activeFeature": "heatmap-parity-and-desktop-clipboard",
+  "sessionNumber": 2,
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
   "releasedVersion": "0.5.2",
-  "confirmedArtifacts": ["pipeline/atlas-shade-by-breeding-code/strategic-brief.md", "pipeline/atlas-shade-by-breeding-code/prd.md", "pipeline/atlas-shade-by-breeding-code/schema.md", "pipeline/atlas-shade-by-breeding-code/design-spec.md", "pipeline/atlas-shade-by-breeding-code/design.html", "pipeline/atlas-shade-by-breeding-code/pr.md", "pipeline/atlas-shade-by-breeding-code/qa-report.md", "pipeline/atlas-shade-by-breeding-code/security-review.md"],
+  "confirmedArtifacts": ["pipeline/heatmap-parity-and-desktop-clipboard/change-brief.md", "pipeline/heatmap-parity-and-desktop-clipboard/qa-report.md", "pipeline/heatmap-parity-and-desktop-clipboard/security-review.md"],
   "awaitingHuman": null,
-  "createdAt": "2026-06-01T11:30:00Z",
-  "updatedAt": "2026-06-02T05:10:00Z"
+  "createdAt": "2026-06-02T05:30:00Z",
+  "updatedAt": "2026-06-02T05:30:00Z"
 }

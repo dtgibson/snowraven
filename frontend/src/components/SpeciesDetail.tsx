@@ -22,6 +22,7 @@ import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
+import { HEAT_INTENSITY_DEFAULT, heatRadius, heatBlur, heatMax, heatWeight } from '../lib/heat'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -204,7 +205,7 @@ function MapBoundsFitter({ coordinates }: { coordinates: [number, number][] }) {
 
 const heatLoaded = { current: false }
 
-function HeatmapLayer({ points, visible }: { points: [number, number, number][]; visible: boolean }) {
+function HeatmapLayer({ points, visible, intensity }: { points: [number, number, number][]; visible: boolean; intensity: number }) {
   const map = useMap()
   const layerRef = useRef<L.Layer | null>(null)
 
@@ -216,7 +217,7 @@ function HeatmapLayer({ points, visible }: { points: [number, number, number][];
     const apply = () => {
       if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      layerRef.current = (L as any).heatLayer(points, { radius: 25, blur: 15, maxZoom: 17 }).addTo(map)
+      layerRef.current = (L as any).heatLayer(points, { radius: heatRadius(intensity), blur: heatBlur(intensity), max: heatMax(intensity), maxZoom: 17 }).addTo(map)
     }
     if (heatLoaded.current) {
       apply()
@@ -229,7 +230,7 @@ function HeatmapLayer({ points, visible }: { points: [number, number, number][];
     return () => {
       if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
     }
-  }, [map, points, visible])
+  }, [map, points, visible, intensity])
 
   return null
 }
@@ -446,6 +447,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
   const [showAllComments, setShowAllComments] = useState(false)
   const [showAllLocations, setShowAllLocations] = useState(false)
   const [mapMode, setMapMode] = useState<'pins' | 'heatmap'>('pins')
+  const [heatIntensity, setHeatIntensity] = useState(HEAT_INTENSITY_DEFAULT)
   const [graphInterval, setGraphInterval] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
   const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   const [showAllCoOccurrence, setShowAllCoOccurrence] = useState(false)
@@ -460,6 +462,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
     setShowAllComments(false)
     setShowAllLocations(false)
     setMapMode('pins')
+    setHeatIntensity(HEAT_INTENSITY_DEFAULT)
     setGraphInterval('monthly')
     setViewMode('per-period')
     setShowAllCoOccurrence(false)
@@ -792,10 +795,11 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
     [coordMarkers]
   )
 
-  // Heat layer points: [lat, lng, weight] — weight is observation count at location
+  // Heat layer points: [lat, lng, weight] — weight scales the per-location obs
+  // count by the intensity slider (shared model with the Map Explorer; lib/heat.ts).
   const heatPoints = useMemo(
-    (): [number, number, number][] => coordMarkers.map(m => [m.lat, m.lng, m.sightings.length]),
-    [coordMarkers]
+    (): [number, number, number][] => coordMarkers.map(m => [m.lat, m.lng, heatWeight(m.sightings.length, heatIntensity)]),
+    [coordMarkers, heatIntensity]
   )
 
   // Graph data (lifted from SightingsGraph for hasGraphData check and GraphOptions card)
@@ -1675,6 +1679,28 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                   ))}
                 </div>
               </div>
+              {mapMode === 'heatmap' && (
+                <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--sr-border-subtle)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Heatmap Intensity</span>
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{heatIntensity}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={heatIntensity}
+                    onChange={e => setHeatIntensity(Number(e.target.value))}
+                    aria-label="Heatmap intensity"
+                    style={{ width: '100%', accentColor: 'var(--sr-accent)', cursor: 'pointer' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--sr-text-muted)', marginTop: 2 }}>
+                    <span>Tighter</span>
+                    <span>Broader</span>
+                  </div>
+                </div>
+              )}
               <div className="sr-map-container">
                 <MapContainer
                   center={uniqueCoords[0] ?? [0, 0]}
@@ -1717,7 +1743,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                       </Popup>
                     </Marker>
                   ))}
-                  <HeatmapLayer points={heatPoints} visible={mapMode === 'heatmap'} />
+                  <HeatmapLayer points={heatPoints} visible={mapMode === 'heatmap'} intensity={heatIntensity} />
                   <MapBoundsFitter coordinates={uniqueCoords} />
                 </MapContainer>
               </div>
