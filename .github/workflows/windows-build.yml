@@ -16,7 +16,14 @@ on:
 jobs:
   windows:
     name: Build Windows installer + updater
-    runs-on: windows-latest
+    # Pin the runner image explicitly. GitHub is redirecting BOTH the
+    # `windows-latest` alias AND the explicit `windows-2025` label to
+    # `windows-2025-vs2026` (VS2026) by 2026-06-15, so pinning to `windows-2025`
+    # would NOT freeze the toolchain — that label gets repointed too. Instead we
+    # move to the target image now and have verified the Rust/Tauri build is
+    # green on it, so the June-15 redirect is a no-op for us. Revisit when
+    # GitHub announces the next image migration.
+    runs-on: windows-2025-vs2026
     defaults:
       run:
         shell: bash
