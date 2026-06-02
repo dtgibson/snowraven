@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.2] - 2026-06-01
+
+### Added
+- **Map Explorer — shade atlas blocks by your highest breeding code** — when the California atlas blocks overlay is on, a new "Shade by My Highest Breeding Code" toggle tints each block by the strongest breeding code *you* have personally entered there (Confirmed darkest, down to Observed). The shading is based only on your own records, never anyone else's. Clicking a shaded block shows the highest code and how many of your breeding records (of any level) fall inside it.
+- **Colorblind-accessible textures** — a separate "Use Textures" toggle (off by default) overlays a distinct hatch pattern per breeding level (sparse dots through dense cross-hatch), so the levels are distinguishable in grayscale, without relying on color alone. Patterns and spacing are tuned to keep the underlying map readable.
+- **Overlay available in all three map views** — the atlas overlay (blocks, shading, and textures) now appears in the My Sightings, Hotspots, and Media Targets panels, not just Hotspots.
+- **Blocks visible from farther out** — the atlas overlay now draws from higher zoom levels, so you no longer have to zoom in as far to see the block grid.
+
 ## [0.5.1] - 2026-06-01
 
 ### Improved

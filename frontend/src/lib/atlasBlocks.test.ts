@@ -3,6 +3,8 @@ import {
   generateBlocks,
   blocksInBounds,
   quadBbox,
+  buildQuadIndex,
+  pointToBlockCode,
   type Quad,
   type AtlasScheme,
   type AtlasData,
@@ -108,5 +110,38 @@ describe('blocksInBounds', () => {
     const { blocks, tooMany } = blocksInBounds(DATA, [-100.0, 45.0, -99.0, 46.0], 500)
     expect(tooMany).toBe(false)
     expect(blocks).toHaveLength(0)
+  })
+})
+
+describe('pointToBlockCode', () => {
+  const DATA: AtlasData = {
+    scheme: SCHEME,
+    quads: [
+      { sw: [38.0, -122.0], name: 'Mount Diablo', id: '38122A1' },
+      { sw: [38.0, -121.875], name: 'Clayton', id: '38122A2', pos: ['SW'] }, // edge quad: only SW exists
+    ],
+    irregular: [],
+  }
+  const idx = buildQuadIndex(DATA)
+
+  it('maps a point in the SW block', () => {
+    // SW block: lng [-122, -121.9375], lat [38.0, 38.0417]
+    expect(pointToBlockCode(DATA, idx, 38.01, -121.99)).toBe('38122A1SW')
+  })
+
+  it('maps a point in the NE block', () => {
+    // NE block: col 1 (east), row 2 (north): lng [-121.9375,-121.875], lat [38.0833,38.125]
+    expect(pointToBlockCode(DATA, idx, 38.10, -121.90)).toBe('38122A1NE')
+  })
+
+  it('returns null outside any gazetteer quad', () => {
+    expect(pointToBlockCode(DATA, idx, 40.0, -120.0)).toBeNull()
+  })
+
+  it('returns null for a sub-block missing from an edge quad', () => {
+    // Clayton quad exists but only has SW; a point in its NE cell → null
+    expect(pointToBlockCode(DATA, idx, 38.10, -121.78)).toBeNull()
+    // ...while its SW cell resolves
+    expect(pointToBlockCode(DATA, idx, 38.01, -121.86)).toBe('38122A2SW')
   })
 })

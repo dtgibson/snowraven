@@ -133,3 +133,43 @@ export function blocksInBounds(data: AtlasData, bounds: Bounds, cap: number): In
   }
   return { blocks: result, tooMany: false }
 }
+
+// ── Point → block (for joining observations to atlas blocks) ──────────────────
+
+function gridSnap(v: number, step: number): number {
+  return Number((Math.floor(v / step) * step).toFixed(4))
+}
+
+/** O(1) lookup of a quad by its SW corner. Key matches the gazetteer's `sw` values. */
+export function buildQuadIndex(data: AtlasData): Map<string, Quad> {
+  const idx = new Map<string, Quad>()
+  for (const q of data.quads) idx.set(`${q.sw[0]},${q.sw[1]}`, q)
+  return idx
+}
+
+/**
+ * The atlas block code (quad id + position, e.g. "32117F2CE") containing a point,
+ * or null if the point is outside California atlas coverage (no quad in the
+ * gazetteer) or in an edge quad that lacks that sub-block. Uses the regular
+ * quad-grid math — no polygon test needed since blocks are axis-aligned rectangles.
+ */
+export function pointToBlockCode(
+  data: AtlasData,
+  index: Map<string, Quad>,
+  lat: number,
+  lng: number,
+): string | null {
+  const { quadLat, quadLng, cols, rows, positions } = data.scheme
+  const swLat = gridSnap(lat, quadLat)
+  const swLng = gridSnap(lng, quadLng)
+  const quad = index.get(`${swLat},${swLng}`)
+  if (!quad) return null
+  let col = Math.floor((lng - swLng) / (quadLng / cols))
+  let row = Math.floor((lat - swLat) / (quadLat / rows))
+  col = Math.min(Math.max(col, 0), cols - 1)
+  row = Math.min(Math.max(row, 0), rows - 1)
+  const code = positions[row]?.[col]
+  if (!code) return null
+  if (quad.pos && !quad.pos.includes(code)) return null
+  return `${quad.id}${code}`
+}

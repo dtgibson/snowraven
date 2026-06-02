@@ -15,7 +15,9 @@ import { getCurrentLocation } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { isWindows } from '../lib/platform'
 import { AtlasBlockLayer } from './AtlasBlockLayer'
+import { AtlasTierPatterns } from './AtlasTierPatterns'
 import type { AtlasData } from '../lib/atlasBlocks'
+import { buildBreedingByBlock } from '../lib/atlasBreeding'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -658,6 +660,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [atlasData, setAtlasData]             = useState<AtlasData | null>(null)
   const [atlasLoading, setAtlasLoading]       = useState(false)
   const [atlasTooMany, setAtlasTooMany]       = useState(false)
+  const [shadeByBreeding, setShadeByBreeding] = useState(false)
+  const [useTextures, setUseTextures]         = useState(false)
 
   // Target state
   const [targetPins, setTargetPins]           = useState<TargetPin[] | null>(null)
@@ -967,6 +971,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const handleToggleAtlas = useCallback(async () => {
     const next = !atlasEnabled
     setAtlasEnabled(next)
+    if (!next) setShadeByBreeding(false) // shading is meaningless without the overlay
     if (next && !atlasData && !atlasLoading) {
       setAtlasLoading(true)
       try {
@@ -979,6 +984,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       }
     }
   }, [atlasEnabled, atlasData, atlasLoading])
+
+  // Map of atlas block code → the user's highest breeding evidence there. Computed
+  // once from the loaded backup + gazetteer; drives the "shade by breeding" overlay.
+  const breedingByBlock = useMemo(
+    () => (atlasData && phase.tag === 'ready' ? buildBreedingByBlock(atlasData, phase.observations) : null),
+    [atlasData, phase],
+  )
 
   // ── Actions ───────────────────────────────────────────────────────────────────
 
@@ -1167,6 +1179,122 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // ── Sidebar content per mode ──────────────────────────────────────────────────
 
+  // Shared atlas overlay controls (atlas blocks + shade-by-breeding + textures +
+  // legend). Rendered in all three mode sidebars; the map layer itself already
+  // renders in every mode. State is shared across modes.
+  const atlasOverlayControls = (
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
+      <SidebarLabel>Map Overlays</SidebarLabel>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Atlas blocks</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={atlasEnabled}
+          aria-label="Show California atlas blocks"
+          tabIndex={0}
+          onClick={handleToggleAtlas}
+          style={{
+            width: 38, height: 22, borderRadius: 11, border: 'none', flexShrink: 0,
+            background: atlasEnabled ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
+            position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
+          }}
+        >
+          <span style={{
+            position: 'absolute', top: 2, left: atlasEnabled ? 18 : 2, width: 18, height: 18,
+            borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+          }} />
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+        {atlasLoading
+          ? 'Loading atlas blocks…'
+          : 'California Breeding Bird Atlas blocks. Shown for the current map area.'}
+      </div>
+
+      {/* Shade-by-breeding toggle — only when the atlas overlay is on */}
+      {atlasEnabled && (() => {
+        const backupReady = phase.tag === 'ready'
+        return (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: backupReady ? 1 : 0.55 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Shade by My Highest Breeding Code</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={shadeByBreeding}
+                aria-label="Shade atlas blocks by my highest breeding code"
+                disabled={!backupReady}
+                tabIndex={0}
+                onClick={() => backupReady && setShadeByBreeding(v => !v)}
+                style={{
+                  width: 38, height: 22, borderRadius: 11, border: 'none', flexShrink: 0,
+                  background: shadeByBreeding ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
+                  position: 'relative', cursor: backupReady ? 'pointer' : 'not-allowed', transition: 'background 0.15s',
+                }}
+              >
+                <span style={{
+                  position: 'absolute', top: 2, left: shadeByBreeding ? 18 : 2, width: 18, height: 18,
+                  borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+                }} />
+              </button>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+              {backupReady
+                ? "Based only on breeding codes you've personally entered."
+                : 'Load your eBird backup in Settings to use this.'}
+            </div>
+            {shadeByBreeding && backupReady && (
+              <>
+                {/* Use Textures — adds a hatch per level; off by default */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Use Textures</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={useTextures}
+                    aria-label="Use textures on shaded atlas blocks"
+                    tabIndex={0}
+                    onClick={() => setUseTextures(v => !v)}
+                    style={{
+                      width: 38, height: 22, borderRadius: 11, border: 'none', flexShrink: 0,
+                      background: useTextures ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
+                      position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: 2, left: useTextures ? 18 : 2, width: 18, height: 18,
+                      borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+                    }} />
+                  </button>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+                  Adds a distinct hatch per level so blocks are distinguishable without color.
+                </div>
+
+                <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {([
+                    { tier: 4, label: 'Confirmed (nest / young)' },
+                    { tier: 3, label: 'Confirmed (nest building)' },
+                    { tier: 2, label: 'Probable' },
+                    { tier: 1, label: 'Possible' },
+                  ] as const).map(row => (
+                    <div key={row.tier} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                      <svg width="24" height="14" style={{ flexShrink: 0, border: '1px solid var(--sr-border-medium)', borderRadius: 3 }}>
+                        <rect width="24" height="14" className={useTextures ? `sr-atlas-tier-${row.tier}` : `sr-atlas-fill-${row.tier}`} />
+                      </svg>
+                      <span style={{ color: 'var(--sr-text-muted)' }}>{row.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
+    </div>
+  )
+
   const sightingsSidebar = (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -1277,6 +1405,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             </div>
           )}
         </div>
+        {/* Atlas overlay controls — bottom of the My Sightings panel */}
+        <div style={{ padding: '0 16px 14px' }}>
+          {atlasOverlayControls}
+        </div>
       </div>
 
       {/* Stats bar — pinned to sidebar bottom */}
@@ -1369,36 +1501,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         </div>
       )}
 
-      {/* Map overlays — California Breeding Bird Atlas blocks (between legend and nearest list) */}
-      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
-        <SidebarLabel>Map Overlays</SidebarLabel>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Atlas blocks</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={atlasEnabled}
-            aria-label="Show California atlas blocks"
-            tabIndex={0}
-            onClick={handleToggleAtlas}
-            style={{
-              width: 38, height: 22, borderRadius: 11, border: 'none', flexShrink: 0,
-              background: atlasEnabled ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
-              position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
-            }}
-          >
-            <span style={{
-              position: 'absolute', top: 2, left: atlasEnabled ? 18 : 2, width: 18, height: 18,
-              borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
-            }} />
-          </button>
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
-          {atlasLoading
-            ? 'Loading atlas blocks…'
-            : 'California Breeding Bird Atlas blocks. Shown for the current map area.'}
-        </div>
-      </div>
+      {atlasOverlayControls}
 
       {nearestUnvisited.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
@@ -1594,6 +1697,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               onChange={v => { setTargetViewMode(v as 'all' | 'week'); setSelectedTargetKey(null) }}
             />
           </div>
+          {atlasOverlayControls}
           {nearest10.length > 0 && (
             <div>
               <SidebarLabel>Nearest Targets</SidebarLabel>
@@ -1643,6 +1747,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+      {/* SVG pattern defs for atlas breeding-tier shading (referenced via fill: url(#...)) */}
+      <AtlasTierPatterns />
       {/* Mode bar */}
       <div role="group" aria-label="Map view mode" style={{ display: 'flex', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--sr-border)', background: 'var(--sr-surface)', flexShrink: 0 }}>
         {([
@@ -1758,7 +1864,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <MapPanner target={panTarget} onDone={handlePanDone} />
               <DefaultCenterSetter center={defaultCenter} onDone={handleDefaultCenterDone} />
               {atlasEnabled && (
-                <AtlasBlockLayer data={atlasData} onTooManyChange={setAtlasTooMany} />
+                <AtlasBlockLayer
+                  data={atlasData}
+                  onTooManyChange={setAtlasTooMany}
+                  shade={shadeByBreeding}
+                  breedingByBlock={breedingByBlock}
+                  useTextures={useTextures}
+                />
               )}
               {detectedLocation && <DetectedLocationPin position={detectedLocation} />}
               <TileLayer

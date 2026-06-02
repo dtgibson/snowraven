@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Atlas shade by breeding code (Design)</title>
+<style>
+  :root{
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5;
+    --sr-text:#0F1117; --sr-text-muted:#71717A; --sr-border:#E4E4E7; --sr-border-medium:#C4C4CE;
+    --sr-accent:#2D8653; --sr-map-atlas:#475569;
+    --sr-tier-4-rgb:59,7,100; --sr-tier-3-rgb:107,33,168; --sr-tier-2-rgb:147,51,234; --sr-tier-1-rgb:192,132,252;
+    --font-sans:'Inter',system-ui,sans-serif;
+  }
+  [data-theme="dark"]{
+    --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A;
+    --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-border:#27272A; --sr-border-medium:#3F3F46;
+    --sr-accent:#34A86A; --sr-map-atlas:#94A3B8;
+    --sr-tier-4-rgb:107,33,168; --sr-tier-3-rgb:124,58,237; --sr-tier-2-rgb:168,85,247; --sr-tier-1-rgb:192,132,252;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font-sans);background:var(--sr-bg);color:var(--sr-text);padding:28px 20px 64px;}
+  .head{max-width:1000px;margin:0 auto 20px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+  h1{font-size:20px;font-weight:700;letter-spacing:-.5px;margin:0;}
+  .head p{margin:4px 0 0;font-size:13px;color:var(--sr-text-muted);}
+  .ctrl{font-family:inherit;font-size:13px;font-weight:500;padding:8px 14px;border-radius:8px;border:1px solid var(--sr-border-medium);background:var(--sr-surface);color:var(--sr-text);cursor:pointer;}
+  .grid2{max-width:1000px;margin:0 auto;display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:start;}
+  @media (max-width:780px){.grid2{grid-template-columns:1fr;}}
+  .card{background:var(--sr-surface);border:1px solid var(--sr-border);border-radius:12px;padding:16px;}
+  .lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--sr-text-muted);margin:0 0 10px;}
+
+  /* toggle */
+  .switchrow{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+  .switchrow .name{font-size:13px;font-weight:500;}
+  .switch{width:38px;height:22px;border-radius:11px;background:var(--sr-accent);position:relative;border:none;flex-shrink:0;cursor:pointer;}
+  .switch .knob{position:absolute;top:2px;left:18px;width:18px;height:18px;border-radius:50%;background:#fff;}
+  .cap{font-size:11px;color:var(--sr-text-muted);margin-top:6px;line-height:1.4;}
+
+  /* legend */
+  .legrow{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:12.5px;}
+  .swatch{width:24px;height:16px;border:1px solid var(--sr-border-medium);border-radius:3px;flex-shrink:0;}
+
+  /* map */
+  .map{position:relative;border:1px solid var(--sr-border);border-radius:12px;overflow:hidden;height:300px;background:repeating-linear-gradient(0deg,#eaf0e6 0 26px,#e5ece0 26px 52px);}
+  [data-theme="dark"] .map{background:repeating-linear-gradient(0deg,#1c2420 0 26px,#1a221e 26px 52px);}
+  .maplabel{position:absolute;top:10px;left:12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--sr-text-muted);background:var(--sr-surface);padding:4px 8px;border-radius:6px;border:1px solid var(--sr-border);z-index:2;}
+
+  .gswrap{max-width:1000px;margin:18px auto 0;}
+  .gsrow{display:flex;gap:14px;flex-wrap:wrap;}
+  .tile{width:120px;}
+  .tile .box{height:60px;border:1px solid var(--sr-map-atlas);border-radius:6px;}
+  .tile .t{font-size:11px;color:var(--sr-text-muted);margin-top:5px;text-align:center;}
+  .gray{filter:grayscale(1) contrast(1.05);}
+  .note{max-width:1000px;margin:14px auto 0;font-size:12.5px;color:var(--sr-text-muted);line-height:1.5;}
+</style>
+</head>
+<body>
+  <!-- SVG pattern defs: each tile bakes the translucent tier color (rect) + a distinct hatch (sparse→dense) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <pattern id="tier1" patternUnits="userSpaceOnUse" width="10" height="10">
+      <rect width="10" height="10" style="fill:rgba(var(--sr-tier-1-rgb),0.38)"/>
+      <circle cx="5" cy="5" r="1.3" style="fill:rgba(var(--sr-tier-1-rgb),0.95)"/>
+    </pattern>
+    <pattern id="tier2" patternUnits="userSpaceOnUse" width="8" height="8">
+      <rect width="8" height="8" style="fill:rgba(var(--sr-tier-2-rgb),0.40)"/>
+      <path d="M0,8 L8,0" style="stroke:rgba(var(--sr-tier-2-rgb),0.95);stroke-width:1.2"/>
+    </pattern>
+    <pattern id="tier3" patternUnits="userSpaceOnUse" width="8" height="8">
+      <rect width="8" height="8" style="fill:rgba(var(--sr-tier-3-rgb),0.42)"/>
+      <path d="M0,8 L8,0 M0,0 L8,8" style="stroke:rgba(var(--sr-tier-3-rgb),0.95);stroke-width:1.1"/>
+    </pattern>
+    <pattern id="tier4" patternUnits="userSpaceOnUse" width="5" height="5">
+      <rect width="5" height="5" style="fill:rgba(var(--sr-tier-4-rgb),0.45)"/>
+      <path d="M0,5 L5,0 M0,0 L5,5" style="stroke:rgba(var(--sr-tier-4-rgb),0.98);stroke-width:1"/>
+    </pattern>
+  </defs></svg>
+
+  <div class="head">
+    <div>
+      <h1>Atlas blocks — shade by my highest breeding code</h1>
+      <p>Each tier = translucent purple + a distinct texture (sparse → dense). The texture carries the level without color.</p>
+    </div>
+    <button class="ctrl" onclick="document.documentElement.setAttribute('data-theme',document.documentElement.getAttribute('data-theme')==='light'?'dark':'light')">Toggle light / dark</button>
+  </div>
+
+  <div class="grid2">
+    <!-- sidebar -->
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <p class="lbl">Map overlays</p>
+        <div class="switchrow"><span class="name">Atlas blocks</span><button class="switch"><span class="knob"></span></button></div>
+        <div class="switchrow" style="margin-top:12px"><span class="name">Shade by My Highest Breeding Code</span><button class="switch"><span class="knob"></span></button></div>
+        <div class="cap">Based only on breeding codes you've personally entered.</div>
+      </div>
+      <div class="card">
+        <p class="lbl">Breeding evidence</p>
+        <div class="legrow"><svg class="swatch" viewBox="0 0 24 16"><rect width="24" height="16" fill="url(#tier4)"/></svg> Confirmed (nest / young)</div>
+        <div class="legrow"><svg class="swatch" viewBox="0 0 24 16"><rect width="24" height="16" fill="url(#tier3)"/></svg> Confirmed (nest building)</div>
+        <div class="legrow"><svg class="swatch" viewBox="0 0 24 16"><rect width="24" height="16" fill="url(#tier2)"/></svg> Probable</div>
+        <div class="legrow"><svg class="swatch" viewBox="0 0 24 16"><rect width="24" height="16" fill="url(#tier1)"/></svg> Possible</div>
+      </div>
+    </div>
+
+    <!-- map -->
+    <div class="map">
+      <span class="maplabel">Atlas + shade on</span>
+      <svg width="100%" height="100%" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice">
+        <!-- grid of blocks; some shaded by tier, some outline-only -->
+        <g stroke="var(--sr-map-atlas)" stroke-width="1.5">
+          <rect x="40"  y="40"  width="110" height="80" fill="url(#tier4)"/>
+          <rect x="150" y="40"  width="110" height="80" fill="url(#tier2)"/>
+          <rect x="260" y="40"  width="110" height="80" fill="none"/>
+          <rect x="370" y="40"  width="110" height="80" fill="url(#tier1)"/>
+          <rect x="40"  y="120" width="110" height="80" fill="url(#tier3)"/>
+          <rect x="150" y="120" width="110" height="80" fill="none"/>
+          <rect x="260" y="120" width="110" height="80" fill="url(#tier4)"/>
+          <rect x="370" y="120" width="110" height="80" fill="url(#tier2)"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- grayscale proof -->
+  <div class="gswrap">
+    <p class="lbl" style="max-width:1000px;margin:0 auto 10px">Distinguishable without color (grayscale)</p>
+    <div class="gsrow">
+      <div class="tile"><svg class="box" viewBox="0 0 120 60"><rect width="120" height="60" fill="url(#tier1)"/></svg><div class="t">Possible</div></div>
+      <div class="tile"><svg class="box" viewBox="0 0 120 60"><rect width="120" height="60" fill="url(#tier2)"/></svg><div class="t">Probable</div></div>
+      <div class="tile"><svg class="box" viewBox="0 0 120 60"><rect width="120" height="60" fill="url(#tier3)"/></svg><div class="t">Confirmed (building)</div></div>
+      <div class="tile"><svg class="box" viewBox="0 0 120 60"><rect width="120" height="60" fill="url(#tier4)"/></svg><div class="t">Confirmed</div></div>
+      <div class="tile gray"><svg class="box" viewBox="0 0 120 60"><rect width="120" height="60" fill="url(#tier1)"/></svg><div class="t">Possible · gray</div></div>
+      <div class="tile gray"><svg class="box" viewBox="0 0 120 60"><rect width="120" height="60" fill="url(#tier2)"/></svg><div class="t">Probable · gray</div></div>
+      <div class="tile gray"><svg class="box" viewBox="0 0 120 60"><rect width="120" height="60" fill="url(#tier3)"/></svg><div class="t">Confirmed (bldg) · gray</div></div>
+      <div class="tile gray"><svg class="box" viewBox="0 0 120 60"><rect width="120" height="60" fill="url(#tier4)"/></svg><div class="t">Confirmed · gray</div></div>
+    </div>
+    <p class="note">The four greyscale tiles read as sparse dots → single diagonal → cross-hatch → dense cross-hatch — the breeding level is clear from texture density alone. Blocks with no personal record stay outline-only (see the two unshaded blocks on the map). Clicking a shaded block will also name the highest code and your record count.</p>
+  </div>
+</body>
+</html>

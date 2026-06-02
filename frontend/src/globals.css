@@ -192,6 +192,23 @@
    instead of a shared edge line that's ambiguous between two neighbors. */
 .sr-atlas-block { stroke: var(--sr-map-atlas); stroke-width: 2; stroke-opacity: 0.85; fill: var(--sr-map-atlas); fill-opacity: 0; }
 
+/* Shade-by-breeding: each tier's fill is an SVG pattern (translucent tier color +
+   distinct hatch) so breeding level reads without color alone. The CSS `fill`
+   property resolves the fragment ref and overrides Leaflet's fill attribute.
+   `fill-opacity: 1` because translucency is baked into the pattern's rgba colors.
+   Patterns are defined by <AtlasTierPatterns>. */
+.sr-atlas-tier-1 { fill: url(#sr-atlas-tier-1); fill-opacity: 1; }
+.sr-atlas-tier-2 { fill: url(#sr-atlas-tier-2); fill-opacity: 1; }
+.sr-atlas-tier-3 { fill: url(#sr-atlas-tier-3); fill-opacity: 1; }
+.sr-atlas-tier-4 { fill: url(#sr-atlas-tier-4); fill-opacity: 1; }
+
+/* Color-only shading (when "Use Textures" is off): a flat translucent tier tint,
+   no hatch — maximizes base-map visibility while still showing breeding level by color. */
+.sr-atlas-fill-1 { fill: rgba(var(--sr-tier-1-rgb), 0.33); fill-opacity: 1; }
+.sr-atlas-fill-2 { fill: rgba(var(--sr-tier-2-rgb), 0.33); fill-opacity: 1; }
+.sr-atlas-fill-3 { fill: rgba(var(--sr-tier-3-rgb), 0.33); fill-opacity: 1; }
+.sr-atlas-fill-4 { fill: rgba(var(--sr-tier-4-rgb), 0.33); fill-opacity: 1; }
+
 /* External favicon images — lighten in dark mode so they remain visible */
 [data-theme="dark"] img.sr-favicon {
   filter: brightness(0) invert(1);

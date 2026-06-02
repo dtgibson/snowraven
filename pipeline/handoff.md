@@ -1,18 +1,24 @@
-# Handoff — heatmap-coverage
+# Handoff — atlas-shade-by-breeding-code
 
 ## What We Accomplished
-Improved the My Sightings heatmap: bigger default footprint (radius 40 vs 25) so sightings merge into a density gradient, plus a "Heatmap Intensity" slider (1–10, heatmap mode only) that scales footprint (radius→80), saturation (max→0.75), AND per-point weight (obs divisor 20→2 so sparse low-count pins burn hot at max). Avoided leaflet.heat triangular artifacts by bounding radius/blur and not crushing max. Verified live by Dave (broad, intense, artifact-free, sparse areas pop).
+Built the shade-by-breeding feature with all refinements: spatial join (pointToBlockCode + buildBreedingByBlock, unit-tested), per-tier SVG patterns (colorblind), gated shade toggle + personal-data caption, "Use Textures" toggle (off by default; flat color vs hatch), legend that follows the mode, popup with highest code + total breeding-record count, overlay controls in ALL THREE sidebars (My Sightings bottom, Hotspots mid, Media Targets above Nearest Targets), readability-tuned textures, zoom cap raised 400→5000. Dave verified live across modes.
 
 ## What Has Been Saved
-- pipeline/heatmap-coverage/change-brief.md, pr.md
-- frontend/src/components/MapExplorer.tsx (heatRadius/heatBlur/heatMax helpers, intensity-scaled heatPoints weight, slider UI, HeatmapLayer max param)
+- pipeline/atlas-shade-by-breeding-code/ — strategic-brief, prd, schema, design-spec, design.html, pr.md
+- frontend/src/lib/atlasBlocks.ts (+test), atlasBreeding.ts (+test)
+- frontend/src/components/AtlasTierPatterns.tsx, AtlasBlockLayer.tsx, MapExplorer.tsx
+- frontend/src/globals.css (.sr-atlas-tier-N pattern fills, .sr-atlas-fill-N flat fills)
 
 ## Where We Are
-Stage 2 (The Engineer) complete and approved. Next is Stage 3 — The Tester (Step 3 of 6).
+Stage 5 (The Engineer) complete and approved. Next is Stage 6 — The Tester (Step 6 of 9).
+
+## Verification notes
+- 266 tests; tsc/eslint/build clean. Pure join logic (pointToBlockCode, buildBreedingByBlock) unit-tested (9 new cases).
+- Live shading verified by Dave (needs CA breeding records). Conventions: texture-pattern fills via injected <defs> + fill:url(#id) CSS class; cross-SVG ref resolves in target browsers.
 
 ## Resume Prompt
 To resume: run `/weft`. It reads saved state and picks up here.
 
 ---
 
-Project: snowraven. Improve: heatmap-coverage. Last completed stage: 2 (The Engineer). Next stage: 3 (The Tester / agents/qa.md). Load pipeline/session-state.json and the change-brief + pr, then continue the improve flow.
+Project: snowraven. Feature: atlas-shade-by-breeding-code. Last completed stage: 5 (The Engineer). Next stage: 6 (The Tester / agents/qa.md). Load pipeline/session-state.json and all artifacts under pipeline/atlas-shade-by-breeding-code/, then continue the feature flow.

@@ -187,7 +187,12 @@ Fetches eBird hotspots near a location. Hotspots you have visited (matched again
 
 Below the legend, the panel lists the ten closest hotspots you have not visited, ranked by distance from your center point; each row links to that hotspot's page on eBird.
 
-At the bottom of the panel, an **Atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. Blocks are drawn for the area currently in view -- if you are zoomed too far out, a "Zoom in to see atlas blocks" hint appears instead of drawing the whole state. Click any block to open its page on the eBird California atlas. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn.
+**Atlas blocks overlay.** An **Atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. Blocks are drawn for the area currently in view -- if you are zoomed too far out, a "Zoom in to see atlas blocks" hint appears instead of drawing the whole state. Click any block to open its page on the eBird California atlas. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, and Media Targets panels (in My Sightings it sits at the bottom of the panel; in Media Targets, just above the nearest-targets list).
+
+When the overlay is on, two more toggles appear:
+
+- **Shade by My Highest Breeding Code** tints each block by the strongest breeding code *you* have personally entered there -- darkest for Confirmed, down through Probable, Possible, and Observed. The shading reflects only your own records, never anyone else's, and requires your eBird backup to be loaded in Settings. A shaded block's popup shows the highest code and how many of your breeding records (of any level) fall inside it.
+- **Use Textures** (off by default) adds a distinct hatch pattern per breeding level -- sparse dots for the lowest, dense cross-hatch for the highest -- so the levels are distinguishable in grayscale, without relying on color alone. Turn it on for colorblind-friendly reading; leave it off for the cleanest view of the map beneath.
 
 ### Media Targets
 
