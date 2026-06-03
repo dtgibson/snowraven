@@ -1,6 +1,6 @@
 # SnowRaven Documentation
 
-SnowRaven is a toolkit for birders who use eBird. It runs as a standalone desktop app on Mac, or as a self-hosted server on a Raspberry Pi or any computer on your local network. It gives you weather lookups, life list analytics, media coverage tracking, breeding code history, and more.
+SnowRaven is a toolkit for birders who use eBird. It runs as a standalone desktop app on Mac or Windows, or as a self-hosted server on a Raspberry Pi or any computer on your local network. It gives you weather lookups, life list analytics, media coverage tracking, breeding code history, and more.
 
 This documentation covers every tab, how to obtain the API keys the app requires, and how to download and upload the data files that unlock most features.
 
@@ -51,7 +51,7 @@ To get your key:
 
 ## Default Files
 
-SnowRaven works with two data files you export from your own eBird and Macaulay Library accounts. Once uploaded in Settings, they are stored on the server and load automatically every time you open the app.
+SnowRaven works with two data files you export from your own eBird and Macaulay Library accounts. Once uploaded in Settings, they are stored for you -- in the desktop app, in the app's local data directory; in web/Pi mode, on the server -- and load automatically every time you open the app.
 
 ### eBird backup
 
@@ -179,7 +179,7 @@ Click **Use my location** in the map controls to center the map on your current 
 
 ### My Sightings
 
-Shows your personal recent observations on a map. Use the species filter to show only observations of a specific species. Use the breeding status and date-range filters to narrow results further.
+Shows your personal recent observations on a map. Narrow what's shown with the panel filters: Species (a specific species), Breeding Code, Date Range, County (when your backup contains county data), and Media. The Radius control sets the map's starting zoom and the distance within which your saved personal locations appear.
 
 Switch between Pins and Heatmap with the Map View toggle. In Heatmap mode, a Heatmap Intensity slider lets you dial the coverage from tighter to broader and hotter -- higher settings spread each sighting farther and make even sparse, low-count areas stand out, which also helps when reading density at different zoom levels.
 
@@ -193,7 +193,7 @@ Below the legend, the panel lists the ten closest hotspots you have not visited,
 
 When the overlay is on, two more toggles appear:
 
-- **Shade by My Highest Breeding Code** tints each block by the strongest breeding code *you* have personally entered there -- darkest for Confirmed, down through Probable, Possible, and Observed. The shading reflects only your own records, never anyone else's, and requires your eBird backup to be loaded in Settings. A shaded block's popup shows the highest code and how many of your breeding records (of any level) fall inside it.
+- **Shade by My Highest Breeding Code** tints each block by the strongest breeding code *you* have personally entered there -- darkest for Confirmed, down through Probable to Possible. The shading reflects only your own records, never anyone else's, and requires your eBird backup to be loaded in Settings. A shaded block's popup shows the highest code and how many of your breeding records (of any level) fall inside it.
 - **Use Textures** (off by default) adds a distinct hatch pattern per breeding level -- sparse dots for the lowest, dense cross-hatch for the highest -- so the levels are distinguishable in grayscale, without relying on color alone. Turn it on for colorblind-friendly reading; leave it off for the cleanest view of the map beneath.
 
 ### Media Targets
@@ -260,7 +260,7 @@ The Settings tab is where you configure everything SnowRaven needs to function.
 
 ### Appearance
 
-Set your color scheme: System (follows your operating system preference), Light, or Dark. Selecting Light or Dark shows a prompt to save your preference to this browser's local storage. Selecting System removes any saved preference.
+Set your color scheme: System (follows your operating system preference), Light, or Dark. Selecting Light or Dark shows a prompt to save your preference. Selecting System removes any saved preference.
 
 ### API Keys
 
@@ -279,3 +279,15 @@ Set a home location used by the Map Explorer and the Top Local Target Species ca
 Reorder and show or hide individual tabs. Drag rows to reorder. Click the eye icon to toggle a tab's visibility. At least one tab must remain visible at all times. The Settings tab is always last and cannot be hidden.
 
 On narrow screens and mobile browsers the tab bar automatically collapses into a compact dropdown that follows the same order and visibility choices, so every tab stays reachable without horizontal scrolling.
+
+### Troubleshooting (desktop app)
+
+In the Mac and Windows desktop apps, the Settings tab includes a Troubleshooting section with a **Rebuild caches & restart** button. If the map or species lookups stop working, rebuilding the app's local caches usually fixes it; the app clears its cached taxonomy data and restarts. This section does not appear in the web/Pi version.
+
+---
+
+## Updating SnowRaven
+
+In the Mac and Windows desktop apps, click **Check For Updates** in the footer. If a newer version is available, click **Install update** -- the app downloads and applies it, then prompts you to relaunch. Updates are cryptographically verified, so they are safe even though the Windows build is not yet code-signed.
+
+In web/Pi installations, the footer also checks for updates; to apply one, run `./update.sh` in your SnowRaven directory (or `git pull` and rebuild), which pulls the latest code, rebuilds the frontend, updates dependencies, and restarts the service.

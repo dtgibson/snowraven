@@ -2,7 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [0.5.5] - 2026-06-02
+## [0.5.6] - 2026-06-02
+
+### Documentation
+- **In-app Help and README accuracy pass** — corrected and filled gaps in the documentation to match the current app: the Help intro now notes the app runs on Windows as well as Mac and Raspberry Pi; the Map Explorer atlas-shading description no longer references a non-existent "Observed" breeding level (the levels are Confirmed, Probable, Possible); file-storage wording is now platform-neutral (desktop local data directory vs. server); the My Sightings section documents its County, Media, and Radius controls; and new entries cover the desktop "Rebuild caches" troubleshooting button and how to check for and install in-app updates. The README's Security note is now scoped to the Raspberry Pi / self-hosted install (the desktop apps run no server).
+
 
 ### Added
 - **Intel Mac support — the macOS app is now a universal build** — SnowRaven for macOS now ships as a single universal binary that runs natively on both **Apple Silicon (M-series)** and **Intel** Macs. There is one download for either machine (`SnowRaven_x.x.x_universal.dmg`); the previous build was Apple Silicon only, so Intel Mac users could not run the app or receive in-app updates. The in-app updater now serves Intel Macs too (`latest.json` maps both `darwin-aarch64` and `darwin-x86_64` to the universal updater bundle), so existing Intel users — and anyone who installs this build — get every future update automatically.

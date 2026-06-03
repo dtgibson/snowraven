@@ -264,7 +264,7 @@ npm run desktop:build
 
 ## Security note
 
-If you expose SnowRaven to the internet (not just your local network), put a reverse proxy such as [Caddy](https://caddyserver.com/) or [nginx](https://nginx.org/) in front of it for HTTPS. For local network use, plain HTTP on port 1620 is fine.
+This applies only to the **Raspberry Pi / self-hosted server install** (the Mac and Windows desktop apps run no server and expose no port). If you expose your self-hosted SnowRaven to the internet (not just your local network), put a reverse proxy such as [Caddy](https://caddyserver.com/) or [nginx](https://nginx.org/) in front of it for HTTPS. For local network use, plain HTTP on port 1620 is fine.
 
 ---
 
