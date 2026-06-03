@@ -8,7 +8,11 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-43 versions shipped. Last shipped: **Map Explorer mobile fullscreen + ocean-tone backdrop (v0.5.4)** -- on small screens a fullscreen button next to Filters expands the map to fill the whole viewport (header, tab selector, and mode tabs hidden); and the empty area around the world map now uses an ocean tone instead of grey.
+45 versions shipped. Last shipped: **Documentation accuracy & completeness pass (v0.5.6)** -- audited the in-app Help and README against the current app: added Windows to the platform list, removed a non-existent breeding "Observed" level, made storage wording platform-neutral, documented the My Sightings County/Media/Radius controls, the desktop "Rebuild caches" button, and the in-app update flow, and scoped the README security note to the self-hosted install.
+
+Previously: **Intel Mac support — universal macOS binary (v0.5.5)** -- the macOS app now ships as a single universal DMG that runs natively on both Apple Silicon and Intel Macs; `latest.json` maps both `darwin-aarch64` and `darwin-x86_64` to the universal updater bundle, so Intel Mac users can run the app and receive in-app updates.
+
+Earlier: **Map Explorer mobile fullscreen + ocean-tone backdrop (v0.5.4)** -- on small screens a fullscreen button next to Filters expands the map to fill the whole viewport (header, tab selector, and mode tabs hidden); and the empty area around the world map now uses an ocean tone instead of grey.
 
 Previously: **Heatmap intensity parity + desktop clipboard auto-copy (v0.5.3)** -- the Species Detail map's Heatmap mode gained the same 1–10 intensity slider as the Map Explorer (shared `lib/heat.ts` model), and weather now auto-copies to the clipboard in the macOS/Windows desktop apps (native Tauri clipboard via a new clipboard seam), matching the web app.
 

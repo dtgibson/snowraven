@@ -4,6 +4,41 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## macOS ships a universal binary, not separate Intel/Apple-Silicon DMGs — 2026-06-02 (v0.5.5)
+
+**Decision:** The macOS app is built as a single **universal** binary
+(`--target universal-apple-darwin`) producing one `SnowRaven_<ver>_universal.dmg`
+that runs natively on both Apple Silicon and Intel. `release.sh` was
+reworked to build/notarize the universal artifact, and `latest.json` maps
+**both** `darwin-aarch64` and `darwin-x86_64` to the one universal updater
+bundle (same URL + signature).
+
+**Rationale:** Previously macOS shipped Apple-Silicon-only, so Intel Mac
+users couldn't run the app or get updates. A universal binary is the
+simplest fix for users (one download, no architecture choice) at the cost
+of a larger DMG — preferred over maintaining two separate DMGs.
+
+**Implications (full specifics in CLAUDE.md):** the build needs BOTH Rust
+targets installed (`aarch64-apple-darwin`, `x86_64-apple-darwin`);
+`release.sh` preflights this. With an explicit `--target`, Tauri nests the
+bundle under the target triple. The Intel `latest.json` key MUST be exactly
+`darwin-x86_64` (Tauri's `updater_arch()` returns `"x86_64"` on Intel) or
+Intel users never see updates. Verified live: v0.5.6 `latest.json` carries
+all three platform keys.
+
+## In-app Help is bundled — doc fixes reach desktop users only on a release — 2026-06-02 (v0.5.6)
+
+**Decision:** Treat corrections to `docs/HELP.md` as shippable changes:
+because `HelpDocs.tsx` `?raw`-imports HELP.md at build time, the in-app Help
+is frozen into each binary. A doc-accuracy patch (v0.5.6) was released so
+the corrected Help reaches Mac/Windows desktop users, rather than leaving
+them with stale in-app Help until the next feature release.
+
+**Implications:** README/CHANGELOG/privacy edits land on GitHub immediately
+on commit, but **in-app Help only updates via a release**. Factor this in
+when deciding whether a doc fix needs its own patch or can ride with the
+next release.
+
 ## Map Explorer mobile fullscreen via a CSS overlay, not the Fullscreen API — 2026-06-02 (v0.5.4)
 
 **Decision:** On small screens (≤640px) the Map Explorer can go fullscreen

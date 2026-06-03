@@ -671,6 +671,33 @@ Two parity improvements (Improve lane).
 - `frontend/src/App.tsx` — `handleLookup`/`handleCopy` use `copyText`
 - `src-tauri/` — `Cargo.toml`, `src/lib.rs`, `capabilities/default.json` (clipboard plugin)
 
+### macOS Universal Binary — Intel Mac Support (complete — June 2026, v0.5.5)
+
+The macOS desktop app now ships as a single **universal** binary that runs
+natively on both Apple Silicon and Intel Macs, replacing the previous
+Apple-Silicon-only build (Intel users could not run the app or get updates).
+
+- `release.sh` builds `--target universal-apple-darwin` → one
+  `SnowRaven_<ver>_universal.dmg` and one updater bundle.
+- `latest.json` maps both `darwin-aarch64` and `darwin-x86_64` to that
+  universal updater bundle, so the in-app updater serves Intel Macs too.
+- Build requires both Rust targets (`aarch64-apple-darwin`,
+  `x86_64-apple-darwin`); `release.sh` preflights and aborts if missing.
+- See DECISIONS.md (universal-vs-separate) and CLAUDE.md (build/`latest.json`
+  specifics, incl. the `darwin-x86_64` key requirement).
+
+### Documentation Accuracy & Completeness Pass (complete — June 2026, v0.5.6)
+
+Audited `docs/HELP.md` (the in-app Help) and `README.md` against the
+v0.5.5 app and fixed all drift: Help intro now includes Windows; the
+atlas-shading copy no longer references a non-existent "Observed" tier
+(levels are Confirmed/Probable/Possible per `breedingCodes.ts`); file-
+storage wording is platform-neutral; My Sightings documents its County/
+Media/Radius controls; added the desktop "Rebuild caches" troubleshooting
+and "Updating SnowRaven" sections; and the README security note is scoped
+to the Raspberry Pi / self-hosted install. Shipped as a patch so the
+bundled in-app Help reaches desktop users (see DECISIONS.md — bundled Help).
+
 ### Map Explorer — Mobile Fullscreen + Ocean-Tone Backdrop (complete — June 2026, v0.5.4)
 
 Improve-lane mobile usability pass on the Map Explorer.

@@ -1,13 +1,13 @@
 {
-  "activeFeature": "docs-accuracy-audit",
+  "activeFeature": null,
   "sessionNumber": 4,
   "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
-  "releasedVersion": "0.5.5",
+  "currentStage": 6,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "complete",
+  "releasedVersion": "0.5.6",
   "confirmedArtifacts": ["pipeline/docs-accuracy-audit/change-brief.md", "pipeline/docs-accuracy-audit/qa-report.md", "pipeline/docs-accuracy-audit/security-review.md"],
   "awaitingHuman": null,
   "createdAt": "2026-06-02T23:30:00Z",
-  "updatedAt": "2026-06-02T23:30:00Z"
+  "updatedAt": "2026-06-03T06:05:00Z"
 }
