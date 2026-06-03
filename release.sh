@@ -29,16 +29,19 @@ SIGNING_KEY="$HOME/.tauri/snowraven-signing.key"
 VERSION=$(node -e "console.log(require('./src-tauri/tauri.conf.json').version)")
 TAG="v$VERSION"
 
-case "$(uname -m)" in
-  arm64)   ARCH="aarch64" ;;
-  x86_64)  ARCH="x86_64" ;;
-  *)       echo "Unsupported architecture: $(uname -m)" && exit 1 ;;
-esac
+# macOS ships a single UNIVERSAL binary (Apple Silicon + Intel). Tauri lipos the
+# two arch builds into one .app, so one DMG and one updater bundle serve both
+# architectures. latest.json maps BOTH darwin-aarch64 and darwin-x86_64 at that
+# one bundle (see the platform JSON below) — Tauri's updater_arch() reports
+# "aarch64" on Apple Silicon and "x86_64" on Intel, so both keys are required.
+MAC_TARGET="universal-apple-darwin"
 
 # Build outside iCloud Drive to avoid extended-attribute interference with codesign.
 export CARGO_TARGET_DIR="$HOME/.snowraven-build"
-BUNDLE_DIR="$CARGO_TARGET_DIR/release/bundle"
-DMG="$BUNDLE_DIR/dmg/SnowRaven_${VERSION}_${ARCH}.dmg"
+# An explicit --target makes Tauri nest the bundle under the target triple, and
+# the universal DMG is named with the "universal" arch suffix.
+BUNDLE_DIR="$CARGO_TARGET_DIR/$MAC_TARGET/release/bundle"
+DMG="$BUNDLE_DIR/dmg/SnowRaven_${VERSION}_universal.dmg"
 APP_TAR="$BUNDLE_DIR/macos/SnowRaven.app.tar.gz"
 APP_SIG="${APP_TAR}.sig"
 
@@ -61,7 +64,18 @@ if [[ ! -f "$SIGNING_KEY" ]]; then
   exit 1
 fi
 
-echo "==> SnowRaven $TAG ($ARCH)"
+# The universal macOS build cross-compiles both arches, so both Rust targets
+# must be installed locally (the Apple Silicon machine has aarch64 by default,
+# but x86_64 is added explicitly).
+for tgt in aarch64-apple-darwin x86_64-apple-darwin; do
+  if ! rustup target list --installed 2>/dev/null | grep -qx "$tgt"; then
+    echo "Error: Rust target '$tgt' is not installed (required for the universal build)."
+    echo "Install it with: rustup target add $tgt"
+    exit 1
+  fi
+done
+
+echo "==> SnowRaven $TAG (universal macOS: aarch64 + x86_64)"
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 # Two things are required for Tauri to generate the .app.tar.gz updater bundle:
@@ -86,8 +100,8 @@ touch src-tauri/src/main.rs
 echo "==> Building frontend..."
 npm --prefix frontend run build
 
-echo "==> Building Tauri app..."
-npm run desktop:build
+echo "==> Building Tauri app (universal binary — compiles both arches, takes a while)..."
+npm run desktop:build -- --target "$MAC_TARGET"
 
 if [[ ! -f "$DMG" ]]; then
   echo "Error: DMG not found at $DMG — build may have failed."
@@ -205,7 +219,11 @@ cat > /tmp/latest.json << ENDJSON
   "notes": "See CHANGELOG.md for details.",
   "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "platforms": {
-    "darwin-$ARCH": {
+    "darwin-aarch64": {
+      "signature": "$MAC_SIG",
+      "url": "$DOWNLOAD_BASE/SnowRaven-updater.app.tar.gz"
+    },
+    "darwin-x86_64": {
       "signature": "$MAC_SIG",
       "url": "$DOWNLOAD_BASE/SnowRaven-updater.app.tar.gz"
     }$WIN_PLATFORM_JSON

@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.5] - 2026-06-02
+
+### Added
+- **Intel Mac support — the macOS app is now a universal build** — SnowRaven for macOS now ships as a single universal binary that runs natively on both **Apple Silicon (M-series)** and **Intel** Macs. There is one download for either machine (`SnowRaven_x.x.x_universal.dmg`); the previous build was Apple Silicon only, so Intel Mac users could not run the app or receive in-app updates. The in-app updater now serves Intel Macs too (`latest.json` maps both `darwin-aarch64` and `darwin-x86_64` to the universal updater bundle), so existing Intel users — and anyone who installs this build — get every future update automatically.
+
 ## [0.5.4] - 2026-06-02
 
 ### Improved

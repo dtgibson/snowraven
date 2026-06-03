@@ -144,7 +144,7 @@ The desktop app is a fully self-contained Mac application -- no Python, no serve
 
 ### 1. Download
 
-Go to the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and download `SnowRaven_x.x.x_aarch64.dmg` (Apple Silicon) or `SnowRaven_x.x.x_x64.dmg` (Intel).
+Go to the [latest release](https://github.com/dtgibson/snowraven/releases/latest) and download `SnowRaven_x.x.x_universal.dmg`. This is a **universal build** that runs natively on both **Apple Silicon (M-series)** and **Intel** Macs — just one download for either machine.
 
 ### 2. Install
 
