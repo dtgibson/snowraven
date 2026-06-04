@@ -276,6 +276,28 @@
   opacity: 0.65;
 }
 
+/* ── BirdName: the app-wide bird-name format ─────────────────────────────────
+   Common name (links to Species Detail when hasEntry) + eBird/BoW favicons,
+   with an optional stacked scientific name. The name reads as plain text at rest
+   and reveals the link on hover/focus, so already-compliant tabs look unchanged. */
+.sr-birdname { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0; vertical-align: top; }
+.sr-birdname-inline { flex-direction: row; align-items: center; }
+.sr-birdname-row { display: flex; align-items: center; min-width: 0; }
+.sr-birdname-link {
+  font: inherit; font-weight: 500; color: var(--sr-text);
+  background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none;
+  text-align: left;
+}
+.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; outline: none; }
+.sr-birdname-text { font-weight: 500; color: var(--sr-text); }
+.sr-birdname-sci { font-style: italic; color: var(--sr-text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-birdname-md .sr-birdname-link, .sr-birdname-md .sr-birdname-text { font-size: 13.5px; }
+.sr-birdname-md .sr-birdname-sci { font-size: 11.5px; }
+.sr-birdname-sm .sr-birdname-link, .sr-birdname-sm .sr-birdname-text { font-size: 12.5px; }
+.sr-birdname-sm .sr-birdname-sci { font-size: 11px; }
+.sr-birdname-lg .sr-birdname-link, .sr-birdname-lg .sr-birdname-text { font-size: 15px; font-weight: 700; }
+.sr-birdname-lg .sr-birdname-sci { font-size: 12px; }
+
 /* ── shadcn/ui tokens ───────────────────────────────────────────────────── */
 
 @layer base {

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SnowRaven — Bird-Name Format mockup</title>
+<style>
+  :root {
+    --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-surface-faint: #F3F4F6;
+    --sr-border: #E5E7EB; --sr-border-subtle: #EEF0F2;
+    --sr-text: #0F1117; --sr-text-muted: #5B616E; --sr-text-gray: #8A909C;
+    --sr-accent: #2D8653; --sr-accent-bg: #E7F3EC;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-faint: #1F1F23;
+    --sr-border: #27272A; --sr-border-subtle: #232327;
+    --sr-text: #FAFAFA; --sr-text-muted: #A1A1AA; --sr-text-gray: #71717A;
+    --sr-accent: #34D399; --sr-accent-bg: #0E2A1D;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: var(--sr-bg); color: var(--sr-text); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 22px; letter-spacing: -0.4px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); margin: 30px 0 10px; }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 680px) { .panes { grid-template-columns: 1fr; } }
+  .pane { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; padding: 16px; }
+  .pane h3 { font-size: 12px; color: var(--sr-text-muted); margin: 0 0 12px; font-weight: 600; }
+  .note { font-size: 12.5px; color: var(--sr-text-muted); line-height: 1.6; }
+  .toggle { position: fixed; top: 16px; right: 16px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text); font: inherit; font-size: 12px; cursor: pointer; }
+
+  /* favicons */
+  .fav { display: inline-flex; gap: 5px; margin-left: 6px; vertical-align: middle; }
+  .fav span { width: 14px; height: 14px; border-radius: 3px; opacity: 0.78; display: inline-block; }
+  .fav .eb { background: #1c6b3c; } .fav .bow { background: #6b4a1c; }
+  .fav:hover span { opacity: 1; }
+
+  /* BirdName */
+  .bn { display: inline-flex; flex-direction: column; gap: 1px; min-width: 0; vertical-align: top; }
+  .bn-inline { flex-direction: row; align-items: center; }
+  .bn-row { display: flex; align-items: center; min-width: 0; }
+  .bn-link { font: inherit; font-size: 13.5px; font-weight: 500; color: var(--sr-text); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: none; }
+  .bn-link:hover, .bn-link:focus-visible { color: var(--sr-accent); text-decoration: underline; outline: none; }
+  .bn-text { font-size: 13.5px; font-weight: 500; color: var(--sr-text); }   /* no entry: plain */
+  .bn-sci { font-size: 11.5px; font-style: italic; color: var(--sr-text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* contexts */
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 9px 6px; border-bottom: 1px solid var(--sr-border-subtle); vertical-align: middle; }
+  .num-link { color: var(--sr-accent); cursor: pointer; font-size: 13px; font-variant-numeric: tabular-nums; }
+  .num-link:hover { text-decoration: underline; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; background: var(--sr-accent-bg); color: var(--sr-text); font-size: 12.5px; }
+  .popup { width: 230px; border: 1px solid var(--sr-border); border-radius: 10px; padding: 10px 12px; box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+  .popup .recency { width: 9px; height: 9px; border-radius: 50%; background: #d33; display: inline-block; margin-right: 6px; }
+  .row-target { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--sr-border-subtle); }
+  .locate { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--sr-border); display: inline-flex; align-items: center; justify-content: center; color: var(--sr-text-muted); cursor: pointer; font-size: 12px; }
+  .locate:hover { color: var(--sr-accent); border-color: var(--sr-accent); }
+  .dist { font-size: 12px; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+  .hoverhint { font-size: 11px; color: var(--sr-text-gray); margin-top: 6px; }
+</style>
+</head>
+<body>
+<button class="toggle" onclick="document.documentElement.toggleAttribute('data-theme')">Toggle light/dark</button>
+<div class="wrap">
+  <h1>Bird-Name Format — standard rendering</h1>
+  <p class="note">One shared <code>&lt;BirdName&gt;</code>: common name (links to Species Detail when you have an entry) → eBird + Birds of the World favicons → scientific name where there's room. Hover a name to see the link affordance. Favicons here are colored squares standing in for the real eBird / BoW icons.</p>
+
+  <h2>1 · Stacked rows (Media List, Breeding Codes, wide Stats lists)</h2>
+  <div class="panes"><div class="pane"><h3>matches the look you liked</h3>
+    <table>
+      <tr><td>
+        <span class="bn"><span class="bn-row"><button class="bn-link">American Robin</button><span class="fav"><span class="eb"></span><span class="bow"></span></span></span><span class="bn-sci">Turdus migratorius</span></span>
+      </td><td style="text-align:right" class="note">42</td></tr>
+      <tr><td>
+        <span class="bn"><span class="bn-row"><button class="bn-link">Yellow-rumped Warbler</button><span class="fav"><span class="eb"></span><span class="bow"></span></span></span><span class="bn-sci">Setophaga coronata</span></span>
+      </td><td style="text-align:right" class="note">31</td></tr>
+    </table>
+    <p class="hoverhint">Name rest = text color (unchanged); hover = accent + underline.</p>
+  </div><div class="pane"><h3>Most Photographed (relocated link)</h3>
+    <table>
+      <tr><td>
+        <span class="bn"><span class="bn-row"><button class="bn-link">Anna's Hummingbird</button><span class="fav"><span class="eb"></span><span class="bow"></span></span></span><span class="bn-sci">Calypte anna</span></span>
+      </td><td style="text-align:right"><span class="num-link">128 photos</span></td></tr>
+    </table>
+    <p class="hoverhint">Name → Species Detail; the <b>count</b> now carries the Macaulay Library link.</p>
+  </div></div>
+
+  <h2>2 · Inline, no scientific name (milestone pill, sentence)</h2>
+  <div class="panes"><div class="pane"><h3>Milestone pill</h3>
+    <span class="pill">#500 &nbsp;<span class="bn bn-inline"><button class="bn-link" style="font-size:12.5px">Painted Redstart</button><span class="fav"><span class="eb"></span><span class="bow"></span></span></span></span>
+    <p class="hoverhint">No sci name in tight pills; date/“#500” would carry the checklist link.</p>
+  </div><div class="pane"><h3>In a sentence (First species)</h3>
+    <p class="note">First species ever recorded: <span class="bn bn-inline"><button class="bn-link">House Sparrow</button><span class="fav"><span class="eb"></span><span class="bow"></span></span></span>.</p>
+  </div></div>
+
+  <h2>3 · Not in your data (nemesis / map target) — D1</h2>
+  <div class="panes"><div class="pane"><h3>Nemesis list row</h3>
+    <div style="display:flex;align-items:center"><span class="recency"></span>
+      <span class="bn bn-inline"><span class="bn-text">Spotted Owl</span><span class="fav"><span class="eb"></span><span class="bow"></span></span></span>
+    </div>
+    <p class="hoverhint">Plain name (no link — you haven't recorded it) + favicons. Never a dead link.</p>
+  </div><div class="pane"><h3>Map target popup</h3>
+    <div class="popup">
+      <div class="bn bn-inline"><span class="bn-text">Vermilion Flycatcher</span><span class="fav"><span class="eb"></span><span class="bow"></span></span></div>
+      <div class="note" style="margin-top:4px">Seen 3 days ago · 4.2 mi</div>
+    </div>
+  </div></div>
+
+  <h2>4 · Map nearest-targets (pan moves off the name) — D2</h2>
+  <div class="pane">
+    <div class="row-target">
+      <span class="bn bn-inline"><button class="bn-link">Lewis's Woodpecker</button><span class="fav"><span class="eb"></span><span class="bow"></span></span></span>
+      <span style="display:inline-flex;align-items:center;gap:8px"><span class="dist">2.1 mi</span><span class="locate" title="Pan map here">◎</span></span>
+    </div>
+    <div class="row-target">
+      <span class="bn bn-inline"><button class="bn-link">Mountain Bluebird</button><span class="fav"><span class="eb"></span><span class="bow"></span></span></span>
+      <span style="display:inline-flex;align-items:center;gap:8px"><span class="dist">5.8 mi</span><span class="locate" title="Pan map here">◎</span></span>
+    </div>
+    <p class="hoverhint">Name → Species Detail; the ◎ locate icon pans the map.</p>
+  </div>
+</div>
+</body>
+</html>

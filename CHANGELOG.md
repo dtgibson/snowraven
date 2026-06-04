@@ -2,7 +2,10 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [0.5.7] - 2026-06-03
+## [0.5.8] - 2026-06-04
+
+### Added
+- **Consistent, clickable bird names everywhere** — every place a bird's name appears now uses one standard format: the common name links to that species' **Species Detail** entry, followed by quick eBird and Birds of the World icons, with the scientific name shown where there's room. Click a species in the Statistics lists, Map Explorer, Media List, Breeding Codes, or the Life List Comparer and you jump straight to its full history. Where a name used to be a link to something else (for example, the "Most Photographed" lists in Statistics), the **count** now carries that link (to Macaulay Library), and on the map's nearest-targets list a small locate icon does the map pan. Birds you haven't recorded (nemesis/target species) show the name plus icons without a Species Detail link, so it's never a dead end.
 
 ### Improved
 - **Cleaner maps + a base-map switcher** — the maps now use a clean, light CARTO Positron base map by default (replacing the old OpenStreetMap tiles), which reads much better under your sighting pins and data. On the Map Explorer and Species Detail maps, a control in the top-right lets you switch the base map between **Map**, **Satellite** (aerial imagery), and **Topo (US)** (USGS topographic), and toggle a **Trails** overlay that shows hiking paths on top of any base. Your choice is remembered between sessions. All map sources are free and require no API key.

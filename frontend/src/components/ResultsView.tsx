@@ -9,6 +9,9 @@ interface ResultsViewProps {
   sort: SortOrder
   onSortChange: (s: SortOrder) => void
   taxonMap: Record<string, string>
+  /** True when List A is the user's own list (its species have Species Detail entries). */
+  listAIsMine?: boolean
+  onOpenSpecies?: (commonName: string) => void
 }
 
 function sortedSpecies(names: string[], order: Map<string, number>, sort: SortOrder): string[] {
@@ -21,7 +24,7 @@ function sortedSpecies(names: string[], order: Map<string, number>, sort: SortOr
   })
 }
 
-export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onSortChange, taxonMap }: ResultsViewProps) {
+export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onSortChange, taxonMap, listAIsMine = false, onOpenSpecies }: ResultsViewProps) {
   const nameA = listALabel
   const nameB = listBLabel
   const { taxOrder } = result
@@ -126,9 +129,9 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
         gridTemplateColumns: 'repeat(3, 1fr)',
         gap: 12,
       }}>
-        <SpeciesPanel title="In Both" species={displayBoth} taxonMap={taxonMap} />
-        <SpeciesPanel title={`${nameA} only`} species={displayAOnly} taxonMap={taxonMap} />
-        <SpeciesPanel title={`${nameB} only`} species={displayBOnly} taxonMap={taxonMap} />
+        <SpeciesPanel title="In Both" species={displayBoth} taxonMap={taxonMap} hasEntry={listAIsMine} onOpenSpecies={onOpenSpecies} />
+        <SpeciesPanel title={`${nameA} only`} species={displayAOnly} taxonMap={taxonMap} hasEntry={listAIsMine} onOpenSpecies={onOpenSpecies} />
+        <SpeciesPanel title={`${nameB} only`} species={displayBOnly} taxonMap={taxonMap} hasEntry={false} onOpenSpecies={onOpenSpecies} />
       </div>
     </div>
   )

@@ -103,6 +103,8 @@ export default function App() {
   const [filesVersion, setFilesVersion] = useState(0)
   const [keysVersion, setKeysVersion] = useState(0)
   const [mediaListFilter, setMediaListFilter] = useState<'is-target' | undefined>(undefined)
+  // Click any bird name → open + select it on the Species Detail tab (single-use).
+  const [requestedSpecies, setRequestedSpecies] = useState<string | undefined>(undefined)
 
   const handleFilesSaved = useCallback(() => setFilesVersion(v => v + 1), [])
 
@@ -112,6 +114,13 @@ export default function App() {
   }, [])
 
   const resetMediaListFilter = useCallback(() => setMediaListFilter(undefined), [])
+
+  const navigateToSpeciesDetail = useCallback((commonName: string) => {
+    setActiveTab('species-detail')
+    setRequestedSpecies(commonName)
+  }, [])
+
+  const clearRequestedSpecies = useCallback(() => setRequestedSpecies(undefined), [])
 
   // Persist the layout durably per platform: storage seam on desktop (file-backed,
   // survives relaunch), localStorage on web/Pi (durable there and read synchronously
@@ -593,7 +602,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <ListComparer />
+        <ListComparer onOpenSpecies={navigateToSpeciesDetail} />
       </div>
 
       {/* Life List tab content */}
@@ -613,6 +622,7 @@ export default function App() {
           requestedFilter={mediaListFilter}
           onRequestedFilterConsumed={resetMediaListFilter}
           filesVersion={filesVersion}
+          onOpenSpecies={navigateToSpeciesDetail}
         />
       </div>
 
@@ -628,7 +638,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} />
+        <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
       </div>
 
       {/* Species Detail tab content */}
@@ -643,7 +653,12 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <SpeciesDetail onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} />
+        <SpeciesDetail
+          onGoToSettings={() => setActiveTab('settings')}
+          filesVersion={filesVersion}
+          requestedSpecies={requestedSpecies}
+          onRequestedSpeciesConsumed={clearRequestedSpecies}
+        />
       </div>
 
       {/* Map Explorer tab content */}
@@ -666,6 +681,7 @@ export default function App() {
           keysVersion={keysVersion}
           isFullscreen={mapFullscreen}
           onToggleFullscreen={() => setMapFullscreen(v => !v)}
+          onOpenSpecies={(name) => { setMapFullscreen(false); navigateToSpeciesDetail(name) }}
         />
       </div>
 
@@ -681,7 +697,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <BirdingStats onGoToSettings={() => setActiveTab('settings')} />
+        <BirdingStats onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
       </div>
 
       {/* Settings tab content */}

@@ -17,6 +17,7 @@ import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
+import { BirdName } from './BirdName'
 import { BREEDING_CODE_MAP } from '../lib/breedingCodes'
 import { SetupRequired } from './SetupRequired'
 import type { ObservationEntry, ChecklistEntry } from '../types'
@@ -243,7 +244,7 @@ function TopLocationsBoundsFitter({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void }) {
+export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings: () => void; onOpenSpecies?: (commonName: string) => void }) {
   const [phase, setPhase]           = useState<Phase>({ tag: 'loading-saved' })
   const [mapDefaults, setMapDefaults] = useState<MapDefaults | null>(null)
   const [includeSpuh, setIncludeSpuh] = useState(false)
@@ -297,11 +298,17 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         const mlMatch = status.ml?.filename.match(ML_USER_RE)
         if (mlMatch) setMlUserId(mlMatch[1])
 
-        if (mlRows.length > 0) {
-          const seenNames = new Map<string, string>()
-          for (const r of mlRows) {
-            if (!seenNames.has(r.commonName)) seenNames.set(r.commonName, r.scientificName)
-          }
+        // Resolve eBird taxon codes for EVERY observed species (+ any ML-only
+        // species) so the BirdName favicons appear consistently across all Stats
+        // lists — not just for species that happen to have Macaulay media.
+        const seenNames = new Map<string, string>()
+        for (const o of observations) {
+          if (!seenNames.has(o.commonName)) seenNames.set(o.commonName, o.scientificName)
+        }
+        for (const r of mlRows) {
+          if (!seenNames.has(r.commonName)) seenNames.set(r.commonName, r.scientificName)
+        }
+        if (seenNames.size > 0) {
           const species = [...seenNames.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
           try {
             const data = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
@@ -361,6 +368,26 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
   const rawObs = phase.tag === 'ready' ? phase.observations : EMPTY_OBS
   const rawMlRows = phase.tag === 'ready' ? phase.mlRows : EMPTY_ML
   const freshness = phase.tag === 'ready' ? phase.freshness : ''
+
+  // Normalized common names the user has recorded — i.e. species that HAVE a
+  // Species Detail entry. Drives whether a BirdName links (vs. plain + favicons).
+  const backboneNames = useMemo(
+    () => new Set(rawObs.map(o => normalizeSpeciesName(o.commonName))),
+    [rawObs],
+  )
+  const hasEntryFor = (name: string) => backboneNames.has(normalizeSpeciesName(name))
+  // Normalized taxon-code lookup so the (normalized) names in Stats lists resolve
+  // to a code even when the resolved map is keyed by the original (subspecies) name.
+  const normTaxon = useMemo(() => {
+    const m: Record<string, string> = {}
+    for (const [name, code] of Object.entries(mlTaxonMap)) m[normalizeSpeciesName(name)] = code
+    for (const [name, code] of Object.entries(nemesisTaxonMap)) {
+      const k = normalizeSpeciesName(name)
+      if (!(k in m)) m[k] = code
+    }
+    return m
+  }, [mlTaxonMap, nemesisTaxonMap])
+  const codeFor = (name: string) => mlTaxonMap[name] ?? nemesisTaxonMap[name] ?? normTaxon[normalizeSpeciesName(name)]
 
   // ── useMemos (all declared before any conditional return) ─────────────────
 
@@ -1054,7 +1081,15 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                   background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
                 }}>
                   <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>First species ever</p>
-                  <p style={{ fontSize: 15, fontWeight: 700, margin: '0 0 3px' }}>{accumulation.firstSpecies.name}</p>
+                  <div style={{ margin: '0 0 3px' }}>
+                    <BirdName
+                      commonName={accumulation.firstSpecies.name}
+                      taxonCode={codeFor(accumulation.firstSpecies.name)}
+                      hasEntry={hasEntryFor(accumulation.firstSpecies.name)}
+                      onOpenSpecies={onOpenSpecies}
+                      size="lg"
+                    />
+                  </div>
                   <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: 0 }}>{fmtDate(accumulation.firstSpecies.date)}</p>
                 </div>
               )}
@@ -1234,7 +1269,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                     }}>✓</div>
                     <span style={{ fontSize: 20, fontWeight: 700, lineHeight: 1, color: ts.num }}>{threshold}</span>
-                    <span style={{ fontSize: 10, color: 'var(--sr-text-muted)', textAlign: 'center', maxWidth: 84, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.species}</span>
+                    <BirdName commonName={m.species} taxonCode={codeFor(m.species)} hasEntry={hasEntryFor(m.species)} onOpenSpecies={onOpenSpecies} size="sm" />
                     {SUBMISSION_ID_RE.test(m.submissionId) ? (
                       <a href={`https://ebird.org/checklist/${m.submissionId}`} target="_blank" rel="noreferrer"
                         style={{ fontSize: 10, color: ts.date, textDecoration: 'none' }}>
@@ -1895,7 +1930,9 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                 <tbody>
                   {quality.biggestCounts.map((entry, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid var(--sr-border-subtle)' }}>
-                      <td style={{ padding: '5px 8px', textAlign: 'left' }}>{entry.name}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'left' }}>
+                        <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
+                      </td>
                       <td style={{ padding: '5px 8px', textAlign: 'right' }}>
                         {SUBMISSION_ID_RE.test(entry.submissionId) ? (
                           <a
@@ -1931,28 +1968,16 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
         {funStats.singleChecklistBirds.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {funStats.singleChecklistBirds.map(bird => (
-              SUBMISSION_ID_RE.test(bird.submissionId) ? (
-                <a
-                  key={bird.name}
-                  href={`https://ebird.org/checklist/${bird.submissionId}`}
-                  target="_blank" rel="noreferrer"
-                  style={{
-                    fontSize: 12, padding: '3px 10px', borderRadius: 100,
-                    background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-                    color: 'var(--sr-accent)', textDecoration: 'none',
-                  }}
-                >
-                  {bird.name}
-                </a>
-              ) : (
-                <span key={bird.name} style={{
-                  fontSize: 12, padding: '3px 10px', borderRadius: 100,
-                  background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-                  color: 'var(--sr-text-muted)',
-                }}>
-                  {bird.name}
-                </span>
-              )
+              <span key={bird.name} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '3px 10px', borderRadius: 100,
+                background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+              }}>
+                <BirdName commonName={bird.name} taxonCode={codeFor(bird.name)} hasEntry={hasEntryFor(bird.name)} onOpenSpecies={onOpenSpecies} size="sm" />
+                {SUBMISSION_ID_RE.test(bird.submissionId) && (
+                  <a href={`https://ebird.org/checklist/${bird.submissionId}`} target="_blank" rel="noreferrer" title="Open checklist" style={{ color: 'var(--sr-accent)', textDecoration: 'none', fontSize: 11 }}>↗</a>
+                )}
+              </span>
             ))}
           </div>
         )}
@@ -1968,28 +1993,16 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {funStats.oneDoneBirds.map(bird => (
-                SUBMISSION_ID_RE.test(bird.submissionId) ? (
-                  <a
-                    key={bird.name}
-                    href={`https://ebird.org/checklist/${bird.submissionId}`}
-                    target="_blank" rel="noreferrer"
-                    style={{
-                      fontSize: 12, padding: '3px 10px', borderRadius: 100,
-                      background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-                      color: 'var(--sr-accent)', textDecoration: 'none',
-                    }}
-                  >
-                    {bird.name}
-                  </a>
-                ) : (
-                  <span key={bird.name} style={{
-                    fontSize: 12, padding: '3px 10px', borderRadius: 100,
-                    background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
-                    color: 'var(--sr-text-muted)',
-                  }}>
-                    {bird.name}
-                  </span>
-                )
+                <span key={bird.name} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '3px 10px', borderRadius: 100,
+                  background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+                }}>
+                  <BirdName commonName={bird.name} taxonCode={codeFor(bird.name)} hasEntry={hasEntryFor(bird.name)} onOpenSpecies={onOpenSpecies} size="sm" />
+                  {SUBMISSION_ID_RE.test(bird.submissionId) && (
+                    <a href={`https://ebird.org/checklist/${bird.submissionId}`} target="_blank" rel="noreferrer" title="Open checklist" style={{ color: 'var(--sr-accent)', textDecoration: 'none', fontSize: 11 }}>↗</a>
+                  )}
+                </span>
               ))}
             </div>
           </>
@@ -2190,14 +2203,16 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                 {mlStats.mostPhotographed.map((entry, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
+                    </span>
                     <a
                       href={mlCatalogUrl(entry.name, 'Photo', mlUserId, mlTaxonMap[entry.name])}
                       target="_blank" rel="noreferrer"
-                      style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                      style={{ fontSize: 11, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
                     >
-                      {entry.name}
+                      {fmt(entry.count)} photos
                     </a>
-                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} photos</span>
                   </div>
                 ))}
               </div>
@@ -2211,14 +2226,16 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                 {mlStats.mostAudio.map((entry, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
+                    </span>
                     <a
                       href={mlCatalogUrl(entry.name, 'Audio', mlUserId, mlTaxonMap[entry.name])}
                       target="_blank" rel="noreferrer"
-                      style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                      style={{ fontSize: 11, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
                     >
-                      {entry.name}
+                      {fmt(entry.count)} recordings
                     </a>
-                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} recordings</span>
                   </div>
                 ))}
               </div>
@@ -2232,14 +2249,16 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                 {mlStats.mostVideo.map((entry, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
+                    </span>
                     <a
                       href={mlCatalogUrl(entry.name, 'Video', mlUserId, mlTaxonMap[entry.name])}
                       target="_blank" rel="noreferrer"
-                      style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                      style={{ fontSize: 11, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
                     >
-                      {entry.name}
+                      {fmt(entry.count)} videos
                     </a>
-                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmt(entry.count)} videos</span>
                   </div>
                 ))}
               </div>
@@ -2302,18 +2321,15 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
               return (
                 <div key={bird.commonName} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-                  {taxonCode ? (
-                    <a
-                      href={`https://ebird.org/species/${taxonCode}`}
-                      target="_blank" rel="noreferrer"
-                      style={{ fontSize: 13, flex: 1, color: 'var(--sr-accent)', textDecoration: 'none' }}
-                    >
-                      {bird.commonName}
-                    </a>
-                  ) : (
-                    <span style={{ fontSize: 13, flex: 1 }}>{bird.commonName}</span>
-                  )}
-                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{fmtDate(bird.recentDate)}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <BirdName
+                      commonName={bird.commonName}
+                      taxonCode={taxonCode ?? undefined}
+                      hasEntry={hasEntryFor(bird.commonName)}
+                      onOpenSpecies={onOpenSpecies}
+                    />
+                  </span>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0 }}>{fmtDate(bird.recentDate)}</span>
                 </div>
               )
             })}

@@ -1,12 +1,15 @@
-import { SpeciesLinks } from './SpeciesLinks'
+import { BirdName } from './BirdName'
 
 interface SpeciesPanelProps {
   title: string
   species: string[]
   taxonMap?: Record<string, string>
+  /** True ⇒ these species are in the user's data (link the name to Species Detail). */
+  hasEntry?: boolean
+  onOpenSpecies?: (commonName: string) => void
 }
 
-export function SpeciesPanel({ title, species, taxonMap = {} }: SpeciesPanelProps) {
+export function SpeciesPanel({ title, species, taxonMap = {}, hasEntry = false, onOpenSpecies }: SpeciesPanelProps) {
   return (
     <div style={{
       border: '1px solid var(--sr-border)',
@@ -76,8 +79,7 @@ export function SpeciesPanel({ title, species, taxonMap = {} }: SpeciesPanelProp
                 alignItems: 'center',
               }}
             >
-              {name}
-              <SpeciesLinks speciesCode={taxonMap[name]} />
+              <BirdName commonName={name} taxonCode={taxonMap[name]} hasEntry={hasEntry} onOpenSpecies={onOpenSpecies} />
             </li>
           ))
         )}

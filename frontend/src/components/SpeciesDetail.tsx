@@ -1,7 +1,7 @@
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, Loader2, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
@@ -18,6 +18,7 @@ import type { MLExportRow } from '../lib/parseMLExport'
 import { buildGraphData, type GraphPoint, type GraphInterval } from '../lib/sightingsGraph'
 import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
 import { SpeciesLinks } from './SpeciesLinks'
+import { BirdName } from './BirdName'
 import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
@@ -428,7 +429,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings: () => void; filesVersion?: number }) {
+export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, onRequestedSpeciesConsumed }: { onGoToSettings: () => void; filesVersion?: number; requestedSpecies?: string; onRequestedSpeciesConsumed?: () => void }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -614,6 +615,41 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
       return (sciNameMap.get(name) ?? '').toLowerCase().includes(q)
     })
   }, [displaySpeciesList, selectorQuery, sciNameMap])
+
+  // Select a species and scroll the detail back to the top (used by in-tab
+  // BirdName clicks — Reported With / Top Locations — and external requests).
+  const rootRef = useRef<HTMLDivElement>(null)
+  const openSpeciesInTab = useCallback((name: string) => {
+    const target = mergeSubspecies ? normalizeSpeciesName(name) : name
+    const match = displaySpeciesList.includes(target)
+      ? target
+      : displaySpeciesList.find(n => normalizeSpeciesName(n) === normalizeSpeciesName(name))
+    if (!match) return
+    selectSpecies(match)
+    requestAnimationFrame(() => rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }, [mergeSubspecies, displaySpeciesList])
+
+  // Consume an external "open this species" request once data is ready (single-use).
+  // Deferred to a microtask so the selection state-update isn't applied
+  // synchronously inside the effect (mirrors the LifeList requestedFilter pattern).
+  useEffect(() => {
+    if (phase.tag !== 'ready' || !requestedSpecies) return
+    queueMicrotask(() => {
+      openSpeciesInTab(requestedSpecies)
+      onRequestedSpeciesConsumed?.()
+    })
+  }, [phase.tag, requestedSpecies, openSpeciesInTab, onRequestedSpeciesConsumed])
+
+  // Resolve an eBird taxon code for any species name (handles subspecies merge).
+  const taxonCodeFor = useCallback((name: string): string | undefined => {
+    const direct = taxonMap[name]
+    if (direct) return direct
+    const norm = normalizeSpeciesName(name)
+    for (const [k, code] of Object.entries(taxonMap)) {
+      if (normalizeSpeciesName(k) === norm) return code
+    }
+    return undefined
+  }, [taxonMap])
 
   const counties = useMemo(() => {
     if (phase.tag !== 'ready') return []
@@ -925,7 +961,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
 
   // ── Ready state ────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+    <div ref={rootRef} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
@@ -1550,8 +1586,8 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                         <span style={{ width: 20, textAlign: 'right' as const, fontSize: 11, color: 'var(--sr-text-disabled)', flexShrink: 0 }}>
                           {idx + 1}
                         </span>
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--sr-text)', minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {r.name}
+                        <span style={{ flex: 1, minWidth: 0 }}>
+                          <BirdName commonName={r.name} taxonCode={taxonCodeFor(r.name)} hasEntry onOpenSpecies={openSpeciesInTab} />
                         </span>
                         <div style={{ width: 100, height: 5, background: 'var(--sr-surface-subtle)', borderRadius: 3, flexShrink: 0, overflow: 'hidden' }}>
                           <div style={{ height: '100%', borderRadius: 3, background: 'var(--sr-accent)', opacity: 0.55, width: `${Math.round((r.pct / maxPct) * 100)}%` }} />

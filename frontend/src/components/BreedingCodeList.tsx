@@ -81,7 +81,7 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSettings: () => void; filesVersion?: number }) {
+export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }: { onGoToSettings: () => void; filesVersion?: number; onOpenSpecies?: (commonName: string) => void }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<Set<string>>(new Set())
   const [categoryFilter, setCategoryFilter] = useState<Set<BreedingCategory>>(new Set())
@@ -491,6 +491,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion }: { onGoToSetti
         taxonMap={taxonMap}
         taxonOrders={taxonOrders}
         wideMode={wideMode}
+        onOpenSpecies={onOpenSpecies}
       />
     </div>
   )

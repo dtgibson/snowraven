@@ -152,11 +152,12 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
-export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterConsumed, filesVersion }: {
+export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterConsumed, filesVersion, onOpenSpecies }: {
   onGoToSettings: () => void
   requestedFilter?: 'is-target'
   onRequestedFilterConsumed?: () => void
   filesVersion?: number
+  onOpenSpecies?: (commonName: string) => void
 }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [filter, setFilter] = useState<MediaFilterState>(MEDIA_FILTER_CLEAR)
@@ -715,6 +716,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         taxonMap={taxonMap}
         taxonOrders={taxonOrders}
         wideMode={wideMode}
+        onOpenSpecies={onOpenSpecies}
+        hasEbirdBackbone={phase.tag === 'ready' && phase.hasEbirdBackbone}
       />
     </div>
   )

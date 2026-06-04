@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { BREEDING_CODE_MAP, TIER_COLORS } from '../lib/breedingCodes'
 import type { BreedingEntry } from '../lib/parseBreedingCodes'
 import type { BreedingSortState, SortDir } from '../types'
-import { SpeciesLinks } from './SpeciesLinks'
+import { BirdName } from './BirdName'
 
 interface Props {
   entries: BreedingEntry[]
@@ -13,6 +13,7 @@ interface Props {
   taxonMap: Record<string, string>
   taxonOrders: Record<string, number>
   wideMode: boolean
+  onOpenSpecies?: (commonName: string) => void
 }
 
 const TIER_LABELS: Record<number, string> = {
@@ -22,7 +23,7 @@ const TIER_LABELS: Record<number, string> = {
   1: 'Possible',
 }
 
-export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, taxonMap, taxonOrders, wideMode }: Props) {
+export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, taxonMap, taxonOrders, wideMode, onOpenSpecies }: Props) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
   const filtered = filter.size === 0
@@ -169,19 +170,14 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     verticalAlign: 'middle',
                     fontWeight: 'normal',
                   }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--sr-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {entry.commonName}
-                        </span>
-                        <SpeciesLinks speciesCode={taxonMap[entry.commonName]} />
-                      </div>
-                      {entry.scientificName && (
-                        <span style={{ fontSize: 11.5, color: 'var(--sr-text-gray)', fontStyle: 'italic' }}>
-                          {entry.scientificName}
-                        </span>
-                      )}
-                    </div>
+                    <BirdName
+                      commonName={entry.commonName}
+                      scientificName={entry.scientificName}
+                      taxonCode={taxonMap[entry.commonName]}
+                      hasEntry={!!onOpenSpecies}
+                      onOpenSpecies={onOpenSpecies}
+                      showSci
+                    />
                   </th>
                   {codesPresent.map(code => {
                     const count = entry.codes[code] ?? 0

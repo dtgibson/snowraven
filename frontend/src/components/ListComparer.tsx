@@ -8,7 +8,7 @@ import { ResultsView } from './ResultsView'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 
-export function ListComparer() {
+export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: string) => void }) {
   const [storedEbirdStatus, setStoredEbirdStatus] = useState<'loading' | 'available' | 'unavailable'>('loading')
   const [listAMode, setListAMode] = useState<'my-list' | 'upload'>('my-list')
   const [fileA, setFileA] = useState<FileData | null>(null)
@@ -21,6 +21,8 @@ export function ListComparer() {
   const [comparing, setComparing] = useState(false)
   const [listALabel, setListALabel] = useState('My List')
   const [listBLabel, setListBLabel] = useState('Other List')
+  // Whether List A is the user's own stored backup (⇒ those species have Species Detail entries).
+  const [resultAIsMine, setResultAIsMine] = useState(false)
 
   useEffect(() => {
     storage.getFilesStatus()
@@ -102,6 +104,7 @@ export function ListComparer() {
 
       const compResult = compareSpecies(listA, fileB)
       setResult(compResult)
+      setResultAIsMine(listAMode === 'my-list')
       fetchTaxonCodes([...compResult.both, ...compResult.aOnly, ...compResult.bOnly])
     } catch {
       setErrorA("Couldn't load your eBird backup. Try re-uploading it in Settings.")
@@ -144,6 +147,8 @@ export function ListComparer() {
           sort={sort}
           onSortChange={setSort}
           taxonMap={taxonMap}
+          listAIsMine={resultAIsMine}
+          onOpenSpecies={onOpenSpecies}
         />
       ) : (
         <div style={{ width: '100%', maxWidth: 600 }}>

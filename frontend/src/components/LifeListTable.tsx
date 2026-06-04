@@ -1,7 +1,7 @@
 import { Camera, Mic, Video, Minus } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import type { MediaFilterState, SortColumn, SortDir, SortState } from '../types'
-import { SpeciesLinks } from './SpeciesLinks'
+import { BirdName } from './BirdName'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 
 interface Props {
@@ -14,6 +14,10 @@ interface Props {
   taxonMap: Record<string, string>
   taxonOrders: Record<string, number>
   wideMode: boolean
+  /** Navigate to + select a species on Species Detail (when a backbone entry exists). */
+  onOpenSpecies?: (commonName: string) => void
+  /** True when the eBird backbone is loaded (so bird entries have a Species Detail entry). */
+  hasEbirdBackbone?: boolean
 }
 
 function hasMedia(
@@ -53,7 +57,7 @@ const iconCell: React.CSSProperties = {
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, wideMode }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, wideMode, onOpenSpecies, hasEbirdBackbone }: Props) {
   const filtered = entries.filter(entry => {
     if (filter.photo === 'has' && !hasMedia(entry, mediaMap, 'Photo')) return false
     if (filter.photo === 'no' && hasMedia(entry, mediaMap, 'Photo')) return false
@@ -232,17 +236,14 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 onMouseLeave={e => (e.currentTarget.style.background = '')}
               >
                 <td style={{ padding: '9px 14px', verticalAlign: 'middle' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--sr-text)' }}>
-                        {entry.commonName}
-                      </span>
-                      <SpeciesLinks speciesCode={taxonMap[entry.commonName]} />
-                    </div>
-                    <span style={{ fontSize: 11.5, color: 'var(--sr-text-gray)', fontStyle: 'italic' }}>
-                      {entry.scientificName}
-                    </span>
-                  </div>
+                  <BirdName
+                    commonName={entry.commonName}
+                    scientificName={entry.scientificName}
+                    taxonCode={taxonMap[entry.commonName]}
+                    hasEntry={!!onOpenSpecies && !!hasEbirdBackbone && !(entry.isNonBird ?? false)}
+                    onOpenSpecies={onOpenSpecies}
+                    showSci
+                  />
                 </td>
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>

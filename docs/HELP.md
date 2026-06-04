@@ -91,6 +91,8 @@ The Species Detail tab shows a complete history of your observations for any spe
 
 Select a species from the dropdown at the top -- type to search by common name or scientific name. All sections update immediately when you select a species. Switching species is instant; all data is parsed client-side from the stored file.
 
+**Clicking bird names anywhere.** Throughout the app, a bird's common name is rendered in a consistent format: the name is a link that opens that species here on Species Detail (for any species in your data), followed by small icons linking to its eBird and Birds of the World pages, with the scientific name shown where there's room. So you can click a species in the Statistics lists, the Map Explorer, the Media List, Breeding Codes, or the Life List Comparer to jump straight to its full history. For a bird you haven't recorded yet (such as a nemesis or map target species), the name appears with the eBird/Birds of the World icons but without a Species Detail link, since there's no entry to open.
+
 The tab shows the following sections for each species:
 
 - Summary: common name, scientific name, media coverage indicators (Photo, Audio, Video -- filled when data is available from your ML export), and your highest breeding evidence category.

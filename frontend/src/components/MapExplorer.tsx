@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Camera, ChevronDown, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { AlertCircle, Camera, ChevronDown, Crosshair, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
@@ -20,6 +20,8 @@ import { AtlasTierPatterns } from './AtlasTierPatterns'
 import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { HEAT_INTENSITY_DEFAULT, heatRadius, heatBlur, heatMax, heatWeight } from '../lib/heat'
+import { normalizeSpeciesName } from '../lib/speciesUtils'
+import { BirdName } from './BirdName'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -117,6 +119,8 @@ interface MapExplorerProps {
   isFullscreen?: boolean
   /** Toggle mobile fullscreen. When absent, the fullscreen button is hidden. */
   onToggleFullscreen?: () => void
+  /** Navigate to + select a species on the Species Detail tab. */
+  onOpenSpecies?: (commonName: string) => void
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -431,7 +435,12 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
   )
 }
 
-function TargetMarkers({ pins }: { pins: DisplayTargetPin[] }) {
+function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
+  pins: DisplayTargetPin[]
+  speciesCodeMap: Record<string, string>
+  hasEntryFor: (name: string) => boolean
+  onOpenSpecies?: (commonName: string) => void
+}) {
   const map = useMap()
 
   useEffect(() => {
@@ -490,7 +499,7 @@ function TargetMarkers({ pins }: { pins: DisplayTargetPin[] }) {
                   return (
                     <div key={pin.speciesCode} style={{ paddingTop: j > 0 ? 8 : 0, marginTop: j > 0 ? 8 : 0, borderTop: j > 0 ? '1px solid #E4E4E7' : 'none' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 700, fontSize: 12, color: '#0F1117' }}>{pin.comName}</span>
+                        <BirdName commonName={pin.comName} taxonCode={speciesCodeMap[pin.comName]} hasEntry={hasEntryFor(pin.comName)} onOpenSpecies={onOpenSpecies} size="sm" />
                         {pin.missingTypes.map(t => (
                           <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 4px', background: 'var(--sr-surface-subtle)', borderRadius: 4, fontSize: 10, color: 'var(--sr-text-muted)', gap: 2 }}>
                             {t === 'Photo' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>}
@@ -618,7 +627,7 @@ function DefaultCenterSetter({ center, onDone }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion, isFullscreen, onToggleFullscreen }: MapExplorerProps) {
+export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion, isFullscreen, onToggleFullscreen, onOpenSpecies }: MapExplorerProps) {
   const [phase, setPhase] = useState<MapPhase>({ tag: 'loading-saved' })
   const [viewMode, setViewMode] = useState<ViewMode>('sightings')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('pins')
@@ -871,6 +880,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     if (phase.tag !== 'ready') return []
     return [...new Set(phase.observations.map(o => o.commonName))].sort()
   }, [phase])
+
+  // Normalized names the user has recorded (⇒ they have a Species Detail entry).
+  const recordedNames = useMemo(
+    () => phase.tag === 'ready'
+      ? new Set(phase.observations.map(o => normalizeSpeciesName(o.commonName)))
+      : new Set<string>(),
+    [phase],
+  )
+  const hasEntryFor = useCallback((name: string) => recordedNames.has(normalizeSpeciesName(name)), [recordedNames])
 
   const allCounties = useMemo((): string[] => {
     if (phase.tag !== 'ready') return []
@@ -1702,15 +1720,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 const { bg, text } = tierColors(tier)
                 const isSelected = selectedTargetKey === key
                 return (
-                  <button tabIndex={0}
+                  <div
                     key={key}
-                    onClick={() => { setSelectedTargetKey(key); setPanTarget({ lat: pin.lat, lng: pin.lng }) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8, width: '100%',
                       padding: '6px 8px', marginBottom: 2, borderRadius: 6,
                       background: isSelected ? 'var(--sr-accent-bg)' : 'transparent',
                       border: `1px solid ${isSelected ? 'var(--sr-accent-border)' : 'transparent'}`,
-                      cursor: 'pointer', textAlign: 'left',
                     }}
                   >
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: bg, border: `1px solid ${text === 'white' ? 'transparent' : 'var(--sr-border)'}`, flexShrink: 0 }}>
@@ -1719,11 +1735,24 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                       </span>
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.comName}</div>
+                      <BirdName commonName={pin.comName} taxonCode={speciesCodeMap[pin.comName]} hasEntry={hasEntryFor(pin.comName)} onOpenSpecies={onOpenSpecies} size="sm" />
                       <div style={{ fontSize: 10, color: 'var(--sr-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</div>
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0 }}>{dist.toFixed(1)} mi</div>
-                  </button>
+                    <button
+                      tabIndex={0}
+                      onClick={() => { setSelectedTargetKey(key); setPanTarget({ lat: pin.lat, lng: pin.lng }) }}
+                      title="Show on map"
+                      aria-label={`Show ${pin.comName} on the map`}
+                      style={{
+                        flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        width: 26, height: 26, borderRadius: 6, cursor: 'pointer',
+                        background: 'transparent', border: '1px solid var(--sr-border)', color: 'var(--sr-text-muted)',
+                      }}
+                    >
+                      <Crosshair size={13} strokeWidth={2.2} />
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -1892,7 +1921,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} />
               )}
               {viewMode === 'targets' && targetPins && (
-                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} />
+                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
               )}
             </MapContainer>
           )}

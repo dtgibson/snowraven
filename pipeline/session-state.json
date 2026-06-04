@@ -1,13 +1,13 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 6,
-  "sessionType": "maintain",
-  "currentStage": 6,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
+  "activeFeature": "standard-bird-name-format",
+  "sessionNumber": 7,
+  "sessionType": "feature",
+  "currentStage": 7,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
   "releasedVersion": "0.5.7",
-  "confirmedArtifacts": ["pipeline/map-basemap-carto-positron/change-brief.md", "pipeline/map-basemap-carto-positron/qa-report.md", "pipeline/map-basemap-carto-positron/security-review.md"],
-  "awaitingHuman": null,
-  "createdAt": "2026-06-03T07:30:00Z",
-  "updatedAt": "2026-06-04T06:40:00Z"
+  "confirmedArtifacts": ["pipeline/standard-bird-name-format/strategic-brief.md", "pipeline/standard-bird-name-format/prd.md", "pipeline/standard-bird-name-format/schema.md", "pipeline/standard-bird-name-format/design-spec.md", "pipeline/standard-bird-name-format/design.html", "pipeline/standard-bird-name-format/qa-report.md", "pipeline/standard-bird-name-format/security-review.md"],
+  "awaitingHuman": { "gateId": "feature-stage-7", "stage": 7, "openedAt": "2026-06-04T12:25:00Z" },
+  "createdAt": "2026-06-04T07:00:00Z",
+  "updatedAt": "2026-06-04T07:00:00Z"
 }
