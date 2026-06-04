@@ -2,7 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [0.5.6] - 2026-06-02
+## [0.5.7] - 2026-06-03
+
+### Improved
+- **Cleaner maps + a base-map switcher** — the maps now use a clean, light CARTO Positron base map by default (replacing the old OpenStreetMap tiles), which reads much better under your sighting pins and data. On the Map Explorer and Species Detail maps, a control in the top-right lets you switch the base map between **Map**, **Satellite** (aerial imagery), and **Topo (US)** (USGS topographic), and toggle a **Trails** overlay that shows hiking paths on top of any base. Your choice is remembered between sessions. All map sources are free and require no API key.
+
+### Changed
+- The empty area around the map now matches the active base map's tone (light for street/topo, dark for satellite).
+
+### Privacy
+- The Privacy Policy now discloses the map-tile providers (CARTO, Esri, USGS, Waymarked Trails). Map tiles are fetched directly from these providers as you pan and zoom, with no SnowRaven server in between and no tracking added — the same model as before, now documented.
 
 ### Documentation
 - **In-app Help and README accuracy pass** — corrected and filled gaps in the documentation to match the current app: the Help intro now notes the app runs on Windows as well as Mac and Raspberry Pi; the Map Explorer atlas-shading description no longer references a non-existent "Observed" breeding level (the levels are Confirmed, Probable, Possible); file-storage wording is now platform-neutral (desktop local data directory vs. server); the My Sightings section documents its County, Media, and Radius controls; and new entries cover the desktop "Rebuild caches" troubleshooting button and how to check for and install in-app updates. The README's Security note is now scoped to the Raspberry Pi / self-hosted install (the desktop apps run no server).

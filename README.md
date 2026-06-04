@@ -9,7 +9,7 @@ SnowRaven turns your own eBird and Macaulay Library exports into a personal bird
 - **Weather Lookup** — paste an eBird checklist ID and get a formatted historical weather summary (temperature, wind, humidity, dew point, sunrise/sunset) ready to paste into your checklist comment.
 - **Species Detail** — your complete history with any species: sighting stats, breeding codes, co-occurring species, field notes, top locations, a map of every observation, and embedded Macaulay Library media.
 - **Statistics** — a nine-card analytics dashboard: life-list totals and growth, firsts and milestones, temporal and geographic patterns, effort and methodology, data quality, breeding stats, media trends, and nearby target species.
-- **Map Explorer** — an interactive map of your sightings (with heatmap), nearby eBird hotspots colored by whether you've visited them, media targets, and an optional California Breeding Bird Atlas overlay.
+- **Map Explorer** — an interactive map of your sightings (with heatmap), nearby eBird hotspots colored by whether you've visited them, media targets, and an optional California Breeding Bird Atlas overlay. Switchable street / satellite / topo basemaps plus a hiking-trails overlay.
 - **Media List** — your life list with photo/audio/video coverage per species, to find what you still need to capture.
 - **Breeding Codes** — every species you've recorded a breeding code for, as a color-coded matrix across all eBird codes.
 - **Life List Comparer** — compare your life list against another birder's to see shared and unique species.

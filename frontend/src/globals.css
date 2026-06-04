@@ -88,7 +88,7 @@
   --sr-map-target-old-text: #1A5C38;
   /* Leaflet container backdrop — matches the OSM ocean tone so uncovered
      areas (beyond the world / before tiles load) blend with the sea, not grey. */
-  --sr-map-void:            #AAD3DF;
+  --sr-map-void:            #e7eaec;
   /* Atlas block grid overlay — neutral slate, distinct from data pins */
   --sr-map-atlas:           #475569;
   --sr-map-atlas-rgb:       71,85,105;
@@ -178,7 +178,7 @@
   --sr-map-target-old:      #A7F3D0;
   --sr-map-target-old-text: #0D3321;
   /* OSM standard tiles stay light in dark mode, so the ocean tone is the same. */
-  --sr-map-void:            #AAD3DF;
+  --sr-map-void:            #e7eaec;
   --sr-map-atlas:           #94A3B8;
   --sr-map-atlas-rgb:       148,163,184;
 }
@@ -193,6 +193,55 @@
    The doubled class raises specificity above Leaflet's own `.leaflet-container`
    rule, which is bundled after globals.css and would otherwise win the cascade. */
 .leaflet-container.leaflet-container { background: var(--sr-map-void); }
+
+/* Brand-styled basemap switcher (MapBaseLayers) — rendered as a Leaflet control
+   via a portal. Segmented base selector + a trails toggle, theme-aware tokens. */
+.sr-map-layers {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 7px;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  font-family: var(--font-sans);
+}
+.sr-map-layers-seg {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--sr-surface-subtle);
+  border-radius: 7px;
+  padding: 2px;
+}
+.sr-map-layers-seg button {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--sr-text-muted);
+  background: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.sr-map-layers-seg button.is-active {
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.sr-map-layers-trails {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+  font-size: 12px;
+  color: var(--sr-text);
+  cursor: pointer;
+}
+.sr-map-layers-trails input { accent-color: var(--sr-accent); cursor: pointer; }
 
 /* Atlas block outlines (Map Explorer overlay). Stroke set as a CSS property so
    the var() resolves and reacts to light/dark — Leaflet's `color` option writes

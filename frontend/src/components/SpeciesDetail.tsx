@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, Loader2, ChevronDown,
@@ -23,6 +23,7 @@ import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 import { HEAT_INTENSITY_DEFAULT, heatRadius, heatBlur, heatMax, heatWeight } from '../lib/heat'
+import { MapBaseLayers } from './MapBaseLayers'
 
 // Leaflet marker icon patch for Vite asset handling
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1708,10 +1709,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion }: { onGoToSettings
                   style={{ height: '100%', width: '100%' }}
                   scrollWheelZoom={false}
                 >
-                  <TileLayer
-                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  />
+                  <MapBaseLayers switcher />
                   {mapMode === 'pins' && coordMarkers.map(m => (
                     <Marker key={`${m.lat},${m.lng}`} position={[m.lat, m.lng]}>
                       <Popup>

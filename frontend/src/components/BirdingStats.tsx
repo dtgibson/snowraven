@@ -8,8 +8,9 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, Legend,
 } from 'recharts'
 import L from 'leaflet'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { MapBaseLayers } from './MapBaseLayers'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
@@ -1395,10 +1396,7 @@ export function BirdingStats({ onGoToSettings }: { onGoToSettings: () => void })
                 center={[0, 0]} zoom={2} zoomControl
                 style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)' }}
               >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                />
+                <MapBaseLayers />
                 <TopLocationsBoundsFitter checklistPins={clPins} speciesPins={spPins} />
                 {clPins.map(pin => (
                   <Marker key={`cl-${pin.rank}`} position={[pin.lat, pin.lng]} icon={circleIcon(pin.rank)}>

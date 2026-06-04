@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
-import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
+import { MapContainer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Camera, ChevronDown, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
@@ -15,6 +15,7 @@ import { getCurrentLocation } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { isWindows } from '../lib/platform'
 import { AtlasBlockLayer } from './AtlasBlockLayer'
+import { MapBaseLayers } from './MapBaseLayers'
 import { AtlasTierPatterns } from './AtlasTierPatterns'
 import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
@@ -1883,10 +1884,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 />
               )}
               {detectedLocation && <DetectedLocationPin position={detectedLocation} />}
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              <MapBaseLayers switcher />
               {viewMode === 'sightings' && !isSetupRequired && (
                 <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} />
               )}

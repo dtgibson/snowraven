@@ -1,13 +1,13 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 5,
+  "activeFeature": "map-basemap-carto-positron",
+  "sessionNumber": 6,
   "sessionType": "maintain",
-  "currentStage": 6,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "in-progress",
   "releasedVersion": "0.5.6",
-  "confirmedArtifacts": ["pipeline/readme-slim-down/change-brief.md", "pipeline/readme-slim-down/qa-report.md", "pipeline/readme-slim-down/security-review.md"],
+  "confirmedArtifacts": ["pipeline/map-basemap-carto-positron/change-brief.md", "pipeline/map-basemap-carto-positron/qa-report.md", "pipeline/map-basemap-carto-positron/security-review.md"],
   "awaitingHuman": null,
-  "createdAt": "2026-06-03T06:30:00Z",
-  "updatedAt": "2026-06-03T07:00:00Z"
+  "createdAt": "2026-06-03T07:30:00Z",
+  "updatedAt": "2026-06-03T07:30:00Z"
 }
