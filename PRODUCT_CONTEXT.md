@@ -5,6 +5,34 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Standardized Bird-Name Format (complete — June 2026, v0.5.8)
+
+Every user-facing bird name renders through one shared component so the format
+is consistent app-wide, and any name is a launch point into Species Detail.
+
+- **`frontend/src/components/BirdName.tsx`** (NEW, + `BirdName.test.tsx`):
+  common name (links to Species Detail when the user has an entry; plain text
+  otherwise) + eBird/Birds of the World favicons (composes `SpeciesLinks`) +
+  optional stacked scientific name. Quiet link affordance (text at rest, accent
+  + underline on hover/focus). Sizes `sm`/`md`/`lg`.
+- **Click-any-bird → Species Detail:** `App.requestedSpecies` +
+  `navigateToSpeciesDetail`; `SpeciesDetail` consumes it single-use (pending
+  until ready, subspecies-normalized, scroll-into-view). Mirrors the
+  `requestedFilter` cross-tab pattern.
+- **Converted sites:** all Statistics lists (Most Photographed/Audio/Video with
+  name→detail + count→ML; milestones; nemesis/targets as plain+favicons;
+  single-checklist & one-and-done with checklist link → ↗ icon; biggest counts;
+  first species); Map Explorer target popups + nearest-targets (pan → locate
+  icon); and a refactor of the already-compliant Media List, Breeding Codes,
+  Life List Comparer, and Species Detail "Reported With" onto `<BirdName>`.
+- **`hasEntry`** is sourced from a normalized backbone set per tab (birds not in
+  the user's data get name + favicons, no Species-Detail link — D1). Stats now
+  resolves taxon codes for ALL observed species so favicons are consistent.
+- **Excluded:** form controls (Map filter dropdown, manual target checkboxes)
+  and the Species Detail entry header (stays as its own heading).
+- See DECISIONS.md (the rules) and CLAUDE.md (the convention). First DOM/
+  component test in the project (jsdom via a per-file docblock).
+
 ### Checklist Weather Lookup (complete — May 2026)
 
 The core feature of SnowRaven. A single-page web app that accepts an eBird

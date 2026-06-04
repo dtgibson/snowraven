@@ -63,6 +63,15 @@ cd frontend && npm run dev
 cd backend && python -m pytest tests/ -v
 ```
 
+### Bird names
+
+- **Render every user-facing bird name through `<BirdName>`** (`frontend/src/components/BirdName.tsx`) — never hand-roll a name + favicons, and don't use `SpeciesLinks` directly in new code (BirdName composes it). Props: `commonName`, `scientificName?`, `taxonCode?`, `hasEntry?`, `onOpenSpecies?`, `showSci?`, `size?` (`sm`/`md`/`lg`).
+- **Link the common name only when `hasEntry`** — i.e. the species is in the user's loaded backbone (recorded). Birds the user hasn't recorded (nemesis, unseen map targets, a comparer's other-list-only column) get plain name + favicons, never a Species-Detail link. Source `hasEntry` from a normalized backbone set (`normalizeSpeciesName`); tabs whose lists are entirely from the backup pass `true`.
+- **Navigation:** pass `onOpenSpecies={navigateToSpeciesDetail}` (from `App`) so clicking a name opens it on Species Detail. `App.requestedSpecies` + `SpeciesDetail`'s consume effect handle selection (single-use, pending until `phase==='ready'`, subspecies-normalized). Species Detail's own internal names use its local `selectSpecies`.
+- **Favicons need a taxon code** — resolve codes for the species a tab shows (batched `/taxonomy/codes`); BirdName no-ops favicons when the code is missing. If names render without favicons, the tab isn't resolving codes for that set.
+- **"Move the link to the number":** where a name previously linked somewhere (a count, a checklist, a map pan), keep that link on the count/element (or a ↗ / locate icon) and point the name at Species Detail. Exclude form controls (`<select>`, checkboxes) and the Species Detail entry header.
+- Component tests use `jsdom` via a per-file `// @vitest-environment jsdom` docblock (see `BirdName.test.tsx`); the rest of the suite stays node-env.
+
 ### Colors and theming
 
 - **All colors must use `var(--sr-*)` CSS custom properties** — no hardcoded hex or RGB values in any component file

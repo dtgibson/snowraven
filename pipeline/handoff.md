@@ -1,41 +1,48 @@
-# Handoff — map-basemap-carto-positron (Improve lane)
+# Handoff — standard-bird-name-format (New Feature lane)
 
 ## What We Accomplished
-Shipped **v0.5.7** — keyless basemap upgrade + layer switcher:
-- CARTO Positron is the default base on all maps (off the OSMF-policy-fragile
-  `tile.openstreetmap.org`).
-- Brand-styled, persisted layer switcher on Map Explorer + Species Detail:
-  Map / Satellite (Esri) / Topo-US (USGS) bases + a Waymarked Trails overlay.
-- Statistics map: Positron only. Backdrop tone follows the active base.
-- All keyless. Privacy policy updated to disclose tile providers.
+Shipped **v0.5.8** — an app-wide standardized, clickable bird-name format.
+Every user-facing bird name renders through a shared `<BirdName>`: common name
+links to its Species Detail entry (when the user has one), eBird/BoW favicons
+always, scientific name where there's room. Clicking any name navigates to and
+selects that species on Species Detail. Where a name previously carried a link,
+the count/element took it over; birds not in the user's data show name +
+favicons with no dead link.
 
 ## Where We Are
-**Improvement complete — all 6 stages done.** v0.5.7 live on all platforms
-(universal Mac + Windows); updater carries it.
+**Feature complete — all 9 stages done.** v0.5.8 live on all platforms.
 
 ## Release facts
-- Version `0.5.7` (patch). Tag `v0.5.7`; release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.7
-- Assets verified: latest.json, macOS updater bundle + .sig, universal.dmg, x64-setup.exe + .sig.
-- `latest.json` 0.5.7 with darwin-aarch64, darwin-x86_64, windows-x86_64.
+- Version `0.5.8` (patch). Tag `v0.5.8`; release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.8
+- Assets verified: latest.json, macOS updater bundle + .sig, universal.dmg, x64-setup.exe + .sig. latest.json 0.5.8 with all three platform keys.
 
-## Live-iteration log (with Dave)
-Positron native ("touch small") → 2× ("too big") → CARTO Voyager (medium, more color)
-→ reverted to Positron native (Dave preferred the minimal look). Finding: raster label
-size is binary; fractional needs vector (deferred).
+## Key files
+- NEW `frontend/src/components/BirdName.tsx` (+ `BirdName.test.tsx`, jsdom per-file env)
+- `App.tsx` (requestedSpecies + navigateToSpeciesDetail; props to all tabs)
+- `SpeciesDetail.tsx` (consume effect, openSpeciesInTab, taxonCodeFor, Reported With → BirdName)
+- `BirdingStats.tsx` (all lists; backboneNames/hasEntryFor/codeFor; all-observed taxon resolution)
+- `MapExplorer.tsx` (target popups + nearest-targets, pan → Crosshair locate icon)
+- `LifeListTable.tsx`, `BreedingCodeTable.tsx`, `SpeciesPanel.tsx` (+ ListComparer/ResultsView/LifeList/BreedingCodeList wiring)
+- `globals.css` (.sr-birdname*), `docs/HELP.md`, `CHANGELOG.md`
+
+## Live-iteration log (Dave)
+- Single-checklist / one-and-done pills had inconsistent favicons → Stats only
+  resolved ML-species taxon codes. Fixed: resolve codes for ALL observed
+  species + normalized lookup. Confirmed consistent.
 
 ## Chronicle updates made
-- ROADMAP.md → Shipped v0.5.7 (47 versions).
-- PRODUCT_CONTEXT.md → new "Keyless Basemap Upgrade + Layer Switcher" entry.
-- DECISIONS.md → keyless-raster-basemaps decision + raster-label-size finding.
-- CLAUDE.md → convention: tile providers in lib/basemaps.ts via <MapBaseLayers>; never hard-code TileLayer / reintroduce OSM default; tile-provider changes must update PRIVACY_POLICY.md.
-- CHANGELOG, PRIVACY_POLICY, HELP, README updated in the feature commit.
+- ROADMAP.md → Shipped v0.5.8 (48 versions).
+- PRODUCT_CONTEXT.md → new "Standardized Bird-Name Format" entry.
+- DECISIONS.md → the BirdName decision + rules (link-when-hasEntry, move-the-link, D1).
+- CLAUDE.md → new "Bird names" convention section.
+- CHANGELOG, HELP updated in the feature commit.
 
 ## Outstanding / future
 - Carried: verify Windows install + in-app updater end-to-end on a Windows machine.
-- Deferred bet: vector basemap (MapLibre + OpenFreeMap) for brand-tinted, custom-label-size maps / offline.
+- Deferred bet (from v0.5.7): vector basemap (MapLibre + OpenFreeMap).
 
 ## Resume Prompt
 No active feature. Run `/weft` to start the next lane.
 
 ---
-Project: snowraven. Feature: map-basemap-carto-positron — COMPLETE (v0.5.7 shipped). No active session.
+Project: snowraven. Feature: standard-bird-name-format — COMPLETE (v0.5.8 shipped). No active session.

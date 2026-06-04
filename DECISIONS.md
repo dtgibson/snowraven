@@ -4,6 +4,43 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## One shared `<BirdName>` for every bird name; click → Species Detail — 2026-06-04 (v0.5.8)
+
+**Decision:** Every user-facing bird name renders through a single shared
+component `frontend/src/components/BirdName.tsx` (common name + eBird/BoW
+favicons + optional scientific name), replacing ad-hoc renderings. The common
+name links to the species' **Species Detail** entry via a single-use cross-tab
+navigation (`App.requestedSpecies` → `SpeciesDetail` consume effect), mirroring
+the existing `requestedFilter` pattern.
+
+**Key rules (resolved with Dave):**
+- **Link only when an entry exists.** A name links to Species Detail only if the
+  species is in the user's backbone (loaded eBird backup). Birds you haven't
+  recorded (nemesis, map targets when unseen, a comparer's other-list-only
+  column) show plain name + favicons — never a dead link.
+- **Move the link to the number.** Where a name previously carried a link
+  (Stats "Most Photographed" → ML; single-checklist/one-and-done → checklist),
+  the name now goes to Species Detail and the count/element (or a ↗ / locate
+  icon) carries the original link.
+- **Headings stay** (Species Detail's own entry header) and **form controls are
+  excluded** (Map filter dropdown, manual target checkboxes).
+- **Quiet affordance:** the name reads as text at rest, revealing accent +
+  underline on hover/focus, so already-compliant tabs look unchanged.
+
+**Notes / implications:**
+- `hasEntry` is sourced per tab from a normalized backbone set; tabs whose lists
+  are entirely from the backup pass `true`.
+- Favicons need a taxon code → Stats now resolves codes for ALL observed species
+  (not just ML species) so favicons are consistent (one batched, cached
+  `/taxonomy/codes` call). Raster label-size caveat N/A here.
+- Component-test infra: added `jsdom` as a **dev** dependency and used a per-file
+  `// @vitest-environment jsdom` docblock for `BirdName.test.tsx`, leaving the
+  rest of the suite in the node env. First DOM/component test in the project.
+- Convention recorded in CLAUDE.md: render bird names via `<BirdName>`, never
+  ad-hoc; favicons are siblings of the name button (no nested interactive els).
+
+---
+
 ## Keyless raster basemaps (CARTO Positron) + layer switcher; vector deferred — 2026-06-04 (v0.5.7)
 
 **Decision:** Replace the default OpenStreetMap tiles (`tile.openstreetmap.org`)

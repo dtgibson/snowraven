@@ -8,7 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-47 versions shipped. Last shipped: **Keyless basemap upgrade + layer switcher (v0.5.7)** -- maps now use a clean CARTO Positron base by default (off the OSMF-policy-fragile default OSM tiles), with a brand-styled switcher on Map Explorer + Species Detail for Map / Satellite (Esri) / Topo-US (USGS) bases and a Waymarked Trails overlay; choice persists; all keyless. (v0.5.5 universal Mac binary noted below was the prior release.)
+48 versions shipped. Last shipped: **Standardized clickable bird-name format (v0.5.8)** -- every bird name app-wide now renders through a shared `<BirdName>`: common name links to its Species Detail entry, followed by eBird + Birds of the World favicons, with the scientific name where there's room. Clicking any name (Statistics, Map Explorer, Media List, Breeding Codes, Life List Comparer) jumps to that species' detail; where the name used to carry a link, the count/element takes it over. Birds not in your data show name + favicons without a dead link.
+
+Earlier: **Keyless basemap upgrade + layer switcher (v0.5.7)** -- maps now use a clean CARTO Positron base by default (off the OSMF-policy-fragile default OSM tiles), with a brand-styled switcher on Map Explorer + Species Detail for Map / Satellite (Esri) / Topo-US (USGS) bases and a Waymarked Trails overlay; choice persists; all keyless. (v0.5.5 universal Mac binary noted below was the prior release.)
 
 Earlier: **Documentation accuracy & completeness pass (v0.5.6)** -- audited the in-app Help and README against the current app: added Windows to the platform list, removed a non-existent breeding "Observed" level, made storage wording platform-neutral, documented the My Sightings County/Media/Radius controls, the desktop "Rebuild caches" button, and the in-app update flow, and scoped the README security note to the self-hosted install.
 
