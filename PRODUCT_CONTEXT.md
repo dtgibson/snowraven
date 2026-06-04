@@ -698,6 +698,39 @@ and "Updating SnowRaven" sections; and the README security note is scoped
 to the Raspberry Pi / self-hosted install. Shipped as a patch so the
 bundled in-app Help reaches desktop users (see DECISIONS.md — bundled Help).
 
+### Maps — Keyless Basemap Upgrade + Layer Switcher (complete — June 2026, v0.5.7)
+
+Replaced the default OpenStreetMap tiles (against OSMF policy for self-hosted
+apps) with a clean **CARTO Positron** base across all maps, and added a
+brand-styled, keyless layer switcher.
+
+- **Shared module** `frontend/src/lib/basemaps.ts` — every keyless tile provider
+  (CARTO Positron, Esri World Imagery, USGS National Map, Waymarked Trails) in
+  one place, with per-provider attribution, tile-coordinate order, maxZoom, and
+  a backdrop `voidColor`.
+- **`MapBaseLayers.tsx`** — shared component used by all three maps. `switcher`
+  prop renders a portal-based Leaflet control (so the React UI is genuinely
+  brand-styled, not Leaflet's stock box) with a segmented base selector
+  (Map / Satellite / Topo (US)) + a Trails overlay toggle. The selection
+  persists via the storage seam, and the map's `--sr-map-void` backdrop is set
+  to match the active base (light for Positron/Topo, dark for Satellite).
+- **Placement:** switcher on Map Explorer + Species Detail; Statistics map uses
+  Positron only (overview, keeps numbered markers legible).
+- **Positron rendering:** @2x source displayed at 256 px → native scale, crisp
+  on high-DPI. (Tried a 2× label-scaling trick and CARTO Voyager during review;
+  Dave preferred Positron's minimal native look.)
+- **Privacy:** `PRIVACY_POLICY.md` gained a "Map Tiles" section disclosing the
+  providers (closed a pre-existing gap that never listed even the OSM tiles).
+- All keyless — no accounts, keys, or billing. Honest limits: keyless ≠
+  contractually unlimited (CARTO/Esri); USGS Topo is US-only; vector basemap
+  (MapLibre + OpenFreeMap) deferred. See DECISIONS.md + CLAUDE.md.
+
+**Key files:**
+- `frontend/src/lib/basemaps.ts` (NEW), `frontend/src/components/MapBaseLayers.tsx` (NEW)
+- `MapExplorer.tsx`, `SpeciesDetail.tsx`, `BirdingStats.tsx` (use `<MapBaseLayers>`)
+- `frontend/src/globals.css` (`.sr-map-layers*` switcher styles; `--sr-map-void` default)
+- `PRIVACY_POLICY.md`, `docs/HELP.md`, `README.md`
+
 ### Map Explorer — Mobile Fullscreen + Ocean-Tone Backdrop (complete — June 2026, v0.5.4)
 
 Improve-lane mobile usability pass on the Map Explorer.

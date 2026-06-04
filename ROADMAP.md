@@ -8,7 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-45 versions shipped. Last shipped: **Documentation accuracy & completeness pass (v0.5.6)** -- audited the in-app Help and README against the current app: added Windows to the platform list, removed a non-existent breeding "Observed" level, made storage wording platform-neutral, documented the My Sightings County/Media/Radius controls, the desktop "Rebuild caches" button, and the in-app update flow, and scoped the README security note to the self-hosted install.
+47 versions shipped. Last shipped: **Keyless basemap upgrade + layer switcher (v0.5.7)** -- maps now use a clean CARTO Positron base by default (off the OSMF-policy-fragile default OSM tiles), with a brand-styled switcher on Map Explorer + Species Detail for Map / Satellite (Esri) / Topo-US (USGS) bases and a Waymarked Trails overlay; choice persists; all keyless. (v0.5.5 universal Mac binary noted below was the prior release.)
+
+Earlier: **Documentation accuracy & completeness pass (v0.5.6)** -- audited the in-app Help and README against the current app: added Windows to the platform list, removed a non-existent breeding "Observed" level, made storage wording platform-neutral, documented the My Sightings County/Media/Radius controls, the desktop "Rebuild caches" button, and the in-app update flow, and scoped the README security note to the self-hosted install.
 
 Previously: **Intel Mac support — universal macOS binary (v0.5.5)** -- the macOS app now ships as a single universal DMG that runs natively on both Apple Silicon and Intel Macs; `latest.json` maps both `darwin-aarch64` and `darwin-x86_64` to the universal updater bundle, so Intel Mac users can run the app and receive in-app updates.
 

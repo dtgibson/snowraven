@@ -4,6 +4,44 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Keyless raster basemaps (CARTO Positron) + layer switcher; vector deferred — 2026-06-04 (v0.5.7)
+
+**Decision:** Replace the default OpenStreetMap tiles (`tile.openstreetmap.org`)
+with **CARTO Positron** as the default base, and add a keyless layer switcher
+(Esri satellite, USGS topo, Waymarked trails) on the interactive maps. All
+providers are **keyless** — no accounts, no API keys, no billing. Stay on
+Leaflet (raster); the vector path (MapLibre + OpenFreeMap) is deferred.
+
+**Rationale:**
+- The OSMF tile policy forbids app/self-hosted use of `tile.openstreetmap.org`
+  and can withdraw access — a real fragility for an app many people self-deploy.
+- Positron is a clean, minimal light base that reads well under data pins, and
+  is the closest keyless off-the-shelf match to the brand palette.
+- Keyless keeps the free/no-accounts/privacy stance intact (commercial SDKs
+  like MapTiler/Google/Mapbox were excluded purely on the key requirement).
+- The map's custom layer stack (leaflet.heat, atlas polygons, SVG textures,
+  markers, popups, fullscreen) is now rich; migrating to MapLibre/vector would
+  mean rewriting all of it — not worth it just for a basemap.
+
+**Label-size finding (raster constraint):** raster basemap label size is
+effectively **binary** — native, or 2× via the `tileSize:512 + zoomOffset:-1`
+trick. There is no fractional in-between on a single style (you can't resize a
+raster's baked-in labels). Tried 2× (too big) and CARTO Voyager (medium labels,
+more color); Dave preferred Positron's minimal look at native size. A precisely
+tunable label size would require vector tiles (the deferred path).
+
+**Implications:**
+- Tile providers live in one place: `frontend/src/lib/basemaps.ts`; the shared
+  `<MapBaseLayers switcher?>` renders them (+ a portal-based Leaflet control).
+- **Adding/changing a tile provider must be reflected in PRIVACY_POLICY.md** —
+  it now has a "Map Tiles" section (this also closed a pre-existing gap that
+  never disclosed even the OSM tiles).
+- Honest limitations: "keyless ≠ contractually unlimited" (CARTO/Esri prefer an
+  account at high volume); USGS Topo is US-only. Self-hosting tiles
+  (OpenFreeMap/Protomaps) is the only way to remove the keyless-fragility caveat.
+
+---
+
 ## macOS ships a universal binary, not separate Intel/Apple-Silicon DMGs — 2026-06-02 (v0.5.5)
 
 **Decision:** The macOS app is built as a single **universal** binary
