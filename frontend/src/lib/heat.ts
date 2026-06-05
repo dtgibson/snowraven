@@ -1,25 +1,22 @@
-// Shared heatmap intensity model for leaflet.heat layers.
-// Single source of truth used by both the Map Explorer (My Sightings)
-// and Species Detail heatmaps, so the 1–10 intensity slider behaves
-// identically in both places. See DECISIONS.md / CLAUDE.md for the
-// artifact-avoidance tuning notes (radius bounded, max floored).
+// Shared heatmap intensity model for the MapLibre native heatmap layers.
+// Single source of truth used by BOTH the Map Explorer (My Sightings) and the
+// Species Detail map, so the 1–10 intensity slider behaves identically in both
+// places. (Pre-vector-basemap this drove leaflet.heat; now it drives MapLibre's
+// `heatmap` layer paint properties.)
 
 /** Default slider position (1–10). */
 export const HEAT_INTENSITY_DEFAULT = 5
 
-/** Smooth quadratic anchored at 1→18, 5→40, 10→80 px. */
-export function heatRadius(intensity: number): number {
-  return Math.round(13.9 + 3.83 * intensity + 0.278 * intensity * intensity)
+/** Heatmap kernel radius in screen pixels. 1 → 18 px … 10 → 72 px. Bounded so
+ *  far-spread tails don't band into artifacts; blur is handled natively. */
+export function heatRadiusPx(intensity: number): number {
+  return Math.round(12 + intensity * 6)
 }
 
-/** Blur tracks radius at ~0.5× to avoid triangular far-spread artifacts. */
-export function heatBlur(intensity: number): number {
-  return Math.round(heatRadius(intensity) * 0.5)
-}
-
-/** Lower max = hotter. 1→1.0 (subtle) … 10→0.75 (warmer, without over-saturating). */
-export function heatMax(intensity: number): number {
-  return +(1.0 - (intensity - 1) * (0.25 / 9)).toFixed(2)
+/** Global heatmap intensity (accumulation) multiplier. Cooler curve, tuned live:
+ *  default (5) lands at 0.30; full range 0.06 (subtle) → 0.60 (hot). */
+export function heatIntensityFactor(intensity: number): number {
+  return +(intensity * 0.06).toFixed(2)
 }
 
 /**

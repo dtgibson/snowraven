@@ -1,6 +1,6 @@
-import 'leaflet/dist/leaflet.css'
-import L from 'leaflet'
-import { MapContainer, CircleMarker, Popup, Marker, useMap } from 'react-leaflet'
+import { Marker, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre'
+import type { HeatmapLayerSpecification } from 'maplibre-gl'
+import type { FeatureCollection, Point } from 'geojson'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Camera, ChevronDown, Crosshair, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
@@ -14,52 +14,28 @@ import { storage } from '../lib/storage'
 import { getCurrentLocation } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { isWindows } from '../lib/platform'
-import { AtlasBlockLayer } from './AtlasBlockLayer'
-import { MapBaseLayers } from './MapBaseLayers'
-import { AtlasTierPatterns } from './AtlasTierPatterns'
+import { SnowMap } from './SnowMap'
+import { AtlasLayer } from './AtlasLayer'
 import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
-import { HEAT_INTENSITY_DEFAULT, heatRadius, heatBlur, heatMax, heatWeight } from '../lib/heat'
+import { HEAT_INTENSITY_DEFAULT, heatWeight, heatRadiusPx, heatIntensityFactor } from '../lib/heat'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { BirdName } from './BirdName'
-
-// Leaflet marker icon patch for Vite asset handling
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
 
 // Teardrop SVG path (28×40 viewBox) — circle top, pointed bottom
 const TEARDROP = 'M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z'
 
-function makeTeardropIcon(colorVar: string, glyphSvg: string): L.DivIcon {
-  return L.divIcon({
-    html: `<svg viewBox="0 0 28 40" width="28" height="40" xmlns="http://www.w3.org/2000/svg"><path d="${TEARDROP}" style="fill:${colorVar}"/>${glyphSvg}</svg>`,
-    className: '',
-    iconSize: [28, 40],
-    iconAnchor: [14, 40],
-    popupAnchor: [0, -44],
-  })
+function teardropHtml(colorVar: string, glyphSvg: string): string {
+  return `<svg viewBox="0 0 28 40" width="28" height="40" xmlns="http://www.w3.org/2000/svg"><path d="${TEARDROP}" style="fill:${colorVar}"/>${glyphSvg}</svg>`
 }
 
-// Module-level icons — created once, CSS vars resolve at browser paint time
-const VISITED_ICON = makeTeardropIcon(
-  'var(--sr-map-visited)',
-  '<polyline points="8,15 12,19 20,11" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>',
-)
-const UNVISITED_ICON = makeTeardropIcon(
-  'var(--sr-map-unvisited)',
-  '<circle cx="10" cy="13" r="3.5" fill="white"/><circle cx="18" cy="13" r="3.5" fill="white"/>',
-)
-const PERSONAL_ICON = makeTeardropIcon(
-  'var(--sr-map-personal)',
-  '<polygon points="14,6 15.5,11 20.5,11 16.5,14.2 18,19 14,16 10,19 11.5,14.2 7.5,11 12.5,11" fill="white"/>',
-)
-
-const heatLoaded = { current: false }
+// Teardrop marker SVGs (CSS vars resolve at paint time). Rendered into a
+// react-map-gl <Marker> with anchor="bottom" so the tip points at the coord.
+const TEARDROP_HTML: Record<HotspotPin['kind'], string> = {
+  visited: teardropHtml('var(--sr-map-visited)', '<polyline points="8,15 12,19 20,11" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'),
+  unvisited: teardropHtml('var(--sr-map-unvisited)', '<circle cx="10" cy="13" r="3.5" fill="white"/><circle cx="18" cy="13" r="3.5" fill="white"/>'),
+  personal: teardropHtml('var(--sr-map-personal)', '<polygon points="14,6 15.5,11 20.5,11 16.5,14.2 18,19 14,16 10,19 11.5,14.2 7.5,11 12.5,11" fill="white"/>'),
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -185,34 +161,34 @@ function fmtDate(d: string): string {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function AutoSizeMap() {
-  const map = useMap()
+// Imperative map effects (pan-to a target, jump to default center). react-map-gl
+// auto-resizes the canvas, so no AutoSizeMap is needed. setState callbacks are
+// deferred to a microtask so they don't run synchronously inside the effect.
+function MapEffects({ panTarget, onPanDone, defaultCenter, onDefaultDone }: {
+  panTarget: { lat: number; lng: number } | null
+  onPanDone: () => void
+  defaultCenter: { lat: number; lng: number; zoom: number } | null
+  onDefaultDone: () => void
+}) {
+  const map = useMap().current
   useEffect(() => {
-    const observer = new ResizeObserver(() => map.invalidateSize())
-    observer.observe(map.getContainer())
-    map.invalidateSize()
-    return () => observer.disconnect()
-  }, [map])
-  return null
-}
-
-function MapPanner({ target, onDone }: { target: { lat: number; lng: number } | null; onDone: () => void }) {
-  const map = useMap()
+    if (!panTarget || !map) return
+    map.flyTo({ center: [panTarget.lng, panTarget.lat], duration: 600 })
+    queueMicrotask(onPanDone)
+  }, [panTarget, map, onPanDone])
   useEffect(() => {
-    if (!target) return
-    map.panTo([target.lat, target.lng])
-    onDone()
-  }, [target, map, onDone])
+    if (!defaultCenter || !map) return
+    map.flyTo({ center: [defaultCenter.lng, defaultCenter.lat], zoom: defaultCenter.zoom, duration: 0 })
+    queueMicrotask(onDefaultDone)
+  }, [defaultCenter, map, onDefaultDone])
   return null
 }
 
 function DetectedLocationPin({ position }: { position: { lat: number; lng: number } }) {
   return (
-    <CircleMarker
-      center={[position.lat, position.lng]}
-      radius={9}
-      pathOptions={{ color: '#fff', weight: 2.5, fillColor: '#1D6BCC', fillOpacity: 1 }}
-    />
+    <Marker longitude={position.lng} latitude={position.lat} anchor="center">
+      <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#1D6BCC', border: '2.5px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }} />
+    </Marker>
   )
 }
 
@@ -268,169 +244,135 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
   )
 }
 
-// Intensity slider (1–10) → heat footprint + saturation. The default (5) spreads
-// far enough that neighboring sightings merge into a density gradient (radius 40),
-// vs. the old fixed radius 25 that read as isolated dots. Toward the top the
-// footprint broadens (10 → radius 80) and `max` eases down so the gradient runs
-// hotter. The values are deliberately bounded: pushing radius/blur much higher with
-// a very low `max` makes leaflet.heat band the faint, far-spread tails into
-// triangular artifacts, so radius tops out ~80, blur is 0.5× radius, and max floors
-// at 0.75. Because the radius is in screen pixels, the slider also lets the user
-// compensate for how the same data reads at different zoom levels.
-function HeatmapLayer({ points, intensity }: { points: [number, number, number][]; intensity: number }) {
-  const map = useMap()
-  const layerRef = useRef<L.Layer | null>(null)
+// Heatmap radius/intensity model (shared with the Species Detail map) lives in
+// lib/heat.ts — heatRadiusPx, heatIntensityFactor, heatWeight — so the 1–10
+// slider behaves identically in both places.
 
-  useEffect(() => {
-    if (points.length === 0) {
-      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
-      return
-    }
-    const apply = () => {
-      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      layerRef.current = (L as any).heatLayer(points, { radius: heatRadius(intensity), blur: heatBlur(intensity), max: heatMax(intensity), maxZoom: 17 }).addTo(map)
-    }
-    if (heatLoaded.current) {
-      apply()
-    } else {
-      // leaflet.heat is a legacy IIFE that reads window.L — expose it before the dynamic import
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(window as any).L = L
-      import('leaflet.heat').then(() => { heatLoaded.current = true; apply() })
-    }
-    return () => {
-      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
-    }
-  }, [map, points, intensity])
-
-  return null
-}
-
-function SightingMarkers({ locations, displayMode, heatIntensity }: { locations: LocationGroup[]; displayMode: DisplayMode; heatIntensity: number }) {
-  const map = useMap()
+function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }: { locations: LocationGroup[]; displayMode: DisplayMode; heatIntensity: number; atlasShading: boolean }) {
+  const map = useMap().current
   const hasFitted = useRef(false)
+  const [sel, setSel] = useState<string | null>(null)
 
   useEffect(() => {
-    if (hasFitted.current || locations.length === 0) return
-
-    const tryFit = () => {
-      // If the container is still hidden (display:none), getSize() returns 0×0.
-      // Wait for the resize event that AutoSizeMap fires when the tab becomes visible.
-      const size = map.getSize()
-      if (size.x === 0 && size.y === 0) return
-      hasFitted.current = true
-      map.off('resize', tryFit)
-      const coords: [number, number][] = locations.map(l => [l.lat, l.lng])
-      if (coords.length === 1) map.setView(coords[0], 12)
-      else map.fitBounds(L.latLngBounds(coords), { padding: [50, 50] })
+    if (hasFitted.current || !map || locations.length === 0) return
+    hasFitted.current = true
+    if (locations.length === 1) {
+      map.flyTo({ center: [locations[0].lng, locations[0].lat], zoom: 12, duration: 0 })
+    } else {
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+      for (const l of locations) { minLng = Math.min(minLng, l.lng); maxLng = Math.max(maxLng, l.lng); minLat = Math.min(minLat, l.lat); maxLat = Math.max(maxLat, l.lat) }
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 50, duration: 0 })
     }
-
-    tryFit()
-    if (!hasFitted.current) map.on('resize', tryFit)
-    return () => { map.off('resize', tryFit) }
   }, [locations, map])
 
-  // Per-point heat weight scales with the slider (see lib/heat.ts) so HIGH
-  // intensity makes even sparse, low-count sightings burn hot.
-  const heatPoints = useMemo(
-    (): [number, number, number][] =>
-      locations.map(l => [l.lat, l.lng, heatWeight(l.count, heatIntensity)]),
-    [locations, heatIntensity],
-  )
+  const heatFc = useMemo<FeatureCollection<Point, { w: number }>>(() => ({
+    type: 'FeatureCollection',
+    features: locations.map(l => ({
+      type: 'Feature', properties: { w: heatWeight(l.count, heatIntensity) },
+      geometry: { type: 'Point', coordinates: [l.lng, l.lat] },
+    })),
+  }), [locations, heatIntensity])
 
-  if (displayMode === 'heatmap') return <HeatmapLayer points={heatPoints} intensity={heatIntensity} />
+  if (displayMode === 'heatmap') {
+    return (
+      <Source id="sr-heat" type="geojson" data={heatFc}>
+        {/* When atlas breeding shading is on, sit the heatmap UNDER the atlas fill
+            (beforeId) and dim it, so the tier colors read on top. */}
+        <Layer id="sr-heat" type="heatmap"
+          beforeId={atlasShading ? 'sr-atlas-fill' : undefined}
+          paint={{
+          'heatmap-weight': ['get', 'w'],
+          'heatmap-intensity': heatIntensityFactor(heatIntensity),
+          'heatmap-radius': heatRadiusPx(heatIntensity),
+          'heatmap-opacity': atlasShading ? 0.45 : 0.85,
+        } as HeatmapLayerSpecification['paint']} />
+      </Source>
+    )
+  }
 
+  const selLoc = sel ? locations.find(l => l.locId === sel) : null
   return (
     <>
       {locations.map(loc => (
-        <CircleMarker
-          key={loc.locId}
-          center={[loc.lat, loc.lng]}
-          radius={pinRadius(loc.count)}
-          pathOptions={{ color: '#fff', weight: 2, fillColor: '#2D8653', fillOpacity: pinOpacity(loc.count) }}
-        >
-          <Popup>
-            <div style={{ minWidth: 190 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{loc.locName}</div>
-              <div style={{ fontSize: 12, color: '#2D8653', marginBottom: 3 }}>
-                {loc.count.toLocaleString()} observation{loc.count !== 1 ? 's' : ''}
-              </div>
-              <div style={{ fontSize: 12, color: '#71717A', marginBottom: 10 }}>
-                Last: {fmtDate(loc.lastDate)}
-              </div>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#A1A1AA', marginBottom: 5 }}>
-                Species seen here
-              </div>
-              {[...loc.species].slice(0, 5).map(s => (
-                <div key={s} style={{ fontSize: 12, color: '#0F1117', marginBottom: 2 }}>{s}</div>
-              ))}
-              {loc.species.size > 5 && (
-                <div style={{ fontSize: 12, color: '#71717A', marginTop: 2 }}>+{loc.species.size - 5} more species</div>
-              )}
-            </div>
-          </Popup>
-        </CircleMarker>
+        <Marker key={loc.locId} longitude={loc.lng} latitude={loc.lat} anchor="center"
+          onClick={e => { e.originalEvent.stopPropagation(); setSel(loc.locId) }}>
+          <div style={{ width: pinRadius(loc.count) * 2, height: pinRadius(loc.count) * 2, borderRadius: '50%', background: '#2D8653', opacity: pinOpacity(loc.count) * (atlasShading ? 0.25 : 1), border: '2px solid #fff', cursor: 'pointer', boxSizing: 'border-box' }} />
+        </Marker>
       ))}
+      {selLoc && (
+        <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => setSel(null)} closeButton={false} maxWidth="260px">
+          <div style={{ minWidth: 190 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{selLoc.locName}</div>
+            <div style={{ fontSize: 12, color: '#2D8653', marginBottom: 3 }}>
+              {selLoc.count.toLocaleString()} observation{selLoc.count !== 1 ? 's' : ''}
+            </div>
+            <div style={{ fontSize: 12, color: '#71717A', marginBottom: 10 }}>Last: {fmtDate(selLoc.lastDate)}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#A1A1AA', marginBottom: 5 }}>Species seen here</div>
+            {[...selLoc.species].slice(0, 5).map(s => (
+              <div key={s} style={{ fontSize: 12, color: '#0F1117', marginBottom: 2 }}>{s}</div>
+            ))}
+            {selLoc.species.size > 5 && (
+              <div style={{ fontSize: 12, color: '#71717A', marginTop: 2 }}>+{selLoc.species.size - 5} more species</div>
+            )}
+          </div>
+        </Popup>
+      )}
     </>
   )
 }
 
 function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds: Set<HotspotPin['kind']> }) {
-  const map = useMap()
+  const map = useMap().current
+  const fitKey = pins.length
+  const [sel, setSel] = useState<number | null>(null)
 
   useEffect(() => {
-    if (pins.length === 0) return
-    const coords: [number, number][] = pins.map(p => [p.lat, p.lng])
-    if (coords.length === 1) map.setView(coords[0], 12)
-    else map.fitBounds(L.latLngBounds(coords), { padding: [50, 50] })
+    if (!map || pins.length === 0) return
+    if (pins.length === 1) {
+      map.flyTo({ center: [pins[0].lng, pins[0].lat], zoom: 12, duration: 0 })
+    } else {
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+      for (const p of pins) { minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng); minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat) }
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 50, duration: 0 })
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [map, fitKey])
 
   const visiblePins = pins.filter(p => !hiddenKinds.has(p.kind))
+  const selPin = sel !== null ? visiblePins[sel] : null
 
   return (
     <>
       {visiblePins.map((pin, i) => (
-        <Marker
-          key={`${pin.kind}-${pin.locId}-${i}`}
-          position={[pin.lat, pin.lng]}
-          icon={pin.kind === 'visited' ? VISITED_ICON : pin.kind === 'unvisited' ? UNVISITED_ICON : PERSONAL_ICON}
-        >
-          <Popup>
-            <div style={{ minWidth: 190 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{pin.locName}</div>
-              {pin.kind === 'visited' && (
-                <>
-                  <div style={{ fontSize: 12, color: '#2D8653', marginBottom: 3 }}>{pin.speciesCount} species recorded</div>
-                  <div style={{ fontSize: 12, color: '#71717A', marginBottom: 8 }}>Last visit: {fmtDate(pin.lastVisit)}</div>
-                  <a href={`https://ebird.org/hotspot/${pin.locId}`} target="_blank" rel="noreferrer"
-                    style={{ fontSize: 12, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}>
-                    View on eBird →
-                  </a>
-                </>
-              )}
-              {pin.kind === 'unvisited' && (
-                <a href={`https://ebird.org/hotspot/${pin.locId}`} target="_blank" rel="noreferrer"
-                  style={{ fontSize: 12, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}>
-                  View on eBird →
-                </a>
-              )}
-              {pin.kind === 'personal' && (
-                <>
-                  <div style={{ display: 'inline-block', background: '#FFF7ED', border: '1px solid #FDE68A', color: '#C9842A', borderRadius: 4, padding: '2px 6px', fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
-                    Personal Location
-                  </div>
-                  <div style={{ fontSize: 12, color: '#71717A', marginBottom: 3 }}>
-                    {pin.obsCount} observation{pin.obsCount !== 1 ? 's' : ''}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#71717A' }}>Last visit: {fmtDate(pin.lastVisit)}</div>
-                </>
-              )}
-            </div>
-          </Popup>
+        <Marker key={`${pin.kind}-${pin.locId}-${i}`} longitude={pin.lng} latitude={pin.lat} anchor="bottom"
+          onClick={e => { e.originalEvent.stopPropagation(); setSel(i) }}>
+          <div style={{ width: 28, height: 40, cursor: 'pointer' }} dangerouslySetInnerHTML={{ __html: TEARDROP_HTML[pin.kind] }} />
         </Marker>
       ))}
+      {selPin && (
+        <Popup longitude={selPin.lng} latitude={selPin.lat} anchor="bottom" offset={42} onClose={() => setSel(null)} closeButton={false} maxWidth="260px">
+          <div style={{ minWidth: 190 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{selPin.locName}</div>
+            {selPin.kind === 'visited' && (
+              <>
+                <div style={{ fontSize: 12, color: '#2D8653', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>
+                <div style={{ fontSize: 12, color: '#71717A', marginBottom: 8 }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
+                <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
+              </>
+            )}
+            {selPin.kind === 'unvisited' && (
+              <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
+            )}
+            {selPin.kind === 'personal' && (
+              <>
+                <div style={{ display: 'inline-block', background: '#FFF7ED', border: '1px solid #FDE68A', color: '#C9842A', borderRadius: 4, padding: '2px 6px', fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Personal Location</div>
+                <div style={{ fontSize: 12, color: '#71717A', marginBottom: 3 }}>{selPin.obsCount} observation{selPin.obsCount !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: 12, color: '#71717A' }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
+              </>
+            )}
+          </div>
+        </Popup>
+      )}
     </>
   )
 }
@@ -441,15 +383,21 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
   hasEntryFor: (name: string) => boolean
   onOpenSpecies?: (commonName: string) => void
 }) {
-  const map = useMap()
+  const map = useMap().current
+  const fitKey = pins.length
+  const [sel, setSel] = useState<number | null>(null)
 
   useEffect(() => {
-    if (pins.length === 0) return
-    const coords: [number, number][] = pins.map(p => [p.lat, p.lng])
-    if (coords.length === 1) map.setView(coords[0], 12)
-    else map.fitBounds(L.latLngBounds(coords), { padding: [50, 50] })
+    if (!map || pins.length === 0) return
+    if (pins.length === 1) {
+      map.flyTo({ center: [pins[0].lng, pins[0].lat], zoom: 12, duration: 0 })
+    } else {
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+      for (const p of pins) { minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng); minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat) }
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 50, duration: 0 })
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [map, fitKey])
 
   const locationGroups = useMemo(() => {
     const groups = new Map<string, DisplayTargetPin[]>()
@@ -461,13 +409,14 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
     return [...groups.values()]
   }, [pins])
 
+  const selGroup = sel !== null ? locationGroups[sel] : null
+  const selRep = selGroup ? selGroup.reduce((best, p) => p.recentDate > best.recentDate ? p : best) : null
+
   return (
     <>
       {locationGroups.map((group, i) => {
         const rep = group.reduce((best, p) => p.recentDate > best.recentDate ? p : best)
-        const tier = recencyTier(rep.recentDate)
-        const { bg, text } = tierColors(tier)
-
+        const { bg, text } = tierColors(recencyTier(rep.recentDate))
         let labelHtml: string
         if (group.length === 1) {
           const pin = group[0]
@@ -478,20 +427,21 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
         } else {
           labelHtml = `${group.length} species`
         }
-
-        const icon = L.divIcon({
-          html: `<div style="display:inline-flex;align-items:center;background:${bg};color:${text};padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;font-family:Inter,system-ui,sans-serif;border:1.5px solid rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)">${labelHtml}</div>`,
-          className: '',
-          iconAnchor: [0, 14],
-          popupAnchor: [0, -16],
-        })
-
         return (
-          <Marker key={`${rep.locId}-${i}`} position={[rep.lat, rep.lng]} icon={icon}>
-            <Popup>
+          <Marker key={`${rep.locId}-${i}`} longitude={rep.lng} latitude={rep.lat} anchor="left"
+            onClick={e => { e.originalEvent.stopPropagation(); setSel(i) }}>
+            <div
+              style={{ display: 'inline-flex', alignItems: 'center', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer' }}
+              dangerouslySetInnerHTML={{ __html: labelHtml }}
+            />
+          </Marker>
+        )
+      })}
+      {selGroup && selRep && (
+        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => setSel(null)} closeButton={false} maxWidth="280px">
               <div style={{ minWidth: 200, maxWidth: 260 }}>
-                <div style={{ fontSize: 11, color: '#71717A', marginBottom: 8 }}>📍 {rep.locName}</div>
-                {group.map((pin, j) => {
+                <div style={{ fontSize: 11, color: '#71717A', marginBottom: 8 }}>📍 {selRep.locName}</div>
+                {selGroup.map((pin, j) => {
                   const pinTier = recencyTier(pin.recentDate)
                   const { bg: pinBg, text: pinText } = tierColors(pinTier)
                   const tierLabel = pinTier === 'fresh' ? '≤7 days' : pinTier === 'mid' ? '8–15 days' : '16–30 days'
@@ -522,9 +472,7 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
                 })}
               </div>
             </Popup>
-          </Marker>
-        )
-      })}
+      )}
     </>
   )
 }
@@ -612,17 +560,28 @@ function radiusToZoom(distMiles: number): number {
   return 9
 }
 
-function DefaultCenterSetter({ center, onDone }: {
-  center: { lat: number; lng: number; zoom: number } | null
-  onDone: () => void
-}) {
-  const map = useMap()
-  useEffect(() => {
-    if (!center) return
-    map.setView([center.lat, center.lng], center.zoom)
-    onDone()
-  }, [center, map, onDone])
-  return null
+// Legend swatch previewing a tier's hatch (when "Use Textures" is on). Drawn
+// directly (no <pattern> ids) so it's safe to render in any sidebar, and tinted
+// with the --sr-tier-N-rgb tokens so it tracks light/dark. Mirrors the on-map
+// hatch density: dots (1) → diagonal (2) → cross (3) → dense cross (4).
+function TierHatchSwatch({ tier }: { tier: 1 | 2 | 3 | 4 }) {
+  const rgb = `var(--sr-tier-${tier}-rgb)`
+  const fillStyle = { fill: `rgba(${rgb}, 0.16)` }
+  const dotStyle = { fill: `rgba(${rgb}, 0.9)` }
+  const lineStyle = { stroke: `rgba(${rgb}, 0.7)`, strokeWidth: tier === 2 ? 1 : 0.8 }
+  const step = tier === 2 ? 10 : tier === 3 ? 9 : 6
+  const offsets: number[] = []
+  for (let x = -14; x < 24; x += step) offsets.push(x)
+  return (
+    <svg width={24} height={14} aria-hidden
+      style={{ flexShrink: 0, border: '1px solid var(--sr-border-medium)', borderRadius: 3, display: 'block', overflow: 'hidden' }}>
+      <rect x={0} y={0} width={24} height={14} style={fillStyle} />
+      {tier === 1
+        ? [5, 12, 19].flatMap(cx => [4.5, 10].map(cy => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.1} style={dotStyle} />))
+        : offsets.map(x => <line key={`a${x}`} x1={x} y1={14} x2={x + 14} y2={0} style={lineStyle} />)}
+      {tier >= 3 && offsets.map(x => <line key={`b${x}`} x1={x} y1={0} x2={x + 14} y2={14} style={lineStyle} />)}
+    </svg>
+  )
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -663,7 +622,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [atlasEnabled, setAtlasEnabled]       = useState(false)
   const [atlasData, setAtlasData]             = useState<AtlasData | null>(null)
   const [atlasLoading, setAtlasLoading]       = useState(false)
-  const [atlasTooMany, setAtlasTooMany]       = useState(false)
   const [shadeByBreeding, setShadeByBreeding] = useState(false)
   const [useTextures, setUseTextures]         = useState(false)
 
@@ -677,7 +635,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null)
   const [targetTypeFilter, setTargetTypeFilter] = useState<Set<'Photo' | 'Audio' | 'Video'>>(new Set())
 
-  // Map pan target (set by sidebar clicks, consumed by MapPanner inside MapContainer)
+  // Map pan target (set by sidebar clicks, consumed by MapEffects inside SnowMap)
   const [panTarget, setPanTarget]             = useState<{ lat: number; lng: number } | null>(null)
   const handlePanDone                         = useCallback(() => setPanTarget(null), [])
 
@@ -739,7 +697,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       .catch(() => setHasEbirdKey(false))
   }, [keysVersion])
 
-  // Pre-fill lat/lng/radius from saved map defaults on mount; pan map to saved location
+  // Pre-fill lat/lng/radius from saved map defaults on mount. We do NOT pan the
+  // map to the saved search center here: the landing mode is My Sightings, which
+  // fits to all of the user's sightings. Panning to the saved center would win
+  // the async race against that fit and leave the map zoomed in on load. The
+  // saved center is applied when the user switches to Hotspots/Targets (below).
   useEffect(() => {
     storage.getSetting<{ lat: number; lng: number; dist: number }>('map-defaults')
       .then(data => {
@@ -747,7 +709,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           setLat(String(data.lat))
           setLng(String(data.lng))
           setRadius(data.dist)
-          setDefaultCenter({ lat: data.lat, lng: data.lng, zoom: radiusToZoom(data.dist) })
         }
       })
       .catch(() => {})
@@ -1259,7 +1220,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             </div>
             {shadeByBreeding && backupReady && (
               <>
-                {/* Use Textures — adds a hatch per level; off by default */}
+                {/* Use Textures — per-tier hatch patterns; off by default (colorblind aid) */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
                   <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Use Textures</span>
                   <button
@@ -1293,9 +1254,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     { tier: 1, label: 'Possible' },
                   ] as const).map(row => (
                     <div key={row.tier} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-                      <svg width="24" height="14" style={{ flexShrink: 0, border: '1px solid var(--sr-border-medium)', borderRadius: 3 }}>
-                        <rect width="24" height="14" className={useTextures ? `sr-atlas-tier-${row.tier}` : `sr-atlas-fill-${row.tier}`} />
-                      </svg>
+                      {useTextures
+                        ? <TierHatchSwatch tier={row.tier} />
+                        : (
+                          <svg width="24" height="14" style={{ flexShrink: 0, border: '1px solid var(--sr-border-medium)', borderRadius: 3 }}>
+                            <rect width="24" height="14" className={`sr-atlas-fill-${row.tier}`} />
+                          </svg>
+                        )}
                       <span style={{ color: 'var(--sr-text-muted)' }}>{row.label}</span>
                     </div>
                   ))}
@@ -1481,10 +1446,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             Click a row to hide or show that pin category.
           </div>
           {([
-            { icon: VISITED_ICON,  label: 'Visited',   kind: 'visited' as const },
-            { icon: UNVISITED_ICON, label: 'Unvisited', kind: 'unvisited' as const },
-            { icon: PERSONAL_ICON, label: 'Personal',  kind: 'personal' as const },
-          ] as { icon: L.DivIcon; label: string; kind: HotspotPin['kind'] }[])
+            { label: 'Visited',   kind: 'visited' as const },
+            { label: 'Unvisited', kind: 'unvisited' as const },
+            { label: 'Personal',  kind: 'personal' as const },
+          ] as { label: string; kind: HotspotPin['kind'] }[])
             .filter(row => hotspotPins.some(p => p.kind === row.kind))
             .map(row => {
               const count = hotspotPins.filter(p => p.kind === row.kind).length
@@ -1503,7 +1468,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     cursor: 'pointer', opacity: isHidden ? 0.4 : 1, textAlign: 'left',
                   }}
                 >
-                  <div dangerouslySetInnerHTML={{ __html: row.icon.options.html as string }} style={{ flexShrink: 0, width: 28, height: 40 }} />
+                  <div dangerouslySetInnerHTML={{ __html: TEARDROP_HTML[row.kind] }} style={{ flexShrink: 0, width: 28, height: 40 }} />
                   <div>
                     <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>{row.label}</span>
                     <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginLeft: 6 }}>{count}</span>
@@ -1771,8 +1736,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
-      {/* SVG pattern defs for atlas breeding-tier shading (referenced via fill: url(#...)) */}
-      <AtlasTierPatterns />
       {/* Mode bar */}
       <div role="group" aria-label="Map view mode" style={{ display: 'flex', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--sr-border)', background: 'var(--sr-surface)', flexShrink: 0 }}>
         {([
@@ -1853,9 +1816,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
         {/* Map area */}
         <div style={{ flex: 1, position: 'relative' }}>
-          {/* Floating map controls — mobile only, hidden while the sidebar is open.
-              Fullscreen toggle sits to the LEFT of Filters in a flex cluster so the
-              two never overlap regardless of the Filters label width. */}
+          {/* Floating map controls, hidden while the mobile sidebar overlay is open.
+              Fullscreen toggle shows on all widths; the Filters button is mobile-
+              only (CSS). They sit in a flex cluster so they never overlap regardless
+              of the Filters label width. */}
           {!sidebarOpen && (
             <div className="sr-map-fab-cluster">
               {onToggleFullscreen && (
@@ -1893,29 +1857,28 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               onGoToSettings={onGoToSettings}
             />
           ) : (
-            <MapContainer
-              center={[45, -100]}
-              zoom={4}
+            <SnowMap
+              initialViewState={{ longitude: -100, latitude: 45, zoom: 4 }}
               style={{ height: '100%', width: '100%' }}
-              zoomControl
-              aria-label="Interactive birding map"
+              switcher
             >
-              <AutoSizeMap />
-              <MapPanner target={panTarget} onDone={handlePanDone} />
-              <DefaultCenterSetter center={defaultCenter} onDone={handleDefaultCenterDone} />
+              <MapEffects
+                panTarget={panTarget}
+                onPanDone={handlePanDone}
+                defaultCenter={defaultCenter}
+                onDefaultDone={handleDefaultCenterDone}
+              />
               {atlasEnabled && (
-                <AtlasBlockLayer
+                <AtlasLayer
                   data={atlasData}
-                  onTooManyChange={setAtlasTooMany}
                   shade={shadeByBreeding}
                   breedingByBlock={breedingByBlock}
                   useTextures={useTextures}
                 />
               )}
               {detectedLocation && <DetectedLocationPin position={detectedLocation} />}
-              <MapBaseLayers switcher />
               {viewMode === 'sightings' && !isSetupRequired && (
-                <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} />
+                <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} atlasShading={atlasEnabled && shadeByBreeding} />
               )}
               {viewMode === 'hotspots' && hotspotPins && (
                 <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} />
@@ -1923,23 +1886,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {viewMode === 'targets' && targetPins && (
                 <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
               )}
-            </MapContainer>
-          )}
-          {atlasEnabled && atlasTooMany && (
-            <div
-              role="status"
-              style={{
-                position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-                zIndex: 1000, display: 'flex', alignItems: 'center', gap: 7,
-                background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
-                borderRadius: 20, padding: '7px 14px', fontSize: 12,
-                color: 'var(--sr-text-muted)', boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
-                whiteSpace: 'nowrap', pointerEvents: 'none',
-              }}
-            >
-              <Search size={14} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
-              Zoom in to see atlas blocks
-            </div>
+            </SnowMap>
           )}
         </div>
       </div>

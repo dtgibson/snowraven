@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SnowRaven — Vector basemap design reference</title>
+<style>
+  :root { --bg:#F9FAFB; --surface:#fff; --border:#E5E7EB; --text:#0F1117; --muted:#5B616E;
+    --t1:#C084FC; --t2:#A855F7; --t3:#7E22CE; --t4:#3B0764; }
+  body { margin:0; font-family:Inter,system-ui,sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width:720px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:21px; } h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:28px 0 10px; }
+  .note { font-size:13px; color:var(--muted); line-height:1.6; }
+  .tiles { display:flex; gap:16px; flex-wrap:wrap; }
+  .tile { width:140px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:10px; }
+  .tile canvas { width:120px; height:120px; border-radius:6px; border:1px solid var(--border); display:block; }
+  .tile .lab { font-size:12px; font-weight:600; margin-top:8px; }
+  .tile .sub { font-size:11px; color:var(--muted); }
+  .labels { display:flex; gap:18px; align-items:flex-end; }
+  .labels .box { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+  .small { font-size:11px; } .big { font-size:13.5px; } .mid { font-size:12.5px; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vector basemap — design reference</h1>
+  <p class="note">The base map is verified live (a static page can't represent a vector map). This reference covers the two things that <em>can</em> be shown flat: the atlas shade textures redrawn as MapLibre sprites, and the label-size target.</p>
+
+  <h2>Atlas shade textures (as MapLibre sprite patterns)</h2>
+  <p class="note">Same visual language as v0.5.2: sparse → dense, low alpha, generous spacing so labels stay readable.</p>
+  <div class="tiles">
+    <div class="tile"><canvas id="t1" width="120" height="120"></canvas><div class="lab">Tier 1 · Possible</div><div class="sub">sparse dots</div></div>
+    <div class="tile"><canvas id="t2" width="120" height="120"></canvas><div class="lab">Tier 2 · Probable</div><div class="sub">single diagonal</div></div>
+    <div class="tile"><canvas id="t3" width="120" height="120"></canvas><div class="lab">Tier 3 · Confirmed (also)</div><div class="sub">spaced cross-hatch</div></div>
+    <div class="tile"><canvas id="t4" width="120" height="120"></canvas><div class="lab">Tier 4 · Confirmed</div><div class="sub">denser cross-hatch</div></div>
+  </div>
+
+  <h2>Label size target</h2>
+  <div class="labels">
+    <div class="box"><div class="small">Anytown · Riverside</div><div class="note">Positron native — "a touch small"</div></div>
+    <div class="box" style="border-color:var(--t3)"><div class="mid">Anytown · Riverside</div><div class="note">Target — one step up (start ~+15–25%, tune live)</div></div>
+    <div class="box"><div class="big" style="font-weight:700">Anytown</div><div class="note">2× — "too big" (rejected)</div></div>
+  </div>
+  <p class="note" style="margin-top:10px">Vector lets us set this precisely — the whole point of the migration.</p>
+</div>
+<script>
+  const COLORS = { t1:'#C084FC', t2:'#A855F7', t3:'#7E22CE', t4:'#3B0764' }
+  function hexToRgba(hex,a){const n=parseInt(hex.slice(1),16);return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`}
+  function dots(ctx,c){ctx.fillStyle=hexToRgba(c,0.6);for(let y=10;y<120;y+=22)for(let x=10;x<120;x+=22){ctx.beginPath();ctx.arc(x,y,2.2,0,7);ctx.fill();}}
+  function diag(ctx,c){ctx.strokeStyle=hexToRgba(c,0.55);ctx.lineWidth=1.4;for(let i=-120;i<120;i+=16){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+120,120);ctx.stroke();}}
+  function cross(ctx,c,step){ctx.strokeStyle=hexToRgba(c,0.5);ctx.lineWidth=1.1;for(let i=-120;i<120;i+=step){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i+120,120);ctx.stroke();ctx.beginPath();ctx.moveTo(i+120,0);ctx.lineTo(i,120);ctx.stroke();}}
+  function fill(id,c){const cv=document.getElementById(id),ctx=cv.getContext('2d');ctx.fillStyle=hexToRgba(c,0.12);ctx.fillRect(0,0,120,120);return ctx;}
+  dots(fill('t1',COLORS.t1),COLORS.t1)
+  diag(fill('t2',COLORS.t2),COLORS.t2)
+  cross(fill('t3',COLORS.t3),COLORS.t3,22)
+  cross(fill('t4',COLORS.t4),COLORS.t4,14)
+</script>
+</body>
+</html>

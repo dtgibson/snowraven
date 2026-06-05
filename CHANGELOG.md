@@ -2,6 +2,23 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.9] - 2026-06-04
+
+### Improved
+- **Sharper, smoother maps (vector base map)** — all three maps (Map Explorer, Species Detail, and Statistics) now draw from vector tiles via MapLibre instead of raster tiles, so labels stay crisp at every zoom, panning and zooming are smoother, and the base map is tuned to SnowRaven's palette: calm, distinct greens for forest/park/meadow, a warm neutral for developed areas, and state/province borders that show when zoomed out. The Map / Satellite / Topo switcher and the Trails overlay work just as before, on every map.
+- **Atlas overlay carried over in full, and easier to read** — the California Breeding Bird Atlas overlay keeps the block grid, shade-by-your-highest-breeding-code, the per-block info popup (with its eBird atlas link), and the optional "Use Textures" hatches. New: when shading is on, any heatmap or pins automatically dim so the breeding-tier colors stay legible on top.
+- **Fullscreen on any screen** — the Map Explorer fullscreen button now appears on desktop too, not only on small/mobile screens.
+
+### Fixed
+- **Breeding Codes: species names now left-align** — they were center-aligned in that table; they now match the Life List, the media columns, and the rest of the app.
+- **Life List: the Total media count is now a link** — the per-type Photo/Audio/Video counts already linked to Macaulay Library; the Total now links too, to all media for that species (with no media-type filter).
+
+### Changed
+- The default "Map" base is now OpenFreeMap vector tiles, replacing the CARTO raster base. Under the hood, the Leaflet map libraries have been removed now that every map runs on MapLibre.
+
+### Privacy
+- The Privacy Policy's map-tile disclosure now lists **OpenFreeMap** (the new default vector base) in place of CARTO. Tiles are still fetched directly from the provider as you pan and zoom — no SnowRaven server in between, and no tracking added.
+
 ## [0.5.8] - 2026-06-04
 
 ### Added

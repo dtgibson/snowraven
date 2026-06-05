@@ -1,48 +1,68 @@
-# Handoff — standard-bird-name-format (New Feature lane)
+# Handoff — vector-basemap-maplibre (New Feature lane) — PAUSED mid-Engineer
 
-## What We Accomplished
-Shipped **v0.5.8** — an app-wide standardized, clickable bird-name format.
-Every user-facing bird name renders through a shared `<BirdName>`: common name
-links to its Species Detail entry (when the user has one), eBird/BoW favicons
-always, scientific name where there's room. Clicking any name navigates to and
-selects that species on Species Detail. Where a name previously carried a link,
-the count/element took it over; birds not in the user's data show name +
-favicons with no dead link.
+## Status
+Stage 5 (The Engineer), **paused** mid-build. Work is in the working tree,
+**uncommitted** (per our flow — commit happens at the Deployer stage). The app
+runs end-to-end right now: Statistics map is on MapLibre; Map Explorer +
+Species Detail still run on the old Leaflet path (both libraries installed).
 
-## Where We Are
-**Feature complete — all 9 stages done.** v0.5.8 live on all platforms.
+## Engineer build checkpoints
+- ✅ **1 — Base map.** MapLibre + react-map-gl installed. `lib/mapStyle.ts`
+  (tuned OpenFreeMap **Positron** vector style) + `components/SnowMap.tsx`
+  (wrapper: one persistent style, zoom control, auto-resize). Base dialed in
+  with Dave: native label size; brand-clover land tints (distinct, light
+  forest/park/meadow greens — values in mapStyle.ts TINT_*); country borders
+  darkened; **state borders** thin/dashed from ~z4; developed = warm-neutral.
+- ✅ **2 — Base switcher.** Map / Satellite (Esri) / Topo-US (USGS) + **Trails**
+  (Waymarked) overlay, persisted via storage seam (keys map-base-layer /
+  map-trails-overlay). Implemented as ONE persistent style with raster bases +
+  trails as visibility-toggled layers (NOT style-swapping — that broke on the
+  satellite round-trip and lost pan/zoom). Satellite/Topo sit under labels.
+- ✅ **Statistics map migrated** to `<SnowMap>` (vector base, numbered markers
+  via react-map-gl `<Marker>`, click `<Popup>` via `geoPopup` state,
+  `fitToPins` onLoad). It currently has the switcher enabled (temporary — decide
+  whether Statistics keeps it or goes base-only).
 
-## Release facts
-- Version `0.5.8` (patch). Tag `v0.5.8`; release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.8
-- Assets verified: latest.json, macOS updater bundle + .sig, universal.dmg, x64-setup.exe + .sig. latest.json 0.5.8 with all three platform keys.
+## What remains (resume here — checkpoint 3)
+**Checkpoint 3 is atomic: it pulls in 4 (heat) and 5 (atlas) too**, because the
+Map Explorer map is a single `MapContainer` whose Leaflet children can't coexist
+with MapLibre. Migrate the whole Map Explorer map at once:
+- Container → `<SnowMap switcher>`; drop `AutoSizeMap`; `MapPanner` +
+  `DefaultCenterSetter` → a react-map-gl `useMap` effect (flyTo / initial view).
+- `DetectedLocationPin` → `<Marker>` (blue dot).
+- Pins: `SightingMarkers` (CircleMarker), `HotspotMarkers`
+  (VISITED/UNVISITED/PERSONAL divIcons), `TargetMarkers` (divIcon groups) →
+  react-map-gl `<Marker>`s. **Rearchitect popups** to ONE state-driven
+  `<Popup>` (Leaflet binds popups to markers; MapLibre needs a selected-feature
+  state). Target popups keep `<BirdName>`.
+- Heatmap: `leaflet.heat` `HeatmapLayer` → MapLibre native `heatmap` layer
+  (slider → heatmap-radius/intensity/weight; re-tune to match v0.5.1 feel).
+- Atlas: `AtlasBlockLayer` (+ `AtlasTierPatterns`) → GeoJSON `fill`/`line`
+  layers; flat shade via data-driven `fill-color` by tier; **Use Textures** via
+  `fill-pattern` sprite images (build `lib/atlasTextures.ts`, register with
+  `map.addImage`). Atlas data/join (`atlasBlocks.ts`, `atlasBreeding.ts`)
+  unchanged. Interior-click popup.
+Then: **Species Detail map** → SnowMap (base only; its heatmap → MapLibre
+heatmap). Remove Leaflet deps (`leaflet`, `react-leaflet`, `leaflet.heat`,
+`@types/leaflet`) + old `MapBaseLayers.tsx`/`AtlasBlockLayer.tsx`/
+`AtlasTierPatterns.tsx` (Leaflet) + `lib/basemaps.ts`. Update
+`PRIVACY_POLICY.md` (add OpenFreeMap), HELP/README. Then Tester→Auditor→
+Deployer (patch release)→Chronicler.
 
-## Key files
-- NEW `frontend/src/components/BirdName.tsx` (+ `BirdName.test.tsx`, jsdom per-file env)
-- `App.tsx` (requestedSpecies + navigateToSpeciesDetail; props to all tabs)
-- `SpeciesDetail.tsx` (consume effect, openSpeciesInTab, taxonCodeFor, Reported With → BirdName)
-- `BirdingStats.tsx` (all lists; backboneNames/hasEntryFor/codeFor; all-observed taxon resolution)
-- `MapExplorer.tsx` (target popups + nearest-targets, pan → Crosshair locate icon)
-- `LifeListTable.tsx`, `BreedingCodeTable.tsx`, `SpeciesPanel.tsx` (+ ListComparer/ResultsView/LifeList/BreedingCodeList wiring)
-- `globals.css` (.sr-birdname*), `docs/HELP.md`, `CHANGELOG.md`
+## Key learnings / gotchas (carry forward)
+- **Import collision:** react-map-gl's `Map` shadows JS `Map` → import as
+  `MapGL`. (Caused a blank-screen crash earlier.)
+- **Single persistent style + visibility**, never `setStyle`-swap for base
+  changes (keeps sources alive, preserves pan/zoom).
+- **No water-mask for trails** — it covered bridges; Dave prefers trails-over-
+  water to missing bridges. Reverted.
+- Dave is on **Orion browser** → Claude-in-Chrome console reading doesn't
+  connect; debug by reasoning + build/typecheck + his live verification.
+- maplibre-gl is a ~273KB-gz chunk (chunk-size warning is informational).
 
-## Live-iteration log (Dave)
-- Single-checklist / one-and-done pills had inconsistent favicons → Stats only
-  resolved ML-species taxon codes. Fixed: resolve codes for ALL observed
-  species + normalized lookup. Confirmed consistent.
-
-## Chronicle updates made
-- ROADMAP.md → Shipped v0.5.8 (48 versions).
-- PRODUCT_CONTEXT.md → new "Standardized Bird-Name Format" entry.
-- DECISIONS.md → the BirdName decision + rules (link-when-hasEntry, move-the-link, D1).
-- CLAUDE.md → new "Bird names" convention section.
-- CHANGELOG, HELP updated in the feature commit.
-
-## Outstanding / future
-- Carried: verify Windows install + in-app updater end-to-end on a Windows machine.
-- Deferred bet (from v0.5.7): vector basemap (MapLibre + OpenFreeMap).
-
-## Resume Prompt
-No active feature. Run `/weft` to start the next lane.
+## Resume
+Run `/weft` → resumes Stage 5 at checkpoint 3 (Map Explorer map rewrite).
+Start dev servers, build incrementally, verify live with Dave each sub-step.
 
 ---
-Project: snowraven. Feature: standard-bird-name-format — COMPLETE (v0.5.8 shipped). No active session.
+Project: snowraven. Feature: vector-basemap-maplibre. Stage 5 (Engineer) PAUSED at checkpoint 3 of 6. Released version still 0.5.8 (nothing shipped).

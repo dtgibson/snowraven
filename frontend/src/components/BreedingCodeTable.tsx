@@ -161,6 +161,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                 >
                   <th scope="row" style={{
                     padding: '9px 12px',
+                    // <th> defaults to center; match the left-aligned name cells used
+                    // elsewhere (Media tab, Life List, etc.).
+                    textAlign: 'left',
                     ...(wideMode ? {} : { position: 'sticky', left: 0, zIndex: 1, boxShadow: '1px 0 0 var(--sr-border)' }),
                     background: rowBg,
                     width: 220,

@@ -38,7 +38,7 @@ What you send to these services (a checklist ID, a location, a search term) is g
 
 The maps in SnowRaven are drawn using map tiles served by third-party providers. As you pan and zoom, your device requests the tiles for the area you are viewing directly from these providers — so, like any website that displays a map, they receive your IP address and which part of the map you are looking at. No SnowRaven server is involved, no API key or account is used, and the developer adds no tracking and keeps no copy. You choose which base map is active with the layer switcher, and only the active layers' tiles are requested. Tiles come from:
 
-- **CARTO** — the default "Map" base map. See [CARTO's privacy policy](https://carto.com/privacy/).
+- **OpenFreeMap** — the default "Map" base map, served as vector tiles. A free, keyless, community-run service; see [openfreemap.org](https://openfreemap.org/).
 - **Esri** — the "Satellite" base map. See [Esri's privacy statement](https://www.esri.com/en-us/privacy/overview).
 - **USGS — The National Map** — the "Topo (US)" base map (United States only); a U.S. government service.
 - **Waymarked Trails** — the optional "Trails" overlay. See [waymarkedtrails.org](https://hiking.waymarkedtrails.org/).

@@ -1,13 +1,18 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 7,
+  "activeFeature": "vector-basemap-maplibre",
+  "sessionNumber": 8,
   "sessionType": "feature",
-  "currentStage": 9,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "complete",
+  "currentStage": 7,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "in-progress",
+  "parityVerified": "3b atlas popup + textures VERIFIED by Dave ('Looks good'). FULL FEATURE PARITY with the old Leaflet maps achieved.",
+  "testerCheckpoint": "Tester re-confirmed on 3b: heat.test.ts + mapStyle.test.ts hold; 299 frontend + 90 backend pass; typecheck+lint+build clean. Atlas textures (canvas) + popup (WebGL click) aren't unit-testable in jsdom — verified live by Dave.",
+  "auditorCheckpoint": "Auditor re-confirmed on 3b: PASS. Block popup = JSX-escaped + encodeURIComponent (safer than the old bindPopup template string); no new dangerouslySetInnerHTML; canvas addImage + MutationObserver(data-theme) have proper cleanup; TierHatchSwatch inline SVG has no pattern-id collisions; 0 npm vulns. CHRONICLER TODO unchanged (CLAUDE.md Leaflet conventions + the now-moot AtlasBlockLayer popup security note).",
+  "engineerCheckpoint": "ENGINEER REOPENED for atlas parity (Dave: don't deploy until all old map features present). Built 3b in MapLibre: (1) BLOCK CLICK POPUP — AtlasLayer binds map.on('click','sr-atlas-fill') → state-driven <Popup> with block name + eBird atlas link (encodeURIComponent, JSX-escaped — safer than old template-string) + 'Highest breeding code: label (code)' + record count when shaded. Unshaded fill-opacity 0 still hit-tested. (2) HATCH TEXTURES — new lib/atlasTextures.ts (canvas ImageData per tier matching old SVG: dots/diag/cross/dense-cross, --sr-tier-N-rgb read at gen time); AtlasLayer addImage on load + MutationObserver(data-theme) regen; fill switches to fill-pattern when useTextures&&shadeOn. Re-enabled 'Use Textures' toggle (removed ATLAS_TEXTURES_ENABLED flag); legend hatch preview via new TierHatchSwatch (inline SVG, theme-aware, no pattern ids). HELP atlas section restored (popup + textures). typecheck+lint+build+299 tests all clean. AWAITING Dave live-verify of popup + textures (incl. light/dark recolor). THEN re-run Tester/Auditor → Deployer (0.5.9).",
+  "engineerCheckpoint": "ENGINEER STAGE COMPLETE. Both maps on MapLibre (Map Explorer + Species Detail VERIFIED by Dave; Statistics on SnowMap too). Leaflet FULLY REMOVED: deleted MapBaseLayers/AtlasBlockLayer/AtlasTierPatterns/lib/basemaps; uninstalled leaflet+leaflet.heat+react-leaflet+@types/leaflet+@types/leaflet.heat; removed orphaned .sr-atlas-block/.sr-atlas-tier-N CSS + --sr-map-void/--sr-map-atlas tokens + dead .leaflet-container rule. lib/heat.ts = single MapLibre heat model. Switcher kept on ALL maps (Dave's call). Docs updated: PRIVACY_POLICY (OpenFreeMap), HELP (statistics switcher, fullscreen all-widths, atlas section reconciled). README needs no change. Build clean, no leaflet chunk; 272/272 vitest pass; typecheck+lint clean. DEFERRED (follow-up, not blocking): atlas 3b textures+click-popup behind ATLAS_TEXTURES_ENABLED=false. CHRONICLER TODO: CLAUDE.md still has obsolete Leaflet conventions (Overlays/stacking section, AtlasBlockLayer security note) + minor stale 'Leaflet' code comments (TabNav z-index, atlasBlocks bbox). NEXT: Tester→Auditor→Deployer (patch 0.5.9)→Chronicler. Work uncommitted (commits at Deployer).",
   "releasedVersion": "0.5.8",
-  "confirmedArtifacts": ["pipeline/standard-bird-name-format/strategic-brief.md", "pipeline/standard-bird-name-format/prd.md", "pipeline/standard-bird-name-format/schema.md", "pipeline/standard-bird-name-format/design-spec.md", "pipeline/standard-bird-name-format/design.html", "pipeline/standard-bird-name-format/qa-report.md", "pipeline/standard-bird-name-format/security-review.md"],
+  "confirmedArtifacts": ["pipeline/vector-basemap-maplibre/strategic-brief.md", "pipeline/vector-basemap-maplibre/prd.md", "pipeline/vector-basemap-maplibre/schema.md", "pipeline/vector-basemap-maplibre/design-spec.md", "pipeline/vector-basemap-maplibre/design.html"],
   "awaitingHuman": null,
-  "createdAt": "2026-06-04T07:00:00Z",
-  "updatedAt": "2026-06-04T20:05:00Z"
+  "createdAt": "2026-06-04T20:30:00Z",
+  "updatedAt": "2026-06-04T20:30:00Z"
 }

@@ -86,12 +86,6 @@
   --sr-map-target-mid:      #5EA07C;
   --sr-map-target-old:      #A8D4BB;
   --sr-map-target-old-text: #1A5C38;
-  /* Leaflet container backdrop — matches the OSM ocean tone so uncovered
-     areas (beyond the world / before tiles load) blend with the sea, not grey. */
-  --sr-map-void:            #e7eaec;
-  /* Atlas block grid overlay — neutral slate, distinct from data pins */
-  --sr-map-atlas:           #475569;
-  --sr-map-atlas-rgb:       71,85,105;
 }
 
 [data-theme="dark"] {
@@ -177,25 +171,15 @@
   --sr-map-target-mid:      #6EE7B7;
   --sr-map-target-old:      #A7F3D0;
   --sr-map-target-old-text: #0D3321;
-  /* OSM standard tiles stay light in dark mode, so the ocean tone is the same. */
-  --sr-map-void:            #e7eaec;
-  --sr-map-atlas:           #94A3B8;
-  --sr-map-atlas-rgb:       148,163,184;
 }
 
 /* Nearest-unvisited hotspot rows (Map Explorer hotspots sidebar) */
 .sr-nearest-unvisited-row:hover { background: var(--sr-surface-subtle); }
 .sr-nearest-unvisited-row:hover .sr-nearest-unvisited-name { color: var(--sr-accent); }
 
-/* Leaflet map backdrop. Default is a flat grey (#ddd) that shows as ugly bands
-   where tiles haven't loaded or the view extends past the world. Tinting it to
-   the OSM ocean tone makes those areas read as sea, not a broken viewport.
-   The doubled class raises specificity above Leaflet's own `.leaflet-container`
-   rule, which is bundled after globals.css and would otherwise win the cascade. */
-.leaflet-container.leaflet-container { background: var(--sr-map-void); }
-
-/* Brand-styled basemap switcher (MapBaseLayers) — rendered as a Leaflet control
-   via a portal. Segmented base selector + a trails toggle, theme-aware tokens. */
+/* Brand-styled basemap switcher (the SnowMap base/overlay control) — an absolutely
+   positioned panel inside the MapLibre map. Segmented base selector + a trails
+   toggle, theme-aware tokens. */
 .sr-map-layers {
   display: flex;
   flex-direction: column;
@@ -243,28 +227,10 @@
 }
 .sr-map-layers-trails input { accent-color: var(--sr-accent); cursor: pointer; }
 
-/* Atlas block outlines (Map Explorer overlay). Stroke set as a CSS property so
-   the var() resolves and reacts to light/dark — Leaflet's `color` option writes
-   the SVG stroke attribute, where custom properties don't resolve. */
-/* Stroke is the visible grid. The fill is painted but fully transparent
-   (fill-opacity: 0) so it never obscures pins, yet Leaflet's own
-   `pointer-events: auto` (= visiblePainted) hit-tests the fill area — making the
-   whole block INTERIOR clickable. Clicking inside a block selects that block,
-   instead of a shared edge line that's ambiguous between two neighbors. */
-.sr-atlas-block { stroke: var(--sr-map-atlas); stroke-width: 2; stroke-opacity: 0.85; fill: var(--sr-map-atlas); fill-opacity: 0; }
-
-/* Shade-by-breeding: each tier's fill is an SVG pattern (translucent tier color +
-   distinct hatch) so breeding level reads without color alone. The CSS `fill`
-   property resolves the fragment ref and overrides Leaflet's fill attribute.
-   `fill-opacity: 1` because translucency is baked into the pattern's rgba colors.
-   Patterns are defined by <AtlasTierPatterns>. */
-.sr-atlas-tier-1 { fill: url(#sr-atlas-tier-1); fill-opacity: 1; }
-.sr-atlas-tier-2 { fill: url(#sr-atlas-tier-2); fill-opacity: 1; }
-.sr-atlas-tier-3 { fill: url(#sr-atlas-tier-3); fill-opacity: 1; }
-.sr-atlas-tier-4 { fill: url(#sr-atlas-tier-4); fill-opacity: 1; }
-
-/* Color-only shading (when "Use Textures" is off): a flat translucent tier tint,
-   no hatch — maximizes base-map visibility while still showing breeding level by color. */
+/* Atlas breeding-tier swatches — flat translucent tier tints used by the "Map
+   Overlays" legend in the Map Explorer sidebar when "Use Textures" is off. (The
+   map's own block fill + grid is drawn by MapLibre in AtlasLayer; the hatch
+   variant of the legend swatch is drawn inline by TierHatchSwatch.) */
 .sr-atlas-fill-1 { fill: rgba(var(--sr-tier-1-rgb), 0.33); fill-opacity: 1; }
 .sr-atlas-fill-2 { fill: rgba(var(--sr-tier-2-rgb), 0.33); fill-opacity: 1; }
 .sr-atlas-fill-3 { fill: rgba(var(--sr-tier-3-rgb), 0.33); fill-opacity: 1; }
@@ -414,10 +380,13 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
-/* Floating map controls cluster (mobile only) — lays the fullscreen toggle and
-   the Filters button side by side so they never overlap regardless of label width. */
+/* Floating map controls cluster — lays the fullscreen toggle and the Filters
+   button side by side so they never overlap regardless of label width. The
+   cluster shows on all widths (so the fullscreen toggle is available on desktop
+   too); the Filters button inside it is mobile-only (desktop keeps the sidebar
+   permanently visible, so no Filters FAB is needed). */
 .sr-map-fab-cluster {
-  display: none;
+  display: flex;
   position: absolute;
   bottom: 20px;
   right: 16px;
@@ -427,7 +396,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .sr-map-filters-btn {
-  display: inline-flex;
+  display: none;
   align-items: center;
   gap: 6px;
   padding: 0 16px;
@@ -534,8 +503,8 @@ select:focus-visible {
     display: none;
   }
 
-  .sr-map-fab-cluster {
-    display: flex;
+  .sr-map-filters-btn {
+    display: inline-flex;
   }
 
   .sr-map-sidebar-close {

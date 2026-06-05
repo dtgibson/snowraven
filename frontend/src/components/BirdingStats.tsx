@@ -7,10 +7,9 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, Legend,
 } from 'recharts'
-import L from 'leaflet'
-import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
-import 'leaflet/dist/leaflet.css'
-import { MapBaseLayers } from './MapBaseLayers'
+import { Marker, Popup } from 'react-map-gl/maplibre'
+import type { Map as MaplibreMap } from 'maplibre-gl'
+import { SnowMap } from './SnowMap'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
 import { parseEbirdObservations } from '../lib/parseEbirdObservations'
@@ -201,45 +200,27 @@ function SubLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function circleIcon(rank: number) {
-  return L.divIcon({
-    html: `<svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#2D8653"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="system-ui,sans-serif">${rank}</text></svg>`,
-    className: '',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -14],
-  })
+function RankIcon({ rank, shape }: { rank: number; shape: 'circle' | 'square' }) {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: 'block', cursor: 'pointer' }}>
+      {shape === 'circle'
+        ? <circle cx="12" cy="12" r="11" fill="#2D8653" />
+        : <rect x="1" y="1" width="22" height="22" rx="3" fill="#3B82F6" />}
+      <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="700" fontFamily="system-ui,sans-serif">{rank}</text>
+    </svg>
+  )
 }
 
-function squareIcon(rank: number) {
-  return L.divIcon({
-    html: `<svg width="24" height="24" viewBox="0 0 24 24"><rect x="1" y="1" width="22" height="22" rx="3" fill="#3B82F6"/><text x="12" y="16" text-anchor="middle" fill="white" font-size="10" font-weight="700" font-family="system-ui,sans-serif">${rank}</text></svg>`,
-    className: '',
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -14],
-  })
-}
-
-function TopLocationsBoundsFitter({
-  checklistPins, speciesPins,
-}: {
-  checklistPins: { lat: number; lng: number }[]
-  speciesPins: { lat: number; lng: number }[]
-}) {
-  const map = useMap()
-  useEffect(() => {
-    map.invalidateSize()
-    const allPins = [...checklistPins, ...speciesPins]
-    if (allPins.length === 0) return
-    if (allPins.length === 1) {
-      map.setView([allPins[0].lat, allPins[0].lng], 12)
-      return
-    }
-    const bounds = L.latLngBounds(allPins.map(p => [p.lat, p.lng] as [number, number]))
-    map.fitBounds(bounds, { padding: [20, 20] })
-  }, [map, checklistPins, speciesPins])
-  return null
+/** Fit the map to all pins once it's loaded (replaces the Leaflet bounds-fitter). */
+function fitToPins(map: MaplibreMap, pins: { lat: number; lng: number }[]) {
+  if (pins.length === 0) return
+  if (pins.length === 1) { map.easeTo({ center: [pins[0].lng, pins[0].lat], zoom: 11, duration: 0 }); return }
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+  for (const p of pins) {
+    minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng)
+    minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat)
+  }
+  map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 28, duration: 0 })
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -253,6 +234,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const [breedingFilter, setBreedingFilter] = useState<'all' | 'confirmed' | 'probable' | 'possible'>('all')
   const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [mlTaxonMap, setMlTaxonMap] = useState<Record<string, string>>({})
+  const [geoPopup, setGeoPopup] = useState<{ lng: number; lat: number; title: string; sub: string } | null>(null)
   const [nemesisResult, setNemesisResult] = useState<NemesisSpecies[] | null>(null)
   const [nemesisLoading, setNemesisLoading] = useState(false)
   const [nemesisError, setNemesisError] = useState<string | null>(null)
@@ -1427,23 +1409,32 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           if (clPins.length === 0 && spPins.length === 0) return null
           return (
             <div style={{ marginBottom: 20 }}>
-              <MapContainer
-                center={[0, 0]} zoom={2} zoomControl
-                style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)' }}
-              >
-                <MapBaseLayers />
-                <TopLocationsBoundsFitter checklistPins={clPins} speciesPins={spPins} />
-                {clPins.map(pin => (
-                  <Marker key={`cl-${pin.rank}`} position={[pin.lat, pin.lng]} icon={circleIcon(pin.rank)}>
-                    <Popup><span style={{ fontSize: 13 }}>{pin.name}</span><br /><span style={{ color: '#71717A', fontSize: 12 }}>{fmt(pin.checklists)} checklists</span></Popup>
-                  </Marker>
-                ))}
-                {spPins.map(pin => (
-                  <Marker key={`sp-${pin.rank}`} position={[pin.lat, pin.lng]} icon={squareIcon(pin.rank)}>
-                    <Popup><span style={{ fontSize: 13 }}>{pin.name}</span><br /><span style={{ color: '#71717A', fontSize: 12 }}>{fmt(pin.species)} species</span></Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
+              <div style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
+                <SnowMap
+                  initialViewState={{ longitude: 0, latitude: 20, zoom: 1 }}
+                  style={{ width: '100%', height: '100%' }}
+                  onLoad={e => fitToPins(e.target, [...clPins, ...spPins])}
+                  switcher
+                >
+                  {clPins.map(pin => (
+                    <Marker key={`cl-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
+                      onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.checklists)} checklists` }) }}>
+                      <RankIcon rank={pin.rank} shape="circle" />
+                    </Marker>
+                  ))}
+                  {spPins.map(pin => (
+                    <Marker key={`sp-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
+                      onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.species)} species` }) }}>
+                      <RankIcon rank={pin.rank} shape="square" />
+                    </Marker>
+                  ))}
+                  {geoPopup && (
+                    <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton={false}>
+                      <span style={{ fontSize: 13 }}>{geoPopup.title}</span><br /><span style={{ color: '#71717A', fontSize: 12 }}>{geoPopup.sub}</span>
+                    </Popup>
+                  )}
+                </SnowMap>
+              </div>
               <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#2D8653" /></svg>

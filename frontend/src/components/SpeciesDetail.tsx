@@ -1,6 +1,6 @@
-import 'leaflet/dist/leaflet.css'
-import L from 'leaflet'
-import { MapContainer, Marker, Popup, useMap } from 'react-leaflet'
+import { Marker, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre'
+import type { HeatmapLayerSpecification } from 'maplibre-gl'
+import type { FeatureCollection, Point } from 'geojson'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, Loader2, ChevronDown,
@@ -23,17 +23,8 @@ import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
-import { HEAT_INTENSITY_DEFAULT, heatRadius, heatBlur, heatMax, heatWeight } from '../lib/heat'
-import { MapBaseLayers } from './MapBaseLayers'
-
-// Leaflet marker icon patch for Vite asset handling
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl
-L.Icon.Default.mergeOptions({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-})
+import { HEAT_INTENSITY_DEFAULT, heatWeight, heatRadiusPx, heatIntensityFactor } from '../lib/heat'
+import { SnowMap } from './SnowMap'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -190,51 +181,55 @@ function ToggleSwitch({ label, checked, onChange }: { label: string; checked: bo
   )
 }
 
+// Location pin (teardrop) for the Sighting Locations map. Rendered into a
+// react-map-gl <Marker anchor="bottom"> so the tip lands on the coordinate.
+// Brand-accent fill via CSS var (resolves at paint time in the DOM overlay).
+const SP_PIN_HTML = '<svg viewBox="0 0 28 40" width="24" height="34" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" style="fill:var(--sr-accent)"/><circle cx="14" cy="14" r="5" fill="white"/></svg>'
+
+// Fit the map to all sighting coordinates (re-runs when the set changes, and
+// once the map ref becomes available). Coords arrive [lat, lng]; MapLibre wants
+// [lng, lat], converted here.
 function MapBoundsFitter({ coordinates }: { coordinates: [number, number][] }) {
-  const map = useMap()
+  const map = useMap().current
   useEffect(() => {
-    if (coordinates.length === 0) return
+    if (!map || coordinates.length === 0) return
     if (coordinates.length === 1) {
-      map.setView(coordinates[0], 12)
+      map.flyTo({ center: [coordinates[0][1], coordinates[0][0]], zoom: 12, duration: 0 })
     } else {
-      map.fitBounds(coordinates, { padding: [30, 30] })
+      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
+      for (const [lat, lng] of coordinates) {
+        minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng)
+        minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat)
+      }
+      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 30, duration: 0 })
     }
   }, [map, coordinates])
   return null
 }
 
-// ── HeatmapLayer ───────────────────────────────────────────────────────────
+// ── Heatmap layer (MapLibre native) ─────────────────────────────────────────
 
-const heatLoaded = { current: false }
-
-function HeatmapLayer({ points, visible, intensity }: { points: [number, number, number][]; visible: boolean; intensity: number }) {
-  const map = useMap()
-  const layerRef = useRef<L.Layer | null>(null)
-
-  useEffect(() => {
-    if (!visible || points.length === 0) {
-      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
-      return
-    }
-    const apply = () => {
-      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      layerRef.current = (L as any).heatLayer(points, { radius: heatRadius(intensity), blur: heatBlur(intensity), max: heatMax(intensity), maxZoom: 17 }).addTo(map)
-    }
-    if (heatLoaded.current) {
-      apply()
-    } else {
-      // leaflet.heat is a legacy IIFE that reads window.L — expose it before the dynamic import
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(window as any).L = L
-      import('leaflet.heat').then(() => { heatLoaded.current = true; apply() })
-    }
-    return () => {
-      if (layerRef.current) { map.removeLayer(layerRef.current); layerRef.current = null }
-    }
-  }, [map, points, visible, intensity])
-
-  return null
+// Sighting-location heat. Points arrive [lat, lng, weight]; the weight already
+// folds in obs count × intensity (heatWeight, lib/heat.ts). Rendered as a
+// MapLibre `heatmap` layer so it shares the Map Explorer's tuned feel.
+function HeatmapLayer({ points, intensity }: { points: [number, number, number][]; intensity: number }) {
+  const fc = useMemo<FeatureCollection<Point, { w: number }>>(() => ({
+    type: 'FeatureCollection',
+    features: points.map(([lat, lng, w]) => ({
+      type: 'Feature', properties: { w },
+      geometry: { type: 'Point', coordinates: [lng, lat] },
+    })),
+  }), [points])
+  return (
+    <Source id="sr-sp-heat" type="geojson" data={fc}>
+      <Layer id="sr-sp-heat" type="heatmap" paint={{
+        'heatmap-weight': ['get', 'w'],
+        'heatmap-intensity': heatIntensityFactor(intensity),
+        'heatmap-radius': heatRadiusPx(intensity),
+        'heatmap-opacity': 0.85,
+      } as HeatmapLayerSpecification['paint']} />
+    </Source>
+  )
 }
 
 // ── SightingsGraph ─────────────────────────────────────────────────────────
@@ -450,6 +445,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   const [showAllLocations, setShowAllLocations] = useState(false)
   const [mapMode, setMapMode] = useState<'pins' | 'heatmap'>('pins')
   const [heatIntensity, setHeatIntensity] = useState(HEAT_INTENSITY_DEFAULT)
+  const [selectedCoord, setSelectedCoord] = useState<string | null>(null)
   const [graphInterval, setGraphInterval] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
   const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   const [showAllCoOccurrence, setShowAllCoOccurrence] = useState(false)
@@ -465,6 +461,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     setShowAllLocations(false)
     setMapMode('pins')
     setHeatIntensity(HEAT_INTENSITY_DEFAULT)
+    setSelectedCoord(null)
     setGraphInterval('monthly')
     setViewMode('per-period')
     setShowAllCoOccurrence(false)
@@ -838,6 +835,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     (): [number, number, number][] => coordMarkers.map(m => [m.lat, m.lng, heatWeight(m.sightings.length, heatIntensity)]),
     [coordMarkers, heatIntensity]
   )
+
+  // The pin whose popup is open (MapLibre uses one state-driven <Popup>, not a
+  // popup bound to each marker as Leaflet did). Keyed by "lat,lng".
+  const selectedMarker = selectedCoord ? coordMarkers.find(m => `${m.lat},${m.lng}` === selectedCoord) ?? null : null
 
   // Graph data (lifted from SightingsGraph for hasGraphData check and GraphOptions card)
   const graphResult = useMemo(
@@ -1702,7 +1703,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   {(['pins', 'heatmap'] as const).map((mode) => (
                     <button tabIndex={0}
                       key={mode}
-                      onClick={() => setMapMode(mode)}
+                      onClick={() => { setMapMode(mode); setSelectedCoord(null) }}
                       style={{
                         padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: 11,
                         fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
@@ -1739,47 +1740,50 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 </div>
               )}
               <div className="sr-map-container">
-                <MapContainer
-                  center={uniqueCoords[0] ?? [0, 0]}
-                  zoom={5}
+                <SnowMap
+                  initialViewState={{ longitude: uniqueCoords[0]?.[1] ?? 0, latitude: uniqueCoords[0]?.[0] ?? 0, zoom: 5 }}
                   style={{ height: '100%', width: '100%' }}
-                  scrollWheelZoom={false}
+                  switcher
+                  scrollZoom={false}
                 >
-                  <MapBaseLayers switcher />
                   {mapMode === 'pins' && coordMarkers.map(m => (
-                    <Marker key={`${m.lat},${m.lng}`} position={[m.lat, m.lng]}>
-                      <Popup>
-                        <div style={{ fontSize: 13, lineHeight: 1.7, minWidth: 120 }}>
-                          {m.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
-                            <div key={`${submissionId}-${i}`}>
-                              {SUBMISSION_ID_RE.test(submissionId) ? (
-                                <a
-                                  href={`https://ebird.org/checklist/${submissionId}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  style={{ color: '#2D8653', textDecoration: 'none' }}
-                                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                                >
-                                  {formatDate(date)}
-                                </a>
-                              ) : (
-                                <span>{formatDate(date)}</span>
-                              )}
-                            </div>
-                          ))}
-                          {m.sightings.length > 6 && (
-                            <div style={{ color: '#888', marginTop: 2, fontSize: 12 }}>
-                              +{m.sightings.length - 6} more
-                            </div>
-                          )}
-                        </div>
-                      </Popup>
+                    <Marker key={`${m.lat},${m.lng}`} longitude={m.lng} latitude={m.lat} anchor="bottom"
+                      onClick={e => { e.originalEvent.stopPropagation(); setSelectedCoord(`${m.lat},${m.lng}`) }}>
+                      <div style={{ width: 24, height: 34, cursor: 'pointer' }} dangerouslySetInnerHTML={{ __html: SP_PIN_HTML }} />
                     </Marker>
                   ))}
-                  <HeatmapLayer points={heatPoints} visible={mapMode === 'heatmap'} intensity={heatIntensity} />
+                  {mapMode === 'pins' && selectedMarker && (
+                    <Popup longitude={selectedMarker.lng} latitude={selectedMarker.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} closeButton={false} maxWidth="260px">
+                      <div style={{ fontSize: 13, lineHeight: 1.7, minWidth: 120 }}>
+                        {selectedMarker.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
+                          <div key={`${submissionId}-${i}`}>
+                            {SUBMISSION_ID_RE.test(submissionId) ? (
+                              <a
+                                href={`https://ebird.org/checklist/${submissionId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ color: '#2D8653', textDecoration: 'none' }}
+                                onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                                onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                              >
+                                {formatDate(date)}
+                              </a>
+                            ) : (
+                              <span>{formatDate(date)}</span>
+                            )}
+                          </div>
+                        ))}
+                        {selectedMarker.sightings.length > 6 && (
+                          <div style={{ color: '#888', marginTop: 2, fontSize: 12 }}>
+                            +{selectedMarker.sightings.length - 6} more
+                          </div>
+                        )}
+                      </div>
+                    </Popup>
+                  )}
+                  {mapMode === 'heatmap' && <HeatmapLayer points={heatPoints} intensity={heatIntensity} />}
                   <MapBoundsFitter coordinates={uniqueCoords} />
-                </MapContainer>
+                </SnowMap>
               </div>
             </SectionCard>
           )}

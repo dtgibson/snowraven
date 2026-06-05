@@ -51,6 +51,19 @@ function mlUrl(
   return userId ? `${base}&userId=${userId}` : base
 }
 
+// All media for the species (no mediaType filter) — the Total count links here.
+// Same shape as mlUrl minus the mediaType parameter.
+function mlUrlAll(
+  commonName: string,
+  userId: string | null,
+  taxonCode: string | undefined
+): string {
+  const base = taxonCode
+    ? `https://search.macaulaylibrary.org/catalog?taxonCode=${taxonCode}`
+    : `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(commonName)}`
+  return userId ? `${base}&userId=${userId}` : base
+}
+
 const iconCell: React.CSSProperties = {
   display: 'flex',
   justifyContent: 'center',
@@ -290,7 +303,15 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 <td style={{ width: 70, padding: '9px 14px', verticalAlign: 'middle', borderLeft: '1px solid var(--sr-border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     {totalCount > 0
-                      ? <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums' }}>{totalCount}</span>
+                      ? <a
+                          href={mlUrlAll(entry.commonName, userId, taxonCode)}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="All media on Macaulay Library"
+                          style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', textDecoration: 'none' }}
+                          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                        >{totalCount}</a>
                       : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
                   </div>
                 </td>
