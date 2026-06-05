@@ -4,6 +4,43 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Statistics tab: top species, richer effort/outings, regroup — 2026-06-05 (v0.5.10)
+
+**Decision:** Expanded and reorganized the Statistics tab (`BirdingStats.tsx`):
+added **Top Species** (most individuals + most checklists), a much richer
+**Effort & Outings** section, a new **Highlights & Records** section, a logical
+**regroup** of previously-scattered stats, and a section **jump-nav**. Shipped
+batched with the SnowMap offline-retry fix as **0.5.10**.
+
+**Key points / learnings:**
+- **Area Covered**: added parsing (`area` on ObservationEntry/ChecklistEntry;
+  the "area covered (ha)" column). Dave's data has **0 area rows** — his protocols
+  are Traveling/Stationary/Casual, and only the eBird "Area" protocol records
+  area. So area stats are **hidden when absent** rather than shown blank; parsing
+  is verified, the empty display was correct, not a bug.
+- **Checklist-level fields dedupe by submissionId** — duration/distance/area/
+  observers repeat per species row, so summing raw rows would multiply by species
+  count. All outing superlatives + totals use the deduped `checklists`.
+- **Regroup without risky cut-paste**: moved the records grid out of Firsts &
+  Milestones, then split Data Quality by inserting a section boundary *before* the
+  biggest-counts block — so the flocks / single-checklist / one-and-done blocks
+  became the new "Highlights & Records" section's content in place. (Placement:
+  Highlights & Records lands after Data Quality as a result.)
+- **State codes → names**: new `lib/regionNames.ts` (US + Canada, fallback to the
+  code); display the name, keep the code in the eBird region URL + hover title.
+- **Streak counts any report/date** (`rawObs`, unfiltered) per Dave's ask;
+  single-checklist now excludes one-and-done (a strict subset).
+- **Total time spelled out** via `formatDuration` (yr/mo/day/hr/min, non-zero
+  units only; eBird durations are minute-granular so no seconds).
+- **Versioning**: 0.5.10 was already bumped (for the map fix) in BOTH
+  `package.json` and `tauri.conf.json` — did not re-bump; appended the Statistics
+  items to the existing 0.5.10 CHANGELOG entry. (Reinforces the v0.5.9 lesson:
+  bump both version files.)
+- Tests: `lib/regionNames.test.ts` + Area-Covered parsing in
+  `parseEbirdObservations.test.ts`. 306 frontend tests pass.
+
+---
+
 ## Vector basemap: Leaflet → MapLibre GL + OpenFreeMap — 2026-06-04 (v0.5.9)
 
 **Decision:** Replaced the Leaflet + raster-tile map stack with **MapLibre GL**

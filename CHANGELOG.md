@@ -2,7 +2,7 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [0.5.10] - 2026-06-04
+## [0.5.10] - 2026-06-05
 
 ### Added
 - **Top Species on the Statistics tab** — two new ranked top-10 lists: the species you've counted the most **individuals** of, and the species you've reported on the most **checklists**.

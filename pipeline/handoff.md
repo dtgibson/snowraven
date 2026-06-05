@@ -1,46 +1,44 @@
-# Handoff — vector-basemap-maplibre — SHIPPED (v0.5.9)
+# Handoff — statistics-improvements — SHIPPED (v0.5.10)
 
 ## Status
-**COMPLETE.** Shipped as patch **v0.5.9** — GitHub release published with a
-notarized macOS universal DMG, a signed Windows installer, and `latest.json`
-(all three updater targets). All 9 Weft stages done. `session-state.json` has
-`activeFeature: null`, so the next `/weft` starts a fresh session.
+**COMPLETE.** Shipped as **0.5.10** (Improve lane), batched with the SnowMap
+offline-retry fix. GitHub release published with a notarized macOS universal DMG,
+a signed Windows installer, and `latest.json` (all three updater targets) — all
+health-checked. `session-state.json` has `activeFeature: null`; next `/weft`
+starts fresh.
 
-Release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.9
+Release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.10
 
-## What shipped
-- All three maps (Map Explorer, Species Detail, Statistics) migrated from Leaflet
-  + raster tiles to **MapLibre GL + OpenFreeMap vector tiles** via a shared
-  `<SnowMap>` wrapper; styles/providers in `lib/mapStyle.ts`.
-- Atlas overlay at full parity: GeoJSON grid + breeding-tier shading, block click
-  popup (eBird atlas link), hatch textures (`lib/atlasTextures.ts`), and
-  shading-priority dimming of the heatmap/pins.
-- Heat model centralized in `lib/heat.ts` (native MapLibre heatmap, shared 1–10
-  slider). Leaflet removed entirely (deps + old components/CSS).
-- Tests: `lib/heat.test.ts` + `lib/mapStyle.test.ts` (299 frontend / 90 backend).
-- Two fixes batched into the same release: Breeding Codes species-name left-align;
-  Life List Total media count now links to all media.
-- Docs: PRIVACY_POLICY (OpenFreeMap), HELP, CLAUDE.md (MapLibre conventions +
-  bump-both-version-files rule), DECISIONS.md.
+## What shipped (Statistics tab)
+- **Top Species** — top 10 by total individuals and by # checklists.
+- **Effort & Outings** — cumulative totals (time spelled out as days/hrs/min,
+  distance, area when present), avg area, observer summary (% solo / avg /
+  largest group), and Notable Outings (longest / farthest / largest-area /
+  most-species / most-individuals checklists, each linking to eBird).
+- **Highlights & Records** (new) — biggest day, longest streak, dry spell,
+  Shannon diversity, biggest flocks, single-checklist + one-and-done birds,
+  regrouped out of Firsts & Milestones and Data Quality.
+- Full state/province names (`lib/regionNames.ts`), spelled-out metric labels,
+  a section jump-nav, Area Covered parsing, any-report streak dates, and
+  single-checklist excluding one-and-done.
+- Tests: `lib/regionNames.test.ts` + Area-Covered parsing (306 frontend pass).
+- **Also shipped**: SnowMap shows a "map couldn't load — Retry" state on a
+  failed style fetch (the offline-map fix that was queued for this batch).
 
-## Follow-ups (not blocking)
-- **Offline:** maps are online-only; if the OpenFreeMap *style* fetch fails,
-  `SnowMap` sits on "Loading map…". Offline vector tiles were always a future
-  goal — a graceful "map unavailable" state would be a nice robustness add.
-- **Atlas textures** were restored before release for parity; if revisited, the
-  legend preview (`TierHatchSwatch`) and the map sprites (`lib/atlasTextures.ts`)
-  are two representations of the same hatch design — keep them visually in sync.
-- Verify the Windows installer + in-app updater end-to-end on a Windows machine
-  (Dave) — carried from prior releases.
+## Notes / follow-ups
+- **Area stats** are hidden unless the data has area-covered checklists (eBird
+  "Area" protocol). Dave's current data has none — working as intended.
+- Section order now: Life List Totals → Top Species → Firsts & Milestones →
+  Temporal → Geographic → Effort & Outings → Data Quality → Highlights & Records
+  → Breeding → Media → Other. (Highlights & Records sits after Data Quality due
+  to the in-place split; can be reordered later if desired.)
 
-## Key learnings (recorded in DECISIONS.md / CLAUDE.md)
-- Import react-map-gl's `Map` as `MapGL` (it shadows the JS `Map` constructor).
-- Single persistent style + `visibility` toggling, never `setStyle`-swap.
-- Bump BOTH `frontend/package.json` AND `src-tauri/tauri.conf.json` on a release;
-  the tag must point at a commit where both are bumped (CI builds Windows from
-  `tauri.conf.json`).
-- MapLibre paint can't read CSS vars — hardcode colors or read them at sprite
-  generation time.
+## Key learnings (in DECISIONS.md)
+- Checklist-level fields (duration/distance/area/observers) repeat per species
+  row — dedupe by submissionId before summing.
+- Bump BOTH `frontend/package.json` and `src-tauri/tauri.conf.json` (0.5.10 was
+  already bumped for the map fix; appended Statistics to that changelog entry).
+- Regroup safely by inserting a section boundary rather than cut-pasting big JSX.
 
 ---
-Project: snowraven. Feature: vector-basemap-maplibre. All stages complete; v0.5.9 live.
+Project: snowraven. Feature: statistics-improvements. All stages complete; v0.5.10 live.
