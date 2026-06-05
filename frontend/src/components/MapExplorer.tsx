@@ -1161,7 +1161,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
       <SidebarLabel>Map Overlays</SidebarLabel>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Atlas blocks</span>
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>California atlas blocks</span>
         <button
           type="button"
           role="switch"

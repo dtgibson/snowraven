@@ -4,6 +4,45 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Tier 3 foundation pass (v0.5.12) — 2026-06-05
+
+**What:** First pass at the Tier 3 backlog (`pipeline/comprehensive-review/audit.md`),
+prioritized for long-term maintainability (Dave: "maintain SnowRaven for a long time").
+
+**Done:**
+- **Extracted + tested the stats logic.** `lib/birdingStats.ts` (13 pure fns, 14 tests)
+  and `lib/speciesStats.ts` (7 pure fns, 9 tests) — the Statistics + Species Detail
+  derivations are now pure, unit-tested modules; the components render over them.
+  BirdingStats 2574→1952, SpeciesDetail 1951→1813 lines. This is where the past
+  calc bugs lived (area, streaks, state names) — now regression-guarded.
+- **Chart accessibility.** All charts get `role="img"` + a concise summary; decorative
+  pie SVGs `aria-hidden`.
+- **Perf:** `BirdName` wrapped in `React.memo`; eBird CSV parse moved to a Web Worker
+  (`lib/observationsWorker.ts`) via `observationsCache`, with a synchronous fallback.
+- **Map Explorer:** atlas toggle relabeled "California atlas blocks." (Tried per-mode
+  intro text — REVERTED: it pushed controls down + duplicated the legend. Lesson:
+  no explanatory chrome above the controls.)
+
+**Deliberately did NOT do (and why):**
+- **Shared-primitive dedups** (heatmap layer, filter bar): on inspection the heatmap
+  uses had genuinely diverged (atlas shading) and the filter predicate was trivial —
+  forcing a shared abstraction would be the *wrong* abstraction. Skipped.
+- **Component render-splitting** (sections → files): the high-value part was the logic
+  extraction (done); splitting JSX into files is pure org with churn — deferred until
+  a tab is being actively changed.
+
+**Deferred to dedicated future efforts:**
+- **In-app text size → px→rem conversion.** The app is sized in fixed px, which is
+  exactly what blocks honoring the OS/browser text size. The mobile-correct path
+  (relative units → iOS Dynamic Type / Android font scale, no JS API reads a number)
+  is a large, careful refactor — its own effort, also the foundation for the future
+  mobile app. A CSS-`zoom` shortcut was rejected (manual-only, ignores system size,
+  and CSS zoom can offset MapLibre pointer coords).
+- **Keyboard-operable map markers** (MapLibre markers aren't natively focusable;
+  sidebar lists are the current fallback).
+
+---
+
 ## Comprehensive review → Tier 1 + 2 improvements (v0.5.11) — 2026-06-05
 
 **What:** Ran a full-app audit (5 parallel read-only reviews: UX, IA/consistency,

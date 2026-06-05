@@ -16,7 +16,7 @@ Every button, link, tab, filter pill, toggle, sortable column header, and the sp
 
 ## Screen Reader Support
 
-SnowRaven uses semantic structure and ARIA attributes so assistive technology can describe the interface accurately. Tabs and their panels are linked with the correct tab/tabpanel roles and selected state. Filter pills announce whether they are pressed, toggles announce on/off as switches, and sortable table columns announce their sort direction. The species selector exposes its expanded state and current option. Information that is shown only with an icon or a color — breeding-code tiers, map recency dots — carries a hidden text label so it is never lost to a screen reader. Regions that update on their own, like the weather result and species counts, are announced politely as they change.
+SnowRaven uses semantic structure and ARIA attributes so assistive technology can describe the interface accurately. Tabs and their panels are linked with the correct tab/tabpanel roles and selected state. Filter pills announce whether they are pressed, toggles announce on/off as switches, and sortable table columns announce their sort direction. The species selector exposes its expanded state and current option. Information that is shown only with an icon or a color — breeding-code tiers, map recency dots — carries a hidden text label so it is never lost to a screen reader. Charts (life-list growth, temporal and media trends, sightings over time, and the like) expose a concise text summary via an image role, so their content isn't lost to a screen reader, and purely decorative chart flourishes are hidden from assistive tech. Regions that update on their own, like the weather result and species counts, are announced politely as they change.
 
 ---
 

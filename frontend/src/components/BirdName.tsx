@@ -4,6 +4,7 @@
 // is shown, stacked beneath, only where there's room (showSci). Purely
 // presentational — callers supply the taxon code and the navigation handler.
 
+import { memo } from 'react'
 import { SpeciesLinks } from './SpeciesLinks'
 
 export interface BirdNameProps {
@@ -23,7 +24,7 @@ export interface BirdNameProps {
   size?: 'sm' | 'md' | 'lg'
 }
 
-export function BirdName({
+export const BirdName = memo(function BirdName({
   commonName,
   scientificName,
   taxonCode,
@@ -56,4 +57,4 @@ export function BirdName({
       {sci && <span className="sr-birdname-sci">{sci}</span>}
     </span>
   )
-}
+})

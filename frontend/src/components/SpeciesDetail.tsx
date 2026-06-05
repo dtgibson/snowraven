@@ -18,7 +18,11 @@ import { loadEbirdObservations } from '../lib/observationsCache'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { buildGraphData, type GraphPoint, type GraphInterval } from '../lib/sightingsGraph'
-import { BREEDING_CODE_MAP, BREEDING_CODES, TIER_COLORS } from '../lib/breedingCodes'
+import { TIER_COLORS } from '../lib/breedingCodes'
+import {
+  computeSightingsStats, computeMediaCounts, computeRecentMediaIds, computeBreedingPill,
+  computeBreedingBreakdown, computeLocationsSorted, computeCoOccurrence,
+} from '../lib/speciesStats'
 import { SpeciesLinks } from './SpeciesLinks'
 import { BirdName } from './BirdName'
 import type { ObservationEntry, MediaType } from '../types'
@@ -67,7 +71,6 @@ function mlCatalogLink(mediaType: MediaType, taxonCode: string | undefined, user
 }
 
 
-const BREEDING_CODE_CANONICAL_ORDER = new Map(BREEDING_CODES.map((d, i) => [d.code, i]))
 const COMMENTS_PAGE = 10
 
 
@@ -294,7 +297,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
     <>
       <SectionCard>
         <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Sightings Over Time" />
-        <div style={{ padding: '14px 18px 0' }}>
+        <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Sightings over time line chart. ${sightingsAxisLabel}`}>
           <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{sightingsAxisLabel}</span>
           </div>
@@ -319,7 +322,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
       </SectionCard>
       <SectionCard>
         <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Checklists Over Time" />
-        <div style={{ padding: '14px 18px 0' }}>
+        <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Checklists over time line chart. ${checklistsAxisLabel}`}>
           <div style={{ marginBottom: 12 }}>
             <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{checklistsAxisLabel}</span>
           </div>
@@ -345,7 +348,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
       {hasAnyMedia && (
         <SectionCard>
           <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Media Over Time" />
-          <div style={{ padding: '14px 18px 0' }}>
+          <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Media over time line chart — photo, audio, and video. ${mediaAxisLabel}`}>
             <div style={{ marginBottom: 12 }}>
               <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{mediaAxisLabel}</span>
             </div>
@@ -642,110 +645,28 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   }, [phase, selectedSpecies, mergeSubspecies, countyFilter, dateRange, hasLocationFilter])
 
   // Sightings stats
-  const sightingsStats = useMemo(() => {
-    if (!speciesObs.length) return null
-    const sorted = [...speciesObs].sort((a, b) => a.date.localeCompare(b.date))
-    const first = sorted[0]
-    const last = sorted[sorted.length - 1]
-    let bestCount = -Infinity
-    let bestObs: ObservationEntry | null = null
-    let individualSum = 0
-    let hasNumericCount = false
-    for (const o of speciesObs) {
-      if (o.count !== null) {
-        if (o.count > bestCount) { bestCount = o.count; bestObs = o }
-        individualSum += o.count
-        hasNumericCount = true
-      }
-    }
-    return {
-      total: speciesObs.length,
-      totalIndividuals: hasNumericCount ? individualSum : null,
-      firstObs: first,
-      lastObs: last,
-      bestObs,
-      bestCount: bestObs ? bestCount : null,
-    }
-  }, [speciesObs])
+  const sightingsStats = useMemo(() => computeSightingsStats(speciesObs), [speciesObs])
 
   // Media counts
-  const mediaCounts = useMemo(() => {
-    if (phase.tag !== 'ready') return { Photo: 0, Audio: 0, Video: 0 }
-    const counts = { Photo: 0, Audio: 0, Video: 0 }
-    const seen = new Set<string>()
-    for (const o of speciesObs) {
-      for (const id of o.catalogIds) {
-        if (!seen.has(id)) {
-          seen.add(id)
-          const type = phase.mediaMap.get(id)
-          if (type && type in counts) counts[type as keyof typeof counts]++
-        }
-      }
-    }
-    return counts
-  }, [speciesObs, phase])
+  const mediaCounts = useMemo(
+    () => computeMediaCounts(speciesObs, phase.tag === 'ready' ? phase.mediaMap : new Map<string, string>()),
+    [speciesObs, phase],
+  )
 
   // Highest catalog ID per media type (for embedded media)
-  const recentMediaIds = useMemo(() => {
-    const result: Record<MediaType, string | null> = { Photo: null, Audio: null, Video: null }
-    if (phase.tag !== 'ready') return result
-    for (const o of speciesObs) {
-      for (const id of o.catalogIds) {
-        if (!/^\d+$/.test(id)) continue
-        const type = phase.mediaMap.get(id)
-        if (!type) continue
-        const current = result[type]
-        if (!current || Number(id) > Number(current)) result[type] = id
-      }
-    }
-    return result
-  }, [speciesObs, phase])
+  const recentMediaIds = useMemo(
+    () => computeRecentMediaIds(speciesObs, phase.tag === 'ready' ? phase.mediaMap : new Map<string, string>()),
+    [speciesObs, phase],
+  )
 
   // Highest breeding category pill
-  const breedingPill = useMemo(() => {
-    let bestTier = 0
-    for (const o of speciesObs) {
-      if (!o.breedingCode) continue
-      const def = BREEDING_CODE_MAP.get(o.breedingCode)
-      if (def && def.tier > bestTier) bestTier = def.tier
-    }
-    if (bestTier === 0) return null
-    const category = bestTier >= 3 ? 'Confirmed' : bestTier === 2 ? 'Probable' : 'Possible'
-    return { tier: bestTier as 1 | 2 | 3 | 4, category }
-  }, [speciesObs])
+  const breedingPill = useMemo(() => computeBreedingPill(speciesObs), [speciesObs])
 
   // Breeding code breakdown
-  const breedingBreakdown = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const o of speciesObs) {
-      if (o.breedingCode) counts[o.breedingCode] = (counts[o.breedingCode] ?? 0) + 1
-    }
-    return Object.entries(counts)
-      .flatMap(([code, count]) => {
-        const def = BREEDING_CODE_MAP.get(code)
-        return def ? [{ code, tier: def.tier, label: def.label, count }] : []
-      })
-      .sort((a, b) => {
-        if (b.tier !== a.tier) return b.tier - a.tier
-        return (BREEDING_CODE_CANONICAL_ORDER.get(a.code) ?? 99) - (BREEDING_CODE_CANONICAL_ORDER.get(b.code) ?? 99)
-      })
-  }, [speciesObs])
+  const breedingBreakdown = useMemo(() => computeBreedingBreakdown(speciesObs), [speciesObs])
 
   // Locations list sorted by count desc
-  const locationsSorted = useMemo(() => {
-    const counts = new Map<string, { count: number; locationId: string }>()
-    for (const o of speciesObs) {
-      const existing = counts.get(o.location)
-      if (existing) {
-        existing.count++
-      } else {
-        counts.set(o.location, { count: 1, locationId: o.locationId })
-      }
-    }
-    return [...counts.entries()]
-      .map(([location, { count, locationId }]) => ({ location, count, locationId }))
-      .sort((a, b) => b.count !== a.count ? b.count - a.count : a.location.localeCompare(b.location))
-  }, [speciesObs])
+  const locationsSorted = useMemo(() => computeLocationsSorted(speciesObs), [speciesObs])
 
   // ML rows filtered to selected species + date range (for graph overlay lines)
   const speciesMlRows = useMemo((): MLExportRow[] => {
@@ -816,33 +737,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   const hasGraphData = graphResult.data.length >= 2
 
   // Co-occurrence: species sharing target-species checklists, filtered by county/date
-  const coOccurrence = useMemo(() => {
-    if (!selectedSpecies || phase.tag !== 'ready') return null
-
-    const targetIds = new Set<string>()
-    for (const o of speciesObs) {
-      if (o.submissionId && SUBMISSION_ID_RE.test(o.submissionId)) targetIds.add(o.submissionId)
-    }
-
-    if (targetIds.size === 0) return { type: 'no-data' as const }
-
-    const speciesChecklist = new Map<string, Set<string>>()
-    for (const o of phase.observations) {
-      if (!o.submissionId || !SUBMISSION_ID_RE.test(o.submissionId)) continue
-      if (!targetIds.has(o.submissionId)) continue
-      const name = mergeSubspecies ? normalizeSpeciesName(o.commonName) : o.commonName
-      if (name === selectedSpecies) continue
-      if (!speciesChecklist.has(name)) speciesChecklist.set(name, new Set())
-      speciesChecklist.get(name)!.add(o.submissionId)
-    }
-
-    const results = [...speciesChecklist.entries()]
-      .map(([name, ids]) => ({ name, count: ids.size, pct: Math.round((ids.size / targetIds.size) * 100) }))
-      .filter(r => r.count >= 2)
-      .sort((a, b) => b.pct !== a.pct ? b.pct - a.pct : b.count - a.count)
-
-    return { type: 'results' as const, results, totalChecklists: targetIds.size }
-  }, [phase, selectedSpecies, speciesObs, mergeSubspecies])
+  const coOccurrence = useMemo(
+    () => phase.tag !== 'ready' ? null : computeCoOccurrence(phase.observations, speciesObs, selectedSpecies, mergeSubspecies),
+    [phase, selectedSpecies, speciesObs, mergeSubspecies],
+  )
 
   // Comments
   const allComments = useMemo(() => {

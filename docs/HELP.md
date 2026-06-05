@@ -191,7 +191,7 @@ Click **Use my location** in the map controls to center the map on your current 
 
 ### My Sightings
 
-Shows your personal recent observations on a map. Narrow what's shown with the panel filters: Species (a specific species), Breeding Code, Date Range, County (when your backup contains county data), and Media. The Radius control sets the map's starting zoom and the distance within which your saved personal locations appear.
+Shows all your personal observations on a map. Narrow what's shown with the panel filters: Species (a specific species), Breeding Code, Date Range, County (when your backup contains county data), and Media. The Radius control sets the map's starting zoom and the distance within which your saved personal locations appear.
 
 Switch between Pins and Heatmap with the Map View toggle. In Heatmap mode, a Heatmap Intensity slider lets you dial the coverage from tighter to broader and hotter -- higher settings spread each sighting farther and make even sparse, low-count areas stand out, which also helps when reading density at different zoom levels.
 
@@ -201,7 +201,7 @@ Fetches eBird hotspots near a location. Hotspots you have visited (matched again
 
 Below the legend, the panel lists the ten closest hotspots you have not visited, ranked by distance from your center point; each row links to that hotspot's page on eBird.
 
-**Atlas blocks overlay.** An **Atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid appears once you zoom in, and stays hidden at far-out zoom levels so it doesn't clutter the whole-state view. Click any block to open a popup with its name, a link to its eBird California atlas page, and -- when shading is on -- your highest breeding code there plus how many of your breeding records fall inside it. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, and Media Targets panels (in My Sightings it sits at the bottom of the panel; in Media Targets, just above the nearest-targets list).
+**Atlas blocks overlay.** A **California atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid appears once you zoom in, and stays hidden at far-out zoom levels so it doesn't clutter the whole-state view. Click any block to open a popup with its name, a link to its eBird California atlas page, and -- when shading is on -- your highest breeding code there plus how many of your breeding records fall inside it. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, and Media Targets panels (in My Sightings it sits at the bottom of the panel; in Media Targets, just above the nearest-targets list).
 
 When the overlay is on, a **Shade by My Highest Breeding Code** toggle appears. It tints each block by the strongest breeding code *you* have personally entered there -- darkest for Confirmed, down through Probable to Possible. The shading reflects only your own records, never anyone else's, and requires your eBird backup to be loaded in Settings. When shading is on, any heatmap or pins automatically dim so the tier colors stay legible on top.
 

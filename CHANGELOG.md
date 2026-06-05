@@ -2,6 +2,25 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.12] - 2026-06-05
+
+A quality, accessibility, and performance release — a sturdier, tested base with
+no change to your data.
+
+### Accessibility
+- **Charts are now screen-reader accessible** — every chart (life-list growth, the temporal and media trends, sightings/checklists over time, observer and day-of-week distributions) exposes a concise spoken summary, and purely decorative chart flourishes are hidden from assistive tech.
+
+### Performance
+- **CSV parsing now runs off the main thread** (a Web Worker), so the interface stays responsive while a large eBird export loads — most noticeable on big datasets and low-power devices like a Raspberry Pi. Falls back to the previous behavior anywhere Workers aren't available.
+- **Bird-name rendering is memoized**, so the long species lists (Multimedia, Breeding Codes, Statistics) re-render less.
+
+### Improved
+- The Map Explorer's atlas toggle now reads **"California atlas blocks,"** making its California-only scope clear at a glance.
+- **Internal:** the Statistics and Species Detail calculations were extracted into dedicated, unit-tested modules (`lib/birdingStats`, `lib/speciesStats`) — 23 new tests covering effort/outings, streaks, co-occurrence, breeding tiers, and more. No behavior change, but the math that powers those tabs is now verified and far easier to maintain.
+
+### Fixed
+- Documentation corrected: the Map Explorer's "My Sightings" shows **all** your observations, not just recent ones.
+
 ## [0.5.11] - 2026-06-05
 
 A refinement release from a comprehensive app review — accessibility, onboarding,
