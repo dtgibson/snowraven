@@ -1,13 +1,13 @@
 {
   "activeFeature": null,
-  "sessionNumber": 9,
-  "sessionType": "improve",
-  "currentStage": 6,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
+  "sessionNumber": 10,
+  "sessionType": "feature",
+  "currentStage": 3,
+  "lastCompletedStage": 3,
+  "lastCheckpointStatus": "abandoned",
   "releasedVersion": "0.5.10",
-  "lastFeature": "statistics-improvements",
-  "lastFeatureSummary": "Shipped v0.5.10 (Improve lane): Statistics tab overhaul + a graceful SnowMap offline-retry state, batched into one release. Statistics: new Top Species section (top 10 by individuals and by checklists); Effort & Outings (cumulative totals incl. time spelled out + area when present, observer summary, Notable Outings superlatives); new Highlights & Records section (best day, streaks, dry spell, Shannon, biggest flocks, single-checklist, one-and-done) regrouped out of Firsts & Milestones and Data Quality; full state/province names (lib/regionNames.ts); spelled-out metric labels; section jump-nav; Area Covered parsing (hidden when the data has none, as Dave's does); streak counts any report/date; single-checklist excludes one-and-done. Tester added regionNames.test.ts + area parsing tests (306 frontend tests pass). Auditor clean. Deployer published GitHub release v0.5.10 (notarized macOS universal + signed Windows installer + latest.json, all health-checked). Chronicler logged DECISIONS.md. Resolves the prior pending 'batch 0.5.10 map error-state fix with the improve lane'.",
-  "createdAt": "2026-06-05T04:00:00Z",
-  "updatedAt": "2026-06-05T06:45:00Z"
+  "lastFeature": "offline-maps (shelved)",
+  "lastFeatureSummary": "Offline maps: explored through Strategist + Planner + Architect (brief/PRD/architecture in pipeline/offline-maps/), then SHELVED by Dave as a distant roadmap item. Blocker is tile HOSTING, not rendering: offline rendering is solved (MapLibre + PMTiles + OPFS), but serving tile bytes requires us to host a ~100GB planet copy or regional extracts (Protomaps discourages hotlinking; OMT extracts need Planetiler) — an infra/cost commitment that conflicts with the serverless/self-hosted/free nature. No code or deps were added (research only). Recorded in DECISIONS.md. Revisit if tile-hosting appetite appears or the mobile apps prioritize field-offline.",
+  "createdAt": "2026-06-05T07:00:00Z",
+  "updatedAt": "2026-06-05T07:30:00Z"
 }

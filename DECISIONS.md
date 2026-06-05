@@ -4,6 +4,32 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Offline maps — explored, shelved (roadmap) — 2026-06-05
+
+**Decision:** Explored an optional offline-maps feature (download regions so the
+maps render without a connection). **Shelved** — kept as a *distant roadmap* item,
+not feasible now given SnowRaven's self-hosted / no-server, local-first nature.
+
+**Why not now:** the blocker is tile **hosting**, not rendering. Rendering offline
+is a solved problem (MapLibre + PMTiles + OPFS). But *serving the tile bytes* isn't
+free: Protomaps discourages hotlinking their planet builds (URLs rotate daily,
+"copy the tileset to your own storage"), and OpenMapTiles-schema extracts would
+need generating with Planetiler. Either path requires **us to host tile data** — a
+~100 GB planet copy or pre-generated regional extracts, with egress per download —
+a real infrastructure + cost commitment the otherwise serverless/free app avoids.
+Not worth taking on right now.
+
+**Revisit when:** there's appetite to run tile hosting (e.g. Cloudflare R2), OR a
+sanctioned free per-region tile source appears, OR the mobile apps make
+field-offline a priority (offline is the strongest use case on phones; ~90% of the
+build would reuse on Tauri mobile, and the PMTiles approach/data port to native).
+
+**Record:** full research in `pipeline/offline-maps/` (strategic-brief, prd,
+architecture). If revived: PMTiles **vector base only** (satellite/topo too big to
+download), region picker + size estimate, OPFS storage, desktop-first.
+
+---
+
 ## Statistics tab: top species, richer effort/outings, regroup — 2026-06-05 (v0.5.10)
 
 **Decision:** Expanded and reorganized the Statistics tab (`BirdingStats.tsx`):
