@@ -1,68 +1,46 @@
-# Handoff — vector-basemap-maplibre (New Feature lane) — PAUSED mid-Engineer
+# Handoff — vector-basemap-maplibre — SHIPPED (v0.5.9)
 
 ## Status
-Stage 5 (The Engineer), **paused** mid-build. Work is in the working tree,
-**uncommitted** (per our flow — commit happens at the Deployer stage). The app
-runs end-to-end right now: Statistics map is on MapLibre; Map Explorer +
-Species Detail still run on the old Leaflet path (both libraries installed).
+**COMPLETE.** Shipped as patch **v0.5.9** — GitHub release published with a
+notarized macOS universal DMG, a signed Windows installer, and `latest.json`
+(all three updater targets). All 9 Weft stages done. `session-state.json` has
+`activeFeature: null`, so the next `/weft` starts a fresh session.
 
-## Engineer build checkpoints
-- ✅ **1 — Base map.** MapLibre + react-map-gl installed. `lib/mapStyle.ts`
-  (tuned OpenFreeMap **Positron** vector style) + `components/SnowMap.tsx`
-  (wrapper: one persistent style, zoom control, auto-resize). Base dialed in
-  with Dave: native label size; brand-clover land tints (distinct, light
-  forest/park/meadow greens — values in mapStyle.ts TINT_*); country borders
-  darkened; **state borders** thin/dashed from ~z4; developed = warm-neutral.
-- ✅ **2 — Base switcher.** Map / Satellite (Esri) / Topo-US (USGS) + **Trails**
-  (Waymarked) overlay, persisted via storage seam (keys map-base-layer /
-  map-trails-overlay). Implemented as ONE persistent style with raster bases +
-  trails as visibility-toggled layers (NOT style-swapping — that broke on the
-  satellite round-trip and lost pan/zoom). Satellite/Topo sit under labels.
-- ✅ **Statistics map migrated** to `<SnowMap>` (vector base, numbered markers
-  via react-map-gl `<Marker>`, click `<Popup>` via `geoPopup` state,
-  `fitToPins` onLoad). It currently has the switcher enabled (temporary — decide
-  whether Statistics keeps it or goes base-only).
+Release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.9
 
-## What remains (resume here — checkpoint 3)
-**Checkpoint 3 is atomic: it pulls in 4 (heat) and 5 (atlas) too**, because the
-Map Explorer map is a single `MapContainer` whose Leaflet children can't coexist
-with MapLibre. Migrate the whole Map Explorer map at once:
-- Container → `<SnowMap switcher>`; drop `AutoSizeMap`; `MapPanner` +
-  `DefaultCenterSetter` → a react-map-gl `useMap` effect (flyTo / initial view).
-- `DetectedLocationPin` → `<Marker>` (blue dot).
-- Pins: `SightingMarkers` (CircleMarker), `HotspotMarkers`
-  (VISITED/UNVISITED/PERSONAL divIcons), `TargetMarkers` (divIcon groups) →
-  react-map-gl `<Marker>`s. **Rearchitect popups** to ONE state-driven
-  `<Popup>` (Leaflet binds popups to markers; MapLibre needs a selected-feature
-  state). Target popups keep `<BirdName>`.
-- Heatmap: `leaflet.heat` `HeatmapLayer` → MapLibre native `heatmap` layer
-  (slider → heatmap-radius/intensity/weight; re-tune to match v0.5.1 feel).
-- Atlas: `AtlasBlockLayer` (+ `AtlasTierPatterns`) → GeoJSON `fill`/`line`
-  layers; flat shade via data-driven `fill-color` by tier; **Use Textures** via
-  `fill-pattern` sprite images (build `lib/atlasTextures.ts`, register with
-  `map.addImage`). Atlas data/join (`atlasBlocks.ts`, `atlasBreeding.ts`)
-  unchanged. Interior-click popup.
-Then: **Species Detail map** → SnowMap (base only; its heatmap → MapLibre
-heatmap). Remove Leaflet deps (`leaflet`, `react-leaflet`, `leaflet.heat`,
-`@types/leaflet`) + old `MapBaseLayers.tsx`/`AtlasBlockLayer.tsx`/
-`AtlasTierPatterns.tsx` (Leaflet) + `lib/basemaps.ts`. Update
-`PRIVACY_POLICY.md` (add OpenFreeMap), HELP/README. Then Tester→Auditor→
-Deployer (patch release)→Chronicler.
+## What shipped
+- All three maps (Map Explorer, Species Detail, Statistics) migrated from Leaflet
+  + raster tiles to **MapLibre GL + OpenFreeMap vector tiles** via a shared
+  `<SnowMap>` wrapper; styles/providers in `lib/mapStyle.ts`.
+- Atlas overlay at full parity: GeoJSON grid + breeding-tier shading, block click
+  popup (eBird atlas link), hatch textures (`lib/atlasTextures.ts`), and
+  shading-priority dimming of the heatmap/pins.
+- Heat model centralized in `lib/heat.ts` (native MapLibre heatmap, shared 1–10
+  slider). Leaflet removed entirely (deps + old components/CSS).
+- Tests: `lib/heat.test.ts` + `lib/mapStyle.test.ts` (299 frontend / 90 backend).
+- Two fixes batched into the same release: Breeding Codes species-name left-align;
+  Life List Total media count now links to all media.
+- Docs: PRIVACY_POLICY (OpenFreeMap), HELP, CLAUDE.md (MapLibre conventions +
+  bump-both-version-files rule), DECISIONS.md.
 
-## Key learnings / gotchas (carry forward)
-- **Import collision:** react-map-gl's `Map` shadows JS `Map` → import as
-  `MapGL`. (Caused a blank-screen crash earlier.)
-- **Single persistent style + visibility**, never `setStyle`-swap for base
-  changes (keeps sources alive, preserves pan/zoom).
-- **No water-mask for trails** — it covered bridges; Dave prefers trails-over-
-  water to missing bridges. Reverted.
-- Dave is on **Orion browser** → Claude-in-Chrome console reading doesn't
-  connect; debug by reasoning + build/typecheck + his live verification.
-- maplibre-gl is a ~273KB-gz chunk (chunk-size warning is informational).
+## Follow-ups (not blocking)
+- **Offline:** maps are online-only; if the OpenFreeMap *style* fetch fails,
+  `SnowMap` sits on "Loading map…". Offline vector tiles were always a future
+  goal — a graceful "map unavailable" state would be a nice robustness add.
+- **Atlas textures** were restored before release for parity; if revisited, the
+  legend preview (`TierHatchSwatch`) and the map sprites (`lib/atlasTextures.ts`)
+  are two representations of the same hatch design — keep them visually in sync.
+- Verify the Windows installer + in-app updater end-to-end on a Windows machine
+  (Dave) — carried from prior releases.
 
-## Resume
-Run `/weft` → resumes Stage 5 at checkpoint 3 (Map Explorer map rewrite).
-Start dev servers, build incrementally, verify live with Dave each sub-step.
+## Key learnings (recorded in DECISIONS.md / CLAUDE.md)
+- Import react-map-gl's `Map` as `MapGL` (it shadows the JS `Map` constructor).
+- Single persistent style + `visibility` toggling, never `setStyle`-swap.
+- Bump BOTH `frontend/package.json` AND `src-tauri/tauri.conf.json` on a release;
+  the tag must point at a commit where both are bumped (CI builds Windows from
+  `tauri.conf.json`).
+- MapLibre paint can't read CSS vars — hardcode colors or read them at sprite
+  generation time.
 
 ---
-Project: snowraven. Feature: vector-basemap-maplibre. Stage 5 (Engineer) PAUSED at checkpoint 3 of 6. Released version still 0.5.8 (nothing shipped).
+Project: snowraven. Feature: vector-basemap-maplibre. All stages complete; v0.5.9 live.

@@ -4,6 +4,60 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Vector basemap: Leaflet → MapLibre GL + OpenFreeMap — 2026-06-04 (v0.5.9)
+
+**Decision:** Replaced the Leaflet + raster-tile map stack with **MapLibre GL**
+(`react-map-gl` / `maplibre-gl`) drawing **OpenFreeMap** vector tiles, across all
+three maps (Map Explorer, Species Detail, Statistics). Motivation: custom label
+sizing/styling, brand tinting, and a path to offline tiles — none possible with
+raster tiles. All maps go through one `<SnowMap>` wrapper; styles/providers live
+in `lib/mapStyle.ts`. Leaflet (`leaflet`, `react-leaflet`, `leaflet.heat`) was
+removed entirely.
+
+**Key architecture:**
+- **Single persistent style + `visibility` toggling**, never `setStyle`-swapping
+  (swapping dropped the `openmaptiles` source and reset pan/zoom). Satellite
+  (Esri) / Topo-US (USGS) / Trails (Waymarked) are raster layers inside the one
+  style, shown/hidden by `visibility`. Switcher kept on all maps (Dave's call).
+- **`useMap().current`** gives children the `MapRef` for imperative effects
+  (pan/fit, atlas click + `addImage`). Markers are `<Marker>`s; each map has ONE
+  state-driven `<Popup>` (MapLibre has no per-marker `bindPopup`).
+- **`lib/heat.ts`** is the single heat model for both heatmaps (native `heatmap`
+  layer); default intensity tuned calm (`heatIntensityFactor(5) = 0.30`).
+  Atlas-shading visibility priority: heatmap re-ordered under the atlas fill via
+  `beforeId` + dimmed, sighting pins faded, so tier colors read on top.
+- **Atlas** (`AtlasLayer.tsx`): full block GeoJSON (no viewport cap; `minzoom 6`),
+  data-driven `fill-color`/`fill-pattern` by tier, line grid, and an escaped-JSX
+  click popup. **Hatch textures** are canvas sprites (`lib/atlasTextures.ts`) via
+  `map.addImage` + `fill-pattern`, regenerated on `data-theme` change; the legend
+  preview is an inline-SVG `TierHatchSwatch`.
+
+**Gotchas / post-mortems (carry forward):**
+- **`Map` import collision** — `react-map-gl`'s `Map` shadows the JS `Map`
+  constructor; `new Map()` then crashed (blank screen). Always import as `MapGL`.
+- **Two-file version bump** — bumping only `frontend/package.json` (not
+  `src-tauri/tauri.conf.json`) for v0.5.9 built the desktop bundle as 0.5.8; the
+  first Windows CI run produced a 0.5.8 installer. Caught at the release
+  health-check; fixed by bumping `tauri.conf.json`, moving the `v0.5.9` tag to the
+  corrected commit, and re-running CI. CLAUDE.md versioning rule now says bump
+  BOTH files (the tag must point at a commit where both are bumped, since CI
+  builds Windows from `tauri.conf.json` at the tag).
+- **No water-mask for trails** — an earlier attempt to mask trails to land hid
+  bridges; reverted (trails-over-water beats missing bridges).
+- **MapLibre paint can't read CSS vars** — colors in `fill`/`line`/`heatmap` paint
+  and in canvas sprites are hardcoded (or read via `getComputedStyle` at
+  generation). Justified exception to the "all colors via `var(--sr-*)`" rule,
+  which applies to DOM/CSS only.
+
+**Shipped in the same patch (v0.5.9):** also fixed Breeding Codes species-name
+alignment (row `<th>` defaults to center) and made the Life List Total media count
+a link to all media (unfiltered Macaulay search). Deferred-then-restored before
+release for parity: atlas block popup + hatch textures (Dave held the release
+until the maps matched the old feature set). Bundle: +maplibre-gl (~273 KB gz) −
+leaflet (~50 KB) — accepted tradeoff for vector tiles.
+
+---
+
 ## One shared `<BirdName>` for every bird name; click → Species Detail — 2026-06-04 (v0.5.8)
 
 **Decision:** Every user-facing bird name renders through a single shared
