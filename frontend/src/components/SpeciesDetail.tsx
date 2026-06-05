@@ -8,11 +8,13 @@ import {
   MapPin, Play, Calendar, TrendingUp, SlidersHorizontal, Share2,
 } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
+import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { ToggleSwitch } from './ui/ToggleSwitch'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
   Legend, ResponsiveContainer,
 } from 'recharts'
-import { parseEbirdObservations } from '../lib/parseEbirdObservations'
+import { loadEbirdObservations } from '../lib/observationsCache'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { buildGraphData, type GraphPoint, type GraphInterval } from '../lib/sightingsGraph'
@@ -144,40 +146,6 @@ function StatValueLink({ value, submissionId, small }: { value: string; submissi
       {value}
       <ExternalLink size={small ? 10 : 11} strokeWidth={2.5} />
     </a>
-  )
-}
-
-function ToggleSwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
-  return (
-    <button
-      role="switch"
-      aria-checked={checked}
-      onClick={onChange}
-      tabIndex={0}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 7,
-        height: 30, padding: '0 10px 0 8px', borderRadius: 6,
-        border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-        cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 500,
-        color: 'var(--sr-text-muted)',
-      }}
-    >
-      <div style={{
-        width: 28, height: 16, borderRadius: 8, flexShrink: 0, position: 'relative',
-        background: checked ? 'var(--sr-accent)' : 'var(--sr-gray-400)',
-        transition: 'background 0.15s',
-      }}>
-        <div style={{
-          width: 12, height: 12, borderRadius: '50%',
-          background: 'white',
-          position: 'absolute', top: 2,
-          left: checked ? 14 : 2,
-          transition: 'left 0.15s',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
-        }} />
-      </div>
-      {label}
-    </button>
   )
 }
 
@@ -534,15 +502,15 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
         const mlUserId = extractUserId(status.ml?.filename ?? '')
 
-        const [ebirdText, mlText] = await Promise.all([
-          storage.readFile('ebird'),
+        const [ebird, mlText] = await Promise.all([
+          loadEbirdObservations(),
           status.ml ? storage.readFile('ml') : Promise.resolve(null),
         ])
         if (cancelled) return
 
-        if (!ebirdText) { setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." }); return }
+        if (!ebird) { setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." }); return }
 
-        const observations = parseEbirdObservations(ebirdText)
+        const observations = ebird.observations
 
         let mediaMap = new Map<string, MediaType>()
         let mlRows: MLExportRow[] = []
@@ -922,11 +890,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
       <SetupRequired
         title="eBird Backup Required"
         body="Species Detail loads automatically from your stored eBird backup. Upload it once in Settings and this tab will always be ready."
-        steps={[
-          <>Get <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, background: 'var(--sr-border)', padding: '1px 5px', borderRadius: 3 }}>MyEBirdData.csv</code> from <strong>ebird.org</strong> → My eBird → Download My Data</>,
-          <>Upload it in <strong>Settings → Default Files → eBird Backup</strong></>,
-          <>This tab loads automatically on every visit</>,
-        ]}
+        steps={EBIRD_BACKUP_STEPS}
         onGoToSettings={onGoToSettings}
       />
     )
@@ -1762,7 +1726,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                                 href={`https://ebird.org/checklist/${submissionId}`}
                                 target="_blank"
                                 rel="noreferrer"
-                                style={{ color: '#2D8653', textDecoration: 'none' }}
+                                style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
                                 onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                                 onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                               >
@@ -1774,7 +1738,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                           </div>
                         ))}
                         {selectedMarker.sightings.length > 6 && (
-                          <div style={{ color: '#888', marginTop: 2, fontSize: 12 }}>
+                          <div style={{ color: 'var(--sr-text-muted)', marginTop: 2, fontSize: 12 }}>
                             +{selectedMarker.sightings.length - 6} more
                           </div>
                         )}

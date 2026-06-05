@@ -83,7 +83,7 @@ export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequi
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 7,
           padding: '8px 16px',
-          background: 'var(--sr-accent)', color: '#fff',
+          background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
           border: 'none', borderRadius: 8,
           fontSize: 13.5, fontWeight: 500, fontFamily: 'inherit',
           cursor: 'pointer',

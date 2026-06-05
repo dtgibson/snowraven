@@ -2,6 +2,37 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.11] - 2026-06-05
+
+A refinement release from a comprehensive app review — accessibility, onboarding,
+naming, and a big "lightweight" performance win — with no change to your data.
+
+### Added
+- **First-run welcome screen** — a brand-new install (no keys or files yet) now opens to a short welcome that explains setup and links straight to Settings and the docs, instead of an empty tab.
+- **Help is always reachable** — a **Help** link in the footer opens the documentation from any tab (previously it was tucked inside Settings only).
+- **Inline API-key guidance** — the Settings key fields now link to the eBird key generator and call out the OpenWeather **"One Call by Call"** subscription step right where you enter the keys.
+- **Statistics jump-nav completeness** — the section links now include **Media** (when a Macaulay Library export is loaded) and **Other Statistics**, which were missing.
+
+### Improved
+- **"Media List" is now "Multimedia"** — clearer name for the tab focused on media coverage (your life list is still there).
+- **"Nemesis Birds" is now "Nearby Lifers"** — one consistent name for the nearby-target-species feature in Statistics.
+- **Unified, corrected setup instructions** — every "setup required" screen now shows the same accurate steps, including the eBird **unzip** step and the crucial Macaulay Library **"set the filter to All"** step (previously missing on the Multimedia tab).
+- **Statistics error state** now offers a "Go to Settings" recovery action.
+- Removed a stale permanent "NEW" badge in Settings, and corrected the Default Files descriptions (they understated which tabs each file powers).
+
+### Accessibility
+- Bird-name favicon links now have proper labels (screen readers announced the raw URL twice before).
+- Sortable table columns (Multimedia, Breeding Codes) are now operable by keyboard (Tab + Enter/Space).
+- Added **reduced-motion** support — animations are minimized when your system requests it.
+- The published Accessibility statement was revised to accurately reflect current behavior.
+
+### Performance
+- **Much lighter first load** — the map and chart tabs (and their large libraries) now load only when first opened. First-paint JavaScript drops from roughly **525 KB to ~110 KB** (gzipped) for anyone who isn't immediately opening a map or chart.
+- The eBird backup is now parsed once and shared across tabs instead of re-parsed by each.
+
+### Fixed
+- **Dark-mode contrast** — primary buttons were white-on-light-green (unreadable) in dark mode; map popups didn't adapt to dark mode at all; muted/footer/scientific-name text now meets the AA contrast standard in both themes.
+
 ## [0.5.10] - 2026-06-05
 
 ### Added

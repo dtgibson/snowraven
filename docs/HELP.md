@@ -10,10 +10,10 @@ When you first open SnowRaven, go to the Settings tab. That is where you enter y
 
 The recommended setup sequence is:
 
-1. Enter your eBird API key in Settings. This is required for the Weather tab and the Top Local Target Species card in Statistics.
+1. Enter your eBird API key in Settings. This is required for the Weather tab and the Nearby Lifers card in Statistics.
 2. Enter your OpenWeather API key in Settings. This is required for the Weather tab.
-3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Breeding Codes, Media List, Species Detail, Statistics, and Life List Comparer tabs.
-4. Upload your ML export from Macaulay Library in Settings. This is optional but unlocks media-specific features in Media List, Species Detail, and Statistics.
+3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and Life List Comparer tabs.
+4. Upload your ML export from Macaulay Library in Settings. This is optional but unlocks media-specific features in Multimedia, Species Detail, and Statistics.
 
 ---
 
@@ -23,7 +23,7 @@ An API key is a private code that identifies your account when the app contacts 
 
 ### eBird API key
 
-The eBird API key lets SnowRaven fetch checklist metadata for weather lookups and retrieve recent bird sightings near your location for the Top Local Target Species feature. The key is free and is tied to your standard eBird account.
+The eBird API key lets SnowRaven fetch checklist metadata for weather lookups and retrieve recent bird sightings near your location for the Nearby Lifers feature. The key is free and is tied to your standard eBird account.
 
 To get your key:
 
@@ -57,9 +57,9 @@ SnowRaven works with two data files you export from your own eBird and Macaulay 
 
 Your eBird backup is a full export of all your eBird observations -- every checklist, every species, every location. It is the primary data source for most of SnowRaven's features.
 
-The file is called `MyEBirdData.csv`. To download it, sign in at [ebird.org](https://ebird.org) and go to [ebird.org/downloadMyData](https://ebird.org/downloadMyData). Click "Download My Data" and save the file. In SnowRaven, go to Settings and upload it under Default Files.
+The file is called `MyEBirdData.csv`. To download it, sign in at [ebird.org](https://ebird.org) and go to [ebird.org/downloadMyData](https://ebird.org/downloadMyData). Click "Download My Data" and save the download; if it arrives as a `.zip`, unzip it to find `MyEBirdData.csv`. In SnowRaven, go to Settings and upload that CSV under Default Files.
 
-The eBird backup is used by: Breeding Codes, Media List, Species Detail, Statistics (all cards except Top Local Target Species), and Life List Comparer.
+The eBird backup is used by: Species Detail, Statistics (all cards except Nearby Lifers), Map Explorer, Breeding Codes, Multimedia, and Life List Comparer.
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
@@ -71,7 +71,7 @@ To download it, sign in at [macaulaylibrary.org](https://macaulaylibrary.org) an
 
 In SnowRaven, upload the file in Settings under Default Files, and **leave the filename unchanged**. The downloaded filename contains your Macaulay Library user ID, and SnowRaven reads that ID from the filename to link directly to your own media pages. If you rename the file, those links still work but are no longer personalized to your account.
 
-The ML export is used by: Media List (media counts and species coverage), Species Detail (embedded recent media and media count indicators), and Statistics (the Media card). These features are not available from the eBird backup alone.
+The ML export is used by: Multimedia (media counts and species coverage), Species Detail (embedded recent media and media count indicators), and Statistics (the Media card). These features are not available from the eBird backup alone.
 
 ---
 
@@ -91,7 +91,7 @@ The Species Detail tab shows a complete history of your observations for any spe
 
 Select a species from the dropdown at the top -- type to search by common name or scientific name. All sections update immediately when you select a species. Switching species is instant; all data is parsed client-side from the stored file.
 
-**Clicking bird names anywhere.** Throughout the app, a bird's common name is rendered in a consistent format: the name is a link that opens that species here on Species Detail (for any species in your data), followed by small icons linking to its eBird and Birds of the World pages, with the scientific name shown where there's room. So you can click a species in the Statistics lists, the Map Explorer, the Media List, Breeding Codes, or the Life List Comparer to jump straight to its full history. For a bird you haven't recorded yet (such as a nemesis or map target species), the name appears with the eBird/Birds of the World icons but without a Species Detail link, since there's no entry to open.
+**Clicking bird names anywhere.** Throughout the app, a bird's common name is rendered in a consistent format: the name is a link that opens that species here on Species Detail (for any species in your data), followed by small icons linking to its eBird and Birds of the World pages, with the scientific name shown where there's room. So you can click a species in the Statistics lists, the Map Explorer, the Multimedia, Breeding Codes, or the Life List Comparer to jump straight to its full history. For a bird you haven't recorded yet (such as a nearby lifer or map target species), the name appears with the eBird/Birds of the World icons but without a Species Detail link, since there's no entry to open.
 
 The tab shows the following sections for each species:
 
@@ -163,7 +163,7 @@ Confirmed, Probable, and Possible species totals from your eBird backup. A stack
 
 A chart showing how your photo, audio, video, and total media counts have grown over time. View it per period or as a cumulative total. Below the chart, ranked lists show your most-photographed, most-recorded, and most-filmed species, each linking to your personal Macaulay Library page filtered by species and media type. Requires your ML export.
 
-### Top Local Target Species
+### Nearby Lifers
 
 Species observed near your configured location in the past 30 days that do not appear on your life list, sorted by most recently seen.
 
@@ -213,9 +213,9 @@ Shows recent sightings of species you are missing at least one media type for, w
 
 ---
 
-## Media List
+## Multimedia
 
-The Media List tab shows your complete life list with media coverage: which species you have photographed, audio-recorded, and video-recorded.
+The Multimedia tab shows your complete life list with media coverage: which species you have photographed, audio-recorded, and video-recorded.
 
 The tab loads automatically from your eBird backup and ML export saved in Settings. When both files are present, it enters Comprehensive mode, which builds the species list from your eBird observations so that every life-listed species appears even if it has no media yet. A Total column shows combined photo, audio, and video counts.
 
@@ -283,7 +283,7 @@ Upload your eBird backup CSV and Macaulay Library export. Each file is stored fo
 
 ### Default Location
 
-Set a home location used by the Map Explorer and the Top Local Target Species card in Statistics. Enter latitude, longitude, and a search radius in miles, then click Save. The Map Explorer uses these coordinates as its starting center and zoom level. The Statistics tab uses this location to fetch nearby recent sightings for the target species list.
+Set a home location used by the Map Explorer and the Nearby Lifers card in Statistics. Enter latitude, longitude, and a search radius in miles, then click Save. The Map Explorer uses these coordinates as its starting center and zoom level. The Statistics tab uses this location to fetch nearby recent sightings for the target species list.
 
 ### Tab Layout
 

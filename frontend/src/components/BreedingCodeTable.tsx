@@ -60,6 +60,14 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     }
   }
 
+  // Make the sortable column headers keyboard-operable (Enter / Space).
+  function handleHeaderKey(e: React.KeyboardEvent, col: string) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleHeaderClick(col)
+    }
+  }
+
   function sortIndicator(col: string) {
     if (sort.column !== col) return null
     return (
@@ -111,7 +119,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
             <tr>
               <th
                 scope="col"
+                tabIndex={0}
                 onClick={() => handleHeaderClick('name')}
+                onKeyDown={e => handleHeaderKey(e, 'name')}
                 aria-sort={sort.column === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 style={{
                   ...thBase,
@@ -131,7 +141,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   <th
                     key={code}
                     scope="col"
+                    tabIndex={0}
                     onClick={() => handleHeaderClick(code)}
+                    onKeyDown={e => handleHeaderKey(e, code)}
                     aria-sort={sort.column === code ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     title={def.label}
                     style={{

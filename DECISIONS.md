@@ -4,6 +4,46 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Comprehensive review → Tier 1 + 2 improvements (v0.5.11) — 2026-06-05
+
+**What:** Ran a full-app audit (5 parallel read-only reviews: UX, IA/consistency,
+a11y, performance, code-health → `pipeline/comprehensive-review/audit.md`), then
+built the agreed Tier 1 (quick wins) + Tier 2 (bigger bets) and shipped them as a
+**single 0.5.11 release** (Dave's call — avoids double notarization/CI).
+
+**Key decisions:**
+- **`--sr-on-accent` token** is the readable foreground on the accent fill (white in
+  light, dark green `#052E16` in dark). Dark primary buttons were white-on-`#34D399`
+  = 1.92:1; this fixes ~11 CTAs. Use it for any new accent-background control.
+- **Map popups are themed via `.maplibregl-popup*` CSS** (content + tip per anchor)
+  plus tokenizing the inline popup colors — they were hardcoded light grays.
+- **Sortable `<th>` keyboard support** = `tabIndex={0}` + `onKeyDown` (Enter/Space),
+  *keeping* the `columnheader` role + `aria-sort`. Do NOT add `role="button"` — it
+  voids `aria-sort`.
+- **Lazy-load** the 3 heavy tabs (Map Explorer, Species Detail, Statistics) via
+  `React.lazy` + Suspense + a deferred-mount set (`mountedTabs`, stay-mounted after
+  first open). First-paint JS ~525 KB → ~110 KB gz; maplibre/recharts now split.
+- **`lib/observationsCache.ts`** — content-keyed memo of the eBird parse, shared by
+  all tabs (was re-parsed per tab).
+- **`components/setupCopy.tsx`** — single source for eBird/ML setup steps (fixes the
+  missing ML "filter = All" step + the inconsistent eBird ZIP wording).
+- **First-run welcome** (`WelcomeScreen.tsx`) shows only on cold start (no keys AND
+  no files AND not previously dismissed; dismissal persists via the storage seam's
+  `welcomeSeen`).
+- **Renames:** "Media List" → **Multimedia** (tab id stays `life-list` so saved
+  layouts don't break); "Nemesis Birds" → **Nearby Lifers** (internal `nemesis*`
+  vars + `/stats/nemesis` endpoint kept).
+
+**Deliberately deferred to Tier 3** (don't redo as "missing"): splitting the
+oversized components (BirdingStats/SpeciesDetail/MapExplorer) and, *with* those
+splits, extracting the remaining shared primitives (the filter bars, `Stat*`/
+`SectionCard`, `SegControl`, the heatmap wrapper) — pulling them out now would add
+churn/regression risk for no user-visible gain. Also deferred: unifying the two
+day-first date formats (Map Explorer "5 Jan" vs Species Detail "5 January" — minor
+drift), map-marker keyboard operability, Worker-based CSV parse, chart alt-text.
+
+---
+
 ## Offline maps — explored, shelved (roadmap) — 2026-06-05
 
 **Decision:** Explored an optional offline-maps feature (download regions so the

@@ -135,6 +135,14 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
     }
   }
 
+  // Make the sortable column headers keyboard-operable (Enter / Space).
+  function handleHeaderKey(e: React.KeyboardEvent, column: SortColumn) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      handleHeaderClick(column)
+    }
+  }
+
   function sortIndicator(column: SortColumn) {
     if (sort.column !== column) return null
     return (
@@ -177,7 +185,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
           }}>
             <th
               scope="col"
+              tabIndex={0}
               onClick={() => handleHeaderClick('name')}
+              onKeyDown={e => handleHeaderKey(e, 'name')}
               aria-sort={sort.column === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
               style={{
                 ...thBase,
@@ -197,7 +207,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
               <th
                 key={label}
                 scope="col"
+                tabIndex={0}
                 onClick={() => handleHeaderClick(col)}
+                onKeyDown={e => handleHeaderKey(e, col)}
                 aria-sort={sort.column === col ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 style={{
                   ...thBase,
@@ -216,7 +228,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
             ))}
             <th
               scope="col"
+              tabIndex={0}
               onClick={() => handleHeaderClick('total')}
+              onKeyDown={e => handleHeaderKey(e, 'total')}
               aria-sort={sort.column === 'total' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
               style={{
                 ...thBase,

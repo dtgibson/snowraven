@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from 'react'
 import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2 } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { storage } from './lib/storage'
@@ -7,11 +7,17 @@ import { copyText } from './lib/clipboard'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
-import { MapExplorer } from './components/MapExplorer'
 import { Settings } from './components/Settings'
-import { SpeciesDetail } from './components/SpeciesDetail'
-import { BirdingStats } from './components/BirdingStats'
+import { HelpDocs } from './components/HelpDocs'
+import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
+
+// The three heavy tabs pull in maplibre-gl (~270 KB gz) + recharts (~112 KB gz).
+// Lazy-load them so that weight (and their startup CSV parse) is deferred until the
+// tab is first opened, instead of loading on first paint for every user.
+const MapExplorer = lazy(() => import('./components/MapExplorer').then(m => ({ default: m.MapExplorer })))
+const SpeciesDetail = lazy(() => import('./components/SpeciesDetail').then(m => ({ default: m.SpeciesDetail })))
+const BirdingStats = lazy(() => import('./components/BirdingStats').then(m => ({ default: m.BirdingStats })))
 import {
   type ConfigurableTab,
   type Tab,
@@ -81,6 +87,19 @@ const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
   ),
 }
 
+// Tabs whose (lazy) component should mount on first open and then stay mounted,
+// so their state + parsed data survive tab switches without re-loading.
+const HEAVY_TABS: Tab[] = ['map-explorer', 'species-detail', 'birding-stats']
+
+// Fallback shown while a lazy tab's chunk is being fetched.
+function TabLoading() {
+  return (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, minHeight: 200 }}>
+      <Loader2 size={22} className="spin" style={{ color: 'var(--sr-text-muted)' }} aria-label="Loading" />
+    </div>
+  )
+}
+
 export default function App() {
   // Web/Pi: loadTabLayout reads localStorage synchronously, so the saved layout
   // is correct on first paint (no flash). Desktop: localStorage is wiped on every
@@ -105,6 +124,18 @@ export default function App() {
   const [mediaListFilter, setMediaListFilter] = useState<'is-target' | undefined>(undefined)
   // Click any bird name → open + select it on the Species Detail tab (single-use).
   const [requestedSpecies, setRequestedSpecies] = useState<string | undefined>(undefined)
+  // Documentation overlay — lifted to App so a Help affordance is reachable from
+  // every tab (the footer), not only the button inside Settings.
+  const [helpOpen, setHelpOpen] = useState(false)
+  // Heavy tabs mount on first open and then stay mounted (preserving their state).
+  // Seeded with the initial active tab so a heavy default tab mounts immediately.
+  const [mountedTabs, setMountedTabs] = useState<Set<Tab>>(() =>
+    HEAVY_TABS.includes(activeTab) ? new Set([activeTab]) : new Set()
+  )
+  // First-run welcome: null = undetermined, true = cold start (no keys, no files,
+  // not previously dismissed). welcomeDismissed hides it for the rest of the session.
+  const [coldStart, setColdStart] = useState<boolean | null>(null)
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false)
 
   const handleFilesSaved = useCallback(() => setFilesVersion(v => v + 1), [])
 
@@ -202,6 +233,46 @@ export default function App() {
   }, [])
 
   useEffect(() => { const run = async () => { await fetchKeyStatus() }; run() }, [fetchKeyStatus])
+
+  // Cold-start detection for the first-run welcome: only when no keys, no data files,
+  // and not previously dismissed. Resolves to false fast for returning users (no flash).
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const [ebirdKey, owKey, files, seen] = await Promise.all([
+          storage.getApiKey('ebird'),
+          storage.getApiKey('openweather'),
+          storage.getFilesStatus().catch(() => null),
+          storage.getSetting<boolean>('welcomeSeen').catch(() => false),
+        ])
+        if (cancelled) return
+        const noKeys = !ebirdKey && !owKey
+        const noFiles = !files || (!files.ebird && !files.ml)
+        setColdStart(noKeys && noFiles && !seen)
+      } catch {
+        if (!cancelled) setColdStart(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  const dismissWelcome = useCallback(() => {
+    setWelcomeDismissed(true)
+    void storage.setSetting<boolean>('welcomeSeen', true)
+  }, [])
+
+  const handleWelcomeGetStarted = useCallback(() => {
+    dismissWelcome()
+    setActiveTab('settings')
+  }, [dismissWelcome])
+
+  // Mark a heavy tab as mounted the first time it becomes active (then it stays mounted).
+  useEffect(() => {
+    if (HEAVY_TABS.includes(activeTab)) {
+      setMountedTabs(prev => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
+    }
+  }, [activeTab])
 
   // Lock background scroll while the map is fullscreen (the panel covers everything).
   // Guarded on the active tab so it self-clears if navigation leaves the map tab.
@@ -448,7 +519,7 @@ export default function App() {
                 height: 44,
                 padding: '0 18px',
                 background: 'var(--sr-accent)',
-                color: '#fff',
+                color: 'var(--sr-on-accent)',
                 border: 'none',
                 borderRadius: 8,
                 fontSize: 14,
@@ -549,7 +620,7 @@ export default function App() {
                     height: 30,
                     padding: '0 12px',
                     background: copied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)',
-                    color: copied ? '#fff' : 'var(--sr-accent)',
+                    color: copied ? 'var(--sr-on-accent)' : 'var(--sr-accent)',
                     border: `1.5px solid ${copied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`,
                     borderRadius: 6,
                     fontSize: 12,
@@ -653,12 +724,16 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <SpeciesDetail
-          onGoToSettings={() => setActiveTab('settings')}
-          filesVersion={filesVersion}
-          requestedSpecies={requestedSpecies}
-          onRequestedSpeciesConsumed={clearRequestedSpecies}
-        />
+        {mountedTabs.has('species-detail') && (
+          <Suspense fallback={<TabLoading />}>
+            <SpeciesDetail
+              onGoToSettings={() => setActiveTab('settings')}
+              filesVersion={filesVersion}
+              requestedSpecies={requestedSpecies}
+              onRequestedSpeciesConsumed={clearRequestedSpecies}
+            />
+          </Suspense>
+        )}
       </div>
 
       {/* Map Explorer tab content */}
@@ -675,14 +750,18 @@ export default function App() {
             : { height: 'calc(100vh - 178px)' }),
         }}
       >
-        <MapExplorer
-          onGoToSettings={() => { setMapFullscreen(false); setActiveTab('settings') }}
-          onNavigateToMediaList={() => { setMapFullscreen(false); navigateToMediaList() }}
-          keysVersion={keysVersion}
-          isFullscreen={mapFullscreen}
-          onToggleFullscreen={() => setMapFullscreen(v => !v)}
-          onOpenSpecies={(name) => { setMapFullscreen(false); navigateToSpeciesDetail(name) }}
-        />
+        {mountedTabs.has('map-explorer') && (
+          <Suspense fallback={<TabLoading />}>
+            <MapExplorer
+              onGoToSettings={() => { setMapFullscreen(false); setActiveTab('settings') }}
+              onNavigateToMediaList={() => { setMapFullscreen(false); navigateToMediaList() }}
+              keysVersion={keysVersion}
+              isFullscreen={mapFullscreen}
+              onToggleFullscreen={() => setMapFullscreen(v => !v)}
+              onOpenSpecies={(name) => { setMapFullscreen(false); navigateToSpeciesDetail(name) }}
+            />
+          </Suspense>
+        )}
       </div>
 
       {/* Statistics tab content */}
@@ -697,7 +776,11 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <BirdingStats onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
+        {mountedTabs.has('birding-stats') && (
+          <Suspense fallback={<TabLoading />}>
+            <BirdingStats onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
+          </Suspense>
+        )}
       </div>
 
       {/* Settings tab content */}
@@ -715,6 +798,7 @@ export default function App() {
         <Settings
           onKeysSaved={fetchKeyStatus}
           onFilesSaved={handleFilesSaved}
+          onOpenHelp={() => setHelpOpen(true)}
           tabOrder={tabLayout.order}
           tabHidden={tabLayout.hidden}
           onReorder={handleReorder}
@@ -737,6 +821,23 @@ export default function App() {
           SnowRaven
         </a>
         {' · Self-hosted Birding Tools · '}
+        <button tabIndex={0}
+          onClick={() => setHelpOpen(true)}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            font: 'inherit',
+            color: 'var(--sr-text-footer)',
+            cursor: 'pointer',
+            textDecoration: 'none',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+        >
+          Help
+        </button>
+        {' · '}
         {updateStatus.kind === 'idle' && (
           <button tabIndex={0}
             onClick={handleUpdateCheck}
@@ -798,6 +899,16 @@ export default function App() {
           <span style={{ color: 'var(--sr-error)' }}>Could not check for updates</span>
         )}
       </p>
+
+      {coldStart === true && !welcomeDismissed && (
+        <WelcomeScreen
+          onGetStarted={handleWelcomeGetStarted}
+          onOpenHelp={() => setHelpOpen(true)}
+          onDismiss={dismissWelcome}
+        />
+      )}
+
+      {helpOpen && <HelpDocs onClose={() => setHelpOpen(false)} />}
     </div>
   )
 }

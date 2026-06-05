@@ -1,9 +1,12 @@
 interface SpeciesLinksProps {
   speciesCode: string | undefined
+  /** Common name — used to give each favicon link an accessible name. */
+  commonName?: string
 }
 
-export function SpeciesLinks({ speciesCode }: SpeciesLinksProps) {
+export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
   if (!speciesCode) return null
+  const who = commonName ? `${commonName} ` : ''
   return (
     <span style={{
       display: 'inline-flex',
@@ -16,6 +19,8 @@ export function SpeciesLinks({ speciesCode }: SpeciesLinksProps) {
         href={`https://ebird.org/species/${speciesCode}`}
         target="_blank"
         rel="noreferrer"
+        aria-label={`View ${who}on eBird`}
+        title={`View ${who}on eBird`}
         style={{ opacity: 0.75, display: 'inline-flex', alignItems: 'center' }}
         onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
         onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.75' }}
@@ -23,6 +28,10 @@ export function SpeciesLinks({ speciesCode }: SpeciesLinksProps) {
         <img
           src="https://ebird.org/favicon.ico"
           className="sr-favicon"
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
           width={14}
           height={14}
           style={{ display: 'block' }}
@@ -33,6 +42,8 @@ export function SpeciesLinks({ speciesCode }: SpeciesLinksProps) {
         href={`https://birdsoftheworld.org/bow/species/${speciesCode}/cur/introduction`}
         target="_blank"
         rel="noreferrer"
+        aria-label={`View ${who}on Birds of the World`}
+        title={`View ${who}on Birds of the World`}
         style={{ opacity: 0.75, display: 'inline-flex', alignItems: 'center' }}
         onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
         onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.75' }}
@@ -40,6 +51,10 @@ export function SpeciesLinks({ speciesCode }: SpeciesLinksProps) {
         <img
           src="https://birdsoftheworld.org/favicon.ico"
           className="sr-favicon"
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
           width={14}
           height={14}
           style={{ display: 'block' }}

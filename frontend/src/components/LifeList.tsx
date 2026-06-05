@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
+import { ML_EXPORT_STEPS } from './setupCopy'
+import { ToggleSwitch } from './ui/ToggleSwitch'
+import { formatDateMonthFirst as formatDateLabel } from '../lib/formatDate'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
-import { parseEbirdObservations } from '../lib/parseEbirdObservations'
+import { loadEbirdObservations } from '../lib/observationsCache'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { LifeListTable } from './LifeListTable'
 import type { MediaFilterState, SortState, DateRangeState, ObservationEntry } from '../types'
@@ -68,39 +71,6 @@ function buildComprehensiveEntries(
   }
 
   return entries
-}
-
-function ToggleSwitch({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
-  return (
-    <button tabIndex={0}
-      role="switch"
-      aria-checked={checked}
-      onClick={onChange}
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 7,
-        height: 30, padding: '0 10px 0 8px', borderRadius: 6,
-        border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-        cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 500,
-        color: 'var(--sr-text-muted)',
-      }}
-    >
-      <div style={{
-        width: 28, height: 16, borderRadius: 8, flexShrink: 0, position: 'relative',
-        background: checked ? 'var(--sr-accent)' : 'var(--sr-gray-400)',
-        transition: 'background 0.15s',
-      }}>
-        <div style={{
-          width: 12, height: 12, borderRadius: '50%',
-          background: 'white',
-          position: 'absolute', top: 2,
-          left: checked ? 14 : 2,
-          transition: 'left 0.15s',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
-        }} />
-      </div>
-      {label}
-    </button>
-  )
 }
 
 function parseMLUserId(filename: string): string | null {
@@ -206,8 +176,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
       if (!ebirdObs) {
         const status = await storage.getFilesStatus()
         if (status.ebird) {
-          const ebirdText = await storage.readFile('ebird')
-          if (ebirdText) ebirdObs = parseEbirdObservations(ebirdText)
+          const ebird = await loadEbirdObservations()
+          if (ebird) ebirdObs = ebird.observations
         }
       }
       if (ebirdObs) {
@@ -327,9 +297,9 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         if (cancelled) return
         if (!status.ml) { setPhase({ tag: 'setup-required' }); return }
 
-        const [mlText, ebirdText] = await Promise.all([
+        const [mlText, ebird] = await Promise.all([
           storage.readFile('ml'),
-          status.ebird ? storage.readFile('ebird') : Promise.resolve(null),
+          status.ebird ? loadEbirdObservations() : Promise.resolve(null),
         ])
         if (cancelled) return
 
@@ -348,8 +318,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           setRawRows(rows)
         }
 
-        if (ebirdText) {
-          ebirdObs = parseEbirdObservations(ebirdText)
+        if (ebird) {
+          ebirdObs = ebird.observations
           setRawEbirdObs(ebirdObs)
           hasEbirdBackbone = true
         }
@@ -384,13 +354,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     return (
       <SetupRequired
         title="Macaulay Library Export Required"
-        body="The Media Life List loads automatically from your stored ML export. You haven't saved one yet."
-        steps={[
-          <>Go to <strong>macaulaylibrary.org</strong> → My Media</>,
-          <>Click <strong>Save Spreadsheet</strong> — do not rename the downloaded file</>,
-          <>Upload it in <strong>Settings → Default Files → ML Export</strong></>,
-          <>This tab loads automatically on every visit from then on</>,
-        ]}
+        body="The Multimedia tab loads automatically from your stored Macaulay Library export. You haven't saved one yet."
+        steps={ML_EXPORT_STEPS}
         onGoToSettings={onGoToSettings}
       />
     )
@@ -457,13 +422,6 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const countLabel = (isFilterClear && !hasLocationFilter)
     ? `${displayEntries.length} species`
     : `${filteredCount} of ${totalSpecies} species`
-
-  function formatDateLabel(d: string): string {
-    if (!d) return ''
-    const [y, m, day] = d.split('-').map(Number)
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-    return `${months[(m ?? 1) - 1]} ${day}, ${y}`
-  }
 
   const filterStripText = (() => {
     const parts: string[] = []

@@ -4,7 +4,6 @@ import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
-import { HelpDocs } from './HelpDocs'
 import { storage } from '../lib/storage'
 import { isTauri } from '../lib/platform'
 
@@ -298,6 +297,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
 interface KeyRowProps {
   label: string
   sublabel: string
+  hint?: React.ReactNode
   value: string | null
   visible: boolean
   editing: boolean
@@ -313,7 +313,7 @@ interface KeyRowProps {
 }
 
 function KeyRow({
-  label, sublabel, value, visible, editing, input, saving, error,
+  label, sublabel, hint, value, visible, editing, input, saving, error,
   onToggleVisible, onStartEdit, onCancelEdit, onInputChange, onSave, onDelete,
 }: KeyRowProps) {
   const isSet = value !== null
@@ -426,7 +426,7 @@ function KeyRow({
               height: 32, padding: '0 12px',
               border: '1.5px solid var(--sr-accent-border)',
               background: !input.trim() || saving ? 'var(--sr-surface-subtle)' : 'var(--sr-accent)',
-              color: !input.trim() || saving ? 'var(--sr-text-disabled)' : '#fff',
+              color: !input.trim() || saving ? 'var(--sr-text-disabled)' : 'var(--sr-on-accent)',
               borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
               cursor: !input.trim() || saving ? 'not-allowed' : 'pointer',
               whiteSpace: 'nowrap', flexShrink: 0,
@@ -445,6 +445,12 @@ function KeyRow({
           >
             Cancel
           </button>
+        </div>
+      )}
+
+      {hint && (editing || !isSet) && (
+        <div style={{ margin: '0 16px 12px', fontSize: 12, color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+          {hint}
         </div>
       )}
 
@@ -709,6 +715,7 @@ function RebuildCachesButton() {
 interface SettingsProps {
   onKeysSaved?: () => void
   onFilesSaved?: () => void
+  onOpenHelp: () => void
   tabOrder: ConfigurableTab[]
   tabHidden: Set<ConfigurableTab>
   onReorder: (newOrder: ConfigurableTab[]) => void
@@ -716,8 +723,7 @@ interface SettingsProps {
   onRestoreDefaults: () => void
 }
 
-export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
-  const [helpOpen, setHelpOpen] = useState(false)
+export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
   const [status, setStatus] = useState<StoredFilesStatus>({ ebird: null, ml: null })
   const [keys, setKeys] = useState<ApiKeyStatus>({ ebird: null, openweather: null })
 
@@ -904,10 +910,10 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
           </div>
         </div>
         <button tabIndex={0}
-          onClick={() => setHelpOpen(true)}
+          onClick={onOpenHelp}
           style={{
             height: 34, padding: '0 16px', flexShrink: 0,
-            background: 'var(--sr-accent)', color: '#fff',
+            background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
             border: 'none', borderRadius: 7,
             fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
             cursor: 'pointer', whiteSpace: 'nowrap',
@@ -929,6 +935,9 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
         <KeyRow
           label="eBird API Key"
           sublabel="Not configured"
+          hint={<>Get a free key at{' '}
+            <a href="https://ebird.org/api/keygen" target="_blank" rel="noreferrer" style={{ color: 'var(--sr-accent)', fontWeight: 500 }}>ebird.org/api/keygen</a>
+            {' '}(sign in to your eBird account first).</>}
           value={keys.ebird}
           visible={ebirdKeyVisible}
           editing={ebirdKeyEditing}
@@ -946,6 +955,8 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
           <KeyRow
             label="OpenWeather API Key"
             sublabel="Not configured"
+            hint={<>Create a key at{' '}
+              <a href="https://openweathermap.org/api" target="_blank" rel="noreferrer" style={{ color: 'var(--sr-accent)', fontWeight: 500 }}>openweathermap.org</a>, then subscribe it to the free <strong>“One Call by Call”</strong> plan — weather lookups fail without that subscription.</>}
             value={keys.openweather}
             visible={openweatherKeyVisible}
             editing={openweatherKeyEditing}
@@ -973,7 +984,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
         <FileRow
           label="eBird Backup"
-          sublabel="Used by the Breeding Codes tab"
+          sublabel="Your eBird sightings export — used across most tabs"
           info={status.ebird}
           uploading={ebirdUploading}
           error={ebirdError}
@@ -983,7 +994,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
         <div style={{ borderTop: '1px solid var(--sr-border-subtle)' }}>
           <FileRow
             label="ML Export"
-            sublabel="Used by the Media List tab"
+            sublabel="Your Macaulay Library export — powers the Multimedia tab"
             info={status.ml}
             uploading={mlUploading}
             error={mlError}
@@ -1002,9 +1013,6 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
           Default Location
-        </span>
-        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1px solid var(--sr-accent-border)' }}>
-          NEW
         </span>
         <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
       </div>
@@ -1059,7 +1067,7 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
               style={{
                 height: 32, padding: '0 14px',
                 background: mapDefaultsStatus === 'saving' ? 'var(--sr-surface-subtle)' : 'var(--sr-accent)',
-                color: mapDefaultsStatus === 'saving' ? 'var(--sr-text-disabled)' : '#fff',
+                color: mapDefaultsStatus === 'saving' ? 'var(--sr-text-disabled)' : 'var(--sr-on-accent)',
                 border: 'none', borderRadius: 6,
                 fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
                 cursor: mapDefaultsStatus === 'saving' ? 'not-allowed' : 'pointer',
@@ -1121,7 +1129,6 @@ export function Settings({ onKeysSaved, onFilesSaved, tabOrder, tabHidden, onReo
       )}
 
     </div>
-    {helpOpen && <HelpDocs onClose={() => setHelpOpen(false)} />}
     </>
   )
 }

@@ -22,7 +22,7 @@ export const TAB_LABELS: Record<ConfigurableTab, string> = {
   'species-detail': 'Species Detail',
   'birding-stats':  'Statistics',
   'map-explorer':   'Map Explorer',
-  'life-list':      'Media List',
+  'life-list':      'Multimedia',
   'breeding-codes': 'Breeding Codes',
   'comparer':       'Life List Comparer',
 }

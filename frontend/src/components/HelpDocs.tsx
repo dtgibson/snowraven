@@ -16,7 +16,7 @@ const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'species-detail',       label: 'Species Detail',         sub: false },
   { id: 'statistics',           label: 'Statistics',             sub: false },
   { id: 'map-explorer',         label: 'Map Explorer',           sub: false },
-  { id: 'media-list',           label: 'Media List',             sub: false },
+  { id: 'multimedia',           label: 'Multimedia',             sub: false },
   { id: 'breeding-codes',       label: 'Breeding Codes',         sub: false },
   { id: 'life-list-comparer',   label: 'Life List Comparer',     sub: false },
   { id: 'settings',             label: 'Settings',               sub: false },

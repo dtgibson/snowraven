@@ -6,9 +6,11 @@ SnowRaven is built to be usable by everyone. It runs in the browser and as a des
 
 ## Keyboard Navigation
 
-Every part of SnowRaven is reachable and operable with the keyboard alone — no mouse required.
+Nearly all of SnowRaven is reachable and operable with the keyboard alone.
 
-Every interactive control is in the tab order and can be activated with Enter or Space. The main tab bar follows the standard pattern for tabbed interfaces: Left and Right arrow keys move between tabs, and Tab moves you into the page content. The species selector behaves like a proper combobox — type to filter, ArrowUp and ArrowDown move through the matches (the highlighted one scrolls into view), Enter selects it, and Escape closes the list. On a narrow screen, when the tab bar collapses into a dropdown, that menu is fully keyboard-operable too.
+Every button, link, tab, filter pill, toggle, sortable column header, and the species selector is in the tab order and can be activated with Enter or Space. The main tab bar follows the standard pattern for tabbed interfaces: Left and Right arrow keys move between tabs, and Tab moves you into the page content. The species selector behaves like a proper combobox — type to filter, ArrowUp and ArrowDown move through the matches (the highlighted one scrolls into view), Enter selects it, and Escape closes the list. On a narrow screen, when the tab bar collapses into a dropdown, that menu is fully keyboard-operable too.
+
+**Known gap:** the clickable markers *on* the maps (sighting pins, hotspot teardrops) are currently operated by pointer — they are not yet individually in the keyboard tab order. The map controls around them (zoom, base-layer switcher, filters, fullscreen) are keyboard-operable, and much of the underlying data is also reachable through the keyboard-accessible lists, filters, and other tabs. Direct keyboard access to individual map markers is on the roadmap.
 
 ---
 
@@ -26,13 +28,19 @@ Wherever keyboard focus lands, you can see it. Focused controls show a clear gre
 
 ## Color and Contrast
 
-Color is never the only way information is conveyed. The current leader on a map, breeding-code evidence levels, and similar cues are always paired with text, a symbol, or a label in addition to color. Text and key UI colors are chosen to meet the WCAG 2.1 AA contrast standard (4.5:1) — for example, the highest breeding-code badge uses dark text for a 6.8:1 ratio. A full dark theme is included and can follow your operating system's light/dark preference.
+Color is never the only way information is conveyed. The current leader on a map, breeding-code evidence levels, and similar cues are always paired with text, a symbol, or a label in addition to color. Body text and the primary interface colors — text, buttons, links, map popups, and form controls — are chosen to meet the WCAG 2.1 AA contrast standard (4.5:1) in both the light and dark themes; for example, the top breeding-code badge uses dark text on its light tier color. A full dark theme is included and can follow your operating system's light/dark preference. One known exception: a few dense data-visualization labels (percentage figures printed inside saturated chart bars) do not yet meet AA in every case, and are being tuned.
 
 ---
 
 ## Resizing and Zoom
 
-SnowRaven is a responsive web app. It reflows for narrow windows and mobile browsers — including collapsing the tab bar into a dropdown — and it works with browser zoom and larger text settings without clipping content or breaking the layout.
+SnowRaven is a responsive web app. It reflows for narrow windows and mobile browsers — including collapsing the tab bar into a dropdown — and it works with browser/page zoom (Ctrl/Cmd +/−) without clipping content or breaking the layout. Note that the interface is currently sized in fixed pixels, so a browser's *minimum font size* or operating-system *text-size* preference does not enlarge it on its own — use page zoom to scale the whole interface. A dedicated in-app text-size control is on the roadmap.
+
+---
+
+## Reduced Motion
+
+If your operating system is set to reduce motion, SnowRaven honors it: loading spinners, transitions, and animated transitions are reduced to near-instant so the interface does not move or animate unnecessarily.
 
 ---
 

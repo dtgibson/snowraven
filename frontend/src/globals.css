@@ -13,8 +13,8 @@
   --sr-text: #0F1117;
   --sr-text-muted: #71717A;
   --sr-text-disabled: #A1A1AA;
-  --sr-text-footer: #B0B0B8;
-  --sr-text-gray: #9CA3AF;
+  --sr-text-footer: #6B7280;   /* darkened to pass AA on white (#B0B0B8 was 2.1:1) */
+  --sr-text-gray: #6B7280;     /* sci names — darkened to pass AA (#9CA3AF was 2.5:1) */
 
   /* Border */
   --sr-border: #E4E4E7;
@@ -28,6 +28,7 @@
   --sr-accent-border: rgba(45,134,83,0.25);
   --sr-accent-border-strong: rgba(45,134,83,0.7);
   --sr-accent-surface: #fafffd;
+  --sr-on-accent: #FFFFFF;   /* readable foreground ON the accent fill (white on #2D8653 = 4.6:1) */
 
   /* Error */
   --sr-error: #DC2626;
@@ -99,8 +100,8 @@
   --sr-text: #F4F4F5;
   --sr-text-muted: #A1A1AA;
   --sr-text-disabled: #52525B;
-  --sr-text-footer: #52525B;
-  --sr-text-gray: #6B7280;
+  --sr-text-footer: #8A8A92;   /* lightened to pass AA on dark surfaces (#52525B was 2.1:1) */
+  --sr-text-gray: #8A8A92;     /* sci names — lightened to pass AA on dark surfaces */
 
   /* Border */
   --sr-border: #27272A;
@@ -114,6 +115,7 @@
   --sr-accent-border: rgba(52,211,153,0.2);
   --sr-accent-border-strong: rgba(52,211,153,0.5);
   --sr-accent-surface: #021a0f;
+  --sr-on-accent: #052E16;   /* dark green ON the emerald accent (was white = 1.9:1; now ~7.9:1) */
 
   /* Error */
   --sr-error: #F87171;
@@ -402,7 +404,7 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0 16px;
   height: 36px;
   background: var(--sr-accent);
-  color: #fff;
+  color: var(--sr-on-accent);
   border: none;
   border-radius: 24px;
   font-size: 13px;
@@ -478,6 +480,38 @@ select:focus-visible {
   outline-offset: 0;
   border-color: var(--sr-accent) !important;
   box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.12);
+}
+
+/* ── MapLibre popups — theme to the app surface (default chrome is hardcoded white,
+   which is a visible bug in dark mode). The content box + the little anchor tip both
+   need the surface color; the tip is a CSS triangle whose facing border carries it. */
+.maplibregl-popup-content {
+  background: var(--sr-surface) !important;
+  color: var(--sr-text);
+  border: 1px solid var(--sr-border);
+  border-radius: 10px;
+  box-shadow: var(--sr-card-shadow);
+  padding: 12px 14px;
+}
+.maplibregl-popup-close-button { color: var(--sr-text-muted); }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--sr-surface); }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--sr-surface); }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--sr-surface); }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--sr-surface); }
+
+/* ── Respect reduced-motion: kill the spinner animation and any transitions/animations
+   for users who ask the OS to minimize motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media (max-width: 640px) {

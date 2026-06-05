@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, Loader2, MapPin, Calendar } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
+import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { formatDateMonthFirst as formatDateLabel } from '../lib/formatDate'
 import { parseBreedingCodes, aggregateBreedingRows } from '../lib/parseBreedingCodes'
 import type { BreedingData, BreedingEntry, BreedingCodeRow } from '../lib/parseBreedingCodes'
 import { BREEDING_CODE_MAP, TIER_COLORS, CATEGORY_CODES } from '../lib/breedingCodes'
@@ -179,12 +181,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
       <SetupRequired
         title="eBird Backup Required"
         body="The Breeding Codes tab loads automatically from your stored eBird backup. You haven't saved one yet."
-        steps={[
-          <>Go to <strong>ebird.org</strong> → My eBird → Download My Data</>,
-          <>Download the file — it will be named <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, background: 'var(--sr-border)', padding: '1px 5px', borderRadius: 3 }}>MyEBirdData.csv</code></>,
-          <>Upload it in <strong>Settings → Default Files → eBird Backup</strong></>,
-          <>This tab loads automatically on every visit from then on</>,
-        ]}
+        steps={EBIRD_BACKUP_STEPS}
         onGoToSettings={onGoToSettings}
       />
     )
@@ -248,13 +245,6 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
     : `${filteredCount} of ${totalSpecies} species`
 
   // Format a YYYY-MM-DD date as human-readable "May 1, 2022"
-  function formatDateLabel(d: string): string {
-    if (!d) return ''
-    const [y, m, day] = d.split('-').map(Number)
-    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-    return `${months[(m ?? 1) - 1]} ${day}, ${y}`
-  }
-
   const filterStripText = (() => {
     const parts: string[] = []
     if (countyFilter) parts.push(countyFilter)

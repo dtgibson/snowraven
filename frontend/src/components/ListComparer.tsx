@@ -258,7 +258,7 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
               width: '100%',
               height: 48,
               background: 'var(--sr-accent)',
-              color: '#fff',
+              color: 'var(--sr-on-accent)',
               border: 'none',
               borderRadius: 8,
               fontSize: 14,

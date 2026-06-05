@@ -32,7 +32,9 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) return 'vendor-react'
           if (id.includes('node_modules/recharts/')) return 'vendor-recharts'
-          if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet')) return 'vendor-leaflet'
+          // maplibre is shared by the (lazy) Map Explorer + Species Detail tabs —
+          // keep it in one chunk so it isn't duplicated across their lazy bundles.
+          if (id.includes('node_modules/maplibre-gl')) return 'vendor-maplibre'
         },
       },
     },

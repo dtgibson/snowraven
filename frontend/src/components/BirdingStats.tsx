@@ -13,7 +13,7 @@ import type { Map as MaplibreMap } from 'maplibre-gl'
 import { SnowMap } from './SnowMap'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
-import { parseEbirdObservations } from '../lib/parseEbirdObservations'
+import { loadEbirdObservations } from '../lib/observationsCache'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
@@ -21,6 +21,8 @@ import { regionName } from '../lib/regionNames'
 import { BirdName } from './BirdName'
 import { BREEDING_CODE_MAP } from '../lib/breedingCodes'
 import { SetupRequired } from './SetupRequired'
+import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { formatDateMonthFirst as fmtDate } from '../lib/formatDate'
 import type { ObservationEntry, ChecklistEntry } from '../types'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
@@ -107,12 +109,6 @@ function fmt(n: number, decimals = 0): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: decimals })
 }
 
-function fmtDate(iso: string): string {
-  const [y, m, d] = iso.split('-')
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${months[parseInt(m, 10) - 1]} ${parseInt(d, 10)}, ${y}`
-}
-
 type Granularity = 'total' | 'weekly' | 'monthly' | 'yearly'
 type PeriodGranularity = Exclude<Granularity, 'total'>
 
@@ -141,7 +137,10 @@ function sectionSlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }
 
-// Sections offered in the jump-nav (always-present ones, in render order).
+// Always-present sections, in render order (through Breeding Stats). The two
+// trailing sections — "Media" (only when an ML export is loaded) and the always-
+// present "Other Statistics" — are appended at render time so the jump-nav never
+// shows a chip for a section that isn't on the page.
 const NAV_SECTIONS = [
   'Life List Totals', 'Top Species', 'Firsts & Milestones', 'Temporal Stats',
   'Geographic Stats', 'Effort & Outings', 'Data Quality', 'Highlights & Records',
@@ -291,17 +290,17 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           setMapDefaults(mapDefaults)
         }
 
-        const [ebirdText, mlText] = await Promise.all([
-          storage.readFile('ebird'),
+        const [ebird, mlText] = await Promise.all([
+          loadEbirdObservations(),
           status.ml ? storage.readFile('ml') : Promise.resolve(null),
         ])
 
-        if (!ebirdText || cancelled) {
+        if (!ebird || cancelled) {
           setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
           return
         }
 
-        const observations = parseEbirdObservations(ebirdText)
+        const observations = ebird.observations
 
         let mlRows: MLExportRow[] = []
         if (mlText) {
@@ -1026,7 +1025,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     }
   }, [filteredObs, checklists, rawObs])
 
-  // Nemesis birds filtered against life list
+  // Nearby Lifers (nemesis* internals) filtered against life list
   const nemesisFiltered = useMemo(() => {
     if (!nemesisResult) return null
     const lifeSet = new Set(lifeList.map(s => s.toLowerCase()))
@@ -1063,7 +1062,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
       <SetupRequired
         title="Statistics require your eBird backup"
         body="Upload your eBird backup to see comprehensive statistics about your birding history — life list, effort, geography, and more."
-        steps={['Go to Settings', 'Under Default Files, upload your MyEBirdData.csv']}
+        steps={EBIRD_BACKUP_STEPS}
         onGoToSettings={onGoToSettings}
       />
     )
@@ -1071,10 +1070,23 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   if (phase.tag === 'error') {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--sr-error)', fontSize: 14 }}>
-          <AlertCircle size={16} />
-          {phase.message}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, textAlign: 'center', maxWidth: 420 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--sr-error)', fontSize: 14 }}>
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
+            {phase.message}
+          </div>
+          <button tabIndex={0}
+            onClick={onGoToSettings}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 16px',
+              background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
+              border: 'none', borderRadius: 8, fontSize: 13.5, fontWeight: 500,
+              fontFamily: 'inherit', cursor: 'pointer',
+            }}
+          >
+            Go to Settings →
+          </button>
         </div>
       </div>
     )
@@ -1087,6 +1099,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const maxDow = Math.max(...temporal.dowRows.map(r => r.value), 1)
   const maxHour = Math.max(...temporal.hourRows.map(r => r.value), 1)
   const totalHour = temporal.hourRows.reduce((s, r) => s + r.value, 0)
+  // Jump-nav: base sections + Media (only with an ML export) + Other Statistics.
+  const navSections = [
+    ...NAV_SECTIONS,
+    ...(rawMlRows.length > 0 ? ['Media'] : []),
+    'Other Statistics',
+  ]
 
   return (
     <div style={{ width: '100%', maxWidth: 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 40 }}>
@@ -1115,7 +1133,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
       {/* Section jump-nav */}
       <nav aria-label="Jump to section" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {NAV_SECTIONS.map(t => (
+        {navSections.map(t => (
           <a
             key={t}
             href={`#${sectionSlug(t)}`}
@@ -2006,7 +2024,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               </div>
               <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
                 <div style={{ width: `${numPct}%`, background: 'var(--sr-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {numPct >= 8 && <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>{numPct}% numeric</span>}
+                  {numPct >= 8 && <span style={{ fontSize: 12, color: 'var(--sr-on-accent)', fontWeight: 600 }}>{numPct}% numeric</span>}
                 </div>
                 <div style={{ flex: 1, background: 'var(--sr-chart-slate)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {xPct >= 8 && <span style={{ fontSize: 12, color: 'var(--sr-text)', fontWeight: 600 }}>{xPct}% X</span>}
@@ -2485,8 +2503,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
       {/* ── Section 9: Other Statistics ───────────────────────────────────── */}
       <SectionCard title="Other Statistics" icon={<Star size={16} />}>
 
-        {/* Nemesis birds */}
-        <SubLabel>Top Local Target Species</SubLabel>
+        {/* Nearby Lifers (formerly "Nemesis Birds") */}
+        <SubLabel>Nearby Lifers</SubLabel>
         <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: '0 0 12px', borderLeft: '3px solid var(--sr-accent-border)', paddingLeft: 10 }}>
           <p style={{ margin: '0 0 6px' }}>
             Species observed near your configured location in the past 30 days that haven't appeared on your life list, sorted by most recently seen. Data comes from eBird's recent observations for the location and search radius set in Settings.
@@ -2512,7 +2530,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               <button tabIndex={0} onClick={onGoToSettings} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--sr-accent)', fontSize: 'inherit', fontFamily: 'inherit', fontWeight: 600 }}>
                 Settings
               </button>{' '}
-              to see Nemesis Birds nearby.
+              to see Nearby Lifers.
             </p>
           </div>
         ) : nemesisLoading ? (
@@ -2523,7 +2541,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <p style={{ fontSize: 13, color: 'var(--sr-error)', margin: 0 }}>{nemesisError}</p>
         ) : nemesisFiltered !== null && nemesisFiltered.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: 0 }}>
-            No nemesis birds — you've seen everything reported nearby in the past 30 days.
+            No nearby lifers — you've seen everything reported nearby in the past 30 days.
           </p>
         ) : nemesisFiltered && nemesisFiltered.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

@@ -51,7 +51,7 @@ export function BirdName({
         ) : (
           <span className="sr-birdname-text">{commonName}</span>
         )}
-        <SpeciesLinks speciesCode={taxonCode} />
+        <SpeciesLinks speciesCode={taxonCode} commonName={commonName} />
       </span>
       {sci && <span className="sr-birdname-sci">{sci}</span>}
     </span>

@@ -4,7 +4,8 @@ import type { FeatureCollection, Point } from 'geojson'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Camera, ChevronDown, Crosshair, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
-import { parseEbirdObservations } from '../lib/parseEbirdObservations'
+import { EBIRD_BACKUP_STEPS } from './setupCopy'
+import { loadEbirdObservations } from '../lib/observationsCache'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import type { ObservationEntry } from '../types'
@@ -231,7 +232,7 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
           style={{
             width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: loading || !query.trim() ? 'var(--sr-surface-subtle)' : 'var(--sr-accent)',
-            color: loading || !query.trim() ? 'var(--sr-text-muted)' : '#fff',
+            color: loading || !query.trim() ? 'var(--sr-text-muted)' : 'var(--sr-on-accent)',
             border: '1.5px solid var(--sr-border)', borderRadius: 6,
             cursor: loading || !query.trim() ? 'not-allowed' : 'pointer', flexShrink: 0,
           }}
@@ -303,16 +304,16 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
         <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => setSel(null)} closeButton={false} maxWidth="260px">
           <div style={{ minWidth: 190 }}>
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{selLoc.locName}</div>
-            <div style={{ fontSize: 12, color: '#2D8653', marginBottom: 3 }}>
+            <div style={{ fontSize: 12, color: 'var(--sr-accent)', marginBottom: 3 }}>
               {selLoc.count.toLocaleString()} observation{selLoc.count !== 1 ? 's' : ''}
             </div>
-            <div style={{ fontSize: 12, color: '#71717A', marginBottom: 10 }}>Last: {fmtDate(selLoc.lastDate)}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#A1A1AA', marginBottom: 5 }}>Species seen here</div>
+            <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 10 }}>Last: {fmtDate(selLoc.lastDate)}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 5 }}>Species seen here</div>
             {[...selLoc.species].slice(0, 5).map(s => (
-              <div key={s} style={{ fontSize: 12, color: '#0F1117', marginBottom: 2 }}>{s}</div>
+              <div key={s} style={{ fontSize: 12, color: 'var(--sr-text)', marginBottom: 2 }}>{s}</div>
             ))}
             {selLoc.species.size > 5 && (
-              <div style={{ fontSize: 12, color: '#71717A', marginTop: 2 }}>+{selLoc.species.size - 5} more species</div>
+              <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginTop: 2 }}>+{selLoc.species.size - 5} more species</div>
             )}
           </div>
         </Popup>
@@ -355,19 +356,19 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{selPin.locName}</div>
             {selPin.kind === 'visited' && (
               <>
-                <div style={{ fontSize: 12, color: '#2D8653', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>
-                <div style={{ fontSize: 12, color: '#71717A', marginBottom: 8 }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
-                <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
+                <div style={{ fontSize: 12, color: 'var(--sr-accent)', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>
+                <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 8 }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
+                <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
               </>
             )}
             {selPin.kind === 'unvisited' && (
-              <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
+              <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
             )}
             {selPin.kind === 'personal' && (
               <>
-                <div style={{ display: 'inline-block', background: '#FFF7ED', border: '1px solid #FDE68A', color: '#C9842A', borderRadius: 4, padding: '2px 6px', fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Personal Location</div>
-                <div style={{ fontSize: 12, color: '#71717A', marginBottom: 3 }}>{selPin.obsCount} observation{selPin.obsCount !== 1 ? 's' : ''}</div>
-                <div style={{ fontSize: 12, color: '#71717A' }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
+                <div style={{ display: 'inline-block', background: 'var(--sr-is-target-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-map-personal)', borderRadius: 4, padding: '2px 6px', fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Personal Location</div>
+                <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 3 }}>{selPin.obsCount} observation{selPin.obsCount !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
               </>
             )}
           </div>
@@ -440,14 +441,14 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
       {selGroup && selRep && (
         <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => setSel(null)} closeButton={false} maxWidth="280px">
               <div style={{ minWidth: 200, maxWidth: 260 }}>
-                <div style={{ fontSize: 11, color: '#71717A', marginBottom: 8 }}>📍 {selRep.locName}</div>
+                <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
                 {selGroup.map((pin, j) => {
                   const pinTier = recencyTier(pin.recentDate)
                   const { bg: pinBg, text: pinText } = tierColors(pinTier)
                   const tierLabel = pinTier === 'fresh' ? '≤7 days' : pinTier === 'mid' ? '8–15 days' : '16–30 days'
                   const validSubId = /^S\d+$/.test(pin.subId ?? '')
                   return (
-                    <div key={pin.speciesCode} style={{ paddingTop: j > 0 ? 8 : 0, marginTop: j > 0 ? 8 : 0, borderTop: j > 0 ? '1px solid #E4E4E7' : 'none' }}>
+                    <div key={pin.speciesCode} style={{ paddingTop: j > 0 ? 8 : 0, marginTop: j > 0 ? 8 : 0, borderTop: j > 0 ? '1px solid var(--sr-border)' : 'none' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>
                         <BirdName commonName={pin.comName} taxonCode={speciesCodeMap[pin.comName]} hasEntry={hasEntryFor(pin.comName)} onOpenSpecies={onOpenSpecies} size="sm" />
                         {pin.missingTypes.map(t => (
@@ -460,10 +461,10 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: validSubId ? 4 : 0 }}>
                         <span style={{ display: 'inline-block', background: pinBg, color: pinText, padding: '1px 6px', borderRadius: 6, fontSize: 10, fontWeight: 600 }}>{tierLabel}</span>
-                        <span style={{ fontSize: 10, color: '#71717A' }}>{fmtDate(pin.recentDate)}</span>
+                        <span style={{ fontSize: 10, color: 'var(--sr-text-muted)' }}>{fmtDate(pin.recentDate)}</span>
                       </div>
                       {validSubId && (
-                        <a href={`https://ebird.org/checklist/${pin.subId}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#2D8653', textDecoration: 'none', fontWeight: 500 }}>
+                        <a href={`https://ebird.org/checklist/${pin.subId}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>
                           View checklist {pin.subId} →
                         </a>
                       )}
@@ -723,13 +724,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
 
-        const [ebirdText, mlText] = await Promise.all([
-          storage.readFile('ebird'),
+        const [ebird, mlText] = await Promise.all([
+          loadEbirdObservations(),
           status.ml ? storage.readFile('ml') : Promise.resolve(null),
         ])
-        if (!ebirdText || cancelled) { setPhase({ tag: 'setup-required' }); return }
+        if (!ebird || cancelled) { setPhase({ tag: 'setup-required' }); return }
 
-        const observations = parseEbirdObservations(ebirdText)
+        const observations = ebird.observations
 
         let mlRows: MLExportRow[] = []
         let hasML = false
@@ -1421,7 +1422,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
           width: '100%', height: 36,
           background: hotspotsLoading || hasEbirdKey === false ? 'var(--sr-text-disabled)' : 'var(--sr-accent)',
-          color: '#fff', border: 'none', borderRadius: 6,
+          color: 'var(--sr-on-accent)', border: 'none', borderRadius: 6,
           fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
           cursor: hotspotsLoading || hasEbirdKey === false ? 'not-allowed' : 'pointer',
           marginBottom: 10,
@@ -1599,7 +1600,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
           width: '100%', height: 36,
-          background: 'var(--sr-accent)', color: '#fff',
+          background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
           border: 'none', borderRadius: 6,
           fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
           cursor: targetsFetchDisabled ? 'not-allowed' : 'pointer',
@@ -1849,11 +1850,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             <SetupRequired
               title="eBird Backup Required"
               body="Map Explorer needs your eBird backup to show your sightings on the map. Hotspot and Media Targets modes also benefit from a backup for visited classification."
-              steps={[
-                <>Visit <strong>ebird.org</strong> → My eBird → Download My Data</>,
-                'Extract the ZIP and locate your eBird observations CSV.',
-                'Upload it in Settings.',
-              ]}
+              steps={EBIRD_BACKUP_STEPS}
               onGoToSettings={onGoToSettings}
             />
           ) : (
