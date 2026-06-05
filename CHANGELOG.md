@@ -2,6 +2,27 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.10] - 2026-06-04
+
+### Added
+- **Top Species on the Statistics tab** — two new ranked top-10 lists: the species you've counted the most **individuals** of, and the species you've reported on the most **checklists**.
+- **Notable Outings + richer effort stats** — the Statistics "Effort" section is now **Effort & Outings**: cumulative **totals** (time afield — also spelled out as days / hours / minutes — distance, and area when recorded), average area, an **observer summary** (% solo, average, largest group), and a **Notable Outings** block highlighting your longest, farthest, largest-area, most-species, and most-individuals single checklists (each links to eBird).
+- **Highlights & Records section** — a new section gathering your biggest single day, longest streak, longest dry spell, Shannon diversity, biggest single counts (flocks), single-checklist birds, and one-and-done birds in one place.
+- **Section jump-nav** — a row of links at the top of the Statistics tab jumps straight to any section.
+
+### Improved
+- **Statistics regrouped for clarity** — sections are reordered into a logical flow, and previously scattered stats are grouped meaningfully (streaks, diversity, and record counts moved out of "Firsts & Milestones" and "Data Quality" into the new "Highlights & Records").
+- **Full state/province names** — the Statistics "States" lists now show names like **Minnesota** and **Ontario** instead of codes like `US-MN` (US + Canada; other regions fall back to the code, which still drives the eBird link).
+- **Clearer effort labels** — metrics are spelled out ("Species per hour", "Average distance") instead of cryptic abbreviations.
+- **Longest streak counts any report** — a day counts toward your streak if you reported anything at all that day.
+- **Single-checklist birds** no longer redundantly include one-and-done species (which are always single-checklist); the two lists are now distinct.
+
+### Changed
+- Area-based stats appear only when your data includes area-covered checklists (the eBird "Area" protocol); otherwise they're hidden rather than shown blank.
+
+### Fixed
+- **Maps now recover gracefully when the base map can't load** — if the vector base map can't be fetched (you're offline, or the tile provider is unreachable), all three maps (Map Explorer, Species Detail, and Statistics) now show a clear "Map couldn't load — check your connection" message with a **Retry** button, instead of sitting on "Loading map…" forever. Tapping Retry re-attempts the fetch, so the map appears as soon as the connection is back. (The maps remain online-only for now; offline tiles are a separate future goal.)
+
 ## [0.5.9] - 2026-06-04
 
 ### Improved

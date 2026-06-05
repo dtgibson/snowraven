@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Star,
   AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
+  ListOrdered, Award,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -16,6 +17,7 @@ import { parseEbirdObservations } from '../lib/parseEbirdObservations'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
+import { regionName } from '../lib/regionNames'
 import { BirdName } from './BirdName'
 import { BREEDING_CODE_MAP } from '../lib/breedingCodes'
 import { SetupRequired } from './SetupRequired'
@@ -44,6 +46,24 @@ const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'S
 const DOW_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const SUBMISSION_ID_RE = /^S\d+$/
 const KM_TO_MI = 0.621371
+const HA_TO_ACRE = 2.471054
+
+// Spell a total duration (minutes) into yr/mo/day/hr/min, largest non-zero units
+// only (eBird durations are minute-granular, so seconds never apply).
+function formatDuration(totalMin: number): string {
+  let m = Math.round(totalMin)
+  const yr = Math.floor(m / 525600); m -= yr * 525600
+  const mo = Math.floor(m / 43200); m -= mo * 43200
+  const day = Math.floor(m / 1440); m -= day * 1440
+  const hr = Math.floor(m / 60); m -= hr * 60
+  const parts: string[] = []
+  if (yr) parts.push(`${yr} yr${yr !== 1 ? 's' : ''}`)
+  if (mo) parts.push(`${mo} mo`)
+  if (day) parts.push(`${day} day${day !== 1 ? 's' : ''}`)
+  if (hr) parts.push(`${hr} hr${hr !== 1 ? 's' : ''}`)
+  if (m) parts.push(`${m} min`)
+  return parts.length ? parts.join(', ') : '0 min'
+}
 const ML_USER_RE = /^ML__.*_([A-Za-z0-9]+)\.csv$/i
 
 function mlCatalogUrl(name: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null, taxonCode?: string | null): string {
@@ -117,11 +137,23 @@ function formatPeriodLabel(key: string, granularity: PeriodGranularity): string 
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
+function sectionSlug(title: string): string {
+  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+// Sections offered in the jump-nav (always-present ones, in render order).
+const NAV_SECTIONS = [
+  'Life List Totals', 'Top Species', 'Firsts & Milestones', 'Temporal Stats',
+  'Geographic Stats', 'Effort & Outings', 'Data Quality', 'Highlights & Records',
+  'Breeding Stats',
+]
+
 function SectionCard({ children, title, icon }: {
   children: React.ReactNode; title: string; icon: React.ReactNode
 }) {
   return (
-    <div style={{
+    <div id={sectionSlug(title)} style={{
+      scrollMarginTop: 16,
       background: 'var(--sr-surface)',
       border: '1px solid var(--sr-border)',
       borderRadius: 12,
@@ -380,12 +412,14 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const checklists = useMemo((): ChecklistEntry[] => {
     const speciesBySub = new Map<string, Set<string>>()
     const firstRowBySub = new Map<string, ObservationEntry>()
+    const countBySub = new Map<string, number>()
     for (const o of filteredObs) {
       if (!firstRowBySub.has(o.submissionId)) {
         firstRowBySub.set(o.submissionId, o)
         speciesBySub.set(o.submissionId, new Set())
       }
       speciesBySub.get(o.submissionId)!.add(normalizeSpeciesName(o.commonName))
+      if (o.count !== null) countBySub.set(o.submissionId, (countBySub.get(o.submissionId) ?? 0) + o.count)
     }
     const result: ChecklistEntry[] = []
     for (const [subId, firstRow] of firstRowBySub) {
@@ -401,11 +435,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         time: firstRow.time ?? null,
         duration: firstRow.duration ?? null,
         distance: firstRow.distance ?? null,
+        area: firstRow.area ?? null,
         protocol: firstRow.protocol ?? null,
         numObservers: firstRow.numObservers ?? null,
         allObsReported: firstRow.allObsReported ?? null,
         checklistComments: firstRow.checklistComments ?? '',
         speciesCount: speciesBySub.get(subId)!.size,
+        individualCount: countBySub.get(subId) ?? 0,
       })
     }
     return result.sort((a, b) => a.date.localeCompare(b.date))
@@ -415,6 +451,33 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     const seen = new Set<string>()
     for (const o of filteredObs) seen.add(normalizeSpeciesName(o.commonName))
     return [...seen].sort()
+  }, [filteredObs])
+
+  // Top species — most individuals counted (Σ count) and most checklists reported on
+  // (distinct submissions). One pass over observations.
+  const topSpecies = useMemo(() => {
+    const countBySp = new Map<string, number>()
+    const cklBySp = new Map<string, Set<string>>()
+    let hasCounts = false
+    for (const o of filteredObs) {
+      const norm = normalizeSpeciesName(o.commonName)
+      let subs = cklBySp.get(norm)
+      if (!subs) { subs = new Set(); cklBySp.set(norm, subs) }
+      subs.add(o.submissionId)
+      if (o.count !== null) {
+        countBySp.set(norm, (countBySp.get(norm) ?? 0) + o.count)
+        hasCounts = true
+      }
+    }
+    const byIndividuals = [...countBySp.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, total]) => ({ name, total }))
+    const byChecklists = [...cklBySp.entries()]
+      .sort((a, b) => b[1].size - a[1].size)
+      .slice(0, 10)
+      .map(([name, set]) => ({ name, count: set.size }))
+    return { byIndividuals, byChecklists, hasCounts }
   }, [filteredObs])
 
   const totals = useMemo(() => {
@@ -626,6 +689,14 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     const protocolComplete = new Map<string, { complete: number; total: number }>()
     let totalSpeciesHours = 0, speciesHourCount = 0
     let totalSpeciesDist = 0, speciesDistCount = 0
+    let totalAreaHa = 0, areaCount = 0
+    let soloCount = 0, groupCount = 0, observerSum = 0, observerCount = 0
+    let largestGroup: { n: number; c: ChecklistEntry } | null = null
+    let longest: ChecklistEntry | null = null, longestVal = 0
+    let farthest: ChecklistEntry | null = null, farthestVal = 0
+    let largestArea: ChecklistEntry | null = null, largestAreaVal = 0
+    let biggest: ChecklistEntry | null = null, biggestVal = 0
+    let mostIndiv: ChecklistEntry | null = null, mostIndivVal = 0
 
     for (const c of checklists) {
       const proto = c.protocol ?? ''
@@ -654,9 +725,21 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           speciesDistCount++
         }
       }
+      if (c.area !== null) {
+        totalAreaHa += c.area; areaCount++
+        if (c.area > largestAreaVal) { largestAreaVal = c.area; largestArea = c }
+      }
+      if (c.duration !== null && c.duration > longestVal) { longestVal = c.duration; longest = c }
+      if (c.distance !== null && c.distance > farthestVal) { farthestVal = c.distance; farthest = c }
+      if (c.speciesCount > biggestVal) { biggestVal = c.speciesCount; biggest = c }
+      if (c.individualCount > mostIndivVal) { mostIndivVal = c.individualCount; mostIndiv = c }
       if (c.numObservers !== null) {
         const key = c.numObservers >= 5 ? 5 : c.numObservers
         observerDist.set(key, (observerDist.get(key) ?? 0) + 1)
+        observerSum += c.numObservers; observerCount++
+        if (c.numObservers === 1) soloCount++
+        else if (c.numObservers > 1) groupCount++
+        if (!largestGroup || c.numObservers > largestGroup.n) largestGroup = { n: c.numObservers, c }
       }
       if (c.allObsReported !== null) {
         allObsCount++
@@ -693,15 +776,30 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
       protocolRows,
       observerRows,
       totalHours: durationCount > 0 ? totalDurationMin / 60 : null,
+      totalMinutes: durationCount > 0 ? totalDurationMin : null,
       avgDurationMin: durationCount > 0 ? totalDurationMin / durationCount : null,
+      durationCount,
       totalDistanceMi: distanceCount > 0 ? totalDistanceKm * KM_TO_MI : null,
       avgDistanceMi: distanceCount > 0 ? (totalDistanceKm / distanceCount) * KM_TO_MI : null,
+      distanceCount,
+      totalAreaAcres: areaCount > 0 ? totalAreaHa * HA_TO_ACRE : null,
+      avgAreaAcres: areaCount > 0 ? (totalAreaHa / areaCount) * HA_TO_ACRE : null,
+      areaCount,
       sppPerHour: speciesHourCount > 0 ? totalSpeciesHours / speciesHourCount : null,
       sppPerMi: speciesDistCount > 0 ? totalSpeciesDist / speciesDistCount : null,
       completeRatio: allObsCount > 0 ? completeCount / allObsCount : null,
       completeCount,
       allObsCount,
       protocolComplete,
+      soloCount,
+      groupCount,
+      avgObservers: observerCount > 0 ? observerSum / observerCount : null,
+      largestGroup,
+      longest,
+      farthest,
+      largestArea,
+      biggest,
+      mostIndividuals: mostIndiv,
     }
   }, [checklists])
 
@@ -817,36 +915,38 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   // Fun stats
   const funStats = useMemo(() => {
-    // One-and-done: species seen on exactly 1 checklist
+    // Per-species: distinct checklists + total individuals counted (one pass).
     const checklistsBySp = new Map<string, Set<string>>()
+    const countBySp = new Map<string, { total: number; submissionId: string }>()
     for (const o of filteredObs) {
       const norm = normalizeSpeciesName(o.commonName)
       if (!checklistsBySp.has(norm)) checklistsBySp.set(norm, new Set())
       checklistsBySp.get(norm)!.add(o.submissionId)
-    }
-    const singleChecklistBirds = [...checklistsBySp.entries()]
-      .filter(([, subs]) => subs.size === 1)
-      .map(([name, subs]) => ({ name, submissionId: [...subs][0] }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-
-    const countBySp = new Map<string, { total: number; submissionId: string }>()
-    for (const o of filteredObs) {
-      if (o.count === null) continue
-      const norm = normalizeSpeciesName(o.commonName)
-      const existing = countBySp.get(norm)
-      if (!existing) {
-        countBySp.set(norm, { total: o.count, submissionId: o.submissionId })
-      } else {
-        countBySp.set(norm, { total: existing.total + o.count, submissionId: existing.submissionId })
+      if (o.count !== null) {
+        const existing = countBySp.get(norm)
+        if (!existing) countBySp.set(norm, { total: o.count, submissionId: o.submissionId })
+        else existing.total += o.count
       }
     }
+
+    // One-and-done: total individual count of exactly 1 (necessarily on a single
+    // checklist too, so we exclude these from singleChecklistBirds below).
     const oneDoneBirds = [...countBySp.entries()]
       .filter(([, { total }]) => total === 1)
       .map(([name, { submissionId }]) => ({ name, submissionId }))
       .sort((a, b) => a.name.localeCompare(b.name))
+    const oneDoneSet = new Set(oneDoneBirds.map(b => b.name))
 
-    // Consecutive-day streak + longest dry spell
-    const dates = [...new Set(checklists.map(c => c.date))].sort()
+    // Single-checklist: seen on exactly one checklist, EXCLUDING the one-and-done
+    // birds (a strict subset, shown separately).
+    const singleChecklistBirds = [...checklistsBySp.entries()]
+      .filter(([name, subs]) => subs.size === 1 && !oneDoneSet.has(name))
+      .map(([name, subs]) => ({ name, submissionId: [...subs][0] }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+
+    // Consecutive-day streak + longest dry spell — a date counts if ANY report of
+    // any kind was made that day (all observations, unfiltered).
+    const dates = [...new Set(rawObs.map(o => o.date))].sort()
     let maxStreak = 0, drySpell = 0
     let streakStart = '', streakEnd = '', dryStart = '', dryEnd = ''
 
@@ -924,7 +1024,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         : null,
       shannon: shannon > 0 ? shannon : null,
     }
-  }, [filteredObs, checklists])
+  }, [filteredObs, checklists, rawObs])
 
   // Nemesis birds filtered against life list
   const nemesisFiltered = useMemo(() => {
@@ -1012,6 +1112,20 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           Include spuh / slash species
         </label>
       </div>
+
+      {/* Section jump-nav */}
+      <nav aria-label="Jump to section" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {NAV_SECTIONS.map(t => (
+          <a
+            key={t}
+            href={`#${sectionSlug(t)}`}
+            onClick={e => { e.preventDefault(); document.getElementById(sectionSlug(t))?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+            style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--sr-text-muted)', textDecoration: 'none', padding: '4px 10px', borderRadius: 100, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', whiteSpace: 'nowrap' }}
+          >
+            {t}
+          </a>
+        ))}
+      </nav>
 
       {/* ── Section 1: Life List Totals ─────────────────────────────────────── */}
       <SectionCard title="Life List Totals" icon={<BarChart2 size={16} />}>
@@ -1161,65 +1275,52 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
       </SectionCard>
 
+      {/* ── Top Species ────────────────────────────────────────────────────── */}
+      <SectionCard title="Top Species" icon={<ListOrdered size={16} />}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(248px, 1fr))', gap: 'clamp(16px, 4vw, 28px)' }}>
+          <div>
+            <SubLabel>Most individuals counted</SubLabel>
+            {topSpecies.byIndividuals.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {topSpecies.byIndividuals.map((entry, i) => (
+                  <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(entry.total)}</span>
+                  </div>
+                ))}
+                <p style={{ fontSize: 10.5, color: 'var(--sr-text-muted)', margin: '10px 0 0', lineHeight: 1.4 }}>
+                  {"Total individuals reported; presence-only X records can't be summed, so they're excluded here."}
+                </p>
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{"No numeric counts in your data yet."}</p>
+            )}
+          </div>
+          <div>
+            <SubLabel>Most checklists</SubLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {topSpecies.byChecklists.map((entry, i) => (
+                <div key={entry.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmt(entry.count)}</span>
+                </div>
+              ))}
+              <p style={{ fontSize: 10.5, color: 'var(--sr-text-muted)', margin: '10px 0 0', lineHeight: 1.4 }}>
+                {"Number of distinct checklists each species appears on."}
+              </p>
+            </div>
+          </div>
+        </div>
+      </SectionCard>
+
       {/* ── Section 2: Firsts & Milestones ─────────────────────────────────── */}
       <SectionCard title="Firsts & Milestones" icon={<Trophy size={16} />}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-          {funStats.busiestDay && (
-            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
-              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Biggest single day</p>
-              {SUBMISSION_ID_RE.test(funStats.busiestDay.submissionId) ? (
-                <a
-                  href={`https://ebird.org/checklist/${funStats.busiestDay.submissionId}`}
-                  target="_blank" rel="noreferrer"
-                  style={{ fontSize: 18, fontWeight: 700, display: 'block', margin: '0 0 2px', color: 'var(--sr-accent)', textDecoration: 'none' }}
-                >
-                  {fmt(funStats.busiestDay.species)} species
-                </a>
-              ) : (
-                <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-accent)' }}>
-                  {fmt(funStats.busiestDay.species)} species
-                </p>
-              )}
-              <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: 0 }}>{fmtDate(funStats.busiestDay.date)}</p>
-            </div>
-          )}
-          {funStats.maxStreak > 0 && (
-            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
-              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Longest streak</p>
-              <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-accent)' }}>
-                {fmt(funStats.maxStreak)} day{funStats.maxStreak !== 1 ? 's' : ''}
-              </p>
-              {funStats.maxStreak > 1 && funStats.streakStart && (
-                <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: 0 }}>
-                  {fmtDate(funStats.streakStart)} – {fmtDate(funStats.streakEnd)}
-                </p>
-              )}
-            </div>
-          )}
-          {funStats.drySpell > 0 && (
-            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
-              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Longest dry spell</p>
-              <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px' }}>
-                {fmt(funStats.drySpell)} day{funStats.drySpell !== 1 ? 's' : ''}
-              </p>
-              {funStats.dryStart && (
-                <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: 0 }}>
-                  {fmtDate(funStats.dryStart)} – {fmtDate(funStats.dryEnd)}
-                </p>
-              )}
-            </div>
-          )}
-          {funStats.shannon !== null && (
-            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
-              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Shannon diversity (H′)</p>
-              <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px' }}>
-                {funStats.shannon.toFixed(2)}
-              </p>
-              <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: 0 }}>from numeric counts</p>
-            </div>
-          )}
-        </div>
-
         {accumulation.milestones.size > 0 && (
           <>
             <Divider />
@@ -1577,7 +1678,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     const validSp = s.name && s.name.includes('-')
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
                           {validSp ? (
                             <a
                               href={`https://ebird.org/region/${s.name}`}
@@ -1586,9 +1687,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                               onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                               onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                             >
-                              {s.name}
+                              {regionName(s.name)}
                             </a>
-                          ) : s.name}
+                          ) : regionName(s.name)}
                         </span>
                         <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${geo.topStates[0]?.count ? (s.count / geo.topStates[0].count) * 100 : 0}%`, background: 'var(--sr-accent)', borderRadius: 4, transition: 'width 0.3s' }} />
@@ -1606,7 +1707,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     const validSp = s.name && s.name.includes('-')
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
                           {validSp ? (
                             <a
                               href={`https://ebird.org/region/${s.name}`}
@@ -1615,9 +1716,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                               onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                               onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                             >
-                              {s.name}
+                              {regionName(s.name)}
                             </a>
-                          ) : s.name}
+                          ) : regionName(s.name)}
                         </span>
                         <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${geo.topStatesBySpecies[0]?.species ? (s.species / geo.topStatesBySpecies[0].species) * 100 : 0}%`, background: 'var(--sr-graph-photo)', borderRadius: 4, transition: 'width 0.3s' }} />
@@ -1634,8 +1735,33 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
       </SectionCard>
 
-      {/* ── Section 5: Effort & Methodology ───────────────────────────────── */}
-      <SectionCard title="Effort & Methodology" icon={<Clock size={16} />}>
+      {/* ── Section 5: Effort & Outings ───────────────────────────────────── */}
+      <SectionCard title="Effort & Outings" icon={<Clock size={16} />}>
+
+        {(effort.totalHours !== null || effort.totalDistanceMi !== null || effort.totalAreaAcres !== null) && (
+          <>
+            <SubLabel>Totals</SubLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 1, background: 'var(--sr-border-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
+              {[
+                { label: 'Time Afield', value: effort.totalHours !== null ? `${fmt(effort.totalHours, 0)} h` : '—', sub: effort.durationCount > 0 ? `${fmt(effort.durationCount)} lists` : '' },
+                { label: 'Distance', value: effort.totalDistanceMi !== null ? `${fmt(effort.totalDistanceMi, 0)} mi` : '—', sub: effort.distanceCount > 0 ? `${fmt(effort.distanceCount)} lists` : '' },
+                effort.totalAreaAcres !== null ? { label: 'Area Covered', value: `${fmt(effort.totalAreaAcres, 0)} ac`, sub: effort.areaCount > 0 ? `${fmt(effort.areaCount)} lists` : '' } : null,
+              ].filter((c): c is { label: string; value: string; sub: string } => c !== null).map((cell, i) => (
+                <div key={i} style={{ background: 'var(--sr-surface-subtle)', padding: '12px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{cell.value}</div>
+                  {cell.sub && <div style={{ fontSize: 10, color: 'var(--sr-text-muted)', marginTop: 3 }}>{cell.sub}</div>}
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', marginTop: 4 }}>{cell.label}</div>
+                </div>
+              ))}
+            </div>
+            {effort.totalMinutes !== null && (
+              <p style={{ fontSize: 11.5, color: 'var(--sr-text-muted)', margin: '8px 0 0' }}>
+                Total time afield: {formatDuration(effort.totalMinutes)}
+              </p>
+            )}
+            <Divider />
+          </>
+        )}
 
         {effort.completeRatio !== null && (() => {
           const completePct = Math.round(effort.completeRatio * 100)
@@ -1726,11 +1852,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         <SubLabel>Key metrics</SubLabel>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 1, background: 'var(--sr-border-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
           {[
-            { label: 'Avg Duration', value: effort.avgDurationMin !== null ? `${fmt(effort.avgDurationMin, 0)} min` : '—' },
-            { label: 'Avg Distance', value: effort.avgDistanceMi !== null ? `${fmt(effort.avgDistanceMi, 1)} mi` : '—' },
-            { label: 'Spp / Hour', value: effort.sppPerHour !== null ? fmt(effort.sppPerHour, 1) : '—' },
-            { label: 'Spp / Mi', value: effort.sppPerMi !== null ? fmt(effort.sppPerMi, 1) : '—' },
-          ].map((cell, i) => (
+            { label: 'Average duration', value: effort.avgDurationMin !== null ? `${fmt(effort.avgDurationMin, 0)} min` : '—' },
+            { label: 'Average distance', value: effort.avgDistanceMi !== null ? `${fmt(effort.avgDistanceMi, 1)} mi` : '—' },
+            effort.avgAreaAcres !== null ? { label: 'Average area', value: `${fmt(effort.avgAreaAcres, 1)} ac` } : null,
+            { label: 'Species per hour', value: effort.sppPerHour !== null ? fmt(effort.sppPerHour, 1) : '—' },
+            { label: 'Species per mile', value: effort.sppPerMi !== null ? fmt(effort.sppPerMi, 1) : '—' },
+          ].filter((c): c is { label: string; value: string } => c !== null).map((cell, i) => (
             <div key={i} style={{ background: 'var(--sr-surface-subtle)', padding: '12px 8px', textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{cell.value}</div>
               <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', marginTop: 4 }}>{cell.label}</div>
@@ -1770,6 +1897,14 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <>
             <Divider />
             <SubLabel>Lists by observer count</SubLabel>
+            {(() => {
+              const parts: string[] = []
+              const tot = effort.soloCount + effort.groupCount
+              if (tot > 0) parts.push(`${Math.round(effort.soloCount / tot * 100)}% solo`)
+              if (effort.avgObservers !== null) parts.push(`${fmt(effort.avgObservers, 1)} avg observers`)
+              if (effort.largestGroup) parts.push(`largest group ${fmt(effort.largestGroup.n)}`)
+              return parts.length > 0 ? <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: '0 0 10px' }}>{parts.join(' · ')}</p> : null
+            })()}
             {(() => {
               const totalObs = effort.observerRows.reduce((s, r) => s + r.count, 0)
               const obsPieColors = [
@@ -1823,6 +1958,34 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 </div>
               )
             })()}
+          </>
+        )}
+
+        {(effort.longest || effort.farthest || effort.largestArea || effort.biggest) && (
+          <>
+            <Divider />
+            <SubLabel>Notable outings</SubLabel>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 10 }}>
+              {[
+                effort.longest && effort.longest.duration !== null ? { label: 'Longest', metric: `${fmt(effort.longest.duration / 60, 1)} h`, c: effort.longest } : null,
+                effort.farthest && effort.farthest.distance !== null ? { label: 'Farthest', metric: `${fmt(effort.farthest.distance * KM_TO_MI, 1)} mi`, c: effort.farthest } : null,
+                effort.largestArea && effort.largestArea.area !== null ? { label: 'Largest area', metric: `${fmt(effort.largestArea.area * HA_TO_ACRE, 1)} ac`, c: effort.largestArea } : null,
+                effort.biggest ? { label: 'Most species', metric: `${fmt(effort.biggest.speciesCount)} spp`, c: effort.biggest } : null,
+                effort.mostIndividuals && effort.mostIndividuals.individualCount > 0 ? { label: 'Most individuals', metric: fmt(effort.mostIndividuals.individualCount), c: effort.mostIndividuals } : null,
+              ].filter((o): o is { label: string; metric: string; c: ChecklistEntry } => o !== null).map(card => (
+                <div key={card.label} style={{ background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, padding: '10px 12px' }}>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>{card.label}</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1.1, margin: '2px 0 4px' }}>{card.metric}</div>
+                  <div style={{ fontSize: 11, color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.c.location}</div>
+                  <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>{fmtDate(card.c.date)}</span>
+                    {SUBMISSION_ID_RE.test(card.c.submissionId) && (
+                      <a href={`https://ebird.org/checklist/${card.c.submissionId}`} target="_blank" rel="noreferrer" title="Open checklist" style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}>↗</a>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </>
         )}
 
@@ -1901,6 +2064,67 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           </>
         )}
 
+      </SectionCard>
+
+      {/* ── Highlights & Records ───────────────────────────────────────────── */}
+      <SectionCard title="Highlights & Records" icon={<Award size={16} />}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
+          {funStats.busiestDay && (
+            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
+              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Biggest single day</p>
+              {SUBMISSION_ID_RE.test(funStats.busiestDay.submissionId) ? (
+                <a
+                  href={`https://ebird.org/checklist/${funStats.busiestDay.submissionId}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ fontSize: 18, fontWeight: 700, display: 'block', margin: '0 0 2px', color: 'var(--sr-accent)', textDecoration: 'none' }}
+                >
+                  {fmt(funStats.busiestDay.species)} species
+                </a>
+              ) : (
+                <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-accent)' }}>
+                  {fmt(funStats.busiestDay.species)} species
+                </p>
+              )}
+              <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: 0 }}>{fmtDate(funStats.busiestDay.date)}</p>
+            </div>
+          )}
+          {funStats.maxStreak > 0 && (
+            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
+              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Longest streak</p>
+              <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-accent)' }}>
+                {fmt(funStats.maxStreak)} day{funStats.maxStreak !== 1 ? 's' : ''}
+              </p>
+              {funStats.maxStreak > 1 && funStats.streakStart && (
+                <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: 0 }}>
+                  {fmtDate(funStats.streakStart)} – {fmtDate(funStats.streakEnd)}
+                </p>
+              )}
+            </div>
+          )}
+          {funStats.drySpell > 0 && (
+            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
+              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Longest dry spell</p>
+              <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px' }}>
+                {fmt(funStats.drySpell)} day{funStats.drySpell !== 1 ? 's' : ''}
+              </p>
+              {funStats.dryStart && (
+                <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: 0 }}>
+                  {fmtDate(funStats.dryStart)} – {fmtDate(funStats.dryEnd)}
+                </p>
+              )}
+            </div>
+          )}
+          {funStats.shannon !== null && (
+            <div style={{ padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
+              <p style={{ fontSize: 11, color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>Shannon diversity (H′)</p>
+              <p style={{ fontSize: 18, fontWeight: 700, margin: '0 0 2px' }}>
+                {funStats.shannon.toFixed(2)}
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', margin: 0 }}>from numeric counts</p>
+            </div>
+          )}
+        </div>
+
         {quality.biggestCounts.length > 0 && (
           <>
             <Divider />
@@ -1954,7 +2178,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         <Divider />
         <SubLabel>Single-checklist birds</SubLabel>
         <p style={{ fontSize: 13, color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
-          {fmt(funStats.singleChecklistBirds.length)} species seen on exactly one checklist
+          {fmt(funStats.singleChecklistBirds.length)} species seen on exactly one checklist (excludes one-and-done birds, listed below)
         </p>
         {funStats.singleChecklistBirds.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

@@ -72,6 +72,7 @@ export interface ObservationEntry {
   time?: string | null           // "HH:MM AM/PM"
   duration?: number | null       // minutes
   distance?: number | null       // km
+  area?: number | null           // hectares ("Area Covered (ha)")
   protocol?: string | null
   numObservers?: number | null
   allObsReported?: boolean | null // "1"→true, "0"→false, blank→null
@@ -91,9 +92,11 @@ export type ChecklistEntry = {
   time: string | null
   duration: number | null
   distance: number | null
+  area: number | null
   protocol: string | null
   numObservers: number | null
   allObsReported: boolean | null
   checklistComments: string
   speciesCount: number
+  individualCount: number   // Σ Count across the checklist's species (X/blank = 0)
 }

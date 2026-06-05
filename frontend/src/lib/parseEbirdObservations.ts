@@ -75,6 +75,7 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
   const timeIdx               = headers.findIndex(h => h === 'time')
   const durationIdx           = headers.findIndex(h => h === 'duration min' || h === 'duration (min)')
   const distanceIdx           = headers.findIndex(h => h === 'distance traveled (km)')
+  const areaIdx               = headers.findIndex(h => h === 'area covered (ha)')
   const protocolIdx           = headers.findIndex(h => h === 'protocol')
   const numObserversIdx       = headers.findIndex(h => h === 'number of observers')
   const allObsReportedIdx     = headers.findIndex(h => h === 'all obs reported')
@@ -132,6 +133,7 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
       time?: string | null
       duration?: number | null
       distance?: number | null
+      area?: number | null
       protocol?: string | null
       numObservers?: number | null
       allObsReported?: boolean | null
@@ -151,6 +153,11 @@ export function parseEbirdObservations(content: string): ObservationEntry[] {
       const raw = cols[distanceIdx]?.trim() ?? ''
       const parsed = parseFloat(raw)
       optFields.distance = raw && !Number.isNaN(parsed) ? parsed : null
+    }
+    if (areaIdx >= 0) {
+      const raw = cols[areaIdx]?.trim() ?? ''
+      const parsed = parseFloat(raw)
+      optFields.area = raw && !Number.isNaN(parsed) ? parsed : null
     }
     if (protocolIdx >= 0) {
       optFields.protocol = cols[protocolIdx]?.trim() || null

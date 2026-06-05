@@ -112,6 +112,21 @@ describe('parseEbirdObservations', () => {
     expect(entries[0].catalogIds).toEqual([])
   })
 
+  it('parses Area Covered (ha) when present, null when blank', () => {
+    const headers = 'Submission ID,Common Name,Scientific Name,Date,Location,Count,Distance Traveled (km),Area Covered (ha)'
+    const withArea = 'S1,American Robin,Turdus migratorius,2024-04-09,Field,5,1.2,3.5'
+    const blankArea = 'S2,American Crow,Corvus brachyrhynchos,2024-04-09,Field,2,0.8,'
+    const entries = parseEbirdObservations([headers, withArea, blankArea].join('\n'))
+    expect(entries[0].area).toBe(3.5)
+    expect(entries[1].area).toBeNull()
+  })
+
+  it('omits area entirely when the column is absent', () => {
+    const csv = [HEADERS, makeRow({})].join('\n')
+    const entries = parseEbirdObservations(csv)
+    expect(entries[0].area).toBeUndefined()
+  })
+
   it('returns one entry per row (no deduplication)', () => {
     const csv = [
       HEADERS,

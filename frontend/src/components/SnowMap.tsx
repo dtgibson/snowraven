@@ -35,7 +35,12 @@ function getVectorStyle(variant: VectorVariant): Promise<StyleSpecification> {
   if (hit) return Promise.resolve(hit)
   let p = inflight.get(variant)
   if (!p) {
-    p = fetchTunedBaseStyle(variant).then(s => { cache.set(variant, s); return s })
+    // Clear the in-flight entry once settled. On success the result lives in
+    // `cache`; on failure the entry MUST be dropped so a retry re-fetches —
+    // a cached rejected promise would otherwise re-reject instantly forever.
+    p = fetchTunedBaseStyle(variant)
+      .then(s => { cache.set(variant, s); return s })
+      .finally(() => { inflight.delete(variant) })
     inflight.set(variant, p)
   }
   return p
@@ -47,13 +52,21 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
   const [base, setBase] = useState<BaseKey>(DEFAULT_BASE)
   const [trails, setTrails] = useState(false)
   const [mapStyle, setMapStyle] = useState<StyleSpecification | null>(cache.get('positron') ?? null)
+  const [loadError, setLoadError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     if (mapStyle) return
     let cancelled = false
-    getVectorStyle('positron').then(s => { if (!cancelled) setMapStyle(s) }).catch(() => {})
+    getVectorStyle('positron')
+      .then(s => { if (!cancelled) setMapStyle(s) })
+      .catch(() => { if (!cancelled) setLoadError(true) })
     return () => { cancelled = true }
-  }, [mapStyle])
+  }, [mapStyle, attempt])
+
+  // Re-attempt the style fetch (offline / provider down). Clearing the error
+  // flips back to the loading state immediately, then `attempt` re-runs the effect.
+  const retryStyle = () => { setLoadError(false); setAttempt(n => n + 1) }
 
   useEffect(() => {
     if (!switcher) return
@@ -70,9 +83,32 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
   const toggleTrails = () => setTrails(prev => { const next = !prev; if (switcher) void storage.setSetting(TRAILS_SETTING, next); return next })
 
   if (!mapStyle) {
+    const placeholderStyle: React.CSSProperties = {
+      ...style, display: 'flex', flexDirection: 'column', alignItems: 'center',
+      justifyContent: 'center', gap: 10, padding: 16, textAlign: 'center',
+      background: VOID_COLOR.positron, color: 'var(--sr-text-muted)', fontSize: 13,
+    }
     return (
-      <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center', background: VOID_COLOR.positron, color: 'var(--sr-text-muted)', fontSize: 13 }}>
-        Loading map…
+      <div style={placeholderStyle} role={loadError ? 'alert' : 'status'}>
+        {loadError ? (
+          <>
+            <span>{"Map couldn't load — check your connection."}</span>
+            <button
+              type="button"
+              tabIndex={0}
+              onClick={retryStyle}
+              style={{
+                font: 'inherit', fontWeight: 500, padding: '6px 16px', cursor: 'pointer',
+                color: 'var(--sr-text)', background: 'var(--sr-surface)',
+                border: '1px solid var(--sr-border)', borderRadius: 6,
+              }}
+            >
+              Retry
+            </button>
+          </>
+        ) : (
+          'Loading map…'
+        )}
       </div>
     )
   }

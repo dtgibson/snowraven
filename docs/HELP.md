@@ -121,15 +121,19 @@ County and date-range filters appear in the toolbar when your eBird backup conta
 
 ## Statistics
 
-The Statistics tab shows a comprehensive analytics dashboard built from your eBird backup. All nine cards are described below. The eBird backup is required for all cards. The Media card additionally requires your ML export.
+The Statistics tab shows a comprehensive analytics dashboard built from your eBird backup. A jump-nav at the top links to each section. The cards are described below. The eBird backup is required for all of them; the Media card additionally requires your ML export.
 
 ### Life List Totals
 
 Your headline counts: total species, total checklists, total locations, years active, states and provinces, and countries. The accumulation chart shows how your life list grew over time. Use the interval toggle to switch between Weekly, Monthly, Yearly, and Total views. Total mode draws one step per new lifer in chronological order, with the species name shown in the tooltip at each step.
 
+### Top Species
+
+Two ranked top-10 lists: the species you've counted the most total **individuals** of, and the species you've reported on the most **checklists**. The individuals list excludes presence-only "X" records, which can't be summed. Each name links to its Species Detail entry.
+
 ### Firsts and Milestones
 
-Key records from your birding history: your biggest single day, longest consecutive streak of days with at least one checklist, longest dry spell between checklists, and your Shannon diversity index (a measure of evenness across species, calculated from your numeric counts). Milestone pills mark every threshold from 10 to 3,000 species, showing the species that hit each milestone and linking to the checklist where it was recorded.
+Milestone pills mark every threshold from 10 to 3,000 species, showing the species that hit each milestone and linking to the checklist where it was recorded. (Records like your biggest day and longest streak now live in Highlights & Records, below.)
 
 ### Temporal Stats
 
@@ -137,15 +141,19 @@ Checklist activity broken down by year, month, day of week, and start hour. Each
 
 ### Geographic Stats
 
-A map of your most-visited locations alongside ranked lists of your top locations, counties, and states by checklist count and species count. County and state entries link to their eBird region page. The map shows numbered markers for your top locations by checklists (green circles) and top locations by species (blue squares).
+A map of your most-visited locations alongside ranked lists of your top locations, counties, and states (shown by full name, e.g. Minnesota) by checklist count and species count. County and state entries link to their eBird region page. The map shows numbered markers for your top locations by checklists (green circles) and top locations by species (blue squares).
 
-### Effort and Methodology
+### Effort and Outings
 
-How you bird, measured: protocol distribution (stationary, traveling, incidental, and so on), average checklist duration, average distance, species per hour, species per mile, and average observer count. An average-by-protocol table breaks effort metrics down by protocol type.
+How you bird, measured. **Totals** lead the section — total time afield (also spelled out as days / hours / minutes), total distance, and total area covered when your data has it. **Key metrics** cover average duration, average distance, average area, species per hour, and species per mile, plus a protocol distribution and an average-by-protocol table. An **observer summary** shows your percent solo, average observers, and largest group. **Notable Outings** highlights your single checklists that were the longest (duration), farthest (distance), largest-area, biggest (most species), and most-individuals — each linking to eBird. Area-based stats appear only if your data includes area-covered checklists (the eBird "Area" protocol).
 
 ### Data Quality
 
-Metrics about the consistency and completeness of your data: the ratio of numeric counts to X/presence-only records, comment coverage percentage, your top 10 highest individual species counts, Single-Checklist Birds (species recorded on exactly one checklist), and One-and-Done Birds (species where the total individual count is exactly 1).
+The consistency and completeness of your data: the ratio of numeric counts to X/presence-only records, and your comment coverage (checklist and species comments). (Record counts and rarity lists moved to Highlights & Records.)
+
+### Highlights & Records
+
+Your notable stats in one place: biggest single day, longest consecutive streak of days with any report, longest dry spell between reports, Shannon diversity index (a measure of evenness across species, from your numeric counts), biggest single counts (your largest flocks), Single-Checklist Birds (species recorded on exactly one checklist, excluding one-and-done), and One-and-Done Birds (species with a total individual count of exactly 1). Where applicable, entries link to the relevant checklist.
 
 ### Breeding Stats
 
