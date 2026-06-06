@@ -14,12 +14,25 @@ export interface ChecklistSpecies {
   commonName: string
   count: string   // eBird "howManyStr": an integer string, or "X" for presence-only
   breedingCode: string   // raw eBird API breeding code (e.g. "S1"), or "" if none
+  comments: string       // per-species note (HTML-entity encoded), or "" if none
   media: MediaPresence
 }
 
-export interface ChecklistData {
+/** Per-checklist effort/provenance metadata + the checklist-level note. */
+export interface ChecklistMeta {
   locName: string
   obsDt: string
+  protocolId: string
+  durationHrs: number | null
+  distanceKm: number | null
+  distanceUnit: string
+  numObservers: number | null
+  submissionMethod: string
+  submissionVersion: string
+  comments: string       // checklist-level note (HTML-entity encoded), or "" if none
+}
+
+export interface ChecklistData extends ChecklistMeta {
   species: ChecklistSpecies[]
 }
 
@@ -32,11 +45,8 @@ export interface ChecklistRow {
   breedingB: string | null
   mediaA: MediaPresence | null
   mediaB: MediaPresence | null
-}
-
-export interface ChecklistMeta {
-  locName: string
-  obsDt: string
+  commentsA: string   // per-species note on A ("" if none)
+  commentsB: string
 }
 
 export interface ChecklistComparison {
@@ -63,6 +73,7 @@ export function compareChecklists(a: ChecklistData, b: ChecklistData): Checklist
         countA: s.count, countB: bs.count,
         breedingA: s.breedingCode || null, breedingB: bs.breedingCode || null,
         mediaA: s.media, mediaB: bs.media,
+        commentsA: s.comments || '', commentsB: bs.comments || '',
       })
     } else {
       aOnly.push({
@@ -70,6 +81,7 @@ export function compareChecklists(a: ChecklistData, b: ChecklistData): Checklist
         countA: s.count, countB: null,
         breedingA: s.breedingCode || null, breedingB: null,
         mediaA: s.media, mediaB: null,
+        commentsA: s.comments || '', commentsB: '',
       })
     }
   }
@@ -82,6 +94,7 @@ export function compareChecklists(a: ChecklistData, b: ChecklistData): Checklist
         countA: null, countB: s.count,
         breedingA: null, breedingB: s.breedingCode || null,
         mediaA: null, mediaB: s.media,
+        commentsA: '', commentsB: s.comments || '',
       })
     }
   }
@@ -89,9 +102,15 @@ export function compareChecklists(a: ChecklistData, b: ChecklistData): Checklist
   return {
     both, aOnly, bOnly,
     totalA: a.species.length, totalB: b.species.length,
-    metaA: { locName: a.locName, obsDt: a.obsDt },
-    metaB: { locName: b.locName, obsDt: b.obsDt },
+    metaA: toMeta(a),
+    metaB: toMeta(b),
   }
+}
+
+/** Extract the per-checklist metadata (everything except the species list). */
+function toMeta(d: ChecklistData): ChecklistMeta {
+  const { species: _species, ...meta } = d
+  return meta
 }
 
 /** Format an eBird obsDt ("2025-03-02 10:55" or "2025-03-02") into a friendly date.

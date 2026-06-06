@@ -267,13 +267,18 @@ Compares two full eBird life lists (CSV backups). If your eBird backup is saved 
 
 Compares two individual eBird checklists. Paste two checklist IDs or URLs (e.g. `S12345678` or `https://ebird.org/checklist/S12345678`), the same way you would in the Weather tab, then click Compare checklists. This mode uses your eBird API key (set in Settings) to fetch each checklist directly from eBird, so it works for any public checklist, not just your own.
 
-Each checklist is identified by a card showing its location, date, and ID, so the two are easy to tell apart — useful when comparing two visits to the same place. The "In Both" panel shows each species' details from both checklists side by side (A on the left, B on the right); the "Checklist A only" and "Checklist B only" panels appear below.
+Each checklist is identified by a card at the top showing its location, date, and ID — useful when comparing two visits to the same place. The card also shows the checklist's **effort and provenance**: type (Traveling, Stationary, Incidental, etc.), distance (in the unit you entered), duration, number of observers, and the app and version it was submitted from (e.g. "eBird iOS 3.6.5"). The **checklist ID links to the checklist on eBird**, and if the checklist has a checklist-level comment, a collapsible **Notes** disclosure shows it.
+
+The "In Both" panel shows each species' details from both checklists side by side (A on the left, B on the right); the "Checklist A only" and "Checklist B only" panels appear below.
 
 For each species on each checklist, you see:
 
 - **Count** — the number recorded. Where one checklist recorded a higher number, that count is bolded with a ▲ marker. Presence-only entries (eBird's "X") show a dash and are never marked as higher.
 - **Breeding code** — if a breeding-evidence code was entered, it appears as a small colored pill, colored by evidence tier (the same scheme as the Breeding Codes tab). Hover for the full code name.
 - **Media icons** — small camera, microphone, and video icons indicate whether photos, audio, or video exist for that species on that checklist (across all observers). Hover for the counts.
+- **Comments** — when a species has an observation note, a 💬 icon appears on that checklist's side (A, B, or both); click it to read the note. Any links in comments are clickable.
+
+All comments are also gathered into a **Comments table** at the bottom, with each checklist's note side by side for easy comparison. There, an empty side reads "no comment" (the bird was on that checklist but had no note) or "not reported" (the bird wasn't on that checklist).
 
 Birds reported as a sub-form (for example, a domestic Rock Pigeon) are matched and named by their parent species, so the same bird lines up across both checklists.
 

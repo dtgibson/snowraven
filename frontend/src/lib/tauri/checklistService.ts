@@ -9,12 +9,21 @@ export interface ChecklistSpecies {
   commonName: string
   count: string
   breedingCode: string
+  comments: string
   media: { photo: number; audio: number; video: number }
 }
 
 export interface ChecklistResult {
   locName: string
   obsDt: string
+  protocolId: string
+  durationHrs: number | null
+  distanceKm: number | null
+  distanceUnit: string
+  numObservers: number | null
+  submissionMethod: string
+  submissionVersion: string
+  comments: string
   species: ChecklistSpecies[]
 }
 
@@ -49,9 +58,18 @@ export async function getChecklist(checklistId: string): Promise<ChecklistResult
     locId?: string
     locName?: string
     obsDt?: string
+    protocolId?: string
+    durationHrs?: number | null
+    effortDistanceKm?: number | null
+    effortDistanceEnteredUnit?: string
+    numObservers?: number | null
+    submissionMethodCode?: string
+    submissionMethodVersionDisp?: string
+    comments?: string
     obs?: Array<{
       speciesCode?: string
       howManyStr?: string
+      comments?: string
       obsAux?: Array<{ fieldName?: string; value?: string; auxCode?: string }>
       mediaCounts?: { P?: number; A?: number; V?: number }
     }>
@@ -68,6 +86,7 @@ export async function getChecklist(checklistId: string): Promise<ChecklistResult
       commonName: resolved[o.speciesCode!]?.commonName ?? o.speciesCode!,
       count: o.howManyStr ?? 'X',
       breedingCode,
+      comments: o.comments ?? '',
       media: { photo: mc.P ?? 0, audio: mc.A ?? 0, video: mc.V ?? 0 },
     }
   })
@@ -75,7 +94,19 @@ export async function getChecklist(checklistId: string): Promise<ChecklistResult
   // checklist/view carries only locId, not a readable name. Resolve it so the two
   // checklists are easy to tell apart (mirrors the backend /checklists/{id} flow).
   const locName = data.locName || (data.locId ? await resolveLocName(key, data.locId) : '')
-  return { locName: locName || data.locId || '', obsDt: data.obsDt ?? '', species }
+  return {
+    locName: locName || data.locId || '',
+    obsDt: data.obsDt ?? '',
+    protocolId: data.protocolId ?? '',
+    durationHrs: data.durationHrs ?? null,
+    distanceKm: data.effortDistanceKm ?? null,
+    distanceUnit: data.effortDistanceEnteredUnit ?? '',
+    numObservers: data.numObservers ?? null,
+    submissionMethod: data.submissionMethodCode ?? '',
+    submissionVersion: data.submissionMethodVersionDisp ?? '',
+    comments: data.comments ?? '',
+    species,
+  }
 }
 
 /** Resolve an eBird locId (e.g. "L99381") to a human-readable place name. Best-effort. */

@@ -144,14 +144,27 @@ async def fetch_checklist_species(checklist_id: str) -> dict:
             "speciesCode": code,
             "count": o.get("howManyStr", "X"),
             "breedingCode": breeding,
+            "comments": o.get("comments") or "",   # per-species note (HTML-entity encoded)
             "media": {
                 "photo": int(mc.get("P", 0) or 0),
                 "audio": int(mc.get("A", 0) or 0),
                 "video": int(mc.get("V", 0) or 0),
             },
         })
+
     return {
         "locName": loc_name or loc_id,
         "obsDt": data.get("obsDt", ""),
+        # Effort + provenance metadata (the frontend formats/labels these). The
+        # frontend also decodes/ linkifies the comment text. effortDistanceKm is in
+        # km regardless of the unit the observer entered (distanceUnit).
+        "protocolId": data.get("protocolId", ""),
+        "durationHrs": data.get("durationHrs"),
+        "distanceKm": data.get("effortDistanceKm"),
+        "distanceUnit": data.get("effortDistanceEnteredUnit", ""),
+        "numObservers": data.get("numObservers"),
+        "submissionMethod": data.get("submissionMethodCode", ""),
+        "submissionVersion": data.get("submissionMethodVersionDisp", ""),
+        "comments": data.get("comments") or "",   # checklist-level note (HTML-entity encoded)
         "species": species,
     }

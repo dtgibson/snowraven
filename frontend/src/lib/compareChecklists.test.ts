@@ -2,10 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { compareChecklists, parseCount, higherCount, formatObsDate, type ChecklistData } from './compareChecklists'
 
 const NO_MEDIA = { photo: 0, audio: 0, video: 0 }
+const META = {
+  protocolId: '', durationHrs: null, distanceKm: null, distanceUnit: '',
+  numObservers: null, submissionMethod: '', submissionVersion: '', comments: '',
+}
 const cl = (species: [string, string, string][], locName = 'Loc', obsDt = '2024-01-01 06:30'): ChecklistData => ({
-  locName, obsDt,
+  locName, obsDt, ...META,
   species: species.map(([speciesCode, commonName, count]) => ({
-    speciesCode, commonName, count, breedingCode: '', media: NO_MEDIA,
+    speciesCode, commonName, count, breedingCode: '', comments: '', media: NO_MEDIA,
   })),
 })
 
@@ -31,12 +35,12 @@ describe('compareChecklists', () => {
     expect(r.bOnly[0].commonName).toBe('House Sparrow')
   })
   it('carries breeding code + media per side for shared and unique species', () => {
-    const a: ChecklistData = { locName: 'L', obsDt: '2025-01-01', species: [
-      { speciesCode: 'amerob', commonName: 'American Robin', count: '5', breedingCode: 'S1', media: { photo: 2, audio: 0, video: 0 } },
-      { speciesCode: 'daejun', commonName: 'Dark-eyed Junco', count: '1', breedingCode: 'NY', media: { photo: 0, audio: 1, video: 0 } },
+    const a: ChecklistData = { locName: 'L', obsDt: '2025-01-01', ...META, species: [
+      { speciesCode: 'amerob', commonName: 'American Robin', count: '5', breedingCode: 'S1', comments: '', media: { photo: 2, audio: 0, video: 0 } },
+      { speciesCode: 'daejun', commonName: 'Dark-eyed Junco', count: '1', breedingCode: 'NY', comments: '', media: { photo: 0, audio: 1, video: 0 } },
     ] }
-    const b: ChecklistData = { locName: 'L', obsDt: '2025-01-02', species: [
-      { speciesCode: 'amerob', commonName: 'American Robin', count: '3', breedingCode: 'CC', media: { photo: 0, audio: 0, video: 1 } },
+    const b: ChecklistData = { locName: 'L', obsDt: '2025-01-02', ...META, species: [
+      { speciesCode: 'amerob', commonName: 'American Robin', count: '3', breedingCode: 'CC', comments: '', media: { photo: 0, audio: 0, video: 1 } },
     ] }
     const rr = compareChecklists(a, b)
     expect(rr.both[0]).toMatchObject({
@@ -45,13 +49,38 @@ describe('compareChecklists', () => {
     })
     expect(rr.aOnly[0]).toMatchObject({ breedingA: 'NY', breedingB: null, mediaB: null })
   })
+  it('carries per-species comments per side', () => {
+    const a: ChecklistData = { locName: 'L', obsDt: '2025-01-01', ...META, species: [
+      { speciesCode: 'amerob', commonName: 'American Robin', count: '5', breedingCode: '', comments: 'A robin note', media: NO_MEDIA },
+      { speciesCode: 'daejun', commonName: 'Dark-eyed Junco', count: '1', breedingCode: '', comments: 'junco only on A', media: NO_MEDIA },
+    ] }
+    const b: ChecklistData = { locName: 'L', obsDt: '2025-01-02', ...META, species: [
+      { speciesCode: 'amerob', commonName: 'American Robin', count: '3', breedingCode: '', comments: 'B robin note', media: NO_MEDIA },
+    ] }
+    const rr = compareChecklists(a, b)
+    expect(rr.both[0]).toMatchObject({ commentsA: 'A robin note', commentsB: 'B robin note' })
+    expect(rr.aOnly[0]).toMatchObject({ commentsA: 'junco only on A', commentsB: '' })
+  })
   it('carries each checklist location + date for identification', () => {
     const r2 = compareChecklists(
       cl([['amerob', 'American Robin', '1']], 'Central Park', '2025-05-01 07:00'),
       cl([['amerob', 'American Robin', '1']], 'Prospect Park', '2025-05-02 08:15'),
     )
-    expect(r2.metaA).toEqual({ locName: 'Central Park', obsDt: '2025-05-01 07:00' })
-    expect(r2.metaB).toEqual({ locName: 'Prospect Park', obsDt: '2025-05-02 08:15' })
+    expect(r2.metaA).toMatchObject({ locName: 'Central Park', obsDt: '2025-05-01 07:00' })
+    expect(r2.metaB).toMatchObject({ locName: 'Prospect Park', obsDt: '2025-05-02 08:15' })
+  })
+  it('carries effort metadata into the per-checklist meta', () => {
+    const a: ChecklistData = {
+      locName: 'L', obsDt: '2025-01-01', protocolId: 'P22', durationHrs: 0.95,
+      distanceKm: 1.83, distanceUnit: 'mi', numObservers: 1,
+      submissionMethod: 'EBIRD_iOS', submissionVersion: '3.6.5', comments: 'cloudy',
+      species: [{ speciesCode: 'amerob', commonName: 'American Robin', count: '1', breedingCode: '', comments: '', media: NO_MEDIA }],
+    }
+    const rr = compareChecklists(a, cl([['amerob', 'American Robin', '1']]))
+    expect(rr.metaA).toMatchObject({
+      protocolId: 'P22', durationHrs: 0.95, distanceKm: 1.83, distanceUnit: 'mi',
+      numObservers: 1, submissionMethod: 'EBIRD_iOS', comments: 'cloudy',
+    })
   })
 })
 

@@ -17,12 +17,21 @@ _FAKE_TAXONOMY = [
 _FAKE_CHECKLIST = {
     "locId": "L99",
     "obsDt": "2025-03-02 10:55",
+    "protocolId": "P22",
+    "durationHrs": 0.95,
+    "effortDistanceKm": 1.83,
+    "effortDistanceEnteredUnit": "mi",
+    "numObservers": 1,
+    "submissionMethodCode": "EBIRD_iOS",
+    "submissionMethodVersionDisp": "3.6.5",
+    "comments": "&#x1f325;\r\nBroken clouds",
     "obs": [
         {
             "speciesCode": "amerob", "howManyStr": "3",
             # breeding code lives in obsAux (internal code; UI translates to display)
             "obsAux": [{"fieldName": "breeding_code", "value": "S1"}],
             "mediaCounts": {"P": 2, "A": 1},
+            "comments": "Making display flights",
         },
         {"speciesCode": "rocpig1", "howManyStr": "6"},  # a sub-form — should normalize
     ],
@@ -89,3 +98,15 @@ def test_checklist_resolves_location_and_normalizes_subform(monkeypatch):
     # A species with no breeding/media still has empty/zeroed fields.
     assert by_name["Rock Pigeon"]["breedingCode"] == ""
     assert by_name["Rock Pigeon"]["media"] == {"photo": 0, "audio": 0, "video": 0}
+    # Effort/provenance metadata passes through (frontend formats it).
+    assert data["protocolId"] == "P22"
+    assert data["durationHrs"] == 0.95
+    assert data["distanceKm"] == 1.83
+    assert data["distanceUnit"] == "mi"
+    assert data["numObservers"] == 1
+    assert data["submissionMethod"] == "EBIRD_iOS"
+    assert data["submissionVersion"] == "3.6.5"
+    # Comments pass through raw (HTML-entity encoded); the frontend decodes them.
+    assert data["comments"] == "&#x1f325;\r\nBroken clouds"
+    assert by_name["American Robin"]["comments"] == "Making display flights"
+    assert by_name["Rock Pigeon"]["comments"] == ""

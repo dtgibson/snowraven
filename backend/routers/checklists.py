@@ -29,8 +29,21 @@ async def get_checklist(checklist_id: str) -> dict:
             "commonName": resolved.get(s["speciesCode"], {}).get("commonName", s["speciesCode"]),
             "count": s["count"],
             "breedingCode": s.get("breedingCode", ""),
+            "comments": s.get("comments", ""),
             "media": s.get("media", {"photo": 0, "audio": 0, "video": 0}),
         }
         for s in data["species"]
     ]
-    return {"locName": data["locName"], "obsDt": data["obsDt"], "species": species}
+    return {
+        "locName": data["locName"],
+        "obsDt": data["obsDt"],
+        "protocolId": data.get("protocolId", ""),
+        "durationHrs": data.get("durationHrs"),
+        "distanceKm": data.get("distanceKm"),
+        "distanceUnit": data.get("distanceUnit", ""),
+        "numObservers": data.get("numObservers"),
+        "submissionMethod": data.get("submissionMethod", ""),
+        "submissionVersion": data.get("submissionVersion", ""),
+        "comments": data.get("comments", ""),
+        "species": species,
+    }

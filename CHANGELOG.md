@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.15] - 2026-06-06
+
+### Added
+- **Richer checklist comparison** — the List Comparer's Checklists mode now shows the full detail of each checklist:
+  - **Effort & provenance** on each A/B card: type (Traveling/Stationary/Incidental/…), distance (in the unit you entered), duration, number of observers, and the app + version it was submitted from (e.g. "eBird iOS 3.6.5").
+  - **Checklist notes** — the checklist-level comment behind a collapsible "Notes" disclosure on each card.
+  - **Species comments** — a 💬 toggle appears on the A and/or B side of a species that has a note (so it's clear which checklist it's on); clicking reveals the note(s). All comments are also collected in a **side-by-side comparison table** at the bottom, where an empty side reads "no comment" (on the checklist, no note) vs "not reported" (not on that checklist).
+  - Comments are decoded (emoji, line breaks) and any links in them are clickable; each card's **checklist ID links to the checklist on eBird**.
+
 ## [0.5.14] - 2026-06-06
 
 ### Added
