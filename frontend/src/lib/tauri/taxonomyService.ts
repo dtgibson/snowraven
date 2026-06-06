@@ -8,18 +8,22 @@ interface TaxonEntry {
   sciName?: string;
   comName?: string;
   taxonOrder?: number;
+  category?: string;
+  reportAs?: string;
 }
 
 interface TaxonomyCache {
   bySci: Record<string, string>;
   byCom: Record<string, string>;
   byOrder: Record<string, number>;
+  byCode: Record<string, string>;       // speciesCode -> comName (ALL categories, original case)
+  reportAs: Record<string, string>;     // sub-form code -> parent species code (eBird reportAs)
   loadedAt: number;
 }
 
 const DB_NAME = 'snowraven-taxonomy';
 const STORE_NAME = 'cache';
-const CACHE_KEY = 'taxonomy-v2025';
+const CACHE_KEY = 'taxonomy-v2027';   // bumped: full taxonomy + reportAs (sub-form normalization)
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -76,8 +80,10 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
 
   let res: Awaited<ReturnType<typeof tauriFetch>>;
   try {
+    // Full taxonomy (no cat filter) so sub-forms reported on checklists —
+    // domestic/issf/form, e.g. "rocpig1" — resolve and map to a species.
     res = await tauriFetch(
-      `${EBIRD_BASE}/ref/taxonomy/ebird?fmt=json&cat=species`,
+      `${EBIRD_BASE}/ref/taxonomy/ebird?fmt=json`,
       { headers }
     );
   } catch (err) {
@@ -97,10 +103,16 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
   const bySci: Record<string, string> = {};
   const byCom: Record<string, string> = {};
   const byOrder: Record<string, number> = {};
+  const byCode: Record<string, string> = {};
+  const reportAs: Record<string, string> = {};
 
   for (const taxon of taxonomy) {
     const code = taxon.speciesCode ?? '';
     if (!code) continue;
+    byCode[code] = taxon.comName ?? '';
+    if (taxon.reportAs) reportAs[code] = taxon.reportAs;
+    // Name -> code maps stay species-level (preserves the /taxonomy/codes behavior).
+    if (taxon.category !== 'species') continue;
     const sci = (taxon.sciName ?? '').toLowerCase();
     const com = (taxon.comName ?? '').toLowerCase();
     if (sci) bySci[sci] = code;
@@ -110,7 +122,7 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
     }
   }
 
-  const fresh: TaxonomyCache = { bySci, byCom, byOrder, loadedAt: Date.now() };
+  const fresh: TaxonomyCache = { bySci, byCom, byOrder, byCode, reportAs, loadedAt: Date.now() };
   _memCache = fresh;
   writeCache(fresh); // fire-and-forget
   return fresh;
@@ -135,4 +147,23 @@ export async function getTaxonomyCodes(
   }
 
   return { codes, orders };
+}
+
+/**
+ * Resolve raw observation codes → { speciesCode, commonName }, normalizing eBird
+ * sub-forms (domestic/issf/form) to their parent species via reportAs — so the same
+ * bird matches across checklists regardless of the form it was reported at, and the
+ * real common name shows instead of a raw code like "rocpig1".
+ */
+export async function resolveSpecies(
+  codes: string[]
+): Promise<Record<string, { speciesCode: string; commonName: string }>> {
+  const cache = await ensureTaxonomy();
+  const out: Record<string, { speciesCode: string; commonName: string }> = {};
+  for (const c of codes) {
+    const norm = cache.reportAs[c] ?? c;
+    const name = cache.byCode[norm] || cache.byCode[c] || norm;
+    out[c] = { speciesCode: norm, commonName: name };
+  }
+  return out;
 }

@@ -57,6 +57,12 @@ class TauriTransport implements TransportAdapter {
       return getWeather(checklistId) as Promise<T>;
     }
 
+    if (path.startsWith('/checklists/')) {
+      const { getChecklist } = await import('./tauri/checklistService');
+      const checklistId = path.slice('/checklists/'.length);
+      return getChecklist(checklistId) as Promise<T>;
+    }
+
     if (path === '/version/check') {
       const { checkVersion } = await import('./tauri/versionService');
       return checkVersion() as Promise<T>;

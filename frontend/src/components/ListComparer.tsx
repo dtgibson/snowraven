@@ -4,6 +4,7 @@ import { parseEbirdCSV } from '../lib/parseEbird'
 import { compareSpecies } from '../lib/compare'
 import type { FileData, ComparisonResult, SortOrder } from '../types'
 import { DropZone } from './DropZone'
+import { ChecklistComparer } from './ChecklistComparer'
 import { ResultsView } from './ResultsView'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
@@ -23,6 +24,8 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
   const [listBLabel, setListBLabel] = useState('Other List')
   // Whether List A is the user's own stored backup (⇒ those species have Species Detail entries).
   const [resultAIsMine, setResultAIsMine] = useState(false)
+  // Two comparison modes: life lists (CSV backups) vs. individual eBird checklists.
+  const [mode, setMode] = useState<'lists' | 'checklists'>('lists')
 
   useEffect(() => {
     storage.getFilesStatus()
@@ -138,7 +141,28 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
       flexDirection: 'column',
       alignItems: 'center',
     }}>
-      {result ? (
+      <div style={{ width: '100%', maxWidth: 880, marginBottom: 24, display: 'flex', justifyContent: 'center' }}>
+        <div role="tablist" aria-label="Comparison mode" style={{ display: 'inline-flex', borderRadius: 8, border: '1.5px solid var(--sr-border)', overflow: 'hidden' }}>
+          {([['lists', 'Life Lists'], ['checklists', 'Checklists']] as const).map(([m, label], i) => (
+            <button tabIndex={0} key={m} role="tab" aria-selected={mode === m}
+              onClick={() => setMode(m)}
+              style={{
+                height: 36, padding: '0 20px', fontSize: '0.8125rem',
+                fontWeight: mode === m ? 600 : 500, fontFamily: 'inherit', cursor: 'pointer',
+                border: 'none', borderLeft: i > 0 ? '1.5px solid var(--sr-border)' : 'none',
+                background: mode === m ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+                color: mode === m ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                transition: 'background 0.15s, color 0.15s',
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mode === 'checklists' ? (
+        <ChecklistComparer onOpenSpecies={onOpenSpecies} />
+      ) : result ? (
         <ResultsView
           listALabel={listALabel}
           listBLabel={listBLabel}

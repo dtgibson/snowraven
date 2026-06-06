@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from routers.apikeys import router as apikeys_router
+from routers.checklists import router as checklists_router
 from routers.map import router as map_router
 from routers.mapdefaults import router as mapdefaults_router
 from routers.nominatim import router as nominatim_router
@@ -27,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(apikeys_router)
+app.include_router(checklists_router)
 app.include_router(map_router)
 app.include_router(mapdefaults_router)
 app.include_router(stats_router)

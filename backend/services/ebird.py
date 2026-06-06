@@ -87,3 +87,71 @@ async def fetch_checklist(checklist_id: str) -> dict:
         "lng": lng,
         "duration_hrs": data.get("durationHrs") or 1,
     }
+
+
+async def fetch_checklist_species(checklist_id: str) -> dict:
+    """Fetch a checklist's species observations (eBird speciesCode + count string)
+    plus a short header (location + date). eBird returns obs in taxonomic order;
+    that order is preserved. Common names are resolved separately via the taxonomy."""
+    api_key = os.getenv("EBIRD_API_KEY")
+    if not api_key:
+        raise ValueError("EBIRD_API_KEY not configured")
+
+    headers = {"X-eBirdApiToken": api_key}
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"https://api.ebird.org/v2/product/checklist/view/{checklist_id}",
+            headers=headers,
+            timeout=10.0,
+        )
+        if resp.status_code == 404:
+            raise LookupError("Checklist not found. Check the ID and try again.")
+        resp.raise_for_status()
+        data = resp.json()
+
+        # checklist/view has no locName — only locId. Resolve a human-readable
+        # location name so the two checklists are easy to tell apart.
+        loc_id = data.get("locId", "")
+        loc_name = data.get("locName", "")
+        if not loc_name and loc_id:
+            try:
+                region_resp = await client.get(
+                    f"https://api.ebird.org/v2/ref/region/info/{loc_id}",
+                    headers=headers,
+                    timeout=10.0,
+                )
+                if region_resp.status_code == 200 and region_resp.content.strip():
+                    region_data = region_resp.json()
+                    loc_name = region_data.get("result") or region_data.get("name", "")
+            except Exception:
+                pass  # Location name is a nicety; fall through to the locId.
+
+    species = []
+    for o in (data.get("obs") or []):
+        code = o.get("speciesCode")
+        if not code:
+            continue
+        # Breeding code lives in obsAux (one per species per checklist). The value is
+        # eBird's INTERNAL code (e.g. "S1") — the frontend translates it to the display
+        # code. Media presence is in mediaCounts: {"P": n, "A": n, "V": n}.
+        breeding = ""
+        for aux in (o.get("obsAux") or []):
+            if aux.get("fieldName") == "breeding_code":
+                breeding = aux.get("value") or aux.get("auxCode") or ""
+                break
+        mc = o.get("mediaCounts") or {}
+        species.append({
+            "speciesCode": code,
+            "count": o.get("howManyStr", "X"),
+            "breedingCode": breeding,
+            "media": {
+                "photo": int(mc.get("P", 0) or 0),
+                "audio": int(mc.get("A", 0) or 0),
+                "video": int(mc.get("V", 0) or 0),
+            },
+        })
+    return {
+        "locName": loc_name or loc_id,
+        "obsDt": data.get("obsDt", ""),
+        "species": species,
+    }

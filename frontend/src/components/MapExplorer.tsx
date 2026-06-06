@@ -8,6 +8,8 @@ import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { parseMLExport } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
+import { observationMediaFormats, matchesMediaFilter } from '../lib/observationMedia'
+import type { MediaFilter } from '../lib/observationMedia'
 import type { ObservationEntry } from '../types'
 import { BREEDING_CODES } from '../lib/breedingCodes'
 import { transport, TransportError } from '../lib/transport'
@@ -46,10 +48,9 @@ type DisplayMode = 'pins' | 'heatmap'
 type MapPhase =
   | { tag: 'loading-saved' }
   | { tag: 'setup-required' }
-  | { tag: 'ready'; observations: ObservationEntry[]; mlRows: MLExportRow[]; hasML: boolean }
+  | { tag: 'ready'; observations: ObservationEntry[]; mlRows: MLExportRow[]; mediaMap: Record<string, string>; hasML: boolean }
 
 type BreedingFilter = 'all' | 'possible' | 'probable' | 'confirmed'
-type MediaFilter = 'any' | 'photo' | 'audio' | 'video' | 'none'
 
 type HotspotPin =
   | { kind: 'visited';   locId: string; locName: string; lat: number; lng: number; speciesCount: number; lastVisit: string }
@@ -733,15 +734,17 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         const observations = ebird.observations
 
         let mlRows: MLExportRow[] = []
+        let mediaMap: Record<string, string> = {}
         let hasML = false
         if (mlText) {
           const result = parseMLExport(mlText)
           mlRows = result.rows
+          mediaMap = result.mediaMap   // catalogId → 'Photo' | 'Audio' | 'Video'
           hasML = mlRows.length > 0
         }
 
         if (cancelled) return
-        setPhase({ tag: 'ready', observations, mlRows, hasML })
+        setPhase({ tag: 'ready', observations, mlRows, mediaMap, hasML })
       } catch {
         if (!cancelled) setPhase({ tag: 'setup-required' })
       }
@@ -807,14 +810,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       obs = obs.filter(o => o.breedingCode !== null && codeSet.has(o.breedingCode))
     }
     if (mediaFilter !== 'any' && phase.hasML) {
-      obs = obs.filter(o => {
-        const types = mediaTypes.get(o.commonName)
-        if (mediaFilter === 'photo')  return types?.has('Photo') ?? false
-        if (mediaFilter === 'audio')  return types?.has('Audio') ?? false
-        if (mediaFilter === 'video')  return types?.has('Video') ?? false
-        if (mediaFilter === 'none')   return !types || types.size === 0
-        return true
-      })
+      // Match media to the SPECIFIC sighting via its ML catalog numbers (from the
+      // eBird backup), not by species — otherwise every sighting of a species you've
+      // ever photographed/recorded would match. mediaMap: catalogId → format.
+      const mediaMap = phase.mediaMap
+      obs = obs.filter(o =>
+        matchesMediaFilter(observationMediaFormats(o.catalogIds, mediaMap), mediaFilter)
+      )
     }
 
     const groups = new Map<string, LocationGroup>()
@@ -830,7 +832,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       if (o.date > g.lastDate) g.lastDate = o.date
     }
     return [...groups.values()]
-  }, [phase, speciesFilter, dateFrom, dateTo, countyFilter, breedingFilter, mediaFilter, mediaTypes])
+  }, [phase, speciesFilter, dateFrom, dateTo, countyFilter, breedingFilter, mediaFilter])
 
   const stats = useMemo(() => {
     const species = new Set(filteredLocations.flatMap(l => [...l.species]))

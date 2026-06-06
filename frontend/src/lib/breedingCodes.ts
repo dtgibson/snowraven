@@ -36,6 +36,50 @@ export const BREEDING_CODES: BreedingCodeDef[] = [
 
 export const BREEDING_CODE_MAP = new Map(BREEDING_CODES.map(d => [d.code, d]))
 
+// rank = index in BREEDING_CODES (ordered strongest-first); lower = stronger.
+const BREEDING_RANK = new Map(BREEDING_CODES.map((d, i) => [d.code, i]))
+
+/**
+ * eBird's checklist API (`obs.obsAux` breeding_code) returns an INTERNAL code that
+ * differs from the display code used everywhere else in the app (and in the CSV
+ * backup). Derived empirically by joining the API output to the CSV's display codes
+ * across many checklists. Note the collisions: API "FY" is display "CF" (Carrying
+ * Food) and API "FR" is display "FY" (Feeding Young) — so raw passthrough would
+ * mislabel them. Codes already equal to their display form are listed for clarity.
+ */
+export const API_BREEDING_TO_DISPLAY: Record<string, string> = {
+  AB: 'A',  CC: 'C',  CM: 'CN', FO: 'F',  FR: 'FY', FY: 'CF',
+  OS: 'H',  PO: 'P',  S1: 'S',  SM: 'M',  T7: 'T',  VS: 'N',
+  // identical to display (passthrough, listed explicitly):
+  FL: 'FL', NB: 'NB', NY: 'NY', ON: 'ON', S7: 'S7',
+}
+
+/** Translate an eBird API breeding code to its display code (passthrough if unknown). */
+export function apiBreedingToDisplay(apiCode: string): string {
+  return API_BREEDING_TO_DISPLAY[apiCode] ?? apiCode
+}
+
+/**
+ * Resolve a raw eBird API breeding code to a display def. Translates the internal
+ * code to the display code, then looks up its label + tier. Unknown codes fall back
+ * to a tier-1 def showing the raw code, so nothing is ever mislabeled or dropped.
+ */
+export function resolveApiBreedingCode(apiCode: string): BreedingCodeDef {
+  const display = apiBreedingToDisplay(apiCode)
+  return BREEDING_CODE_MAP.get(display) ?? { code: display, label: display, tier: 1 }
+}
+
+/** Compare two API breeding codes; returns the stronger one's display def, or null. */
+export function strongerBreeding(a: string | null, b: string | null): BreedingCodeDef | null {
+  const da = a ? resolveApiBreedingCode(a) : null
+  const db = b ? resolveApiBreedingCode(b) : null
+  if (!da) return db
+  if (!db) return da
+  const ra = BREEDING_RANK.get(da.code) ?? Infinity
+  const rb = BREEDING_RANK.get(db.code) ?? Infinity
+  return ra <= rb ? da : db
+}
+
 export const TIER_COLORS: Record<1 | 2 | 3 | 4, string> = {
   4: 'var(--sr-tier-4)',
   3: 'var(--sr-tier-3)',

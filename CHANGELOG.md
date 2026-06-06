@@ -2,6 +2,21 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.14] - 2026-06-06
+
+### Added
+- **Compare two eBird checklists** — the comparer now has a second mode for individual checklists. Switch to **Checklists**, paste two checklist IDs or URLs (just like the Weather tab), and see which birds were on one, both, or the other — with each species' **count from both checklists side by side**. Where one checklist recorded more of a species, that count is emphasized with bold and a ▲ marker; presence-only ("X") entries show a dash and are never marked higher. It works for any public checklist, not just your own, using your eBird API key.
+  - Each checklist is identified by a card showing its **location, date, and ID**, so two visits to the same place are easy to tell apart.
+  - **Breeding codes** — each species shows its breeding-evidence code per checklist, as a small pill colored by evidence tier (matching the Breeding Codes tab). eBird's internal API codes are translated to the standard display codes.
+  - **Media icons** — small photo / audio / video icons show what media exists for each species on each checklist (counts in the tooltip), drawn from all observers on the checklist.
+  - Birds reported as a sub-form (for example a domestic Rock Pigeon) are matched and named by their parent species, so the real common name shows and the same bird lines up across both checklists.
+
+### Changed
+- The **Life List Comparer** tab is now simply **List Comparer**, since it compares both full life lists and individual checklists.
+
+### Fixed
+- **Map Explorer media filters** — the "Has Photo / Audio / Video" filters on your sightings now match the **specific sighting** that has the media, not every sighting of a species you've photographed or recorded somewhere. Previously, choosing "Has Video" showed pins for locations where you had no video (any sighting of a species you'd ever videoed). The filter now ties media to each observation via its ML catalog numbers.
+
 ## [0.5.13] - 2026-06-05
 
 ### Added

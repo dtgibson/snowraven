@@ -12,7 +12,7 @@ The recommended setup sequence is:
 
 1. Enter your eBird API key in Settings. This is required for the Weather tab and the Nearby Lifers card in Statistics.
 2. Enter your OpenWeather API key in Settings. This is required for the Weather tab.
-3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and Life List Comparer tabs.
+3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer tabs.
 4. Upload your ML export from Macaulay Library in Settings. This is optional but unlocks media-specific features in Multimedia, Species Detail, and Statistics.
 
 ---
@@ -59,7 +59,7 @@ Your eBird backup is a full export of all your eBird observations -- every check
 
 The file is called `MyEBirdData.csv`. To download it, sign in at [ebird.org](https://ebird.org) and go to [ebird.org/downloadMyData](https://ebird.org/downloadMyData). Click "Download My Data" and save the download; if it arrives as a `.zip`, unzip it to find `MyEBirdData.csv`. In SnowRaven, go to Settings and upload that CSV under Default Files.
 
-The eBird backup is used by: Species Detail, Statistics (all cards except Nearby Lifers), Map Explorer, Breeding Codes, Multimedia, and Life List Comparer.
+The eBird backup is used by: Species Detail, Statistics (all cards except Nearby Lifers), Map Explorer, Breeding Codes, Multimedia, and List Comparer.
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
@@ -91,7 +91,7 @@ The Species Detail tab shows a complete history of your observations for any spe
 
 Select a species from the dropdown at the top -- type to search by common name or scientific name. All sections update immediately when you select a species. Switching species is instant; all data is parsed client-side from the stored file.
 
-**Clicking bird names anywhere.** Throughout the app, a bird's common name is rendered in a consistent format: the name is a link that opens that species here on Species Detail (for any species in your data), followed by small icons linking to its eBird and Birds of the World pages, with the scientific name shown where there's room. So you can click a species in the Statistics lists, the Map Explorer, the Multimedia, Breeding Codes, or the Life List Comparer to jump straight to its full history. For a bird you haven't recorded yet (such as a nearby lifer or map target species), the name appears with the eBird/Birds of the World icons but without a Species Detail link, since there's no entry to open.
+**Clicking bird names anywhere.** Throughout the app, a bird's common name is rendered in a consistent format: the name is a link that opens that species here on Species Detail (for any species in your data), followed by small icons linking to its eBird and Birds of the World pages, with the scientific name shown where there's room. So you can click a species in the Statistics lists, the Map Explorer, the Multimedia, Breeding Codes, or the List Comparer to jump straight to its full history. For a bird you haven't recorded yet (such as a nearby lifer or map target species), the name appears with the eBird/Birds of the World icons but without a Species Detail link, since there's no entry to open.
 
 The tab shows the following sections for each species:
 
@@ -255,13 +255,31 @@ The Unbounded toggle removes the table's horizontal scroll constraint for easier
 
 ---
 
-## Life List Comparer
+## List Comparer
 
-The Life List Comparer tab compares two life lists and shows which species appear in both and which are unique to each.
+The List Comparer tab compares two lists and shows which species appear in both and which are unique to each. A toggle at the top switches between two modes: **Life Lists** and **Checklists**.
 
-If your eBird backup is saved in Settings, your list loads automatically as List A. You can also upload any eBird backup CSV file directly as List A. Drop a second eBird backup CSV file onto the List B slot, then click Compare Lists.
+### Life Lists
 
-Three panels appear: species in both lists, species only in List A, and species only in List B. Each species name has icons linking to its eBird species account and Birds of the World page. Use the A-Z / Taxonomic toggle to switch sort order. The Show all button expands all panels to full length.
+Compares two full eBird life lists (CSV backups). If your eBird backup is saved in Settings, your list loads automatically as List A. You can also upload any eBird backup CSV file directly as List A. Drop a second eBird backup CSV file onto the List B slot, then click Compare Lists.
+
+### Checklists
+
+Compares two individual eBird checklists. Paste two checklist IDs or URLs (e.g. `S12345678` or `https://ebird.org/checklist/S12345678`), the same way you would in the Weather tab, then click Compare checklists. This mode uses your eBird API key (set in Settings) to fetch each checklist directly from eBird, so it works for any public checklist, not just your own.
+
+Each checklist is identified by a card showing its location, date, and ID, so the two are easy to tell apart — useful when comparing two visits to the same place. The "In Both" panel shows each species' details from both checklists side by side (A on the left, B on the right); the "Checklist A only" and "Checklist B only" panels appear below.
+
+For each species on each checklist, you see:
+
+- **Count** — the number recorded. Where one checklist recorded a higher number, that count is bolded with a ▲ marker. Presence-only entries (eBird's "X") show a dash and are never marked as higher.
+- **Breeding code** — if a breeding-evidence code was entered, it appears as a small colored pill, colored by evidence tier (the same scheme as the Breeding Codes tab). Hover for the full code name.
+- **Media icons** — small camera, microphone, and video icons indicate whether photos, audio, or video exist for that species on that checklist (across all observers). Hover for the counts.
+
+Birds reported as a sub-form (for example, a domestic Rock Pigeon) are matched and named by their parent species, so the same bird lines up across both checklists.
+
+### Both modes
+
+Three panels appear: species in both lists, species only in List A, and species only in List B. Each species name has icons linking to its eBird species account and Birds of the World page. Use the A-Z / Taxonomic toggle to switch sort order.
 
 ---
 

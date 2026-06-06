@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -7,9 +8,13 @@ from main import app
 client = TestClient(app)
 
 _FAKE_TAXONOMY = [
-    {"speciesCode": "amerob", "comName": "American Robin", "sciName": "Turdus migratorius", "taxonOrder": 27616},
-    {"speciesCode": "baleag", "comName": "Bald Eagle", "sciName": "Haliaeetus leucocephalus", "taxonOrder": 3640},
-    {"speciesCode": "cangoo", "comName": "Canada Goose", "sciName": "Branta canadensis", "taxonOrder": 60},
+    {"speciesCode": "amerob", "comName": "American Robin", "sciName": "Turdus migratorius", "taxonOrder": 27616, "category": "species"},
+    {"speciesCode": "baleag", "comName": "Bald Eagle", "sciName": "Haliaeetus leucocephalus", "taxonOrder": 3640, "category": "species"},
+    {"speciesCode": "cangoo", "comName": "Canada Goose", "sciName": "Branta canadensis", "taxonOrder": 60, "category": "species"},
+    {"speciesCode": "rocpig", "comName": "Rock Pigeon", "sciName": "Columba livia", "taxonOrder": 6649, "category": "species"},
+    # Sub-forms (domestic/form): not species; reportAs points back to the parent.
+    {"speciesCode": "rocpig1", "comName": "Rock Pigeon (Feral Pigeon)", "sciName": "Columba livia (Feral Pigeon)", "category": "domestic", "reportAs": "rocpig"},
+    {"speciesCode": "rocpig2", "comName": "Rock Pigeon (Wild type)", "sciName": "Columba livia (Wild type)", "category": "form", "reportAs": "rocpig"},
 ]
 
 
@@ -31,6 +36,8 @@ def _reset_cache():
     t._by_sci.clear()
     t._by_com.clear()
     t._by_order.clear()
+    t._by_code.clear()
+    t._report_as.clear()
     t._loaded = False
 
 
@@ -79,6 +86,28 @@ def test_empty_request_returns_empty_maps():
     data = resp.json()
     assert data["codes"] == {}
     assert data["orders"] == {}
+
+
+def test_resolve_species_normalizes_subforms_to_parent():
+    """A checklist may report a sub-form code (e.g. domestic "rocpig1"). resolve_species
+    must map it to the parent species code AND return the parent's real common name —
+    not the raw code. This is the rocpig1-shown-as-a-name bug."""
+    _reset_cache()
+    import routers.taxonomy as t
+    with _patch_taxonomy():
+        out = asyncio.run(t.resolve_species(["rocpig1", "rocpig2", "amerob"]))
+    assert out["rocpig1"] == {"speciesCode": "rocpig", "commonName": "Rock Pigeon"}
+    assert out["rocpig2"] == {"speciesCode": "rocpig", "commonName": "Rock Pigeon"}
+    # A plain species code is returned unchanged with its name.
+    assert out["amerob"] == {"speciesCode": "amerob", "commonName": "American Robin"}
+
+
+def test_resolve_species_unknown_code_falls_back_to_code():
+    _reset_cache()
+    import routers.taxonomy as t
+    with _patch_taxonomy():
+        out = asyncio.run(t.resolve_species(["notabird9"]))
+    assert out["notabird9"] == {"speciesCode": "notabird9", "commonName": "notabird9"}
 
 
 def test_taxonomy_fetch_failure_returns_empty_maps():

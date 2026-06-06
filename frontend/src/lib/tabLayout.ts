@@ -24,7 +24,7 @@ export const TAB_LABELS: Record<ConfigurableTab, string> = {
   'map-explorer':   'Map Explorer',
   'life-list':      'Multimedia',
   'breeding-codes': 'Breeding Codes',
-  'comparer':       'Life List Comparer',
+  'comparer':       'List Comparer',
 }
 
 export type Tab = ConfigurableTab | 'settings'

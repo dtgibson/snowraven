@@ -12,7 +12,7 @@ SnowRaven turns your own eBird and Macaulay Library exports into a personal bird
 - **Map Explorer** — an interactive map of your sightings (with heatmap), nearby eBird hotspots colored by whether you've visited them, media targets, and an optional California Breeding Bird Atlas overlay. Switchable street / satellite / topo basemaps plus a hiking-trails overlay.
 - **Multimedia** — your life list with photo/audio/video coverage per species, to find what you still need to capture.
 - **Breeding Codes** — every species you've recorded a breeding code for, as a color-coded matrix across all eBird codes.
-- **Life List Comparer** — compare your life list against another birder's to see shared and unique species.
+- **List Comparer** — compare two life lists (your backup vs. another birder's) to see shared and unique species, or compare two individual eBird checklists by ID/URL with side-by-side counts (higher-count emphasis), breeding codes, and photo/audio/video media indicators.
 
 Full per-feature documentation lives in **[docs/HELP.md](docs/HELP.md)**.
 
@@ -29,7 +29,7 @@ Two free API keys, entered once in the app's Settings:
 
 Most analytics tabs also use your own data files (optional, but they unlock most features):
 
-- **eBird backup** (`MyEBirdData.csv`) from [ebird.org/downloadMyData](https://ebird.org/downloadMyData) — powers Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and Life List Comparer.
+- **eBird backup** (`MyEBirdData.csv`) from [ebird.org/downloadMyData](https://ebird.org/downloadMyData) — powers Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer.
 - **Macaulay Library export** (optional) — adds media coverage and trends.
 
 ## Installation

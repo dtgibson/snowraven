@@ -4,6 +4,7 @@ import { transport, TransportError } from './lib/transport'
 import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
 import { copyText } from './lib/clipboard'
+import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
 import { readStoredScale, persistTextScale, applyScaleToDom, hydrateStoredScale } from './lib/textScale'
 import type { TextScale } from './lib/textScale'
 import { ListComparer } from './components/ListComparer'
@@ -53,14 +54,6 @@ type UpdateStatus =
   | { kind: 'ready-to-restart' }
   | { kind: 'error' }
 
-function extractChecklistId(raw: string): string {
-  const s = raw.trim().replace(/\/+$/, '').split('?')[0]
-  return s.includes('/') ? (s.split('/').pop() ?? s) : s
-}
-
-function isValidId(id: string): boolean {
-  return /^S\d+$/.test(id)
-}
 
 type KeyStatus = { ebird: string | null; openweather: string | null }
 
@@ -310,7 +303,7 @@ export default function App() {
 
   const handleLookup = useCallback(async () => {
     const id = extractChecklistId(input)
-    if (!isValidId(id)) {
+    if (!isValidChecklistId(id)) {
       setState({ status: 'error', message: "That doesn't look like a valid eBird checklist ID." })
       return
     }

@@ -17,6 +17,7 @@ export default defineConfig({
     },
     proxy: {
       '/weather': 'http://localhost:1620',
+      '/checklists': 'http://localhost:1620',
       '/health': 'http://localhost:1620',
       '/version': 'http://localhost:1620',
       '/nominatim': 'http://localhost:1620',
