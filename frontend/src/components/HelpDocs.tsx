@@ -159,7 +159,7 @@ function renderBlock(block: Block, idx: number): React.ReactNode {
     case 'h1':
       return (
         <h1 key={idx} style={{
-          fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em',
+          fontSize: '1.625rem', fontWeight: 700, letterSpacing: '-0.02em',
           color: 'var(--sr-text)', marginBottom: 6, lineHeight: 1.2,
         }}>
           {block.text}
@@ -169,7 +169,7 @@ function renderBlock(block: Block, idx: number): React.ReactNode {
     case 'h2':
       return (
         <h2 key={idx} id={block.id} style={{
-          fontSize: 18, fontWeight: 700, color: 'var(--sr-text)',
+          fontSize: '1.125rem', fontWeight: 700, color: 'var(--sr-text)',
           marginTop: 40, marginBottom: 12,
           paddingBottom: 8,
           borderBottom: '1px solid var(--sr-border-subtle)',
@@ -181,7 +181,7 @@ function renderBlock(block: Block, idx: number): React.ReactNode {
     case 'h3':
       return (
         <h3 key={idx} id={block.id} style={{
-          fontSize: 11, fontWeight: 700, color: 'var(--sr-text-muted)',
+          fontSize: '0.6875rem', fontWeight: 700, color: 'var(--sr-text-muted)',
           textTransform: 'uppercase', letterSpacing: '0.04em',
           marginTop: 24, marginBottom: 8,
         }}>
@@ -192,7 +192,7 @@ function renderBlock(block: Block, idx: number): React.ReactNode {
     case 'p':
       return (
         <p key={idx} style={{
-          fontSize: 14, lineHeight: 1.75, color: 'var(--sr-text)', marginBottom: 14,
+          fontSize: '0.875rem', lineHeight: 1.75, color: 'var(--sr-text)', marginBottom: 14,
         }}>
           {renderInline(block.text)}
         </p>
@@ -202,7 +202,7 @@ function renderBlock(block: Block, idx: number): React.ReactNode {
       return (
         <ul key={idx} style={{ marginBottom: 14, paddingLeft: 22, listStyle: 'disc' }}>
           {block.items.map((item, j) => (
-            <li key={j} style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--sr-text)', marginBottom: 4 }}>
+            <li key={j} style={{ fontSize: '0.875rem', lineHeight: 1.75, color: 'var(--sr-text)', marginBottom: 4 }}>
               {renderInline(item)}
             </li>
           ))}
@@ -213,7 +213,7 @@ function renderBlock(block: Block, idx: number): React.ReactNode {
       return (
         <ol key={idx} style={{ marginBottom: 14, paddingLeft: 22, listStyle: 'decimal' }}>
           {block.items.map((item, j) => (
-            <li key={j} style={{ fontSize: 14, lineHeight: 1.75, color: 'var(--sr-text)', marginBottom: 4 }}>
+            <li key={j} style={{ fontSize: '0.875rem', lineHeight: 1.75, color: 'var(--sr-text)', marginBottom: 4 }}>
               {renderInline(item)}
             </li>
           ))}
@@ -232,7 +232,7 @@ function renderBlock(block: Block, idx: number): React.ReactNode {
         <pre key={idx} style={{
           background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
           borderRadius: 8, padding: '14px 16px', overflowX: 'auto', marginBottom: 14,
-          fontSize: 13, lineHeight: 1.6, color: 'var(--sr-text)', fontFamily: 'monospace',
+          fontSize: '0.8125rem', lineHeight: 1.6, color: 'var(--sr-text)', fontFamily: 'monospace',
         }}>
           {block.text}
         </pre>
@@ -307,7 +307,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
           <BookOpen size={16} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
-          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--sr-text)' }}>
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--sr-text)' }}>
             SnowRaven Documentation
           </span>
         </div>
@@ -348,7 +348,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
             maxHeight: 'calc(100vh - 52px)', overflowY: 'auto',
           }}>
             <div style={{
-              fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em',
+              fontSize: '0.65625rem', fontWeight: 700, letterSpacing: '0.08em',
               textTransform: 'uppercase', color: 'var(--sr-text-disabled)',
               marginBottom: 10, paddingLeft: 10,
             }}>
@@ -362,7 +362,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
                   display: 'block', width: '100%', textAlign: 'left',
                   padding: item.sub ? '5px 10px 5px 20px' : '5px 10px',
                   borderRadius: 6, border: 'none', background: 'none',
-                  fontSize: item.sub ? 12 : 12.5,
+                  fontSize: item.sub ? '0.75rem' : '0.78125rem',
                   color: 'var(--sr-text-muted)',
                   cursor: 'pointer', fontFamily: 'inherit',
                   marginBottom: 1,

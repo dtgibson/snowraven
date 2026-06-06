@@ -105,7 +105,7 @@ function SectionHead({ icon, title }: { icon: React.ReactNode; title: string }) 
       }}>
         {icon}
       </div>
-      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>{title}</span>
+      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{title}</span>
     </div>
   )
 }
@@ -113,7 +113,7 @@ function SectionHead({ icon, title }: { icon: React.ReactNode; title: string }) 
 function StatLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontSize: 11, fontWeight: 600, textTransform: 'uppercase' as const,
+      fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase' as const,
       letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 4,
     }}>
       {children}
@@ -125,7 +125,7 @@ const SUBMISSION_ID_RE = /^S\d+$/
 
 function StatValueLink({ value, submissionId, small }: { value: string; submissionId: string; small?: boolean }) {
   if (!SUBMISSION_ID_RE.test(submissionId)) {
-    return <span style={{ fontSize: small ? 14 : 20, fontWeight: 700, letterSpacing: small ? '-0.01em' : '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>{value}</span>
+    return <span style={{ fontSize: small ? '0.875rem' : '1.25rem', fontWeight: 700, letterSpacing: small ? '-0.01em' : '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>{value}</span>
   }
   return (
     <a
@@ -133,7 +133,7 @@ function StatValueLink({ value, submissionId, small }: { value: string; submissi
       target="_blank"
       rel="noreferrer"
       style={{
-        fontSize: small ? 14 : 20,
+        fontSize: small ? '0.875rem' : '1.25rem',
         fontWeight: 700,
         letterSpacing: small ? '-0.01em' : '-0.02em',
         lineHeight: 1.1,
@@ -230,7 +230,7 @@ function GraphTooltip({ active, payload, label, interval }: {
   return (
     <div style={{
       background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
-      borderRadius: 8, padding: '9px 12px', fontSize: 12,
+      borderRadius: 8, padding: '9px 12px', fontSize: '0.75rem',
       boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: 130,
     }}>
       <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--sr-text)' }}>
@@ -281,13 +281,13 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
   const xAxisProps = {
     dataKey: 'key' as const,
     tickFormatter: (k: string) => formatPeriodLabel(k, interval),
-    tick: { fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
+    tick: { fontSize: '0.6875rem', fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
     tickLine: false as const,
     axisLine: false as const,
     interval: 'preserveStartEnd' as const,
   }
   const yAxisProps = {
-    tick: { fontSize: 11, fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
+    tick: { fontSize: '0.6875rem', fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
     tickLine: false as const,
     axisLine: false as const,
     allowDecimals: false as const,
@@ -299,7 +299,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
         <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Sightings Over Time" />
         <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Sightings over time line chart. ${sightingsAxisLabel}`}>
           <div style={{ marginBottom: 12 }}>
-            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{sightingsAxisLabel}</span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{sightingsAxisLabel}</span>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
@@ -324,7 +324,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
         <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Checklists Over Time" />
         <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Checklists over time line chart. ${checklistsAxisLabel}`}>
           <div style={{ marginBottom: 12 }}>
-            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{checklistsAxisLabel}</span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{checklistsAxisLabel}</span>
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
@@ -350,7 +350,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
           <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Media Over Time" />
           <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Media over time line chart — photo, audio, and video. ${mediaAxisLabel}`}>
             <div style={{ marginBottom: 12 }}>
-              <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{mediaAxisLabel}</span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{mediaAxisLabel}</span>
             </div>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
@@ -364,7 +364,7 @@ function SightingsGraph({ data, interval, viewMode, hasML }: {
                 <Legend
                   iconType="circle"
                   iconSize={7}
-                  wrapperStyle={{ fontSize: 12, color: 'var(--sr-text-muted)', paddingTop: 8 }}
+                  wrapperStyle={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', paddingTop: 8 }}
                 />
                 <Line
                   type="monotone" dataKey="photo" name="Photo"
@@ -800,7 +800,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
-          fontSize: 13, color: 'var(--sr-error)', maxWidth: 480,
+          fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480,
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           {phase.message}
@@ -810,7 +810,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           style={{
             height: 32, padding: '0 14px', borderRadius: 6,
             border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-            color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500,
+            color: 'var(--sr-text-muted)', fontSize: '0.75rem', fontWeight: 500,
             fontFamily: 'inherit', cursor: 'pointer',
           }}
         >
@@ -830,7 +830,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
         <ToggleSwitch label="Show sp./slash" checked={showSpuh} onChange={handleToggleSpuh} />
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--sr-text-disabled)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }}>
           {displaySpeciesList.length} species
         </span>
       </div>
@@ -885,7 +885,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               border: `1.5px solid ${dropdownOpen ? 'var(--sr-accent)' : 'var(--sr-border)'}`,
               borderRadius: dropdownOpen ? '8px 8px 0 0' : 8,
               borderBottomColor: dropdownOpen ? 'transparent' : undefined,
-              fontSize: 14, fontWeight: selectedSpecies && !dropdownOpen ? 500 : 400,
+              fontSize: '0.875rem', fontWeight: selectedSpecies && !dropdownOpen ? 500 : 400,
               fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)',
               outline: 'none', transition: 'border-color 0.15s',
             }}
@@ -918,7 +918,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
             }}
           >
             {filteredSpeciesList.length === 0 ? (
-              <div style={{ padding: '12px 14px', fontSize: 13, color: 'var(--sr-text-muted)' }}>
+              <div style={{ padding: '12px 14px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
                 No species match this search.
               </div>
             ) : (
@@ -950,10 +950,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     <span style={{ width: 16, flexShrink: 0, color: 'var(--sr-accent)' }}>
                       {isSelected && <Check size={13} strokeWidth={3} />}
                     </span>
-                    <span style={{ fontSize: 13.5, fontWeight: 500, color: isSelected ? 'var(--sr-accent)' : 'var(--sr-text)', flex: 1 }}>
+                    <span style={{ fontSize: '0.84375rem', fontWeight: 500, color: isSelected ? 'var(--sr-accent)' : 'var(--sr-text)', flex: 1 }}>
                       {name}
                     </span>
-                    <span style={{ fontSize: 11, fontStyle: 'italic', color: 'var(--sr-text-disabled)' }}>
+                    <span style={{ fontSize: '0.6875rem', fontStyle: 'italic', color: 'var(--sr-text-disabled)' }}>
                       {sciNameMap.get(name)}
                     </span>
                   </div>
@@ -981,14 +981,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 border: countyFilter ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                 background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                 color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                 cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', outline: 'none',
               }}
             >
               <option value="">All Counties</option>
               {counties.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: 9 }}>▾</span>
+            <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: '0.5625rem' }}>▾</span>
           </div>
 
           {/* Date range */}
@@ -1007,11 +1007,11 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                   background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                   color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                  fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                  fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
                 }}
               />
             </div>
-            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>→</span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
             <input
               type="date"
               value={dateRange.to}
@@ -1021,7 +1021,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                 background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                 color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
               }}
             />
           </div>
@@ -1031,7 +1031,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: 12, color: 'var(--sr-accent)', fontFamily: 'inherit',
+                fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
                 padding: 0, textDecoration: 'underline',
               }}
             >
@@ -1056,10 +1056,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
             }}>
               <Search size={22} strokeWidth={1.8} />
             </div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--sr-text-muted)' }}>
+            <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--sr-text-muted)' }}>
               Choose a species to see your history with it
             </div>
-            <div style={{ fontSize: 13, color: 'var(--sr-text-disabled)', marginTop: 4 }}>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-disabled)', marginTop: 4 }}>
               All statistics come from your loaded eBird backup.
             </div>
           </div>
@@ -1091,14 +1091,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '7px 14px',
                 background: 'var(--sr-accent-bg)', borderRadius: 6,
-                fontSize: 12, color: 'var(--sr-accent)',
+                fontSize: '0.75rem', color: 'var(--sr-accent)',
               }}>
                 <span style={{ fontWeight: 500 }}>{parts.join(' · ')}</span>
                 <button tabIndex={0}
                   onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 12, color: 'var(--sr-accent)', fontFamily: 'inherit',
+                    fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
                     padding: 0, textDecoration: 'underline',
                   }}
                 >
@@ -1113,10 +1113,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           <SectionCard>
             <div style={{ padding: '20px 22px 18px' }}>
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2, color: 'var(--sr-text)', wordBreak: 'break-word' }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2, color: 'var(--sr-text)', wordBreak: 'break-word' }}>
                   {selectedSpecies}
                 </div>
-                <div style={{ fontSize: 14, fontStyle: 'italic', color: 'var(--sr-text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, wordBreak: 'break-word' }}>
+                <div style={{ fontSize: '0.875rem', fontStyle: 'italic', color: 'var(--sr-text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, wordBreak: 'break-word' }}>
                   <span>{sciNameMap.get(selectedSpecies)}</span>
                   <SpeciesLinks speciesCode={speciesTaxonCode} />
                 </div>
@@ -1135,7 +1135,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       style={{
                         display: 'inline-flex', alignItems: 'center', gap: 5,
                         height: 28, padding: '0 10px', borderRadius: 6,
-                        fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                        fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                         cursor: 'default', border: '1.5px solid',
                         ...(state === 'has' ? {
                           background: 'var(--sr-accent-bg)',
@@ -1159,7 +1159,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   <span style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
                     height: 28, padding: '0 10px', borderRadius: 6,
-                    fontSize: 12, fontWeight: 600,
+                    fontSize: '0.75rem', fontWeight: 600,
                     background: `rgba(var(--sr-tier-${breedingPill.tier}-rgb), 0.08)`,
                     border: `1px solid rgba(var(--sr-tier-${breedingPill.tier}-rgb), 0.2)`,
                     color: TIER_COLORS[breedingPill.tier],
@@ -1193,27 +1193,27 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
                     <StatLabel>Checklists</StatLabel>
-                    <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>
                       {sightingsStats.total}
                     </div>
                   </div>
                   <div>
                     <StatLabel>Individuals</StatLabel>
                     {sightingsStats.totalIndividuals !== null ? (
-                      <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>
                         {sightingsStats.totalIndividuals}
                       </div>
                     ) : (
-                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--sr-text-disabled)' }}>—</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-disabled)' }}>—</div>
                     )}
                   </div>
                   {frequencyDisplay !== null && (
                     <div style={{ borderLeft: '1.5px solid var(--sr-border-subtle)', paddingLeft: 12 }}>
                       <StatLabel>Frequency</StatLabel>
-                      <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-accent)' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-accent)' }}>
                         {frequencyDisplay}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 2 }}>of your checklists</div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>of your checklists</div>
                       <div style={{
                         height: 3, borderRadius: 2, marginTop: 6,
                         background: 'var(--sr-border)',
@@ -1232,7 +1232,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     {sightingsStats.bestObs ? (
                       <StatValueLink value={String(sightingsStats.bestCount)} submissionId={sightingsStats.bestObs.submissionId} />
                     ) : (
-                      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--sr-text-disabled)' }}>—</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-disabled)' }}>—</div>
                     )}
                   </div>
                   <div>
@@ -1263,7 +1263,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               <div style={{ padding: '16px 18px' }}>
                 {!hasML ? (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, color: 'var(--sr-text-muted)' }}>
-                    <span style={{ fontSize: 13, lineHeight: 1.5 }}>
+                    <span style={{ fontSize: '0.8125rem', lineHeight: 1.5 }}>
                       Load your ML export in Settings to see media statistics.
                     </span>
                   </div>
@@ -1283,14 +1283,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                           }}>
                             <Icon size={11} strokeWidth={2.2} />
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)', flex: 1 }}>{type}s</span>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)', flex: 1 }}>{type}s</span>
                           {count > 0 ? (
                             <a
                               href={link}
                               target="_blank"
                               rel="noreferrer"
                               style={{
-                                fontSize: 13.5, fontWeight: 600, color: 'var(--sr-accent)',
+                                fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-accent)',
                                 textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3,
                               }}
                               onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -1300,7 +1300,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                               <ExternalLink size={10} strokeWidth={2.5} />
                             </a>
                           ) : (
-                            <span style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--sr-text-disabled)' }}>0</span>
+                            <span style={{ fontSize: '0.84375rem', fontWeight: 500, color: 'var(--sr-text-disabled)' }}>0</span>
                           )}
                         </div>
                       )
@@ -1316,7 +1316,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           {/* Graph Options */}
           {hasGraphData && (() => {
             const btnBase: React.CSSProperties = {
-              padding: '5px 13px', border: 'none', borderRadius: 5, fontSize: 12,
+              padding: '5px 13px', border: 'none', borderRadius: 5, fontSize: '0.75rem',
               fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
             }
             const btnActive: React.CSSProperties = {
@@ -1331,7 +1331,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 <SectionHead icon={<SlidersHorizontal size={14} strokeWidth={2.2} />} title="Graph Options" />
                 <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                   <div role="group" aria-label="Graph interval" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
                       Interval
                     </span>
                     <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
@@ -1343,7 +1343,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     </div>
                   </div>
                   <div role="group" aria-label="Graph view mode" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
                       View
                     </span>
                     <div style={{ display: 'inline-flex', gap: 2, background: 'var(--sr-surface-subtle)', borderRadius: 7, padding: 2 }}>
@@ -1367,7 +1367,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
             <SectionHead icon={<Dna size={14} strokeWidth={2.2} />} title="Breeding Codes" />
             <div style={{ padding: breedingBreakdown.length ? '4px 18px' : '16px 18px' }}>
               {breedingBreakdown.length === 0 ? (
-                <span style={{ fontSize: 13, color: 'var(--sr-text-muted)' }}>No breeding codes recorded.</span>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>No breeding codes recorded.</span>
               ) : (
                 breedingBreakdown.map(({ code, tier, label, count }, idx) => (
                   <div key={code} style={{
@@ -1376,10 +1376,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     borderBottom: idx < breedingBreakdown.length - 1 ? '1px solid var(--sr-border-subtle)' : 'none',
                   }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: TIER_COLORS[tier] }} />
-                    <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--sr-text)', minWidth: 28, fontFamily: 'inherit' }}>{code}</span>
-                    <span style={{ fontSize: 13, color: 'var(--sr-text)', flex: 1 }}>{label}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--sr-text)', minWidth: 28, fontFamily: 'inherit' }}>{code}</span>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', flex: 1 }}>{label}</span>
                     <span style={{
-                      fontSize: 12, fontWeight: 500, color: 'var(--sr-text-muted)',
+                      fontSize: '0.75rem', fontWeight: 500, color: 'var(--sr-text-muted)',
                       background: 'var(--sr-surface-subtle)', padding: '2px 8px', borderRadius: 10, whiteSpace: 'nowrap',
                     }}>
                       {count} {count === 1 ? 'time' : 'times'}
@@ -1405,20 +1405,20 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 }}>
                   <Share2 size={14} strokeWidth={2.2} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>Reported With</span>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Reported With</span>
                 {coOccurrence.type === 'results' && (
-                  <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--sr-text-disabled)' }}>
+                  <span style={{ marginLeft: 'auto', fontSize: '0.6875rem', color: 'var(--sr-text-disabled)' }}>
                     of {coOccurrence.totalChecklists} checklists
                   </span>
                 )}
               </div>
 
               {coOccurrence.type === 'no-data' ? (
-                <div style={{ padding: '16px 18px', fontSize: 13, color: 'var(--sr-text-muted)' }}>
+                <div style={{ padding: '16px 18px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
                   No checklist data available.
                 </div>
               ) : coOccurrence.results.length === 0 ? (
-                <div style={{ padding: '16px 18px', fontSize: 13, color: 'var(--sr-text-muted)' }}>
+                <div style={{ padding: '16px 18px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
                   No species met the minimum co-occurrence threshold.
                 </div>
               ) : (() => {
@@ -1434,10 +1434,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       padding: '8px 0 6px', borderBottom: '1px solid var(--sr-border-subtle)', marginBottom: 2,
                     }}>
                       <span style={{ width: 20, flexShrink: 0 }} />
-                      <span style={{ flex: 1, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Species</span>
+                      <span style={{ flex: 1, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Species</span>
                       <span style={{ width: 100, flexShrink: 0 }} />
-                      <span style={{ width: 38, textAlign: 'right' as const, flexShrink: 0, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Rate</span>
-                      <span style={{ width: 84, textAlign: 'right' as const, flexShrink: 0, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Checklists</span>
+                      <span style={{ width: 38, textAlign: 'right' as const, flexShrink: 0, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Rate</span>
+                      <span style={{ width: 84, textAlign: 'right' as const, flexShrink: 0, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Checklists</span>
                     </div>
                     {/* Rows */}
                     {visible.map((r, idx) => (
@@ -1446,7 +1446,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         padding: '9px 0',
                         borderBottom: idx < visible.length - 1 ? '1px solid var(--sr-border-subtle)' : 'none',
                       }}>
-                        <span style={{ width: 20, textAlign: 'right' as const, fontSize: 11, color: 'var(--sr-text-disabled)', flexShrink: 0 }}>
+                        <span style={{ width: 20, textAlign: 'right' as const, fontSize: '0.6875rem', color: 'var(--sr-text-disabled)', flexShrink: 0 }}>
                           {idx + 1}
                         </span>
                         <span style={{ flex: 1, minWidth: 0 }}>
@@ -1455,10 +1455,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         <div style={{ width: 100, height: 5, background: 'var(--sr-surface-subtle)', borderRadius: 3, flexShrink: 0, overflow: 'hidden' }}>
                           <div style={{ height: '100%', borderRadius: 3, background: 'var(--sr-accent)', opacity: 0.55, width: `${Math.round((r.pct / maxPct) * 100)}%` }} />
                         </div>
-                        <span style={{ width: 38, textAlign: 'right' as const, fontSize: 13, fontWeight: 600, color: 'var(--sr-accent)', flexShrink: 0 }}>
+                        <span style={{ width: 38, textAlign: 'right' as const, fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-accent)', flexShrink: 0 }}>
                           {r.pct}%
                         </span>
-                        <span style={{ width: 84, textAlign: 'right' as const, fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0 }}>
+                        <span style={{ width: 84, textAlign: 'right' as const, fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>
                           {r.count} {r.count === 1 ? 'checklist' : 'checklists'}
                         </span>
                       </div>
@@ -1471,7 +1471,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           width: '100%', padding: '10px 0 4px',
                           border: 'none', background: 'none',
-                          fontSize: 12, fontWeight: 500, color: 'var(--sr-accent)',
+                          fontSize: '0.75rem', fontWeight: 500, color: 'var(--sr-accent)',
                           fontFamily: 'inherit', cursor: 'pointer',
                         }}
                         onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
@@ -1493,7 +1493,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
             <SectionHead icon={<MapPin size={14} strokeWidth={2.2} />} title="Top Locations" />
             <div style={{ padding: locationsSorted.length ? '4px 18px' : '16px 18px' }}>
               {locationsSorted.length === 0 ? (
-                <span style={{ fontSize: 13, color: 'var(--sr-text-muted)' }}>No location data found.</span>
+                <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>No location data found.</span>
               ) : (
                 <>
                   {(showAllLocations ? locationsSorted : locationsSorted.slice(0, 10)).map(({ location, locationId, count }, idx) => {
@@ -1504,11 +1504,11 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         padding: '9px 0',
                         borderBottom: idx < visibleCount - 1 ? '1px solid var(--sr-border-subtle)' : 'none',
                       }}>
-                        <span style={{ fontSize: 11, color: 'var(--sr-text-disabled)', minWidth: 22, flexShrink: 0, textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-disabled)', minWidth: 22, flexShrink: 0, textAlign: 'right' }}>
                           {idx + 1}.
                         </span>
-                        <span style={{ fontSize: 13, color: 'var(--sr-text)', flex: 1 }}>{location}</span>
-                        <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', flex: 1 }}>{location}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {count} {count === 1 ? 'sighting' : 'sightings'}
                         </span>
                       </div>
@@ -1523,7 +1523,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         width: '100%', padding: '13px 18px',
                         border: 'none', borderTop: '1px solid var(--sr-border-subtle)',
                         background: 'var(--sr-surface-faint)',
-                        fontSize: 13, fontWeight: 500, color: 'var(--sr-accent)',
+                        fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-accent)',
                         fontFamily: 'inherit', cursor: 'pointer',
                       }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-accent-bg)')}
@@ -1557,7 +1557,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 }}>
                   <MapPin size={14} strokeWidth={2.2} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>Sighting Locations</span>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Sighting Locations</span>
                 <div style={{
                   marginLeft: 'auto', display: 'inline-flex', gap: 2,
                   background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2,
@@ -1567,7 +1567,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       key={mode}
                       onClick={() => { setMapMode(mode); setSelectedCoord(null) }}
                       style={{
-                        padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: 11,
+                        padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: '0.6875rem',
                         fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
                         background: mapMode === mode ? 'var(--sr-surface)' : 'transparent',
                         color: mapMode === mode ? 'var(--sr-text)' : 'var(--sr-text-muted)',
@@ -1582,8 +1582,8 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               {mapMode === 'heatmap' && (
                 <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--sr-border-subtle)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Heatmap Intensity</span>
-                    <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{heatIntensity}</span>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Heatmap Intensity</span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{heatIntensity}</span>
                   </div>
                   <input
                     type="range"
@@ -1595,7 +1595,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     aria-label="Heatmap intensity"
                     style={{ width: '100%', accentColor: 'var(--sr-accent)', cursor: 'pointer' }}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--sr-text-muted)', marginTop: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>
                     <span>Tighter</span>
                     <span>Broader</span>
                   </div>
@@ -1616,7 +1616,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   ))}
                   {mapMode === 'pins' && selectedMarker && (
                     <Popup longitude={selectedMarker.lng} latitude={selectedMarker.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} closeButton={false} maxWidth="260px">
-                      <div style={{ fontSize: 13, lineHeight: 1.7, minWidth: 120 }}>
+                      <div style={{ fontSize: '0.8125rem', lineHeight: 1.7, minWidth: 120 }}>
                         {selectedMarker.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
                           <div key={`${submissionId}-${i}`}>
                             {SUBMISSION_ID_RE.test(submissionId) ? (
@@ -1636,7 +1636,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                           </div>
                         ))}
                         {selectedMarker.sightings.length > 6 && (
-                          <div style={{ color: 'var(--sr-text-muted)', marginTop: 2, fontSize: 12 }}>
+                          <div style={{ color: 'var(--sr-text-muted)', marginTop: 2, fontSize: '0.75rem' }}>
                             +{selectedMarker.sightings.length - 6} more
                           </div>
                         )}
@@ -1673,7 +1673,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   style={{
                     width: '100%', height: 32, padding: '0 10px 0 30px',
                     border: '1.5px solid var(--sr-border)', borderRadius: 6,
-                    fontSize: 13, fontFamily: 'inherit', color: 'var(--sr-text)',
+                    fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--sr-text)',
                     background: 'var(--sr-surface)', outline: 'none',
                   }}
                   onFocus={e => (e.currentTarget.style.borderColor = 'var(--sr-accent)')}
@@ -1693,7 +1693,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
                       background: commentSort === dir ? 'var(--sr-accent-bg)' : 'transparent',
                       color: commentSort === dir ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                      fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+                      fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
                     }}
                   >
                     {dir === 'newest' ? 'Newest' : 'Oldest'}
@@ -1701,14 +1701,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 ))}
               </div>
 
-              <span style={{ fontSize: 12, color: 'var(--sr-text-disabled)', fontWeight: 500, flexShrink: 0 }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', fontWeight: 500, flexShrink: 0 }}>
                 {allComments.length} {allComments.length === 1 ? 'comment' : 'comments'}
               </span>
             </div>
 
             {/* Comment rows */}
             {allComments.length === 0 ? (
-              <div style={{ padding: '16px 18px', fontSize: 13, color: 'var(--sr-text-muted)' }}>
+              <div style={{ padding: '16px 18px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
                 {commentFilter.trim()
                   ? 'No comments match this filter.'
                   : 'No species comments found.'}
@@ -1729,7 +1729,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                           href={`https://ebird.org/checklist/${o.submissionId}`}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ fontSize: 12, fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                          style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >
@@ -1737,12 +1737,12 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                           <ExternalLink size={10} strokeWidth={2.5} />
                         </a>
                       ) : (
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sr-text)' }}>{formatDate(o.date)}</span>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>{formatDate(o.date)}</span>
                       )}
-                      <span style={{ fontSize: 12, color: 'var(--sr-gray-300)' }}>·</span>
-                      <span style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{o.location}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--sr-gray-300)' }}>·</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{o.location}</span>
                     </div>
-                    <div style={{ fontSize: 13.5, color: 'var(--sr-text)', lineHeight: 1.55 }}>
+                    <div style={{ fontSize: '0.84375rem', color: 'var(--sr-text)', lineHeight: 1.55 }}>
                       {o.speciesComments}
                     </div>
                   </div>
@@ -1756,7 +1756,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       width: '100%', padding: '13px 18px',
                       border: 'none', borderTop: '1px solid var(--sr-border-subtle)',
                       background: 'var(--sr-surface-faint)',
-                      fontSize: 13, fontWeight: 500, color: 'var(--sr-accent)',
+                      fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-accent)',
                       fontFamily: 'inherit', cursor: 'pointer',
                     }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-accent-bg)')}
@@ -1782,7 +1782,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     return (
                       <div key={type} className="sr-media-item">
                         <div style={{
-                          fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
+                          fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase',
                           letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 8,
                         }}>
                           {type}

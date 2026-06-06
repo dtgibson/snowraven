@@ -7,7 +7,7 @@ import type { ReactNode } from 'react'
 
 const codeStyle = {
   fontFamily: 'ui-monospace, monospace',
-  fontSize: 12,
+  fontSize: '0.75rem',
   background: 'var(--sr-border)',
   padding: '1px 5px',
   borderRadius: 3,

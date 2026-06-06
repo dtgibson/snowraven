@@ -28,7 +28,7 @@ export function SpeciesPanel({ title, species, taxonMap = {}, hasEntry = false, 
         flexShrink: 0,
       }}>
         <span style={{
-          fontSize: 13,
+          fontSize: '0.8125rem',
           fontWeight: 600,
           color: 'var(--sr-text)',
           overflow: 'hidden',
@@ -43,7 +43,7 @@ export function SpeciesPanel({ title, species, taxonMap = {}, hasEntry = false, 
           padding: '2px 8px',
           background: 'var(--sr-accent-bg)',
           color: 'var(--sr-accent)',
-          fontSize: 11,
+          fontSize: '0.6875rem',
           fontWeight: 600,
           borderRadius: 20,
         }}>
@@ -62,7 +62,7 @@ export function SpeciesPanel({ title, species, taxonMap = {}, hasEntry = false, 
         aria-label={`${title} — ${species.length} species`}
       >
         {species.length === 0 ? (
-          <li style={{ padding: '32px 18px', fontSize: 13, color: 'var(--sr-text-muted)', textAlign: 'center' }}>
+          <li style={{ padding: '32px 18px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)', textAlign: 'center' }}>
             No species
           </li>
         ) : (
@@ -71,7 +71,7 @@ export function SpeciesPanel({ title, species, taxonMap = {}, hasEntry = false, 
               key={name}
               style={{
                 padding: '5px 18px',
-                fontSize: 13.5,
+                fontSize: '0.84375rem',
                 color: 'var(--sr-text)',
                 lineHeight: 1.45,
                 borderBottom: '1px solid var(--sr-border-subtle)',

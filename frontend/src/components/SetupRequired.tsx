@@ -29,14 +29,14 @@ export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequi
       </div>
 
       <div style={{
-        fontSize: 17, fontWeight: 600, letterSpacing: '-0.2px',
+        fontSize: '1.0625rem', fontWeight: 600, letterSpacing: '-0.2px',
         color: 'var(--sr-text)', marginBottom: 10,
       }}>
         {title}
       </div>
 
       <div style={{
-        fontSize: 14, color: 'var(--sr-text-muted)', maxWidth: 420,
+        fontSize: '0.875rem', color: 'var(--sr-text-muted)', maxWidth: 420,
         lineHeight: 1.6, marginBottom: 24,
       }}>
         {body}
@@ -52,7 +52,7 @@ export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequi
         marginBottom: 28,
       }}>
         <div style={{
-          fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const,
+          fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase' as const,
           letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 10,
         }}>
           How to set this up
@@ -60,14 +60,14 @@ export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequi
         {steps.map((step, i) => (
           <div key={i} style={{
             display: 'flex', gap: 10, alignItems: 'flex-start',
-            fontSize: 13, color: 'var(--sr-text)',
+            fontSize: '0.8125rem', color: 'var(--sr-text)',
             marginBottom: i < steps.length - 1 ? 7 : 0,
             lineHeight: 1.45,
           }}>
             <div style={{
               width: 18, height: 18, borderRadius: '50%',
               background: 'var(--sr-border)', color: 'var(--sr-text-muted)',
-              fontSize: 11, fontWeight: 700,
+              fontSize: '0.6875rem', fontWeight: 700,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0, marginTop: 1,
             }}>
@@ -85,7 +85,7 @@ export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequi
           padding: '8px 16px',
           background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
           border: 'none', borderRadius: 8,
-          fontSize: 13.5, fontWeight: 500, fontFamily: 'inherit',
+          fontSize: '0.84375rem', fontWeight: 500, fontFamily: 'inherit',
           cursor: 'pointer',
         }}
       >

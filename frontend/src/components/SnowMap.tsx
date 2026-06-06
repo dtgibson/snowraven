@@ -86,7 +86,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
     const placeholderStyle: React.CSSProperties = {
       ...style, display: 'flex', flexDirection: 'column', alignItems: 'center',
       justifyContent: 'center', gap: 10, padding: 16, textAlign: 'center',
-      background: VOID_COLOR.positron, color: 'var(--sr-text-muted)', fontSize: 13,
+      background: VOID_COLOR.positron, color: 'var(--sr-text-muted)', fontSize: '0.8125rem',
     }
     return (
       <div style={placeholderStyle} role={loadError ? 'alert' : 'status'}>

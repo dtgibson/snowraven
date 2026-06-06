@@ -4,6 +4,8 @@ import { transport, TransportError } from './lib/transport'
 import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
 import { copyText } from './lib/clipboard'
+import { readStoredScale, persistTextScale, applyScaleToDom, hydrateStoredScale } from './lib/textScale'
+import type { TextScale } from './lib/textScale'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
@@ -136,6 +138,9 @@ export default function App() {
   // not previously dismissed). welcomeDismissed hides it for the rest of the session.
   const [coldStart, setColdStart] = useState<boolean | null>(null)
   const [welcomeDismissed, setWelcomeDismissed] = useState(false)
+  // In-app Text Size (rem multiplier on the root). Initial value is read sync from
+  // localStorage (web flash-free); desktop hydrates the durable value after mount.
+  const [textScale, setTextScaleState] = useState<TextScale>(readStoredScale)
 
   const handleFilesSaved = useCallback(() => setFilesVersion(v => v + 1), [])
 
@@ -266,6 +271,26 @@ export default function App() {
     dismissWelcome()
     setActiveTab('settings')
   }, [dismissWelcome])
+
+  // Apply the saved text scale app-wide on load, regardless of the open tab. The
+  // index.html script covers web pre-paint; this also hydrates the durable value
+  // from the storage seam (desktop, where localStorage is wiped on relaunch).
+  useEffect(() => {
+    applyScaleToDom(textScale)
+    let cancelled = false
+    void hydrateStoredScale().then(v => {
+      if (cancelled || v === null) return
+      setTextScaleState(v)
+      applyScaleToDom(v)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleTextScale = useCallback((s: TextScale) => {
+    setTextScaleState(s)
+    persistTextScale(s)
+  }, [])
 
   // Mark a heavy tab as mounted the first time it becomes active (then it stays mounted).
   useEffect(() => {
@@ -401,11 +426,11 @@ export default function App() {
       <div className="sr-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Bird size={30} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
-          <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.6px' }}>
+          <span style={{ fontSize: '1.625rem', fontWeight: 700, letterSpacing: '-0.6px' }}>
             Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
           </span>
         </div>
-        <p style={{ fontSize: 14, color: 'var(--sr-text-muted)', marginBottom: 28 }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginBottom: 28 }}>
           Birding tools for your eBird workflow
         </p>
       </div>
@@ -436,13 +461,13 @@ export default function App() {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 padding: '10px 14px', background: 'var(--sr-warning-bg)',
                 border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
-                fontSize: 13, color: 'var(--sr-warning)',
+                fontSize: '0.8125rem', color: 'var(--sr-warning)',
               }}>
                 <span>eBird API key not configured — weather lookups require an eBird API key.</span>
                 <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
-                    background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600,
+                    background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 600,
                     color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
                   }}
                 >
@@ -455,13 +480,13 @@ export default function App() {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
                 padding: '10px 14px', background: 'var(--sr-warning-bg)',
                 border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
-                fontSize: 13, color: 'var(--sr-warning)',
+                fontSize: '0.8125rem', color: 'var(--sr-warning)',
               }}>
                 <span>OpenWeather API key not configured — weather lookups won't return conditions. If you don't use weather features, you can disable or move this tab in Settings.</span>
                 <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
-                    background: 'none', border: 'none', padding: 0, fontSize: 12, fontWeight: 600,
+                    background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 600,
                     color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
                   }}
                 >
@@ -483,7 +508,7 @@ export default function App() {
         }}>
           <label
             htmlFor="checklist-input"
-            style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8 }}
+            style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: 8 }}
           >
             eBird checklist ID or URL
           </label>
@@ -505,7 +530,7 @@ export default function App() {
                 padding: '0 14px',
                 border: `1.5px solid ${hasError ? 'var(--sr-error)' : 'var(--sr-border)'}`,
                 borderRadius: 8,
-                fontSize: 14,
+                fontSize: '0.875rem',
                 fontFamily: 'inherit',
                 color: 'inherit',
                 background: 'var(--sr-surface)',
@@ -522,7 +547,7 @@ export default function App() {
                 color: 'var(--sr-on-accent)',
                 border: 'none',
                 borderRadius: 8,
-                fontSize: 14,
+                fontSize: '0.875rem',
                 fontWeight: 500,
                 fontFamily: 'inherit',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -553,7 +578,7 @@ export default function App() {
                 padding: '9px 13px',
                 background: 'var(--sr-error-bg)',
                 borderRadius: 6,
-                fontSize: 13,
+                fontSize: '0.8125rem',
                 color: 'var(--sr-error)',
               }}
             >
@@ -567,7 +592,7 @@ export default function App() {
               <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
                 <span style={{
-                  fontSize: 12,
+                  fontSize: '0.75rem',
                   color: 'var(--sr-text-muted)',
                   fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
                   letterSpacing: '0.01em',
@@ -588,7 +613,7 @@ export default function App() {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 4,
-                      fontSize: 12,
+                      fontSize: '0.75rem',
                       fontWeight: 500,
                       color: 'var(--sr-accent)',
                       textDecoration: 'none',
@@ -605,7 +630,7 @@ export default function App() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{
-                  fontSize: 11,
+                  fontSize: '0.6875rem',
                   fontWeight: 600,
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase' as const,
@@ -623,7 +648,7 @@ export default function App() {
                     color: copied ? 'var(--sr-on-accent)' : 'var(--sr-accent)',
                     border: `1.5px solid ${copied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`,
                     borderRadius: 6,
-                    fontSize: 12,
+                    fontSize: '0.75rem',
                     fontWeight: 500,
                     fontFamily: 'inherit',
                     cursor: 'pointer',
@@ -646,7 +671,7 @@ export default function App() {
                   borderRadius: 8,
                   padding: '18px 20px',
                   fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
-                  fontSize: 13.5,
+                  fontSize: '0.84375rem',
                   lineHeight: 1.75,
                   color: 'inherit',
                   whiteSpace: 'pre',
@@ -799,6 +824,8 @@ export default function App() {
           onKeysSaved={fetchKeyStatus}
           onFilesSaved={handleFilesSaved}
           onOpenHelp={() => setHelpOpen(true)}
+          textScale={textScale}
+          onTextScaleChange={handleTextScale}
           tabOrder={tabLayout.order}
           tabHidden={tabLayout.hidden}
           onReorder={handleReorder}
@@ -809,7 +836,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <p role="contentinfo" style={{ textAlign: 'center', fontSize: 12, color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
+      <p role="contentinfo" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
         <a
           href="https://github.com/dtgibson/snowraven"
           target="_blank"

@@ -153,7 +153,7 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
       ) : (
         <div style={{ width: '100%', maxWidth: 600 }}>
           <h1 style={{
-            fontSize: 22,
+            fontSize: '1.375rem',
             fontWeight: 600,
             letterSpacing: '-0.4px',
             marginBottom: 6,
@@ -161,7 +161,7 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
           }}>
             Compare eBird life lists
           </h1>
-          <p style={{ fontSize: 14, color: 'var(--sr-text-muted)', lineHeight: 1.55, marginBottom: 28 }}>
+          <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', lineHeight: 1.55, marginBottom: 28 }}>
             {storedEbirdStatus === 'available'
               ? 'Use your saved eBird backup as your list, or upload two files to compare.'
               : 'Drop your eBird backup CSV files below to see which birds you share and which are unique to each list.'}
@@ -170,7 +170,7 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
           {storedEbirdStatus === 'available' && (
             <div style={{ marginBottom: 16 }}>
               <div style={{
-                fontSize: 11, fontWeight: 700, textTransform: 'uppercase' as const,
+                fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase' as const,
                 letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 8,
               }}>
                 List A
@@ -187,7 +187,7 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
                     onClick={() => setListAMode(mode)}
                     style={{
                       height: 32, padding: '0 14px',
-                      fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
+                      fontSize: '0.8125rem', fontWeight: 500, fontFamily: 'inherit',
                       cursor: 'pointer', border: 'none',
                       borderLeft: i > 0 ? '1.5px solid var(--sr-border)' : 'none',
                       background: listAMode === mode ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
@@ -219,14 +219,14 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
               }}>
                 <span style={{
                   position: 'absolute', top: 14, left: 18,
-                  fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const,
+                  fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase' as const,
                   letterSpacing: '0.08em', color: 'var(--sr-accent)',
                 }}>
                   List A
                 </span>
                 <FileCheck size={28} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-accent)' }}>My List</span>
-                <span style={{ fontSize: 12, color: 'var(--sr-accent-border-strong)' }}>Loaded from Settings</span>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-accent)' }}>My List</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--sr-accent-border-strong)' }}>Loaded from Settings</span>
               </div>
             ) : (
               <DropZone
@@ -245,7 +245,7 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
           </div>
 
           {errorA && listAMode === 'my-list' && (
-            <p style={{ fontSize: 12, color: 'var(--sr-error)', marginBottom: 12, margin: '0 0 12px' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 12, margin: '0 0 12px' }}>
               {errorA}
             </p>
           )}
@@ -261,7 +261,7 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
               color: 'var(--sr-on-accent)',
               border: 'none',
               borderRadius: 8,
-              fontSize: 14,
+              fontSize: '0.875rem',
               fontWeight: 500,
               fontFamily: 'inherit',
               cursor: canCompare ? 'pointer' : 'not-allowed',

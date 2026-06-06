@@ -27,7 +27,7 @@ function codePillStyle(tier: 1 | 2 | 3 | 4, active: boolean): React.CSSPropertie
     height: 30,
     padding: '0 12px',
     borderRadius: 6,
-    fontSize: 12,
+    fontSize: '0.75rem',
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
@@ -49,7 +49,7 @@ function categoryPillStyle(cat: BreedingCategory, active: boolean): React.CSSPro
   const base: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center',
     height: 30, padding: '0 12px', borderRadius: 6,
-    fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+    fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
     cursor: 'pointer', border: '1.5px solid transparent', background: 'none',
   }
   if (!active) return { ...base, borderColor: 'var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
@@ -72,7 +72,7 @@ function ghostBtn(active = false): React.CSSProperties {
     height: 28,
     padding: '0 10px',
     borderRadius: 6,
-    fontSize: 11,
+    fontSize: '0.6875rem',
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
@@ -193,7 +193,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
-          fontSize: 13, color: 'var(--sr-error)', maxWidth: 480,
+          fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480,
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           {phase.message}
@@ -203,7 +203,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           style={{
             height: 32, padding: '0 14px', borderRadius: 6,
             border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-            color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500,
+            color: 'var(--sr-text-muted)', fontSize: '0.75rem', fontWeight: 500,
             fontFamily: 'inherit', cursor: 'pointer',
           }}
         >
@@ -219,7 +219,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
   if (entries.length === 0 && !hasLocationFilter) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-        <span style={{ fontSize: 14, color: 'var(--sr-text-muted)' }}>No species with breeding codes found in the stored file.</span>
+        <span style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)' }}>No species with breeding codes found in the stored file.</span>
       </div>
     )
   }
@@ -271,7 +271,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             style={{
               display: 'inline-flex', alignItems: 'center',
               height: 30, padding: '0 12px', borderRadius: 6,
-              fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+              fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
               cursor: 'pointer',
               border: filter.size === 0 && categoryFilter.size === 0 ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
               background: filter.size === 0 && categoryFilter.size === 0 ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
@@ -342,7 +342,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                 borderRight: '1.5px solid var(--sr-accent-border)',
                 background: sort.nameSortMode === 'az' ? 'var(--sr-accent-bg)' : 'transparent',
                 color: sort.nameSortMode === 'az' ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
+                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
               }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'az' })}
             >
@@ -354,7 +354,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                 height: 30, padding: '0 13px', border: 'none',
                 background: sort.nameSortMode === 'taxonomic' ? 'var(--sr-accent-bg)' : 'transparent',
                 color: sort.nameSortMode === 'taxonomic' ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                fontSize: 12, fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
+                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' as const,
               }}
               onClick={() => setSort({ column: 'name', dir: 'asc', nameSortMode: 'taxonomic' })}
             >
@@ -382,7 +382,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                       : '1.5px solid var(--sr-border)',
                     background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                     color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                    fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                    fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                     cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
                     outline: 'none',
                   }}
@@ -393,7 +393,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                 <span style={{
                   position: 'absolute', right: 6, pointerEvents: 'none',
                   color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                  fontSize: 9,
+                  fontSize: '0.5625rem',
                 }}>▾</span>
               </div>
 
@@ -415,11 +415,11 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                         : '1.5px solid var(--sr-border)',
                       background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                       color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                      fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                      fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
                     }}
                   />
                 </div>
-                <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>→</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
                 <input
                   type="date"
                   value={dateRange.to}
@@ -431,7 +431,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                       : '1.5px solid var(--sr-border)',
                     background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                     color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                    fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                    fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
                   }}
                 />
               </div>
@@ -440,7 +440,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <span aria-live="polite" style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
+          <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
           <button tabIndex={0}
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}
@@ -456,14 +456,14 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '7px 12px', marginBottom: 8,
           background: 'var(--sr-accent-bg)', borderRadius: 6,
-          fontSize: 12, color: 'var(--sr-accent)', flexShrink: 0,
+          fontSize: '0.75rem', color: 'var(--sr-accent)', flexShrink: 0,
         }}>
           <span style={{ fontWeight: 500 }}>{filterStripText}</span>
           <button tabIndex={0}
             onClick={() => { setCountyFilter(null); setDateRange(DATE_RANGE_CLEAR) }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 12, color: 'var(--sr-accent)', fontFamily: 'inherit',
+              fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
               padding: 0, textDecoration: 'underline',
             }}
           >

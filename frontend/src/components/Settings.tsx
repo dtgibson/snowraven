@@ -3,6 +3,7 @@ import { BookOpen, Eye, EyeOff, FileCheck, FileQuestion, Lock } from 'lucide-rea
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
+import type { TextScale } from '../lib/textScale'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import { storage } from '../lib/storage'
 import { isTauri } from '../lib/platform'
@@ -82,7 +83,7 @@ function AppearanceRow() {
       border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
       background: active ? 'var(--sr-accent-bg)' : 'var(--sr-surface-subtle)',
       color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-      fontSize: 13,
+      fontSize: '0.8125rem',
       fontWeight: active ? 600 : 500,
       fontFamily: 'inherit',
       cursor: 'pointer',
@@ -94,7 +95,7 @@ function AppearanceRow() {
   return (
     <div>
       <div style={{ padding: '14px 16px' }}>
-        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sr-text)', marginBottom: 10 }}>
+        <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 10 }}>
           Color scheme
         </div>
         <div role="radiogroup" aria-label="Color theme" style={{ display: 'flex', gap: 6 }}>
@@ -121,7 +122,7 @@ function AppearanceRow() {
           borderRadius: 8,
         }}>
           <p style={{
-            fontSize: 13,
+            fontSize: '0.8125rem',
             color: 'var(--sr-text-muted)',
             margin: '0 0 10px',
             lineHeight: 1.55,
@@ -138,7 +139,7 @@ function AppearanceRow() {
                 color: 'var(--sr-accent)',
                 border: '1.5px solid var(--sr-accent-border)',
                 borderRadius: 6,
-                fontSize: 12,
+                fontSize: '0.75rem',
                 fontWeight: 500,
                 fontFamily: 'inherit',
                 cursor: 'pointer',
@@ -156,7 +157,7 @@ function AppearanceRow() {
                 color: 'var(--sr-text-muted)',
                 border: '1.5px solid var(--sr-border)',
                 borderRadius: 6,
-                fontSize: 12,
+                fontSize: '0.75rem',
                 fontWeight: 500,
                 fontFamily: 'inherit',
                 cursor: 'pointer',
@@ -206,19 +207,19 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sr-text)' }}>{label}</div>
+          <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)' }}>{label}</div>
           {info ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, minWidth: 0 }}>
               <span style={{
-                fontSize: 13, fontWeight: 500, color: 'var(--sr-text)',
+                fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)',
                 maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }} title={info.filename}>{info.filename}</span>
-              <span style={{ fontSize: 12, color: 'var(--sr-text-disabled)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', whiteSpace: 'nowrap' }}>
                 · Saved {formatUploadDate(info.uploadedAt)}
               </span>
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: 'var(--sr-text-disabled)', marginTop: 2 }}>{sublabel}</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-disabled)', marginTop: 2 }}>{sublabel}</div>
           )}
         </div>
 
@@ -228,7 +229,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
               display: 'inline-flex', alignItems: 'center',
               height: 24, padding: '0 10px',
               background: 'var(--sr-surface-subtle)', borderRadius: 12,
-              fontSize: 11, fontWeight: 500, color: 'var(--sr-text-disabled)',
+              fontSize: '0.6875rem', fontWeight: 500, color: 'var(--sr-text-disabled)',
             }}>
               No file saved
             </div>
@@ -242,7 +243,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
               border: info ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
               background: info ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
               color: info ? 'var(--sr-accent)' : 'var(--sr-text)',
-              borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+              borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
               cursor: uploading ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center',
               opacity: uploading ? 0.65 : 1,
@@ -260,7 +261,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
               border: info ? '1.5px solid var(--sr-error-border)' : '1.5px solid var(--sr-border)',
               background: info ? 'var(--sr-surface)' : 'var(--sr-surface-subtle)',
               color: info ? 'var(--sr-error)' : 'var(--sr-text-disabled)',
-              borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+              borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
               cursor: !info ? 'not-allowed' : 'pointer',
               whiteSpace: 'nowrap',
             }}
@@ -283,7 +284,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
           margin: '0 16px 10px',
           padding: '7px 11px',
           background: 'var(--sr-error-bg)', borderRadius: 6,
-          fontSize: 12, color: 'var(--sr-error)',
+          fontSize: '0.75rem', color: 'var(--sr-error)',
         }}>
           {error}
         </div>
@@ -330,13 +331,13 @@ function KeyRow({
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sr-text)' }}>{label}</div>
+          <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)' }}>{label}</div>
           {!editing && (
             isSet ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
                 <span style={{
                   fontFamily: 'monospace', letterSpacing: visible ? 'normal' : 2,
-                  fontSize: visible ? 12 : 13, color: 'var(--sr-text)',
+                  fontSize: visible ? '0.75rem' : '0.8125rem', color: 'var(--sr-text)',
                   maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {visible ? value : '••••••••••••••••'}
@@ -346,7 +347,7 @@ function KeyRow({
                   aria-label={visible ? 'Hide API key' : 'Show API key'}
                   style={{
                     background: 'none', border: 'none', padding: 0,
-                    fontSize: 12, fontWeight: 500, color: 'var(--sr-accent)',
+                    fontSize: '0.75rem', fontWeight: 500, color: 'var(--sr-accent)',
                     cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
                   }}
                 >
@@ -354,7 +355,7 @@ function KeyRow({
                 </button>
               </div>
             ) : (
-              <div style={{ fontSize: 13, color: 'var(--sr-text-disabled)', marginTop: 2 }}>{sublabel}</div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-disabled)', marginTop: 2 }}>{sublabel}</div>
             )
           )}
         </div>
@@ -366,7 +367,7 @@ function KeyRow({
                 display: 'inline-flex', alignItems: 'center',
                 height: 24, padding: '0 10px',
                 background: 'var(--sr-surface-subtle)', borderRadius: 12,
-                fontSize: 11, fontWeight: 500, color: 'var(--sr-text-disabled)',
+                fontSize: '0.6875rem', fontWeight: 500, color: 'var(--sr-text-disabled)',
               }}>
                 No key saved
               </div>
@@ -376,7 +377,7 @@ function KeyRow({
               style={{
                 height: 32, padding: '0 12px',
                 border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text)',
-                borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}
             >
@@ -390,7 +391,7 @@ function KeyRow({
                 border: isSet ? '1.5px solid var(--sr-error-border)' : '1.5px solid var(--sr-border)',
                 background: isSet ? 'var(--sr-surface)' : 'var(--sr-surface-subtle)',
                 color: isSet ? 'var(--sr-error)' : 'var(--sr-text-disabled)',
-                borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                 cursor: !isSet ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
               }}
             >
@@ -411,7 +412,7 @@ function KeyRow({
             style={{
               flex: 1, height: 32, padding: '0 10px',
               border: '1.5px solid var(--sr-border)', borderRadius: 6,
-              fontSize: 13, fontFamily: 'monospace', color: 'var(--sr-text)',
+              fontSize: '0.8125rem', fontFamily: 'monospace', color: 'var(--sr-text)',
               background: 'var(--sr-surface)',
               outline: 'none',
             }}
@@ -427,7 +428,7 @@ function KeyRow({
               border: '1.5px solid var(--sr-accent-border)',
               background: !input.trim() || saving ? 'var(--sr-surface-subtle)' : 'var(--sr-accent)',
               color: !input.trim() || saving ? 'var(--sr-text-disabled)' : 'var(--sr-on-accent)',
-              borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+              borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
               cursor: !input.trim() || saving ? 'not-allowed' : 'pointer',
               whiteSpace: 'nowrap', flexShrink: 0,
             }}
@@ -439,7 +440,7 @@ function KeyRow({
             style={{
               height: 32, padding: '0 12px',
               border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text)',
-              borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+              borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
               cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
             }}
           >
@@ -449,7 +450,7 @@ function KeyRow({
       )}
 
       {hint && (editing || !isSet) && (
-        <div style={{ margin: '0 16px 12px', fontSize: 12, color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+        <div style={{ margin: '0 16px 12px', fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
           {hint}
         </div>
       )}
@@ -459,11 +460,58 @@ function KeyRow({
           margin: '0 16px 10px',
           padding: '7px 11px',
           background: 'var(--sr-error-bg)', borderRadius: 6,
-          fontSize: 12, color: 'var(--sr-error)',
+          fontSize: '0.75rem', color: 'var(--sr-error)',
         }}>
           {error}
         </div>
       )}
+    </div>
+  )
+}
+
+// ---- Text size row ----
+
+const TEXT_SIZE_OPTIONS: { scale: TextScale; label: string }[] = [
+  { scale: 1, label: '100%' },
+  { scale: 1.25, label: '125%' },
+  { scale: 1.5, label: '150%' },
+  { scale: 2, label: '200%' },
+]
+
+function TextSizeRow({ value, onChange }: { value: TextScale; onChange: (s: TextScale) => void }) {
+  function btnStyle(s: TextScale): React.CSSProperties {
+    const active = value === s
+    return {
+      flex: 1, height: 34,
+      border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
+      background: active ? 'var(--sr-accent-bg)' : 'var(--sr-surface-subtle)',
+      color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+      fontSize: '0.8125rem', fontWeight: active ? 600 : 500, fontFamily: 'inherit',
+      cursor: 'pointer', borderRadius: 6, transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+    }
+  }
+  return (
+    <div style={{ padding: '14px 16px', borderTop: '1px solid var(--sr-border)' }}>
+      <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 4 }}>
+        Text size
+      </div>
+      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+        Scale text throughout the app (up to 200%). Also follows your device's text-size setting.
+      </p>
+      <div role="radiogroup" aria-label="Text size" style={{ display: 'flex', gap: 6 }}>
+        {TEXT_SIZE_OPTIONS.map(({ scale, label }) => (
+          <button tabIndex={0}
+            key={scale}
+            role="radio"
+            aria-checked={value === scale}
+            aria-label={`Text size ${label}`}
+            style={btnStyle(scale)}
+            onClick={() => onChange(scale)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -474,7 +522,7 @@ function SectionHeader({ label }: { label: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
       <span style={{
-        fontSize: 11, fontWeight: 600, textTransform: 'uppercase',
+        fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase',
         letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap',
       }}>
         {label}
@@ -555,7 +603,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
   return (
     <>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
           Tab Layout
         </span>
         <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
@@ -563,7 +611,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
 
       <p className="sr-only">Note: reordering tabs requires a mouse or touch device. Keyboard reordering is not supported in this version.</p>
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
-        <p style={{ padding: '11px 16px', fontSize: 12, color: 'var(--sr-text-muted)', lineHeight: 1.5, borderBottom: '1px solid var(--sr-border-subtle)' }}>
+        <p style={{ padding: '11px 16px', fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5, borderBottom: '1px solid var(--sr-border-subtle)' }}>
           Drag to reorder. Use the eye icon to show or hide individual tabs.
         </p>
 
@@ -595,13 +643,13 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                 </div>
 
                 {/* Tab name */}
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: hidden ? 'var(--sr-text-disabled)' : 'var(--sr-text)' }}>
+                <span style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: hidden ? 'var(--sr-text-disabled)' : 'var(--sr-text)' }}>
                   {TAB_LABELS[tab]}
                 </span>
 
                 {/* Hidden badge */}
                 {hidden && (
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--sr-text-disabled)', letterSpacing: '0.02em' }}>
+                  <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--sr-text-disabled)', letterSpacing: '0.02em' }}>
                     hidden
                   </span>
                 )}
@@ -639,8 +687,8 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
               <circle cx="5"  cy="12.5" r="1.1"/><circle cx="11" cy="12.5" r="1.1"/>
             </svg>
           </div>
-          <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--sr-text-muted)' }}>Settings</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--sr-text-disabled)' }}>
+          <span style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text-muted)' }}>Settings</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.6875rem', color: 'var(--sr-text-disabled)' }}>
             <Lock size={11} />
             always last
           </span>
@@ -656,7 +704,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
             background: 'var(--sr-surface-subtle)',
             color: showRestored ? 'var(--sr-accent)' : isDefault ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)',
             border: `1px solid ${showRestored ? 'var(--sr-accent-border)' : 'var(--sr-border)'}`,
-            borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+            borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
             cursor: isDefault ? 'not-allowed' : 'pointer',
             transition: 'color 0.15s, border-color 0.15s',
           }}
@@ -703,7 +751,7 @@ function RebuildCachesButton() {
         background: status === 'working' ? 'var(--sr-surface-subtle)' : 'var(--sr-surface)',
         color: status === 'working' ? 'var(--sr-text-disabled)' : 'var(--sr-text)',
         border: '1px solid var(--sr-border)', borderRadius: 6,
-        fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+        fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
         cursor: status === 'working' ? 'not-allowed' : 'pointer',
       }}
     >
@@ -716,6 +764,8 @@ interface SettingsProps {
   onKeysSaved?: () => void
   onFilesSaved?: () => void
   onOpenHelp: () => void
+  textScale: TextScale
+  onTextScaleChange: (scale: TextScale) => void
   tabOrder: ConfigurableTab[]
   tabHidden: Set<ConfigurableTab>
   onReorder: (newOrder: ConfigurableTab[]) => void
@@ -723,7 +773,7 @@ interface SettingsProps {
   onRestoreDefaults: () => void
 }
 
-export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
+export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onTextScaleChange, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
   const [status, setStatus] = useState<StoredFilesStatus>({ ebird: null, ml: null })
   const [keys, setKeys] = useState<ApiKeyStatus>({ ebird: null, openweather: null })
 
@@ -902,10 +952,10 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
           <BookOpen size={18} strokeWidth={1.75} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--sr-text)', marginBottom: 2 }}>
+          <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 2 }}>
             SnowRaven Documentation
           </div>
-          <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
             Setup guides, feature walkthroughs, and API key instructions. Available offline.
           </div>
         </div>
@@ -915,7 +965,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
             height: 34, padding: '0 16px', flexShrink: 0,
             background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
             border: 'none', borderRadius: 7,
-            fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+            fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'inherit',
             cursor: 'pointer', whiteSpace: 'nowrap',
           }}
         >
@@ -927,6 +977,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
 
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 24 }}>
         <AppearanceRow />
+        <TextSizeRow value={textScale} onChange={onTextScaleChange} />
       </div>
 
       <SectionHeader label="API Keys" />
@@ -973,7 +1024,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
         </div>
       </div>
 
-      <p style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
+      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
         {isTauri()
           ? 'Keys are stored in this app\'s local data directory and take effect immediately — no restart needed.'
           : 'Keys are stored in the server\'s .env file and take effect immediately — no restart needed. They stay configured across app restarts.'}
@@ -1004,14 +1055,14 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
         </div>
       </div>
 
-      <p style={{ fontSize: 12, color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
+      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
         {isTauri()
           ? 'Files are stored in this app\'s local data directory and load automatically when you open the relevant tab.'
           : 'Files are stored on this server and load automatically when you open the relevant tab.'}
       </p>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
           Default Location
         </span>
         <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
@@ -1019,42 +1070,42 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
 
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
         <div style={{ padding: '14px 16px' }}>
-          <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
             Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: 8, marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Latitude</div>
+              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Latitude</div>
               <input
                 type="number"
                 placeholder="e.g. 37.8275"
                 value={mapLat}
                 onChange={e => setMapLat(e.target.value)}
-                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
               />
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Longitude</div>
+              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Longitude</div>
               <input
                 type="number"
                 placeholder="e.g. -122.4238"
                 value={mapLng}
                 onChange={e => setMapLng(e.target.value)}
-                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
               />
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Radius (mi)</div>
+              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Radius (mi)</div>
               <input
                 type="number"
                 placeholder="5"
                 value={mapDist}
                 onChange={e => setMapDist(e.target.value)}
-                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
               />
@@ -1069,7 +1120,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
                 background: mapDefaultsStatus === 'saving' ? 'var(--sr-surface-subtle)' : 'var(--sr-accent)',
                 color: mapDefaultsStatus === 'saving' ? 'var(--sr-text-disabled)' : 'var(--sr-on-accent)',
                 border: 'none', borderRadius: 6,
-                fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                 cursor: mapDefaultsStatus === 'saving' ? 'not-allowed' : 'pointer',
               }}
             >
@@ -1083,17 +1134,17 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
                 background: 'var(--sr-surface-subtle)',
                 color: mapDefaultsHasSaved ? 'var(--sr-text)' : 'var(--sr-text-disabled)',
                 border: '1px solid var(--sr-border)', borderRadius: 6,
-                fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                 cursor: mapDefaultsHasSaved ? 'pointer' : 'not-allowed',
               }}
             >
               Clear
             </button>
             {mapDefaultsStatus === 'saved' && (
-              <span style={{ fontSize: 12, color: 'var(--sr-accent)', fontWeight: 500 }}>✓ Saved</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', fontWeight: 500 }}>✓ Saved</span>
             )}
             {mapDefaultsStatus === 'error' && (
-              <span style={{ fontSize: 12, color: 'var(--sr-error)' }}>Check your values and try again.</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--sr-error)' }}>Check your values and try again.</span>
             )}
           </div>
         </div>
@@ -1112,14 +1163,14 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, tabOrder, tabH
       {isTauri() && (
         <div style={{ marginTop: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
               Troubleshooting
             </span>
             <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
           </div>
           <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px' }}>
-              <p style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
                 If the map or species lookups stop working, rebuilding the app's local caches usually fixes it. The app will restart.
               </p>
               <RebuildCachesButton />

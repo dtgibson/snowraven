@@ -22,6 +22,10 @@
         } catch (e) {
           document.documentElement.setAttribute('data-theme', 'light');
         }
+        try {
+          var ts = localStorage.getItem('sr-text-scale');
+          if (ts) document.documentElement.style.setProperty('--sr-text-scale', ts);
+        } catch (e) {}
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>

@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.13] - 2026-06-05
+
+### Added
+- **Text size control** — a new setting (Settings → Appearance) scales all of the app's text from 100% up to **200%**, meeting the WCAG 2.1 "Resize Text" accessibility standard. It's especially handy in the desktop app, which has no browser zoom of its own, and your choice is remembered across sessions. SnowRaven's text now also follows your browser's or device's own default text-size setting automatically.
+
+### Improved
+- At very large text sizes, the Statistics tab's headline figures (Life List Totals, Effort totals, Key Metrics) now reflow into roomier columns instead of crowding together.
+
 ## [0.5.12] - 2026-06-05
 
 A quality, accessibility, and performance release — a sturdier, tested base with

@@ -18,7 +18,7 @@ export function ToggleSwitch({ label, checked, onChange }: ToggleSwitchProps) {
         display: 'inline-flex', alignItems: 'center', gap: 7,
         height: 30, padding: '0 10px 0 8px', borderRadius: 6,
         border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-        cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 500,
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 500,
         color: 'var(--sr-text-muted)',
       }}
     >

@@ -71,7 +71,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
   function sortIndicator(col: string) {
     if (sort.column !== col) return null
     return (
-      <span style={{ fontSize: 10, color: 'var(--sr-accent)', marginLeft: 2 }}>
+      <span style={{ fontSize: '0.625rem', color: 'var(--sr-accent)', marginLeft: 2 }}>
         {sort.dir === 'asc' ? '↑' : '↓'}
       </span>
     )
@@ -86,7 +86,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
   }
 
   const thBase: React.CSSProperties = {
-    fontSize: 11,
+    fontSize: '0.6875rem',
     fontWeight: 600,
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
@@ -217,7 +217,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                               borderRadius: '50%',
                               background: TIER_COLORS[def.tier],
                               color: def.tier === 1 ? 'var(--sr-tier-1-text)' : '#fff',
-                              fontSize: 11,
+                              fontSize: '0.6875rem',
                               fontWeight: 700,
                               letterSpacing: '-0.3px',
                               display: 'inline-flex',
@@ -254,7 +254,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
               width: 18, height: 18, borderRadius: '50%',
               background: TIER_COLORS[tier], flexShrink: 0,
             }} />
-            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>
               {TIER_LABELS[tier]}: {tierGroups.get(tier)!.join(' ')}
             </span>
           </div>

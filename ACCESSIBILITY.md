@@ -32,9 +32,11 @@ Color is never the only way information is conveyed. The current leader on a map
 
 ---
 
-## Resizing and Zoom
+## Text Size and Zoom
 
-SnowRaven is a responsive web app. It reflows for narrow windows and mobile browsers — including collapsing the tab bar into a dropdown — and it works with browser/page zoom (Ctrl/Cmd +/−) without clipping content or breaking the layout. Note that the interface is currently sized in fixed pixels, so a browser's *minimum font size* or operating-system *text-size* preference does not enlarge it on its own — use page zoom to scale the whole interface. A dedicated in-app text-size control is on the roadmap.
+SnowRaven's text is sized in relative units, so it **honors your browser's or operating system's default text size** automatically. On top of that, a built-in **Text Size** control (Settings → Appearance) scales all text from 100% up to **200%** — meeting WCAG 2.1 SC 1.4.4 (Resize Text), and especially useful in the desktop app, which has no browser zoom of its own. Your choice is remembered across sessions.
+
+Browser/page zoom (Ctrl/Cmd +/−) works too. The layout reflows for narrow windows and at large sizes — including collapsing the tab bar into a dropdown — without clipping content. At the largest sizes, wide data tables and the maps may scroll horizontally; this is expected and permitted by WCAG 2.1 SC 1.4.10 (Reflow), which exempts tables and maps.
 
 ---
 

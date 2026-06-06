@@ -4,6 +4,36 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## In-app text size via px→rem (v0.5.13) — 2026-06-05
+
+**What:** App-wide Text Size control (Settings → Appearance, 100/125/150/200%) +
+automatic respect for the browser/OS default text size. Plan: `pipeline/text-size/plan.md`.
+
+**Mechanism:** `html { font-size: calc(100% * var(--sr-text-scale, 1)) }` — `100%`
+inherits the platform default (system-respect), the var is the in-app multiplier; ALL
+font sizes converted px→rem so they scale with both. Persisted via localStorage (web
+anti-flash, in index.html) + the storage seam (desktop-durable); applied app-wide on
+load in `App` (`lib/textScale.ts`).
+
+**Why px→rem, not CSS `zoom`:** there is no JS API to read the OS text size — the
+platform delivers it only through the root font size, which requires relative units.
+So px→rem is the only path that (a) honors system text size and (b) sets up the future
+**mobile** app to honor iOS Dynamic Type / Android font scale. CSS `zoom` was rejected:
+manual-only (ignores system size) and it offsets MapLibre pointer coordinates. rem is
+text-only, so maps are unaffected.
+
+**Scope/standard:** levels reach **200%** to meet **WCAG 2.1 SC 1.4.4 (Resize Text)**.
+Conversion: a reviewed codemod did 469 literal inline `fontSize` values; 5 computed +
+9 CSS values by hand. Overflow audit (SC 1.4.12) at 200% found only the Statistics
+number grids crowding — fixed by switching those grid track minimums from px to rem
+(`minmax(120px…)` → `minmax(7.5rem…)`, etc.). Wide tables + maps may scroll at 200%,
+permitted by SC 1.4.10's exemption.
+
+**Still deferred:** keyboard-operable map markers (MapLibre markers aren't natively
+focusable; sidebar lists are the fallback).
+
+---
+
 ## Tier 3 foundation pass (v0.5.12) — 2026-06-05
 
 **What:** First pass at the Tier 3 backlog (`pipeline/comprehensive-review/audit.md`),

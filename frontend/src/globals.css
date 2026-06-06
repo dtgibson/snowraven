@@ -3,6 +3,10 @@
 /* ── SnowRaven design tokens ───────────────────────────────────────────── */
 
 :root {
+  /* Text scaling — multiplier on the root font-size. The in-app Text Size control
+     and the user's system/browser default both feed text sizing (all text is in rem). */
+  --sr-text-scale: 1;
+
   /* Structural */
   --sr-bg: #F9FAFB;
   --sr-surface: #FFFFFF;
@@ -204,7 +208,7 @@
   padding: 4px 10px;
   border: none;
   border-radius: 5px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -223,7 +227,7 @@
   align-items: center;
   gap: 6px;
   padding: 0 2px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--sr-text);
   cursor: pointer;
 }
@@ -259,12 +263,12 @@
 .sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; outline: none; }
 .sr-birdname-text { font-weight: 500; color: var(--sr-text); }
 .sr-birdname-sci { font-style: italic; color: var(--sr-text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sr-birdname-md .sr-birdname-link, .sr-birdname-md .sr-birdname-text { font-size: 13.5px; }
-.sr-birdname-md .sr-birdname-sci { font-size: 11.5px; }
-.sr-birdname-sm .sr-birdname-link, .sr-birdname-sm .sr-birdname-text { font-size: 12.5px; }
-.sr-birdname-sm .sr-birdname-sci { font-size: 11px; }
-.sr-birdname-lg .sr-birdname-link, .sr-birdname-lg .sr-birdname-text { font-size: 15px; font-weight: 700; }
-.sr-birdname-lg .sr-birdname-sci { font-size: 12px; }
+.sr-birdname-md .sr-birdname-link, .sr-birdname-md .sr-birdname-text { font-size: 0.84375rem; }
+.sr-birdname-md .sr-birdname-sci { font-size: 0.71875rem; }
+.sr-birdname-sm .sr-birdname-link, .sr-birdname-sm .sr-birdname-text { font-size: 0.78125rem; }
+.sr-birdname-sm .sr-birdname-sci { font-size: 0.6875rem; }
+.sr-birdname-lg .sr-birdname-link, .sr-birdname-lg .sr-birdname-text { font-size: 0.9375rem; font-weight: 700; }
+.sr-birdname-lg .sr-birdname-sci { font-size: 0.75rem; }
 
 /* ── shadcn/ui tokens ───────────────────────────────────────────────────── */
 
@@ -326,11 +330,14 @@
 
 html {
   background-color: var(--sr-bg);
+  /* 100% = the browser/OS default text size (respected automatically); the in-app
+     multiplier scales on top of it. 1rem therefore tracks both inputs. */
+  font-size: calc(100% * var(--sr-text-scale, 1));
 }
 
 body {
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.5;
   background-color: var(--sr-bg);
   -webkit-font-smoothing: antialiased;
@@ -407,7 +414,7 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--sr-on-accent);
   border: none;
   border-radius: 24px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;

@@ -95,7 +95,7 @@ function pillStyle(active: 'none' | 'positive' | 'negative'): React.CSSPropertie
     height: 30,
     padding: '0 12px',
     borderRadius: 6,
-    fontSize: 12,
+    fontSize: '0.75rem',
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
@@ -111,7 +111,7 @@ function ghostBtn(active = false): React.CSSProperties {
     height: 28,
     padding: '0 10px',
     borderRadius: 6,
-    fontSize: 11,
+    fontSize: '0.6875rem',
     fontWeight: 500,
     fontFamily: 'inherit',
     cursor: 'pointer',
@@ -367,7 +367,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-error-bg)', borderRadius: 8,
-          fontSize: 13, color: 'var(--sr-error)', maxWidth: 480,
+          fontSize: '0.8125rem', color: 'var(--sr-error)', maxWidth: 480,
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           {phase.message}
@@ -377,7 +377,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           style={{
             height: 32, padding: '0 14px', borderRadius: 6,
             border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-            color: 'var(--sr-text-muted)', fontSize: 12, fontWeight: 500,
+            color: 'var(--sr-text-muted)', fontSize: '0.75rem', fontWeight: 500,
             fontFamily: 'inherit', cursor: 'pointer',
           }}
         >
@@ -451,7 +451,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
       border: 'none',
       background: active ? 'var(--sr-accent-bg)' : 'transparent',
       color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-      fontSize: 12,
+      fontSize: '0.75rem',
       fontWeight: 500,
       fontFamily: 'inherit',
       cursor: 'pointer',
@@ -466,7 +466,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '9px 13px', background: 'var(--sr-warning-bg)',
           border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
-          fontSize: 13, color: 'var(--sr-warning)', marginBottom: 12, flexShrink: 0,
+          fontSize: '0.8125rem', color: 'var(--sr-warning)', marginBottom: 12, flexShrink: 0,
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           Media links could not be personalised — the CSV filename was not in the default Macaulay Library format. Links will open the general catalog search instead.
@@ -563,7 +563,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
           {/* County dropdown */}
           {countyResolution === 'resolving' ? (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 26, padding: '0 10px', borderRadius: 5, border: '1.5px dashed var(--sr-border)', background: 'var(--sr-surface-subtle)', color: 'var(--sr-text-disabled)', fontSize: 12 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 26, padding: '0 10px', borderRadius: 5, border: '1.5px dashed var(--sr-border)', background: 'var(--sr-surface-subtle)', color: 'var(--sr-text-disabled)', fontSize: '0.75rem' }}>
               <Loader2 size={11} strokeWidth={2} className="spin" />
               Resolving counties…
             </div>
@@ -583,14 +583,14 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
                     : '1.5px solid var(--sr-border)',
                   background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                   color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-                  fontSize: 12, fontWeight: 500, fontFamily: 'inherit',
+                  fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                   cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', outline: 'none',
                 }}
               >
                 <option value="">All Counties</option>
                 {availableCounties.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
-              <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: 9 }}>▾</span>
+              <span style={{ position: 'absolute', right: 6, pointerEvents: 'none', color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: '0.5625rem' }}>▾</span>
             </div>
           )}
 
@@ -610,11 +610,11 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
                   border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                   background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                   color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                  fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                  fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
                 }}
               />
             </div>
-            <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>→</span>
+            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
             <input
               type="date"
               value={dateRange.to}
@@ -624,7 +624,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
                 border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                 background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                 color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                fontSize: 12, fontFamily: 'inherit', outline: 'none',
+                fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
               }}
             />
           </div>
@@ -632,7 +632,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
         {/* Right controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <span aria-live="polite" style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>{countLabel}</span>
+          <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
           <button tabIndex={0}
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}
@@ -648,14 +648,14 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '7px 12px', marginBottom: 8,
           background: 'var(--sr-accent-bg)', borderRadius: 6,
-          fontSize: 12, color: 'var(--sr-accent)', flexShrink: 0,
+          fontSize: '0.75rem', color: 'var(--sr-accent)', flexShrink: 0,
         }}>
           <span style={{ fontWeight: 500 }}>{filterStripText}</span>
           <button tabIndex={0}
             onClick={() => { setCountyFilter(null); setDateRange(DATE_RANGE_CLEAR) }}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              fontSize: 12, color: 'var(--sr-accent)', fontFamily: 'inherit',
+              fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
               padding: 0, textDecoration: 'underline',
             }}
           >

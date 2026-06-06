@@ -38,15 +38,15 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
       <div style={{ maxWidth: 540, width: '100%', textAlign: 'center' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
           <Bird size={34} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
-          <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-0.6px' }}>
+          <span style={{ fontSize: '1.875rem', fontWeight: 700, letterSpacing: '-0.6px' }}>
             Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
           </span>
         </div>
 
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: '14px 0 8px', letterSpacing: '-0.2px' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '14px 0 8px', letterSpacing: '-0.2px' }}>
           Welcome — let's get you set up
         </h1>
-        <p style={{ fontSize: 14, color: 'var(--sr-text-muted)', lineHeight: 1.6, margin: '0 0 24px' }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', lineHeight: 1.6, margin: '0 0 24px' }}>
           SnowRaven turns your own eBird and Macaulay Library exports into a personal birding
           dashboard — all on your device, nothing collected. Two quick things unlock everything:
         </p>
@@ -61,8 +61,8 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
               <KeyRound size={17} strokeWidth={2} />
             </div>
             <div>
-              <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>Add your free API keys</div>
-              <div style={{ fontSize: 12.5, color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '0.84375rem', fontWeight: 600, marginBottom: 2 }}>Add your free API keys</div>
+              <div style={{ fontSize: '0.78125rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
                 An eBird key powers most features; an OpenWeather key adds checklist weather. Settings has links + steps for both.
               </div>
             </div>
@@ -72,8 +72,8 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
               <FileUp size={17} strokeWidth={2} />
             </div>
             <div>
-              <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 2 }}>Upload your data files</div>
-              <div style={{ fontSize: 12.5, color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '0.84375rem', fontWeight: 600, marginBottom: 2 }}>Upload your data files</div>
+              <div style={{ fontSize: '0.78125rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
                 Your eBird backup unlocks the analytics tabs; an optional Macaulay Library export adds media coverage.
               </div>
             </div>
@@ -87,7 +87,7 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px',
               background: 'var(--sr-accent)', color: 'var(--sr-on-accent)', border: 'none',
-              borderRadius: 9, fontSize: 14.5, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
+              borderRadius: 9, fontSize: '0.90625rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer',
             }}
           >
             <SettingsIcon size={16} strokeWidth={2} />
@@ -101,7 +101,7 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none',
                 padding: 4, color: 'var(--sr-accent)', cursor: 'pointer', fontFamily: 'inherit',
-                fontSize: 13, fontWeight: 500,
+                fontSize: '0.8125rem', fontWeight: 500,
               }}
             >
               <BookOpen size={14} strokeWidth={2} />
@@ -111,7 +111,7 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
               onClick={onDismiss}
               style={{
                 background: 'none', border: 'none', padding: 4, color: 'var(--sr-text-muted)',
-                cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
+                cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8125rem',
               }}
             >
               Explore the app first

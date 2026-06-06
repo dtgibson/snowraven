@@ -134,11 +134,11 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
             ) : (
               <div style={{ fontWeight: 600 }}>{sel.name}</div>
             )}
-            <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 2 }}>California Breeding Bird Atlas block</div>
+            <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>California Breeding Bird Atlas block</div>
             {sb && (
               <>
-                <div style={{ fontSize: 12, marginTop: 4 }}><strong>Highest breeding code:</strong> {sb.label} ({sb.code})</div>
-                <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 2 }}>
+                <div style={{ fontSize: '0.75rem', marginTop: 4 }}><strong>Highest breeding code:</strong> {sb.label} ({sb.code})</div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>
                   {sb.count} of your breeding record{sb.count === 1 ? '' : 's'} (any level) in this block
                 </div>
               </>

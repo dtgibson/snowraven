@@ -146,14 +146,14 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
   function sortIndicator(column: SortColumn) {
     if (sort.column !== column) return null
     return (
-      <span style={{ fontSize: 10, color: 'var(--sr-accent)', marginLeft: 2 }}>
+      <span style={{ fontSize: '0.625rem', color: 'var(--sr-accent)', marginLeft: 2 }}>
         {sort.dir === 'asc' ? '↑' : '↓'}
       </span>
     )
   }
 
   const thBase: React.CSSProperties = {
-    fontSize: 11,
+    fontSize: '0.6875rem',
     fontWeight: 600,
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
@@ -162,7 +162,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
   }
 
   const countLinkStyle: React.CSSProperties = {
-    fontSize: 13,
+    fontSize: '0.8125rem',
     fontWeight: 600,
     color: 'var(--sr-accent)',
     textDecoration: 'none',
@@ -322,7 +322,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           target="_blank"
                           rel="noreferrer"
                           title="All media on Macaulay Library"
-                          style={{ fontSize: 13, fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', textDecoration: 'none' }}
+                          style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', textDecoration: 'none' }}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{totalCount}</a>

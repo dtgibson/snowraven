@@ -273,6 +273,8 @@ The Settings tab is where you configure everything SnowRaven needs to function.
 
 Set your color scheme: System (follows your operating system preference), Light, or Dark. Selecting Light or Dark shows a prompt to save your preference. Selecting System removes any saved preference.
 
+**Text size.** Scale the app's text from 100% up to 200% (100% / 125% / 150% / 200%). This is in addition to your browser or device's own text-size setting, which SnowRaven already follows — handy in the desktop app, which has no separate browser zoom. Your choice is remembered across sessions. At the largest sizes, wide tables and the maps may scroll sideways, which is expected.
+
 ### API Keys
 
 Enter and manage your eBird and OpenWeather API keys. Keys are saved securely -- in the desktop app, they are stored in the app's local data directory; in web/Pi mode, they are saved to the server's .env file. Changes take effect immediately without a restart. Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.

@@ -223,7 +223,7 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSearch() }}
-          style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }}
+          style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }}
         />
         <button tabIndex={0}
           onClick={handleSearch}
@@ -240,7 +240,7 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
           <Search size={14} strokeWidth={2} />
         </button>
       </div>
-      {error && <div style={{ fontSize: 11, color: 'var(--sr-error)', marginTop: 4 }}>{error}</div>}
+      {error && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginTop: 4 }}>{error}</div>}
     </div>
   )
 }
@@ -303,17 +303,17 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
       {selLoc && (
         <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => setSel(null)} closeButton={false} maxWidth="260px">
           <div style={{ minWidth: 190 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>{selLoc.locName}</div>
-            <div style={{ fontSize: 12, color: 'var(--sr-accent)', marginBottom: 3 }}>
+            <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 6 }}>{selLoc.locName}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>
               {selLoc.count.toLocaleString()} observation{selLoc.count !== 1 ? 's' : ''}
             </div>
-            <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 10 }}>Last: {fmtDate(selLoc.lastDate)}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 5 }}>Species seen here</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 10 }}>Last: {fmtDate(selLoc.lastDate)}</div>
+            <div style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 5 }}>Species seen here</div>
             {[...selLoc.species].slice(0, 5).map(s => (
-              <div key={s} style={{ fontSize: 12, color: 'var(--sr-text)', marginBottom: 2 }}>{s}</div>
+              <div key={s} style={{ fontSize: '0.75rem', color: 'var(--sr-text)', marginBottom: 2 }}>{s}</div>
             ))}
             {selLoc.species.size > 5 && (
-              <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginTop: 2 }}>+{selLoc.species.size - 5} more species</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>+{selLoc.species.size - 5} more species</div>
             )}
           </div>
         </Popup>
@@ -353,22 +353,22 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
       {selPin && (
         <Popup longitude={selPin.lng} latitude={selPin.lat} anchor="bottom" offset={42} onClose={() => setSel(null)} closeButton={false} maxWidth="260px">
           <div style={{ minWidth: 190 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>{selPin.locName}</div>
+            <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 8 }}>{selPin.locName}</div>
             {selPin.kind === 'visited' && (
               <>
-                <div style={{ fontSize: 12, color: 'var(--sr-accent)', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>
-                <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 8 }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
-                <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
+                <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
+                <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
               </>
             )}
             {selPin.kind === 'unvisited' && (
-              <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
+              <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
             )}
             {selPin.kind === 'personal' && (
               <>
-                <div style={{ display: 'inline-block', background: 'var(--sr-is-target-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-map-personal)', borderRadius: 4, padding: '2px 6px', fontSize: 11, fontWeight: 600, marginBottom: 8 }}>Personal Location</div>
-                <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginBottom: 3 }}>{selPin.obsCount} observation{selPin.obsCount !== 1 ? 's' : ''}</div>
-                <div style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
+                <div style={{ display: 'inline-block', background: 'var(--sr-is-target-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-map-personal)', borderRadius: 4, padding: '2px 6px', fontSize: '0.6875rem', fontWeight: 600, marginBottom: 8 }}>Personal Location</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 3 }}>{selPin.obsCount} observation{selPin.obsCount !== 1 ? 's' : ''}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
               </>
             )}
           </div>
@@ -432,7 +432,7 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
           <Marker key={`${rep.locId}-${i}`} longitude={rep.lng} latitude={rep.lat} anchor="left"
             onClick={e => { e.originalEvent.stopPropagation(); setSel(i) }}>
             <div
-              style={{ display: 'inline-flex', alignItems: 'center', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer' }}
               dangerouslySetInnerHTML={{ __html: labelHtml }}
             />
           </Marker>
@@ -441,7 +441,7 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
       {selGroup && selRep && (
         <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => setSel(null)} closeButton={false} maxWidth="280px">
               <div style={{ minWidth: 200, maxWidth: 260 }}>
-                <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
                 {selGroup.map((pin, j) => {
                   const pinTier = recencyTier(pin.recentDate)
                   const { bg: pinBg, text: pinText } = tierColors(pinTier)
@@ -452,7 +452,7 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>
                         <BirdName commonName={pin.comName} taxonCode={speciesCodeMap[pin.comName]} hasEntry={hasEntryFor(pin.comName)} onOpenSpecies={onOpenSpecies} size="sm" />
                         {pin.missingTypes.map(t => (
-                          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 4px', background: 'var(--sr-surface-subtle)', borderRadius: 4, fontSize: 10, color: 'var(--sr-text-muted)', gap: 2 }}>
+                          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 4px', background: 'var(--sr-surface-subtle)', borderRadius: 4, fontSize: '0.625rem', color: 'var(--sr-text-muted)', gap: 2 }}>
                             {t === 'Photo' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>}
                             {t === 'Audio' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>}
                             {t === 'Video' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>}
@@ -460,11 +460,11 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
                         ))}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: validSubId ? 4 : 0 }}>
-                        <span style={{ display: 'inline-block', background: pinBg, color: pinText, padding: '1px 6px', borderRadius: 6, fontSize: 10, fontWeight: 600 }}>{tierLabel}</span>
-                        <span style={{ fontSize: 10, color: 'var(--sr-text-muted)' }}>{fmtDate(pin.recentDate)}</span>
+                        <span style={{ display: 'inline-block', background: pinBg, color: pinText, padding: '1px 6px', borderRadius: 6, fontSize: '0.625rem', fontWeight: 600 }}>{tierLabel}</span>
+                        <span style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)' }}>{fmtDate(pin.recentDate)}</span>
                       </div>
                       {validSubId && (
-                        <a href={`https://ebird.org/checklist/${pin.subId}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>
+                        <a href={`https://ebird.org/checklist/${pin.subId}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.6875rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>
                           View checklist {pin.subId} →
                         </a>
                       )}
@@ -495,7 +495,7 @@ function SegControl({ options, value, onChange }: {
             flex: 1, height: 28, padding: '0 4px',
             background: value === opt.value ? 'var(--sr-surface)' : 'transparent',
             border: `1px solid ${value === opt.value ? 'var(--sr-border)' : 'transparent'}`,
-            borderRadius: 5, fontSize: 11.5,
+            borderRadius: 5, fontSize: '0.71875rem',
             fontWeight: value === opt.value ? 600 : 400,
             color: value === opt.value ? 'var(--sr-text)' : 'var(--sr-text-muted)',
             cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
@@ -511,7 +511,7 @@ function SegControl({ options, value, onChange }: {
 const SELECT_STYLE: React.CSSProperties = {
   width: '100%', height: 34, padding: '0 28px 0 10px',
   border: '1.5px solid var(--sr-border)', borderRadius: 6,
-  fontSize: 13, fontFamily: 'inherit', color: 'var(--sr-text)',
+  fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--sr-text)',
   background: `var(--sr-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center`,
   appearance: 'none', WebkitAppearance: 'none',
   outline: 'none', cursor: 'pointer', boxSizing: 'border-box',
@@ -520,7 +520,7 @@ const SELECT_STYLE: React.CSSProperties = {
 function SidebarLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+      fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase',
       letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 6,
     }}>
       {children}
@@ -534,7 +534,7 @@ function KeyNotice({ onGoToSettings }: { onGoToSettings: () => void }) {
       display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10,
       padding: '10px 12px', background: 'var(--sr-warning-bg)',
       border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
-      fontSize: 12, color: 'var(--sr-warning)', marginBottom: 14,
+      fontSize: '0.75rem', color: 'var(--sr-warning)', marginBottom: 14,
     }}>
       <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start' }}>
         <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -543,7 +543,7 @@ function KeyNotice({ onGoToSettings }: { onGoToSettings: () => void }) {
       <button tabIndex={0}
         onClick={onGoToSettings}
         style={{
-          background: 'none', border: 'none', padding: 0, fontSize: 11, fontWeight: 600,
+          background: 'none', border: 'none', padding: 0, fontSize: '0.6875rem', fontWeight: 600,
           color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit',
           whiteSpace: 'nowrap', flexShrink: 0,
         }}
@@ -1118,7 +1118,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           width: '100%', height: 34, padding: '0 12px',
           background: isLocating ? 'var(--sr-surface-subtle)' : 'none',
           border: '1.5px solid var(--sr-border)',
-          borderRadius: 6, fontSize: 12.5, fontWeight: 500,
+          borderRadius: 6, fontSize: '0.78125rem', fontWeight: 500,
           fontFamily: 'inherit',
           color: isLocating ? 'var(--sr-text-muted)' : 'var(--sr-text)',
           cursor: isLocating ? 'default' : 'pointer',
@@ -1131,12 +1131,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         }
         {isLocating ? 'Locating…' : 'Use my location'}
       </button>
-      {geoError && <div style={{ fontSize: 11, color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
+      {geoError && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
       <div style={{ display: 'flex', gap: 6 }}>
         <input type="number" placeholder="Latitude" value={lat} onChange={e => { setLat(e.target.value); setDetectedLocation(null) }}
-          style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
+          style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
         <input type="number" placeholder="Longitude" value={lng} onChange={e => { setLng(e.target.value); setDetectedLocation(null) }}
-          style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
+          style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
       </div>
     </div>
   )
@@ -1161,7 +1161,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
       <SidebarLabel>Map Overlays</SidebarLabel>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>California atlas blocks</span>
+        <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>California atlas blocks</span>
         <button
           type="button"
           role="switch"
@@ -1181,7 +1181,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           }} />
         </button>
       </div>
-      <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+      <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
         {atlasLoading
           ? 'Loading atlas blocks…'
           : 'California Breeding Bird Atlas blocks. Shown for the current map area.'}
@@ -1193,7 +1193,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         return (
           <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: backupReady ? 1 : 0.55 }}>
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Shade by My Highest Breeding Code</span>
+              <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Shade by My Highest Breeding Code</span>
               <button
                 type="button"
                 role="switch"
@@ -1214,7 +1214,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 }} />
               </button>
             </div>
-            <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+            <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
               {backupReady
                 ? "Based only on breeding codes you've personally entered."
                 : 'Load your eBird backup in Settings to use this.'}
@@ -1223,7 +1223,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <>
                 {/* Use Textures — per-tier hatch patterns; off by default (colorblind aid) */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--sr-text)' }}>Use Textures</span>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Use Textures</span>
                   <button
                     type="button"
                     role="switch"
@@ -1243,7 +1243,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     }} />
                   </button>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
                   Adds a distinct hatch per level so blocks are distinguishable without color.
                 </div>
 
@@ -1254,7 +1254,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     { tier: 2, label: 'Probable' },
                     { tier: 1, label: 'Possible' },
                   ] as const).map(row => (
-                    <div key={row.tier} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
+                    <div key={row.tier} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.75rem' }}>
                       {useTextures
                         ? <TierHatchSwatch tier={row.tier} />
                         : (
@@ -1289,7 +1289,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
-            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)' }}>Filters</span>
+            <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)' }}>Filters</span>
             <ChevronDown size={14} style={{ color: 'var(--sr-text-muted)', transform: filterOpen ? 'none' : 'rotate(-90deg)', transition: 'transform 0.2s', flexShrink: 0 }} />
           </button>
           <div style={{ maxHeight: filterOpen ? 600 : 0, overflow: 'hidden', transition: 'max-height 0.25s ease', borderBottom: filterOpen ? '1px solid var(--sr-border)' : 'none' }}>
@@ -1307,9 +1307,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <SidebarLabel>Date Range</SidebarLabel>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <input type="text" placeholder="YYYY-MM-DD" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                    style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
+                    style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
                   <input type="text" placeholder="YYYY-MM-DD" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                    style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
+                    style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', minWidth: 0 }} />
                 </div>
               </div>
               {/* County */}
@@ -1365,7 +1365,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                 <SidebarLabel>Heatmap Intensity</SidebarLabel>
-                <span style={{ fontSize: 11, color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{heatIntensity}</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' }}>{heatIntensity}</span>
               </div>
               <input
                 type="range"
@@ -1377,7 +1377,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 aria-label="Heatmap intensity"
                 style={{ width: '100%', accentColor: 'var(--sr-accent)', cursor: 'pointer' }}
               />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--sr-text-muted)', marginTop: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>
                 <span>Tighter</span>
                 <span>Broader</span>
               </div>
@@ -1398,8 +1398,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           { label: 'Obs',       value: stats.obs >= 1000 ? `${(stats.obs / 1000).toFixed(1)}k` : stats.obs.toLocaleString() },
         ].map((s, i) => (
           <div key={s.label} style={{ flex: 1, textAlign: 'center', borderLeft: i > 0 ? '1px solid var(--sr-border)' : 'none' }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--sr-accent)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>{s.value}</div>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginTop: 2 }}>{s.label}</div>
+            <div style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--sr-accent)', letterSpacing: '-0.02em', lineHeight: 1.1 }}>{s.value}</div>
+            <div style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginTop: 2 }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -1423,7 +1423,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           width: '100%', height: 36,
           background: hotspotsLoading || hasEbirdKey === false ? 'var(--sr-text-disabled)' : 'var(--sr-accent)',
           color: 'var(--sr-on-accent)', border: 'none', borderRadius: 6,
-          fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
+          fontSize: '0.8125rem', fontWeight: 500, fontFamily: 'inherit',
           cursor: hotspotsLoading || hasEbirdKey === false ? 'not-allowed' : 'pointer',
           marginBottom: 10,
         }}
@@ -1433,7 +1433,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           : 'Find Hotspots'}
       </button>
       {hotspotsError && (
-        <div style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--sr-error)', marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 6, fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 10 }}>
           <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
           {hotspotsError}
         </div>
@@ -1443,7 +1443,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       {legendVisible && hotspotPins && hotspotPins.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
           <SidebarLabel>Legend</SidebarLabel>
-          <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', fontStyle: 'italic', marginBottom: 8 }}>
+          <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', fontStyle: 'italic', marginBottom: 8 }}>
             Click a row to hide or show that pin category.
           </div>
           {([
@@ -1471,8 +1471,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 >
                   <div dangerouslySetInnerHTML={{ __html: TEARDROP_HTML[row.kind] }} style={{ flexShrink: 0, width: 28, height: 40 }} />
                   <div>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>{row.label}</span>
-                    <span style={{ fontSize: 12, color: 'var(--sr-text-muted)', marginLeft: 6 }}>{count}</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{row.label}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginLeft: 6 }}>{count}</span>
                   </div>
                 </button>
               )
@@ -1500,11 +1500,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               }}
             >
               <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--sr-map-unvisited)', flexShrink: 0, alignSelf: 'center' }} aria-hidden="true" />
-              <span className="sr-nearest-unvisited-name" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', fontSize: 12.5, color: 'var(--sr-text)', overflow: 'hidden' }}>
+              <span className="sr-nearest-unvisited-name" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', fontSize: '0.78125rem', color: 'var(--sr-text)', overflow: 'hidden' }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</span>
                 <ExternalLink size={11} strokeWidth={2} aria-hidden="true" style={{ marginLeft: 5, flexShrink: 0, color: 'var(--sr-text-muted)' }} />
               </span>
-              <span style={{ fontSize: 11.5, color: 'var(--sr-text-muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{dist.toFixed(1)} mi</span>
+              <span style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{dist.toFixed(1)} mi</span>
             </a>
           ))}
         </div>
@@ -1535,7 +1535,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         <div style={{ marginBottom: 16 }}>
           <SidebarLabel>Target Species</SidebarLabel>
           {targetSpecies.length === 0 ? (
-            <div style={{ fontSize: 12, color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
               You already have media for every species in your eBird backup.
             </div>
           ) : (
@@ -1545,7 +1545,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <button tabIndex={0}
                   onClick={onNavigateToMediaList}
                   style={{
-                    fontSize: 14, fontWeight: 700, color: 'var(--sr-accent)',
+                    fontSize: '0.875rem', fontWeight: 700, color: 'var(--sr-accent)',
                     background: 'none', border: 'none', padding: 0, cursor: 'pointer',
                     fontFamily: 'inherit', textDecoration: 'underline',
                     textDecorationColor: 'rgba(45,134,83,0.4)',
@@ -1554,7 +1554,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   {targetSpecies.length} target species
                 </button>
               </div>
-              <div style={{ fontSize: 11.5, color: 'var(--sr-text-muted)', marginLeft: 15 }}>from ML export · missing ≥1 media type</div>
+              <div style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', marginLeft: 15 }}>from ML export · missing ≥1 media type</div>
             </div>
           )}
         </div>
@@ -1564,16 +1564,16 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       {targetsNoML && (
         <div style={{ marginBottom: 16 }}>
           <SidebarLabel>Target Species</SidebarLabel>
-          <div style={{ fontSize: 11.5, color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.45 }}>
+          <div style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.45 }}>
             Upload an ML export in Settings to auto-derive targets, or select species manually.
           </div>
           <input type="text" placeholder="Search species…" value={targetSearch}
             onChange={e => setTargetSearch(e.target.value)}
-            style={{ width: '100%', height: 32, padding: '0 10px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: 12, fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box', marginBottom: 6 }}
+            style={{ width: '100%', height: 32, padding: '0 10px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box', marginBottom: 6 }}
           />
           <div style={{ maxHeight: 130, overflowY: 'auto', border: '1.5px solid var(--sr-border)', borderRadius: 6, background: 'var(--sr-surface)' }}>
             {filteredManualSpecies.slice(0, 60).map(s => (
-              <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px', cursor: 'pointer', fontSize: 12 }}>
+              <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem' }}>
                 <input
                   type="checkbox"
                   checked={manualTargets.has(s)}
@@ -1589,7 +1589,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             ))}
           </div>
           {manualTargets.size > 0 && (
-            <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', marginTop: 5 }}>{manualTargets.size} selected</div>
+            <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 5 }}>{manualTargets.size} selected</div>
           )}
         </div>
       )}
@@ -1602,7 +1602,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           width: '100%', height: 36,
           background: 'var(--sr-accent)', color: 'var(--sr-on-accent)',
           border: 'none', borderRadius: 6,
-          fontSize: 13, fontWeight: 500, fontFamily: 'inherit',
+          fontSize: '0.8125rem', fontWeight: 500, fontFamily: 'inherit',
           cursor: targetsFetchDisabled ? 'not-allowed' : 'pointer',
           opacity: targetsFetchDisabled ? 0.5 : 1,
           marginBottom: 10,
@@ -1613,7 +1613,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           : 'Find Recent Sightings'}
       </button>
       {targetsError && (
-        <div style={{ display: 'flex', gap: 6, fontSize: 12, color: 'var(--sr-error)' }}>
+        <div style={{ display: 'flex', gap: 6, fontSize: '0.75rem', color: 'var(--sr-error)' }}>
           <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
           {targetsError}
         </div>
@@ -1626,14 +1626,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
               <SidebarLabel>Filter by Type</SidebarLabel>
-              <span style={{ fontSize: 11, color: 'var(--sr-text-muted)' }}>{displayedTargetPins.length} species</span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{displayedTargetPins.length} species</span>
             </div>
             <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
               <button tabIndex={0}
                 onClick={() => setTargetTypeFilter(new Set())}
                 style={{
                   display: 'inline-flex', alignItems: 'center', padding: '3px 9px',
-                  borderRadius: 20, fontSize: 11.5, fontWeight: 500,
+                  borderRadius: 20, fontSize: '0.71875rem', fontWeight: 500,
                   cursor: 'pointer', fontFamily: 'inherit',
                   background: targetTypeFilter.size === 0 ? 'var(--sr-is-target-bg)' : 'var(--sr-surface-subtle)',
                   border: `1.5px solid ${targetTypeFilter.size === 0 ? 'var(--sr-is-target-border)' : 'var(--sr-border)'}`,
@@ -1654,7 +1654,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     })}
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px',
-                      borderRadius: 20, fontSize: 11.5, fontWeight: 500,
+                      borderRadius: 20, fontSize: '0.71875rem', fontWeight: 500,
                       cursor: 'pointer', fontFamily: 'inherit',
                       background: isActive ? 'var(--sr-is-target-bg)' : 'var(--sr-surface-subtle)',
                       border: `1.5px solid ${isActive ? 'var(--sr-is-target-border)' : 'var(--sr-border)'}`,
@@ -1702,9 +1702,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <BirdName commonName={pin.comName} taxonCode={speciesCodeMap[pin.comName]} hasEntry={hasEntryFor(pin.comName)} onOpenSpecies={onOpenSpecies} size="sm" />
-                      <div style={{ fontSize: 10, color: 'var(--sr-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</div>
+                      <div style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</div>
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--sr-text-muted)', flexShrink: 0 }}>{dist.toFixed(1)} mi</div>
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>{dist.toFixed(1)} mi</div>
                     <button
                       tabIndex={0}
                       onClick={() => { setSelectedTargetKey(key); setPanTarget({ lat: pin.lat, lng: pin.lng }) }}
@@ -1724,7 +1724,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             </div>
           )}
           {displayedTargetPins.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--sr-text-muted)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
               No targets match this filter.
             </div>
           )}
@@ -1769,7 +1769,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               border: `1.5px solid ${viewMode === mode ? 'var(--sr-accent-border)' : 'transparent'}`,
               color: viewMode === mode ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
               fontWeight: viewMode === mode ? 600 : 400,
-              fontSize: 13, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
+              fontSize: '0.8125rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
             }}
           >
             {icon}
@@ -1797,7 +1797,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         >
           {/* Mobile-only header with close button */}
           <div className="sr-map-sidebar-close">
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-text)' }}>Map Filters</span>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Map Filters</span>
             <button tabIndex={0}
               onClick={() => setSidebarOpen(false)}
               aria-label="Close filters"

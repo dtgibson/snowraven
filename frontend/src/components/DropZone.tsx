@@ -93,7 +93,7 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
         position: 'absolute',
         top: 14,
         left: 18,
-        fontSize: 10,
+        fontSize: '0.625rem',
         fontWeight: 700,
         textTransform: 'uppercase' as const,
         letterSpacing: '0.08em',
@@ -112,10 +112,10 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
 
       {isLoaded && (
         <>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--sr-accent)', wordBreak: 'break-all' }}>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-accent)', wordBreak: 'break-all' }}>
             {file.filename}
           </span>
-          <span style={{ fontSize: 12, color: 'var(--sr-accent-border-strong)' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--sr-accent-border-strong)' }}>
             {file.species.size} species found
           </span>
         </>
@@ -123,13 +123,13 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
 
       {!isLoaded && !hasError && (
         <>
-          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--sr-text)' }}>Drop file here</span>
-          <span style={{ fontSize: 13, color: 'var(--sr-text-muted)' }}>or click to browse</span>
+          <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--sr-text)' }}>Drop file here</span>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>or click to browse</span>
         </>
       )}
 
       {hasError && (
-        <p role="alert" aria-live="assertive" style={{ fontSize: 12, color: 'var(--sr-error)', maxWidth: 220, margin: 0 }}>
+        <p role="alert" aria-live="assertive" style={{ fontSize: '0.75rem', color: 'var(--sr-error)', maxWidth: 220, margin: 0 }}>
           {error}
         </p>
       )}

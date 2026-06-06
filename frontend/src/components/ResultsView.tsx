@@ -48,7 +48,7 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
         gap: 16,
         flexShrink: 0,
       }}>
-        <p style={{ fontSize: 14, color: 'var(--sr-text-muted)', margin: 0 }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', margin: 0 }}>
           Comparing{' '}
           <strong style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{nameA}</strong>
           {' '}and{' '}
@@ -63,7 +63,7 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
                 style={{
                   height: 34,
                   padding: '0 12px',
-                  fontSize: 13,
+                  fontSize: '0.8125rem',
                   fontWeight: 500,
                   fontFamily: 'inherit',
                   cursor: 'pointer',
@@ -90,7 +90,7 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
               color: 'var(--sr-accent)',
               border: '1.5px solid var(--sr-accent-border)',
               borderRadius: 6,
-              fontSize: 13,
+              fontSize: '0.8125rem',
               fontWeight: 500,
               fontFamily: 'inherit',
               cursor: 'pointer',
@@ -154,7 +154,7 @@ function Stat({ value, label, highlight = false, isLast = false }: {
       minWidth: 0,
     }}>
       <span style={{
-        fontSize: 26,
+        fontSize: '1.625rem',
         fontWeight: 600,
         letterSpacing: '-0.5px',
         lineHeight: 1,
@@ -163,7 +163,7 @@ function Stat({ value, label, highlight = false, isLast = false }: {
         {value}
       </span>
       <span style={{
-        fontSize: 10,
+        fontSize: '0.625rem',
         fontWeight: 600,
         textTransform: 'uppercase' as const,
         letterSpacing: '0.08em',
