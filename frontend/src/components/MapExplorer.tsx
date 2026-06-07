@@ -1,5 +1,5 @@
 import { Marker, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre'
-import type { HeatmapLayerSpecification } from 'maplibre-gl'
+import type { CircleLayerSpecification, FilterSpecification, HeatmapLayerSpecification, MapMouseEvent, SymbolLayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection, Point } from 'geojson'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Camera, ChevronDown, Crosshair, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
@@ -23,17 +23,20 @@ import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { HEAT_INTENSITY_DEFAULT, heatWeightDivisor, heatRadiusPx, heatIntensityFactor } from '../lib/heat'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
+import {
+  TEARDROP, HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData,
+  pinFillRadiusExpr, pinOpacityExpr, ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH,
+} from '../lib/mapPins'
+import { hatchPixelRatio } from '../lib/atlasTextures'
 import { BirdName } from './BirdName'
-
-// Teardrop SVG path (28×40 viewBox) — circle top, pointed bottom
-const TEARDROP = 'M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z'
 
 function teardropHtml(colorVar: string, glyphSvg: string): string {
   return `<svg viewBox="0 0 28 40" width="28" height="40" xmlns="http://www.w3.org/2000/svg"><path d="${TEARDROP}" style="fill:${colorVar}"/>${glyphSvg}</svg>`
 }
 
-// Teardrop marker SVGs (CSS vars resolve at paint time). Rendered into a
-// react-map-gl <Marker> with anchor="bottom" so the tip points at the coord.
+// Teardrop SVGs for the sidebar legend (CSS vars resolve at paint time). The
+// on-map teardrops are canvas sprites baked from the same TEARDROP path in
+// lib/mapPins.ts (teardropImageData) — keep the glyphs visually in sync.
 const TEARDROP_HTML: Record<HotspotPin['kind'], string> = {
   visited: teardropHtml('var(--sr-map-visited)', '<polyline points="8,15 12,19 20,11" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>'),
   unvisited: teardropHtml('var(--sr-map-unvisited)', '<circle cx="10" cy="13" r="3.5" fill="white"/><circle cx="18" cy="13" r="3.5" fill="white"/>'),
@@ -109,18 +112,22 @@ const CONFIRMED_CODES = new Set(BREEDING_CODES.filter(d => d.tier === 4).map(d =
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function pinRadius(count: number): number {
-  if (count >= 200) return 22
-  if (count >= 100) return 18
-  if (count >= 50)  return 15
-  return 12
-}
-
-function pinOpacity(count: number): number {
-  if (count >= 200) return 0.95
-  if (count >= 100) return 0.88
-  if (count >= 50)  return 0.82
-  return 0.78
+// Resolved value of a --sr-* token, refreshed on a light/dark theme change. GL
+// paint properties can't reference CSS vars, so layers that need token colors
+// read them here (same contract as the atlas hatch sprites in atlasTextures.ts).
+function useCssToken(name: string, fallback: string): string {
+  const [value, setValue] = useState(fallback)
+  useEffect(() => {
+    const update = () => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+      setValue(v || fallback)
+    }
+    update()
+    const obs = new MutationObserver(update)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [name, fallback])
+  return value
 }
 
 function distanceMiles(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -278,6 +285,43 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
     })),
   }), [locations])
 
+  // Pins source — the sightings render as ONE GL circle layer (paint expressions
+  // over locId/count properties) instead of a DOM <Marker> per location, which
+  // janked with hundreds-to-thousands of positioned divs updating every frame.
+  const pinsFc = useMemo<FeatureCollection<Point, { locId: string; count: number }>>(() => ({
+    type: 'FeatureCollection',
+    features: locations.map(l => ({
+      type: 'Feature', properties: { locId: l.locId, count: l.count },
+      geometry: { type: 'Point', coordinates: [l.lng, l.lat] },
+    })),
+  }), [locations])
+
+  const pinColor = useCssToken('--sr-map-visited', '#2D8653')
+
+  // Click selects the top circle's location; a click on empty map closes the
+  // popup. Selection has ONE owner (the Popup's own closeOnClick is off), so
+  // there is no event-ordering race between closing and re-selecting.
+  useEffect(() => {
+    if (!map || displayMode !== 'pins') return
+    const onClick = (e: MapMouseEvent) => {
+      if (!map.getLayer('sr-sight-circle')) return
+      const f = map.queryRenderedFeatures(e.point, { layers: ['sr-sight-circle'] })[0]
+      const locId = (f?.properties as { locId?: unknown } | undefined)?.locId
+      setSel(typeof locId === 'string' && locId !== '' ? locId : null)
+    }
+    const enter = () => { map.getCanvas().style.cursor = 'pointer' }
+    const leave = () => { map.getCanvas().style.cursor = '' }
+    map.on('click', onClick)
+    map.on('mouseenter', 'sr-sight-circle', enter)
+    map.on('mouseleave', 'sr-sight-circle', leave)
+    return () => {
+      map.off('click', onClick)
+      map.off('mouseenter', 'sr-sight-circle', enter)
+      map.off('mouseleave', 'sr-sight-circle', leave)
+      map.getCanvas().style.cursor = ''
+    }
+  }, [map, displayMode])
+
   if (displayMode === 'heatmap') {
     const divisor = heatWeightDivisor(heatIntensity)
     return (
@@ -297,17 +341,24 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
     )
   }
 
+  const dim = atlasShading ? ATLAS_DIM_FACTOR : 1
+  const circlePaint: CircleLayerSpecification['paint'] = {
+    'circle-radius': pinFillRadiusExpr(),
+    'circle-color': pinColor,
+    'circle-opacity': pinOpacityExpr(dim),
+    'circle-stroke-color': '#ffffff',
+    'circle-stroke-width': PIN_STROKE_WIDTH,
+    'circle-stroke-opacity': pinOpacityExpr(dim),
+  }
+
   const selLoc = sel ? locations.find(l => l.locId === sel) : null
   return (
     <>
-      {locations.map(loc => (
-        <Marker key={loc.locId} longitude={loc.lng} latitude={loc.lat} anchor="center"
-          onClick={e => { e.originalEvent.stopPropagation(); setSel(loc.locId) }}>
-          <div style={{ width: pinRadius(loc.count) * 2, height: pinRadius(loc.count) * 2, borderRadius: '50%', background: '#2D8653', opacity: pinOpacity(loc.count) * (atlasShading ? 0.25 : 1), border: '2px solid #fff', cursor: 'pointer', boxSizing: 'border-box' }} />
-        </Marker>
-      ))}
+      <Source id="sr-sight" type="geojson" data={pinsFc}>
+        <Layer id="sr-sight-circle" type="circle" paint={circlePaint} />
+      </Source>
       {selLoc && (
-        <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => setSel(null)} closeButton={false} maxWidth="260px">
+        <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => setSel(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
           <div style={{ minWidth: 190 }}>
             <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 6 }}>{selLoc.locName}</div>
             <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>
@@ -331,7 +382,7 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
 function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds: Set<HotspotPin['kind']> }) {
   const map = useMap().current
   const fitKey = pins.length
-  const [sel, setSel] = useState<number | null>(null)
+  const [sel, setSel] = useState<string | null>(null) // locId (the old array index broke when kinds were hidden)
 
   useEffect(() => {
     if (!map || pins.length === 0) return
@@ -345,19 +396,85 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, fitKey])
 
-  const visiblePins = pins.filter(p => !hiddenKinds.has(p.kind))
-  const selPin = sel !== null ? visiblePins[sel] : null
+  // One GL symbol layer over a GeoJSON source replaces the per-pin DOM teardrop
+  // divs (hundreds of positioned nodes re-laid-out every frame during pan/zoom).
+  const fc = useMemo<FeatureCollection<Point, { locId: string; kind: HotspotPin['kind'] }>>(() => ({
+    type: 'FeatureCollection',
+    features: pins.map(p => ({
+      type: 'Feature', properties: { locId: p.locId, kind: p.kind },
+      geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+    })),
+  }), [pins])
+
+  // Register the teardrop sprites once the style is ready; regenerate on a
+  // light/dark theme change (colors read the --sr-map-* tokens at bake time —
+  // same contract as the atlas hatch sprites).
+  useEffect(() => {
+    if (!map) return
+    let cancelled = false
+    const addAll = () => {
+      if (cancelled) return
+      const dpr = hatchPixelRatio()
+      for (const kind of HOTSPOT_KINDS) {
+        const id = HOTSPOT_IMAGE_ID[kind]
+        const img = teardropImageData(kind, dpr)
+        if (map.hasImage(id)) map.updateImage(id, img)
+        else map.addImage(id, img, { pixelRatio: dpr })
+      }
+    }
+    if (map.isStyleLoaded()) addAll()
+    else map.once('load', addAll)
+    const obs = new MutationObserver(addAll)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => { cancelled = true; obs.disconnect(); map.off('load', addAll) }
+  }, [map])
+
+  // Click selects the top teardrop's hotspot; empty-map click closes the popup.
+  useEffect(() => {
+    if (!map) return
+    const onClick = (e: MapMouseEvent) => {
+      if (!map.getLayer('sr-hotspot')) return
+      const f = map.queryRenderedFeatures(e.point, { layers: ['sr-hotspot'] })[0]
+      const locId = (f?.properties as { locId?: unknown } | undefined)?.locId
+      setSel(typeof locId === 'string' && locId !== '' ? locId : null)
+    }
+    const enter = () => { map.getCanvas().style.cursor = 'pointer' }
+    const leave = () => { map.getCanvas().style.cursor = '' }
+    map.on('click', onClick)
+    map.on('mouseenter', 'sr-hotspot', enter)
+    map.on('mouseleave', 'sr-hotspot', leave)
+    return () => {
+      map.off('click', onClick)
+      map.off('mouseenter', 'sr-hotspot', enter)
+      map.off('mouseleave', 'sr-hotspot', leave)
+      map.getCanvas().style.cursor = ''
+    }
+  }, [map])
+
+  // Hidden legend kinds drop out via a layer filter (no source rebuild). With
+  // nothing hidden this is !(kind in []) — always true.
+  const hotspotFilter = useMemo(
+    () => ['!', ['in', ['get', 'kind'], ['literal', [...hiddenKinds]]]] as unknown as FilterSpecification,
+    [hiddenKinds],
+  )
+
+  const symbolLayout: SymbolLayerSpecification['layout'] = {
+    'icon-image': ['match', ['get', 'kind'], 'visited', HOTSPOT_IMAGE_ID.visited, 'unvisited', HOTSPOT_IMAGE_ID.unvisited, HOTSPOT_IMAGE_ID.personal],
+    'icon-anchor': 'bottom',
+    // DOM markers always showed every pin regardless of overlap; keep that.
+    'icon-allow-overlap': true,
+    'icon-ignore-placement': true,
+  }
+
+  const selPin = sel !== null ? pins.find(p => p.locId === sel && !hiddenKinds.has(p.kind)) ?? null : null
 
   return (
     <>
-      {visiblePins.map((pin, i) => (
-        <Marker key={`${pin.kind}-${pin.locId}-${i}`} longitude={pin.lng} latitude={pin.lat} anchor="bottom"
-          onClick={e => { e.originalEvent.stopPropagation(); setSel(i) }}>
-          <div style={{ width: 28, height: 40, cursor: 'pointer' }} dangerouslySetInnerHTML={{ __html: TEARDROP_HTML[pin.kind] }} />
-        </Marker>
-      ))}
+      <Source id="sr-hotspot" type="geojson" data={fc}>
+        <Layer id="sr-hotspot" type="symbol" layout={symbolLayout} filter={hotspotFilter} />
+      </Source>
       {selPin && (
-        <Popup longitude={selPin.lng} latitude={selPin.lat} anchor="bottom" offset={42} onClose={() => setSel(null)} closeButton={false} maxWidth="260px">
+        <Popup longitude={selPin.lng} latitude={selPin.lat} anchor="bottom" offset={42} onClose={() => setSel(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
           <div style={{ minWidth: 190 }}>
             <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 8 }}>{selPin.locName}</div>
             {selPin.kind === 'visited' && (

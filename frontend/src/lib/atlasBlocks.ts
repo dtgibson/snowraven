@@ -94,6 +94,17 @@ function bboxIntersects(a: Bounds, b: Bounds): boolean {
   return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1]
 }
 
+/**
+ * Expand bounds by `frac` of their span on every side (e.g. 0.15 → 15% margin),
+ * so viewport-capped layers regenerated on `moveend` don't pop in at the edges
+ * during small pans.
+ */
+export function padBounds(b: Bounds, frac: number): Bounds {
+  const dLng = (b[2] - b[0]) * frac
+  const dLat = (b[3] - b[1]) * frac
+  return [b[0] - dLng, b[1] - dLat, b[2] + dLng, b[3] + dLat]
+}
+
 /** A quad's full bbox from its SW corner. */
 export function quadBbox(quad: Quad, scheme: AtlasScheme): Bounds {
   const [swLat, swLng] = quad.sw
