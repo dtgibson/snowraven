@@ -2,19 +2,20 @@
   "activeFeature": "perf-loading-and-indicators",
   "sessionNumber": 12,
   "sessionType": "maintain",
-  "currentStage": 4,
-  "lastCompletedStage": 3,
-  "lastCheckpointStatus": "approved",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
   "confirmedArtifacts": [
     "pipeline/perf-loading-and-indicators/change-brief.md",
-    "branch improve/performance commits 7b81ab6 (G), 85434cc (E), b17907d (H), 7c52d39 (review fixes + 0.5.16)",
-    "pipeline/perf-loading-and-indicators/qa-report.md"
+    "branch improve/performance commits 7b81ab6 (G), 85434cc (E), b17907d (H), 7c52d39 (review fixes + 0.5.16), 733ab1c (audit fix)",
+    "pipeline/perf-loading-and-indicators/qa-report.md",
+    "pipeline/perf-loading-and-indicators/security-report.md"
   ],
   "releasedVersion": "0.5.15",
   "lastFeature": "Checklist comparer: per-checklist metadata + comments (shipped v0.5.15)",
-  "improveContext": "Full-sweep performance improvement on branch improve/performance, COMPLETE as 0.5.16 pending Dave's review: A-D, F (Mac) + E (85434cc BirdingStats progressive render), G (7b81ab6 GL marker rewrite + atlas viewport cap), H (b17907d networkCache 90s TTL via CachedTransport + regionInfo memo + map chip/updater spinner/favicon slots). 28-agent adversarial review of the E+G+H diff: 4 confirmed (cursor-arbiter regression FIXED via updateMapCursor in lib/mapPins.ts wired into SightingMarkers/HotspotMarkers/AtlasLayer; version+changelog done; CLAUDE.md markers sentence updated), 4 refuted (incl. dark-theme pin recolor = admitted improvement; canvas two-arc glyph claim = wrong). Wrap-up commit also: lint green again (targeted eslint-disables w/ comments on App.tsx mountedTabs set-state-in-effect + compareChecklists rest-omit), docs/HELP.md (atlas hint chip, search chip), 0.5.16 in BOTH package.json+tauri.conf.json+lock, CHANGELOG entry. 428 tests, build+lint clean. REMAINING: (1) Dave visually verifies batch G on a machine with keys+data (both themes, popups, legend hide/show, atlas+heatmap combos, zoom-in hint, target chips unchanged); (2) Engineer gate -> Stage 3 Tester; (3) ship 0.5.16: push tag for Windows CI then ./release.sh ON THE MAC ONLY.",
+  "improveContext": "PAUSED at Stage 5 (Deployer) by Dave's choice: deployment is deferred so MORE work can stack on branch improve/performance first, then everything ships together later from the Mac. Stages 1-4 COMPLETE and approved. The perf sweep (target 0.5.16) is fully built/reviewed/tested/audited and pushed to origin/improve/performance @ 733ab1c. Batches: A-D, F (Mac) + E (85434cc BirdingStats progressive render: computing phase double-rAF + effectiveObs/effectiveMl root gating, useDeferredValue, idle-mounted geo map), G (7b81ab6 GL marker rewrite: sightings circle layer + hotspot symbol sprites via lib/mapPins.ts, selection by locId, atlas viewport cap blocksInBounds+padBounds cap 9000 + zoom-in hint, theme-aware fills), H (b17907d networkCache.ts 90s TTL via CachedTransport for /map/hotspots+/map/recent-obs+/stats/nemesis covering web+tauri, lib/tauri/regionInfo.ts shared memo, map chip/updater spinner/favicon slots). Review: 7c52d39 (cursor-arbiter updateMapCursor fix + lint green + docs + 0.5.16 bump in package.json+tauri.conf.json+lock + CHANGELOG). Audit: 733ab1c (clearNetworkCache wired into Settings eBird key save/delete; qa-report.md + security-report.md). Dave visually verified the running web build (uvicorn :1620 over backend/.venv) — looked right. Tests 428 frontend / 93 backend, build+lint clean. WHEN RESUMING FOR DEPLOY (Mac only): version is already 0.5.16; push tag vX.Y.Z to start Windows CI, wait for CI, then ./release.sh. NOTE: if more 0.5.16 work lands here first, the eventual deploy covers it all under one version — re-confirm the changelog/version still fit before tagging. Local web run recipe: backend/.venv (bootstrapped via get-pip, has pytest+deps), `cd backend && .venv/bin/uvicorn main:app --port 1620` after `cd frontend && npm run build`.",
   "remainingBacklog": "From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. Ship arc: 0.5.11-0.5.13 (a11y/perf/text-size), 0.5.14 (checklist compare + map media filter), 0.5.15 (checklist metadata + comments).",
   "createdAt": "2026-06-07T03:11:10Z",
-  "updatedAt": "2026-06-07T05:52:00Z"
+  "updatedAt": "2026-06-07T19:05:38Z"
 }
