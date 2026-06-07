@@ -2,16 +2,20 @@
   "activeFeature": "settings-location-and-distance-defaults",
   "sessionNumber": 13,
   "sessionType": "maintain",
-  "currentStage": 3,
-  "lastCompletedStage": 2,
-  "lastCheckpointStatus": "approved",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
-  "confirmedArtifacts": ["pipeline/settings-location-and-distance-defaults/change-brief.md"],
+  "confirmedArtifacts": [
+    "pipeline/settings-location-and-distance-defaults/change-brief.md",
+    "pipeline/settings-location-and-distance-defaults/qa-report.md",
+    "pipeline/settings-location-and-distance-defaults/security-report.md"
+  ],
   "releasedVersion": "0.5.15",
   "lastFeature": "Checklist comparer: per-checklist metadata + comments (shipped v0.5.15)",
   "improveContext": "NEW Improve session on branch improve/performance (stacks with the unreleased 0.5.16 perf work; ships together from the Mac). Two tweaks to the Settings → Default Location selector and the map distance default: (1) add a 'Use my location' detect button reusing lib/location.ts getCurrentLocation (already used by MapExplorer.handleUseMyLocation) — fills the Settings lat/lng inputs, with Locating… state + error handling; plan extracts MapExplorer's inline LocationError→message mapping into a shared describeLocationError() in lib/location.ts and reuses it in both places (reuse improvement). (2) Default radius 5 mi: MapExplorer radius useState(25)->useState(5) so hotspots/media targets default to 5mi until the user sets one; pre-fill Settings Radius input to 5 when nothing saved + Clear resets to 5. Saved map-defaults.dist still wins. Feature-check: adding the Settings button brushes the New-Feature boundary but reuses existing geolocation in an existing selector — kept on Improve. NOTE: this work is on the same branch as the parked 0.5.16 perf deploy (see pipeline/perf-loading-and-indicators/DEPLOY-PENDING.md) — both deploy together from the Mac; decide whether to fold into 0.5.16 (still unreleased) or bump at the Chronicler stage.",
-  "perfDeployPending": "0.5.16 perf sweep (perf-loading-and-indicators) is built/tested/audited on improve/performance @ 6bbb23a-ish, version 0.5.16, NOT released. Deploy from the Mac only: tag -> Windows CI -> ./release.sh. Full steps: pipeline/perf-loading-and-indicators/DEPLOY-PENDING.md. Do not lose this.",
+  "deployPending": "TWO+ undeployed efforts stacked on improve/performance for ONE later Mac release: (1) 0.5.16 perf sweep (perf-loading-and-indicators), (2) settings-location-and-distance-defaults (this session — Use my location button + 5mi default radius + privacy 'Your Location' section). Both built/tested/audited; version 0.5.16; CHANGELOG/HELP/CLAUDE/PRIVACY updated; 435 frontend + 93 backend tests green. A NEW FEATURE is planned next and will also ride this release. Single ledger: pipeline/DEPLOY-PENDING.md. Deploy ONLY from the Mac: reconcile version+changelog (the next feature may push past 0.5.16) -> tag -> Windows CI -> ./release.sh. Do not lose this.",
   "remainingBacklog": "From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. Ship arc: 0.5.11-0.5.13 (a11y/perf/text-size), 0.5.14 (checklist compare + map media filter), 0.5.15 (checklist metadata + comments), 0.5.16 (perf sweep E/G/H — built, awaiting Mac deploy).",
   "createdAt": "2026-06-07T19:41:49Z",
-  "updatedAt": "2026-06-07T19:41:49Z"
+  "updatedAt": "2026-06-07T20:05:00Z"
 }

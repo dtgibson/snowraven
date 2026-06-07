@@ -308,7 +308,7 @@ Upload your eBird backup CSV and Macaulay Library export. Each file is stored fo
 
 ### Default Location
 
-Set a home location used by the Map Explorer and the Nearby Lifers card in Statistics. Enter latitude, longitude, and a search radius in miles, then click Save. The Map Explorer uses these coordinates as its starting center and zoom level. The Statistics tab uses this location to fetch nearby recent sightings for the target species list.
+Set a home location used by the Map Explorer and the Nearby Lifers card in Statistics. Click **Use my location** to fill in your coordinates automatically (the same detection the Map Explorer offers), or enter latitude and longitude by hand. Set a search radius in miles, then click Save. The radius defaults to 5 miles. The Map Explorer uses these coordinates as its starting center and zoom level. The Statistics tab uses this location to fetch nearby recent sightings for the target species list.
 
 ### Tab Layout
 
