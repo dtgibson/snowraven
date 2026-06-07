@@ -56,7 +56,9 @@ export async function getTide(checklistId: string, force = false): Promise<TideR
   const checklist = await fetchChecklist(checklistId, ebirdKey)
   const base = { checklist_id: checklistId, loc_name: checklist.loc_name, obs_dt: checklist.obs_dt }
 
-  const nearest = nearestStation(checklist.lat, checklist.lng, { preferObs: true })
+  // Genuinely nearest station — prediction-only stations are fine (they show as
+  // Predicted). Biasing toward gauge stations would skip a much closer one.
+  const nearest = nearestStation(checklist.lat, checklist.lng)
   if (!nearest) return { ...base, status: 'unavailable' }
 
   const status = classifyTideLocation(checklist.lat, checklist.lng, nearest)

@@ -74,6 +74,34 @@ function inWindow(t: string, start: string, end: string): boolean {
   return t >= start && t <= end
 }
 
+/** Accurate epoch-minutes from a 'YYYY-MM-DD HH:MM' string (calendar-correct)
+ *  — for interpolation fractions and nearest-point selection. */
+export function epochMin(t: string): number {
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/)
+  if (!m) return 0
+  const [, y, mo, d, h, mi] = m.map(Number) as unknown as number[]
+  return Date.UTC(y, mo - 1, d, h, mi) / 60000
+}
+
+/** Linear-interpolate the predicted level at time `t` between the bracketing
+ *  high/low events (a good approximation of the tide curve). Returns null if the
+ *  series doesn't bracket the time on at least one side. */
+export function interpLevel(t: string, sortedHilo: HiLo[]): number | null {
+  if (sortedHilo.length === 0) return null
+  let prev: HiLo | null = null
+  let next: HiLo | null = null
+  for (const h of sortedHilo) {
+    if (h.t <= t) prev = h
+    if (h.t >= t) { next = h; break }
+  }
+  if (prev && next) {
+    if (prev.t === next.t) return prev.v
+    const f = (epochMin(t) - epochMin(prev.t)) / (epochMin(next.t) - epochMin(prev.t))
+    return prev.v + (next.v - prev.v) * f
+  }
+  return (prev ?? next)?.v ?? null
+}
+
 /**
  * Build the TideReading for window [start,end] (local 'YYYY-MM-DD HH:MM' strings).
  * Prefers observed levels in the window; falls back to predicted. Returns null
@@ -88,40 +116,57 @@ export function computeTideReading(
   station: TideStation,
   distanceMi: number,
 ): TideReading | null {
+  const sortedHilo = [...hilo].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
+
+  // Level samples over the window, in priority order:
+  //  1. observed gauge points (Observed)
+  //  2. continuous predictions (Predicted — reference/harmonic stations)
+  //  3. interpolated from the high/low curve (Predicted — subordinate stations,
+  //     which serve only hilo). Sample at start, end, and any extreme inside.
   const obsIn = observed.filter(p => inWindow(p.t, start, end))
-  let pts: Array<{ t: string; v: number }>
+  const predIn = predicted.filter(p => inWindow(p.t, start, end))
+  let sorted: Array<{ t: string; v: number }>
   let source: 'observed' | 'predicted'
+  let startV: number, endV: number
   if (obsIn.length > 0) {
-    pts = obsIn; source = 'observed'
+    sorted = [...obsIn].sort((a, b) => (a.t < b.t ? -1 : 1)); source = 'observed'
+    startV = sorted[0].v; endV = sorted[sorted.length - 1].v
+  } else if (predIn.length > 0) {
+    sorted = [...predIn].sort((a, b) => (a.t < b.t ? -1 : 1)); source = 'predicted'
+    startV = sorted[0].v; endV = sorted[sorted.length - 1].v
   } else {
-    const predIn = predicted.filter(p => inWindow(p.t, start, end))
-    if (predIn.length > 0) {
-      pts = predIn; source = 'predicted'
-    } else {
-      // Window too short to contain a sample: take the single nearest point.
+    const s = interpLevel(start, sortedHilo)
+    const e = interpLevel(end, sortedHilo)
+    if (s === null && e === null) {
+      // No window samples and no curve to interpolate: nearest single point.
       const all = observed.length > 0
         ? observed.map(p => ({ t: p.t, v: p.v, src: 'observed' as const }))
         : predicted.map(p => ({ t: p.t, v: p.v, src: 'predicted' as const }))
       if (all.length === 0) return null
       const nearest = all.reduce((best, p) =>
-        Math.abs(tMinutes(p.t) - tMinutes(start)) < Math.abs(tMinutes(best.t) - tMinutes(start)) ? p : best)
-      pts = [nearest]; source = nearest.src
+        Math.abs(epochMin(p.t) - epochMin(start)) < Math.abs(epochMin(best.t) - epochMin(start)) ? p : best)
+      sorted = [{ t: nearest.t, v: nearest.v }]; source = nearest.src
+      startV = endV = nearest.v
+    } else {
+      source = 'predicted'
+      startV = s ?? (e as number); endV = e ?? (s as number)
+      // Include extremes that fall inside the window so the range reflects a turn.
+      const inside = sortedHilo.filter(h => inWindow(h.t, start, end)).map(h => ({ t: h.t, v: h.v }))
+      sorted = [{ t: start, v: startV }, ...inside, { t: end, v: endV }].sort((a, b) => (a.t < b.t ? -1 : 1))
     }
   }
 
-  const sorted = [...pts].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
   const levelMin = Math.min(...sorted.map(p => p.v))
   const levelMax = Math.max(...sorted.map(p => p.v))
 
-  const sortedHilo = [...hilo].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))
   const prev = [...sortedHilo].reverse().find(h => h.t <= start) ?? null
   const next = sortedHilo.find(h => h.t >= end) ?? null
   const turnedDuring = sortedHilo.some(h => inWindow(h.t, start, end))
 
-  // Trend: net first->last across the window; if flat, infer from the brackets
+  // Trend: net start->end across the window; if flat, infer from the brackets
   // (heading toward a high = rising).
   let trend: 'rising' | 'falling'
-  const delta = sorted[sorted.length - 1].v - sorted[0].v
+  const delta = endV - startV
   if (delta > 0) trend = 'rising'
   else if (delta < 0) trend = 'falling'
   else if (next) trend = next.type === 'H' ? 'rising' : 'falling'
@@ -136,14 +181,6 @@ export function computeTideReading(
     prevHL: label(prev), nextHL: label(next),
     station, distanceMi,
   }
-}
-
-/** Minutes-since-epoch-ish ordinal from a 'YYYY-MM-DD HH:MM' string (for nearest). */
-export function tMinutes(t: string): number {
-  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/)
-  if (!m) return 0
-  const [, y, mo, d, h, mi] = m.map(Number) as unknown as number[]
-  return ((((y * 12 + mo) * 31 + d) * 24 + h) * 60) + mi
 }
 
 /** 'YYYY-MM-DD HH:MM' (24h) -> '7:42am' (matches the weather block's time style). */

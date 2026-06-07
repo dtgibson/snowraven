@@ -145,6 +145,9 @@ export default function App() {
   const [tideState, setTideState] = useState<TideState>({ status: 'idle' })
   const [tideCopied, setTideCopied] = useState(false)
   const [bothCopied, setBothCopied] = useState(false)
+  // When on, "Get weather" auto-copies the weather + tide together. Persisted
+  // through the storage seam so it survives a desktop relaunch.
+  const [copyTideTogether, setCopyTideTogether] = useState(false)
   const lastLookupId = useRef('')
   // Mobile-only: Map Explorer occupies the full viewport when true.
   const [mapFullscreen, setMapFullscreen] = useState(false)
@@ -322,6 +325,15 @@ export default function App() {
     persistTextScale(s)
   }, [])
 
+  // Hydrate the "copy tide with weather" preference from the storage seam.
+  useEffect(() => {
+    let cancelled = false
+    void storage.getSetting<boolean>('copyTideWithWeather').then(v => {
+      if (!cancelled && typeof v === 'boolean') setCopyTideTogether(v)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
   // Honor the saved theme app-wide on load. The index.html anti-flash script covers
   // web pre-paint via localStorage; on desktop localStorage is wiped each relaunch,
   // so hydrate the durable choice from the storage seam and apply it.
@@ -372,7 +384,13 @@ export default function App() {
     return () => { document.body.style.overflow = prev }
   }, [mapFullscreen, activeTab])
 
-  const loadTide = useCallback(async (id: string, force: boolean) => {
+  // One SnowRaven attribution at the very bottom; the weather block's own
+  // attribution is stripped and the tide body keeps the inline NOAA credit.
+  const buildCombined = (weatherFormatted: string, tideBody: string) =>
+    `${weatherFormatted.replace(`\n${ATTRIBUTION}`, '')}\n\n${tideBody}\n\n${COMBINED_ATTRIBUTION}`
+
+  // Returns the tide block { formatted, body } when a reading resolved, else null.
+  const loadTide = useCallback(async (id: string, force: boolean): Promise<{ formatted: string; body: string } | null> => {
     setTideState({ status: 'loading' })
     try {
       const t = await transport.get<TideResponse>(
@@ -381,6 +399,7 @@ export default function App() {
       )
       if (t.status === 'ok' && t.formatted && t.body) {
         setTideState({ status: 'ok', formatted: t.formatted, body: t.body })
+        return { formatted: t.formatted, body: t.body }
       } else if ((t.status === 'too-far' || t.status === 'outside-us') && t.station) {
         setTideState({ status: t.status, station: t.station.name, distanceMi: t.distanceMi ?? 0 })
       } else {
@@ -389,25 +408,23 @@ export default function App() {
     } catch {
       setTideState({ status: 'error' })
     }
+    return null
   }, [])
 
-  const loadWeather = useCallback(async (id: string) => {
+  // Returns the formatted weather string on success, else null. Does NOT
+  // auto-copy — handleLookup decides what to copy (weather alone, or combined).
+  const loadWeather = useCallback(async (id: string): Promise<string | null> => {
     setState({ status: 'loading' })
     try {
       const data = await transport.get<{ formatted: string; checklist_id: string; loc_name: string; obs_dt: string }>(
         `/weather/${encodeURIComponent(id)}`
       )
       setState({ status: 'success', formatted: data.formatted, checklistId: data.checklist_id, locName: data.loc_name, obsDt: data.obs_dt })
-      // Auto-copy via the clipboard seam — uses the native Tauri clipboard on
-      // desktop (no user-gesture requirement) and navigator.clipboard on web.
-      if (await copyText(data.formatted)) {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      }
-      // If the copy failed, the user can still click Copy.
+      return data.formatted
     } catch (err) {
       const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
       setState({ status: 'error', message: detail ?? 'Something went wrong. Please try again.' })
+      return null
     }
   }, [])
 
@@ -421,12 +438,31 @@ export default function App() {
     lastLookupId.current = id
     // Weather and tide run concurrently from one action; each owns its state so
     // one failing never blocks the other.
-    await Promise.allSettled([loadWeather(id), loadTide(id, false)])
-  }, [input, loadWeather, loadTide])
+    const [weather, tide] = await Promise.all([loadWeather(id), loadTide(id, false)])
+    // Auto-copy on the clipboard seam (native on desktop, navigator on web): the
+    // combined block when the user opted in AND both resolved, otherwise weather
+    // alone (the long-standing default). A failed copy just leaves the buttons.
+    if (copyTideTogether && weather && tide) {
+      if (await copyText(buildCombined(weather, tide.body))) {
+        setBothCopied(true)
+        setTimeout(() => setBothCopied(false), 2000)
+      }
+    } else if (weather) {
+      if (await copyText(weather)) {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }
+    }
+  }, [input, loadWeather, loadTide, copyTideTogether])
 
   const handleTideOverride = useCallback(() => {
     if (lastLookupId.current) void loadTide(lastLookupId.current, true)
   }, [loadTide])
+
+  const handleToggleCopyTide = useCallback((next: boolean) => {
+    setCopyTideTogether(next)
+    void storage.setSetting('copyTideWithWeather', next)
+  }, [])
 
   const handleCopy = async () => {
     if (state.status !== 'success') return
@@ -444,11 +480,7 @@ export default function App() {
 
   const handleCopyBoth = async () => {
     if (state.status !== 'success' || tideState.status !== 'ok') return
-    // One SnowRaven attribution at the very bottom; the weather block's own
-    // attribution is stripped and the tide body keeps the inline NOAA credit.
-    const weatherBody = state.formatted.replace(`\n${ATTRIBUTION}`, '')
-    const combined = `${weatherBody}\n\n${tideState.body}\n\n${COMBINED_ATTRIBUTION}`
-    await copyText(combined)
+    await copyText(buildCombined(state.formatted, tideState.body))
     setBothCopied(true)
     setTimeout(() => setBothCopied(false), 2000)
   }
@@ -678,6 +710,19 @@ export default function App() {
               {isLoading ? 'Looking up…' : 'Get weather'}
             </button>
           </div>
+
+          <p style={{ marginTop: 8, marginBottom: 0, fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
+            Tide information is fetched automatically when available.
+          </p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 8, fontSize: '0.8125rem', color: 'var(--sr-text)', cursor: 'pointer', width: 'fit-content' }}>
+            <input
+              type="checkbox"
+              checked={copyTideTogether}
+              onChange={e => handleToggleCopyTide(e.target.checked)}
+              style={{ accentColor: 'var(--sr-accent)', cursor: 'pointer' }}
+            />
+            Copy tide with weather when I click Get weather
+          </label>
 
           {hasError && (
             <div

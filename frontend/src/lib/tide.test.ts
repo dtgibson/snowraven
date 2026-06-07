@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   parseObserved, parsePredictions, parseHiLo, computeTideReading,
   isNoaaError, clockTime, ft, normalizeObsDt, shiftLocal, toNoaaDate,
+  interpLevel, epochMin,
 } from './tide'
 import type { TideStation } from './tideStations'
 
@@ -60,6 +61,43 @@ describe('computeTideReading', () => {
   })
   it('returns null when there is no data at all', () => {
     expect(computeTideReading('2025-08-02 07:42', '2025-08-02 08:42', [], [], [], STN, 1)).toBeNull()
+  })
+
+  it('interpolates from hilo when observed AND continuous predictions are both empty (subordinate station)', () => {
+    // Point-Isabel-style: only hi/lo available. Low 0.0 at 01:21, High 4.6 at 08:51.
+    const sub = [
+      { t: '2025-09-15 01:21', v: 0.0, type: 'L' as const },
+      { t: '2025-09-15 08:51', v: 4.6, type: 'H' as const },
+      { t: '2025-09-15 13:11', v: 3.5, type: 'L' as const },
+    ]
+    const r = computeTideReading('2025-09-15 08:00', '2025-09-15 09:30', [], [], sub, STN, 0.8)!
+    expect(r.source).toBe('predicted')
+    expect(r.trend).toBe('rising')
+    expect(r.turnedDuring).toBe(true) // the 08:51 high is inside the window
+    expect(r.levelMax).toBeCloseTo(4.6, 5) // the in-window high is the max
+    expect(r.levelMin).toBeGreaterThan(3.5)
+    expect(r.levelMin).toBeLessThan(4.6)
+  })
+})
+
+describe('interpLevel / epochMin', () => {
+  const hilo = [
+    { t: '2025-09-15 01:21', v: 0.0, type: 'L' as const },
+    { t: '2025-09-15 08:51', v: 4.6, type: 'H' as const },
+  ]
+  it('linearly interpolates between bracketing events', () => {
+    // Midpoint in time between 01:21 (0.0) and 08:51 (4.6) ~ 05:06 -> ~2.3
+    expect(interpLevel('2025-09-15 05:06', hilo)).toBeCloseTo(2.3, 1)
+  })
+  it('clamps to the single available side past the ends', () => {
+    expect(interpLevel('2025-09-15 00:00', hilo)).toBe(0.0)
+    expect(interpLevel('2025-09-15 23:00', hilo)).toBe(4.6)
+  })
+  it('returns null for an empty series', () => {
+    expect(interpLevel('2025-09-15 05:00', [])).toBeNull()
+  })
+  it('epochMin is calendar-correct across a month boundary', () => {
+    expect(epochMin('2025-02-01 00:00') - epochMin('2025-01-31 00:00')).toBe(1440)
   })
 })
 

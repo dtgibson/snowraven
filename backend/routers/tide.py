@@ -37,7 +37,9 @@ async def get_tide(checklist_id: str, force: bool = False):
         "obs_dt": checklist["obs_dt"],
     }
 
-    nearest = nearest_station(checklist["lat"], checklist["lng"], prefer_obs=True)
+    # Genuinely nearest station; prediction-only stations are fine (shown as
+    # Predicted). Biasing toward gauge stations would skip a much closer one.
+    nearest = nearest_station(checklist["lat"], checklist["lng"])
     if nearest is None:
         return {**base, "status": "unavailable"}
 

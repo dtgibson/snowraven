@@ -75,6 +75,35 @@ def _in_window(t: str, start: str, end: str) -> bool:
     return start <= t <= end
 
 
+def _epoch_min(t: str) -> float:
+    """Calendar-correct epoch-minutes from 'YYYY-MM-DD HH:MM'."""
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})", t)
+    if not m:
+        return 0.0
+    y, mo, d, h, mi = (int(x) for x in m.groups())
+    return datetime(y, mo, d, h, mi).timestamp() / 60.0
+
+
+def interp_level(t: str, sorted_hilo: list[dict]):
+    """Linear-interpolate the predicted level at `t` between bracketing H/L
+    events. None if the series doesn't bracket on at least one side."""
+    if not sorted_hilo:
+        return None
+    prev = nxt = None
+    for h in sorted_hilo:
+        if h["t"] <= t:
+            prev = h
+        if h["t"] >= t:
+            nxt = h
+            break
+    if prev and nxt:
+        if prev["t"] == nxt["t"]:
+            return prev["v"]
+        f = (_epoch_min(t) - _epoch_min(prev["t"])) / (_epoch_min(nxt["t"]) - _epoch_min(prev["t"]))
+        return prev["v"] + (nxt["v"] - prev["v"]) * f
+    return (prev or nxt)["v"]
+
+
 def _clock(t: str) -> str:
     m = re.search(r"[ T](\d{2}):(\d{2})", t)
     if not m:
@@ -86,31 +115,45 @@ def _clock(t: str) -> str:
 
 
 def compute_tide_reading(start, end, observed, predicted, hilo, station, distance_mi):
+    sh = sorted(hilo, key=lambda p: p["t"])
+
+    # Level samples over the window, in priority order: observed gauge points,
+    # continuous predictions (reference stations), else interpolated from the
+    # high/low curve (subordinate stations, which serve only hilo).
     obs_in = [p for p in observed if _in_window(p["t"], start, end)]
+    pred_in = [p for p in predicted if _in_window(p["t"], start, end)]
     if obs_in:
-        pts, source = obs_in, "observed"
+        pts = sorted(obs_in, key=lambda p: p["t"]); source = "observed"
+        start_v, end_v = pts[0]["v"], pts[-1]["v"]
+    elif pred_in:
+        pts = sorted(pred_in, key=lambda p: p["t"]); source = "predicted"
+        start_v, end_v = pts[0]["v"], pts[-1]["v"]
     else:
-        pred_in = [p for p in predicted if _in_window(p["t"], start, end)]
-        if pred_in:
-            pts, source = pred_in, "predicted"
-        else:
+        s = interp_level(start, sh)
+        e = interp_level(end, sh)
+        if s is None and e is None:
             pool = ([dict(p, src="observed") for p in observed] if observed
                     else [dict(p, src="predicted") for p in predicted])
             if not pool:
                 return None
-            nearest = min(pool, key=lambda p: abs(_ord(p["t"]) - _ord(start)))
+            nearest = min(pool, key=lambda p: abs(_epoch_min(p["t"]) - _epoch_min(start)))
             pts, source = [nearest], nearest["src"]
+            start_v = end_v = nearest["v"]
+        else:
+            source = "predicted"
+            start_v = s if s is not None else e
+            end_v = e if e is not None else s
+            inside = [{"t": h["t"], "v": h["v"]} for h in sh if _in_window(h["t"], start, end)]
+            pts = sorted([{"t": start, "v": start_v}, *inside, {"t": end, "v": end_v}], key=lambda p: p["t"])
 
-    pts = sorted(pts, key=lambda p: p["t"])
     level_min = min(p["v"] for p in pts)
     level_max = max(p["v"] for p in pts)
 
-    sh = sorted(hilo, key=lambda p: p["t"])
     prev = next((h for h in reversed(sh) if h["t"] <= start), None)
     nxt = next((h for h in sh if h["t"] >= end), None)
     turned = any(_in_window(h["t"], start, end) for h in sh)
 
-    delta = pts[-1]["v"] - pts[0]["v"]
+    delta = end_v - start_v
     if delta > 0:
         trend = "rising"
     elif delta < 0:
@@ -126,14 +169,6 @@ def compute_tide_reading(start, end, observed, predicted, hilo, station, distanc
         return None if h is None else HiLoLabeled("high" if h["type"] == "H" else "low", h["v"], _clock(h["t"]))
 
     return TideReading(level_min, level_max, source, trend, turned, lab(prev), lab(nxt), station, distance_mi)
-
-
-def _ord(t: str) -> int:
-    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})", t)
-    if not m:
-        return 0
-    y, mo, d, h, mi = (int(x) for x in m.groups())
-    return ((((y * 12 + mo) * 31 + d) * 24 + h) * 60) + mi
 
 
 # ── Local-time window helpers (mirror tide.ts) ────────────────────────────────

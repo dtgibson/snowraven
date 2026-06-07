@@ -72,6 +72,24 @@ def test_predicted_fallback(monkeypatch):
     assert "Predicted" in resp.json()["formatted"]
 
 
+def test_subordinate_station_interpolates_from_hilo(monkeypatch):
+    # Subordinate stations serve only hilo: observed AND continuous predictions
+    # both error; the level is interpolated from the high/low curve.
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    err = {"error": {"message": "No data was found."}}
+    pred_err = {"error": {"message": "No Predictions data was found."}}
+    with (
+        patch("routers.tide.fetch_checklist", new=AsyncMock(return_value=MOCK_CHECKLIST)),
+        patch("routers.tide.fetch_tides", new=AsyncMock(return_value=(err, pred_err, HILO_BODY))),
+    ):
+        resp = client.get("/tide/S12345678")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert "Predicted" in data["formatted"]
+    assert "Water level:" in data["formatted"]
+
+
 def test_outside_us_notice(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
     london = {**MOCK_CHECKLIST, "lat": 51.5, "lng": -0.12}

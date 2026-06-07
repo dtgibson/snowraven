@@ -42,7 +42,7 @@ def haversine_miles(lat1: float, lng1: float, lat2: float, lng2: float) -> float
     return r * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def nearest_station(lat: float, lng: float, prefer_obs: bool = True, obs_within_mi: float = 10.0):
+def nearest_station(lat: float, lng: float, prefer_obs: bool = False, obs_within_mi: float = 10.0):
     """Return (station_dict, distance_mi) or None. Biases toward gauge stations
     when one is within obs_within_mi of the overall nearest."""
     stations = _stations()
