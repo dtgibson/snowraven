@@ -6,7 +6,7 @@ import { AlertCircle, Camera, ChevronDown, Crosshair, ExternalLink, Filter, Load
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
-import { parseMLExport } from '../lib/parseMLExport'
+import { loadMLExport } from '../lib/mlExportCache'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { observationMediaFormats, matchesMediaFilter } from '../lib/observationMedia'
 import type { MediaFilter } from '../lib/observationMedia'
@@ -730,23 +730,17 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
 
-        const [ebird, mlText] = await Promise.all([
+        const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          status.ml ? storage.readFile('ml') : Promise.resolve(null),
+          status.ml ? loadMLExport() : Promise.resolve(null),
         ])
         if (!ebird || cancelled) { setPhase({ tag: 'setup-required' }); return }
 
         const observations = ebird.observations
 
-        let mlRows: MLExportRow[] = []
-        let mediaMap: Record<string, string> = {}
-        let hasML = false
-        if (mlText) {
-          const result = parseMLExport(mlText)
-          mlRows = result.rows
-          mediaMap = result.mediaMap   // catalogId → 'Photo' | 'Audio' | 'Video'
-          hasML = mlRows.length > 0
-        }
+        const mlRows: MLExportRow[] = ml?.rows ?? []
+        const mediaMap: Record<string, string> = ml?.mediaMap ?? {}   // catalogId → 'Photo' | 'Audio' | 'Video'
+        const hasML = mlRows.length > 0
 
         if (cancelled) return
         setPhase({ tag: 'ready', observations, mlRows, mediaMap, hasML })

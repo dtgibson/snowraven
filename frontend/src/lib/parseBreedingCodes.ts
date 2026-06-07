@@ -103,6 +103,60 @@ function normalizeSpeciesName(name: string): string {
   return parenIdx === -1 ? name : name.slice(0, parenIdx).trim()
 }
 
+/** Minimal per-observation shape needed to derive breeding rows (a subset of
+ * ObservationEntry, so the parsed observations can be reused without re-parsing). */
+export interface BreedingObsInput {
+  commonName: string
+  scientificName: string
+  date: string
+  county: string | null
+  breedingCode: string | null
+}
+
+/** Whether the CSV header has a "Breeding Code" column (cheap first-line check). */
+export function hasBreedingCodeColumn(content: string): boolean {
+  const nl = content.search(/\r?\n/)
+  const header = nl === -1 ? content : content.slice(0, nl)
+  return header
+    .split(',')
+    .some(h => h.trim().replace(/^"|"$/g, '').toLowerCase() === 'breeding code')
+}
+
+/**
+ * Derive breeding-code rows from already-parsed observations, applying the SAME
+ * filters as parseBreedingCodes (exclude spuh/slash/hybrid, normalize the name at the
+ * first parenthesis, keep only recognized codes). Lets the Breeding Codes tab reuse
+ * the shared observations parse instead of re-parsing the ~20k-row CSV. Equivalence
+ * with parseBreedingCodes is locked by a test.
+ */
+export function deriveBreedingRows(observations: readonly BreedingObsInput[]): BreedingCodeRow[] {
+  const rows: BreedingCodeRow[] = []
+  for (const o of observations) {
+    const rawName = o.commonName?.trim() ?? ''
+    if (!rawName || isExcluded(rawName)) continue
+    const code = o.breedingCode ?? ''
+    if (!code || !BREEDING_CODE_MAP.has(code)) continue
+    rows.push({
+      commonName: normalizeSpeciesName(rawName),
+      scientificName: o.scientificName ?? '',
+      date: o.date ?? '',
+      county: o.county ?? null,
+      code,
+    })
+  }
+  return rows
+}
+
+/** Build BreedingData from already-parsed observations + the raw text (for the
+ * column-presence flag) — the no-re-parse counterpart of parseBreedingCodes. */
+export function deriveBreedingData(observations: readonly BreedingObsInput[], content: string): BreedingData {
+  if (!hasBreedingCodeColumn(content)) {
+    return { entries: [], codesPresent: [], hasBreedingCodeColumn: false, rows: [] }
+  }
+  const rows = deriveBreedingRows(observations)
+  return { ...aggregateBreedingRows(rows), hasBreedingCodeColumn: true, rows }
+}
+
 export function parseBreedingCodes(content: string): BreedingData {
   const rows = parseCSV(content)
   if (rows.length === 0) throw new Error('INVALID_EBIRD')

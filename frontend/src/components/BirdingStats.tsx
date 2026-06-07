@@ -14,7 +14,7 @@ import { SnowMap } from './SnowMap'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
 import { loadEbirdObservations } from '../lib/observationsCache'
-import { parseMLExport } from '../lib/parseMLExport'
+import { loadMLExport } from '../lib/mlExportCache'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { regionName } from '../lib/regionNames'
@@ -252,9 +252,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           setMapDefaults(mapDefaults)
         }
 
-        const [ebird, mlText] = await Promise.all([
+        const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          status.ml ? storage.readFile('ml') : Promise.resolve(null),
+          status.ml ? loadMLExport() : Promise.resolve(null),
         ])
 
         if (!ebird || cancelled) {
@@ -264,10 +264,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
         const observations = ebird.observations
 
-        let mlRows: MLExportRow[] = []
-        if (mlText) {
-          try { mlRows = parseMLExport(mlText).rows } catch { /* ML export optional */ }
-        }
+        const mlRows: MLExportRow[] = ml?.rows ?? []
 
         if (cancelled) return
         const mlMatch = status.ml?.filename.match(ML_USER_RE)
