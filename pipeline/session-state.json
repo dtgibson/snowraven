@@ -2,15 +2,15 @@
   "activeFeature": "perf-loading-and-indicators",
   "sessionNumber": 12,
   "sessionType": "maintain",
-  "currentStage": 1,
-  "lastCompletedStage": 0,
+  "currentStage": 2,
+  "lastCompletedStage": 1,
   "lastCheckpointStatus": "in-progress",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.15",
   "lastFeature": "Checklist comparer: per-checklist metadata + comments (shipped v0.5.15)",
-  "improveContext": "Reduce loading/waiting times across the app + add progress indicators where waiting is unavoidable. Backed by an 8-way read-only perf audit (workflow wf_70486f76) → prioritized plan: 9 quick wins, 11 bigger refactors, 8 progress-indicator gaps, with a recommended sequence. Top items: gate eager tabs (ListComparer/Multimedia/BreedingCodes/Settings mount at startup), add Tauri service request timeouts, parse the 20k-row backup once off-thread + share, map DOM-markers→GL circle layer, keep stats spinner up through first compute, static #root skeleton + root ErrorBoundary.",
-  "remainingBacklog": "From pipeline/comprehensive-review/audit.md: (A) keyboard-operable map markers (MapLibre markers not natively focusable; sidebar lists are fallback). (B) low-value: split oversized components; unify day-first date formats (Map Explorer '5 Jan' vs Species Detail '5 January'); grow component test coverage. Ship arc: 0.5.11–0.5.13 (a11y/perf/text-size), 0.5.14 (checklist compare + map media filter), 0.5.15 (checklist metadata + comments).",
+  "improveContext": "Full-sweep performance improvement on branch improve/performance (target 0.5.16). DONE + committed + tested (392 frontend tests, build clean): Batch A (gate eager tabs, Tauri fetch timeouts via tauri/http.ts, theme storage-seam persistence, #root boot skeleton, RootErrorBoundary), B (taxonomy in-flight coalescing, observationsCache fast-path + Settings invalidation, heatmap paint-expression via heatWeightDivisor, memoized normalizeSpeciesName), C (lazy HelpDocs, idle-prefetch heavy chunks, labeled TabLoading), D (mlExportCache shared across Stats/Map/SpeciesDetail + invalidation; Breeding Codes derives from shared observations via deriveBreedingData with equivalence test), F (LifeListTable filter+sort memoized). REMAINING: E (Statistics progressive render: computing phase + useDeferredValue, defer geo map below charts), G (map render rewrite DOM markers->GL circle layer + atlas viewport cap — HIGHEST REGRESSION, needs Dave visual verify), H (short-TTL network cache for hotspots/recent-obs/nemesis/region-info + remaining indicators: map loading chip, updater spinner, favicon placeholder). Skipped as low-value: Date-substring micro-opt, SpeciesDetail co-occurrence index. Then ship 0.5.16 (PAUSE for the Mac before release.sh per dev-machines memory). Full plan: workflow wf_70486f76 output.",
+  "remainingBacklog": "From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. Ship arc: 0.5.11-0.5.13 (a11y/perf/text-size), 0.5.14 (checklist compare + map media filter), 0.5.15 (checklist metadata + comments).",
   "createdAt": "2026-06-07T03:11:10Z",
-  "updatedAt": "2026-06-07T03:11:10Z"
+  "updatedAt": "2026-06-07T04:55:37Z"
 }
