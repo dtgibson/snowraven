@@ -145,9 +145,6 @@ export default function App() {
   const [tideState, setTideState] = useState<TideState>({ status: 'idle' })
   const [tideCopied, setTideCopied] = useState(false)
   const [bothCopied, setBothCopied] = useState(false)
-  // When on, "Get weather" auto-copies the weather + tide together. Persisted
-  // through the storage seam so it survives a desktop relaunch.
-  const [copyTideTogether, setCopyTideTogether] = useState(false)
   const lastLookupId = useRef('')
   // Mobile-only: Map Explorer occupies the full viewport when true.
   const [mapFullscreen, setMapFullscreen] = useState(false)
@@ -325,15 +322,6 @@ export default function App() {
     persistTextScale(s)
   }, [])
 
-  // Hydrate the "copy tide with weather" preference from the storage seam.
-  useEffect(() => {
-    let cancelled = false
-    void storage.getSetting<boolean>('copyTideWithWeather').then(v => {
-      if (!cancelled && typeof v === 'boolean') setCopyTideTogether(v)
-    }).catch(() => {})
-    return () => { cancelled = true }
-  }, [])
-
   // Honor the saved theme app-wide on load. The index.html anti-flash script covers
   // web pre-paint via localStorage; on desktop localStorage is wiped each relaunch,
   // so hydrate the durable choice from the storage seam and apply it.
@@ -438,31 +426,19 @@ export default function App() {
     lastLookupId.current = id
     // Weather and tide run concurrently from one action; each owns its state so
     // one failing never blocks the other.
-    const [weather, tide] = await Promise.all([loadWeather(id), loadTide(id, false)])
-    // Auto-copy on the clipboard seam (native on desktop, navigator on web): the
-    // combined block when the user opted in AND both resolved, otherwise weather
-    // alone (the long-standing default). A failed copy just leaves the buttons.
-    if (copyTideTogether && weather && tide) {
-      if (await copyText(buildCombined(weather, tide.body))) {
-        setBothCopied(true)
-        setTimeout(() => setBothCopied(false), 2000)
-      }
-    } else if (weather) {
-      if (await copyText(weather)) {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      }
+    const [weather] = await Promise.all([loadWeather(id), loadTide(id, false)])
+    // Auto-copy the weather on the clipboard seam (native on desktop, navigator
+    // on web). Tide has its own Copy + the "Copy Weather and Tide Together"
+    // button; a failed copy just leaves the buttons.
+    if (weather && await copyText(weather)) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     }
-  }, [input, loadWeather, loadTide, copyTideTogether])
+  }, [input, loadWeather, loadTide])
 
   const handleTideOverride = useCallback(() => {
     if (lastLookupId.current) void loadTide(lastLookupId.current, true)
   }, [loadTide])
-
-  const handleToggleCopyTide = useCallback((next: boolean) => {
-    setCopyTideTogether(next)
-    void storage.setSetting('copyTideWithWeather', next)
-  }, [])
 
   const handleCopy = async () => {
     if (state.status !== 'success') return
@@ -714,15 +690,6 @@ export default function App() {
           <p style={{ marginTop: 8, marginBottom: 0, fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
             Tide information is also shown below if available.
           </p>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 8, fontSize: '0.8125rem', color: 'var(--sr-text)', cursor: 'pointer', width: 'fit-content' }}>
-            <input
-              type="checkbox"
-              checked={copyTideTogether}
-              onChange={e => handleToggleCopyTide(e.target.checked)}
-              style={{ accentColor: 'var(--sr-accent)', cursor: 'pointer' }}
-            />
-            Include tide with weather auto-copied to clipboard.
-          </label>
 
           {hasError && (
             <div
@@ -748,43 +715,40 @@ export default function App() {
           {hasResult && (
             <>
               <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+              {/* Edit link on its own line above the checklist info so neither
+                  truncates the other. */}
+              {state.status === 'success' && (
+                <a
+                  href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Edit checklist comment on eBird (opens in new tab)"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    color: 'var(--sr-accent)',
+                    textDecoration: 'none',
+                    marginBottom: 6,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                >
+                  Edit checklist comment on eBird
+                  <ExternalLink size={11} strokeWidth={2.5} />
+                </a>
+              )}
+              <div style={{ marginBottom: 14 }}>
                 <span style={{
                   fontSize: '0.75rem',
                   color: 'var(--sr-text-muted)',
                   fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
                   letterSpacing: '0.01em',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  minWidth: 0,
                 }}>
                   {state.status === 'success' && `${state.checklistId} / ${state.locName} / ${state.obsDt}`}
                 </span>
-                {state.status === 'success' && (
-                  <a
-                    href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Edit checklist comment on eBird (opens in new tab)"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      color: 'var(--sr-accent)',
-                      textDecoration: 'none',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                  >
-                    Edit checklist comment on eBird
-                    <ExternalLink size={11} strokeWidth={2.5} />
-                  </a>
-                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{
