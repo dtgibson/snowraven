@@ -8,6 +8,7 @@ import {
   pinRadius, pinOpacity, pinRadiusExpr, pinFillRadiusExpr, pinOpacityExpr,
   PIN_RADIUS_BASE, PIN_RADIUS_STOPS, PIN_OPACITY_BASE, PIN_OPACITY_STOPS,
   ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH,
+  updateMapCursor, INTERACTIVE_MAP_LAYERS, type CursorMap,
 } from './mapPins'
 
 // Evaluate a ['step', ['get','count'], base, t1, v1, t2, v2, ...] expression in JS.
@@ -75,5 +76,49 @@ describe('pinOpacity / pinOpacityExpr parity', () => {
 
   it('expression is built from the shared stop table', () => {
     expect(pinOpacityExpr()).toEqual(['step', ['get', 'count'], PIN_OPACITY_BASE, ...PIN_OPACITY_STOPS.flat()])
+  })
+})
+
+describe('updateMapCursor (shared canvas-cursor arbiter)', () => {
+  function fakeMap(presentLayers: string[], hitCount: number) {
+    const canvas = { style: { cursor: 'unset' } } as unknown as HTMLCanvasElement
+    const queried: string[][] = []
+    const map: CursorMap = {
+      getLayer: (id: string) => (presentLayers.includes(id) ? {} : undefined),
+      queryRenderedFeatures: (_point, options) => {
+        queried.push(options?.layers ?? [])
+        return new Array(hitCount).fill({})
+      },
+      getCanvas: () => canvas,
+    }
+    return { map, canvas, queried }
+  }
+
+  it('sets pointer when an interactive layer is hit', () => {
+    const { map, canvas } = fakeMap(['sr-sight-circle', 'sr-atlas-fill'], 1)
+    updateMapCursor(map, [0, 0])
+    expect(canvas.style.cursor).toBe('pointer')
+  })
+
+  it('clears the cursor when nothing interactive is under the point', () => {
+    const { map, canvas } = fakeMap(['sr-sight-circle'], 0)
+    updateMapCursor(map, [0, 0])
+    expect(canvas.style.cursor).toBe('')
+  })
+
+  it('queries only the layers that exist, and skips the query when none do', () => {
+    const present = ['sr-hotspot', 'sr-atlas-fill']
+    const { map, queried } = fakeMap(present, 1)
+    updateMapCursor(map, [0, 0])
+    expect(queried).toEqual([present])
+
+    const none = fakeMap([], 1)
+    updateMapCursor(none.map, [0, 0])
+    expect(none.queried).toEqual([]) // querying with an empty layers list would throw in MapLibre
+    expect(none.canvas.style.cursor).toBe('')
+  })
+
+  it('covers every interactive layer id used by the map components', () => {
+    expect(INTERACTIVE_MAP_LAYERS).toEqual(['sr-sight-circle', 'sr-hotspot', 'sr-atlas-fill'])
   })
 })

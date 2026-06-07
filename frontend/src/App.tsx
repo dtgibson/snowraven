@@ -331,6 +331,10 @@ export default function App() {
   // Mark a heavy tab as mounted the first time it becomes active (then it stays mounted).
   useEffect(() => {
     if (DEFERRED_TABS.includes(activeTab)) {
+      // The post-commit setState is the deliberate mount trigger: mounting the
+      // heavy tab during the same render as the tab switch would block that
+      // frame's paint, which is exactly what the deferral exists to avoid.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMountedTabs(prev => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
     }
   }, [activeTab])

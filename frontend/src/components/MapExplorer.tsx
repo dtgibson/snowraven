@@ -26,6 +26,7 @@ import { normalizeSpeciesName } from '../lib/speciesUtils'
 import {
   TEARDROP, HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData,
   pinFillRadiusExpr, pinOpacityExpr, ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH,
+  updateMapCursor,
 } from '../lib/mapPins'
 import { hatchPixelRatio } from '../lib/atlasTextures'
 import { BirdName } from './BirdName'
@@ -309,15 +310,16 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
       const locId = (f?.properties as { locId?: unknown } | undefined)?.locId
       setSel(typeof locId === 'string' && locId !== '' ? locId : null)
     }
-    const enter = () => { map.getCanvas().style.cursor = 'pointer' }
-    const leave = () => { map.getCanvas().style.cursor = '' }
+    // Cursor goes through the shared arbiter: on leave the pointer may still be
+    // over another interactive layer (e.g. a shaded atlas block under the pin).
+    const hover = (e: MapMouseEvent) => updateMapCursor(map, e.point)
     map.on('click', onClick)
-    map.on('mouseenter', 'sr-sight-circle', enter)
-    map.on('mouseleave', 'sr-sight-circle', leave)
+    map.on('mouseenter', 'sr-sight-circle', hover)
+    map.on('mouseleave', 'sr-sight-circle', hover)
     return () => {
       map.off('click', onClick)
-      map.off('mouseenter', 'sr-sight-circle', enter)
-      map.off('mouseleave', 'sr-sight-circle', leave)
+      map.off('mouseenter', 'sr-sight-circle', hover)
+      map.off('mouseleave', 'sr-sight-circle', hover)
       map.getCanvas().style.cursor = ''
     }
   }, [map, displayMode])
@@ -438,15 +440,15 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
       const locId = (f?.properties as { locId?: unknown } | undefined)?.locId
       setSel(typeof locId === 'string' && locId !== '' ? locId : null)
     }
-    const enter = () => { map.getCanvas().style.cursor = 'pointer' }
-    const leave = () => { map.getCanvas().style.cursor = '' }
+    // Cursor goes through the shared arbiter (see SightingMarkers).
+    const hover = (e: MapMouseEvent) => updateMapCursor(map, e.point)
     map.on('click', onClick)
-    map.on('mouseenter', 'sr-hotspot', enter)
-    map.on('mouseleave', 'sr-hotspot', leave)
+    map.on('mouseenter', 'sr-hotspot', hover)
+    map.on('mouseleave', 'sr-hotspot', hover)
     return () => {
       map.off('click', onClick)
-      map.off('mouseenter', 'sr-hotspot', enter)
-      map.off('mouseleave', 'sr-hotspot', leave)
+      map.off('mouseenter', 'sr-hotspot', hover)
+      map.off('mouseleave', 'sr-hotspot', hover)
       map.getCanvas().style.cursor = ''
     }
   }, [map])

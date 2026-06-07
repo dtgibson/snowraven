@@ -16,6 +16,7 @@ import type { FillLayerSpecification, LineLayerSpecification, MapGeoJSONFeature,
 import { blocksInBounds, padBounds, type AtlasData, type Bounds } from '../lib/atlasBlocks'
 import type { BlockBreeding } from '../lib/atlasBreeding'
 import { hatchImageData, hatchPixelRatio, HATCH_IMAGE_ID, TIERS, type Tier } from '../lib/atlasTextures'
+import { updateMapCursor } from '../lib/mapPins'
 
 // Fallback tier purples (index = tier 1..4) when the --sr-tier-N tokens can't be
 // read; the live values come from the tokens so the fill tracks light/dark.
@@ -105,15 +106,17 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
       if (!p.name) return
       setSel({ lng: e.lngLat.lng, lat: e.lngLat.lat, code: p.code ?? '', name: p.name })
     }
-    const enter = () => { map.getCanvas().style.cursor = 'pointer' }
-    const leave = () => { map.getCanvas().style.cursor = '' }
+    // Cursor goes through the shared arbiter so overlapping interactive layers
+    // (pins/teardrops above the fill) can't strand a stale cursor.
+    const hover = (e: MapLayerMouseEvent) => updateMapCursor(map, e.point)
     map.on('click', 'sr-atlas-fill', onClick)
-    map.on('mouseenter', 'sr-atlas-fill', enter)
-    map.on('mouseleave', 'sr-atlas-fill', leave)
+    map.on('mouseenter', 'sr-atlas-fill', hover)
+    map.on('mouseleave', 'sr-atlas-fill', hover)
     return () => {
       map.off('click', 'sr-atlas-fill', onClick)
-      map.off('mouseenter', 'sr-atlas-fill', enter)
-      map.off('mouseleave', 'sr-atlas-fill', leave)
+      map.off('mouseenter', 'sr-atlas-fill', hover)
+      map.off('mouseleave', 'sr-atlas-fill', hover)
+      map.getCanvas().style.cursor = ''
     }
   }, [map])
 

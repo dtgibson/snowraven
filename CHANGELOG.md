@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.16] - 2026-06-07
+
+### Changed
+- **Performance sweep, part 2** (continues the 0.5.11–0.5.13 arc; batches A–D and F landed earlier on this branch):
+  - **Statistics opens instantly** — the tab paints its header and section navigation first with a brief "Computing your statistics…" indicator, charts follow a frame later, and the geographic map loads in the background. Toggling "Include spuhs" or the accumulation granularity no longer freezes the controls while the numbers recompute.
+  - **Map Explorer renders pins on the GPU** — sighting pins and hotspot teardrops are now MapLibre layers instead of hundreds of individual page elements, so panning and zooming a busy map is dramatically smoother. Looks identical, including pin sizes, opacities, and the fade under atlas shading; dark mode now recolors pins and atlas block shading correctly (they previously kept light-mode colors).
+  - **Atlas blocks draw only for the visible area** — the California atlas overlay generates blocks for the current view instead of all ~17,000 at once; very wide views show a "Zoom in to see atlas blocks" hint.
+  - **Fewer repeat eBird requests** — hotspot, recent-sighting, nemesis, and region lookups are cached for 90 seconds, so re-running the same search or bouncing between map views doesn't re-hit eBird. Errors are never cached.
+  - **Loading is always visible** — a progress chip on the map during hotspot/sighting searches, a spinner on the updater's "Checking…" and "Downloading…" states, and fixed-size favicon slots so bird-name rows never shift while icons load.
+
+### Fixed
+- Hiding a pin category in the Hotspots legend could make clicking another pin open the wrong popup (selection was tracked by list position; it now uses the location itself).
+- The mouse cursor could get stuck as (or lose) the pointer hand when moving between pins and shaded atlas blocks.
+
 ## [0.5.15] - 2026-06-06
 
 ### Added

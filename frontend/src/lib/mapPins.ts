@@ -14,7 +14,7 @@
 // re-adds the sprites on a light/dark theme change (same contract as
 // lib/atlasTextures.ts hatchImageData).
 
-import type { ExpressionSpecification } from 'maplibre-gl'
+import type { ExpressionSpecification, PointLike } from 'maplibre-gl'
 
 // ── Sighting circle model ──────────────────────────────────────────────────────
 
@@ -148,6 +148,32 @@ function drawGlyph(ctx: CanvasRenderingContext2D, kind: HotspotKind): void {
   } else {
     ctx.fill(new Path2D('M14 6L15.5 11L20.5 11L16.5 14.2L18 19L14 16L10 19L11.5 14.2L7.5 11L12.5 11Z'))
   }
+}
+
+// ── Shared canvas-cursor arbiter ───────────────────────────────────────────────
+// The sighting circles, hotspot teardrops, and atlas fill are OVERLAPPING
+// interactive GL layers, each receiving its own delegated mouseenter/mouseleave.
+// If every layer set the canvas cursor independently, the cursor would end up
+// wrong when the pointer crosses from one interactive layer onto another
+// beneath it — e.g. pin → shaded atlas block: the pin's mouseleave fires, but
+// the block's mouseenter does NOT re-fire because the block was already under
+// the pointer the whole time. Every enter/leave handler therefore routes
+// through this arbiter, which re-queries ALL interactive layers present.
+
+export const INTERACTIVE_MAP_LAYERS = ['sr-sight-circle', 'sr-hotspot', 'sr-atlas-fill']
+
+/** The subset of the MapLibre Map (or react-map-gl MapRef) the arbiter needs. */
+export interface CursorMap {
+  getLayer(id: string): unknown
+  queryRenderedFeatures(point: PointLike, options?: { layers?: string[] }): unknown[]
+  getCanvas(): HTMLCanvasElement
+}
+
+/** Set the canvas cursor to 'pointer' iff any interactive layer is under `point`. */
+export function updateMapCursor(map: CursorMap, point: PointLike): void {
+  const layers = INTERACTIVE_MAP_LAYERS.filter(id => !!map.getLayer(id))
+  const hit = layers.length > 0 && map.queryRenderedFeatures(point, { layers }).length > 0
+  map.getCanvas().style.cursor = hit ? 'pointer' : ''
 }
 
 /**
