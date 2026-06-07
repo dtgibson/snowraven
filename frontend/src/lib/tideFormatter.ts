@@ -44,7 +44,10 @@ export function formatTideBody(r: TideReading): string {
 /** The standalone tide block (NOAA credit + SnowRaven attribution). */
 export function formatTide(r: TideReading): string {
   // formatTideBody ends with the bare NOAA credit; the standalone block extends
-  // that line to credit SnowRaven too.
+  // that line to credit SnowRaven too. Plain slice (not a RegExp) — matches the
+  // Python formatter and avoids treating the constant as a pattern.
   const body = formatTideBody(r)
-  return body.replace(new RegExp(`${NOAA_CREDIT}$`), TIDE_ATTRIBUTION)
+  return body.endsWith(NOAA_CREDIT)
+    ? body.slice(0, -NOAA_CREDIT.length) + TIDE_ATTRIBUTION
+    : body
 }

@@ -2,8 +2,8 @@
   "activeFeature": "weather-tides",
   "sessionNumber": 14,
   "sessionType": "feature",
-  "currentStage": 6,
-  "lastCompletedStage": 5,
+  "currentStage": 7,
+  "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [
