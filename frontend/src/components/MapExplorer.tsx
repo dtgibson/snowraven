@@ -1935,6 +1935,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
         {/* Map area */}
         <div style={{ flex: 1, position: 'relative' }}>
+          {/* Loading chip over the canvas while a search is in flight — the
+              sidebar button already shows "Finding…", but on mobile (sidebar
+              closed) the map itself gave no signal. */}
+          {((viewMode === 'hotspots' && hotspotsLoading) || (viewMode === 'targets' && targetsLoading)) && (
+            <div className="sr-map-loading-chip" role="status">
+              <Loader2 size={13} className="spin" aria-hidden="true" />
+              {viewMode === 'hotspots' ? 'Finding hotspots…' : 'Finding sightings…'}
+            </div>
+          )}
           {/* Floating map controls, hidden while the mobile sidebar overlay is open.
               Fullscreen toggle shows on all widths; the Filters button is mobile-
               only (CSS). They sit in a flex cluster so they never overlap regardless

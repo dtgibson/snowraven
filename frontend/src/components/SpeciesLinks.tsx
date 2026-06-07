@@ -25,18 +25,20 @@ export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
         onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
         onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.75' }}
       >
-        <img
-          src="https://ebird.org/favicon.ico"
-          className="sr-favicon"
-          alt=""
-          aria-hidden="true"
-          loading="lazy"
-          decoding="async"
-          width={14}
-          height={14}
-          style={{ display: 'block' }}
-          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-        />
+        <span className="sr-favicon-slot">
+          <img
+            src="https://ebird.org/favicon.ico"
+            className="sr-favicon"
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            width={14}
+            height={14}
+            style={{ display: 'block' }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+          />
+        </span>
       </a>
       <a
         href={`https://birdsoftheworld.org/bow/species/${speciesCode}/cur/introduction`}
@@ -48,18 +50,20 @@ export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
         onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
         onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.75' }}
       >
-        <img
-          src="https://birdsoftheworld.org/favicon.ico"
-          className="sr-favicon"
-          alt=""
-          aria-hidden="true"
-          loading="lazy"
-          decoding="async"
-          width={14}
-          height={14}
-          style={{ display: 'block' }}
-          onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-        />
+        <span className="sr-favicon-slot">
+          <img
+            src="https://birdsoftheworld.org/favicon.ico"
+            className="sr-favicon"
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+            width={14}
+            height={14}
+            style={{ display: 'block' }}
+            onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+          />
+        </span>
       </a>
     </span>
   )

@@ -926,7 +926,10 @@ export default function App() {
           </button>
         )}
         {updateStatus.kind === 'checking' && (
-          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>Checking…</span>
+          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>
+            <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
+            Checking…
+          </span>
         )}
         {updateStatus.kind === 'up-to-date' && (
           <span aria-live="polite" style={{ color: 'var(--sr-accent)' }}>Up to date (v{updateStatus.current})</span>
@@ -955,7 +958,8 @@ export default function App() {
           )
         )}
         {updateStatus.kind === 'downloading' && (
-          <span style={{ color: 'var(--sr-text-muted)' }}>
+          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>
+            <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
             {updateStatus.progress !== null
               ? `Downloading… ${Math.round(updateStatus.progress * 100)}%`
               : 'Downloading update…'}
