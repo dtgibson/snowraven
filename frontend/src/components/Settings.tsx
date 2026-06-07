@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Eye, EyeOff, FileCheck, FileQuestion, Lock } from 'lucide-react'
+import { BookOpen, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
-import { applyTheme, readStoredPreference } from '../lib/theme'
+import { applyTheme, readStoredPreference, persistThemePreference, clearThemePreference, hydrateStoredTheme } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
 import type { TextScale } from '../lib/textScale'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import { storage } from '../lib/storage'
 import { isTauri } from '../lib/platform'
+import { getCurrentLocation, describeLocationError } from '../lib/location'
+import type { LocationError } from '../lib/location'
+import { clearEbirdObservationsCache } from '../lib/observationsCache'
+import { clearMLExportCache } from '../lib/mlExportCache'
+import { clearNetworkCache } from '../lib/networkCache'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -30,9 +35,19 @@ function AppearanceRow() {
   const [consentState, setConsentState] = useState<ConsentState>('idle')
   const [pendingPreference, setPendingPreference] = useState<ThemePreference | null>(null)
 
+  // Desktop: localStorage is wiped each relaunch, so reflect the durable choice from
+  // the storage seam in the radio (App already applies it app-wide on load).
+  useEffect(() => {
+    let cancelled = false
+    void hydrateStoredTheme().then(v => {
+      if (!cancelled && v) setPreference(v)
+    })
+    return () => { cancelled = true }
+  }, [])
+
   function selectTheme(pref: ThemePreference) {
     if (pref === 'system') {
-      try { localStorage.removeItem('sr-theme') } catch { /* private browsing */ }
+      clearThemePreference()
       setConsentState('idle')
       setPendingPreference(null)
       setPreference('system')
@@ -46,7 +61,7 @@ function AppearanceRow() {
     try { hasStoredPref = localStorage.getItem('sr-theme') !== null } catch { /* private browsing */ }
 
     if (hasStoredPref) {
-      try { localStorage.setItem('sr-theme', pref) } catch { /* private browsing */ }
+      persistThemePreference(pref)
       setPreference(pref)
       setConsentState('idle')
       setPendingPreference(null)
@@ -59,7 +74,7 @@ function AppearanceRow() {
 
   function savePreference() {
     if (!pendingPreference || pendingPreference === 'system') return
-    try { localStorage.setItem('sr-theme', pendingPreference) } catch { /* private browsing */ }
+    persistThemePreference(pendingPreference)
     setConsentState('idle')
     setPendingPreference(null)
   }
@@ -798,7 +813,11 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
   // Map defaults state
   const [mapLat, setMapLat] = useState('')
   const [mapLng, setMapLng] = useState('')
-  const [mapDist, setMapDist] = useState('')
+  // Distance defaults to 5 mi until the user saves their own (the load effect
+  // overrides this with a saved map-defaults.dist when present).
+  const [mapDist, setMapDist] = useState('5')
+  const [mapLocating, setMapLocating] = useState(false)
+  const [mapLocError, setMapLocError] = useState('')
   const [mapDefaultsStatus, setMapDefaultsStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [mapDefaultsHasSaved, setMapDefaultsHasSaved] = useState(false)
   const savedChipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -837,6 +856,8 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
     try {
       const content = await file.text()
       await storage.writeFile(slot, content, file.name)
+      if (slot === 'ebird') clearEbirdObservationsCache()
+      if (slot === 'ml') clearMLExportCache()
       const updatedStatus = await storage.getFilesStatus()
       setStatus(updatedStatus)
       onFilesSaved?.()
@@ -852,6 +873,8 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
     setError(null)
     try {
       await storage.deleteFile(slot)
+      if (slot === 'ebird') clearEbirdObservationsCache()
+      if (slot === 'ml') clearMLExportCache()
       setStatus(prev => ({ ...prev, [slot]: null }))
     } catch {
       setError('Delete failed. Please try again.')
@@ -869,6 +892,10 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
     setError(null)
     try {
       await storage.setApiKey(slot, input.trim())
+      // A new eBird key must invalidate live eBird responses cached under the
+      // old one (hotspots / recent-obs / nemesis / region-info), or they'd
+      // linger up to the 90s TTL.
+      if (slot === 'ebird') clearNetworkCache()
       setKeys(prev => ({ ...prev, [slot]: input.trim() }))
       setEditing(false)
       setInput('')
@@ -886,6 +913,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
     setError(null)
     try {
       await storage.deleteApiKey(slot)
+      if (slot === 'ebird') clearNetworkCache()
       setKeys(prev => ({ ...prev, [slot]: null }))
       setVisible(false)
       onKeysSaved?.()
@@ -925,10 +953,24 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
 
   const handleClearMapDefaults = async () => {
     await storage.deleteSetting('map-defaults').catch(() => {})
-    setMapLat(''); setMapLng(''); setMapDist('')
+    setMapLat(''); setMapLng(''); setMapDist('5')
     setMapDefaultsHasSaved(false)
     setMapDefaultsStatus('idle')
     if (savedChipTimerRef.current) clearTimeout(savedChipTimerRef.current)
+  }
+
+  const handleDetectMapLocation = async () => {
+    setMapLocError('')
+    setMapLocating(true)
+    try {
+      const loc = await getCurrentLocation()
+      setMapLat(loc.lat.toFixed(5))
+      setMapLng(loc.lng.toFixed(5))
+    } catch (err) {
+      setMapLocError(describeLocationError(err as LocationError))
+    } finally {
+      setMapLocating(false)
+    }
   }
 
   return (
@@ -1073,6 +1115,25 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
           <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
             Set a home location for the Map Explorer. These coordinates load automatically every time you open the map tab.
           </p>
+          <button tabIndex={0}
+            onClick={handleDetectMapLocation}
+            disabled={mapLocating}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              height: 34, padding: '0 12px', marginBottom: mapLocError ? 6 : 12,
+              background: mapLocating ? 'var(--sr-surface-subtle)' : 'none',
+              border: '1.5px solid var(--sr-border)', borderRadius: 6,
+              fontSize: '0.78125rem', fontWeight: 500, fontFamily: 'inherit',
+              color: mapLocating ? 'var(--sr-text-muted)' : 'var(--sr-text)',
+              cursor: mapLocating ? 'default' : 'pointer',
+            }}
+          >
+            {mapLocating
+              ? <Loader2 size={13} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
+              : <Navigation size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />}
+            {mapLocating ? 'Locating…' : 'Use my location'}
+          </button>
+          {mapLocError && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 12 }}>{mapLocError}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: 8, marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Latitude</div>

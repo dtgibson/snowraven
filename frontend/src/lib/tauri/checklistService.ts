@@ -1,6 +1,7 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
+import { tauriFetch } from './http'
 import { storage } from '../storage'
 import { resolveSpecies } from './taxonomyService'
+import { getRegionInfo } from './regionInfo'
 
 const EBIRD_BASE = 'https://api.ebird.org/v2'
 
@@ -109,15 +110,12 @@ export async function getChecklist(checklistId: string): Promise<ChecklistResult
   }
 }
 
-/** Resolve an eBird locId (e.g. "L99381") to a human-readable place name. Best-effort. */
+/** Resolve an eBird locId (e.g. "L99381") to a human-readable place name. Best-effort,
+ *  via the shared short-TTL region-info memo (also used by the weather service). */
 async function resolveLocName(key: string, locId: string): Promise<string> {
   try {
-    const res = await tauriFetch(`${EBIRD_BASE}/ref/region/info/${locId}`, {
-      headers: { 'X-eBirdApiToken': key },
-    })
-    if (!res.ok) return ''
-    const region = await res.json() as { result?: string; name?: string }
-    return region.result || region.name || ''
+    const info = await getRegionInfo(locId, key)
+    return info.name
   } catch {
     return ''
   }

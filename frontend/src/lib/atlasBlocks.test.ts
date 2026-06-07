@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest'
 import {
   generateBlocks,
   blocksInBounds,
+  padBounds,
   quadBbox,
   buildQuadIndex,
   pointToBlockCode,
   type Quad,
   type AtlasScheme,
   type AtlasData,
+  type Bounds,
 } from './atlasBlocks'
 
 // Representative scheme: a 7.5' quad split 2 cols x 3 rows (6 blocks).
@@ -110,6 +112,29 @@ describe('blocksInBounds', () => {
     const { blocks, tooMany } = blocksInBounds(DATA, [-100.0, 45.0, -99.0, 46.0], 500)
     expect(tooMany).toBe(false)
     expect(blocks).toHaveLength(0)
+  })
+})
+
+describe('padBounds', () => {
+  it('expands each side by the fraction of the span', () => {
+    const b: Bounds = [-122.0, 38.0, -121.0, 38.5]
+    expect(padBounds(b, 0.15)).toEqual([-122.15, 37.925, -120.85, 38.575])
+  })
+
+  it('zero fraction is the identity', () => {
+    const b: Bounds = [-122.0, 38.0, -121.0, 38.5]
+    expect(padBounds(b, 0)).toEqual(b)
+  })
+
+  it('a padded view includes blocks just outside the raw bounds (the moveend pop-in guard)', () => {
+    const data: AtlasData = { scheme: SCHEME, quads: [QUAD], irregular: [] }
+    // Raw bounds sit just east of the quad (which spans -122.0..-121.875);
+    // 15% padding of the ~0.6° span reaches into it.
+    const raw: Bounds = [-121.85, 38.0, -121.25, 38.125]
+    const unpadded = blocksInBounds(data, raw, 500)
+    const padded = blocksInBounds(data, padBounds(raw, 0.15), 500)
+    expect(unpadded.blocks.length).toBe(0)
+    expect(padded.blocks.length).toBeGreaterThan(0)
   })
 })
 

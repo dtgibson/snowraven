@@ -3,8 +3,9 @@ import { AlertCircle, Loader2, MapPin, Calendar } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { formatDateMonthFirst as formatDateLabel } from '../lib/formatDate'
-import { parseBreedingCodes, aggregateBreedingRows } from '../lib/parseBreedingCodes'
+import { deriveBreedingData, aggregateBreedingRows } from '../lib/parseBreedingCodes'
 import type { BreedingData, BreedingEntry, BreedingCodeRow } from '../lib/parseBreedingCodes'
+import { loadEbirdObservations } from '../lib/observationsCache'
 import { BREEDING_CODE_MAP, TIER_COLORS, CATEGORY_CODES } from '../lib/breedingCodes'
 import type { BreedingCategory } from '../lib/breedingCodes'
 import { BreedingCodeTable } from './BreedingCodeTable'
@@ -115,12 +116,12 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         const status = await storage.getFilesStatus()
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
-        const text = await storage.readFile('ebird')
-        if (!text || cancelled) {
+        const ebird = await loadEbirdObservations()   // shared parse — no second CSV walk
+        if (!ebird || cancelled) {
           setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
           return
         }
-        const data = parseBreedingCodes(text)
+        const data = deriveBreedingData(ebird.observations, ebird.text)
         if (!data.hasBreedingCodeColumn) {
           setPhase({ tag: 'error', message: "The stored file doesn't look like an eBird backup. Re-upload MyEBirdData.csv in Settings → Default Files → eBird Backup." })
           return

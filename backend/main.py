@@ -13,6 +13,7 @@ from routers.nominatim import router as nominatim_router
 from routers.settings import router as settings_router
 from routers.stats import router as stats_router
 from routers.taxonomy import router as taxonomy_router
+from routers.tide import router as tide_router
 from routers.version import router as version_router
 from routers.weather import router as weather_router
 
@@ -33,6 +34,7 @@ app.include_router(map_router)
 app.include_router(mapdefaults_router)
 app.include_router(stats_router)
 app.include_router(weather_router)
+app.include_router(tide_router)
 app.include_router(version_router)
 app.include_router(nominatim_router)
 app.include_router(taxonomy_router)

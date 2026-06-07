@@ -15,7 +15,7 @@ import {
   Legend, ResponsiveContainer,
 } from 'recharts'
 import { loadEbirdObservations } from '../lib/observationsCache'
-import { parseMLExport } from '../lib/parseMLExport'
+import { loadMLExport } from '../lib/mlExportCache'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { buildGraphData, type GraphPoint, type GraphInterval } from '../lib/sightingsGraph'
 import { TIER_COLORS } from '../lib/breedingCodes'
@@ -505,9 +505,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
         const mlUserId = extractUserId(status.ml?.filename ?? '')
 
-        const [ebird, mlText] = await Promise.all([
+        const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
-          status.ml ? storage.readFile('ml') : Promise.resolve(null),
+          status.ml ? loadMLExport() : Promise.resolve(null),
         ])
         if (cancelled) return
 
@@ -519,17 +519,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
         let mlRows: MLExportRow[] = []
         let hasML = false
 
-        if (mlText) {
-          if (!cancelled) {
-            try {
-              const mlResult = parseMLExport(mlText)
-              mediaMap = new Map(Object.entries(mlResult.mediaMap) as [string, MediaType][])
-              mlRows = mlResult.rows
-              hasML = true
-            } catch {
-              // ML parse failed — proceed without it
-            }
-          }
+        if (ml) {
+          mediaMap = new Map(Object.entries(ml.mediaMap) as [string, MediaType][])
+          mlRows = ml.rows
+          hasML = true
         }
 
         if (cancelled) return

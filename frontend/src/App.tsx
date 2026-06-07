@@ -5,22 +5,30 @@ import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
 import { copyText } from './lib/clipboard'
 import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
+import { ATTRIBUTION } from './lib/weatherFormatter'
+import { COMBINED_ATTRIBUTION } from './lib/tideFormatter'
 import { readStoredScale, persistTextScale, applyScaleToDom, hydrateStoredScale } from './lib/textScale'
 import type { TextScale } from './lib/textScale'
+import { applyTheme, hydrateStoredTheme } from './lib/theme'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
 import { Settings } from './components/Settings'
-import { HelpDocs } from './components/HelpDocs'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
 
-// The three heavy tabs pull in maplibre-gl (~270 KB gz) + recharts (~112 KB gz).
-// Lazy-load them so that weight (and their startup CSV parse) is deferred until the
-// tab is first opened, instead of loading on first paint for every user.
-const MapExplorer = lazy(() => import('./components/MapExplorer').then(m => ({ default: m.MapExplorer })))
-const SpeciesDetail = lazy(() => import('./components/SpeciesDetail').then(m => ({ default: m.SpeciesDetail })))
-const BirdingStats = lazy(() => import('./components/BirdingStats').then(m => ({ default: m.BirdingStats })))
+// Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
+// Detail, and Help are kept out of the entry bundle so first paint is light. Named
+// import thunks so the same loaders can be idle-prefetched (see the effect below) —
+// returning users get instant tab opens without paying the weight on first paint.
+const importMapExplorer = () => import('./components/MapExplorer')
+const importSpeciesDetail = () => import('./components/SpeciesDetail')
+const importBirdingStats = () => import('./components/BirdingStats')
+const importHelpDocs = () => import('./components/HelpDocs')
+const MapExplorer = lazy(() => importMapExplorer().then(m => ({ default: m.MapExplorer })))
+const SpeciesDetail = lazy(() => importSpeciesDetail().then(m => ({ default: m.SpeciesDetail })))
+const BirdingStats = lazy(() => importBirdingStats().then(m => ({ default: m.BirdingStats })))
+const HelpDocs = lazy(() => importHelpDocs().then(m => ({ default: m.HelpDocs })))
 import {
   type ConfigurableTab,
   type Tab,
@@ -44,6 +52,24 @@ type AppState =
   | { status: 'loading' }
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
+
+// The tide box's own independent state — a tide failure never touches weather.
+type TideState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; formatted: string; body: string }
+  | { status: 'too-far'; station: string; distanceMi: number }
+  | { status: 'outside-us'; station: string; distanceMi: number }
+  | { status: 'unavailable' }
+  | { status: 'error' }
+
+interface TideResponse {
+  status: 'ok' | 'too-far' | 'outside-us' | 'unavailable'
+  formatted?: string
+  body?: string
+  station?: { id: string; name: string }
+  distanceMi?: number
+}
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -82,15 +108,22 @@ const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
   ),
 }
 
-// Tabs whose (lazy) component should mount on first open and then stay mounted,
-// so their state + parsed data survive tab switches without re-loading.
-const HEAVY_TABS: Tab[] = ['map-explorer', 'species-detail', 'birding-stats']
+// Tabs that mount on first open and then stay mounted, so their state + parsed data
+// survive tab switches without re-loading. Everything EXCEPT the always-present
+// Weather tab defers its mount — and therefore its startup data work (CSV parses, the
+// synchronous breeding-code parse, /taxonomy/codes POSTs, files-status reads) — until
+// the tab is first opened, instead of running it all on first paint.
+const DEFERRED_TABS: Tab[] = [
+  'map-explorer', 'species-detail', 'birding-stats',
+  'comparer', 'life-list', 'breeding-codes', 'settings',
+]
 
 // Fallback shown while a lazy tab's chunk is being fetched.
-function TabLoading() {
+function TabLoading({ label = 'Loading…' }: { label?: string }) {
   return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, minHeight: 200 }}>
-      <Loader2 size={22} className="spin" style={{ color: 'var(--sr-text-muted)' }} aria-label="Loading" />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', justifyContent: 'center', padding: 48, minHeight: 200 }}>
+      <Loader2 size={22} className="spin" style={{ color: 'var(--sr-text-muted)' }} aria-hidden="true" />
+      <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }} role="status">{label}</span>
     </div>
   )
 }
@@ -109,6 +142,10 @@ export default function App() {
   const [input, setInput] = useState('')
   const [state, setState] = useState<AppState>({ status: 'idle' })
   const [copied, setCopied] = useState(false)
+  const [tideState, setTideState] = useState<TideState>({ status: 'idle' })
+  const [tideCopied, setTideCopied] = useState(false)
+  const [bothCopied, setBothCopied] = useState(false)
+  const lastLookupId = useRef('')
   // Mobile-only: Map Explorer occupies the full viewport when true.
   const [mapFullscreen, setMapFullscreen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
@@ -125,7 +162,7 @@ export default function App() {
   // Heavy tabs mount on first open and then stay mounted (preserving their state).
   // Seeded with the initial active tab so a heavy default tab mounts immediately.
   const [mountedTabs, setMountedTabs] = useState<Set<Tab>>(() =>
-    HEAVY_TABS.includes(activeTab) ? new Set([activeTab]) : new Set()
+    DEFERRED_TABS.includes(activeTab) ? new Set([activeTab]) : new Set()
   )
   // First-run welcome: null = undetermined, true = cold start (no keys, no files,
   // not previously dismissed). welcomeDismissed hides it for the rest of the session.
@@ -285,9 +322,43 @@ export default function App() {
     persistTextScale(s)
   }, [])
 
+  // Honor the saved theme app-wide on load. The index.html anti-flash script covers
+  // web pre-paint via localStorage; on desktop localStorage is wiped each relaunch,
+  // so hydrate the durable choice from the storage seam and apply it.
+  useEffect(() => {
+    let cancelled = false
+    void hydrateStoredTheme().then(pref => {
+      if (!cancelled && pref) applyTheme(pref)
+    })
+    return () => { cancelled = true }
+  }, [])
+
+  // After first paint, warm the lazy chunks during idle time so opening a heavy tab
+  // is instant for returning users — without adding their weight to the first paint.
+  useEffect(() => {
+    const warm = () => {
+      void importMapExplorer().catch(() => {})
+      void importSpeciesDetail().catch(() => {})
+      void importBirdingStats().catch(() => {})
+      void importHelpDocs().catch(() => {})
+    }
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback
+    const cic = (window as unknown as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback
+    if (ric) {
+      const h = ric(warm, { timeout: 3000 })
+      return () => cic?.(h)
+    }
+    const t = setTimeout(warm, 1500)
+    return () => clearTimeout(t)
+  }, [])
+
   // Mark a heavy tab as mounted the first time it becomes active (then it stays mounted).
   useEffect(() => {
-    if (HEAVY_TABS.includes(activeTab)) {
+    if (DEFERRED_TABS.includes(activeTab)) {
+      // The post-commit setState is the deliberate mount trigger: mounting the
+      // heavy tab during the same render as the tab switch would block that
+      // frame's paint, which is exactly what the deferral exists to avoid.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMountedTabs(prev => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
     }
   }, [activeTab])
@@ -301,36 +372,93 @@ export default function App() {
     return () => { document.body.style.overflow = prev }
   }, [mapFullscreen, activeTab])
 
-  const handleLookup = useCallback(async () => {
-    const id = extractChecklistId(input)
-    if (!isValidChecklistId(id)) {
-      setState({ status: 'error', message: "That doesn't look like a valid eBird checklist ID." })
-      return
+  // One SnowRaven attribution at the very bottom; the weather block's own
+  // attribution is stripped and the tide body keeps the inline NOAA credit.
+  const buildCombined = (weatherFormatted: string, tideBody: string) =>
+    `${weatherFormatted.replace(`\n${ATTRIBUTION}`, '')}\n\n${tideBody}\n\n${COMBINED_ATTRIBUTION}`
+
+  // Returns the tide block { formatted, body } when a reading resolved, else null.
+  const loadTide = useCallback(async (id: string, force: boolean): Promise<{ formatted: string; body: string } | null> => {
+    setTideState({ status: 'loading' })
+    try {
+      const t = await transport.get<TideResponse>(
+        `/tide/${encodeURIComponent(id)}`,
+        force ? { force: '1' } : undefined,
+      )
+      if (t.status === 'ok' && t.formatted && t.body) {
+        setTideState({ status: 'ok', formatted: t.formatted, body: t.body })
+        return { formatted: t.formatted, body: t.body }
+      } else if ((t.status === 'too-far' || t.status === 'outside-us') && t.station) {
+        setTideState({ status: t.status, station: t.station.name, distanceMi: t.distanceMi ?? 0 })
+      } else {
+        setTideState({ status: 'unavailable' })
+      }
+    } catch {
+      setTideState({ status: 'error' })
     }
+    return null
+  }, [])
+
+  // Returns the formatted weather string on success, else null. Does NOT
+  // auto-copy — handleLookup decides what to copy (weather alone, or combined).
+  const loadWeather = useCallback(async (id: string): Promise<string | null> => {
     setState({ status: 'loading' })
     try {
       const data = await transport.get<{ formatted: string; checklist_id: string; loc_name: string; obs_dt: string }>(
         `/weather/${encodeURIComponent(id)}`
       )
       setState({ status: 'success', formatted: data.formatted, checklistId: data.checklist_id, locName: data.loc_name, obsDt: data.obs_dt })
-      // Auto-copy via the clipboard seam — uses the native Tauri clipboard on
-      // desktop (no user-gesture requirement) and navigator.clipboard on web.
-      if (await copyText(data.formatted)) {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      }
-      // If the copy failed, the user can still click Copy.
+      return data.formatted
     } catch (err) {
       const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
       setState({ status: 'error', message: detail ?? 'Something went wrong. Please try again.' })
+      return null
     }
-  }, [input])
+  }, [])
+
+  const handleLookup = useCallback(async () => {
+    const id = extractChecklistId(input)
+    if (!isValidChecklistId(id)) {
+      setState({ status: 'error', message: "That doesn't look like a valid eBird checklist ID." })
+      setTideState({ status: 'idle' })
+      return
+    }
+    lastLookupId.current = id
+    // Weather and tide run concurrently from one action; each owns its state so
+    // one failing never blocks the other.
+    const [weather] = await Promise.all([loadWeather(id), loadTide(id, false)])
+    // Auto-copy the weather on the clipboard seam (native on desktop, navigator
+    // on web). Tide has its own Copy + the "Copy Weather and Tide Together"
+    // button; a failed copy just leaves the buttons.
+    if (weather && await copyText(weather)) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }, [input, loadWeather, loadTide])
+
+  const handleTideOverride = useCallback(() => {
+    if (lastLookupId.current) void loadTide(lastLookupId.current, true)
+  }, [loadTide])
 
   const handleCopy = async () => {
     if (state.status !== 'success') return
     await copyText(state.formatted)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleCopyTide = async () => {
+    if (tideState.status !== 'ok') return
+    await copyText(tideState.formatted)
+    setTideCopied(true)
+    setTimeout(() => setTideCopied(false), 2000)
+  }
+
+  const handleCopyBoth = async () => {
+    if (state.status !== 'success' || tideState.status !== 'ok') return
+    await copyText(buildCombined(state.formatted, tideState.body))
+    setBothCopied(true)
+    setTimeout(() => setBothCopied(false), 2000)
   }
 
   const handleUpdateCheck = useCallback(async () => {
@@ -559,6 +687,10 @@ export default function App() {
             </button>
           </div>
 
+          <p style={{ marginTop: 8, marginBottom: 0, fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
+            Tide information is also shown below if available.
+          </p>
+
           {hasError && (
             <div
               id="checklist-error"
@@ -583,43 +715,40 @@ export default function App() {
           {hasResult && (
             <>
               <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
+              {/* Edit link on its own line above the checklist info so neither
+                  truncates the other. */}
+              {state.status === 'success' && (
+                <a
+                  href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Edit checklist comment on eBird (opens in new tab)"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    color: 'var(--sr-accent)',
+                    textDecoration: 'none',
+                    marginBottom: 6,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                >
+                  Edit checklist comment on eBird
+                  <ExternalLink size={11} strokeWidth={2.5} />
+                </a>
+              )}
+              <div style={{ marginBottom: 14 }}>
                 <span style={{
                   fontSize: '0.75rem',
                   color: 'var(--sr-text-muted)',
                   fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
                   letterSpacing: '0.01em',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  minWidth: 0,
                 }}>
                   {state.status === 'success' && `${state.checklistId} / ${state.locName} / ${state.obsDt}`}
                 </span>
-                {state.status === 'success' && (
-                  <a
-                    href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Edit this checklist on eBird (opens in new tab)"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: '0.75rem',
-                      fontWeight: 500,
-                      color: 'var(--sr-accent)',
-                      textDecoration: 'none',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                  >
-                    Edit on eBird
-                    <ExternalLink size={11} strokeWidth={2.5} />
-                  </a>
-                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <span style={{
@@ -676,6 +805,72 @@ export default function App() {
               </pre>
             </>
           )}
+
+          {/* Tide box — independent of weather; fires from the same lookup. */}
+          {tideState.status !== 'idle' && (
+            <>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
+              {tideState.status === 'loading' && (
+                <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
+                  <Loader2 size={14} className="spin" aria-hidden="true" /> Loading tide…
+                </div>
+              )}
+              {tideState.status === 'unavailable' && (
+                <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+              )}
+              {tideState.status === 'error' && (
+                <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+              )}
+              {(tideState.status === 'too-far' || tideState.status === 'outside-us') && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '13px 15px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                  <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
+                    {tideState.status === 'too-far'
+                      ? `The nearest tide station is ${tideState.distanceMi.toFixed(0)} miles away (${tideState.station}). Tide data may not reflect your spot.`
+                      : `Tide information is only available in the US. The nearest US station is ${tideState.station}, ${tideState.distanceMi.toFixed(0)} miles away.`}
+                  </span>
+                  <button tabIndex={0}
+                    onClick={handleTideOverride}
+                    aria-label="Show the nearest tide station anyway"
+                    style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {tideState.status === 'too-far' ? 'Show it anyway' : 'Show nearest US station'}
+                  </button>
+                </div>
+              )}
+              {tideState.status === 'ok' && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--sr-text-muted)' }}>
+                      Tide output
+                    </span>
+                    <button tabIndex={0}
+                      onClick={handleCopyTide}
+                      aria-label="Copy tide output to clipboard"
+                      style={{ height: 30, padding: '0 12px', background: tideCopied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)', color: tideCopied ? 'var(--sr-on-accent)' : 'var(--sr-accent)', border: `1.5px solid ${tideCopied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`, borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                    >
+                      {tideCopied ? <Check size={12} strokeWidth={2.5} /> : <ClipboardCopy size={12} strokeWidth={2.5} />}
+                      {tideCopied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <pre style={{ background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', borderRadius: 8, padding: '18px 20px', fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace', fontSize: '0.84375rem', lineHeight: 1.75, color: 'inherit', whiteSpace: 'pre', overflowX: 'auto', margin: 0 }}>
+                    {tideState.formatted}
+                  </pre>
+                </>
+              )}
+
+              {state.status === 'success' && tideState.status === 'ok' && (
+                <button tabIndex={0}
+                  onClick={handleCopyBoth}
+                  aria-label="Copy weather and tide together to clipboard"
+                  style={{ marginTop: 18, width: '100%', height: 38, background: bothCopied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)', color: bothCopied ? 'var(--sr-on-accent)' : 'var(--sr-accent)', border: `1.5px solid ${bothCopied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`, borderRadius: 8, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  {bothCopied ? <Check size={14} strokeWidth={2.5} /> : <ClipboardCopy size={14} strokeWidth={2.5} />}
+                  {bothCopied ? 'Copied!' : 'Copy Weather and Tide Together'}
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -691,7 +886,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <ListComparer onOpenSpecies={navigateToSpeciesDetail} />
+        {mountedTabs.has('comparer') && <ListComparer onOpenSpecies={navigateToSpeciesDetail} />}
       </div>
 
       {/* Life List tab content */}
@@ -706,13 +901,15 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <LifeList
-          onGoToSettings={() => setActiveTab('settings')}
-          requestedFilter={mediaListFilter}
-          onRequestedFilterConsumed={resetMediaListFilter}
-          filesVersion={filesVersion}
-          onOpenSpecies={navigateToSpeciesDetail}
-        />
+        {mountedTabs.has('life-list') && (
+          <LifeList
+            onGoToSettings={() => setActiveTab('settings')}
+            requestedFilter={mediaListFilter}
+            onRequestedFilterConsumed={resetMediaListFilter}
+            filesVersion={filesVersion}
+            onOpenSpecies={navigateToSpeciesDetail}
+          />
+        )}
       </div>
 
       {/* Breeding Codes tab content */}
@@ -727,7 +924,9 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+        {mountedTabs.has('breeding-codes') && (
+          <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+        )}
       </div>
 
       {/* Species Detail tab content */}
@@ -743,7 +942,7 @@ export default function App() {
         }}
       >
         {mountedTabs.has('species-detail') && (
-          <Suspense fallback={<TabLoading />}>
+          <Suspense fallback={<TabLoading label="Loading species detail…" />}>
             <SpeciesDetail
               onGoToSettings={() => setActiveTab('settings')}
               filesVersion={filesVersion}
@@ -769,7 +968,7 @@ export default function App() {
         }}
       >
         {mountedTabs.has('map-explorer') && (
-          <Suspense fallback={<TabLoading />}>
+          <Suspense fallback={<TabLoading label="Loading map…" />}>
             <MapExplorer
               onGoToSettings={() => { setMapFullscreen(false); setActiveTab('settings') }}
               onNavigateToMediaList={() => { setMapFullscreen(false); navigateToMediaList() }}
@@ -795,7 +994,7 @@ export default function App() {
         }}
       >
         {mountedTabs.has('birding-stats') && (
-          <Suspense fallback={<TabLoading />}>
+          <Suspense fallback={<TabLoading label="Loading charts…" />}>
             <BirdingStats onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
           </Suspense>
         )}
@@ -813,18 +1012,20 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <Settings
-          onKeysSaved={fetchKeyStatus}
-          onFilesSaved={handleFilesSaved}
-          onOpenHelp={() => setHelpOpen(true)}
-          textScale={textScale}
-          onTextScaleChange={handleTextScale}
-          tabOrder={tabLayout.order}
-          tabHidden={tabLayout.hidden}
-          onReorder={handleReorder}
-          onToggleVisibility={handleToggleVisibility}
-          onRestoreDefaults={handleRestoreDefaults}
-        />
+        {mountedTabs.has('settings') && (
+          <Settings
+            onKeysSaved={fetchKeyStatus}
+            onFilesSaved={handleFilesSaved}
+            onOpenHelp={() => setHelpOpen(true)}
+            textScale={textScale}
+            onTextScaleChange={handleTextScale}
+            tabOrder={tabLayout.order}
+            tabHidden={tabLayout.hidden}
+            onReorder={handleReorder}
+            onToggleVisibility={handleToggleVisibility}
+            onRestoreDefaults={handleRestoreDefaults}
+          />
+        )}
       </div>
       </main>
 
@@ -877,7 +1078,10 @@ export default function App() {
           </button>
         )}
         {updateStatus.kind === 'checking' && (
-          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>Checking…</span>
+          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>
+            <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
+            Checking…
+          </span>
         )}
         {updateStatus.kind === 'up-to-date' && (
           <span aria-live="polite" style={{ color: 'var(--sr-accent)' }}>Up to date (v{updateStatus.current})</span>
@@ -906,7 +1110,8 @@ export default function App() {
           )
         )}
         {updateStatus.kind === 'downloading' && (
-          <span style={{ color: 'var(--sr-text-muted)' }}>
+          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>
+            <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
             {updateStatus.progress !== null
               ? `Downloading… ${Math.round(updateStatus.progress * 100)}%`
               : 'Downloading update…'}
@@ -928,7 +1133,11 @@ export default function App() {
         />
       )}
 
-      {helpOpen && <HelpDocs onClose={() => setHelpOpen(false)} />}
+      {helpOpen && (
+        <Suspense fallback={null}>
+          <HelpDocs onClose={() => setHelpOpen(false)} />
+        </Suspense>
+      )}
     </div>
   )
 }

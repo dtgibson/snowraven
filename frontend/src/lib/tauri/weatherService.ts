@@ -1,12 +1,13 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { tauriFetch } from './http';
 import { invoke } from '@tauri-apps/api/core';
 import { storage } from '../storage';
 import { formatWeather, type HourlyResponse } from '../weatherFormatter';
+import { getRegionInfo, type RegionInfo } from './regionInfo';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
 const OWM_BASE = 'https://api.openweathermap.org/data/3.0';
 
-interface ChecklistData {
+export interface ChecklistData {
   obs_dt: string;
   loc_name: string;
   lat: number;
@@ -14,7 +15,9 @@ interface ChecklistData {
   duration_hrs: number;
 }
 
-async function fetchChecklist(checklistId: string, ebirdKey: string): Promise<ChecklistData> {
+// Exported so the tide service reuses the exact same checklist resolution
+// (lat/lng + obs_dt + duration) rather than re-implementing it.
+export async function fetchChecklist(checklistId: string, ebirdKey: string): Promise<ChecklistData> {
   const headers = { 'X-eBirdApiToken': ebirdKey };
 
   const res = await tauriFetch(`${EBIRD_BASE}/product/checklist/view/${checklistId}`, { headers });
@@ -27,15 +30,14 @@ async function fetchChecklist(checklistId: string, ebirdKey: string): Promise<Ch
   let lat: number | null = null;
   let lng: number | null = null;
 
-  // Primary: bounding box centre from region info
-  const regionRes = await tauriFetch(`${EBIRD_BASE}/ref/region/info/${locId}`, { headers });
-  if (regionRes.ok) {
-    const regionData = await regionRes.json() as Record<string, unknown>;
-    if (!locName) locName = (regionData['result'] as string | undefined) ?? (regionData['name'] as string | undefined) ?? '';
-    const bounds = (regionData['bounds'] as Record<string, number> | undefined) ?? {};
-    if ('minX' in bounds && 'maxX' in bounds && 'minY' in bounds && 'maxY' in bounds) {
-      lat = (bounds['minY'] + bounds['maxY']) / 2;
-      lng = (bounds['minX'] + bounds['maxX']) / 2;
+  // Primary: bounding box centre from region info (shared short-TTL memo)
+  let region: RegionInfo | null = null;
+  try { region = await getRegionInfo(locId, ebirdKey); } catch { /* best-effort — fall through to the GPS fallbacks */ }
+  if (region) {
+    if (!locName) locName = region.name;
+    if (region.lat !== null && region.lng !== null) {
+      lat = region.lat;
+      lng = region.lng;
     }
   }
 

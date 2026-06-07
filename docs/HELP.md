@@ -79,9 +79,17 @@ The ML export is used by: Multimedia (media counts and species coverage), Specie
 
 The Weather tab retrieves historical weather data for any eBird checklist. Paste a checklist ID (for example, `S12345678`) or a full eBird checklist URL and click Get weather. The result is a formatted text block matching the output format used by raincrow.app -- ready to paste directly into your eBird checklist comment field.
 
-The weather summary includes temperature range, wind speed and direction with Beaufort description, humidity, dew point, precipitation, conditions, and sunrise and sunset times. The formatted result is copied to your clipboard automatically on a successful lookup -- on the web, the Raspberry Pi server, and the macOS and Windows desktop apps alike -- so you can paste it straight in. A Copy button is always available too. An Edit on eBird link opens your checklist's comment field directly in a new tab.
+The weather summary includes temperature range, wind speed and direction with Beaufort description, humidity, dew point, precipitation, conditions, and sunrise and sunset times. The formatted result is copied to your clipboard automatically on a successful lookup -- on the web, the Raspberry Pi server, and the macOS and Windows desktop apps alike -- so you can paste it straight in. A Copy button is always available too. An "Edit checklist comment on eBird" link opens your checklist's comment field directly in a new tab.
 
 Both your eBird API key and OpenWeather API key must be configured in Settings for this tab to work.
+
+### Tides
+
+Below the weather, a Tides box fills in at the same time from the same checklist, showing the historical tide for that location and time from the nearest NOAA tide station. It needs no extra key — NOAA's Tides & Currents service is free and keyless.
+
+The box shows the water level across your checklist's duration, labeled **Observed** when a real gauge reading exists or **Predicted** when it doesn't, whether the tide was rising or falling, the surrounding high and low tides with their local times, and the station name with its distance from your checklist. If a high or low tide turns during your checklist, the box notes it. Heights are in feet relative to MLLW (the standard US tide-table reference).
+
+If the nearest station is more than 25 miles away, or your checklist is outside the US (NOAA only covers the US and its territories), the box explains that and offers a one-tap option to show the nearest US station anyway. A **Copy Weather and Tide Together** button copies both blocks at once, with a single SnowRaven credit at the bottom.
 
 ---
 
@@ -197,11 +205,11 @@ Switch between Pins and Heatmap with the Map View toggle. In Heatmap mode, a Hea
 
 ### Hotspots
 
-Fetches eBird hotspots near a location. Hotspots you have visited (matched against your eBird backup) appear as green pins. Unvisited hotspots appear as blue pins. Locations from your personal location history appear as orange pins. Click any legend row to hide or show that category. Enter a place name or coordinates to search, then click Fetch hotspots.
+Fetches eBird hotspots near a location. Hotspots you have visited (matched against your eBird backup) appear as green pins. Unvisited hotspots appear as blue pins. Locations from your personal location history appear as orange pins. Click any legend row to hide or show that category. Enter a place name or coordinates to search, then click Fetch hotspots. While a search is running, a small chip at the top of the map shows its progress.
 
 Below the legend, the panel lists the ten closest hotspots you have not visited, ranked by distance from your center point; each row links to that hotspot's page on eBird.
 
-**Atlas blocks overlay.** A **California atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid appears once you zoom in, and stays hidden at far-out zoom levels so it doesn't clutter the whole-state view. Click any block to open a popup with its name, a link to its eBird California atlas page, and -- when shading is on -- your highest breeding code there plus how many of your breeding records fall inside it. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, and Media Targets panels (in My Sightings it sits at the bottom of the panel; in Media Targets, just above the nearest-targets list).
+**Atlas blocks overlay.** A **California atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid is drawn for the area you are looking at and appears once you zoom in; at very wide views a "Zoom in to see atlas blocks" hint appears instead, so the whole-state view stays uncluttered. Click any block to open a popup with its name, a link to its eBird California atlas page, and -- when shading is on -- your highest breeding code there plus how many of your breeding records fall inside it. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, and Media Targets panels (in My Sightings it sits at the bottom of the panel; in Media Targets, just above the nearest-targets list).
 
 When the overlay is on, a **Shade by My Highest Breeding Code** toggle appears. It tints each block by the strongest breeding code *you* have personally entered there -- darkest for Confirmed, down through Probable to Possible. The shading reflects only your own records, never anyone else's, and requires your eBird backup to be loaded in Settings. When shading is on, any heatmap or pins automatically dim so the tier colors stay legible on top.
 
@@ -308,7 +316,7 @@ Upload your eBird backup CSV and Macaulay Library export. Each file is stored fo
 
 ### Default Location
 
-Set a home location used by the Map Explorer and the Nearby Lifers card in Statistics. Enter latitude, longitude, and a search radius in miles, then click Save. The Map Explorer uses these coordinates as its starting center and zoom level. The Statistics tab uses this location to fetch nearby recent sightings for the target species list.
+Set a home location used by the Map Explorer and the Nearby Lifers card in Statistics. Click **Use my location** to fill in your coordinates automatically (the same detection the Map Explorer offers), or enter latitude and longitude by hand. Set a search radius in miles, then click Save. The radius defaults to 5 miles. The Map Explorer uses these coordinates as its starting center and zoom level. The Statistics tab uses this location to fetch nearby recent sightings for the target species list.
 
 ### Tab Layout
 

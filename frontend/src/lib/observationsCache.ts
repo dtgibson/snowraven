@@ -2,13 +2,17 @@ import { storage } from './storage'
 import { parseEbirdObservations } from './parseEbirdObservations'
 import type { ObservationEntry } from '../types'
 
-// Shared, content-keyed cache for the parsed eBird backup. Several tabs each read
-// and parse the same ~20k-row CSV independently; this memoizes the parse so they
-// share one result. Keying on the file's text means a re-upload (new content)
-// naturally invalidates the cache without any explicit signal.
+// Shared cache for the parsed eBird backup. Several tabs each parse the same ~20k-row
+// CSV; this memoizes the parse so they share one result. Once parsed, a cache hit
+// returns immediately — no re-read of the ~6 MB file and no content compare on every
+// heavy-tab mount. The cache is invalidated explicitly when the eBird file is saved
+// or cleared (clearEbirdObservationsCache, called from Settings).
 let cache: { text: string; observations: ObservationEntry[] } | null = null
-// In-flight parse, so concurrent callers for the same content share one parse.
-let inflight: { text: string; promise: Promise<ObservationEntry[]> } | null = null
+// In-flight parse, so concurrent first-callers share one parse.
+let inflight: Promise<{ text: string; observations: ObservationEntry[] } | null> | null = null
+// Bumped on invalidation so a parse that's in flight when the file changes won't
+// repopulate the cache with now-stale content.
+let generation = 0
 
 // Parse off the main thread via a Web Worker so the UI stays responsive while a
 // large export is parsed (especially on low-power / Raspberry Pi deployments).
@@ -40,24 +44,27 @@ function parseOffThread(text: string): Promise<ObservationEntry[]> {
  * raw CSV (callers that also need it — e.g. to parse comments or ML — can reuse it).
  */
 export async function loadEbirdObservations(): Promise<{ text: string; observations: ObservationEntry[] } | null> {
-  const text = await storage.readFile('ebird')
-  if (text === null) return null
-  if (cache && cache.text === text) return cache
-  if (inflight && inflight.text === text) return { text, observations: await inflight.promise }
-
-  const promise = parseOffThread(text)
-  inflight = { text, promise }
-  try {
-    const observations = await promise
-    cache = { text, observations }
-    return { text, observations }
-  } finally {
-    if (inflight?.text === text) inflight = null
+  if (cache) return cache
+  if (!inflight) {
+    inflight = loadFresh(generation).finally(() => { inflight = null })
   }
+  return inflight
 }
 
-/** Drop the cached parse. Content-keying already invalidates on change; this just
- * frees the retained array (e.g. when a file is cleared). */
+async function loadFresh(myGen: number): Promise<{ text: string; observations: ObservationEntry[] } | null> {
+  const text = await storage.readFile('ebird')
+  if (text === null) return null
+  const observations = await parseOffThread(text)
+  const result = { text, observations }
+  // Don't cache if the file was invalidated while we were parsing.
+  if (myGen === generation) cache = result
+  return result
+}
+
+/** Invalidate the cached parse. Call whenever the stored eBird file changes (save or
+ * clear) so the next load re-reads + re-parses. */
 export function clearEbirdObservationsCache(): void {
   cache = null
+  inflight = null
+  generation++
 }

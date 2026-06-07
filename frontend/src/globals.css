@@ -248,6 +248,18 @@
   opacity: 0.65;
 }
 
+/* Fixed-size slot around each favicon so the lazy-loaded image (or a failed
+   load) never shifts layout — the box is reserved whether or not the external
+   favicon ever arrives. Raster icons stay px-sized by design. */
+.sr-favicon-slot {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 /* ── BirdName: the app-wide bird-name format ─────────────────────────────────
    Common name (links to Species Detail when hasEntry) + eBird/BoW favicons,
    with an optional stacked scientific name. The name reads as plain text at rest
@@ -387,6 +399,29 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Loading chip shown over the map canvas while a hotspot/sightings search is in
+   flight. Map chrome (like the fab cluster, z-index 1050) — passive, so clicks
+   fall through to the map. Stays below the 1200 reserved for true overlays. */
+.sr-map-loading-chip {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-size: 0.75rem;
+  color: var(--sr-text-muted);
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 /* Floating map controls cluster — lays the fullscreen toggle and the Filters

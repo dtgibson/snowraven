@@ -1,4 +1,4 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { tauriFetch } from './http';
 import { getVersion } from '@tauri-apps/api/app';
 
 const GITHUB_API = 'https://api.github.com/repos/dtgibson/snowraven/releases/latest';

@@ -1,4 +1,5 @@
 import { isTauri } from './platform';
+import { cachedGet, networkCacheKey } from './networkCache';
 
 export interface TransportAdapter {
   get<T>(path: string, params?: Record<string, string>): Promise<T>;
@@ -68,6 +69,12 @@ class TauriTransport implements TransportAdapter {
       return checkVersion() as Promise<T>;
     }
 
+    if (path.startsWith('/tide/')) {
+      const { getTide } = await import('./tauri/tideService');
+      const checklistId = path.slice('/tide/'.length);
+      return getTide(checklistId, params?.force === '1') as Promise<T>;
+    }
+
     if (path === '/stats/nemesis') {
       const { getNemesis } = await import('./tauri/statsService');
       const lat = parseFloat(params?.lat ?? '0');
@@ -118,6 +125,32 @@ class TauriTransport implements TransportAdapter {
   }
 }
 
-export const transport: TransportAdapter = isTauri()
-  ? new TauriTransport()
-  : new WebTransport();
+// Live eBird data fetched on explicit user actions; repeat requests with the
+// same params (re-clicking Find, bouncing between map view tabs) are served
+// from the short-TTL cache instead of re-hitting eBird. Decorating the
+// transport covers BOTH runtimes — web/Pi (FastAPI) and desktop (TS services) —
+// at their one common chokepoint. Errors are never cached (see networkCache).
+const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/stats/nemesis']);
+
+class CachedTransport implements TransportAdapter {
+  private inner: TransportAdapter;
+
+  constructor(inner: TransportAdapter) {
+    this.inner = inner;
+  }
+
+  get<T>(path: string, params?: Record<string, string>): Promise<T> {
+    if (CACHED_GET_PATHS.has(path)) {
+      return cachedGet(networkCacheKey(path, params), () => this.inner.get<T>(path, params));
+    }
+    return this.inner.get<T>(path, params);
+  }
+
+  post<T>(path: string, body: unknown): Promise<T> {
+    return this.inner.post<T>(path, body);
+  }
+}
+
+export const transport: TransportAdapter = new CachedTransport(
+  isTauri() ? new TauriTransport() : new WebTransport(),
+);

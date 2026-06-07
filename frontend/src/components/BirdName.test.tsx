@@ -38,6 +38,15 @@ describe('BirdName', () => {
     expect(container.querySelectorAll('a[href]').length).toBe(0)
   })
 
+  it('wraps each favicon in a fixed-size slot so a slow or failed load cannot shift layout', () => {
+    const { container } = render(<BirdName commonName="Anna's Hummingbird" taxonCode="annhum" />)
+    const slots = container.querySelectorAll('.sr-favicon-slot')
+    expect(slots.length).toBe(2)
+    for (const slot of slots) {
+      expect(slot.querySelector('img.sr-favicon')).toBeTruthy()
+    }
+  })
+
   it('shows the scientific name only when showSci is set', () => {
     const { rerender, queryByText } = render(
       <BirdName commonName="American Robin" scientificName="Turdus migratorius" />

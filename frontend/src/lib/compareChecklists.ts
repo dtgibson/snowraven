@@ -109,6 +109,8 @@ export function compareChecklists(a: ChecklistData, b: ChecklistData): Checklist
 
 /** Extract the per-checklist metadata (everything except the species list). */
 function toMeta(d: ChecklistData): ChecklistMeta {
+  // Rest-omit: drop `species`, keep everything else (auto-syncs with new fields).
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { species: _species, ...meta } = d
   return meta
 }

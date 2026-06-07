@@ -1,4 +1,4 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { tauriFetch } from './http';
 import { storage } from '../storage';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
@@ -62,16 +62,26 @@ async function writeCache(cache: TaxonomyCache): Promise<void> {
   }
 }
 
-// In-memory fallback for the session (populated after first load)
+// In-memory cache + an in-flight promise so concurrent first-callers (six components
+// resolve taxon codes on load) share ONE download instead of each fetching the full
+// ~17k-entry taxonomy.
 let _memCache: TaxonomyCache | null = null;
+let _loading: Promise<TaxonomyCache> | null = null;
 
 async function ensureTaxonomy(): Promise<TaxonomyCache> {
   if (_memCache) return _memCache;
+  if (!_loading) {
+    _loading = loadTaxonomy()
+      .then(c => { _memCache = c; return c; })
+      .finally(() => { _loading = null; });
+  }
+  return _loading;
+}
 
+async function loadTaxonomy(): Promise<TaxonomyCache> {
   const cached = await readCache();
   // Cache valid for 7 days
   if (cached && Date.now() - cached.loadedAt < 7 * 24 * 60 * 60 * 1000) {
-    _memCache = cached;
     return cached;
   }
 
@@ -84,7 +94,7 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
     // domestic/issf/form, e.g. "rocpig1" — resolve and map to a species.
     res = await tauriFetch(
       `${EBIRD_BASE}/ref/taxonomy/ebird?fmt=json`,
-      { headers }
+      { headers, timeoutMs: 30_000 }   // ~17k-entry one-time download — allow longer
     );
   } catch (err) {
     throw new Error(`Could not reach eBird (${err instanceof Error ? err.message : String(err)}). Check your internet connection.`, { cause: err });
@@ -123,8 +133,7 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
   }
 
   const fresh: TaxonomyCache = { bySci, byCom, byOrder, byCode, reportAs, loadedAt: Date.now() };
-  _memCache = fresh;
-  writeCache(fresh); // fire-and-forget
+  writeCache(fresh); // fire-and-forget; ensureTaxonomy sets the in-memory cache
   return fresh;
 }
 

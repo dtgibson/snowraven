@@ -1,44 +1,56 @@
-# Handoff — statistics-improvements — SHIPPED (v0.5.10)
+# Handoff — weather-tides — PAUSED before deploy (ship 0.5.17 on the Mac)
 
-## Status
-**COMPLETE.** Shipped as **0.5.10** (Improve lane), batched with the SnowMap
-offline-retry fix. GitHub release published with a notarized macOS universal DMG,
-a signed Windows installer, and `latest.json` (all three updater targets) — all
-health-checked. `session-state.json` has `activeFeature: null`; next `/weft`
-starts fresh.
+## What We Accomplished
 
-Release: https://github.com/dtgibson/snowraven/releases/tag/v0.5.10
+Built the Tides feature: looking up a checklist on the Weather tab now also shows
+the historical tide below it, from the nearest NOAA station — observed when a
+gauge reading exists, otherwise predicted (interpolated from the high/low curve
+for prediction-only stations), with the surrounding high/low, rising/falling, the
+station and its distance, and a "Copy Weather and Tide Together" button. Keyless,
+both runtimes, two notices (too-far / outside-US) with a one-tap override. Taken
+through Strategist → Auditor: built, tested (468 frontend + 102 backend, live
+NOAA verified), and security-audited clean. Paused before the deploy step so it
+ships from the Mac with the rest of the batch as **0.5.17**.
 
-## What shipped (Statistics tab)
-- **Top Species** — top 10 by total individuals and by # checklists.
-- **Effort & Outings** — cumulative totals (time spelled out as days/hrs/min,
-  distance, area when present), avg area, observer summary (% solo / avg /
-  largest group), and Notable Outings (longest / farthest / largest-area /
-  most-species / most-individuals checklists, each linking to eBird).
-- **Highlights & Records** (new) — biggest day, longest streak, dry spell,
-  Shannon diversity, biggest flocks, single-checklist + one-and-done birds,
-  regrouped out of Firsts & Milestones and Data Quality.
-- Full state/province names (`lib/regionNames.ts`), spelled-out metric labels,
-  a section jump-nav, Area Covered parsing, any-report streak dates, and
-  single-checklist excluding one-and-done.
-- Tests: `lib/regionNames.test.ts` + Area-Covered parsing (306 frontend pass).
-- **Also shipped**: SnowMap shows a "map couldn't load — Retry" state on a
-  failed style fetch (the offline-map fix that was queued for this batch).
+## What Has Been Saved
 
-## Notes / follow-ups
-- **Area stats** are hidden unless the data has area-covered checklists (eBird
-  "Area" protocol). Dave's current data has none — working as intended.
-- Section order now: Life List Totals → Top Species → Firsts & Milestones →
-  Temporal → Geographic → Effort & Outings → Data Quality → Highlights & Records
-  → Breeding → Media → Other. (Highlights & Records sits after Data Quality due
-  to the in-place split; can be reordered later if desired.)
+All committed and pushed to `origin/improve/performance`:
 
-## Key learnings (in DECISIONS.md)
-- Checklist-level fields (duration/distance/area/observers) repeat per species
-  row — dedupe by submissionId before summing.
-- Bump BOTH `frontend/package.json` and `src-tauri/tauri.conf.json` (0.5.10 was
-  already bumped for the map fix; appended Statistics to that changelog entry).
-- Regroup safely by inserting a section boundary rather than cut-pasting big JSX.
+- `weather-tides` pipeline docs (strategic-brief, prd, schema, design-spec,
+  design.html, qa-report, security-report)
+- Frontend: `lib/tide.ts`, `lib/tideStations.ts`, `lib/tideFormatter.ts` (+ tests),
+  `lib/tauri/tideService.ts`, `lib/transport.ts`, `lib/weatherFormatter.ts`,
+  `App.tsx`, `assets/noaa-tide-stations.json`
+- Backend: `routers/tide.py`, `services/{noaa,tide,tide_stations}.py`,
+  `formatters/tide.py`, `main.py`, `staticdata/noaa_tide_stations.json`, tide tests
+- `scripts/build-tide-stations.mjs`
+- Docs/version: CHANGELOG (0.5.17), PRIVACY_POLICY (NOAA), HELP, README,
+  package.json + tauri.conf.json (0.5.17)
+- `pipeline/DEPLOY-PENDING.md` — the single ledger for the 0.5.17 batch
+
+## Where We Are
+
+Stage 8, The Deployer — paused by choice. Stages 1–7 complete and approved.
+Three efforts (0.5.16 perf, settings-location, tides) are batched as **0.5.17**,
+to deploy from the Mac next session.
+
+## Resume Prompt
+
+To resume: run `/weft` on the Mac.
+
+- **Deploy (Mac):** follow `pipeline/DEPLOY-PENDING.md` — confirm version 0.5.17,
+  merge to main if applicable, push the `v0.5.17` tag, wait for Windows CI, run
+  `./release.sh`.
+- **Then finish the feature:** `/weft` resumes `weather-tides` at Stage 8
+  (Deployer, confirm live) → Stage 9 (Chronicler: PRODUCT_CONTEXT / DECISIONS /
+  ROADMAP) → close out.
+
+Local web run (any machine): `cd frontend && npm run build`, then
+`cd backend && .venv/bin/uvicorn main:app --port 1620` → http://localhost:1620.
 
 ---
-Project: snowraven. Feature: statistics-improvements. All stages complete; v0.5.10 live.
+
+Project: snowraven. Feature: weather-tides (Feature lane, session 14). Last
+completed stage: 7 (Auditor). Current stage: 8 (Deployer), paused. Branch
+`improve/performance`, pushed. Batched as 0.5.17 with the parked 0.5.16 work.
+Deploy ledger: pipeline/DEPLOY-PENDING.md.
