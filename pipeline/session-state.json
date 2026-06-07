@@ -2,13 +2,14 @@
   "activeFeature": "weather-tides",
   "sessionNumber": 14,
   "sessionType": "feature",
-  "currentStage": 3,
-  "lastCompletedStage": 2,
+  "currentStage": 4,
+  "lastCompletedStage": 3,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [
     "pipeline/weather-tides/strategic-brief.md",
-    "pipeline/weather-tides/prd.md"
+    "pipeline/weather-tides/prd.md",
+    "pipeline/weather-tides/schema.md"
   ],
   "releasedVersion": "0.5.15",
   "lastFeature": "Checklist comparer: per-checklist metadata + comments (shipped v0.5.15)",
