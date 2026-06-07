@@ -1,6 +1,6 @@
 # Privacy Policy — SnowRaven
 
-**Effective date:** June 3, 2026
+**Effective date:** June 7, 2026
 
 ## Overview
 
@@ -33,6 +33,10 @@ SnowRaven's job is to fetch birding and weather information for you, so the app 
 - **Nominatim (OpenStreetMap)** — to turn a place name you type into map coordinates. See the [OSM privacy policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy).
 
 What you send to these services (a checklist ID, a location, a search term) is governed by each provider's own privacy policy. SnowRaven only relays the request you initiated; it does not add tracking and does not keep a copy.
+
+## Your Location
+
+When you tap "Use my location" — on the map or when setting a default location in Settings — SnowRaven asks your device or browser for your current coordinates, with your permission. Those coordinates stay on your device: they set the map's center and can be saved as your default location locally. They are only sent outward if you then run a search (for hotspots or nearby sightings), the same as coordinates you type in by hand. You can deny or revoke the permission at any time through your operating system or browser settings.
 
 ## Map Tiles
 
