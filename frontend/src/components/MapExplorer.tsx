@@ -21,7 +21,7 @@ import { SnowMap } from './SnowMap'
 import { AtlasLayer } from './AtlasLayer'
 import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
-import { HEAT_INTENSITY_DEFAULT, heatWeight, heatRadiusPx, heatIntensityFactor } from '../lib/heat'
+import { HEAT_INTENSITY_DEFAULT, heatWeightDivisor, heatRadiusPx, heatIntensityFactor } from '../lib/heat'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { BirdName } from './BirdName'
 
@@ -267,15 +267,19 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
     }
   }, [locations, map])
 
-  const heatFc = useMemo<FeatureCollection<Point, { w: number }>>(() => ({
+  // Static GeoJSON (rebuilds only when locations change) carrying the raw count; the
+  // intensity-dependent count→weight curve is applied as a paint expression below, so
+  // dragging the slider only updates paint instead of rebuilding the whole source.
+  const heatFc = useMemo<FeatureCollection<Point, { count: number }>>(() => ({
     type: 'FeatureCollection',
     features: locations.map(l => ({
-      type: 'Feature', properties: { w: heatWeight(l.count, heatIntensity) },
+      type: 'Feature', properties: { count: l.count },
       geometry: { type: 'Point', coordinates: [l.lng, l.lat] },
     })),
-  }), [locations, heatIntensity])
+  }), [locations])
 
   if (displayMode === 'heatmap') {
+    const divisor = heatWeightDivisor(heatIntensity)
     return (
       <Source id="sr-heat" type="geojson" data={heatFc}>
         {/* When atlas breeding shading is on, sit the heatmap UNDER the atlas fill
@@ -283,7 +287,8 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
         <Layer id="sr-heat" type="heatmap"
           beforeId={atlasShading ? 'sr-atlas-fill' : undefined}
           paint={{
-          'heatmap-weight': ['get', 'w'],
+          // min(count / divisor, 1) — matches lib/heat.ts heatWeight, as an expression.
+          'heatmap-weight': ['min', ['/', ['get', 'count'], divisor], 1],
           'heatmap-intensity': heatIntensityFactor(heatIntensity),
           'heatmap-radius': heatRadiusPx(heatIntensity),
           'heatmap-opacity': atlasShading ? 0.45 : 0.85,

@@ -7,6 +7,7 @@ import type { TextScale } from '../lib/textScale'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import { storage } from '../lib/storage'
 import { isTauri } from '../lib/platform'
+import { clearEbirdObservationsCache } from '../lib/observationsCache'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -847,6 +848,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
     try {
       const content = await file.text()
       await storage.writeFile(slot, content, file.name)
+      if (slot === 'ebird') clearEbirdObservationsCache()
       const updatedStatus = await storage.getFilesStatus()
       setStatus(updatedStatus)
       onFilesSaved?.()
@@ -862,6 +864,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
     setError(null)
     try {
       await storage.deleteFile(slot)
+      if (slot === 'ebird') clearEbirdObservationsCache()
       setStatus(prev => ({ ...prev, [slot]: null }))
     } catch {
       setError('Delete failed. Please try again.')

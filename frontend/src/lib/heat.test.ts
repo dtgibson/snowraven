@@ -4,6 +4,7 @@ import {
   heatRadiusPx,
   heatIntensityFactor,
   heatWeight,
+  heatWeightDivisor,
 } from './heat'
 
 // The heat model is the single source of truth shared by the Map Explorer and
@@ -94,5 +95,26 @@ describe('heatWeight', () => {
     }
     // strictly higher across the full span for a low count
     expect(heatWeight(3, 10)).toBeGreaterThan(heatWeight(3, 1))
+  })
+})
+
+describe('heatWeightDivisor', () => {
+  it('matches the divisors the curve is documented to use', () => {
+    expect(heatWeightDivisor(1)).toBe(20)
+    expect(heatWeightDivisor(5)).toBe(12)
+    expect(heatWeightDivisor(10)).toBe(2)
+  })
+
+  // The Map Explorer applies the count→weight curve as a MapLibre paint EXPRESSION
+  // (min(count / divisor, 1)) instead of precomputing heatWeight per feature. This
+  // locks that expression to produce the SAME value as heatWeight, so the heatmap is
+  // visually identical whether computed in JS or in the paint expression.
+  it('reproduces heatWeight via min(count / divisor, 1)', () => {
+    for (let intensity = 1; intensity <= 10; intensity++) {
+      const divisor = heatWeightDivisor(intensity)
+      for (const count of [0, 1, 3, 6, 12, 25, 1000]) {
+        expect(Math.min(count / divisor, 1)).toBeCloseTo(heatWeight(count, intensity), 10)
+      }
+    }
   })
 })

@@ -20,12 +20,18 @@ export function heatIntensityFactor(intensity: number): number {
 }
 
 /**
- * Per-point heat weight. The divisor is the observation count that reaches
- * full heat: 20 at intensity 1 (count-proportional, the original behavior)
- * down to 2 at intensity 10 (almost any sighting saturates), so HIGH
- * intensity makes even sparse, low-count locations burn hot.
+ * The observation count that reaches full heat at a given intensity: 20 at
+ * intensity 1 (count-proportional, the original behavior) down to 2 at intensity 10
+ * (almost any sighting saturates). Exposed so a map can apply the count→weight curve
+ * as a MapLibre paint EXPRESSION (static GeoJSON, no rebuild on every slider tick)
+ * while keeping one source of truth.
  */
+export function heatWeightDivisor(intensity: number): number {
+  return Math.max(2, 20 - (intensity - 1) * 2)
+}
+
+/** Per-point heat weight (count / divisor, capped at 1). HIGH intensity makes even
+ *  sparse, low-count locations burn hot. */
 export function heatWeight(count: number, intensity: number): number {
-  const divisor = Math.max(2, 20 - (intensity - 1) * 2)
-  return Math.min(count / divisor, 1)
+  return Math.min(count / heatWeightDivisor(intensity), 1)
 }
