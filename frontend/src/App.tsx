@@ -12,16 +12,21 @@ import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
 import { Settings } from './components/Settings'
-import { HelpDocs } from './components/HelpDocs'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
 
-// The three heavy tabs pull in maplibre-gl (~270 KB gz) + recharts (~112 KB gz).
-// Lazy-load them so that weight (and their startup CSV parse) is deferred until the
-// tab is first opened, instead of loading on first paint for every user.
-const MapExplorer = lazy(() => import('./components/MapExplorer').then(m => ({ default: m.MapExplorer })))
-const SpeciesDetail = lazy(() => import('./components/SpeciesDetail').then(m => ({ default: m.SpeciesDetail })))
-const BirdingStats = lazy(() => import('./components/BirdingStats').then(m => ({ default: m.BirdingStats })))
+// Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
+// Detail, and Help are kept out of the entry bundle so first paint is light. Named
+// import thunks so the same loaders can be idle-prefetched (see the effect below) —
+// returning users get instant tab opens without paying the weight on first paint.
+const importMapExplorer = () => import('./components/MapExplorer')
+const importSpeciesDetail = () => import('./components/SpeciesDetail')
+const importBirdingStats = () => import('./components/BirdingStats')
+const importHelpDocs = () => import('./components/HelpDocs')
+const MapExplorer = lazy(() => importMapExplorer().then(m => ({ default: m.MapExplorer })))
+const SpeciesDetail = lazy(() => importSpeciesDetail().then(m => ({ default: m.SpeciesDetail })))
+const BirdingStats = lazy(() => importBirdingStats().then(m => ({ default: m.BirdingStats })))
+const HelpDocs = lazy(() => importHelpDocs().then(m => ({ default: m.HelpDocs })))
 import {
   type ConfigurableTab,
   type Tab,
@@ -94,10 +99,11 @@ const DEFERRED_TABS: Tab[] = [
 ]
 
 // Fallback shown while a lazy tab's chunk is being fetched.
-function TabLoading() {
+function TabLoading({ label = 'Loading…' }: { label?: string }) {
   return (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, minHeight: 200 }}>
-      <Loader2 size={22} className="spin" style={{ color: 'var(--sr-text-muted)' }} aria-label="Loading" />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', justifyContent: 'center', padding: 48, minHeight: 200 }}>
+      <Loader2 size={22} className="spin" style={{ color: 'var(--sr-text-muted)' }} aria-hidden="true" />
+      <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }} role="status">{label}</span>
     </div>
   )
 }
@@ -301,6 +307,25 @@ export default function App() {
       if (!cancelled && pref) applyTheme(pref)
     })
     return () => { cancelled = true }
+  }, [])
+
+  // After first paint, warm the lazy chunks during idle time so opening a heavy tab
+  // is instant for returning users — without adding their weight to the first paint.
+  useEffect(() => {
+    const warm = () => {
+      void importMapExplorer().catch(() => {})
+      void importSpeciesDetail().catch(() => {})
+      void importBirdingStats().catch(() => {})
+      void importHelpDocs().catch(() => {})
+    }
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback
+    const cic = (window as unknown as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback
+    if (ric) {
+      const h = ric(warm, { timeout: 3000 })
+      return () => cic?.(h)
+    }
+    const t = setTimeout(warm, 1500)
+    return () => clearTimeout(t)
   }, [])
 
   // Mark a heavy tab as mounted the first time it becomes active (then it stays mounted).
@@ -765,7 +790,7 @@ export default function App() {
         }}
       >
         {mountedTabs.has('species-detail') && (
-          <Suspense fallback={<TabLoading />}>
+          <Suspense fallback={<TabLoading label="Loading species detail…" />}>
             <SpeciesDetail
               onGoToSettings={() => setActiveTab('settings')}
               filesVersion={filesVersion}
@@ -791,7 +816,7 @@ export default function App() {
         }}
       >
         {mountedTabs.has('map-explorer') && (
-          <Suspense fallback={<TabLoading />}>
+          <Suspense fallback={<TabLoading label="Loading map…" />}>
             <MapExplorer
               onGoToSettings={() => { setMapFullscreen(false); setActiveTab('settings') }}
               onNavigateToMediaList={() => { setMapFullscreen(false); navigateToMediaList() }}
@@ -817,7 +842,7 @@ export default function App() {
         }}
       >
         {mountedTabs.has('birding-stats') && (
-          <Suspense fallback={<TabLoading />}>
+          <Suspense fallback={<TabLoading label="Loading charts…" />}>
             <BirdingStats onGoToSettings={() => setActiveTab('settings')} onOpenSpecies={navigateToSpeciesDetail} />
           </Suspense>
         )}
@@ -952,7 +977,11 @@ export default function App() {
         />
       )}
 
-      {helpOpen && <HelpDocs onClose={() => setHelpOpen(false)} />}
+      {helpOpen && (
+        <Suspense fallback={null}>
+          <HelpDocs onClose={() => setHelpOpen(false)} />
+        </Suspense>
+      )}
     </div>
   )
 }
