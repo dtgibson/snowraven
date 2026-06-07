@@ -1,49 +1,56 @@
-# Handoff — settings-location-and-distance-defaults — PAUSED before deploy
+# Handoff — weather-tides — PAUSED before deploy (ship 0.5.17 on the Mac)
 
 ## What We Accomplished
 
-Added a "Use my location" button to Settings → Default Location (reusing the
-Map Explorer's geolocation) and made the map's default search radius 5 miles
-instead of 25. Refactored the location error-messages into one shared helper,
-and added a "Your Location" transparency section to the privacy policy. Built,
-tested (435 frontend), and security-audited. Deployment is intentionally
-deferred: this batches with the parked 0.5.16 performance work and a feature
-to be built next, all shipping together in one release from the Mac.
+Built the Tides feature: looking up a checklist on the Weather tab now also shows
+the historical tide below it, from the nearest NOAA station — observed when a
+gauge reading exists, otherwise predicted (interpolated from the high/low curve
+for prediction-only stations), with the surrounding high/low, rising/falling, the
+station and its distance, and a "Copy Weather and Tide Together" button. Keyless,
+both runtimes, two notices (too-far / outside-US) with a one-tap override. Taken
+through Strategist → Auditor: built, tested (468 frontend + 102 backend, live
+NOAA verified), and security-audited clean. Paused before the deploy step so it
+ships from the Mac with the rest of the batch as **0.5.17**.
 
 ## What Has Been Saved
 
-Committed on `improve/performance`:
+All committed and pushed to `origin/improve/performance`:
 
-- `frontend/src/lib/location.ts` (+ `describeLocationError` + test),
-  `frontend/src/components/Settings.tsx`, `frontend/src/components/MapExplorer.tsx`
-- `CHANGELOG.md`, `docs/HELP.md`, `PRIVACY_POLICY.md` (0.5.16 entries)
-- `pipeline/settings-location-and-distance-defaults/` (change-brief, qa-report,
-  security-report)
-- `pipeline/DEPLOY-PENDING.md` — the single ledger for everything undeployed on
-  this branch (perf sweep + this improvement + the upcoming feature)
+- `weather-tides` pipeline docs (strategic-brief, prd, schema, design-spec,
+  design.html, qa-report, security-report)
+- Frontend: `lib/tide.ts`, `lib/tideStations.ts`, `lib/tideFormatter.ts` (+ tests),
+  `lib/tauri/tideService.ts`, `lib/transport.ts`, `lib/weatherFormatter.ts`,
+  `App.tsx`, `assets/noaa-tide-stations.json`
+- Backend: `routers/tide.py`, `services/{noaa,tide,tide_stations}.py`,
+  `formatters/tide.py`, `main.py`, `staticdata/noaa_tide_stations.json`, tide tests
+- `scripts/build-tide-stations.mjs`
+- Docs/version: CHANGELOG (0.5.17), PRIVACY_POLICY (NOAA), HELP, README,
+  package.json + tauri.conf.json (0.5.17)
+- `pipeline/DEPLOY-PENDING.md` — the single ledger for the 0.5.17 batch
 
 ## Where We Are
 
-Stage 5, The Deployer — paused by choice. Stages 1–4 complete and approved.
-Next planned action is **a new feature**, then deploy everything together from
-the Mac.
+Stage 8, The Deployer — paused by choice. Stages 1–7 complete and approved.
+Three efforts (0.5.16 perf, settings-location, tides) are batched as **0.5.17**,
+to deploy from the Mac next session.
 
 ## Resume Prompt
 
-To resume: run `/weft` in this project.
+To resume: run `/weft` on the Mac.
 
-- **To build the next feature:** `/weft` → set this paused work aside (it stays
-  safe on the branch) → New Feature.
-- **To deploy (Mac only):** follow `pipeline/DEPLOY-PENDING.md` — reconcile the
-  version + changelog for the whole batch, tag, wait for Windows CI, `./release.sh`.
+- **Deploy (Mac):** follow `pipeline/DEPLOY-PENDING.md` — confirm version 0.5.17,
+  merge to main if applicable, push the `v0.5.17` tag, wait for Windows CI, run
+  `./release.sh`.
+- **Then finish the feature:** `/weft` resumes `weather-tides` at Stage 8
+  (Deployer, confirm live) → Stage 9 (Chronicler: PRODUCT_CONTEXT / DECISIONS /
+  ROADMAP) → close out.
 
-Local web run: `cd frontend && npm run build`, then
+Local web run (any machine): `cd frontend && npm run build`, then
 `cd backend && .venv/bin/uvicorn main:app --port 1620` → http://localhost:1620.
 
 ---
 
-Project: snowraven. Feature: settings-location-and-distance-defaults (Improve
-lane, session 13). Last completed stage: 4 (Auditor). Current stage: 5
-(Deployer), paused. Branch `improve/performance`, pushed. Batches with the
-0.5.16 perf work + a planned feature for one Mac release. Deploy ledger:
-pipeline/DEPLOY-PENDING.md.
+Project: snowraven. Feature: weather-tides (Feature lane, session 14). Last
+completed stage: 7 (Auditor). Current stage: 8 (Deployer), paused. Branch
+`improve/performance`, pushed. Batched as 0.5.17 with the parked 0.5.16 work.
+Deploy ledger: pipeline/DEPLOY-PENDING.md.

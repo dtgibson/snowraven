@@ -2,9 +2,9 @@
   "activeFeature": "weather-tides",
   "sessionNumber": 14,
   "sessionType": "feature",
-  "currentStage": 7,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "approved",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
   "confirmedArtifacts": [
     "pipeline/weather-tides/strategic-brief.md",
@@ -12,13 +12,15 @@
     "pipeline/weather-tides/schema.md",
     "pipeline/weather-tides/design-spec.md",
     "pipeline/weather-tides/design.html",
+    "pipeline/weather-tides/qa-report.md",
+    "pipeline/weather-tides/security-report.md",
     "weather-tides code (0.5.17): frontend lib/tide*, tauri/tideService, App wiring; backend routers/tide + services/{noaa,tide,tide_stations} + formatters/tide; bundled station list"
   ],
   "releasedVersion": "0.5.15",
   "lastFeature": "Checklist comparer: per-checklist metadata + comments (shipped v0.5.15)",
-  "featureContext": "NEW FEATURE 'weather-tides' on branch improve/performance (stacks with the parked, undeployed 0.5.16 perf work + the settings-location improvement; all ship together in one later Mac release — see pipeline/DEPLOY-PENDING.md). Spec from Dave: on the Weather tab, below the weather lookup, a new similar box showing HISTORICAL TIDAL info for the nearest NOAA tidal station, keyed off the SAME checklist the user enters for weather (same lat/lng + date/time, looked up at the same time as the weather). Use the NOAA CO-OPS API. Show ACTUAL water level if available, else PREDICTED, and label which. Format like the SnowRaven weather block; include the tidal station name/id. Errors with override-to-show-nearest-anyway: (a) >25 mi from any station; (b) location outside the US (CO-OPS is US-only). Lane: Feature (9 stages). Stage 1 Strategist in progress.",
-  "deployPending": "TWO+ undeployed efforts stacked on improve/performance for ONE later Mac release: (1) 0.5.16 perf sweep (perf-loading-and-indicators), (2) settings-location-and-distance-defaults, (3) THIS feature weather-tides (in progress). Single ledger: pipeline/DEPLOY-PENDING.md. Deploy ONLY from the Mac: reconcile version+changelog (this feature likely pushes past 0.5.16) -> tag -> Windows CI -> ./release.sh. Do not lose this.",
+  "featureContext": "FEATURE 'weather-tides' (0.5.17) on branch improve/performance — Stages 1-7 COMPLETE + approved (Strategist..Auditor); PAUSED before Stage 8 (Deployer) by Dave to deploy on the Mac next session, batched with the parked 0.5.16 work. Built/tested/audited: tide box below the weather lookup, same checklist, concurrent + independent. Nearest NOAA CO-OPS station (keyless), water-level RANGE over the checklist duration, Observed (gauge) else Predicted (continuous for reference stations, else hi/lo INTERPOLATION for subordinate stations — the common coastal case), rising/falling, prev/next hi-lo, 'turned during your checklist', station name+id+distance, ft/MLLW. Two notices w/ force override: >25mi, outside-US (coarse US bounding boxes, NOT distance). 'Copy Weather and Tide Together' (one SnowRaven attribution, NOAA credit inline). Bundled US-only station list (scripts/build-tide-stations.mjs -> frontend/src/assets/noaa-tide-stations.json + backend/staticdata/noaa_tide_stations.json, 3241 stations). Dual-runtime: backend routers/tide+services/{noaa,tide,tide_stations}+formatters/tide (main.py registered); desktop tauri/tideService via transport '/tide/' dispatch; weatherFormatter split body/attribution. Edit link moved above checklist info; helper 'Tide information is also shown below if available.' 468 frontend + 102 backend tests, build+lint clean, live NOAA verified (SF observed, Albany->Point Isabel predicted). REMAINING when resumed on the Mac: Stage 8 Deployer (deploy the whole batch — see pipeline/DEPLOY-PENDING.md) then Stage 9 Chronicler (PRODUCT_CONTEXT/DECISIONS/ROADMAP) then close.",
+  "deployPending": "THREE undeployed efforts stacked on improve/performance for ONE Mac release, now versioned 0.5.17: (1) 0.5.16 perf sweep (perf-loading-and-indicators), (2) settings-location-and-distance-defaults, (3) weather-tides feature (0.5.17). Version is 0.5.17 in package.json + tauri.conf.json; CHANGELOG has 0.5.16 + 0.5.17 entries. Single ledger: pipeline/DEPLOY-PENDING.md. Deploy ONLY from the Mac: confirm version/changelog -> merge to main if that's the flow -> push v0.5.17 tag -> wait for Windows CI -> ./release.sh. Then run the weather-tides Chronicler (Stage 9) + close. Do not lose this.",
   "remainingBacklog": "From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. ROADMAP Up Next: mobile app; accessibility & simplification; Windows code signing. Ship arc: 0.5.11-0.5.13, 0.5.14, 0.5.15, 0.5.16 (perf+settings — awaiting Mac deploy).",
   "createdAt": "2026-06-07T20:12:00Z",
-  "updatedAt": "2026-06-07T20:12:00Z"
+  "updatedAt": "2026-06-07T22:00:00Z"
 }

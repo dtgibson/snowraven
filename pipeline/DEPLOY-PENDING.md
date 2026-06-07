@@ -1,41 +1,41 @@
-# ⚠️ DEPLOY PENDING — branch `improve/performance` (Mac only)
+# ⚠️ DEPLOY PENDING — branch `improve/performance` → release **0.5.17** (Mac only)
 
-This branch has **multiple completed, undeployed efforts** stacked for a single
-release. Deployment was deferred on purpose so more work could batch together.
-The macOS build/notarization/`release.sh` can only run on the Mac — this Linux
-box cannot cut the desktop release.
+This branch has **three completed, undeployed efforts** stacked for a single
+release, now versioned **0.5.17**. Deployment was deferred on purpose so they
+batch together. The macOS build/notarization/`release.sh` can only run on the
+Mac — this Linux box cannot cut the desktop release.
 
 ## What's undeployed (in order landed)
 
 1. **0.5.16 performance sweep** — `perf-loading-and-indicators`
-   - Statistics progressive render, GL map-marker rewrite + atlas viewport cap,
-     short-TTL network cache + loading indicators. Reviewed, tested, audited.
-   - Detail: `pipeline/perf-loading-and-indicators/` (change-brief, qa-report,
-     security-report, DEPLOY-PENDING).
+   (Statistics progressive render, GL map markers + atlas viewport cap, network
+   cache + loading indicators). Reviewed, tested, audited.
 2. **Settings location detect + 5-mile default** — `settings-location-and-distance-defaults`
-   - "Use my location" button in Settings → Default Location; default map radius
-     25→5 mi; shared `describeLocationError` helper; privacy-policy "Your Location"
-     section. Reviewed, tested, audited.
-   - Detail: `pipeline/settings-location-and-distance-defaults/`.
-3. **(planned next)** a new feature, to be built before deploying — will also
-   land here and ship in the same release.
+   ("Use my location" in Settings, default radius 25→5, privacy "Your Location").
+   Reviewed, tested, audited.
+3. **Tides on the Weather tab (0.5.17)** — `weather-tides`
+   Historical NOAA tide below the weather lookup; nearest station, observed/
+   predicted (with hi/lo interpolation for subordinate stations), two
+   notices+override, "Copy Weather and Tide Together". Keyless. Built, tested
+   (468 frontend + 102 backend), **security-audited (clean)**. **Stages 1–7 done;
+   PAUSED before Stage 8 (Deployer).**
+   Detail: `pipeline/weather-tides/`.
 
 ## State of the release artifacts
 
-- Version: **0.5.16** in `frontend/package.json` + `src-tauri/tauri.conf.json` + lock.
-- `CHANGELOG.md` 0.5.16 entry covers efforts 1 and 2.
-- `docs/HELP.md`, `CLAUDE.md`, `PRIVACY_POLICY.md` updated for both.
-- Tests: 435 frontend + 93 backend, build + lint clean.
+- Version: **0.5.17** in `frontend/package.json` + `src-tauri/tauri.conf.json` + lock.
+- `CHANGELOG.md` has 0.5.16 (perf + settings) and 0.5.17 (tides) entries.
+- `docs/HELP.md`, `CLAUDE.md`, `PRIVACY_POLICY.md` (NOAA + Your Location), `README.md` updated.
+- Tests: 468 frontend + 102 backend; build + lint clean. All pushed to origin.
 
-## Before tagging the release (do on the Mac)
+## To ship the release (on the Mac)
 
-1. **Reconcile version + changelog** for everything on the branch. Effort 3 (the
-   next feature) is NOT yet in the changelog and may warrant bumping past 0.5.16
-   (a feature → at least a patch; a larger one → minor). Decide the final version
-   and update BOTH `frontend/package.json` and `src-tauri/tauri.conf.json` to match.
-2. Confirm `README.md` reflects the current feature set.
-3. Merge `improve/performance` to `main` if that's the release flow.
-4. Push the `vX.Y.Z` tag → wait for Windows CI → run `./release.sh` (single
+1. Confirm the final version + changelog cover the whole branch (currently 0.5.17).
+2. Merge `improve/performance` to `main` if that's the release flow.
+3. Push the `v0.5.17` tag → wait for Windows CI → run `./release.sh` (single
    assembler; do NOT use `gh release create` directly).
+4. **Then finish the tide feature's pipeline:** run `/weft` → it resumes
+   `weather-tides` at Stage 8 (Deployer) → confirm live → Stage 9 (Chronicler:
+   PRODUCT_CONTEXT / DECISIONS / ROADMAP) → close out.
 
-Delete this ledger once the release containing all of the above ships.
+Delete this ledger once 0.5.17 ships and the feature is closed out.
