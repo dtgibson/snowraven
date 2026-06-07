@@ -9,6 +9,7 @@ import { storage } from '../lib/storage'
 import { isTauri } from '../lib/platform'
 import { clearEbirdObservationsCache } from '../lib/observationsCache'
 import { clearMLExportCache } from '../lib/mlExportCache'
+import { clearNetworkCache } from '../lib/networkCache'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -885,6 +886,10 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
     setError(null)
     try {
       await storage.setApiKey(slot, input.trim())
+      // A new eBird key must invalidate live eBird responses cached under the
+      // old one (hotspots / recent-obs / nemesis / region-info), or they'd
+      // linger up to the 90s TTL.
+      if (slot === 'ebird') clearNetworkCache()
       setKeys(prev => ({ ...prev, [slot]: input.trim() }))
       setEditing(false)
       setInput('')
@@ -902,6 +907,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
     setError(null)
     try {
       await storage.deleteApiKey(slot)
+      if (slot === 'ebird') clearNetworkCache()
       setKeys(prev => ({ ...prev, [slot]: null }))
       setVisible(false)
       onKeysSaved?.()
