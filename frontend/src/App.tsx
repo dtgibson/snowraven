@@ -712,7 +712,7 @@ export default function App() {
           </div>
 
           <p style={{ marginTop: 8, marginBottom: 0, fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
-            Tide information is fetched automatically when available.
+            Tide information is also shown below if available.
           </p>
           <label style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 8, fontSize: '0.8125rem', color: 'var(--sr-text)', cursor: 'pointer', width: 'fit-content' }}>
             <input
@@ -721,7 +721,7 @@ export default function App() {
               onChange={e => handleToggleCopyTide(e.target.checked)}
               style={{ accentColor: 'var(--sr-accent)', cursor: 'pointer' }}
             />
-            Copy tide with weather when I click Get weather
+            Include tide with weather auto-copied to clipboard.
           </label>
 
           {hasError && (
@@ -766,7 +766,7 @@ export default function App() {
                     href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
                     target="_blank"
                     rel="noreferrer"
-                    aria-label="Edit this checklist on eBird (opens in new tab)"
+                    aria-label="Edit checklist comment on eBird (opens in new tab)"
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -781,7 +781,7 @@ export default function App() {
                     onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                     onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                   >
-                    Edit on eBird
+                    Edit checklist comment on eBird
                     <ExternalLink size={11} strokeWidth={2.5} />
                   </a>
                 )}

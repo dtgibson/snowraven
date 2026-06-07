@@ -79,7 +79,7 @@ The ML export is used by: Multimedia (media counts and species coverage), Specie
 
 The Weather tab retrieves historical weather data for any eBird checklist. Paste a checklist ID (for example, `S12345678`) or a full eBird checklist URL and click Get weather. The result is a formatted text block matching the output format used by raincrow.app -- ready to paste directly into your eBird checklist comment field.
 
-The weather summary includes temperature range, wind speed and direction with Beaufort description, humidity, dew point, precipitation, conditions, and sunrise and sunset times. The formatted result is copied to your clipboard automatically on a successful lookup -- on the web, the Raspberry Pi server, and the macOS and Windows desktop apps alike -- so you can paste it straight in. A Copy button is always available too. An Edit on eBird link opens your checklist's comment field directly in a new tab.
+The weather summary includes temperature range, wind speed and direction with Beaufort description, humidity, dew point, precipitation, conditions, and sunrise and sunset times. The formatted result is copied to your clipboard automatically on a successful lookup -- on the web, the Raspberry Pi server, and the macOS and Windows desktop apps alike -- so you can paste it straight in. A Copy button is always available too. An "Edit checklist comment on eBird" link opens your checklist's comment field directly in a new tab.
 
 Both your eBird API key and OpenWeather API key must be configured in Settings for this tab to work.
 
