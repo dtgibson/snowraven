@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Camera, Mic, Video, Minus } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import type { MediaFilterState, SortColumn, SortDir, SortState } from '../types'
@@ -71,7 +72,9 @@ const iconCell: React.CSSProperties = {
 }
 
 export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, wideMode, onOpenSpecies, hasEbirdBackbone }: Props) {
-  const filtered = entries.filter(entry => {
+  // Filter + sort are O(n log n) over the whole life list; memoize so they only
+  // recompute when their inputs change, not on every parent re-render.
+  const filtered = useMemo(() => entries.filter(entry => {
     if (filter.photo === 'has' && !hasMedia(entry, mediaMap, 'Photo')) return false
     if (filter.photo === 'no' && hasMedia(entry, mediaMap, 'Photo')) return false
     if (filter.audio === 'has' && !hasMedia(entry, mediaMap, 'Audio')) return false
@@ -79,52 +82,51 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
     if (filter.video === 'has' && !hasMedia(entry, mediaMap, 'Video')) return false
     if (filter.video === 'no' && hasMedia(entry, mediaMap, 'Video')) return false
     return true
-  })
+  }), [entries, filter, mediaMap])
 
-  // Returns the taxon order for an entry. For eBird CSV the parsed taxonomicOrder
-  // is finite and used directly; for ML export (Infinity) and any gaps, falls back
-  // to the fetch result. Species not found in either sort last (Infinity).
-  function getOrder(entry: LifeListEntry): number {
-    if (entry.taxonomicOrder !== Infinity) return entry.taxonomicOrder
-    return taxonOrders[entry.commonName] ?? taxonOrders[normalizeSpeciesName(entry.commonName)] ?? Infinity
-  }
-
-  function nameCompare(a: LifeListEntry, b: LifeListEntry): number {
-    if (sort.nameSortMode === 'taxonomic') {
-      const diff = getOrder(a) - getOrder(b)
-      if (diff !== 0) return diff
+  const sorted = useMemo(() => {
+    // Taxon order for an entry. For eBird CSV the parsed taxonomicOrder is finite and
+    // used directly; for ML export (Infinity) and gaps, falls back to the fetch result.
+    const getOrder = (entry: LifeListEntry): number => {
+      if (entry.taxonomicOrder !== Infinity) return entry.taxonomicOrder
+      return taxonOrders[entry.commonName] ?? taxonOrders[normalizeSpeciesName(entry.commonName)] ?? Infinity
     }
-    return a.commonName.localeCompare(b.commonName)
-  }
-
-  const sorted = [...filtered].sort((a, b) => {
-    if (sort.column === 'name') {
+    const nameCompare = (a: LifeListEntry, b: LifeListEntry): number => {
       if (sort.nameSortMode === 'taxonomic') {
-        // Three-tier priority: birds → non-bird animals → non-animals (no scientific name)
-        const tierOf = (e: LifeListEntry) => {
-          if (!(e.isNonBird ?? false)) return 0
-          return e.scientificName.trim().length > 0 ? 1 : 2
-        }
-        const ta = tierOf(a), tb = tierOf(b)
-        if (ta !== tb) return ta - tb
-        // Within tier 2 (non-animals), always sort alphabetically regardless of sort.dir
-        if (ta === 2) return a.commonName.localeCompare(b.commonName)
+        const diff = getOrder(a) - getOrder(b)
+        if (diff !== 0) return diff
       }
-      const cmp = nameCompare(a, b)
-      return sort.dir === 'asc' ? cmp : -cmp
+      return a.commonName.localeCompare(b.commonName)
     }
-    const dirMult = sort.dir === 'asc' ? 1 : -1
-    if (sort.column === 'total') {
-      const totalA = countMedia(a, mediaMap, 'Photo') + countMedia(a, mediaMap, 'Audio') + countMedia(a, mediaMap, 'Video')
-      const totalB = countMedia(b, mediaMap, 'Photo') + countMedia(b, mediaMap, 'Audio') + countMedia(b, mediaMap, 'Video')
-      if (totalA !== totalB) return dirMult * (totalA - totalB)
+    return [...filtered].sort((a, b) => {
+      if (sort.column === 'name') {
+        if (sort.nameSortMode === 'taxonomic') {
+          // Three-tier priority: birds → non-bird animals → non-animals (no scientific name)
+          const tierOf = (e: LifeListEntry) => {
+            if (!(e.isNonBird ?? false)) return 0
+            return e.scientificName.trim().length > 0 ? 1 : 2
+          }
+          const ta = tierOf(a), tb = tierOf(b)
+          if (ta !== tb) return ta - tb
+          // Within tier 2 (non-animals), always sort alphabetically regardless of sort.dir
+          if (ta === 2) return a.commonName.localeCompare(b.commonName)
+        }
+        const cmp = nameCompare(a, b)
+        return sort.dir === 'asc' ? cmp : -cmp
+      }
+      const dirMult = sort.dir === 'asc' ? 1 : -1
+      if (sort.column === 'total') {
+        const totalA = countMedia(a, mediaMap, 'Photo') + countMedia(a, mediaMap, 'Audio') + countMedia(a, mediaMap, 'Video')
+        const totalB = countMedia(b, mediaMap, 'Photo') + countMedia(b, mediaMap, 'Audio') + countMedia(b, mediaMap, 'Video')
+        if (totalA !== totalB) return dirMult * (totalA - totalB)
+        return nameCompare(a, b)
+      }
+      const type = sort.column === 'photo' ? 'Photo' : sort.column === 'audio' ? 'Audio' : 'Video'
+      const diff = countMedia(a, mediaMap, type) - countMedia(b, mediaMap, type)
+      if (diff !== 0) return dirMult * diff
       return nameCompare(a, b)
-    }
-    const type = sort.column === 'photo' ? 'Photo' : sort.column === 'audio' ? 'Audio' : 'Video'
-    const diff = countMedia(a, mediaMap, type) - countMedia(b, mediaMap, type)
-    if (diff !== 0) return dirMult * diff
-    return nameCompare(a, b)
-  })
+    })
+  }, [filtered, sort, mediaMap, taxonOrders])
 
   function handleHeaderClick(column: SortColumn) {
     if (sort.column === column) {
