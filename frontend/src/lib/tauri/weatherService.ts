@@ -7,7 +7,7 @@ import { getRegionInfo, type RegionInfo } from './regionInfo';
 const EBIRD_BASE = 'https://api.ebird.org/v2';
 const OWM_BASE = 'https://api.openweathermap.org/data/3.0';
 
-interface ChecklistData {
+export interface ChecklistData {
   obs_dt: string;
   loc_name: string;
   lat: number;
@@ -15,7 +15,9 @@ interface ChecklistData {
   duration_hrs: number;
 }
 
-async function fetchChecklist(checklistId: string, ebirdKey: string): Promise<ChecklistData> {
+// Exported so the tide service reuses the exact same checklist resolution
+// (lat/lng + obs_dt + duration) rather than re-implementing it.
+export async function fetchChecklist(checklistId: string, ebirdKey: string): Promise<ChecklistData> {
   const headers = { 'X-eBirdApiToken': ebirdKey };
 
   const res = await tauriFetch(`${EBIRD_BASE}/product/checklist/view/${checklistId}`, { headers });

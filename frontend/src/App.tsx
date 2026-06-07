@@ -5,6 +5,8 @@ import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
 import { copyText } from './lib/clipboard'
 import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
+import { ATTRIBUTION } from './lib/weatherFormatter'
+import { COMBINED_ATTRIBUTION } from './lib/tideFormatter'
 import { readStoredScale, persistTextScale, applyScaleToDom, hydrateStoredScale } from './lib/textScale'
 import type { TextScale } from './lib/textScale'
 import { applyTheme, hydrateStoredTheme } from './lib/theme'
@@ -50,6 +52,24 @@ type AppState =
   | { status: 'loading' }
   | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
   | { status: 'error'; message: string }
+
+// The tide box's own independent state — a tide failure never touches weather.
+type TideState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; formatted: string; body: string }
+  | { status: 'too-far'; station: string; distanceMi: number }
+  | { status: 'outside-us'; station: string; distanceMi: number }
+  | { status: 'unavailable' }
+  | { status: 'error' }
+
+interface TideResponse {
+  status: 'ok' | 'too-far' | 'outside-us' | 'unavailable'
+  formatted?: string
+  body?: string
+  station?: { id: string; name: string }
+  distanceMi?: number
+}
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -122,6 +142,10 @@ export default function App() {
   const [input, setInput] = useState('')
   const [state, setState] = useState<AppState>({ status: 'idle' })
   const [copied, setCopied] = useState(false)
+  const [tideState, setTideState] = useState<TideState>({ status: 'idle' })
+  const [tideCopied, setTideCopied] = useState(false)
+  const [bothCopied, setBothCopied] = useState(false)
+  const lastLookupId = useRef('')
   // Mobile-only: Map Explorer occupies the full viewport when true.
   const [mapFullscreen, setMapFullscreen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
@@ -348,12 +372,26 @@ export default function App() {
     return () => { document.body.style.overflow = prev }
   }, [mapFullscreen, activeTab])
 
-  const handleLookup = useCallback(async () => {
-    const id = extractChecklistId(input)
-    if (!isValidChecklistId(id)) {
-      setState({ status: 'error', message: "That doesn't look like a valid eBird checklist ID." })
-      return
+  const loadTide = useCallback(async (id: string, force: boolean) => {
+    setTideState({ status: 'loading' })
+    try {
+      const t = await transport.get<TideResponse>(
+        `/tide/${encodeURIComponent(id)}`,
+        force ? { force: '1' } : undefined,
+      )
+      if (t.status === 'ok' && t.formatted && t.body) {
+        setTideState({ status: 'ok', formatted: t.formatted, body: t.body })
+      } else if ((t.status === 'too-far' || t.status === 'outside-us') && t.station) {
+        setTideState({ status: t.status, station: t.station.name, distanceMi: t.distanceMi ?? 0 })
+      } else {
+        setTideState({ status: 'unavailable' })
+      }
+    } catch {
+      setTideState({ status: 'error' })
     }
+  }, [])
+
+  const loadWeather = useCallback(async (id: string) => {
     setState({ status: 'loading' })
     try {
       const data = await transport.get<{ formatted: string; checklist_id: string; loc_name: string; obs_dt: string }>(
@@ -371,13 +409,48 @@ export default function App() {
       const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
       setState({ status: 'error', message: detail ?? 'Something went wrong. Please try again.' })
     }
-  }, [input])
+  }, [])
+
+  const handleLookup = useCallback(async () => {
+    const id = extractChecklistId(input)
+    if (!isValidChecklistId(id)) {
+      setState({ status: 'error', message: "That doesn't look like a valid eBird checklist ID." })
+      setTideState({ status: 'idle' })
+      return
+    }
+    lastLookupId.current = id
+    // Weather and tide run concurrently from one action; each owns its state so
+    // one failing never blocks the other.
+    await Promise.allSettled([loadWeather(id), loadTide(id, false)])
+  }, [input, loadWeather, loadTide])
+
+  const handleTideOverride = useCallback(() => {
+    if (lastLookupId.current) void loadTide(lastLookupId.current, true)
+  }, [loadTide])
 
   const handleCopy = async () => {
     if (state.status !== 'success') return
     await copyText(state.formatted)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleCopyTide = async () => {
+    if (tideState.status !== 'ok') return
+    await copyText(tideState.formatted)
+    setTideCopied(true)
+    setTimeout(() => setTideCopied(false), 2000)
+  }
+
+  const handleCopyBoth = async () => {
+    if (state.status !== 'success' || tideState.status !== 'ok') return
+    // One SnowRaven attribution at the very bottom; the weather block's own
+    // attribution is stripped and the tide body keeps the inline NOAA credit.
+    const weatherBody = state.formatted.replace(`\n${ATTRIBUTION}`, '')
+    const combined = `${weatherBody}\n\n${tideState.body}\n\n${COMBINED_ATTRIBUTION}`
+    await copyText(combined)
+    setBothCopied(true)
+    setTimeout(() => setBothCopied(false), 2000)
   }
 
   const handleUpdateCheck = useCallback(async () => {
@@ -721,6 +794,72 @@ export default function App() {
               >
                 {state.formatted}
               </pre>
+            </>
+          )}
+
+          {/* Tide box — independent of weather; fires from the same lookup. */}
+          {tideState.status !== 'idle' && (
+            <>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
+              {tideState.status === 'loading' && (
+                <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
+                  <Loader2 size={14} className="spin" aria-hidden="true" /> Loading tide…
+                </div>
+              )}
+              {tideState.status === 'unavailable' && (
+                <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+              )}
+              {tideState.status === 'error' && (
+                <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+              )}
+              {(tideState.status === 'too-far' || tideState.status === 'outside-us') && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '13px 15px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                  <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
+                    {tideState.status === 'too-far'
+                      ? `The nearest tide station is ${tideState.distanceMi.toFixed(0)} miles away (${tideState.station}). Tide data may not reflect your spot.`
+                      : `Tide information is only available in the US. The nearest US station is ${tideState.station}, ${tideState.distanceMi.toFixed(0)} miles away.`}
+                  </span>
+                  <button tabIndex={0}
+                    onClick={handleTideOverride}
+                    aria-label="Show the nearest tide station anyway"
+                    style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    {tideState.status === 'too-far' ? 'Show it anyway' : 'Show nearest US station'}
+                  </button>
+                </div>
+              )}
+              {tideState.status === 'ok' && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--sr-text-muted)' }}>
+                      Tide output
+                    </span>
+                    <button tabIndex={0}
+                      onClick={handleCopyTide}
+                      aria-label="Copy tide output to clipboard"
+                      style={{ height: 30, padding: '0 12px', background: tideCopied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)', color: tideCopied ? 'var(--sr-on-accent)' : 'var(--sr-accent)', border: `1.5px solid ${tideCopied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`, borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
+                    >
+                      {tideCopied ? <Check size={12} strokeWidth={2.5} /> : <ClipboardCopy size={12} strokeWidth={2.5} />}
+                      {tideCopied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </div>
+                  <pre style={{ background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', borderRadius: 8, padding: '18px 20px', fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace', fontSize: '0.84375rem', lineHeight: 1.75, color: 'inherit', whiteSpace: 'pre', overflowX: 'auto', margin: 0 }}>
+                    {tideState.formatted}
+                  </pre>
+                </>
+              )}
+
+              {state.status === 'success' && tideState.status === 'ok' && (
+                <button tabIndex={0}
+                  onClick={handleCopyBoth}
+                  aria-label="Copy weather and tide together to clipboard"
+                  style={{ marginTop: 18, width: '100%', height: 38, background: bothCopied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)', color: bothCopied ? 'var(--sr-on-accent)' : 'var(--sr-accent)', border: `1.5px solid ${bothCopied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`, borderRadius: 8, fontSize: '0.8125rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  {bothCopied ? <Check size={14} strokeWidth={2.5} /> : <ClipboardCopy size={14} strokeWidth={2.5} />}
+                  {bothCopied ? 'Copied!' : 'Copy Weather and Tide Together'}
+                </button>
+              )}
             </>
           )}
         </div>

@@ -31,6 +31,7 @@ SnowRaven's job is to fetch birding and weather information for you, so the app 
 - **eBird** — to look up checklist details, hotspots, and recent nearby sightings. Uses your own eBird API key. See [eBird's terms](https://www.birds.cornell.edu/home/ebird-api-terms-of-use/).
 - **OpenWeather** — to fetch historical weather for a checklist. Uses your own OpenWeather API key. See [OpenWeather's privacy policy](https://openweather.co.uk/privacy-policy).
 - **Nominatim (OpenStreetMap)** — to turn a place name you type into map coordinates. See the [OSM privacy policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy).
+- **NOAA Tides & Currents (CO-OPS)** — to fetch the historical tide for a checklist's location and time. No key or account; a U.S. government service. See [NOAA's privacy policy](https://www.noaa.gov/protecting-your-privacy).
 
 What you send to these services (a checklist ID, a location, a search term) is governed by each provider's own privacy policy. SnowRaven only relays the request you initiated; it does not add tracking and does not keep a copy.
 

@@ -69,6 +69,12 @@ class TauriTransport implements TransportAdapter {
       return checkVersion() as Promise<T>;
     }
 
+    if (path.startsWith('/tide/')) {
+      const { getTide } = await import('./tauri/tideService');
+      const checklistId = path.slice('/tide/'.length);
+      return getTide(checklistId, params?.force === '1') as Promise<T>;
+    }
+
     if (path === '/stats/nemesis') {
       const { getNemesis } = await import('./tauri/statsService');
       const lat = parseFloat(params?.lat ?? '0');

@@ -83,6 +83,14 @@ The weather summary includes temperature range, wind speed and direction with Be
 
 Both your eBird API key and OpenWeather API key must be configured in Settings for this tab to work.
 
+### Tides
+
+Below the weather, a Tides box fills in at the same time from the same checklist, showing the historical tide for that location and time from the nearest NOAA tide station. It needs no extra key — NOAA's Tides & Currents service is free and keyless.
+
+The box shows the water level across your checklist's duration, labeled **Observed** when a real gauge reading exists or **Predicted** when it doesn't, whether the tide was rising or falling, the surrounding high and low tides with their local times, and the station name with its distance from your checklist. If a high or low tide turns during your checklist, the box notes it. Heights are in feet relative to MLLW (the standard US tide-table reference).
+
+If the nearest station is more than 25 miles away, or your checklist is outside the US (NOAA only covers the US and its territories), the box explains that and offers a one-tap option to show the nearest US station anyway. A **Copy Weather and Tide Together** button copies both blocks at once, with a single SnowRaven credit at the bottom.
+
 ---
 
 ## Species Detail

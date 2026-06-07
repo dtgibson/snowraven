@@ -6,7 +6,7 @@ SnowRaven turns your own eBird and Macaulay Library exports into a personal bird
 
 ## What it does
 
-- **Weather Lookup** — paste an eBird checklist ID and get a formatted historical weather summary (temperature, wind, humidity, dew point, sunrise/sunset) ready to paste into your checklist comment.
+- **Weather Lookup** — paste an eBird checklist ID and get a formatted historical weather summary (temperature, wind, humidity, dew point, sunrise/sunset) ready to paste into your checklist comment. The same lookup also shows the historical **tide** from the nearest NOAA station (observed or predicted, with the surrounding high/low tides), and can copy weather and tide together.
 - **Species Detail** — your complete history with any species: sighting stats, breeding codes, co-occurring species, field notes, top locations, a map of every observation, and embedded Macaulay Library media.
 - **Statistics** — a multi-section analytics dashboard: life-list totals and growth, top species, firsts and milestones, temporal and geographic patterns, effort and outings, data quality, highlights and records, breeding stats, media trends, and nearby target species.
 - **Map Explorer** — an interactive map of your sightings (with heatmap), nearby eBird hotspots colored by whether you've visited them, media targets, and an optional California Breeding Bird Atlas overlay. Switchable street / satellite / topo basemaps plus a hiking-trails overlay.
@@ -18,7 +18,7 @@ Full per-feature documentation lives in **[docs/HELP.md](docs/HELP.md)**.
 
 ## Privacy
 
-SnowRaven is local-first and **collects nothing** — no accounts, no analytics, no telemetry, and no developer-operated server. Your eBird backup, Macaulay Library export, settings, and API keys stay on your own device (or your own self-hosted machine). The only network calls are made directly to eBird, OpenWeather, and OpenStreetMap/Nominatim, authenticated with *your* API keys, when you ask for data. See the [Privacy Policy](PRIVACY_POLICY.md) and [Accessibility statement](ACCESSIBILITY.md).
+SnowRaven is local-first and **collects nothing** — no accounts, no analytics, no telemetry, and no developer-operated server. Your eBird backup, Macaulay Library export, settings, and API keys stay on your own device (or your own self-hosted machine). The only network calls are made directly to eBird, OpenWeather, OpenStreetMap/Nominatim, and NOAA Tides & Currents (keyless), authenticated with *your* API keys, when you ask for data. See the [Privacy Policy](PRIVACY_POLICY.md) and [Accessibility statement](ACCESSIBILITY.md).
 
 ## Requirements
 

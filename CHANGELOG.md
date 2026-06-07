@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.17] - 2026-06-07
+
+### Added
+- **Tides on the Weather tab** — looking up a checklist now also shows the tide at that place and time, in a box below the weather. It uses NOAA's Tides & Currents data (no API key needed) for the nearest station, showing the water level across your checklist's duration (observed when a gauge reading exists, otherwise predicted, labeled which), whether the tide was rising or falling, the surrounding high and low tides, and the station with its distance. If a high or low turns during your checklist, it says so.
+  - If the nearest station is more than 25 miles away, or the checklist is outside the US (NOAA's coverage), a notice explains it with a one-tap option to show the nearest US station anyway.
+  - A **Copy Weather and Tide Together** button copies both blocks with a single SnowRaven credit at the bottom.
+
 ## [0.5.16] - 2026-06-07
 
 ### Added
