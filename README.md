@@ -62,4 +62,4 @@ For development or building your own bundle: clone the repo, then `cd frontend &
 
 Weather: [OpenWeather](https://openweathermap.org/) · Checklist & media data: [eBird](https://ebird.org/) / [Macaulay Library](https://www.macaulaylibrary.org/).
 
-The Weather lookup mirrors the output format of [raincrow.app](https://raincrow.app/) — the original idea and inspiration. SnowRaven exists to self-host your *own* checklist lookups, not to circumvent a free service's rate limits; please respect them. If you find this useful, consider [buying raincrow.app's creator a coffee](https://ko-fi.com/parkerdavisaz).
+The Weather lookup mirrors the output format of [raincrow.app](https://raincrow.app/) — the original idea and inspiration. SnowRaven exists to self-host your *own* checklist lookups, please don't circumvent that free service's rate limits. If you find this useful, consider [buying raincrow.app's creator a coffee](https://ko-fi.com/parkerdavisaz).
