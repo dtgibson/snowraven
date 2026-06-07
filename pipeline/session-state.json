@@ -1,21 +1,17 @@
 {
-  "activeFeature": "perf-loading-and-indicators",
-  "sessionNumber": 12,
+  "activeFeature": "settings-location-and-distance-defaults",
+  "sessionNumber": 13,
   "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "paused",
+  "currentStage": 1,
+  "lastCompletedStage": 0,
+  "lastCheckpointStatus": "in-progress",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "pipeline/perf-loading-and-indicators/change-brief.md",
-    "branch improve/performance commits 7b81ab6 (G), 85434cc (E), b17907d (H), 7c52d39 (review fixes + 0.5.16), 733ab1c (audit fix)",
-    "pipeline/perf-loading-and-indicators/qa-report.md",
-    "pipeline/perf-loading-and-indicators/security-report.md"
-  ],
+  "confirmedArtifacts": [],
   "releasedVersion": "0.5.15",
   "lastFeature": "Checklist comparer: per-checklist metadata + comments (shipped v0.5.15)",
-  "improveContext": "PAUSED at Stage 5 (Deployer) by Dave's choice: deployment is deferred so MORE work can stack on branch improve/performance first, then everything ships together later from the Mac. Stages 1-4 COMPLETE and approved. The perf sweep (target 0.5.16) is fully built/reviewed/tested/audited and pushed to origin/improve/performance @ 733ab1c. Batches: A-D, F (Mac) + E (85434cc BirdingStats progressive render: computing phase double-rAF + effectiveObs/effectiveMl root gating, useDeferredValue, idle-mounted geo map), G (7b81ab6 GL marker rewrite: sightings circle layer + hotspot symbol sprites via lib/mapPins.ts, selection by locId, atlas viewport cap blocksInBounds+padBounds cap 9000 + zoom-in hint, theme-aware fills), H (b17907d networkCache.ts 90s TTL via CachedTransport for /map/hotspots+/map/recent-obs+/stats/nemesis covering web+tauri, lib/tauri/regionInfo.ts shared memo, map chip/updater spinner/favicon slots). Review: 7c52d39 (cursor-arbiter updateMapCursor fix + lint green + docs + 0.5.16 bump in package.json+tauri.conf.json+lock + CHANGELOG). Audit: 733ab1c (clearNetworkCache wired into Settings eBird key save/delete; qa-report.md + security-report.md). Dave visually verified the running web build (uvicorn :1620 over backend/.venv) — looked right. Tests 428 frontend / 93 backend, build+lint clean. WHEN RESUMING FOR DEPLOY (Mac only): version is already 0.5.16; push tag vX.Y.Z to start Windows CI, wait for CI, then ./release.sh. NOTE: if more 0.5.16 work lands here first, the eventual deploy covers it all under one version — re-confirm the changelog/version still fit before tagging. Local web run recipe: backend/.venv (bootstrapped via get-pip, has pytest+deps), `cd backend && .venv/bin/uvicorn main:app --port 1620` after `cd frontend && npm run build`.",
-  "remainingBacklog": "From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. Ship arc: 0.5.11-0.5.13 (a11y/perf/text-size), 0.5.14 (checklist compare + map media filter), 0.5.15 (checklist metadata + comments).",
-  "createdAt": "2026-06-07T03:11:10Z",
-  "updatedAt": "2026-06-07T19:05:38Z"
+  "improveContext": "NEW Improve session on branch improve/performance (stacks with the unreleased 0.5.16 perf work; ships together from the Mac). Two tweaks to the Settings → Default Location selector and the map distance default: (1) add a 'Use my location' detect button reusing lib/location.ts getCurrentLocation (already used by MapExplorer.handleUseMyLocation) — fills the Settings lat/lng inputs, with Locating… state + error handling; plan extracts MapExplorer's inline LocationError→message mapping into a shared describeLocationError() in lib/location.ts and reuses it in both places (reuse improvement). (2) Default radius 5 mi: MapExplorer radius useState(25)->useState(5) so hotspots/media targets default to 5mi until the user sets one; pre-fill Settings Radius input to 5 when nothing saved + Clear resets to 5. Saved map-defaults.dist still wins. Feature-check: adding the Settings button brushes the New-Feature boundary but reuses existing geolocation in an existing selector — kept on Improve. NOTE: this work is on the same branch as the parked 0.5.16 perf deploy (see pipeline/perf-loading-and-indicators/DEPLOY-PENDING.md) — both deploy together from the Mac; decide whether to fold into 0.5.16 (still unreleased) or bump at the Chronicler stage.",
+  "perfDeployPending": "0.5.16 perf sweep (perf-loading-and-indicators) is built/tested/audited on improve/performance @ 6bbb23a-ish, version 0.5.16, NOT released. Deploy from the Mac only: tag -> Windows CI -> ./release.sh. Full steps: pipeline/perf-loading-and-indicators/DEPLOY-PENDING.md. Do not lose this.",
+  "remainingBacklog": "From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. Ship arc: 0.5.11-0.5.13 (a11y/perf/text-size), 0.5.14 (checklist compare + map media filter), 0.5.15 (checklist metadata + comments), 0.5.16 (perf sweep E/G/H — built, awaiting Mac deploy).",
+  "createdAt": "2026-06-07T19:41:49Z",
+  "updatedAt": "2026-06-07T19:41:49Z"
 }
