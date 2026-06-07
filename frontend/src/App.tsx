@@ -7,6 +7,7 @@ import { copyText } from './lib/clipboard'
 import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
 import { readStoredScale, persistTextScale, applyScaleToDom, hydrateStoredScale } from './lib/textScale'
 import type { TextScale } from './lib/textScale'
+import { applyTheme, hydrateStoredTheme } from './lib/theme'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
@@ -82,9 +83,15 @@ const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
   ),
 }
 
-// Tabs whose (lazy) component should mount on first open and then stay mounted,
-// so their state + parsed data survive tab switches without re-loading.
-const HEAVY_TABS: Tab[] = ['map-explorer', 'species-detail', 'birding-stats']
+// Tabs that mount on first open and then stay mounted, so their state + parsed data
+// survive tab switches without re-loading. Everything EXCEPT the always-present
+// Weather tab defers its mount — and therefore its startup data work (CSV parses, the
+// synchronous breeding-code parse, /taxonomy/codes POSTs, files-status reads) — until
+// the tab is first opened, instead of running it all on first paint.
+const DEFERRED_TABS: Tab[] = [
+  'map-explorer', 'species-detail', 'birding-stats',
+  'comparer', 'life-list', 'breeding-codes', 'settings',
+]
 
 // Fallback shown while a lazy tab's chunk is being fetched.
 function TabLoading() {
@@ -125,7 +132,7 @@ export default function App() {
   // Heavy tabs mount on first open and then stay mounted (preserving their state).
   // Seeded with the initial active tab so a heavy default tab mounts immediately.
   const [mountedTabs, setMountedTabs] = useState<Set<Tab>>(() =>
-    HEAVY_TABS.includes(activeTab) ? new Set([activeTab]) : new Set()
+    DEFERRED_TABS.includes(activeTab) ? new Set([activeTab]) : new Set()
   )
   // First-run welcome: null = undetermined, true = cold start (no keys, no files,
   // not previously dismissed). welcomeDismissed hides it for the rest of the session.
@@ -285,9 +292,20 @@ export default function App() {
     persistTextScale(s)
   }, [])
 
+  // Honor the saved theme app-wide on load. The index.html anti-flash script covers
+  // web pre-paint via localStorage; on desktop localStorage is wiped each relaunch,
+  // so hydrate the durable choice from the storage seam and apply it.
+  useEffect(() => {
+    let cancelled = false
+    void hydrateStoredTheme().then(pref => {
+      if (!cancelled && pref) applyTheme(pref)
+    })
+    return () => { cancelled = true }
+  }, [])
+
   // Mark a heavy tab as mounted the first time it becomes active (then it stays mounted).
   useEffect(() => {
-    if (HEAVY_TABS.includes(activeTab)) {
+    if (DEFERRED_TABS.includes(activeTab)) {
       setMountedTabs(prev => (prev.has(activeTab) ? prev : new Set(prev).add(activeTab)))
     }
   }, [activeTab])
@@ -691,7 +709,7 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <ListComparer onOpenSpecies={navigateToSpeciesDetail} />
+        {mountedTabs.has('comparer') && <ListComparer onOpenSpecies={navigateToSpeciesDetail} />}
       </div>
 
       {/* Life List tab content */}
@@ -706,13 +724,15 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <LifeList
-          onGoToSettings={() => setActiveTab('settings')}
-          requestedFilter={mediaListFilter}
-          onRequestedFilterConsumed={resetMediaListFilter}
-          filesVersion={filesVersion}
-          onOpenSpecies={navigateToSpeciesDetail}
-        />
+        {mountedTabs.has('life-list') && (
+          <LifeList
+            onGoToSettings={() => setActiveTab('settings')}
+            requestedFilter={mediaListFilter}
+            onRequestedFilterConsumed={resetMediaListFilter}
+            filesVersion={filesVersion}
+            onOpenSpecies={navigateToSpeciesDetail}
+          />
+        )}
       </div>
 
       {/* Breeding Codes tab content */}
@@ -727,7 +747,9 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+        {mountedTabs.has('breeding-codes') && (
+          <BreedingCodeList onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+        )}
       </div>
 
       {/* Species Detail tab content */}
@@ -813,18 +835,20 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        <Settings
-          onKeysSaved={fetchKeyStatus}
-          onFilesSaved={handleFilesSaved}
-          onOpenHelp={() => setHelpOpen(true)}
-          textScale={textScale}
-          onTextScaleChange={handleTextScale}
-          tabOrder={tabLayout.order}
-          tabHidden={tabLayout.hidden}
-          onReorder={handleReorder}
-          onToggleVisibility={handleToggleVisibility}
-          onRestoreDefaults={handleRestoreDefaults}
-        />
+        {mountedTabs.has('settings') && (
+          <Settings
+            onKeysSaved={fetchKeyStatus}
+            onFilesSaved={handleFilesSaved}
+            onOpenHelp={() => setHelpOpen(true)}
+            textScale={textScale}
+            onTextScaleChange={handleTextScale}
+            tabOrder={tabLayout.order}
+            tabHidden={tabLayout.hidden}
+            onReorder={handleReorder}
+            onToggleVisibility={handleToggleVisibility}
+            onRestoreDefaults={handleRestoreDefaults}
+          />
+        )}
       </div>
       </main>
 

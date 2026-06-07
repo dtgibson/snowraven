@@ -1,4 +1,4 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { tauriFetch } from './http';
 import { invoke } from '@tauri-apps/api/core';
 import { storage } from '../storage';
 import { formatWeather, type HourlyResponse } from '../weatherFormatter';

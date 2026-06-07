@@ -1,4 +1,4 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { tauriFetch } from './http';
 import { storage } from '../storage';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
@@ -84,7 +84,7 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
     // domestic/issf/form, e.g. "rocpig1" — resolve and map to a species.
     res = await tauriFetch(
       `${EBIRD_BASE}/ref/taxonomy/ebird?fmt=json`,
-      { headers }
+      { headers, timeoutMs: 30_000 }   // ~17k-entry one-time download — allow longer
     );
   } catch (err) {
     throw new Error(`Could not reach eBird (${err instanceof Error ? err.message : String(err)}). Check your internet connection.`, { cause: err });

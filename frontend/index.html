@@ -5,9 +5,31 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SnowRaven</title>
+    <style>
+      /* Static boot screen shown inside #root before React mounts (the app's CSS
+         bundle isn't loaded yet, so colors are inlined; theme comes from the
+         anti-flash data-theme below). React replaces #root on mount. */
+      .sr-boot { position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 16px; background: #F9FAFB;
+        color: #71717A; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+      .sr-boot-mark { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.4px; color: #0F1117; }
+      .sr-boot-spin { width: 24px; height: 24px; border-radius: 50%;
+        border: 2.5px solid #E4E4E7; border-top-color: #2D8653;
+        animation: sr-boot-rot 0.7s linear infinite; }
+      [data-theme="dark"] .sr-boot { background: #09090B; color: #A1A1AA; }
+      [data-theme="dark"] .sr-boot-mark { color: #F4F4F5; }
+      [data-theme="dark"] .sr-boot-spin { border-color: #27272A; border-top-color: #34D399; }
+      @keyframes sr-boot-rot { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { .sr-boot-spin { animation-duration: 2s; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="sr-boot" role="status" aria-label="Loading SnowRaven">
+        <span class="sr-boot-mark">SnowRaven</span>
+        <span class="sr-boot-spin"></span>
+      </div>
+    </div>
     <script>
       (function () {
         try {

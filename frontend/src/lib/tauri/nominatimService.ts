@@ -1,4 +1,4 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http';
+import { tauriFetch } from './http';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 const HEADERS = { 'User-Agent': 'SnowRaven/1.0' };

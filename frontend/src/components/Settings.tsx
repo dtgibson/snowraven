@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BookOpen, Eye, EyeOff, FileCheck, FileQuestion, Lock } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
-import { applyTheme, readStoredPreference } from '../lib/theme'
+import { applyTheme, readStoredPreference, persistThemePreference, clearThemePreference, hydrateStoredTheme } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
 import type { TextScale } from '../lib/textScale'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
@@ -30,9 +30,19 @@ function AppearanceRow() {
   const [consentState, setConsentState] = useState<ConsentState>('idle')
   const [pendingPreference, setPendingPreference] = useState<ThemePreference | null>(null)
 
+  // Desktop: localStorage is wiped each relaunch, so reflect the durable choice from
+  // the storage seam in the radio (App already applies it app-wide on load).
+  useEffect(() => {
+    let cancelled = false
+    void hydrateStoredTheme().then(v => {
+      if (!cancelled && v) setPreference(v)
+    })
+    return () => { cancelled = true }
+  }, [])
+
   function selectTheme(pref: ThemePreference) {
     if (pref === 'system') {
-      try { localStorage.removeItem('sr-theme') } catch { /* private browsing */ }
+      clearThemePreference()
       setConsentState('idle')
       setPendingPreference(null)
       setPreference('system')
@@ -46,7 +56,7 @@ function AppearanceRow() {
     try { hasStoredPref = localStorage.getItem('sr-theme') !== null } catch { /* private browsing */ }
 
     if (hasStoredPref) {
-      try { localStorage.setItem('sr-theme', pref) } catch { /* private browsing */ }
+      persistThemePreference(pref)
       setPreference(pref)
       setConsentState('idle')
       setPendingPreference(null)
@@ -59,7 +69,7 @@ function AppearanceRow() {
 
   function savePreference() {
     if (!pendingPreference || pendingPreference === 'system') return
-    try { localStorage.setItem('sr-theme', pendingPreference) } catch { /* private browsing */ }
+    persistThemePreference(pendingPreference)
     setConsentState('idle')
     setPendingPreference(null)
   }

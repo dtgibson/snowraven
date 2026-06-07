@@ -1,15 +1,16 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 11,
-  "sessionType": "improve",
-  "currentStage": 0,
+  "activeFeature": "perf-loading-and-indicators",
+  "sessionNumber": 12,
+  "sessionType": "maintain",
+  "currentStage": 1,
   "lastCompletedStage": 0,
-  "lastCheckpointStatus": "complete",
-  "releasedVersion": "0.5.13",
-  "lastFeature": "In-app text size px→rem + WCAG 1.4.4 (shipped v0.5.13)",
-  "textSizeShipped": "v0.5.13 (DECISIONS.md + pipeline/text-size/plan.md). In-app Text Size (Settings→Appearance, 100/125/150/200%) meeting WCAG 1.4.4; text also honors browser/OS default size. html font-size calc(100% * var(--sr-text-scale)); all font sizes px→rem (codemod 469 + 5 computed + 9 CSS); lib/textScale.ts persist (localStorage + storage seam) + index.html anti-flash; App applies on load; Settings TextSizeRow. Overflow audit at 200% (Dave verified): only Statistics number grids crowded → rem-based grid track minimums. Maps unaffected (rem text-only). 333 tests, build clean.",
-  "tier3Shipped": "v0.5.12 (DECISIONS.md): (1) Statistics logic → tested lib/birdingStats.ts (14 tests). (2) Species Detail logic → tested lib/speciesStats.ts (9 tests). (3) Chart accessibility (role=img on all 9 charts). (4) Perf — React.memo BirdName + Web Worker CSV parse. (5) Map atlas relabeled 'California atlas blocks'. SKIPPED as wrong-abstraction: heatmap/filter primitive dedups; render-only section splits.",
-  "remainingBacklog": "Future efforts from pipeline/comprehensive-review/audit.md: (A) keyboard-operable map markers (MapLibre markers not natively focusable; sidebar lists are the fallback). (B) optional/low-value: split oversized components into section files; unify the two day-first date formats (Map Explorer '5 Jan' vs Species Detail '5 January'); grow component test coverage. Releases this arc: 0.5.11 (Tier 1+2), 0.5.12 (Tier 3 foundation), 0.5.13 (text size).",
-  "createdAt": "2026-06-05T08:00:00Z",
-  "updatedAt": "2026-06-06T03:30:00Z"
+  "lastCheckpointStatus": "in-progress",
+  "awaitingHuman": null,
+  "confirmedArtifacts": [],
+  "releasedVersion": "0.5.15",
+  "lastFeature": "Checklist comparer: per-checklist metadata + comments (shipped v0.5.15)",
+  "improveContext": "Reduce loading/waiting times across the app + add progress indicators where waiting is unavoidable. Backed by an 8-way read-only perf audit (workflow wf_70486f76) → prioritized plan: 9 quick wins, 11 bigger refactors, 8 progress-indicator gaps, with a recommended sequence. Top items: gate eager tabs (ListComparer/Multimedia/BreedingCodes/Settings mount at startup), add Tauri service request timeouts, parse the 20k-row backup once off-thread + share, map DOM-markers→GL circle layer, keep stats spinner up through first compute, static #root skeleton + root ErrorBoundary.",
+  "remainingBacklog": "From pipeline/comprehensive-review/audit.md: (A) keyboard-operable map markers (MapLibre markers not natively focusable; sidebar lists are fallback). (B) low-value: split oversized components; unify day-first date formats (Map Explorer '5 Jan' vs Species Detail '5 January'); grow component test coverage. Ship arc: 0.5.11–0.5.13 (a11y/perf/text-size), 0.5.14 (checklist compare + map media filter), 0.5.15 (checklist metadata + comments).",
+  "createdAt": "2026-06-07T03:11:10Z",
+  "updatedAt": "2026-06-07T03:11:10Z"
 }

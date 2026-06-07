@@ -1,4 +1,4 @@
-import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
+import { tauriFetch } from './http'
 import { storage } from '../storage'
 import { resolveSpecies } from './taxonomyService'
 
