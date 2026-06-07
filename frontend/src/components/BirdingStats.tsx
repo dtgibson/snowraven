@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Star,
   AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
@@ -234,6 +234,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const [nemesisTaxonMap, setNemesisTaxonMap] = useState<Record<string, string>>({})
   const [mediaInterval, setMediaInterval] = useState<MediaGraphInterval>('monthly')
   const [mediaViewMode, setMediaViewMode] = useState<'per-period' | 'cumulative'>('per-period')
+  // Progressive-render gates (perf): `computed` flips on after first paint so the
+  // ~15 O(observations) memos + the geographic map don't block the tab's first
+  // frame; `mapReady` defers the MapLibre mount until the browser is idle.
+  const [computed, setComputed] = useState(false)
+  const [mapReady, setMapReady] = useState(false)
 
   // Auto-load eBird backup + ML export + map defaults on mount
   useEffect(() => {
@@ -341,11 +346,70 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const rawMlRows = phase.tag === 'ready' ? phase.mlRows : EMPTY_ML
   const freshness = phase.tag === 'ready' ? phase.freshness : ''
 
+  // ── Progressive render (perf) ─────────────────────────────────────────────
+  // Once the data is ready, let the browser paint the shell (header + jump-nav +
+  // a "computing" indicator) BEFORE the ~15 O(observations) memos run. A double
+  // requestAnimationFrame guarantees a real frame lands first: the first rAF
+  // fires before that paint, the second after it, so flipping `computed` in the
+  // second callback schedules the heavy work for the frame AFTER the shell is on
+  // screen. `rawObs` is in the deps so a Settings re-upload (fresh cache array)
+  // resets back to the shell and re-schedules.
+  useEffect(() => {
+    // Deliberate synchronous reset: when the data identity changes (phase leaves
+    // 'ready', or a Settings re-upload swaps in a fresh `rawObs` array) we WANT to
+    // drop straight back to the shell and re-run the two-pass render, so the
+    // cascading re-render is intentional, not a bug.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (phase.tag !== 'ready') { setComputed(false); return }
+    setComputed(false)
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setComputed(true))
+    })
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
+  }, [phase.tag, rawObs])
+
+  // Defer the geographic map's MapLibre mount until the browser is idle, so the
+  // heavy stats math gets to paint first. Resets when the observations identity
+  // changes (file re-upload). requestIdleCallback isn't universal (absent in
+  // WKWebView / older Safari), so feature-detect with a setTimeout fallback.
+  useEffect(() => {
+    // Deliberate synchronous reset (see the `computed` effect above): unmount the
+    // map back to its placeholder whenever the heavy phase resets.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!computed) { setMapReady(false); return }
+    const w = window as unknown as {
+      requestIdleCallback?: (cb: () => void) => number
+      cancelIdleCallback?: (handle: number) => void
+    }
+    if (typeof w.requestIdleCallback === 'function') {
+      const handle = w.requestIdleCallback(() => setMapReady(true))
+      return () => { w.cancelIdleCallback?.(handle) }
+    }
+    const t = setTimeout(() => setMapReady(true), 200)
+    return () => clearTimeout(t)
+  }, [computed, rawObs])
+
+  // Root-input gating: during the shell pass (`!computed`) the whole memo cascade
+  // is fed STABLE EMPTY arrays so every downstream memo runs trivially fast on
+  // identical refs; when `computed` flips, the real arrays flow in and the tree
+  // recomputes exactly once. The memo bodies are untouched.
+  const effectiveObs = computed ? rawObs : EMPTY_OBS
+  const effectiveMl = computed ? rawMlRows : EMPTY_ML
+
+  // useDeferredValue on the two recompute-triggering controls: the control state
+  // stays snappy (checkbox/button highlight) while the deferred value drives the
+  // heavy memo so React can interrupt the recompute. The chart branch + tick
+  // formatters MUST read the deferred granularity (the value the memo consumed)
+  // to avoid a one-frame data/branch mismatch.
+  const deferredIncludeSpuh = useDeferredValue(includeSpuh)
+  const deferredAccGranularity = useDeferredValue(accGranularity)
+
   // Normalized common names the user has recorded — i.e. species that HAVE a
   // Species Detail entry. Drives whether a BirdName links (vs. plain + favicons).
   const backboneNames = useMemo(
-    () => new Set(rawObs.map(o => normalizeSpeciesName(o.commonName))),
-    [rawObs],
+    () => new Set(effectiveObs.map(o => normalizeSpeciesName(o.commonName))),
+    [effectiveObs],
   )
   const hasEntryFor = (name: string) => backboneNames.has(normalizeSpeciesName(name))
   // Normalized taxon-code lookup so the (normalized) names in Stats lists resolve
@@ -363,7 +427,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   // ── useMemos (all declared before any conditional return) ─────────────────
 
-  const filteredObs = useMemo(() => filterObservations(rawObs, includeSpuh), [rawObs, includeSpuh])
+  const filteredObs = useMemo(() => filterObservations(effectiveObs, deferredIncludeSpuh), [effectiveObs, deferredIncludeSpuh])
 
   const checklists = useMemo(() => computeChecklists(filteredObs), [filteredObs])
 
@@ -376,7 +440,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const totals = useMemo(() => computeTotals(checklists, lifeList), [checklists, lifeList])
 
   // Accumulation curve + milestones — must process observations in chronological order
-  const accumulation = useMemo(() => computeAccumulation(filteredObs, accGranularity), [filteredObs, accGranularity])
+  const accumulation = useMemo(() => computeAccumulation(filteredObs, deferredAccGranularity), [filteredObs, deferredAccGranularity])
 
   // Temporal histograms
   const temporal = useMemo(() => computeTemporal(checklists, filteredObs), [checklists, filteredObs])
@@ -394,10 +458,10 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const breedingStats = useMemo(() => computeBreedingStats(filteredObs), [filteredObs])
 
   // ML stats (most photographed / audio / video)
-  const mlStats = useMemo(() => computeMlStats(rawMlRows), [rawMlRows])
+  const mlStats = useMemo(() => computeMlStats(effectiveMl), [effectiveMl])
 
   // Fun stats
-  const funStats = useMemo(() => computeFunStats(filteredObs, checklists, rawObs), [filteredObs, checklists, rawObs])
+  const funStats = useMemo(() => computeFunStats(filteredObs, checklists, effectiveObs), [filteredObs, checklists, effectiveObs])
 
   // Nearby Lifers (nemesis* internals) filtered against life list
   const nemesisFiltered = useMemo(() => {
@@ -407,8 +471,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   }, [nemesisResult, lifeList])
 
   const mediaGraphResult = useMemo(
-    () => buildMediaGraphData(rawMlRows, mediaInterval),
-    [rawMlRows, mediaInterval],
+    () => buildMediaGraphData(effectiveMl, mediaInterval),
+    [effectiveMl, mediaInterval],
   )
 
   const mediaDisplayData = useMemo(() => {
@@ -491,7 +555,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             Statistics
           </h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: 0 }}>
-            {fmt(totals.checklistCount)} checklists · eBird backup: {freshness}
+            {computed ? fmt(totals.checklistCount) : '…'} checklists · eBird backup: {freshness}
           </p>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', cursor: 'pointer', userSelect: 'none' }}>
@@ -519,6 +583,17 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         ))}
       </nav>
 
+      {!computed ? (
+        /* Computing phase: shell is painted; the heavy memos + map mount next
+           frame. Markup mirrors App.tsx's TabLoading (the Suspense fallback) so
+           the transition from "Loading charts…" to "Computing your statistics…"
+           is visually seamless. */
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 48, minHeight: 200 }}>
+          <Loader2 size={22} className="spin" aria-hidden="true" style={{ color: 'var(--sr-text-muted)' }} />
+          <span role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Computing your statistics…</span>
+        </div>
+      ) : (
+      <>
       {/* ── Section 1: Life List Totals ─────────────────────────────────────── */}
       <SectionCard title="Life List Totals" icon={<BarChart2 size={16} />}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(7.5rem, 1fr))', gap: 0 }}>
@@ -610,7 +685,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             </div>
             <div style={{ height: 180 }} role="img" aria-label={`Life list accumulation chart — ${fmt(totals.speciesCount)} species recorded over time`}>
               <ResponsiveContainer width="100%" height="100%">
-                {accGranularity === 'total' ? (
+                {deferredAccGranularity === 'total' ? (
                   <AreaChart data={accumulation.liferPoints} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
                     <defs>
                       <linearGradient id="statsAccGrad" x1="0" y1="0" x2="0" y2="1">
@@ -649,13 +724,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }}
                       tickLine={false} axisLine={false}
                       interval="preserveStartEnd"
-                      tickFormatter={key => formatPeriodLabel(String(key), accGranularity as PeriodGranularity)}
+                      tickFormatter={key => formatPeriodLabel(String(key), deferredAccGranularity as PeriodGranularity)}
                     />
                     <YAxis tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
                     <Tooltip
                       contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
                       formatter={(v) => [typeof v === 'number' ? fmt(v) : String(v ?? ''), 'Species']}
-                      labelFormatter={key => formatPeriodLabel(String(key), accGranularity as PeriodGranularity)}
+                      labelFormatter={key => formatPeriodLabel(String(key), deferredAccGranularity as PeriodGranularity)}
                     />
                     <Area type="monotone" dataKey="species" stroke="var(--sr-accent)" fill="url(#statsAccGrad)" strokeWidth={2} dot={false} />
                   </AreaChart>
@@ -902,32 +977,41 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           if (clPins.length === 0 && spPins.length === 0) return null
           return (
             <div style={{ marginBottom: 20 }}>
-              <div style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
-                <SnowMap
-                  initialViewState={{ longitude: 0, latitude: 20, zoom: 1 }}
-                  style={{ width: '100%', height: '100%' }}
-                  onLoad={e => fitToPins(e.target, [...clPins, ...spPins])}
-                  switcher
-                >
-                  {clPins.map(pin => (
-                    <Marker key={`cl-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
-                      onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.checklists)} checklists` }) }}>
-                      <RankIcon rank={pin.rank} shape="circle" />
-                    </Marker>
-                  ))}
-                  {spPins.map(pin => (
-                    <Marker key={`sp-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
-                      onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.species)} species` }) }}>
-                      <RankIcon rank={pin.rank} shape="square" />
-                    </Marker>
-                  ))}
-                  {geoPopup && (
-                    <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton={false}>
-                      <span style={{ fontSize: '0.8125rem' }}>{geoPopup.title}</span><br /><span style={{ color: '#71717A', fontSize: '0.75rem' }}>{geoPopup.sub}</span>
-                    </Popup>
-                  )}
-                </SnowMap>
-              </div>
+              {/* Idle-deferred map: the placeholder keeps the EXACT box (height
+                  320, border, radius) so the SnowMap mount causes zero layout
+                  shift. mapReady flips on requestIdleCallback after `computed`. */}
+              {mapReady ? (
+                <div style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
+                  <SnowMap
+                    initialViewState={{ longitude: 0, latitude: 20, zoom: 1 }}
+                    style={{ width: '100%', height: '100%' }}
+                    onLoad={e => fitToPins(e.target, [...clPins, ...spPins])}
+                    switcher
+                  >
+                    {clPins.map(pin => (
+                      <Marker key={`cl-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
+                        onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.checklists)} checklists` }) }}>
+                        <RankIcon rank={pin.rank} shape="circle" />
+                      </Marker>
+                    ))}
+                    {spPins.map(pin => (
+                      <Marker key={`sp-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
+                        onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.species)} species` }) }}>
+                        <RankIcon rank={pin.rank} shape="square" />
+                      </Marker>
+                    ))}
+                    {geoPopup && (
+                      <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton={false}>
+                        <span style={{ fontSize: '0.8125rem' }}>{geoPopup.title}</span><br /><span style={{ color: '#71717A', fontSize: '0.75rem' }}>{geoPopup.sub}</span>
+                      </Popup>
+                    )}
+                  </SnowMap>
+                </div>
+              ) : (
+                <div style={{ height: 320, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--sr-border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</span>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#2D8653" /></svg>
@@ -1945,6 +2029,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           </div>
         ) : null}
       </SectionCard>
+      </>
+      )}
     </div>
   )
 }
