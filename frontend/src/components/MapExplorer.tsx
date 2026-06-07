@@ -14,9 +14,8 @@ import type { ObservationEntry } from '../types'
 import { BREEDING_CODES } from '../lib/breedingCodes'
 import { transport, TransportError } from '../lib/transport'
 import { storage } from '../lib/storage'
-import { getCurrentLocation } from '../lib/location'
+import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
-import { isWindows } from '../lib/platform'
 import { SnowMap } from './SnowMap'
 import { AtlasLayer } from './AtlasLayer'
 import type { AtlasData } from '../lib/atlasBlocks'
@@ -733,7 +732,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Shared center point (hotspots + targets)
   const [lat, setLat]         = useState('')
   const [lng, setLng]         = useState('')
-  const [radius, setRadius]   = useState(25)
+  const [radius, setRadius]   = useState(5)
   const [geoError, setGeoError] = useState('')
   const [isLocating, setIsLocating] = useState(false)
 
@@ -1193,24 +1192,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         else if (viewMode === 'targets') handleFindSightings(loc.lat, loc.lng)
       }
     } catch (err) {
-      const e = err as LocationError
-      if (e.code === 'permission-denied') {
-        setGeoError(
-          e.platform === 'tauri'
-            ? (isWindows()
-                ? 'Turn on location in Windows Settings → Privacy & security → Location, then try again.'
-                : 'Location access was denied. Grant permission in System Settings → Privacy & Security → Location Services.')
-            : 'Location access was denied. Allow location access in your browser settings.',
-        )
-      } else if (e.code === 'timeout') {
-        setGeoError('Location request timed out. Try again or enter coordinates manually.')
-      } else if (e.code === 'dev-mode') {
-        setGeoError("Location requires a production build. Run 'npm run desktop:build' to test.")
-      } else if (e.code === 'insecure-context') {
-        setGeoError('Location requires HTTPS. Enter coordinates manually or access the app via localhost.')
-      } else {
-        setGeoError('Unable to determine your location. Try again or enter coordinates manually.')
-      }
+      setGeoError(describeLocationError(err as LocationError))
     } finally {
       setIsLocating(false)
     }

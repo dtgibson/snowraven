@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import { isTauri } from './platform'
+import { isTauri, isWindows } from './platform'
 
 export interface Location {
   lat: number
@@ -9,6 +9,28 @@ export interface Location {
 export interface LocationError {
   code: 'permission-denied' | 'unavailable' | 'timeout' | 'dev-mode' | 'insecure-context'
   platform?: 'tauri' | 'web'
+}
+
+// Turn a LocationError into a user-facing message. Shared by every "use my
+// location" caller (Map Explorer, Settings) so the wording stays consistent and
+// the platform branches live in one place.
+export function describeLocationError(err: LocationError): string {
+  switch (err.code) {
+    case 'permission-denied':
+      return err.platform === 'tauri'
+        ? (isWindows()
+            ? 'Turn on location in Windows Settings → Privacy & security → Location, then try again.'
+            : 'Location access was denied. Grant permission in System Settings → Privacy & Security → Location Services.')
+        : 'Location access was denied. Allow location access in your browser settings.'
+    case 'timeout':
+      return 'Location request timed out. Try again or enter coordinates manually.'
+    case 'dev-mode':
+      return "Location requires a production build. Run 'npm run desktop:build' to test."
+    case 'insecure-context':
+      return 'Location requires HTTPS. Enter coordinates manually or access the app via localhost.'
+    default:
+      return 'Unable to determine your location. Try again or enter coordinates manually.'
+  }
 }
 
 // Tauri desktop: uses a native CLLocationManager command (src-tauri/src/location.rs).
