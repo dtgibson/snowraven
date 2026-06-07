@@ -2,8 +2,8 @@
   "activeFeature": "weather-tides",
   "sessionNumber": 14,
   "sessionType": "feature",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
+  "currentStage": 6,
+  "lastCompletedStage": 5,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [
@@ -11,7 +11,8 @@
     "pipeline/weather-tides/prd.md",
     "pipeline/weather-tides/schema.md",
     "pipeline/weather-tides/design-spec.md",
-    "pipeline/weather-tides/design.html"
+    "pipeline/weather-tides/design.html",
+    "weather-tides code (0.5.17): frontend lib/tide*, tauri/tideService, App wiring; backend routers/tide + services/{noaa,tide,tide_stations} + formatters/tide; bundled station list"
   ],
   "releasedVersion": "0.5.15",
   "lastFeature": "Checklist comparer: per-checklist metadata + comments (shipped v0.5.15)",
