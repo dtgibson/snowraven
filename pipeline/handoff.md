@@ -26,6 +26,14 @@ undeployed (ships together from the Mac):
    `hasRaincrowWeatherBlock` in `lib/commentBlocks.ts`; counts in
    `computeQuality`. Adversarially reviewed.
 
+   **Media Comments section on the Multimedia tab** — a section below the species
+   table surfacing the ML export's free-text notes (Caption, Media notes,
+   Observation Details), mirroring the Species Detail comments box: keyword
+   filter, Newest/Oldest, recent-10 + "Show all", per-row species/type/date/place
+   + Macaulay asset link. New `lib/mediaComments.ts`, `MediaCommentsSection.tsx`;
+   `parseMLExport.ts` now reads the comment fields + the real "Locality" column
+   and is record-aware (multi-line comments). Adversarially reviewed.
+
 3. **quality-accessibility-sweep** (maintain lane, 5 items):
    - **Date formats** — one canonical `lib/formatDate.ts` + a **Settings → Appearance
      → Date format** control (month-first default / day-first / ISO), persisted.
@@ -79,10 +87,10 @@ also in `session-state.json` → `remainingBacklog`.
 3. Then the **Chronicler**: update `PRODUCT_CONTEXT.md` / `DECISIONS.md` /
    `ROADMAP.md` for the user-facing additions (comparer badges + side-by-side
    weather/tide, the date-format picker, keyboard-operable map markers, the
-   Statistics weather/tide-block coverage breakdown — the splits are internal),
-   and **update `website/`** (the List Comparer description + Statistics copy +
-   any feature copy) — the website is live, so do this when the features actually
-   ship.
+   Statistics weather/tide-block coverage breakdown, the Multimedia tab's Media
+   Comments section — the splits are internal), and **update `website/`** (the
+   List Comparer description + Statistics + Multimedia copy + any feature copy) —
+   the website is live, so do this when the features actually ship.
 
 > Note: **0.5.18 is the in-progress batch version.** Additional features built
 > before this deploy should accumulate under the 0.5.18 changelog rather than
