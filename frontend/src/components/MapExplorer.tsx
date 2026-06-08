@@ -22,6 +22,8 @@ import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { HEAT_INTENSITY_DEFAULT, heatWeightDivisor, heatRadiusPx, heatIntensityFactor } from '../lib/heat'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
+import { markersInView, MARKER_LIST_CAP, type MarkerBounds } from '../lib/markersInView'
+import { padBounds } from '../lib/atlasBlocks'
 import {
   TEARDROP, HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData,
   pinFillRadiusExpr, pinOpacityExpr, ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH,
@@ -187,6 +189,31 @@ function MapEffects({ panTarget, onPanDone, defaultCenter, onDefaultDone }: {
   return null
 }
 
+// Reports the current map viewport (padded) up to the parent on load + every
+// `moveend`, so the parent can scope the keyboard-accessible in-view marker
+// lists to what's on screen — the same viewport-cap idea AtlasLayer uses for
+// blocks. The map instance is only reachable via useMap() inside <SnowMap>, so
+// this lives as a child and pushes bounds out through a callback.
+function BoundsTracker({ onBounds }: { onBounds: (b: MarkerBounds) => void }) {
+  const map = useMap().current
+  useEffect(() => {
+    if (!map) return
+    const report = () => {
+      const b = map.getBounds()
+      // Pad 15% like the atlas overlay so a list item near the edge doesn't pop
+      // out of the list during a small pan before the next moveend settles.
+      onBounds(padBounds(
+        [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
+        0.15,
+      ))
+    }
+    report()
+    map.on('moveend', report)
+    return () => { map.off('moveend', report) }
+  }, [map, onBounds])
+  return null
+}
+
 function DetectedLocationPin({ position }: { position: { lat: number; lng: number } }) {
   return (
     <Marker longitude={position.lng} latitude={position.lat} anchor="center">
@@ -251,10 +278,19 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
 // lib/heat.ts — heatRadiusPx, heatIntensityFactor, heatWeight — so the 1–10
 // slider behaves identically in both places.
 
-function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }: { locations: LocationGroup[]; displayMode: DisplayMode; heatIntensity: number; atlasShading: boolean }) {
+function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading, sel, onSelect }: {
+  locations: LocationGroup[]
+  displayMode: DisplayMode
+  heatIntensity: number
+  atlasShading: boolean
+  // Selection is lifted to the parent so the keyboard-accessible sidebar list
+  // and the pin click share ONE owner: clicking a pin OR a sidebar row opens
+  // the same <Popup>. (closeOnClick stays off, so there's still a single owner.)
+  sel: string | null
+  onSelect: (locId: string | null) => void
+}) {
   const map = useMap().current
   const hasFitted = useRef(false)
-  const [sel, setSel] = useState<string | null>(null)
 
   useEffect(() => {
     if (hasFitted.current || !map || locations.length === 0) return
@@ -301,7 +337,7 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
       if (!map.getLayer('sr-sight-circle')) return
       const f = map.queryRenderedFeatures(e.point, { layers: ['sr-sight-circle'] })[0]
       const locId = (f?.properties as { locId?: unknown } | undefined)?.locId
-      setSel(typeof locId === 'string' && locId !== '' ? locId : null)
+      onSelect(typeof locId === 'string' && locId !== '' ? locId : null)
     }
     // Cursor goes through the shared arbiter: on leave the pointer may still be
     // over another interactive layer (e.g. a shaded atlas block under the pin).
@@ -315,24 +351,49 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
       map.off('mouseleave', 'sr-sight-circle', hover)
       map.getCanvas().style.cursor = ''
     }
-  }, [map, displayMode])
+  }, [map, displayMode, onSelect])
+
+  // Selection + its popup are computed once and rendered in BOTH pins and heatmap
+  // modes, so the keyboard "Sightings in view" list opens the details popup either way.
+  const selLoc = sel ? locations.find(l => l.locId === sel) : null
+  const sightPopup = selLoc && (
+    <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => onSelect(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
+      <div style={{ minWidth: 190 }}>
+        <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 6 }}>{selLoc.locName}</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>
+          {selLoc.count.toLocaleString()} observation{selLoc.count !== 1 ? 's' : ''}
+        </div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 10 }}>Last: {formatDate(selLoc.lastDate)}</div>
+        <div style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 5 }}>Species seen here</div>
+        {[...selLoc.species].slice(0, 5).map(s => (
+          <div key={s} style={{ fontSize: '0.75rem', color: 'var(--sr-text)', marginBottom: 2 }}>{s}</div>
+        ))}
+        {selLoc.species.size > 5 && (
+          <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>+{selLoc.species.size - 5} more species</div>
+        )}
+      </div>
+    </Popup>
+  )
 
   if (displayMode === 'heatmap') {
     const divisor = heatWeightDivisor(heatIntensity)
     return (
-      <Source id="sr-heat" type="geojson" data={heatFc}>
-        {/* When atlas breeding shading is on, sit the heatmap UNDER the atlas fill
-            (beforeId) and dim it, so the tier colors read on top. */}
-        <Layer id="sr-heat" type="heatmap"
-          beforeId={atlasShading ? 'sr-atlas-fill' : undefined}
-          paint={{
-          // min(count / divisor, 1) — matches lib/heat.ts heatWeight, as an expression.
-          'heatmap-weight': ['min', ['/', ['get', 'count'], divisor], 1],
-          'heatmap-intensity': heatIntensityFactor(heatIntensity),
-          'heatmap-radius': heatRadiusPx(heatIntensity),
-          'heatmap-opacity': atlasShading ? 0.45 : 0.85,
-        } as HeatmapLayerSpecification['paint']} />
-      </Source>
+      <>
+        <Source id="sr-heat" type="geojson" data={heatFc}>
+          {/* When atlas breeding shading is on, sit the heatmap UNDER the atlas fill
+              (beforeId) and dim it, so the tier colors read on top. */}
+          <Layer id="sr-heat" type="heatmap"
+            beforeId={atlasShading ? 'sr-atlas-fill' : undefined}
+            paint={{
+            // min(count / divisor, 1) — matches lib/heat.ts heatWeight, as an expression.
+            'heatmap-weight': ['min', ['/', ['get', 'count'], divisor], 1],
+            'heatmap-intensity': heatIntensityFactor(heatIntensity),
+            'heatmap-radius': heatRadiusPx(heatIntensity),
+            'heatmap-opacity': atlasShading ? 0.45 : 0.85,
+          } as HeatmapLayerSpecification['paint']} />
+        </Source>
+        {sightPopup}
+      </>
     )
   }
 
@@ -346,38 +407,27 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
     'circle-stroke-opacity': pinOpacityExpr(dim),
   }
 
-  const selLoc = sel ? locations.find(l => l.locId === sel) : null
   return (
     <>
       <Source id="sr-sight" type="geojson" data={pinsFc}>
         <Layer id="sr-sight-circle" type="circle" paint={circlePaint} />
       </Source>
-      {selLoc && (
-        <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => setSel(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
-          <div style={{ minWidth: 190 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 6 }}>{selLoc.locName}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>
-              {selLoc.count.toLocaleString()} observation{selLoc.count !== 1 ? 's' : ''}
-            </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 10 }}>Last: {formatDate(selLoc.lastDate)}</div>
-            <div style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 5 }}>Species seen here</div>
-            {[...selLoc.species].slice(0, 5).map(s => (
-              <div key={s} style={{ fontSize: '0.75rem', color: 'var(--sr-text)', marginBottom: 2 }}>{s}</div>
-            ))}
-            {selLoc.species.size > 5 && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>+{selLoc.species.size - 5} more species</div>
-            )}
-          </div>
-        </Popup>
-      )}
+      {sightPopup}
     </>
   )
 }
 
-function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds: Set<HotspotPin['kind']> }) {
+function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
+  pins: HotspotPin[]
+  hiddenKinds: Set<HotspotPin['kind']>
+  // Lifted to the parent (locId) so the keyboard sidebar list and the teardrop
+  // click open the same <Popup>. (locId, not array index — the index broke when
+  // kinds were hidden.)
+  sel: string | null
+  onSelect: (locId: string | null) => void
+}) {
   const map = useMap().current
   const fitKey = pins.length
-  const [sel, setSel] = useState<string | null>(null) // locId (the old array index broke when kinds were hidden)
 
   useEffect(() => {
     if (!map || pins.length === 0) return
@@ -431,7 +481,7 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
       if (!map.getLayer('sr-hotspot')) return
       const f = map.queryRenderedFeatures(e.point, { layers: ['sr-hotspot'] })[0]
       const locId = (f?.properties as { locId?: unknown } | undefined)?.locId
-      setSel(typeof locId === 'string' && locId !== '' ? locId : null)
+      onSelect(typeof locId === 'string' && locId !== '' ? locId : null)
     }
     // Cursor goes through the shared arbiter (see SightingMarkers).
     const hover = (e: MapMouseEvent) => updateMapCursor(map, e.point)
@@ -444,7 +494,7 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
       map.off('mouseleave', 'sr-hotspot', hover)
       map.getCanvas().style.cursor = ''
     }
-  }, [map])
+  }, [map, onSelect])
 
   // Hidden legend kinds drop out via a layer filter (no source rebuild). With
   // nothing hidden this is !(kind in []) — always true.
@@ -469,7 +519,7 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
         <Layer id="sr-hotspot" type="symbol" layout={symbolLayout} filter={hotspotFilter} />
       </Source>
       {selPin && (
-        <Popup longitude={selPin.lng} latitude={selPin.lat} anchor="bottom" offset={42} onClose={() => setSel(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
+        <Popup longitude={selPin.lng} latitude={selPin.lat} anchor="bottom" offset={42} onClose={() => onSelect(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
           <div style={{ minWidth: 190 }}>
             <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 8 }}>{selPin.locName}</div>
             {selPin.kind === 'visited' && (
@@ -496,15 +546,20 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
   )
 }
 
-function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
+function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies, sel, onSelect }: {
   pins: DisplayTargetPin[]
   speciesCodeMap: Record<string, string>
   hasEntryFor: (name: string) => boolean
   onOpenSpecies?: (commonName: string) => void
+  // Selection lifted to the parent (locId) so the "Nearest Targets" sidebar list
+  // opens the SAME popup a marker click shows — one owner, like the sighting and
+  // hotspot lists. (locId rather than the group index, so a sidebar row keyed by
+  // species+loc can address the popup directly.)
+  sel: string | null
+  onSelect: (locId: string | null) => void
 }) {
   const map = useMap().current
   const fitKey = pins.length
-  const [sel, setSel] = useState<number | null>(null)
 
   useEffect(() => {
     if (!map || pins.length === 0) return
@@ -528,7 +583,7 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
     return [...groups.values()]
   }, [pins])
 
-  const selGroup = sel !== null ? locationGroups[sel] : null
+  const selGroup = sel !== null ? locationGroups.find(g => g[0]?.locId === sel) ?? null : null
   const selRep = selGroup ? selGroup.reduce((best, p) => p.recentDate > best.recentDate ? p : best) : null
 
   return (
@@ -548,7 +603,7 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
         }
         return (
           <Marker key={`${rep.locId}-${i}`} longitude={rep.lng} latitude={rep.lat} anchor="left"
-            onClick={e => { e.originalEvent.stopPropagation(); setSel(i) }}>
+            onClick={e => { e.originalEvent.stopPropagation(); onSelect(rep.locId) }}>
             <div
               style={{ display: 'inline-flex', alignItems: 'center', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer' }}
               dangerouslySetInnerHTML={{ __html: labelHtml }}
@@ -557,7 +612,7 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
         )
       })}
       {selGroup && selRep && (
-        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => setSel(null)} closeButton={false} maxWidth="280px">
+        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} closeButton={false} maxWidth="280px">
               <div style={{ minWidth: 200, maxWidth: 260 }}>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
                 {selGroup.map((pin, j) => {
@@ -642,6 +697,89 @@ function SidebarLabel({ children }: { children: React.ReactNode }) {
       letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 6,
     }}>
       {children}
+    </div>
+  )
+}
+
+// Keyboard-accessible list of the markers currently in the map view. The on-map
+// pins/teardrops are GL (canvas) and can't be focused; this focusable list is the
+// keyboard path to them — each row activates the same <Popup> a pin click opens
+// and pans the map. role="list"/"listitem" + an explicit aria-label make the
+// purpose clear to a screen-reader user. Capped, with an over-cap "zoom in" hint
+// mirroring the atlas overlay.
+export function InViewMarkerList<T>({ heading, instructions, items, total, overCap, selectedId, getId, getPrimary, getSecondary, getDotColor, getDotLabel, onActivate }: {
+  heading: string
+  instructions: string
+  items: T[]
+  total: number
+  overCap: boolean
+  selectedId: string | null
+  getId: (item: T) => string
+  getPrimary: (item: T) => string
+  getSecondary: (item: T) => string
+  /** Optional leading colour swatch (e.g. hotspot kind / sighting marker colour). */
+  getDotColor?: (item: T) => string
+  getDotLabel?: (item: T) => string
+  onActivate: (item: T) => void
+}) {
+  return (
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
+      <SidebarLabel>{heading}</SidebarLabel>
+      <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
+        {instructions}
+      </div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
+          None in the current map view — pan or zoom to bring markers into view.
+        </div>
+      ) : (
+        <>
+          <ul role="list" aria-label={heading} style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {items.map(item => {
+              const id = getId(item)
+              const isSelected = selectedId === id
+              const dot = getDotColor?.(item)
+              return (
+                <li role="listitem" key={id}>
+                  <button
+                    type="button"
+                    tabIndex={0}
+                    onClick={() => onActivate(item)}
+                    aria-pressed={isSelected}
+                    className="sr-inview-row"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                      padding: '7px 8px', marginBottom: 2, borderRadius: 6,
+                      textAlign: 'left', fontFamily: 'inherit', cursor: 'pointer',
+                      background: isSelected ? 'var(--sr-accent-bg)' : 'transparent',
+                      border: `1px solid ${isSelected ? 'var(--sr-accent-border)' : 'transparent'}`,
+                    }}
+                  >
+                    {dot && (
+                      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} aria-hidden="true">
+                        {getDotLabel && <span className="sr-only">{getDotLabel(item)}</span>}
+                      </span>
+                    )}
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ display: 'block', fontSize: '0.78125rem', color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {getPrimary(item)}
+                      </span>
+                      <span style={{ display: 'block', fontSize: '0.625rem', color: 'var(--sr-text-muted)' }}>
+                        {getSecondary(item)}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+          {overCap && (
+            <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+              Showing the first {MARKER_LIST_CAP} of {total.toLocaleString()} in view — zoom in to narrow the list.
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
@@ -751,12 +889,27 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [manualTargets, setManualTargets]     = useState<Set<string>>(new Set())
   const [targetSearch, setTargetSearch]       = useState('')
   const [targetViewMode, setTargetViewMode]   = useState<'all' | 'week'>('all')
-  const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(null)
+  // Selected target LOCATION (locId) — shared between the "Nearest Targets"
+  // sidebar list and the TargetMarkers popup, so a sidebar row opens the same
+  // popup the map marker does (consistent with the sightings/hotspots lists).
+  const [selectedTargetLocId, setSelectedTargetLocId] = useState<string | null>(null)
   const [targetTypeFilter, setTargetTypeFilter] = useState<Set<'Photo' | 'Audio' | 'Video'>>(new Set())
 
   // Map pan target (set by sidebar clicks, consumed by MapEffects inside SnowMap)
   const [panTarget, setPanTarget]             = useState<{ lat: number; lng: number } | null>(null)
   const handlePanDone                         = useCallback(() => setPanTarget(null), [])
+
+  // Current map viewport (padded), reported by BoundsTracker on load + moveend.
+  // Scopes the keyboard-accessible in-view marker lists to what's on screen.
+  const [mapBounds, setMapBounds]             = useState<MarkerBounds | null>(null)
+  const handleBounds                          = useCallback((b: MarkerBounds) => setMapBounds(b), [])
+
+  // Marker selection lifted out of the marker components, so a focusable sidebar
+  // row opens the SAME <Popup> a pin click does (one owner per mode). null = no
+  // popup. Sidebar activation also pans the map (setPanTarget) so the popup is
+  // brought into view if the marker was near the edge.
+  const [selectedSightingLocId, setSelectedSightingLocId] = useState<string | null>(null)
+  const [selectedHotspotLocId, setSelectedHotspotLocId]   = useState<string | null>(null)
 
   // Detected location pin (set by "Use my location", cleared when user edits coords manually)
   const [detectedLocation, setDetectedLocation] = useState<{ lat: number; lng: number } | null>(null)
@@ -1053,6 +1206,44 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       .sort((a, b) => a.dist - b.dist)
       .slice(0, 10)
   }, [hotspotPins, lat, lng])
+
+  // ── In-view marker lists (keyboard path to the GL markers) ─────────────────────
+  // The on-map pins/teardrops are GPU GL layers (canvas) and can't be DOM focus
+  // targets. These derive a focusable sidebar list of the markers currently in
+  // the viewport (mapBounds), so keyboard/screen-reader users reach the same
+  // details + pan the map. Scoped to the current view + capped (lib/markersInView,
+  // mirroring the atlas viewport-cap), recomputed as the user pans/zooms.
+
+  // Sightings in view, sorted by observation count (densest first) so the most
+  // significant locations lead the list.
+  const sightingsInView = useMemo(() => {
+    const sorted = [...filteredLocations].sort((a, b) => b.count - a.count)
+    return markersInView(sorted, mapBounds)
+  }, [filteredLocations, mapBounds])
+
+  // Hotspots in view — honor the legend's hidden kinds (a hidden teardrop has no
+  // popup, so it shouldn't be a keyboard target either), sorted visited→unvisited
+  // →personal then by name for a stable order.
+  const hotspotsInView = useMemo(() => {
+    if (!hotspotPins) return { visible: [], total: 0, overCap: false }
+    const kindOrder: Record<HotspotPin['kind'], number> = { visited: 0, unvisited: 1, personal: 2 }
+    const shown = hotspotPins
+      .filter(p => !hiddenKinds.has(p.kind))
+      .sort((a, b) => kindOrder[a.kind] - kindOrder[b.kind] || a.locName.localeCompare(b.locName))
+    return markersInView(shown, mapBounds)
+  }, [hotspotPins, hiddenKinds, mapBounds])
+
+  // Open a sighting's popup from the sidebar: select it (same owner the pin click
+  // sets) AND pan so the popup lands in view if the pin was near the edge.
+  const openSightingFromList = useCallback((loc: LocationGroup) => {
+    setSelectedSightingLocId(loc.locId)
+    setPanTarget({ lat: loc.lat, lng: loc.lng })
+  }, [])
+
+  const openHotspotFromList = useCallback((pin: HotspotPin) => {
+    setSelectedHotspotLocId(pin.locId)
+    setPanTarget({ lat: pin.lat, lng: pin.lng })
+  }, [])
 
   // Atlas overlay toggle — lazy-loads the block gazetteer on first enable so it
   // never affects initial app load, then just shows/hides the layer.
@@ -1480,6 +1671,24 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             </div>
           )}
         </div>
+        {/* In-view sightings — keyboard-accessible path to the GL sighting pins.
+            Each row opens the same popup a pin click shows and pans the map. */}
+        <div style={{ padding: '0 16px 14px' }}>
+          <InViewMarkerList
+            heading="Sightings in view"
+            instructions="Select a location to open its details on the map. Updates as you pan or zoom."
+            items={sightingsInView.visible}
+            total={sightingsInView.total}
+            overCap={sightingsInView.overCap}
+            selectedId={selectedSightingLocId}
+            getId={l => l.locId}
+            getPrimary={l => l.locName}
+            getSecondary={l => `${l.count.toLocaleString()} observation${l.count !== 1 ? 's' : ''} · ${l.species.size} species`}
+            getDotColor={() => 'var(--sr-map-visited)'}
+            onActivate={openSightingFromList}
+          />
+        </div>
+
         {/* Atlas overlay controls — bottom of the My Sightings panel */}
         <div style={{ padding: '0 16px 14px' }}>
           {atlasOverlayControls}
@@ -1578,30 +1787,71 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
       {atlasOverlayControls}
 
+      {/* In-view hotspots — keyboard-accessible path to the GL teardrops. Each
+          row opens the same popup a teardrop click shows and pans the map. */}
+      {hotspotPins && hotspotPins.length > 0 && (
+        <InViewMarkerList
+          heading="Hotspots in view"
+          instructions="Select a hotspot to open its details on the map. Updates as you pan or zoom."
+          items={hotspotsInView.visible}
+          total={hotspotsInView.total}
+          overCap={hotspotsInView.overCap}
+          selectedId={selectedHotspotLocId}
+          getId={p => p.locId}
+          getPrimary={p => p.locName}
+          getSecondary={p => p.kind === 'visited' ? `Visited · ${p.speciesCount} species`
+            : p.kind === 'personal' ? `Personal location · ${p.obsCount} observation${p.obsCount !== 1 ? 's' : ''}`
+            : 'Unvisited hotspot'}
+          getDotColor={p => `var(--sr-map-${p.kind})`}
+          getDotLabel={p => p.kind === 'visited' ? 'Visited' : p.kind === 'personal' ? 'Personal location' : 'Unvisited'}
+          onActivate={openHotspotFromList}
+        />
+      )}
+
       {nearestUnvisited.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
           <SidebarLabel>Nearest Unvisited Hotspots</SidebarLabel>
           {nearestUnvisited.map(({ pin, dist }) => (
-            <a
+            <div
               key={pin.locId}
-              href={`https://ebird.org/hotspot/${pin.locId}`}
-              target="_blank"
-              rel="noreferrer"
-              tabIndex={0}
               className="sr-nearest-unvisited-row"
               style={{
-                display: 'flex', alignItems: 'baseline', gap: 8, width: '100%',
-                padding: '7px 8px', marginBottom: 2, borderRadius: 6,
-                textDecoration: 'none', color: 'inherit',
+                display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+                padding: '5px 8px', marginBottom: 2, borderRadius: 6,
               }}
             >
-              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--sr-map-unvisited)', flexShrink: 0, alignSelf: 'center' }} aria-hidden="true" />
-              <span className="sr-nearest-unvisited-name" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', fontSize: '0.78125rem', color: 'var(--sr-text)', overflow: 'hidden' }}>
+              <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: 'var(--sr-map-unvisited)', flexShrink: 0 }} aria-hidden="true" />
+              {/* Row opens the on-map popup + pans (keyboard path to the teardrop);
+                  the trailing ↗ still links out to eBird. */}
+              <button
+                type="button"
+                tabIndex={0}
+                onClick={() => openHotspotFromList(pin)}
+                aria-pressed={selectedHotspotLocId === pin.locId}
+                className="sr-nearest-unvisited-name"
+                style={{
+                  flex: 1, minWidth: 0, display: 'flex', alignItems: 'center',
+                  fontSize: '0.78125rem', color: 'var(--sr-text)', overflow: 'hidden',
+                  background: 'none', border: 'none', padding: 0, textAlign: 'left',
+                  fontFamily: 'inherit', cursor: 'pointer',
+                }}
+                title="Show on map"
+              >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</span>
-                <ExternalLink size={11} strokeWidth={2} aria-hidden="true" style={{ marginLeft: 5, flexShrink: 0, color: 'var(--sr-text-muted)' }} />
-              </span>
+              </button>
+              <a
+                href={`https://ebird.org/hotspot/${pin.locId}`}
+                target="_blank"
+                rel="noreferrer"
+                tabIndex={0}
+                aria-label={`Open ${pin.locName} on eBird`}
+                title="Open on eBird"
+                style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', color: 'var(--sr-text-muted)' }}
+              >
+                <ExternalLink size={12} strokeWidth={2} aria-hidden="true" />
+              </a>
               <span style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{dist.toFixed(1)} mi</span>
-            </a>
+            </div>
           ))}
         </div>
       )}
@@ -1769,7 +2019,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             <SegControl
               options={[{ value: 'all', label: 'Last 30 Days' }, { value: 'week', label: 'Last Week' }]}
               value={targetViewMode}
-              onChange={v => { setTargetViewMode(v as 'all' | 'week'); setSelectedTargetKey(null) }}
+              onChange={v => { setTargetViewMode(v as 'all' | 'week'); setSelectedTargetLocId(null) }}
             />
           </div>
           {atlasOverlayControls}
@@ -1780,7 +2030,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 const key = `${pin.speciesCode}-${pin.locId}`
                 const tier = recencyTier(pin.recentDate)
                 const { bg, text } = tierColors(tier)
-                const isSelected = selectedTargetKey === key
+                const isSelected = selectedTargetLocId === pin.locId
                 return (
                   <div
                     key={key}
@@ -1803,7 +2053,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>{dist.toFixed(1)} mi</div>
                     <button
                       tabIndex={0}
-                      onClick={() => { setSelectedTargetKey(key); setPanTarget({ lat: pin.lat, lng: pin.lng }) }}
+                      onClick={() => { setSelectedTargetLocId(pin.locId); setPanTarget({ lat: pin.lat, lng: pin.lng }) }}
+                      aria-pressed={isSelected}
                       title="Show on map"
                       aria-label={`Show ${pin.comName} on the map`}
                       style={{
@@ -1970,6 +2221,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 defaultCenter={defaultCenter}
                 onDefaultDone={handleDefaultCenterDone}
               />
+              <BoundsTracker onBounds={handleBounds} />
               {atlasEnabled && (
                 <AtlasLayer
                   data={atlasData}
@@ -1980,13 +2232,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               )}
               {detectedLocation && <DetectedLocationPin position={detectedLocation} />}
               {viewMode === 'sightings' && !isSetupRequired && (
-                <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} atlasShading={atlasEnabled && shadeByBreeding} />
+                <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} atlasShading={atlasEnabled && shadeByBreeding} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />
               )}
               {viewMode === 'hotspots' && hotspotPins && (
-                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} />
+                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} />
               )}
               {viewMode === 'targets' && targetPins && (
-                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} sel={selectedTargetLocId} onSelect={setSelectedTargetLocId} />
               )}
             </SnowMap>
           )}

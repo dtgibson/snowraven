@@ -185,6 +185,9 @@
 .sr-nearest-unvisited-row:hover { background: var(--sr-surface-subtle); }
 .sr-nearest-unvisited-row:hover .sr-nearest-unvisited-name { color: var(--sr-accent); }
 
+/* In-view marker list rows (Map Explorer keyboard path to the GL markers) */
+.sr-inview-row:hover { background: var(--sr-surface-subtle); }
+
 /* Brand-styled basemap switcher (the SnowMap base/overlay control) — an absolutely
    positioned panel inside the MapLibre map. Segmented base selector + a trails
    toggle, theme-aware tokens. */

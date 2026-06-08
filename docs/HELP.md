@@ -203,11 +203,15 @@ Shows all your personal observations on a map. Narrow what's shown with the pane
 
 Switch between Pins and Heatmap with the Map View toggle. In Heatmap mode, a Heatmap Intensity slider lets you dial the coverage from tighter to broader and hotter -- higher settings spread each sighting farther and make even sparse, low-count areas stand out, which also helps when reading density at different zoom levels.
 
+A **Sightings in view** list in the panel mirrors the pins currently on screen: each row shows a location's name, observation count, and species count. Select a row (it is fully keyboard-operable -- Tab to it, then Enter or Space) to open that location's details popup on the map and pan to it, exactly as clicking the pin would. The list updates as you pan or zoom, so it always reflects what's visible; on very dense views it shows the busiest locations first with a note to zoom in to narrow it. This is the keyboard path to the map markers, which are otherwise mouse-only.
+
 ### Hotspots
 
 Fetches eBird hotspots near a location. Hotspots you have visited (matched against your eBird backup) appear as green pins. Unvisited hotspots appear as blue pins. Locations from your personal location history appear as orange pins. Click any legend row to hide or show that category. Enter a place name or coordinates to search, then click Fetch hotspots. While a search is running, a small chip at the top of the map shows its progress.
 
-Below the legend, the panel lists the ten closest hotspots you have not visited, ranked by distance from your center point; each row links to that hotspot's page on eBird.
+A **Hotspots in view** list in the panel mirrors the teardrops currently on screen: each row shows a hotspot's name and whether it's visited, unvisited, or a personal location. Select a row (fully keyboard-operable -- Tab to it, then Enter or Space) to open that hotspot's details popup on the map and pan to it, exactly as clicking the teardrop would. The list updates as you pan or zoom and honors the legend's hidden categories. This is the keyboard path to the map markers, which are otherwise mouse-only.
+
+Below the legend, the panel lists the ten closest hotspots you have not visited, ranked by distance from your center point. Selecting a row opens that hotspot's details popup on the map and pans to it; a small ↗ link beside each row still opens that hotspot's page on eBird.
 
 **Atlas blocks overlay.** A **California atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid is drawn for the area you are looking at and appears once you zoom in; at very wide views a "Zoom in to see atlas blocks" hint appears instead, so the whole-state view stays uncluttered. Click any block to open a popup with its name, a link to its eBird California atlas page, and -- when shading is on -- your highest breeding code there plus how many of your breeding records fall inside it. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, and Media Targets panels (in My Sightings it sits at the bottom of the panel; in Media Targets, just above the nearest-targets list).
 
@@ -217,7 +221,7 @@ With shading on, a **Use Textures** toggle (off by default) adds a distinct hatc
 
 ### Media Targets
 
-Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. The sidebar shows the 10 nearest target pins ranked by distance. Clicking a row pans the map to that location.
+Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. The sidebar shows the 10 nearest target pins ranked by distance. Selecting a row (via its keyboard-operable "show on map" button) opens that location's details popup on the map and pans to it.
 
 ---
 
