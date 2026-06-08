@@ -1,23 +1,17 @@
-import { Marker, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre'
-import type { HeatmapLayerSpecification } from 'maplibre-gl'
-import type { FeatureCollection, Point } from 'geojson'
+import { Marker, Popup } from 'react-map-gl/maplibre'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, Loader2, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
-  MapPin, Play, Calendar, TrendingUp, SlidersHorizontal, Share2,
+  MapPin, Play, Calendar, SlidersHorizontal, Share2,
 } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  Legend, ResponsiveContainer,
-} from 'recharts'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import type { MLExportRow } from '../lib/parseMLExport'
-import { buildGraphData, type GraphPoint, type GraphInterval } from '../lib/sightingsGraph'
+import { buildGraphData } from '../lib/sightingsGraph'
 import { TIER_COLORS } from '../lib/breedingCodes'
 import {
   computeSightingsStats, computeMediaCounts, computeRecentMediaIds, computeBreedingPill,
@@ -30,8 +24,13 @@ import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 import { formatDate } from '../lib/formatDate'
-import { HEAT_INTENSITY_DEFAULT, heatWeight, heatRadiusPx, heatIntensityFactor } from '../lib/heat'
+import { HEAT_INTENSITY_DEFAULT, heatWeight } from '../lib/heat'
 import { SnowMap } from './SnowMap'
+import { extractUserId, mlCatalogLink } from '../lib/mlCatalog'
+import { SectionCard, SectionHead, StatLabel, StatValueLink, SUBMISSION_ID_RE } from './speciesDetail/ui'
+import { SightingsGraph } from './speciesDetail/SightingsGraph'
+import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
+import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -47,343 +46,12 @@ type CoordMarker = {
   sightings: { submissionId: string; date: string }[]
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function extractUserId(filename: string): string | null {
-  const m = filename.match(/^ML__.*_([A-Za-z0-9]+)\.csv$/)
-  return m ? m[1] : null
-}
-
-function mlCatalogLink(mediaType: MediaType, taxonCode: string | undefined, userId: string | null): string {
-  const mt = mediaType === 'Photo' ? 'photo' : mediaType === 'Audio' ? 'audio' : 'video'
-  let url = `https://search.macaulaylibrary.org/catalog?mediaType=${mt}`
-  if (taxonCode) url += `&taxonCode=${taxonCode}`
-  if (userId) url += `&userId=${userId}`
-  return url
-}
-
-
 const COMMENTS_PAGE = 10
-
-
-// ── Sub-components (inline) ────────────────────────────────────────────────
-
-function SectionCard({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <div style={{
-      background: 'var(--sr-surface)',
-      border: '1px solid var(--sr-border)',
-      borderRadius: 12,
-      overflow: 'hidden',
-      boxShadow: 'var(--sr-card-shadow)',
-      ...style,
-    }}>
-      {children}
-    </div>
-  )
-}
-
-function SectionHead({ icon, title }: { icon: React.ReactNode; title: string }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      padding: '14px 18px 12px',
-      borderBottom: '1px solid var(--sr-border-subtle)',
-    }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-        background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {icon}
-      </div>
-      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{title}</span>
-    </div>
-  )
-}
-
-function StatLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase' as const,
-      letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 4,
-    }}>
-      {children}
-    </div>
-  )
-}
-
-const SUBMISSION_ID_RE = /^S\d+$/
-
-function StatValueLink({ value, submissionId, small }: { value: string; submissionId: string; small?: boolean }) {
-  if (!SUBMISSION_ID_RE.test(submissionId)) {
-    return <span style={{ fontSize: small ? '0.875rem' : '1.25rem', fontWeight: 700, letterSpacing: small ? '-0.01em' : '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>{value}</span>
-  }
-  return (
-    <a
-      href={`https://ebird.org/checklist/${submissionId}`}
-      target="_blank"
-      rel="noreferrer"
-      style={{
-        fontSize: small ? '0.875rem' : '1.25rem',
-        fontWeight: 700,
-        letterSpacing: small ? '-0.01em' : '-0.02em',
-        lineHeight: 1.1,
-        color: 'var(--sr-accent)',
-        textDecoration: 'none',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
-      }}
-      onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-      onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-    >
-      {value}
-      <ExternalLink size={small ? 10 : 11} strokeWidth={2.5} />
-    </a>
-  )
-}
 
 // Location pin (teardrop) for the Sighting Locations map. Rendered into a
 // react-map-gl <Marker anchor="bottom"> so the tip lands on the coordinate.
 // Brand-accent fill via CSS var (resolves at paint time in the DOM overlay).
 const SP_PIN_HTML = '<svg viewBox="0 0 28 40" width="24" height="34" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" style="fill:var(--sr-accent)"/><circle cx="14" cy="14" r="5" fill="white"/></svg>'
-
-// Fit the map to all sighting coordinates (re-runs when the set changes, and
-// once the map ref becomes available). Coords arrive [lat, lng]; MapLibre wants
-// [lng, lat], converted here.
-function MapBoundsFitter({ coordinates }: { coordinates: [number, number][] }) {
-  const map = useMap().current
-  useEffect(() => {
-    if (!map || coordinates.length === 0) return
-    if (coordinates.length === 1) {
-      map.flyTo({ center: [coordinates[0][1], coordinates[0][0]], zoom: 12, duration: 0 })
-    } else {
-      let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
-      for (const [lat, lng] of coordinates) {
-        minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng)
-        minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat)
-      }
-      map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 30, duration: 0 })
-    }
-  }, [map, coordinates])
-  return null
-}
-
-// ── Heatmap layer (MapLibre native) ─────────────────────────────────────────
-
-// Sighting-location heat. Points arrive [lat, lng, weight]; the weight already
-// folds in obs count × intensity (heatWeight, lib/heat.ts). Rendered as a
-// MapLibre `heatmap` layer so it shares the Map Explorer's tuned feel.
-function HeatmapLayer({ points, intensity }: { points: [number, number, number][]; intensity: number }) {
-  const fc = useMemo<FeatureCollection<Point, { w: number }>>(() => ({
-    type: 'FeatureCollection',
-    features: points.map(([lat, lng, w]) => ({
-      type: 'Feature', properties: { w },
-      geometry: { type: 'Point', coordinates: [lng, lat] },
-    })),
-  }), [points])
-  return (
-    <Source id="sr-sp-heat" type="geojson" data={fc}>
-      <Layer id="sr-sp-heat" type="heatmap" paint={{
-        'heatmap-weight': ['get', 'w'],
-        'heatmap-intensity': heatIntensityFactor(intensity),
-        'heatmap-radius': heatRadiusPx(intensity),
-        'heatmap-opacity': 0.85,
-      } as HeatmapLayerSpecification['paint']} />
-    </Source>
-  )
-}
-
-// ── SightingsGraph ─────────────────────────────────────────────────────────
-
-const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-
-function formatPeriodLabel(key: string, interval: GraphInterval): string {
-  if (interval === 'yearly') return key
-  if (interval === 'monthly') {
-    const [year, month] = key.split('-')
-    const m = parseInt(month, 10) - 1
-    return `${MONTH_ABBR[m] ?? ''} ${year}`
-  }
-  // weekly: "2024-W03" → "Wk 3 '24"
-  const [yearStr, wStr] = key.split('-W')
-  return `Wk ${parseInt(wStr, 10)} '${yearStr.slice(2)}`
-}
-
-
-function GraphTooltip({ active, payload, label, interval }: {
-  active?: boolean
-  payload?: Array<{ name: string; value: number; color: string }>
-  label?: string
-  interval: GraphInterval
-}) {
-  if (!active || !payload?.length) return null
-  return (
-    <div style={{
-      background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
-      borderRadius: 8, padding: '9px 12px', fontSize: '0.75rem',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: 130,
-    }}>
-      <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--sr-text)' }}>
-        {formatPeriodLabel(label ?? '', interval)}
-      </div>
-      {payload.map(p => (
-        <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 3, alignItems: 'center' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--sr-text-muted)' }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: p.color, flexShrink: 0, display: 'inline-block' }} />
-            {p.name}
-          </span>
-          <span style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{p.value}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function SightingsGraph({ data, interval, viewMode, hasML }: {
-  data: GraphPoint[]
-  interval: GraphInterval
-  viewMode: 'per-period' | 'cumulative'
-  hasML: boolean
-}) {
-  const displayData = useMemo(() => {
-    if (viewMode === 'per-period') return data
-    let ci = 0, cc = 0, cp = 0, ca = 0, cv = 0
-    return data.map(p => {
-      ci += p.individuals; cc += p.checklists; cp += p.photo; ca += p.audio; cv += p.video
-      return { key: p.key, individuals: ci, checklists: cc, photo: cp, audio: ca, video: cv }
-    })
-  }, [data, viewMode])
-
-  if (data.length < 2) return null
-
-  const hasAnyMedia = hasML && data.some(p => p.photo > 0 || p.audio > 0 || p.video > 0)
-  const periodLabel = interval === 'weekly' ? 'week' : interval === 'monthly' ? 'month' : 'year'
-  const sightingsAxisLabel = viewMode === 'per-period'
-    ? `Individuals per ${periodLabel}`
-    : 'Cumulative individuals'
-  const checklistsAxisLabel = viewMode === 'per-period'
-    ? `Checklists per ${periodLabel}`
-    : 'Cumulative checklists'
-  const mediaAxisLabel = viewMode === 'per-period'
-    ? `Items per ${periodLabel}`
-    : 'Cumulative items'
-
-  const xAxisProps = {
-    dataKey: 'key' as const,
-    tickFormatter: (k: string) => formatPeriodLabel(k, interval),
-    tick: { fontSize: '0.6875rem', fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
-    tickLine: false as const,
-    axisLine: false as const,
-    interval: 'preserveStartEnd' as const,
-  }
-  const yAxisProps = {
-    tick: { fontSize: '0.6875rem', fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
-    tickLine: false as const,
-    axisLine: false as const,
-    allowDecimals: false as const,
-  }
-
-  return (
-    <>
-      <SectionCard>
-        <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Sightings Over Time" />
-        <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Sightings over time line chart. ${sightingsAxisLabel}`}>
-          <div style={{ marginBottom: 12 }}>
-            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{sightingsAxisLabel}</span>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
-              <XAxis {...xAxisProps} />
-              <YAxis {...yAxisProps} />
-              <RechartsTooltip
-                content={<GraphTooltip interval={interval} />}
-                cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
-              />
-              <Line
-                type="monotone" dataKey="individuals" name="Individuals"
-                stroke="var(--sr-graph-individuals)" strokeWidth={2.5}
-                dot={{ r: 3, fill: 'var(--sr-graph-individuals)', stroke: 'white', strokeWidth: 1.5 }}
-                activeDot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </SectionCard>
-      <SectionCard>
-        <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Checklists Over Time" />
-        <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Checklists over time line chart. ${checklistsAxisLabel}`}>
-          <div style={{ marginBottom: 12 }}>
-            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{checklistsAxisLabel}</span>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
-              <XAxis {...xAxisProps} />
-              <YAxis {...yAxisProps} />
-              <RechartsTooltip
-                content={<GraphTooltip interval={interval} />}
-                cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
-              />
-              <Line
-                type="monotone" dataKey="checklists" name="Checklists"
-                stroke="var(--sr-graph-individuals)" strokeWidth={2.5} opacity={0.6}
-                dot={{ r: 3, fill: 'var(--sr-graph-individuals)', stroke: 'white', strokeWidth: 1.5 }}
-                activeDot={{ r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </SectionCard>
-      {hasAnyMedia && (
-        <SectionCard>
-          <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Media Over Time" />
-          <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Media over time line chart — photo, audio, and video. ${mediaAxisLabel}`}>
-            <div style={{ marginBottom: 12 }}>
-              <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{mediaAxisLabel}</span>
-            </div>
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={displayData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--sr-border-subtle)" vertical={false} />
-                <XAxis {...xAxisProps} />
-                <YAxis {...yAxisProps} />
-                <RechartsTooltip
-                  content={<GraphTooltip interval={interval} />}
-                  cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
-                />
-                <Legend
-                  iconType="circle"
-                  iconSize={7}
-                  wrapperStyle={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', paddingTop: 8 }}
-                />
-                <Line
-                  type="monotone" dataKey="photo" name="Photo"
-                  stroke="var(--sr-graph-photo)" strokeWidth={1.8} opacity={0.85}
-                  dot={{ r: 2.5, fill: 'var(--sr-graph-photo)', stroke: 'white', strokeWidth: 1.5 }}
-                  activeDot={{ r: 3.5 }}
-                />
-                <Line
-                  type="monotone" dataKey="audio" name="Audio"
-                  stroke="var(--sr-graph-audio)" strokeWidth={1.8} opacity={0.85}
-                  dot={{ r: 2.5, fill: 'var(--sr-graph-audio)', stroke: 'white', strokeWidth: 1.5 }}
-                  activeDot={{ r: 3.5 }}
-                />
-                <Line
-                  type="monotone" dataKey="video" name="Video"
-                  stroke="var(--sr-graph-video)" strokeWidth={1.8} opacity={0.85}
-                  dot={{ r: 2.5, fill: 'var(--sr-graph-video)', stroke: 'white', strokeWidth: 1.5 }}
-                  activeDot={{ r: 3.5 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </SectionCard>
-      )}
-    </>
-  )
-}
 
 // ── Main component ─────────────────────────────────────────────────────────
 

@@ -194,3 +194,17 @@ export function buildMediaGraphData(
 
   return { data, interval }
 }
+
+export const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+export function formatPeriodLabel(key: string, interval: GraphInterval): string {
+  if (interval === 'yearly') return key
+  if (interval === 'monthly') {
+    const [year, month] = key.split('-')
+    const m = parseInt(month, 10) - 1
+    return `${MONTH_ABBR[m] ?? ''} ${year}`
+  }
+  // weekly: "2024-W03" → "Wk 3 '24"
+  const [yearStr, wStr] = key.split('-W')
+  return `Wk ${parseInt(wStr, 10)} '${yearStr.slice(2)}`
+}
