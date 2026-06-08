@@ -7,7 +7,7 @@
 // real clipboard. Covers QA-07/08/09/11/12/13/14/18 (and 15 via the per-side
 // independence path).
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
 import { TransportError } from '../lib/transport'
 import type { ChecklistMeta } from '../lib/compareChecklists'
 import { formatWeather } from '../lib/weatherFormatter'
