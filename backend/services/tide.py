@@ -123,10 +123,12 @@ def compute_tide_reading(start, end, observed, predicted, hilo, station, distanc
     obs_in = [p for p in observed if _in_window(p["t"], start, end)]
     pred_in = [p for p in predicted if _in_window(p["t"], start, end)]
     if obs_in:
-        pts = sorted(obs_in, key=lambda p: p["t"]); source = "observed"
+        pts = sorted(obs_in, key=lambda p: p["t"])
+        source = "observed"
         start_v, end_v = pts[0]["v"], pts[-1]["v"]
     elif pred_in:
-        pts = sorted(pred_in, key=lambda p: p["t"]); source = "predicted"
+        pts = sorted(pred_in, key=lambda p: p["t"])
+        source = "predicted"
         start_v, end_v = pts[0]["v"], pts[-1]["v"]
     else:
         s = interp_level(start, sh)
