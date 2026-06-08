@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { InViewMarkerList } from './MapExplorer'
+import { InViewMarkerList } from './map/MapSidebarUI'
 import { markersInView, type MarkerBounds } from '../lib/markersInView'
 
 afterEach(cleanup)
