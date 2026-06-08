@@ -17,6 +17,15 @@ undeployed (ships together from the Mac):
 2. **weather-info-copy** — Weather-tab helper text reworded to mention weather
    auto-copy on a successful lookup + tides appearing below.
 
+   **Weather & tide block coverage in Statistics → Data Quality** — when any
+   checklist comment carries a weather/tide block, a "Weather & tide blocks"
+   breakdown shows the count + % of checklists with: any weather (either app),
+   Raincrow weather (identified by its raincrow.app credit), SnowRaven weather,
+   SnowRaven tide, and SnowRaven weather+tide. Offline over the loaded backup;
+   hidden when no blocks. New detectors `hasSnowravenWeatherBlock` /
+   `hasRaincrowWeatherBlock` in `lib/commentBlocks.ts`; counts in
+   `computeQuality`. Adversarially reviewed.
+
 3. **quality-accessibility-sweep** (maintain lane, 5 items):
    - **Date formats** — one canonical `lib/formatDate.ts` + a **Settings → Appearance
      → Date format** control (month-first default / day-first / ISO), persisted.
@@ -69,9 +78,11 @@ also in `session-state.json` → `remainingBacklog`.
    `latest.json`). Web/Pi update on a plain `git pull`.
 3. Then the **Chronicler**: update `PRODUCT_CONTEXT.md` / `DECISIONS.md` /
    `ROADMAP.md` for the user-facing additions (comparer badges + side-by-side
-   weather/tide, the date-format picker, keyboard-operable map markers — the splits
-   are internal), and **update `website/`** (the List Comparer description + any
-   feature copy) — the website is live, so do this when the features actually ship.
+   weather/tide, the date-format picker, keyboard-operable map markers, the
+   Statistics weather/tide-block coverage breakdown — the splits are internal),
+   and **update `website/`** (the List Comparer description + Statistics copy +
+   any feature copy) — the website is live, so do this when the features actually
+   ship.
 
 > Note: **0.5.18 is the in-progress batch version.** Additional features built
 > before this deploy should accumulate under the 0.5.18 changelog rather than
