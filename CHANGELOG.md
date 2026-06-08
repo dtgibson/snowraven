@@ -21,6 +21,9 @@ All notable changes to SnowRaven are documented here.
 ### Changed
 - **Weather tab helper text** now notes that weather is automatically copied to the clipboard on a successful lookup, and that tidal information appears below when available.
 
+### Internal
+- **Split the three oversized components in place** (no behavior change) — `BirdingStats` (2036→1893), `SpeciesDetail` (1793→1461), and `MapExplorer` (2249→1515) had their pure helpers, shared types, and self-contained presentational/marker sub-components pulled into `lib/` and dedicated component files (`statsPrimitives`, `speciesDetail/*`, `map/*`). Behavior-preserving symbol moves only; the map marker components keep their MapLibre popup/cursor/sprite contracts intact.
+
 ## [0.5.17] - 2026-06-07
 
 ### Added
