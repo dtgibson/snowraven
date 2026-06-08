@@ -29,6 +29,7 @@ import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
+import { formatDate } from '../lib/formatDate'
 import { HEAT_INTENSITY_DEFAULT, heatWeight, heatRadiusPx, heatIntensityFactor } from '../lib/heat'
 import { SnowMap } from './SnowMap'
 
@@ -47,15 +48,6 @@ type CoordMarker = {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-const MONTHS = ['January','February','March','April','May','June',
-                'July','August','September','October','November','December']
-
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  if (!year || !month || !day) return dateStr
-  return `${day} ${MONTHS[month - 1]} ${year}`
-}
 
 function extractUserId(filename: string): string | null {
   const m = filename.match(/^ML__.*_([A-Za-z0-9]+)\.csv$/)
@@ -1067,14 +1059,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           {hasLocationFilter && (() => {
             const parts: string[] = []
             if (countyFilter) parts.push(countyFilter)
-            const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-            function fmt(d: string) {
-              const [y,m,day] = d.split('-').map(Number)
-              return `${months[(m??1)-1]} ${day}, ${y}`
-            }
-            if (dateRange.from && dateRange.to) parts.push(`${fmt(dateRange.from)} – ${fmt(dateRange.to)}`)
-            else if (dateRange.from) parts.push(`From ${fmt(dateRange.from)}`)
-            else if (dateRange.to) parts.push(`Through ${fmt(dateRange.to)}`)
+            if (dateRange.from && dateRange.to) parts.push(`${formatDate(dateRange.from)} – ${formatDate(dateRange.to)}`)
+            else if (dateRange.from) parts.push(`From ${formatDate(dateRange.from)}`)
+            else if (dateRange.to) parts.push(`Through ${formatDate(dateRange.to)}`)
             const baseCount = mergeSubspecies
               ? observations.filter((o: ObservationEntry) => normalizeSpeciesName(o.commonName) === selectedSpecies).length
               : observations.filter((o: ObservationEntry) => o.commonName === selectedSpecies).length

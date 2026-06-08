@@ -28,6 +28,7 @@ import {
   updateMapCursor,
 } from '../lib/mapPins'
 import { hatchPixelRatio } from '../lib/atlasTextures'
+import { formatDate } from '../lib/formatDate'
 import { BirdName } from './BirdName'
 
 function teardropHtml(colorVar: string, glyphSvg: string): string {
@@ -160,13 +161,6 @@ function tierColors(tier: RecencyTier): { bg: string; text: string } {
   return                       { bg: 'var(--sr-map-target-old)',   text: 'var(--sr-map-target-old-text)' }
 }
 
-
-function fmtDate(d: string): string {
-  const ymd = d.split(' ')[0].split('-').map(Number)
-  if (ymd.length < 3) return d
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-  return `${ymd[2]} ${months[ymd[1] - 1]} ${ymd[0]}`
-}
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -365,7 +359,7 @@ function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading }
             <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>
               {selLoc.count.toLocaleString()} observation{selLoc.count !== 1 ? 's' : ''}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 10 }}>Last: {fmtDate(selLoc.lastDate)}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 10 }}>Last: {formatDate(selLoc.lastDate)}</div>
             <div style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 5 }}>Species seen here</div>
             {[...selLoc.species].slice(0, 5).map(s => (
               <div key={s} style={{ fontSize: '0.75rem', color: 'var(--sr-text)', marginBottom: 2 }}>{s}</div>
@@ -481,7 +475,7 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
             {selPin.kind === 'visited' && (
               <>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>Last visit: {formatDate(selPin.lastVisit)}</div>
                 <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
               </>
             )}
@@ -492,7 +486,7 @@ function HotspotMarkers({ pins, hiddenKinds }: { pins: HotspotPin[]; hiddenKinds
               <>
                 <div style={{ display: 'inline-block', background: 'var(--sr-is-target-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-map-personal)', borderRadius: 4, padding: '2px 6px', fontSize: '0.6875rem', fontWeight: 600, marginBottom: 8 }}>Personal Location</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 3 }}>{selPin.obsCount} observation{selPin.obsCount !== 1 ? 's' : ''}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Last visit: {fmtDate(selPin.lastVisit)}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Last visit: {formatDate(selPin.lastVisit)}</div>
               </>
             )}
           </div>
@@ -585,7 +579,7 @@ function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies }: {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: validSubId ? 4 : 0 }}>
                         <span style={{ display: 'inline-block', background: pinBg, color: pinText, padding: '1px 6px', borderRadius: 6, fontSize: '0.625rem', fontWeight: 600 }}>{tierLabel}</span>
-                        <span style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)' }}>{fmtDate(pin.recentDate)}</span>
+                        <span style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)' }}>{formatDate(pin.recentDate)}</span>
                       </div>
                       {validSubId && (
                         <a href={`https://ebird.org/checklist/${pin.subId}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.6875rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>

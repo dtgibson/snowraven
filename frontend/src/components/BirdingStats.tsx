@@ -28,7 +28,7 @@ import {
 import type { Granularity, PeriodGranularity } from '../lib/birdingStats'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
-import { formatDateMonthFirst as fmtDate } from '../lib/formatDate'
+import { formatDate as fmtDate } from '../lib/formatDate'
 import type { ObservationEntry, ChecklistEntry } from '../types'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'

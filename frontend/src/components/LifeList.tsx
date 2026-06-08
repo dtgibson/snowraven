@@ -3,7 +3,7 @@ import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar } from 'luci
 import { SetupRequired } from './SetupRequired'
 import { ML_EXPORT_STEPS } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
-import { formatDateMonthFirst as formatDateLabel } from '../lib/formatDate'
+import { formatDate as formatDateLabel } from '../lib/formatDate'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'

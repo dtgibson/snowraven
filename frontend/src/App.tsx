@@ -12,6 +12,8 @@ import type { KeyStatus } from './lib/keyStatus'
 import { readStoredScale, persistTextScale, applyScaleToDom, hydrateStoredScale } from './lib/textScale'
 import type { TextScale } from './lib/textScale'
 import { applyTheme, hydrateStoredTheme } from './lib/theme'
+import { setDateFormatPref, asDateFormatPref } from './lib/formatDate'
+import type { DateFormatPref } from './lib/formatDate'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
@@ -145,6 +147,10 @@ export default function App() {
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
   const [filesVersion, setFilesVersion] = useState(0)
   const [keysVersion, setKeysVersion] = useState(0)
+  // Bumped when the date-format preference changes. formatDate() reads the pref
+  // from a module-var at render time, so bumping this re-renders the whole tree
+  // and every date reflects the new preference immediately (no remount).
+  const [dateFormatVersion, setDateFormatVersion] = useState(0)
   const [mediaListFilter, setMediaListFilter] = useState<'is-target' | undefined>(undefined)
   // Click any bird name → open + select it on the Species Detail tab (single-use).
   const [requestedSpecies, setRequestedSpecies] = useState<string | undefined>(undefined)
@@ -312,6 +318,25 @@ export default function App() {
   const handleTextScale = useCallback((s: TextScale) => {
     setTextScaleState(s)
     persistTextScale(s)
+  }, [])
+
+  // Apply the saved date-format preference app-wide on load (default month-first).
+  // formatDate() reads the module-var, so setting it once here makes every date
+  // render in the chosen format from the first paint after hydration.
+  useEffect(() => {
+    let cancelled = false
+    void storage.getSetting<DateFormatPref>('dateFormat').then(v => {
+      if (cancelled || !v) return
+      setDateFormatPref(asDateFormatPref(v))
+      setDateFormatVersion(n => n + 1)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  // Settings calls this after persisting + applying a new date-format pref; bump
+  // the version to re-render the tree so all dates update immediately.
+  const handleDateFormatChange = useCallback(() => {
+    setDateFormatVersion(n => n + 1)
   }, [])
 
   // Honor the saved theme app-wide on load. The index.html anti-flash script covers
@@ -521,14 +546,20 @@ export default function App() {
   }, [tabLayout])
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--sr-bg)',
-      display: 'flex',
-      flexDirection: 'column',
-      fontFamily: 'var(--font-sans)',
-      color: 'var(--sr-text)',
-    }}>
+    <div
+      // Carries the date-format version so a pref change is reflected in App's
+      // render (and thus re-renders the un-memoized tab tree); formatDate() reads
+      // the active pref from its module-var at render time.
+      data-date-fmt-version={dateFormatVersion}
+      style={{
+        minHeight: '100vh',
+        background: 'var(--sr-bg)',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'var(--font-sans)',
+        color: 'var(--sr-text)',
+      }}
+    >
 
       {/* Header */}
       <div className="sr-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
@@ -1007,6 +1038,7 @@ export default function App() {
           <Settings
             onKeysSaved={fetchKeyStatus}
             onFilesSaved={handleFilesSaved}
+            onDateFormatChange={handleDateFormatChange}
             onOpenHelp={() => setHelpOpen(true)}
             textScale={textScale}
             onTextScaleChange={handleTextScale}

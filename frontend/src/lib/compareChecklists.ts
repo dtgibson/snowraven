@@ -2,6 +2,8 @@
 // eBird speciesCode. eBird returns each checklist's species in taxonomic order; that
 // order is preserved (both/aOnly follow A's order, bOnly follows B's).
 
+import { formatDate } from './formatDate'
+
 /** Photo / audio / video counts for a species on a checklist (0 if none). */
 export interface MediaPresence {
   photo: number
@@ -115,19 +117,13 @@ function toMeta(d: ChecklistData): ChecklistMeta {
   return meta
 }
 
-/** Format an eBird obsDt ("2025-03-02 10:55" or "2025-03-02") into a friendly date.
- * Returns '' for empty/unparseable input. Parsed as local time (no TZ shift). */
+/** Format an eBird obsDt ("2025-03-02 10:55" or "2025-03-02") into a friendly date,
+ * appending the time when present. Returns '' for empty input. Backed by the
+ * canonical formatter — honors the user's date-format preference, parses the Y-M-D
+ * parts directly (no TZ shift), and falls back to the raw input when unparseable. */
 export function formatObsDate(obsDt: string): string {
   if (!obsDt) return ''
-  const m = obsDt.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/)
-  if (!m) return obsDt
-  const [, y, mo, d, hh, mm] = m
-  const date = new Date(Number(y), Number(mo) - 1, Number(d), hh ? Number(hh) : 0, mm ? Number(mm) : 0)
-  if (Number.isNaN(date.getTime())) return obsDt
-  const datePart = date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-  if (hh == null) return datePart
-  const timePart = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-  return `${datePart}, ${timePart}`
+  return formatDate(obsDt, { withTime: true }) || obsDt
 }
 
 /** eBird count string → number, or null for "X" / presence-only / non-numeric. */

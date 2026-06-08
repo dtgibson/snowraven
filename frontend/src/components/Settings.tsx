@@ -6,6 +6,8 @@ import type { ThemePreference } from '../lib/theme'
 import type { TextScale } from '../lib/textScale'
 import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabLayout'
 import { storage } from '../lib/storage'
+import { formatDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
+import type { DateFormatPref } from '../lib/formatDate'
 import { isTauri } from '../lib/platform'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
@@ -15,17 +17,18 @@ import { clearNetworkCache } from '../lib/networkCache'
 
 type ConsentState = 'idle' | 'pending'
 
+// uploadedAt is a true UTC instant (Date.toISOString); render it in the user's
+// LOCAL time. We build a local Date and hand it to the canonical formatter — the
+// one place a TZ conversion is intended (unlike eBird Y-M-D display dates, which
+// must never shift). The date honors the user's date-format preference; the local
+// time is appended with " at ".
 function formatUploadDate(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return (
-      d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) +
-      ' at ' +
-      d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })
-    )
-  } catch {
-    return iso
-  }
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const datePart = formatDate(d)
+  if (!datePart) return iso
+  const timePart = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })
+  return `${datePart} at ${timePart}`
 }
 
 // ---- Appearance row ----
@@ -531,6 +534,75 @@ function TextSizeRow({ value, onChange }: { value: TextScale; onChange: (s: Text
   )
 }
 
+// ---- Date format row ----
+
+const DATE_FORMAT_OPTIONS: { key: DateFormatPref; label: string }[] = [
+  { key: 'month-first', label: 'Month first' },
+  { key: 'day-first',   label: 'Day first' },
+  { key: 'iso',         label: 'ISO' },
+]
+
+function DateFormatRow({ onDateFormatChange }: { onDateFormatChange?: () => void }) {
+  // Default month-first until the durable choice loads (App applies it app-wide).
+  const [pref, setPref] = useState<DateFormatPref>('month-first')
+
+  useEffect(() => {
+    let cancelled = false
+    void storage.getSetting<DateFormatPref>('dateFormat')
+      .then(v => { if (!cancelled && v) setPref(asDateFormatPref(v)) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  function selectPref(next: DateFormatPref) {
+    setPref(next)
+    setDateFormatPref(next)
+    void storage.setSetting('dateFormat', next).catch(() => {})
+    onDateFormatChange?.()
+  }
+
+  const today = new Date()
+
+  function btnStyle(key: DateFormatPref): React.CSSProperties {
+    const active = pref === key
+    return {
+      flex: 1, minHeight: 48, padding: '6px 4px',
+      border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
+      background: active ? 'var(--sr-accent-bg)' : 'var(--sr-surface-subtle)',
+      color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+      fontSize: '0.8125rem', fontWeight: active ? 600 : 500, fontFamily: 'inherit',
+      cursor: 'pointer', borderRadius: 6, transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+    }
+  }
+
+  return (
+    <div style={{ padding: '14px 16px', borderTop: '1px solid var(--sr-border)' }}>
+      <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 4 }}>
+        Date format
+      </div>
+      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+        How dates are shown throughout the app.
+      </p>
+      <div role="radiogroup" aria-label="Date format" style={{ display: 'flex', gap: 6 }}>
+        {DATE_FORMAT_OPTIONS.map(({ key, label }) => (
+          <button tabIndex={0}
+            key={key}
+            role="radio"
+            aria-checked={pref === key}
+            style={btnStyle(key)}
+            onClick={() => selectPref(key)}
+          >
+            <span style={{ display: 'block' }}>{label}</span>
+            <span style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 400, opacity: 0.85, marginTop: 1 }}>
+              {formatDate(today, { pref: key })}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ---- Section header ----
 
 function SectionHeader({ label }: { label: string }) {
@@ -778,6 +850,7 @@ function RebuildCachesButton() {
 interface SettingsProps {
   onKeysSaved?: () => void
   onFilesSaved?: () => void
+  onDateFormatChange?: () => void
   onOpenHelp: () => void
   textScale: TextScale
   onTextScaleChange: (scale: TextScale) => void
@@ -788,7 +861,7 @@ interface SettingsProps {
   onRestoreDefaults: () => void
 }
 
-export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onTextScaleChange, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
+export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpenHelp, textScale, onTextScaleChange, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
   const [status, setStatus] = useState<StoredFilesStatus>({ ebird: null, ml: null })
   const [keys, setKeys] = useState<ApiKeyStatus>({ ebird: null, openweather: null })
 
@@ -1020,6 +1093,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onOpenHelp, textScale, onT
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 24 }}>
         <AppearanceRow />
         <TextSizeRow value={textScale} onChange={onTextScaleChange} />
+        <DateFormatRow onDateFormatChange={onDateFormatChange} />
       </div>
 
       <SectionHeader label="API Keys" />
