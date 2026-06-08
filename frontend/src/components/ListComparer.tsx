@@ -8,8 +8,13 @@ import { ChecklistComparer } from './ChecklistComparer'
 import { ResultsView } from './ResultsView'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
+import type { KeyStatus } from '../lib/keyStatus'
 
-export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: string) => void }) {
+export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
+  onOpenSpecies?: (commonName: string) => void
+  keyStatus: KeyStatus | null
+  onGoToSettings: () => void
+}) {
   const [storedEbirdStatus, setStoredEbirdStatus] = useState<'loading' | 'available' | 'unavailable'>('loading')
   const [listAMode, setListAMode] = useState<'my-list' | 'upload'>('my-list')
   const [fileA, setFileA] = useState<FileData | null>(null)
@@ -161,7 +166,7 @@ export function ListComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: s
       </div>
 
       {mode === 'checklists' ? (
-        <ChecklistComparer onOpenSpecies={onOpenSpecies} />
+        <ChecklistComparer onOpenSpecies={onOpenSpecies} keyStatus={keyStatus} onGoToSettings={onGoToSettings} />
       ) : result ? (
         <ResultsView
           listALabel={listALabel}

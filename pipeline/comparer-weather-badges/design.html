@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — Comparer Weather + Badges (design)</title>
+<style>
+  /* ── SnowRaven design tokens — values taken from frontend/src/globals.css so
+       this mockup renders standalone with the real palette. One addition:
+       --sr-accent-strong (an AA-safe accent for small text on --sr-accent-bg),
+       which the implementation must add to globals.css — see design-spec §A. The
+       monospace font stack is written as a literal in .mono (globals.css has no
+       --font-mono), matching App.tsx's <pre> blocks. ────────────────────────── */
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+
+    --sr-text: #0F1117;
+    --sr-text-muted: #71717A;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-footer: #6B7280;
+    --sr-text-gray: #6B7280;
+
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+
+    --sr-accent: #2D8653;
+    --sr-accent-strong: #1A5C38;   /* AA-safe accent for small text on --sr-accent-bg (7.1:1 vs #E8F5EE) */
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-accent-border: rgba(45,134,83,0.25);
+    --sr-accent-border-strong: rgba(45,134,83,0.7);
+    --sr-accent-surface: #fafffd;
+    --sr-on-accent: #FFFFFF;
+
+    --sr-error: #DC2626;
+    --sr-error-bg: #FEF2F2;
+    --sr-error-border: #FECACA;
+    --sr-error-muted: #FCA5A5;
+
+    --sr-warning: #92400E;
+    --sr-warning-bg: #FFFBEB;
+    --sr-warning-subtle: #FDE68A;
+
+    --sr-tier-4: #3B0764;
+    --sr-tier-3: #6B21A8;
+    --sr-tier-2: #9333EA;
+    --sr-tier-1: #C084FC;
+
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+
+    --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-footer: #8A8A92;
+    --sr-text-gray: #8A8A92;
+
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;   /* dark accent already clears AA on #052E16 (7.8:1) — same as --sr-accent */
+    --sr-accent-bg: #052E16;
+    --sr-accent-bg-hover: #064E3B;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-accent-border-strong: rgba(52,211,153,0.5);
+    --sr-accent-surface: #021a0f;
+    --sr-on-accent: #052E16;
+
+    --sr-error: #F87171;
+    --sr-error-bg: #1C0505;
+    --sr-error-border: #7F1D1D;
+    --sr-error-muted: #B91C1C;
+
+    --sr-warning: #FDE68A;
+    --sr-warning-bg: #1C1002;
+    --sr-warning-subtle: #78350F;
+
+    --sr-tier-4: #6B21A8;
+    --sr-tier-3: #7C3AED;
+    --sr-tier-2: #A855F7;
+    --sr-tier-1: #C084FC;
+
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 0.7s linear infinite; }
+
+  * { box-sizing: border-box; }
+  html { background: var(--sr-bg); }
+  body {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--sr-text);
+    background: var(--sr-bg);
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .page { max-width: 1000px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  /* Annotation chrome — NOT part of the app; frames the mockup. */
+  .doc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 6px; }
+  .doc-title { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.5px; margin: 0; }
+  .doc-sub { font-size: 0.875rem; color: var(--sr-text-muted); margin: 4px 0 0; max-width: 560px; line-height: 1.55; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px;
+    background: var(--sr-surface); color: var(--sr-text); border: 1px solid var(--sr-border);
+    border-radius: 8px; font: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer;
+    box-shadow: var(--sr-card-shadow); flex-shrink: 0;
+  }
+  .toggle:hover { border-color: var(--sr-border-medium); }
+  .section-label {
+    margin: 36px 0 14px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--sr-text-muted);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--sr-border); }
+  .annot { font-size: 0.75rem; color: var(--sr-text-muted); margin: 0 0 12px; line-height: 1.5; }
+
+  /* ── App surface ─────────────────────────────────────────────────────── */
+  .app-surface {
+    background: var(--sr-bg);
+    border: 1px solid var(--sr-border);
+    border-radius: 14px;
+    padding: 28px 26px;
+  }
+  .results { width: 100%; max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; }
+
+  /* Reset for buttons */
+  button { font-family: inherit; }
+
+  /* ── Info card (ChecklistTag) ────────────────────────────────────────── */
+  .tag { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+  .tag-badge {
+    flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px; margin-top: 2px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+    font-size: 0.75rem; font-weight: 700;
+  }
+  .tag-col { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; gap: 1px; flex: 1; }
+  .tag-loc { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tag-meta { font-size: 0.6875rem; color: var(--sr-text-muted); }
+  .tag-id { color: var(--sr-accent); text-decoration: underline; }
+  .tag-effort { font-size: 0.6875rem; color: var(--sr-text-muted); }
+  .tag-notes {
+    margin-top: 3px; align-self: flex-start; display: inline-flex; align-items: center; gap: 3px;
+    border: none; background: transparent; cursor: pointer; padding: 0;
+    font-size: 0.6875rem; font-weight: 600; color: var(--sr-accent);
+  }
+
+  /* ── ChecklistBadges row ─────────────────────────────────────────────── */
+  .badge-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 5px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 6px; border-radius: 5px; line-height: 1.4;
+    font-size: 0.625rem; font-weight: 600; letter-spacing: 0.02em;
+  }
+  .badge svg { width: 12px; height: 12px; }
+  /* Present: accent fill + AA-safe accent-strong label (7.1:1 on accent-bg in light;
+     accent-strong == accent in dark, ~7.8:1). */
+  .badge.present {
+    color: var(--sr-accent-strong); background: var(--sr-accent-bg);
+    border: 1px solid var(--sr-accent-border);
+  }
+  /* Absent: "missing" is conveyed by the plain/transparent fill + subtle outline,
+     NOT by dimming the text. Label stays at --sr-text-muted (≥4.6:1) — no all-pill
+     opacity (the old text-disabled + opacity:0.55 was ~1.5:1, failing AA). */
+  .badge.absent {
+    color: var(--sr-text-muted); background: transparent;
+    border: 1px solid var(--sr-border);
+  }
+  .badge-divider { width: 1px; height: 13px; background: var(--sr-border); opacity: 0.7; margin: 0 1px; }
+
+  /* ── Stats bar ───────────────────────────────────────────────────────── */
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--sr-border); border-radius: 10px; overflow: hidden; margin: 20px 0; }
+  .stat { background: var(--sr-surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 5px; min-width: 0; border-right: 1px solid var(--sr-border); }
+  .stat:last-child { border-right: none; }
+  .stat-val { font-size: 1.625rem; font-weight: 600; letter-spacing: -0.5px; line-height: 1; color: var(--sr-text); }
+  .stat-val.hl { color: var(--sr-accent); }
+  .stat-lbl { font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sr-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Panel frame (shared by In-Both / A-only / B-only / sections) ────── */
+  .panel { border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); overflow: hidden; min-width: 0; }
+  .panel-head { padding: 10px 14px; border-bottom: 1px solid var(--sr-border-subtle); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .panel-title { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+  .panel-count { font-size: 0.75rem; color: var(--sr-text-muted); }
+  .panel-body { padding: 4px 0; }
+  .srow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 14px; min-width: 0; }
+  .sname { font-size: 0.78125rem; font-weight: 500; color: var(--sr-text); }
+  .scount { font-variant-numeric: tabular-nums; font-size: 0.75rem; color: var(--sr-text-muted); font-weight: 500; min-width: 34px; text-align: right; }
+  .scount.hl { color: var(--sr-accent); font-weight: 700; }
+  .sided { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+  .sidehdr { width: 64px; text-align: right; font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); }
+  .mini-media { display: inline-flex; gap: 3px; align-items: center; color: var(--sr-text-muted); }
+  .mini-media svg { width: 11px; height: 11px; }
+  .br-badge { padding: 1px 4px; border-radius: 4px; font-size: 0.625rem; font-weight: 700; line-height: 1.4; letter-spacing: 0.02em; color: var(--sr-on-accent); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+
+  /* ── Weather & Tide section ──────────────────────────────────────────── */
+  .wt-section { margin-top: 20px; }
+  .wt-load-btn {
+    height: 38px; padding: 0 16px; background: var(--sr-accent); color: var(--sr-on-accent);
+    border: none; border-radius: 8px; font-size: 0.8125rem; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 7px; cursor: pointer; white-space: nowrap;
+  }
+  .wt-load-btn svg { width: 15px; height: 15px; }
+  .wt-load-btn.loading { opacity: 0.65; cursor: not-allowed; }
+  .wt-explainer { font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.55; margin: 0 0 14px; max-width: 560px; }
+  .wt-idle-body { padding: 16px; }
+  .wt-grid { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+
+  .wt-panel { border: 1px solid var(--sr-border); border-radius: 8px; background: var(--sr-surface); overflow: hidden; min-width: 0; }
+  .wt-panel-head { display: flex; align-items: flex-start; gap: 9px; padding: 12px 14px; border-bottom: 1px solid var(--sr-border-subtle); min-width: 0; }
+  .wt-panel-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+  .blk-eyebrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 9px; }
+  .blk-label { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sr-text-muted); }
+  /* Copy buttons: accent-strong text on accent-bg (AA-safe — plain --sr-accent was
+     4.03:1 for this small 0.75rem text). Pressed state flips to --sr-on-accent on
+     the solid accent fill, which is already accessible. */
+  .copy-btn {
+    height: 28px; padding: 0 11px; background: var(--sr-accent-bg); color: var(--sr-accent-strong);
+    border: 1.5px solid var(--sr-accent-border); border-radius: 6px; font-size: 0.75rem; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap;
+  }
+  .copy-btn svg { width: 12px; height: 12px; }
+  .copy-btn.copied { background: var(--sr-accent); color: var(--sr-on-accent); border-color: var(--sr-accent); }
+  .copy-both {
+    width: 100%; height: 34px; background: var(--sr-accent-bg); color: var(--sr-accent-strong);
+    border: 1.5px solid var(--sr-accent-border); border-radius: 8px; font-size: 0.8125rem; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+  }
+  .copy-both svg { width: 14px; height: 14px; }
+  .copy-both.copied { background: var(--sr-accent); color: var(--sr-on-accent); border-color: var(--sr-accent); }
+
+  .mono {
+    background: var(--sr-surface-subtle); border: 1px solid var(--sr-border); border-radius: 8px;
+    padding: 14px 16px;
+    font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace;
+    font-size: 0.8125rem; line-height: 1.7;
+    color: inherit; white-space: pre; overflow-x: auto; margin: 0;
+  }
+
+  /* Reconciliation note (info) */
+  .recon {
+    display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px;
+    background: var(--sr-accent-bg); border: 1px solid var(--sr-accent-border); border-radius: 6px;
+    font-size: 0.75rem; line-height: 1.5; color: var(--sr-text-muted);
+  }
+  .recon svg { width: 13px; height: 13px; color: var(--sr-accent); flex-shrink: 0; margin-top: 1px; }
+
+  /* Tide too-far / outside-US notice (warning) */
+  .tide-notice {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--sr-warning-bg); border: 1px solid var(--sr-warning-subtle); color: var(--sr-warning);
+    border-radius: 8px; padding: 13px 15px; font-size: 0.8125rem; line-height: 1.5;
+  }
+  .tide-notice .nrow { display: flex; gap: 8px; align-items: flex-start; }
+  .tide-notice svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 1px; }
+  .tide-override {
+    flex-shrink: 0; height: 30px; padding: 0 12px; background: var(--sr-accent-bg); color: var(--sr-accent-strong);
+    border: 1.5px solid var(--sr-accent-border); border-radius: 6px; font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+  }
+  .tide-muted { font-size: 0.8125rem; color: var(--sr-text-muted); }
+
+  /* Per-side weather error */
+  .side-error {
+    display: flex; align-items: flex-start; gap: 8px; padding: 9px 13px;
+    background: var(--sr-error-bg); border: 1px solid var(--sr-error-border); border-radius: 6px;
+    font-size: 0.8125rem; color: var(--sr-error);
+  }
+  .side-error svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+
+  /* Loading row */
+  .side-loading { display: flex; align-items: center; gap: 8px; padding: 18px 14px; font-size: 0.8125rem; color: var(--sr-text-muted); }
+  .side-loading svg { width: 14px; height: 14px; }
+
+  /* Keys-missing nudge */
+  .nudge-wrap { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .nudge {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; background: var(--sr-warning-bg); border: 1px solid var(--sr-warning-subtle);
+    border-radius: 8px; font-size: 0.8125rem; color: var(--sr-warning);
+  }
+  .nudge-btn { background: none; border: none; padding: 0; font-size: 0.75rem; font-weight: 600; color: var(--sr-warning); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+
+  /* State-demo grid for the small examples */
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  .demo-card { display: flex; flex-direction: column; gap: 8px; }
+  .demo-cap { font-size: 0.6875rem; font-weight: 600; color: var(--sr-text-muted); letter-spacing: 0.02em; }
+
+  /* Badge state-matrix — every badge in both states, side by side, for contrast review */
+  .matrix {
+    border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface);
+    overflow: hidden; margin-top: 0;
+  }
+  .matrix-row { display: grid; grid-template-columns: 96px 1fr 1fr; align-items: center; border-top: 1px solid var(--sr-border-subtle); }
+  .matrix-row:first-child { border-top: none; }
+  .matrix-head { background: var(--sr-bg); }
+  .matrix-head > span {
+    padding: 8px 14px; font-size: 0.625rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--sr-text-muted);
+  }
+  .matrix-cell { padding: 8px 14px; display: flex; align-items: center; }
+  .matrix-key { padding: 8px 14px; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); }
+  .matrix-cell + .matrix-cell, .matrix-key + .matrix-cell { border-left: 1px solid var(--sr-border-subtle); }
+
+  /* Stacks at 640px — matching the real .sr-two-col breakpoint (globals.css:559).
+     The implementation reuses .sr-two-col, not a new breakpoint. */
+  @media (max-width: 640px) {
+    .wt-grid { grid-template-columns: 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .demo-grid { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(3, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-head">
+    <div>
+      <h1 class="doc-title">Checklist Comparer — Weather + Badges</h1>
+      <p class="doc-sub">A design slice of the Checklists-mode results: the per-checklist badge row (all six badges shown in both present and absent states), and the Weather &amp; Tide side-by-side section in its loaded state — plus the loading, scoped per-side error, all five tide states (ok / too-far / outside-US / unavailable / fetch-error), reconciliation, and keys-missing states. Toggle the theme to check contrast in both.</p>
+    </div>
+    <button class="toggle" id="themeToggle" aria-label="Toggle light/dark theme">
+      <span id="themeIcon"></span><span id="themeText">Dark mode</span>
+    </button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       1 · RESULTS WITH BADGES + LOADED WEATHER & TIDE
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="section-label">Results — badges &amp; loaded Weather &amp; Tide</div>
+  <p class="annot">The two info cards each carry the new badge row. <strong>A</strong>: photo, audio, breeding, <em>and both the weather-block and tide-block present</em> (video absent) — A's comment holds both blocks, so the loaded section below shows the combined "Copy weather &amp; tide together" case and the reconciliation note. <strong>B</strong>: video present, everything else absent — between the two cards, every badge appears in both its present and absent state. Below the Comments table sits the Weather &amp; Tide section, loaded.</p>
+
+  <div class="app-surface">
+    <div class="results">
+
+      <!-- Info cards + sort/reset (matches the real header layout) -->
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+        <div style="display:flex; flex-direction:column; gap:14px; min-width:0; flex:1 1 340px;">
+
+          <!-- Card A -->
+          <div class="tag">
+            <span class="tag-badge" aria-hidden="true">A</span>
+            <span class="tag-col">
+              <span class="tag-loc">Bolsa Chica Ecological Reserve</span>
+              <span class="tag-meta">May 24, 2026 · <a class="tag-id" href="#" onclick="return false">S148820194</a></span>
+              <span class="tag-effort">Traveling&nbsp;&nbsp;·&nbsp;&nbsp;1.4 mi&nbsp;&nbsp;·&nbsp;&nbsp;1h 35m&nbsp;&nbsp;·&nbsp;&nbsp;2 observers&nbsp;&nbsp;·&nbsp;&nbsp;eBird iOS</span>
+              <button class="tag-notes"><span data-icon="chevron-right"></span> Notes</button>
+              <!-- badge row -->
+              <div class="badge-row" role="group" aria-label="Checklist A summary">
+                <span class="badge present" title="Photos reported" aria-label="Photos reported"><span data-icon="camera"></span>Photo</span>
+                <span class="badge present" title="Audio reported" aria-label="Audio reported"><span data-icon="mic"></span>Audio</span>
+                <span class="badge absent" title="No video reported" aria-label="No video reported"><span data-icon="video"></span>Video</span>
+                <span class="badge-divider" aria-hidden="true"></span>
+                <span class="badge present" title="Breeding codes reported" aria-label="Breeding codes reported"><span data-icon="dna"></span>Breeding</span>
+                <span class="badge-divider" aria-hidden="true"></span>
+                <span class="badge present" title="Weather block in comment" aria-label="Weather block in comment"><span data-icon="cloud-sun"></span>Weather</span>
+                <span class="badge present" title="Tide block in comment" aria-label="Tide block in comment"><span data-icon="waves"></span>Tide</span>
+              </div>
+            </span>
+          </div>
+
+          <!-- Card B -->
+          <div class="tag">
+            <span class="tag-badge" aria-hidden="true">B</span>
+            <span class="tag-col">
+              <span class="tag-loc">Mount Auburn Cemetery</span>
+              <span class="tag-meta">May 17, 2026 · <a class="tag-id" href="#" onclick="return false">S147003581</a></span>
+              <span class="tag-effort">Traveling&nbsp;&nbsp;·&nbsp;&nbsp;0.9 mi&nbsp;&nbsp;·&nbsp;&nbsp;2h 10m&nbsp;&nbsp;·&nbsp;&nbsp;1 observer&nbsp;&nbsp;·&nbsp;&nbsp;eBird Web</span>
+              <button class="tag-notes"><span data-icon="chevron-right"></span> Notes</button>
+              <div class="badge-row" role="group" aria-label="Checklist B summary">
+                <span class="badge absent" title="No photos reported" aria-label="No photos reported"><span data-icon="camera"></span>Photo</span>
+                <span class="badge absent" title="No audio reported" aria-label="No audio reported"><span data-icon="mic"></span>Audio</span>
+                <span class="badge present" title="Video reported" aria-label="Video reported"><span data-icon="video"></span>Video</span>
+                <span class="badge-divider" aria-hidden="true"></span>
+                <span class="badge absent" title="No breeding codes reported" aria-label="No breeding codes reported"><span data-icon="dna"></span>Breeding</span>
+                <span class="badge-divider" aria-hidden="true"></span>
+                <span class="badge absent" title="No weather block in comment" aria-label="No weather block in comment"><span data-icon="cloud-sun"></span>Weather</span>
+                <span class="badge absent" title="No tide block in comment" aria-label="No tide block in comment"><span data-icon="waves"></span>Tide</span>
+              </div>
+            </span>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center; flex-shrink:0;">
+          <div style="display:flex; border-radius:6px; overflow:hidden; border:1.5px solid var(--sr-accent-border);">
+            <button style="height:34px; padding:0 12px; font-size:0.8125rem; font-weight:500; cursor:pointer; border:none; background:var(--sr-accent-bg); color:var(--sr-accent);">Taxonomic</button>
+            <button style="height:34px; padding:0 12px; font-size:0.8125rem; font-weight:500; cursor:pointer; border:none; border-left:1.5px solid var(--sr-accent-border); background:transparent; color:var(--sr-text-muted);">A–Z</button>
+          </div>
+          <button style="height:34px; padding:0 14px; background:transparent; color:var(--sr-accent); border:1.5px solid var(--sr-accent-border); border-radius:6px; font-size:0.8125rem; font-weight:500; cursor:pointer; white-space:nowrap;">← New comparison</button>
+        </div>
+      </div>
+
+      <!-- Stats bar -->
+      <div class="stats" role="region" aria-label="Comparison summary">
+        <div class="stat"><span class="stat-val">61</span><span class="stat-lbl">Checklist A</span></div>
+        <div class="stat"><span class="stat-val">48</span><span class="stat-lbl">Checklist B</span></div>
+        <div class="stat"><span class="stat-val hl">22</span><span class="stat-lbl">In both</span></div>
+        <div class="stat"><span class="stat-val">39</span><span class="stat-lbl">A only</span></div>
+        <div class="stat"><span class="stat-val">26</span><span class="stat-lbl">B only</span></div>
+      </div>
+
+      <!-- In Both (abbreviated, for context) -->
+      <div style="margin-bottom:12px;">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">In Both</span>
+            <span style="display:flex; gap:8px;"><span class="sidehdr">A</span><span class="sidehdr">B</span></span>
+          </div>
+          <div class="panel-body">
+            <div class="srow">
+              <span class="sname">Snowy Egret</span>
+              <span class="sided">
+                <span style="display:inline-flex; align-items:center; justify-content:flex-end; gap:5px; width:64px;">
+                  <span class="mini-media"><span data-icon="camera"></span></span>
+                  <span class="scount hl">▲ 14</span>
+                </span>
+                <span style="display:inline-flex; align-items:center; justify-content:flex-end; gap:5px; width:64px;">
+                  <span class="scount">3</span>
+                </span>
+              </span>
+            </div>
+            <div class="srow">
+              <span class="sname">Marsh Wren</span>
+              <span class="sided">
+                <span style="display:inline-flex; align-items:center; justify-content:flex-end; gap:5px; width:64px;">
+                  <span class="br-badge" style="background:var(--sr-tier-2);">CN</span>
+                  <span class="mini-media"><span data-icon="mic"></span></span>
+                  <span class="scount hl">▲ 6</span>
+                </span>
+                <span style="display:inline-flex; align-items:center; justify-content:flex-end; gap:5px; width:64px;">
+                  <span class="scount">1</span>
+                </span>
+              </span>
+            </div>
+            <div class="srow">
+              <span class="sname">Black-bellied Plover</span>
+              <span class="sided">
+                <span style="display:inline-flex; align-items:center; justify-content:flex-end; gap:5px; width:64px;">
+                  <span class="scount hl">▲ 9</span>
+                </span>
+                <span style="display:inline-flex; align-items:center; justify-content:flex-end; gap:5px; width:64px;">
+                  <span class="scount">2</span>
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- A-only / B-only (abbreviated) -->
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Checklist A only</span><span class="panel-count">39</span></div>
+          <div class="panel-body">
+            <div class="srow"><span class="sname">Elegant Tern</span><span class="sided"><span class="mini-media"><span data-icon="camera"></span></span><span class="scount">22</span></span></div>
+            <div class="srow"><span class="sname">Ridgway's Rail</span><span class="sided"><span class="mini-media"><span data-icon="mic"></span></span><span class="scount">2</span></span></div>
+            <div class="srow"><span class="sname">Belding's Savannah Sparrow</span><span class="sided"><span class="br-badge" style="background:var(--sr-tier-3);">FL</span><span class="scount">4</span></span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Checklist B only</span><span class="panel-count">26</span></div>
+          <div class="panel-body">
+            <div class="srow"><span class="sname">Scarlet Tanager</span><span class="sided"><span class="mini-media"><span data-icon="camera"></span></span><span class="scount">1</span></span></div>
+            <div class="srow"><span class="sname">Blackburnian Warbler</span><span class="sided"><span class="scount">2</span></span></div>
+            <div class="srow"><span class="sname">Baltimore Oriole</span><span class="sided"><span class="br-badge" style="background:var(--sr-tier-2);">CF</span><span class="scount">3</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comments table (abbreviated) -->
+      <div class="panel" style="margin-top:20px;">
+        <div class="panel-head" style="justify-content:flex-start; gap:8px;">
+          <span class="panel-title">Comments</span><span class="panel-count">(3)</span>
+        </div>
+        <div style="display:grid; grid-template-columns:minmax(120px,1.2fr) 2fr 2fr;">
+          <span style="padding:8px 12px; font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--sr-text-muted); background:var(--sr-bg);">Species</span>
+          <span style="padding:8px 12px; font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--sr-text-muted); background:var(--sr-bg); border-left:1px solid var(--sr-border-subtle);">A · S148820194</span>
+          <span style="padding:8px 12px; font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--sr-text-muted); background:var(--sr-bg); border-left:1px solid var(--sr-border-subtle);">B · S147003581</span>
+        </div>
+        <div style="display:grid; grid-template-columns:minmax(120px,1.2fr) 2fr 2fr; border-top:1px solid var(--sr-border-subtle);">
+          <span style="padding:8px 12px; font-size:0.75rem; font-weight:600; color:var(--sr-text);">📋 Checklist note</span>
+          <span style="padding:8px 12px; font-size:0.75rem; color:var(--sr-text-muted); line-height:1.5; border-left:1px solid var(--sr-border-subtle);">Light onshore breeze. Weather and tide blocks pasted from SnowRaven.</span>
+          <span style="padding:8px 12px; font-size:0.75rem; color:var(--sr-text-muted); line-height:1.5; border-left:1px solid var(--sr-border-subtle);">Spring migration in full swing — warblers everywhere.</span>
+        </div>
+      </div>
+
+      <!-- ── WEATHER & TIDE SECTION (LOADED) ─────────────────────────────── -->
+      <div class="panel wt-section">
+        <div class="panel-head">
+          <span class="panel-title">Weather &amp; Tide</span>
+        </div>
+        <div class="wt-grid">
+
+          <!-- Side A — weather ok, tide ok, has embedded weather block → reconciliation note -->
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">A</span>
+              <span class="tag-col">
+                <span class="tag-loc">Bolsa Chica Ecological Reserve</span>
+                <span class="tag-meta">May 24, 2026 · <a class="tag-id" href="#" onclick="return false">S148820194</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <!-- Weather block -->
+              <div>
+                <div class="blk-eyebrow">
+                  <span class="blk-label">Weather output</span>
+                  <button class="copy-btn" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy</span></button>
+                </div>
+                <pre class="mono">🌤️
+Few clouds
+Temperature: 63 – 68°F
+Wind: light breeze - gentle breeze
+Wind Direction: WSW - W
+Cloud Cover: 12 – 24%
+Humidity: 71 – 78%
+Dew point: 55 – 58°F
+Sunrise: 5:46 AM
+Sunset: 7:58 PM
+Weather generated by SnowRaven</pre>
+              </div>
+
+              <!-- Reconciliation note (A's comment has a weather block) -->
+              <div class="recon">
+                <span data-icon="info"></span>
+                <span>This checklist's comment already includes a weather block. OpenWeather revises its historical data over time, so this fresh lookup may differ from what's in the comment — SnowRaven shows what the API returns now.</span>
+              </div>
+
+              <!-- Tide block -->
+              <div>
+                <div class="blk-eyebrow">
+                  <span class="blk-label">Tide output</span>
+                  <button class="copy-btn" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy</span></button>
+                </div>
+                <pre class="mono">🌊
+Predicted
+Water level: 4.1 – 5.3 ft
+Tide: Falling (turned during your checklist)
+Previous high: 5.4 ft at 9:12 AM
+Next low: 0.7 ft at 4:38 PM
+Station: Los Angeles (9410660), 11.2 mi away
+Relative to MLLW
+Tide data from NOAA CO-OPS · via SnowRaven</pre>
+              </div>
+
+              <!-- Combined copy -->
+              <button class="copy-both" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy weather &amp; tide together</span></button>
+            </div>
+          </div>
+
+          <!-- Side B — weather ok, tide ok, no embedded block → no note -->
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">B</span>
+              <span class="tag-col">
+                <span class="tag-loc">Mount Auburn Cemetery</span>
+                <span class="tag-meta">May 17, 2026 · <a class="tag-id" href="#" onclick="return false">S147003581</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <div>
+                <div class="blk-eyebrow">
+                  <span class="blk-label">Weather output</span>
+                  <button class="copy-btn" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy</span></button>
+                </div>
+                <pre class="mono">⛅
+Scattered clouds
+Temperature: 52 – 61°F
+Wind: gentle breeze - moderate breeze
+Wind Direction: NW - NNW
+Cloud Cover: 33 – 47%
+Humidity: 58 – 66%
+Dew point: 41 – 46°F
+Sunrise: 5:21 AM
+Sunset: 8:08 PM
+Weather generated by SnowRaven</pre>
+              </div>
+
+              <div>
+                <div class="blk-eyebrow">
+                  <span class="blk-label">Tide output</span>
+                  <button class="copy-btn" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy</span></button>
+                </div>
+                <pre class="mono">🌊
+Predicted
+Water level: 6.8 – 8.9 ft
+Tide: Rising
+Previous low: 1.2 ft at 7:04 AM
+Next high: 9.3 ft at 1:21 PM
+Station: Boston (8443970), 5.6 mi away
+Relative to MLLW
+Tide data from NOAA CO-OPS · via SnowRaven</pre>
+              </div>
+
+              <button class="copy-both" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy weather &amp; tide together</span></button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       2 · OTHER STATES
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="section-label">Badge states — every badge, both states</div>
+  <p class="annot">The six badges in present and absent, paired for a direct contrast read. Present uses the accent fill with an AA-safe accent-strong label; absent is conveyed by the plain/outlined fill (no text dimming), with a muted-but-readable label. Toggle the theme to verify both clear 4.5:1.</p>
+
+  <div class="app-surface">
+    <div class="matrix" role="table" aria-label="Badge states">
+      <div class="matrix-row matrix-head" role="row">
+        <span role="columnheader">Badge</span>
+        <span role="columnheader" style="border-left:1px solid var(--sr-border-subtle);">Present</span>
+        <span role="columnheader" style="border-left:1px solid var(--sr-border-subtle);">Absent</span>
+      </div>
+      <div class="matrix-row" role="row">
+        <span class="matrix-key" role="cell">Photo</span>
+        <span class="matrix-cell" role="cell"><span class="badge present" title="Photos reported" aria-label="Photos reported"><span data-icon="camera"></span>Photo</span></span>
+        <span class="matrix-cell" role="cell"><span class="badge absent" title="No photos reported" aria-label="No photos reported"><span data-icon="camera"></span>Photo</span></span>
+      </div>
+      <div class="matrix-row" role="row">
+        <span class="matrix-key" role="cell">Audio</span>
+        <span class="matrix-cell" role="cell"><span class="badge present" title="Audio reported" aria-label="Audio reported"><span data-icon="mic"></span>Audio</span></span>
+        <span class="matrix-cell" role="cell"><span class="badge absent" title="No audio reported" aria-label="No audio reported"><span data-icon="mic"></span>Audio</span></span>
+      </div>
+      <div class="matrix-row" role="row">
+        <span class="matrix-key" role="cell">Video</span>
+        <span class="matrix-cell" role="cell"><span class="badge present" title="Video reported" aria-label="Video reported"><span data-icon="video"></span>Video</span></span>
+        <span class="matrix-cell" role="cell"><span class="badge absent" title="No video reported" aria-label="No video reported"><span data-icon="video"></span>Video</span></span>
+      </div>
+      <div class="matrix-row" role="row">
+        <span class="matrix-key" role="cell">Breeding</span>
+        <span class="matrix-cell" role="cell"><span class="badge present" title="Breeding codes reported" aria-label="Breeding codes reported"><span data-icon="dna"></span>Breeding</span></span>
+        <span class="matrix-cell" role="cell"><span class="badge absent" title="No breeding codes reported" aria-label="No breeding codes reported"><span data-icon="dna"></span>Breeding</span></span>
+      </div>
+      <div class="matrix-row" role="row">
+        <span class="matrix-key" role="cell">Weather</span>
+        <span class="matrix-cell" role="cell"><span class="badge present" title="Weather block in comment" aria-label="Weather block in comment"><span data-icon="cloud-sun"></span>Weather</span></span>
+        <span class="matrix-cell" role="cell"><span class="badge absent" title="No weather block in comment" aria-label="No weather block in comment"><span data-icon="cloud-sun"></span>Weather</span></span>
+      </div>
+      <div class="matrix-row" role="row">
+        <span class="matrix-key" role="cell">Tide</span>
+        <span class="matrix-cell" role="cell"><span class="badge present" title="Tide block in comment" aria-label="Tide block in comment"><span data-icon="waves"></span>Tide</span></span>
+        <span class="matrix-cell" role="cell"><span class="badge absent" title="No tide block in comment" aria-label="No tide block in comment"><span data-icon="waves"></span>Tide</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       3 · WEATHER & TIDE — OTHER STATES
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="section-label">Weather &amp; Tide — other states</div>
+  <p class="annot">Small rendered examples of the states the side panels and the section can be in. Each is the real component styling, scoped to one side or one row.</p>
+
+  <div class="app-surface">
+    <div class="results">
+
+      <!-- Idle: the section before Load -->
+      <p class="demo-cap" style="margin-bottom:8px;">Idle — before the user loads conditions</p>
+      <div class="panel wt-section" style="margin-top:0;">
+        <div class="panel-head">
+          <span class="panel-title">Weather &amp; Tide</span>
+          <button class="wt-load-btn"><span data-icon="cloud-sun"></span>Load weather &amp; tide</button>
+        </div>
+        <div class="wt-idle-body">
+          <p class="wt-explainer" style="margin:0;">Pull a fresh weather and tide reading for each checklist to compare conditions side by side. Nothing is copied automatically.</p>
+        </div>
+      </div>
+
+      <div style="height:18px;"></div>
+
+      <!-- Two-up: loading + per-side error -->
+      <div class="demo-grid">
+
+        <div class="demo-card">
+          <span class="demo-cap">Per-side loading (FR-13)</span>
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">A</span>
+              <span class="tag-col">
+                <span class="tag-loc">Bolsa Chica Ecological Reserve</span>
+                <span class="tag-meta">May 24, 2026 · <a class="tag-id" href="#" onclick="return false">S148820194</a></span>
+              </span>
+            </div>
+            <div class="side-loading" role="status">
+              <span data-icon="loader" class="spin"></span> Loading weather &amp; tide for Checklist A…
+            </div>
+          </div>
+        </div>
+
+        <div class="demo-card">
+          <span class="demo-cap">Per-side weather error (FR-14) — tide still resolves below</span>
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">B</span>
+              <span class="tag-col">
+                <span class="tag-loc">Checklist S140000000</span>
+                <span class="tag-meta">— · <a class="tag-id" href="#" onclick="return false">S140000000</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <div>
+                <div class="blk-eyebrow"><span class="blk-label">Weather output</span></div>
+                <div class="side-error" role="alert">
+                  <span data-icon="alert-circle"></span>
+                  <span>Checklist not found (404). Check the ID and your eBird API key.</span>
+                </div>
+              </div>
+              <div>
+                <div class="blk-eyebrow">
+                  <span class="blk-label">Tide output</span>
+                  <button class="copy-btn" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy</span></button>
+                </div>
+                <pre class="mono">🌊
+Predicted
+Water level: 3.2 – 4.6 ft
+Tide: Rising
+Previous low: 0.9 ft at 6:18 AM
+Next high: 4.8 ft at 12:44 PM
+Station: San Diego (9410170), 7.9 mi away
+Relative to MLLW
+Tide data from NOAA CO-OPS · via SnowRaven</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="height:18px;"></div>
+
+      <!-- All five FR-15 tide states. 'ok' is the <pre> block shown in section 1;
+           the remaining four are here. -->
+      <span class="demo-cap" style="display:block; margin-bottom:8px;">The five tide states (FR-15) — <code>ok</code> is the formatted block in section 1; the four non-ok states are below</span>
+      <div class="demo-grid">
+
+        <div class="demo-card">
+          <span class="demo-cap">too-far — nearest US station is far, with one-tap override</span>
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">B</span>
+              <span class="tag-col">
+                <span class="tag-loc">Mount Auburn Cemetery</span>
+                <span class="tag-meta">May 17, 2026 · <a class="tag-id" href="#" onclick="return false">S147003581</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <div>
+                <div class="blk-eyebrow"><span class="blk-label">Tide output</span></div>
+                <div class="tide-notice">
+                  <span class="nrow">
+                    <span data-icon="alert-circle"></span>
+                    <span>The nearest tide station is 38 miles away (Newburyport). Tide data may not reflect your spot.</span>
+                  </span>
+                  <button class="tide-override">Show it anyway</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="demo-card">
+          <span class="demo-cap">outside-US — only US stations exist, with "Show nearest US station" override</span>
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">A</span>
+              <span class="tag-col">
+                <span class="tag-loc">Point Pelee National Park, ON</span>
+                <span class="tag-meta">May 11, 2026 · <a class="tag-id" href="#" onclick="return false">S146551020</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <div>
+                <div class="blk-eyebrow"><span class="blk-label">Tide output</span></div>
+                <div class="tide-notice">
+                  <span class="nrow">
+                    <span data-icon="alert-circle"></span>
+                    <span>Tide information is only available in the US. The nearest US station is Marblehead, OH (9063079), 41 miles away.</span>
+                  </span>
+                  <button class="tide-override">Show nearest US station</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="height:18px;"></div>
+
+      <div class="demo-grid">
+
+        <div class="demo-card">
+          <span class="demo-cap">unavailable — no tide reading for this spot (no station in range, not a fetch failure)</span>
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">B</span>
+              <span class="tag-col">
+                <span class="tag-loc">Rocky Mountain National Park, CO</span>
+                <span class="tag-meta">May 3, 2026 · <a class="tag-id" href="#" onclick="return false">S145220447</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <div>
+                <div class="blk-eyebrow"><span class="blk-label">Tide output</span></div>
+                <div class="tide-muted" role="status">No tide reading available.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="demo-card">
+          <span class="demo-cap">fetch-error — the NOAA lookup itself failed (distinct copy from "unavailable")</span>
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">A</span>
+              <span class="tag-col">
+                <span class="tag-loc">Bolsa Chica Ecological Reserve</span>
+                <span class="tag-meta">May 24, 2026 · <a class="tag-id" href="#" onclick="return false">S148820194</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <div>
+                <div class="blk-eyebrow"><span class="blk-label">Tide output</span></div>
+                <div class="tide-muted" role="status">Tide data unavailable right now.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="height:18px;"></div>
+
+      <!-- Reconciliation note (standalone callout of the info treatment) -->
+      <span class="demo-cap" style="display:block; margin-bottom:8px;">Reconciliation note (FR-16) — only when a fresh lookup coexists with an embedded weather block; info, not error</span>
+      <div class="wt-panel" style="max-width:520px;">
+        <div class="wt-panel-head">
+          <span class="tag-badge" aria-hidden="true">A</span>
+          <span class="tag-col">
+            <span class="tag-loc">Bolsa Chica Ecological Reserve</span>
+            <span class="tag-meta">May 24, 2026 · <a class="tag-id" href="#" onclick="return false">S148820194</a></span>
+          </span>
+        </div>
+        <div class="wt-panel-body">
+          <div class="recon">
+            <span data-icon="info"></span>
+            <span>This checklist's comment already includes a weather block. OpenWeather revises its historical data over time, so this fresh lookup may differ from what's in the comment — SnowRaven shows what the API returns now.</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:18px;"></div>
+
+      <!-- FR-21: partial section — one resolved side beside one failed side, side by side,
+           in the REAL section grid (1fr/1fr), to show neither side blanks the other. -->
+      <span class="demo-cap" style="display:block; margin-bottom:8px;">Partial result (FR-21) — A fully resolved beside B in a scoped error, rendered in the real Weather &amp; Tide grid: the failed side never blanks the resolved one</span>
+      <div class="panel wt-section" style="margin-top:0;">
+        <div class="panel-head">
+          <span class="panel-title">Weather &amp; Tide</span>
+        </div>
+        <div class="wt-grid">
+
+          <!-- Side A — fully resolved (weather ok + tide ok), normal treatment -->
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">A</span>
+              <span class="tag-col">
+                <span class="tag-loc">Bolsa Chica Ecological Reserve</span>
+                <span class="tag-meta">May 24, 2026 · <a class="tag-id" href="#" onclick="return false">S148820194</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <div>
+                <div class="blk-eyebrow">
+                  <span class="blk-label">Weather output</span>
+                  <button class="copy-btn" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy</span></button>
+                </div>
+                <pre class="mono">🌤️
+Few clouds
+Temperature: 63 – 68°F
+Wind: light breeze - gentle breeze
+Wind Direction: WSW - W
+Cloud Cover: 12 – 24%
+Humidity: 71 – 78%
+Dew point: 55 – 58°F
+Sunrise: 5:46 AM
+Sunset: 7:58 PM
+Weather generated by SnowRaven</pre>
+              </div>
+              <div>
+                <div class="blk-eyebrow">
+                  <span class="blk-label">Tide output</span>
+                  <button class="copy-btn" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy</span></button>
+                </div>
+                <pre class="mono">🌊
+Predicted
+Water level: 4.1 – 5.3 ft
+Tide: Falling (turned during your checklist)
+Previous high: 5.4 ft at 9:12 AM
+Next low: 0.7 ft at 4:38 PM
+Station: Los Angeles (9410660), 11.2 mi away
+Relative to MLLW
+Tide data from NOAA CO-OPS · via SnowRaven</pre>
+              </div>
+              <button class="copy-both" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy weather &amp; tide together</span></button>
+            </div>
+          </div>
+
+          <!-- Side B — scoped weather error; its own tide still resolves below -->
+          <div class="wt-panel">
+            <div class="wt-panel-head">
+              <span class="tag-badge" aria-hidden="true">B</span>
+              <span class="tag-col">
+                <span class="tag-loc">Mount Auburn Cemetery</span>
+                <span class="tag-meta">May 17, 2026 · <a class="tag-id" href="#" onclick="return false">S147003581</a></span>
+              </span>
+            </div>
+            <div class="wt-panel-body">
+              <div>
+                <div class="blk-eyebrow"><span class="blk-label">Weather output</span></div>
+                <div class="side-error" role="alert">
+                  <span data-icon="alert-circle"></span>
+                  <span>Weather service timed out. Try Load again — Checklist A's result above is unaffected.</span>
+                </div>
+              </div>
+              <div>
+                <div class="blk-eyebrow">
+                  <span class="blk-label">Tide output</span>
+                  <button class="copy-btn" data-copy><span data-icon="clipboard-copy"></span><span data-copy-label>Copy</span></button>
+                </div>
+                <pre class="mono">🌊
+Predicted
+Water level: 6.8 – 8.9 ft
+Tide: Rising
+Previous low: 1.2 ft at 7:04 AM
+Next high: 9.3 ft at 1:21 PM
+Station: Boston (8443970), 5.6 mi away
+Relative to MLLW
+Tide data from NOAA CO-OPS · via SnowRaven</pre>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div style="height:18px;"></div>
+
+      <!-- Keys-missing nudge -->
+      <span class="demo-cap" style="display:block; margin-bottom:8px;">Keys-missing nudge (FR-19) — badges &amp; comparison stay intact; only this section is replaced</span>
+      <div class="panel wt-section" style="margin-top:0;">
+        <div class="panel-head">
+          <span class="panel-title">Weather &amp; Tide</span>
+        </div>
+        <div class="nudge-wrap">
+          <div class="nudge">
+            <span>eBird API key not configured — weather &amp; tide lookups require an eBird API key.</span>
+            <button class="nudge-btn">Go to Settings →</button>
+          </div>
+          <div class="nudge">
+            <span>OpenWeather API key not configured — weather lookups won't return conditions.</span>
+            <button class="nudge-btn">Go to Settings →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Inline lucide-react icon paths (no external requests). Each matches the
+  //    lucide icon the spec names, drawn at the component's stroke width. ──────
+  const ICONS = {
+    'camera':        '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+    'mic':           '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+    'video':         '<path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+    'dna':           '<path d="m10 16 1.5 1.5"/><path d="m14 8-1.5-1.5"/><path d="M15 2c-1.798 1.998-2.518 3.995-2.807 5.993"/><path d="m16.5 10.5 1 1"/><path d="m17 6-2.891-2.891"/><path d="M2 15c6.667-6 13.333 0 20-6"/><path d="m20 9 .891.891"/><path d="M3.109 14.109 4 15"/><path d="m6.5 12.5 1 1"/><path d="m7 18 2.891 2.891"/><path d="M9 22c1.798-1.998 2.518-3.995 2.807-5.993"/>',
+    'cloud-sun':     '<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
+    'waves':         '<path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>',
+    'clipboard-copy':'<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v4"/><path d="M21 14H11"/><path d="m15 10-4 4 4 4"/>',
+    'check':         '<path d="M20 6 9 17l-5-5"/>',
+    'info':          '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    'alert-circle':  '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+    'loader':        '<line x1="12" x2="12" y1="2" y2="6"/><line x1="12" x2="12" y1="18" y2="22"/><line x1="4.93" x2="7.76" y1="4.93" y2="7.76"/><line x1="16.24" x2="19.07" y1="16.24" y2="19.07"/><line x1="2" x2="6" y1="12" y2="12"/><line x1="18" x2="22" y1="12" y2="12"/><line x1="4.93" x2="7.76" y1="19.07" y2="16.24"/><line x1="16.24" x2="19.07" y1="7.76" y2="4.93"/>',
+    'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+    'sun':           '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+    'moon':          '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  };
+
+  function svg(name, sw) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (sw || 2.25) + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
+  }
+
+  // Hydrate every [data-icon] placeholder.
+  document.querySelectorAll('[data-icon]').forEach(el => {
+    const name = el.getAttribute('data-icon');
+    // Slightly heavier stroke for the small media/badge glyphs, matching the app.
+    const sw = (name === 'check' || name === 'clipboard-copy' || name === 'alert-circle' || name === 'chevron-right') ? 2.5 : 2.25;
+    el.innerHTML = svg(name, sw);
+  });
+
+  // Copy buttons — flip to "Copied!" for 2s (demo only; no clipboard write here).
+  document.querySelectorAll('[data-copy]').forEach(btn => {
+    const labelEl = btn.querySelector('[data-copy-label]');
+    const original = labelEl.textContent;
+    const iconEl = btn.querySelector('[data-icon]');
+    btn.addEventListener('click', () => {
+      btn.classList.add('copied');
+      iconEl.innerHTML = svg('check', 2.5);
+      labelEl.textContent = original.includes('together') ? 'Copied!' : 'Copied!';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        iconEl.innerHTML = svg('clipboard-copy', 2.5);
+        labelEl.textContent = original;
+      }, 2000);
+    });
+  });
+
+  // Theme toggle.
+  const root = document.documentElement;
+  const tIcon = document.getElementById('themeIcon');
+  const tText = document.getElementById('themeText');
+  function paintToggle() {
+    const dark = root.getAttribute('data-theme') === 'dark';
+    tIcon.innerHTML = svg(dark ? 'sun' : 'moon', 2.25);
+    tIcon.querySelector('svg').style.width = '15px';
+    tIcon.querySelector('svg').style.height = '15px';
+    tText.textContent = dark ? 'Light mode' : 'Dark mode';
+  }
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    root.setAttribute('data-theme', root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    paintToggle();
+  });
+  paintToggle();
+</script>
+</body>
+</html>

@@ -12,7 +12,11 @@ import {
 import { resolveApiBreedingCode, TIER_COLORS } from '../lib/breedingCodes'
 import { protocolName, submissionLabel, formatDuration, formatDistance, formatObservers } from '../lib/checklistMeta'
 import { commentSegments, hasComment } from '../lib/commentText'
+import { deriveBadges, type BadgeFlags } from '../lib/checklistBadges'
+import type { KeyStatus } from '../lib/keyStatus'
 import { BirdName } from './BirdName'
+import { ChecklistBadges } from './ChecklistBadges'
+import { WeatherTideSection } from './WeatherTideSection'
 
 type Sort = 'taxonomic' | 'alpha'
 
@@ -175,7 +179,11 @@ function SpeciesRow({ row, mode, hasEntry, onOpenSpecies }: {
   )
 }
 
-export function ChecklistComparer({ onOpenSpecies }: { onOpenSpecies?: (commonName: string) => void }) {
+export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
+  onOpenSpecies?: (commonName: string) => void
+  keyStatus: KeyStatus | null
+  onGoToSettings: () => void
+}) {
   const [inputA, setInputA] = useState('')
   const [inputB, setInputB] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -257,13 +265,17 @@ export function ChecklistComparer({ onOpenSpecies }: { onOpenSpecies?: (commonNa
     const both = sortRows(result.both, sort)
     const aOnly = sortRows(result.aOnly, sort)
     const bOnly = sortRows(result.bOnly, sort)
+    // Derive the badge flags once from the comparison (keeps ChecklistTag a pure
+    // presenter — it gets precomputed flags, not the species array).
+    const badgesA = deriveBadges(result, 'a')
+    const badgesB = deriveBadges(result, 'b')
 
     return (
       <div style={{ width: '100%', maxWidth: 880, display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, flex: '1 1 320px' }}>
-            <ChecklistTag badge="A" id={idA} meta={result.metaA} />
-            <ChecklistTag badge="B" id={idB} meta={result.metaB} />
+            <ChecklistTag badge="A" id={idA} meta={result.metaA} badges={badgesA} />
+            <ChecklistTag badge="B" id={idB} meta={result.metaB} badges={badgesB} />
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
             <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }}>
@@ -336,6 +348,14 @@ export function ChecklistComparer({ onOpenSpecies }: { onOpenSpecies?: (commonNa
 
         {/* All comments, side by side for easy comparison. */}
         <CommentsTable result={result} both={both} aOnly={aOnly} bOnly={bOnly} idA={idA} idB={idB} isRecorded={isRecorded} onOpenSpecies={onOpenSpecies} />
+
+        {/* Fresh weather + tide per checklist, side by side. */}
+        <WeatherTideSection
+          idA={idA} idB={idB}
+          metaA={result.metaA} metaB={result.metaB}
+          keyStatus={keyStatus}
+          onGoToSettings={onGoToSettings}
+        />
       </div>
     )
   }
@@ -404,7 +424,7 @@ export function ChecklistComparer({ onOpenSpecies }: { onOpenSpecies?: (commonNa
 // metadata strip (type · distance · duration · observers · app), and a collapsible
 // "Notes" disclosure for the checklist-level comment — so the two checklists are
 // easy to tell apart and their details are at hand.
-function ChecklistTag({ badge, id, meta }: { badge: 'A' | 'B'; id: string; meta: ChecklistMeta }) {
+function ChecklistTag({ badge, id, meta, badges }: { badge: 'A' | 'B'; id: string; meta: ChecklistMeta; badges: BadgeFlags }) {
   const [notesOpen, setNotesOpen] = useState(false)
   const date = formatObsDate(meta.obsDt)
   const metaBits = [
@@ -463,6 +483,7 @@ function ChecklistTag({ badge, id, meta }: { badge: 'A' | 'B'; id: string; meta:
             )}
           </>
         )}
+        <ChecklistBadges flags={badges} />
       </span>
     </div>
   )

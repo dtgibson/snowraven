@@ -1,43 +1,57 @@
-# Handoff — weather-info-copy — PAUSED before deploy
+# Handoff — comparer-weather-badges — BUILT, set aside for batched deploy (Mac)
 
 ## What We Accomplished
 
-Reworded the Weather tab's helper text (the line under the lookup button) to surface
-the auto-copy behavior and reword the tide note:
+Built the **Checklist Comparer: Weather + Badges** feature. Comparing two eBird
+checklists now shows, on each checklist card, badges for media types reported
+(photo/audio/video), whether breeding codes were noted, and whether the comment
+already contains a SnowRaven weather block and/or tide block — and a new
+**Weather & Tide** section below pulls a fresh weather + tide lookup for each
+checklist side by side (explicit "Load" button, no auto-fetch, no auto-copy;
+per-side Copy weather / tide / both; an always-note about OpenWeather revising
+historical data; graceful degradation to a Settings nudge when keys are absent).
 
-- **Before:** "Tide information is also shown below if available."
-- **After:** "Weather information is automatically copied to the clipboard on a successful
-  lookup. Tidal information will also be shown below if available."
+Taken through Strategist → Planner → Architect → Designer → Engineer → Tester →
+Auditor: **built, 525 tests green (30 new), typecheck clean, security-audited
+clean, frontend-only (zero backend changes).** Paused before deploy to ship from
+the Mac, batched as **0.5.18** with the earlier `weather-info-copy` helper-text
+change. Weft session set aside so more features can be built before the deploy.
 
-Scoped (Evaluator), built (Engineer), tested (Tester — 468 frontend tests green, no
-regressions, no test pinned the old string), and security-audited clean (Auditor — plain
-React-escaped text, no new surface). Paused before deploy to batch the actual release with
-more upcoming work.
+## What Has Been Saved (committed to `main`)
 
-## What Has Been Saved
-
-Working-tree changes (UNCOMMITTED — see note in Resume):
-- `frontend/src/App.tsx` — helper text reworded (one `<p>`)
-- `pipeline/weather-info-copy/change-brief.md` — the change brief
-- `pipeline/session-state.json` — paused at Stage 5
-- `pipeline/handoff.md` — this file
-
-No version bump, no CHANGELOG entry, nothing committed or deployed yet — all deliberately
-deferred to the batched release.
+- Feature code: `frontend/src/lib/{commentBlocks,checklistBadges,tideNotice,keyStatus}.ts`
+  (+ tests), `frontend/src/components/{ChecklistBadges,WeatherTidePanel,WeatherTideSection}.tsx`
+  (+ 2 component tests); shared-helper refactors in `lib/{tide,tideFormatter}.ts`;
+  edits to `components/{ChecklistComparer,ListComparer}.tsx` and `App.tsx`;
+  `--sr-accent-strong` token in `globals.css`.
+- Version 0.5.17 → **0.5.18** (`frontend/package.json` + `src-tauri/tauri.conf.json`);
+  `CHANGELOG.md` (0.5.18 batches the comparer feature **and** the weather-info-copy
+  helper-text change), `docs/HELP.md`, `README.md`.
+- Pipeline artifacts: `pipeline/comparer-weather-badges/{strategic-brief,prd,schema,design-spec}.md`
+  + `design.html`.
 
 ## Where We Are
 
-Stage 5, The Deployer — paused by choice, before deploying. Stages 1–4 (Evaluator,
-Engineer, Tester, Auditor) complete and approved. Improve lane (maintain), session 15.
+Feature stages 1–7 complete (Strategist..Auditor). **Stage 8 (Deployer) + Stage 9
+(Chronicler) pending — to happen at the batched deploy on the Mac.** The Weft
+session is cleared (`activeFeature: null`) so new feature work can start now; the
+pending-deploy detail is in `session-state.json` → `remainingBacklog`.
 
-## Resume Prompt
+## Deploy / resume prompt (on the Mac, when ready to ship)
 
-To resume: run `/weft`. It reads the saved state and picks up at The Deployer.
+1. Confirm version **0.5.18** in BOTH `frontend/package.json` and
+   `src-tauri/tauri.conf.json`; confirm `CHANGELOG.md` 0.5.18 covers everything
+   batched (currently: comparer-weather-badges + weather-info-copy).
+2. `main` is already up to date — push the **`v0.5.18`** tag, wait for Windows CI,
+   then run **`./release.sh`** (macOS notarized universal + Windows signed +
+   `latest.json`). Web/Pi update on a plain `git pull`.
+3. Then the **Chronicler**: update `PRODUCT_CONTEXT.md` / `DECISIONS.md` /
+   `ROADMAP.md` for the comparer feature (and the weather-info-copy change), and
+   **update `website/`** (the List Comparer feature description) to mention the
+   badges + side-by-side weather/tide — the website's live, so do this when the
+   feature actually ships.
 
-- The change is currently **uncommitted in the working tree**. Before deploying from the
-  Mac, commit + push it (on its own or batched with the other work) so it syncs across
-  machines.
-- Deploy = bump version (0.5.17 → 0.5.18, or whatever the batch lands on) in BOTH
-  `frontend/package.json` and `src-tauri/tauri.conf.json`, update `CHANGELOG.md`, then
-  `./release.sh` from the Mac (web/Pi update on a plain `git pull`). Then Stage 6
-  (Chronicler) and close out.
+> Note: **0.5.18 is the in-progress batch version.** Additional features built
+> before this deploy should accumulate under the 0.5.18 changelog rather than
+> re-bumping, so the whole batch ships as one version (the 0.5.17 three-effort
+> batch is the precedent).

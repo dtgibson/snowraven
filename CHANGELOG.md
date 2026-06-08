@@ -7,6 +7,18 @@ All notable changes to SnowRaven are documented here.
 ### Added
 - **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://snowraven.dtgibson.com/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
 
+## [0.5.18] - 2026-06-08
+
+### Added
+- **Weather, tide, and at-a-glance badges in the Checklist Comparer** — comparing two eBird checklists now does more than match species:
+  - **Badges on each checklist card** show, at a glance, which media types were reported (photo / audio / video), whether any breeding codes were noted, and whether the checklist's comment already has a SnowRaven weather block and/or tide block pasted in. All six badges always show (present or absent) so the two cards line up side by side.
+  - **A Weather & Tide section** below the comparison pulls a fresh weather and tide reading for *each* checklist and shows them side by side, so you can compare the conditions of two outings in one place. It's an explicit "Load weather & tide" button — nothing is fetched until you ask, and **nothing is copied to your clipboard automatically**. Each side has its own Copy weather, Copy tide, and Copy weather & tide together buttons (the combined copy carries a single SnowRaven credit, the same as the Weather tab). The two sides load and fail independently — one checklist erroring never blanks the other.
+  - When a checklist's comment already includes a weather block, a short note explains that OpenWeather revises historical data over time, so the fresh lookup may differ from what's pasted in the comment.
+  - If your eBird or OpenWeather API key isn't set, the species comparison and badges keep working — only the Weather & Tide section shows a nudge to add the missing key in Settings.
+
+### Changed
+- **Weather tab helper text** now notes that weather is automatically copied to the clipboard on a successful lookup, and that tidal information appears below when available.
+
 ## [0.5.17] - 2026-06-07
 
 ### Added

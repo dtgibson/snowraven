@@ -25,6 +25,17 @@ export interface TideReading {
   distanceMi: number
 }
 
+/** The shape returned by GET /tide/{id} (web FastAPI and the desktop TS service
+ *  both produce it). Shared so App.tsx and the comparer's Weather & Tide section
+ *  decode the same contract. */
+export interface TideResponse {
+  status: 'ok' | 'too-far' | 'outside-us' | 'unavailable'
+  formatted?: string
+  body?: string
+  station?: { id: string; name: string }
+  distanceMi?: number
+}
+
 /** A NOAA JSON body is an error when it has a top-level `error` (status is
  *  unreliable — NOAA returns 200 with an error body for no-data). */
 export function isNoaaError(body: unknown): boolean {

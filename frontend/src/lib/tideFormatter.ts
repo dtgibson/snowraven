@@ -5,6 +5,7 @@
 
 import type { TideReading } from './tide'
 import { ft } from './tide'
+import { ATTRIBUTION } from './weatherFormatter'
 
 // SnowRaven attribution is an HTML link (matches weatherFormatter's ATTRIBUTION),
 // so it renders as a link when the block is pasted into eBird. The NOAA data
@@ -50,4 +51,15 @@ export function formatTide(r: TideReading): string {
   return body.endsWith(NOAA_CREDIT)
     ? body.slice(0, -NOAA_CREDIT.length) + TIDE_ATTRIBUTION
     : body
+}
+
+/**
+ * The "Copy Weather and Tide Together" block: ONE SnowRaven attribution at the
+ * very bottom. The weather block's own trailing attribution line is stripped and
+ * the tide BODY (which keeps the inline NOAA credit) is appended, then a single
+ * COMBINED_ATTRIBUTION. Shared by the Weather tab and the comparer's per-side
+ * combined copy so both surfaces emit a byte-identical block (one attribution).
+ */
+export function buildCombined(weatherFormatted: string, tideBody: string): string {
+  return `${weatherFormatted.replace(`\n${ATTRIBUTION}`, '')}\n\n${tideBody}\n\n${COMBINED_ATTRIBUTION}`
 }

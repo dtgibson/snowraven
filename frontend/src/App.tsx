@@ -5,8 +5,10 @@ import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
 import { copyText } from './lib/clipboard'
 import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
-import { ATTRIBUTION } from './lib/weatherFormatter'
-import { COMBINED_ATTRIBUTION } from './lib/tideFormatter'
+import { buildCombined } from './lib/tideFormatter'
+import { tideTooFarNotice, tideOverrideLabel } from './lib/tideNotice'
+import type { TideResponse } from './lib/tide'
+import type { KeyStatus } from './lib/keyStatus'
 import { readStoredScale, persistTextScale, applyScaleToDom, hydrateStoredScale } from './lib/textScale'
 import type { TextScale } from './lib/textScale'
 import { applyTheme, hydrateStoredTheme } from './lib/theme'
@@ -63,14 +65,6 @@ type TideState =
   | { status: 'unavailable' }
   | { status: 'error' }
 
-interface TideResponse {
-  status: 'ok' | 'too-far' | 'outside-us' | 'unavailable'
-  formatted?: string
-  body?: string
-  station?: { id: string; name: string }
-  distanceMi?: number
-}
-
 type UpdateStatus =
   | { kind: 'idle' }
   | { kind: 'checking' }
@@ -80,8 +74,6 @@ type UpdateStatus =
   | { kind: 'ready-to-restart' }
   | { kind: 'error' }
 
-
-type KeyStatus = { ebird: string | null; openweather: string | null }
 
 // Tab icon lookup — kept outside the component so it's never recreated
 const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
@@ -371,11 +363,6 @@ export default function App() {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [mapFullscreen, activeTab])
-
-  // One SnowRaven attribution at the very bottom; the weather block's own
-  // attribution is stripped and the tide body keeps the inline NOAA credit.
-  const buildCombined = (weatherFormatted: string, tideBody: string) =>
-    `${weatherFormatted.replace(`\n${ATTRIBUTION}`, '')}\n\n${tideBody}\n\n${COMBINED_ATTRIBUTION}`
 
   // Returns the tide block { formatted, body } when a reading resolved, else null.
   const loadTide = useCallback(async (id: string, force: boolean): Promise<{ formatted: string; body: string } | null> => {
@@ -825,16 +812,14 @@ export default function App() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '13px 15px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
                   <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                     <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
-                    {tideState.status === 'too-far'
-                      ? `The nearest tide station is ${tideState.distanceMi.toFixed(0)} miles away (${tideState.station}). Tide data may not reflect your spot.`
-                      : `Tide information is only available in the US. The nearest US station is ${tideState.station}, ${tideState.distanceMi.toFixed(0)} miles away.`}
+                    {tideTooFarNotice(tideState.station, tideState.distanceMi, tideState.status)}
                   </span>
                   <button tabIndex={0}
                     onClick={handleTideOverride}
                     aria-label="Show the nearest tide station anyway"
                     style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}
                   >
-                    {tideState.status === 'too-far' ? 'Show it anyway' : 'Show nearest US station'}
+                    {tideOverrideLabel(tideState.status)}
                   </button>
                 </div>
               )}
@@ -886,7 +871,13 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
-        {mountedTabs.has('comparer') && <ListComparer onOpenSpecies={navigateToSpeciesDetail} />}
+        {mountedTabs.has('comparer') && (
+          <ListComparer
+            onOpenSpecies={navigateToSpeciesDetail}
+            keyStatus={keyStatus}
+            onGoToSettings={() => setActiveTab('settings')}
+          />
+        )}
       </div>
 
       {/* Life List tab content */}

@@ -1,17 +1,15 @@
 {
-  "activeFeature": "weather-info-copy",
+  "activeFeature": null,
   "sessionNumber": 15,
-  "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "paused",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "pipeline/weather-info-copy/change-brief.md"
-  ],
+  "confirmedArtifacts": [],
   "releasedVersion": "0.5.17",
   "lastFeature": "Tides on the Weather tab (shipped v0.5.17), batched with the 0.5.16 performance sweep + Settings location/5-mile default. All three deployed together from the Mac: merged improve/performance -> main, tagged v0.5.17, Windows CI green, ./release.sh published (macOS notarized universal, Windows signed, latest.json all 3 platforms). Health-checked live. weather-tides feature closed out (Stage 9 Chronicler: PRODUCT_CONTEXT/DECISIONS/ROADMAP updated; DEPLOY-PENDING ledgers deleted).",
-  "remainingBacklog": "From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. ROADMAP Up Next: mobile app; accessibility & simplification; Windows code signing.",
-  "createdAt": "2026-06-08T16:19:56Z",
-  "updatedAt": "2026-06-08T16:35:02Z"
+  "remainingBacklog": "PENDING NEXT RELEASE (built/tested/audited on main, undeployed): comparer-weather-badges \u2014 Checklist Comparer media/breeding/weather/tide badges + side-by-side fresh weather & tide section (0.5.18). Stages 1-7 done (Strategist..Auditor); Deployer + Chronicler pending. Batches with the weather-info-copy helper-text change. Deploy 0.5.18 from the Mac (release.sh); then Chronicler (PRODUCT_CONTEXT/DECISIONS/ROADMAP) + update website/ for the comparer feature. || PENDING NEXT RELEASE (committed to main, undeployed): weather-info-copy \u2014 Weather-tab helper text reworded to mention weather auto-copy + tides (commit 6c1c1ea). Add to CHANGELOG and chronicle (PRODUCT_CONTEXT) at the next release/version bump. || From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. ROADMAP Up Next: mobile app; accessibility & simplification; Windows code signing.",
+  "createdAt": "2026-06-08T17:05:40Z",
+  "updatedAt": "2026-06-08T18:54:54Z"
 }

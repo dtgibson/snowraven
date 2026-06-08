@@ -27,6 +27,7 @@
 
   /* Accent (green) */
   --sr-accent: #2D8653;
+  --sr-accent-strong: #1A5C38;
   --sr-accent-bg: #E8F5EE;
   --sr-accent-bg-hover: #F0FAF4;
   --sr-accent-border: rgba(45,134,83,0.25);
@@ -114,6 +115,7 @@
 
   /* Accent (emerald — better contrast on dark) */
   --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
   --sr-accent-bg: #052E16;
   --sr-accent-bg-hover: #064E3B;
   --sr-accent-border: rgba(52,211,153,0.2);

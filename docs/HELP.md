@@ -277,6 +277,8 @@ Compares two individual eBird checklists. Paste two checklist IDs or URLs (e.g. 
 
 Each checklist is identified by a card at the top showing its location, date, and ID — useful when comparing two visits to the same place. The card also shows the checklist's **effort and provenance**: type (Traveling, Stationary, Incidental, etc.), distance (in the unit you entered), duration, number of observers, and the app and version it was submitted from (e.g. "eBird iOS 3.6.5"). The **checklist ID links to the checklist on eBird**, and if the checklist has a checklist-level comment, a collapsible **Notes** disclosure shows it.
 
+Each card also carries a **badge row** that summarizes the checklist at a glance: which media types were reported across all its species (**Photo**, **Audio**, **Video**), whether any **Breeding** codes were noted, and whether the checklist's comment already contains a SnowRaven **Weather** block and/or **Tide** block (handy for spotting which outing already has conditions pasted in). All six badges always show — filled when present, plain when absent — so the two cards line up side by side.
+
 The "In Both" panel shows each species' details from both checklists side by side (A on the left, B on the right); the "Checklist A only" and "Checklist B only" panels appear below.
 
 For each species on each checklist, you see:
@@ -287,6 +289,8 @@ For each species on each checklist, you see:
 - **Comments** — when a species has an observation note, a 💬 icon appears on that checklist's side (A, B, or both); click it to read the note. Any links in comments are clickable.
 
 All comments are also gathered into a **Comments table** at the bottom, with each checklist's note side by side for easy comparison. There, an empty side reads "no comment" (the bird was on that checklist but had no note) or "not reported" (the bird wasn't on that checklist).
+
+Below the comments, a **Weather & Tide** section lets you pull a fresh weather and tide reading for each checklist and compare the conditions of the two outings side by side. Press **Load weather & tide** — nothing is fetched until you ask, and unlike the Weather tab, **nothing is copied to your clipboard automatically**. Each side then shows its weather block and tide block (the same format the Weather tab produces), with its own **Copy weather**, **Copy tide**, and **Copy weather & tide together** buttons; copying only happens when you press a button. The two sides are independent — if one checklist can't be looked up, the other still shows its conditions. The same tide notices appear here as on the Weather tab (when the nearest station is far away or outside the US, with a one-tap option to show it anyway). If a checklist's comment already includes a weather block, a short note reminds you that OpenWeather revises its historical data over time, so a fresh lookup may differ from what's pasted in. If your eBird or OpenWeather API key isn't set, the species comparison and badges still work — only this section shows a nudge to add the missing key in Settings.
 
 Birds reported as a sub-form (for example, a domestic Rock Pigeon) are matched and named by their parent species, so the same bird lines up across both checklists.
 
