@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SnowRaven — Birding analytics and tools for your eBird workflow</title>
+  <meta name="description" content="SnowRaven turns your own eBird and Macaulay Library exports into a personal, local-first birding dashboard: weather and tides for your checklists, per-species history, life-list analytics, an interactive map, and more. Free and open, for macOS, Windows, and Raspberry Pi." />
+  <meta name="color-scheme" content="light dark" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="canonical" href="https://dtgibson.github.io/snowraven/" />
+
+  <!-- Open Graph / social -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="SnowRaven — Birding analytics and tools for your eBird workflow" />
+  <meta property="og:description" content="A local-first birding dashboard built from your own eBird and Macaulay Library data. Weather and tides, per-species history, life-list analytics, and an interactive map. Free and open." />
+  <meta property="og:url" content="https://dtgibson.github.io/snowraven/" />
+  <meta property="og:image" content="https://dtgibson.github.io/snowraven/assets/shots/statistics.webp" />
+  <meta property="og:image:width" content="1600" />
+  <meta property="og:image:height" content="1000" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Anti-flash theme: set data-theme before first paint -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('sr-site-theme');
+        var theme = (saved === 'light' || saved === 'dark')
+          ? saved
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <!-- ───────────────────────── Header ───────────────────────── -->
+  <header class="site-header" id="top">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="SnowRaven home">
+        <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
+        <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
+        <span class="version-pill" aria-label="Version 0.5.17">v0.5.17</span>
+      </a>
+
+      <nav class="primary-nav" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#privacy">Privacy</a>
+        <a href="#platforms">Platforms</a>
+        <a href="#install">Install</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="ghost-link" href="https://github.com/dtgibson/snowraven" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor"><path d="M12 .5A11.5 11.5 0 0 0 .5 12 11.5 11.5 0 0 0 8.4 23c.6.1.8-.26.8-.57v-2c-3.2.7-3.87-1.55-3.87-1.55-.53-1.34-1.3-1.7-1.3-1.7-1.05-.72.08-.7.08-.7 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.73 1.26 3.4.96.1-.75.4-1.27.73-1.56-2.56-.3-5.26-1.28-5.26-5.7 0-1.26.45-2.3 1.2-3.1-.12-.3-.52-1.48.1-3.08 0 0 .98-.31 3.2 1.18a11 11 0 0 1 5.83 0c2.22-1.5 3.2-1.18 3.2-1.18.62 1.6.22 2.78.1 3.08.75.8 1.2 1.84 1.2 3.1 0 4.43-2.7 5.4-5.27 5.69.41.36.78 1.05.78 2.12v3.14c0 .31.2.68.81.57A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg>
+          <span>GitHub</span>
+        </a>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme" aria-pressed="false">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-nav">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+      </div>
+    </div>
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Mobile" hidden>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#platforms">Platforms</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/dtgibson/snowraven" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- ───────────────────────── Hero ───────────────────────── -->
+    <section class="hero">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="dot"></span>Local-first · Free &amp; open source</p>
+          <h1>Birding analytics and tools for your <span class="accent">eBird workflow</span></h1>
+          <p class="lede">
+            SnowRaven takes your eBird and Macaulay Library records and lets you explore
+            them in new ways. Weather and tides for your checklists, deep per-species
+            history, life-list analytics, media coverage, breeding records, and an
+            interactive map. It uses your own exported data, on your own device, so you
+            stay in control.
+          </p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16"/></svg>
+              Download SnowRaven
+            </a>
+            <a class="btn btn-secondary" href="https://github.com/dtgibson/snowraven" target="_blank" rel="noopener">View on GitHub</a>
+          </div>
+          <p class="hero-meta">macOS · Windows · Raspberry Pi &nbsp;·&nbsp; No account, no telemetry</p>
+        </div>
+
+        <div class="hero-media">
+          <figure class="browser-frame" aria-hidden="false">
+            <div class="browser-bar"><span class="tl"></span><span class="tl"></span><span class="tl"></span></div>
+            <img src="assets/shots/statistics.webp" width="1600" height="1000"
+                 alt="The SnowRaven Statistics tab showing life-list totals, a life-list growth chart, and section navigation." loading="eager" />
+          </figure>
+          <div class="float-card float-a">
+            <span class="fc-k">Life list</span><span class="fc-v">149 species</span>
+          </div>
+          <div class="float-card float-b">
+            <span class="fc-k">Tide</span><span class="fc-v">3.1 ft rising</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Privacy band ───────────────────────── -->
+    <section class="band" id="privacy">
+      <div class="container privacy-grid">
+        <div class="privacy-lead">
+          <p class="eyebrow on-dark"><span class="dot"></span>Privacy by design</p>
+          <h2>Your data stays on your device</h2>
+          <p>
+            SnowRaven has no account, no analytics, no telemetry, and no server we operate.
+            Your eBird backup, Macaulay Library export, settings, and API keys never leave
+            your computer. When you ask for data, it talks directly to the services it
+            draws from: eBird and OpenWeather with your own keys, plus keyless sources like
+            OpenStreetMap, map tiles, and NOAA tides. There is no SnowRaven server in the middle.
+          </p>
+        </div>
+        <ul class="privacy-points">
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5l-8-3z"/></svg>
+            <div><strong>No accounts</strong><span>Nothing to sign up for. Just open it and go.</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="m4 20 16-16"/></svg>
+            <div><strong>No tracking</strong><span>Zero analytics or telemetry, on every platform.</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <div><strong>Keys &amp; data stay local</strong><span>Your files and API keys live on your machine.</span></div>
+          </li>
+          <li>
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 0 1 14 0"/><rect x="3" y="12" width="18" height="8" rx="2"/><path d="M12 16v1"/></svg>
+            <div><strong>No developer server</strong><span>We run nothing. There is no SnowRaven cloud.</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Features ───────────────────────── -->
+    <section class="features" id="features">
+      <div class="container">
+        <header class="section-head">
+          <p class="eyebrow"><span class="dot"></span>What's inside</p>
+          <h2>Seven tools, one quiet workspace</h2>
+          <p class="section-sub">Everything reads from the eBird and Macaulay Library exports you already have. No data entry, no busywork.</p>
+        </header>
+
+        <!-- 1. Weather & Tide -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 13a4 4 0 0 0-3.9-5 5 5 0 0 0-9 2.3A3.5 3.5 0 0 0 4 17h11"/><path d="M8 19v2M12 20v2M16 19v2"/></svg>
+            </span>
+            <h3>Weather &amp; Tide Lookup</h3>
+            <p>
+              Paste an eBird checklist ID and get a clean, ready-to-paste weather summary:
+              temperature, wind with its Beaufort description, humidity, dew point, and
+              sunrise and sunset. The same lookup fills in the historical tide from the
+              nearest NOAA station, observed or predicted, with the surrounding highs and
+              lows. Copy weather and tide together in one click.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="weather">
+            <img src="assets/shots/weather.webp" width="1080" height="1266"
+                 alt="The Weather tab showing a formatted weather summary and a tide block for a checklist at Jamaica Bay." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 2. Species Detail -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5a2 2 0 0 1 2-2h6v16H5a2 2 0 0 0-2 2z"/><path d="M21 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2z"/></svg>
+            </span>
+            <h3>Species Detail</h3>
+            <p>
+              Your complete history with any species. Sighting stats, breeding codes, the
+              species you most often see it with, field notes, top locations,
+              sightings-over-time graphs, a map of every observation, and your Macaulay
+              Library media, all in one view.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="species">
+            <img src="assets/shots/species.webp" width="1600" height="1000"
+                 alt="The Species Detail tab for Northern Cardinal, showing sightings, media counts, and breeding category." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 3. Statistics (dark mode shot) -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7"/><rect x="12" y="7" width="3" height="11"/><rect x="17" y="13" width="3" height="5"/></svg>
+            </span>
+            <h3>Statistics</h3>
+            <p>
+              A full analytics dashboard built from your own data: life-list totals and
+              growth, top species, firsts and milestones, temporal and geographic patterns,
+              effort and methodology, data quality, breeding stats, and media trends.
+            </p>
+            <p class="feature-tag">Light or dark, your choice. Dark mode shown.</p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="statistics-dark">
+            <img src="assets/shots/statistics-dark.webp" width="1600" height="1000"
+                 alt="The Statistics tab in dark mode, showing life-list totals and a growth chart." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 4. Map Explorer -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 4 6 2 6-2v14l-6 2-6-2-6 2V6z"/><path d="M9 4v14M15 6v14"/></svg>
+            </span>
+            <h3>Map Explorer</h3>
+            <p>
+              An interactive map of your sightings with an optional heatmap, nearby eBird
+              hotspots colored by whether you've visited them, media targets, and a California
+              Breeding Bird Atlas overlay. Switch between street, satellite, and topo basemaps, with a
+              hiking-trails layer.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot shot-swap" data-shot="map">
+            <img class="for-light" src="assets/shots/map.webp" width="1600" height="956"
+                 alt="The Map Explorer tab showing sighting clusters around New York and New Jersey on a street basemap." loading="lazy" />
+            <img class="for-dark" src="assets/shots/map-dark.webp" width="1500" height="896" alt="" loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 5. Multimedia -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 16-4.5-4.5L7 21"/></svg>
+            </span>
+            <h3>Multimedia</h3>
+            <p>
+              Your life list as a media checklist: photo, audio, and video coverage for every
+              species, so you can see at a glance what you still need to capture, with filters
+              and links straight to your Macaulay Library.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="multimedia">
+            <img src="assets/shots/multimedia.webp" width="1600" height="1000"
+                 alt="The Multimedia tab, a life-list table with photo, audio, video, and total media counts per species." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 6. Breeding Codes -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4c0 6 16 10 16 16M20 4C20 10 4 14 4 20"/><path d="M7 5h10M7 19h10M9 9h6M9 15h6"/></svg>
+            </span>
+            <h3>Breeding Codes</h3>
+            <p>
+              Every species you've recorded a breeding code for, laid out as a color-coded
+              matrix across all eBird codes. Sort and filter by tier to see exactly where your
+              breeding evidence stands.
+            </p>
+          </div>
+          <figure class="feature-media shot-slot" data-shot="breeding">
+            <img src="assets/shots/breeding.webp" width="1600" height="1000"
+                 alt="The Breeding Codes tab showing a species-by-code matrix with tier-colored count badges." loading="lazy" />
+          </figure>
+        </article>
+
+        <!-- 7. List Comparer (text-forward, no screenshot) -->
+        <article class="feature-row">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M6 9v6a3 3 0 0 0 3 3h3M18 15V9a3 3 0 0 0-3-3h-3"/><path d="m9 15-3 3 3 3M15 9l3-3-3-3" opacity=".55"/></svg>
+            </span>
+            <h3>List Comparer</h3>
+            <p>
+              Compare two life lists to see shared and unique species, or compare two
+              individual checklists side by side: counts with the higher total emphasized,
+              breeding codes, photo, audio, and video indicators, effort details, and
+              checklist and species comments.
+            </p>
+          </div>
+          <figure class="feature-media feature-mock" aria-hidden="true">
+            <div class="cmp">
+              <div class="cmp-head"><span>My list</span><span>Other list</span></div>
+              <div class="cmp-row"><span class="cmp-name">Northern Cardinal</span><span class="cmp-a win">12</span><span class="cmp-b">8</span></div>
+              <div class="cmp-row"><span class="cmp-name">Song Sparrow</span><span class="cmp-a">5</span><span class="cmp-b win">9</span></div>
+              <div class="cmp-row"><span class="cmp-name">Osprey</span><span class="cmp-a win">3</span><span class="cmp-b">1</span></div>
+              <div class="cmp-row only"><span class="cmp-name">Scarlet Tanager</span><span class="cmp-a win">2</span><span class="cmp-b">—</span></div>
+              <div class="cmp-row only"><span class="cmp-name">Bobolink</span><span class="cmp-a">—</span><span class="cmp-b win">4</span></div>
+            </div>
+          </figure>
+        </article>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Platforms ───────────────────────── -->
+    <section class="platforms" id="platforms">
+      <div class="container platforms-grid">
+        <div class="platforms-copy">
+          <p class="eyebrow"><span class="dot"></span>Runs where you do</p>
+          <h2>One app, everywhere you bird</h2>
+          <p>
+            Install the native desktop app on a Mac or Windows PC, or self-host it on a
+            Raspberry Pi (or any computer on your network) and open it from any browser. One
+            universal Mac build runs on both Apple Silicon and Intel, and the whole interface
+            is responsive, so it works on a phone or tablet too.
+          </p>
+          <ul class="platform-list">
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M16.4 12.6c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .7 1 1.4 2 2.4 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.7-.9 2.3-1.9c.7-1 1-2 1-2.1 0 0-2-.8-2.1-3zM14.6 5.7c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-1 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/></svg>
+              <span>macOS — universal .dmg</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3zM11.5 4.3 21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
+              <span>Windows — .exe installer</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/><path d="M8 13h.01M12 13h.01M16 13h.01"/></svg>
+              <span>Raspberry Pi / Linux — self-host</span>
+            </li>
+          </ul>
+        </div>
+        <figure class="phone-frame" aria-hidden="false">
+          <img src="assets/shots/statistics-mobile.webp" width="560" height="1198"
+               alt="SnowRaven Statistics on a phone-sized screen, showing the responsive layout." loading="lazy" />
+        </figure>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Install ───────────────────────── -->
+    <section class="install" id="install">
+      <div class="container">
+        <header class="section-head">
+          <p class="eyebrow"><span class="dot"></span>Get started</p>
+          <h2>Up and running in a few minutes</h2>
+        </header>
+        <div class="install-grid">
+          <div class="install-steps">
+            <article class="install-card">
+              <h3><span class="step-os">Mac</span></h3>
+              <p>Download the universal <code>.dmg</code> from the latest release, drag SnowRaven to Applications, then right-click the app and choose Open on first launch.</p>
+              <a class="btn btn-small" href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">Download for Mac</a>
+            </article>
+            <article class="install-card">
+              <h3><span class="step-os">Windows</span></h3>
+              <p>Download the <code>.exe</code> installer and run it. SmartScreen may warn about an unknown publisher, so choose More info, then Run anyway. In-app updates are cryptographically verified.</p>
+              <a class="btn btn-small" href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">Download for Windows</a>
+            </article>
+            <article class="install-card">
+              <h3><span class="step-os">Raspberry Pi / Linux</span></h3>
+              <p>Run one command on your Pi (or any Debian or Ubuntu machine). It handles packages, the build, the Python environment, and an optional auto-start service.</p>
+              <div class="terminal">
+                <div class="t-scroll">
+                  <span class="t-prompt">$</span>
+                  <code>curl -fsSL https://raw.githubusercontent.com/dtgibson/snowraven/main/install.sh | bash</code>
+                </div>
+                <button class="copy-cmd" type="button" aria-label="Copy install command" data-copy="curl -fsSL https://raw.githubusercontent.com/dtgibson/snowraven/main/install.sh | bash">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/></svg>
+                </button>
+              </div>
+            </article>
+          </div>
+
+          <aside class="requirements">
+            <h3>What you'll need</h3>
+            <p>Two free API keys, entered once in Settings:</p>
+            <ul>
+              <li>
+                <strong>eBird API key</strong> — free from
+                <a href="https://ebird.org/api/keygen" target="_blank" rel="noopener">ebird.org/api/keygen</a>.
+                Powers weather lookups and nearby-sighting features.
+              </li>
+              <li>
+                <strong>OpenWeather API key</strong> — free from
+                <a href="https://openweathermap.org" target="_blank" rel="noopener">openweathermap.org</a>,
+                subscribed to the One Call by Call plan.
+              </li>
+            </ul>
+            <p class="req-note">
+              Most analytics also use your own
+              <a href="https://ebird.org/downloadMyData" target="_blank" rel="noopener">eBird backup</a>
+              (a free export of your data) and an optional Macaulay Library export. They stay on your device.
+            </p>
+            <p class="req-note">Already installed? Desktop apps update from <strong>Check For Updates</strong> in the footer; self-hosted installs run <code>./update.sh</code>.</p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────────────── Closing CTA ───────────────────────── -->
+    <section class="closing band">
+      <div class="container closing-inner">
+        <h2>A personal project, shared freely</h2>
+        <p>SnowRaven began as a tool for one birder's own data, and it's shared here, open source and free, in case other birders find it useful. It works alongside eBird and the Macaulay Library, building on the exports they let you download so you can look at your own observations from new angles. There's nothing to sign up for, and nothing to buy.</p>
+        <div class="cta-row center">
+          <a class="btn btn-primary" href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">Download SnowRaven</a>
+          <a class="btn btn-secondary on-dark" href="https://github.com/dtgibson/snowraven" target="_blank" rel="noopener">View the source on GitHub</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ───────────────────────── Footer ───────────────────────── -->
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a class="brand" href="#top" aria-label="SnowRaven home">
+          <img class="brand-mark" src="assets/logo.svg" alt="" width="26" height="26" />
+          <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
+        </a>
+        <p>Birding tools for your eBird workflow. Built by <a href="https://github.com/dtgibson" target="_blank" rel="noopener">dtgibson</a>.</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="https://github.com/dtgibson/snowraven" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/dtgibson/snowraven/releases/latest" target="_blank" rel="noopener">Releases</a>
+        <a href="https://github.com/dtgibson/snowraven/blob/main/docs/HELP.md" target="_blank" rel="noopener">Documentation</a>
+        <a href="https://github.com/dtgibson/snowraven/blob/main/PRIVACY_POLICY.md" target="_blank" rel="noopener">Privacy Policy</a>
+        <a href="https://github.com/dtgibson/snowraven/blob/main/ACCESSIBILITY.md" target="_blank" rel="noopener">Accessibility</a>
+      </nav>
+    </div>
+    <div class="container footer-fine">
+      <p>
+        Weather by OpenWeather. Checklist and media data from eBird and the Macaulay Library.
+        Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
+        <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
+      </p>
+      <p class="footer-version">SnowRaven v0.5.17 · Free &amp; open source</p>
+    </div>
+  </footer>
+</body>
+</html>

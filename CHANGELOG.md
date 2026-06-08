@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## Website - 2026-06-07
+
+### Added
+- **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://dtgibson.github.io/snowraven/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
+
 ## [0.5.17] - 2026-06-07
 
 ### Added

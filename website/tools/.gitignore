@@ -1,0 +1,6 @@
+# Local-only screenshot tooling artifacts — never committed.
+node_modules/
+demo-data/
+shots/
+package.json
+package-lock.json
