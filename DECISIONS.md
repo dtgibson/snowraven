@@ -1163,3 +1163,31 @@ Both failures were active simultaneously with the missing `http:allow-fetch` sco
 - Entitlement `com.apple.security.personal-information.location` is required in `entitlements.plist` for CLLocationManager to work under hardened runtime.
 - Testing location always requires a production build with signing and the entitlement embedded. Dev mode shows `'dev-mode'` error immediately.
 - Web over HTTP shows `'insecure-context'` error — browsers silently deny geolocation on non-secure origins without any dialog.
+
+---
+
+## Performance: defer-mount + explicitly-invalidated shared caches + parse-once derivation — 2026-06-07 (v0.5.16)
+
+**Context:** An 8-way perf audit found redundant work at startup and per tab: every tab mounted at first paint (firing CSV parses, a synchronous breeding-code parse, and `/taxonomy/codes` posts even when landing on Weather), the ~20k-row backup and the ML export were each parsed independently by multiple tabs, and desktop fetches had no timeout.
+
+**Decisions:**
+- **Defer-mount everything but Weather.** Tabs mount on first open and stay mounted (`DEFERRED_TABS` + `mountedTabs` gate in `App.tsx`), moving startup data work off the first-paint critical path.
+- **Shared caches use EXPLICIT invalidation, not content-keying.** `observationsCache`/`mlExportCache` return the cached parse with no re-read or content compare; they're invalidated from Settings on the file's save/clear (generation guard against mid-flight invalidation). Settings is the only writer, so coverage is complete. (Earlier content-keying re-read the 6 MB file on every cache hit.)
+- **Parse once, derive the rest.** Breeding Codes derives from the shared observations parse (`deriveBreedingData`) instead of a second full CSV walk; an equivalence test locks it to `parseBreedingCodes`. Taxonomy downloads coalesce via an in-flight promise.
+- **All desktop fetches go through `lib/tauri/http.ts`** (a `tauriFetch` wrapper with an AbortController timeout) so a stalled network surfaces a typed error instead of hanging the spinner forever.
+
+**Implications:** New tabs are added to `DEFERRED_TABS` and gated. Any code path that writes a stored file MUST call the matching `clear*Cache()` (the cache no longer self-detects content changes). New desktop service calls import `tauriFetch` from `./http`, never the plugin directly.
+
+---
+
+## Tides: keyless NOAA, observed-else-predicted with hi/lo interpolation, bundled station list — 2026-06-07 (v0.5.17)
+
+**Context:** Add historical tide alongside the weather lookup. NOAA Tides & Currents (CO-OPS) is free and keyless, but its data model is uneven: reference stations have continuous predictions, subordinate stations only publish daily high/low events, and observed gauge data exists only for some stations/times.
+
+**Decisions:**
+- **Keyless, dual-runtime, independent of weather.** Backend `routers/tide` + `services/{noaa,tide,tide_stations}`; desktop `tideService` via the `/tide/` transport dispatch. The tide box loads concurrently with and independently of weather (one can succeed if the other fails).
+- **Observed else Predicted, with interpolation.** Prefer the observed gauge range over the checklist duration; otherwise predicted — continuous for reference stations, else **interpolate** between the surrounding high/low for subordinate stations (the common coastal case).
+- **Bundled station list, generated at build time** (`scripts/build-tide-stations.mjs` → JSON in both `frontend/src/assets` and `backend/staticdata`), so nearest-station selection needs no live catalog call.
+- **US-only with override.** Coarse US bounding boxes flag outside-US; >25 mi flags a far station; both are notices with a one-tap override, never hard blocks. PRIVACY_POLICY updated for the NOAA call.
+
+**Implications:** Regenerate the bundled station list (re-run the script) when refreshing NOAA stations. The tide formatter is split from the weather formatter's attribution so "Copy Weather and Tide Together" emits one SnowRaven credit with NOAA credited inline.

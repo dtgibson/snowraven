@@ -8,7 +8,13 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-48 versions shipped. Last shipped: **Standardized clickable bird-name format (v0.5.8)** -- every bird name app-wide now renders through a shared `<BirdName>`: common name links to its Species Detail entry, followed by eBird + Birds of the World favicons, with the scientific name where there's room. Clicking any name (Statistics, Map Explorer, Media List, Breeding Codes, Life List Comparer) jumps to that species' detail; where the name used to carry a link, the count/element takes it over. Birds not in your data show name + favicons without a dead link.
+57 versions shipped. Last shipped: **Tides on the Weather tab (v0.5.17)** -- a checklist lookup now also shows the historical tide below the weather, from the nearest NOAA station (keyless): the water-level range over the checklist, Observed (gauge) or Predicted (interpolated from the high/low curve for prediction-only stations), rising/falling, the surrounding high/low, and the station + distance. Two notices (too-far / outside-US) with a one-tap override, and a "Copy Weather and Tide Together" button.
+
+Earlier: **Performance sweep + Settings location & 5-mile default (v0.5.16)** -- app-wide loading/waiting reduction (defer-mount all tabs but Weather, parse-once shared caches, GL map markers + atlas viewport cap, network timeouts, idle-prefetched chunks) plus a boot skeleton, root error boundary, and progress indicators; "Use my location" in Settings and a 5-mile default map radius.
+
+Earlier (v0.5.9–v0.5.15): the **List Comparer** (life-list + checklist compare — counts, breeding codes, media, effort metadata, comments), in-app **Text Size** with WCAG resize support, chart accessibility + tested stats logic, and the Map Explorer media-filter fix.
+
+Earlier: **Standardized clickable bird-name format (v0.5.8)** -- every bird name app-wide now renders through a shared `<BirdName>`: common name links to its Species Detail entry, followed by eBird + Birds of the World favicons, with the scientific name where there's room. Clicking any name (Statistics, Map Explorer, Media List, Breeding Codes, List Comparer) jumps to that species' detail; where the name used to carry a link, the count/element takes it over. Birds not in your data show name + favicons without a dead link.
 
 Earlier: **Keyless basemap upgrade + layer switcher (v0.5.7)** -- maps now use a clean CARTO Positron base by default (off the OSMF-policy-fragile default OSM tiles), with a brand-styled switcher on Map Explorer + Species Detail for Map / Satellite (Esri) / Topo-US (USGS) bases and a Waymarked Trails overlay; choice persists; all keyless. (v0.5.5 universal Mac binary noted below was the prior release.)
 

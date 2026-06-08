@@ -5,6 +5,54 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Tides on the Weather tab (complete — June 2026, v0.5.17)
+
+Looking up a checklist on the Weather tab now also shows the historical tide
+below the weather, from the nearest NOAA station. Keyless (NOAA CO-OPS), dual
+runtime, concurrent + independent of the weather lookup.
+
+- Nearest NOAA station from a bundled US station list (3,241 stations:
+  `scripts/build-tide-stations.mjs` → `frontend/src/assets/noaa-tide-stations.json`
+  + `backend/staticdata/noaa_tide_stations.json`).
+- Water-level **range** over the checklist duration, labeled **Observed** (gauge)
+  else **Predicted** — continuous for reference stations, else high/low
+  **interpolation** for subordinate stations (the common coastal case); rising/
+  falling; surrounding hi/lo with local times; "turned during your checklist";
+  station name + id + distance; ft / MLLW.
+- Two notices with one-tap override: nearest station >25 mi, or checklist outside
+  US (coarse US bounding boxes). **"Copy Weather and Tide Together"** (one
+  SnowRaven attribution, NOAA credit inline).
+- Files: backend `routers/tide.py` + `services/{noaa,tide,tide_stations}.py` +
+  `formatters/tide.py`; desktop `lib/tauri/tideService.ts` via transport `/tide/`;
+  frontend `lib/tide.ts` / `lib/tideStations.ts` / `lib/tideFormatter.ts`;
+  `weatherFormatter` split into body/attribution. PRIVACY_POLICY updated (NOAA).
+
+### Settings: use-my-location + 5-mile default (complete — June 2026, v0.5.16)
+
+"Use my location" button in Settings (native CLLocationManager on desktop — see
+DECISIONS), default Map Explorer radius changed 25 → 5 miles, and the privacy
+label "Your Location". Reviewed, tested, audited.
+
+### Performance sweep (complete — June 2026, v0.5.16)
+
+App-wide loading/waiting reduction from an 8-way audit, plus progress indicators
+where waiting is unavoidable.
+
+- **Startup:** only the Weather tab mounts at first paint; all other tabs (and
+  their CSV/breeding/taxonomy/files work) defer to first open. Static `#root`
+  boot skeleton replaces the blank screen; root `ErrorBoundary`.
+- **Network:** every desktop service call times out (`lib/tauri/http.ts`) instead
+  of hanging; short-TTL caches for repeat eBird calls; map/updater loading
+  indicators.
+- **Parse-once + cache:** the ~20k-row backup is parsed once and shared
+  (`observationsCache` fast-path with explicit invalidation); a shared
+  `mlExportCache`; Breeding Codes derives from the shared parse
+  (`deriveBreedingData`, equivalence-tested); taxonomy downloads coalesce.
+- **Render:** Statistics progressive render; Map Explorer sighting pins → a
+  MapLibre GL circle layer + atlas viewport cap; heatmap slider repaints via a
+  paint expression; Life List table + name-normalization memoized.
+- **Bundle:** Help split out, heavy chunks idle-prefetched; labeled tab loaders.
+
 ### Standardized Bird-Name Format (complete — June 2026, v0.5.8)
 
 Every user-facing bird name renders through one shared component so the format
