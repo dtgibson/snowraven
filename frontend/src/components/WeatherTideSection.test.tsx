@@ -26,7 +26,7 @@ vi.mock('../lib/transport', async (orig) => {
   }
 })
 
-const copyMock = vi.fn(() => Promise.resolve(true))
+const copyMock = vi.fn<(...a: unknown[]) => Promise<boolean>>(() => Promise.resolve(true))
 vi.mock('../lib/clipboard', () => ({ copyText: (...a: unknown[]) => copyMock(...a) }))
 
 import { WeatherTideSection } from './WeatherTideSection'
