@@ -67,7 +67,7 @@ export function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWid
           borderRadius: 4, transition: 'width 0.3s',
         }} />
       </div>
-      <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: pctDisplay !== null ? 68 : 40, textAlign: 'right' }}>
+      <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: pctOf ? 68 : 40, textAlign: 'right' }}>
         {fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}
       </span>
     </div>

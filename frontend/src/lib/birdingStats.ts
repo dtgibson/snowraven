@@ -6,6 +6,7 @@ import type { ObservationEntry, ChecklistEntry } from '../types'
 import type { MLExportRow } from './parseMLExport'
 import { normalizeSpeciesName, isSpuhOrSlash } from './speciesUtils'
 import { BREEDING_CODE_MAP } from './breedingCodes'
+import { hasTideBlock, hasSnowravenWeatherBlock, hasRaincrowWeatherBlock } from './commentBlocks'
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
@@ -492,6 +493,28 @@ export function computeQuality(filteredObs: ObservationEntry[], checklists: Chec
   const checksWithComments = checklists.filter(c => c.checklistComments.trim().length > 0).length
   const obsWithSpeciesComments = filteredObs.filter(o => o.speciesComments.trim().length > 0).length
 
+  // Weather/tide blocks pasted into the checklist comment. SnowRaven blocks are
+  // identified by their SnowRaven credit and Raincrow blocks by their raincrow.app
+  // credit; "any weather" is a block from either app (the user's definition), so
+  // ordinary hand-written "Label: value" prose with no app credit is not counted.
+  // Tide blocks are SnowRaven-only. "weather + tide" = a SnowRaven weather block
+  // AND a tide block on the same checklist (the combined block, or both pasted).
+  let raincrowWeatherCount = 0, snowravenWeatherCount = 0, anyWeatherCount = 0
+  let snowravenTideCount = 0, snowravenWeatherAndTideCount = 0
+  for (const c of checklists) {
+    const comment = c.checklistComments
+    if (!comment || !comment.trim()) continue
+    const snowravenWeather = hasSnowravenWeatherBlock(comment)
+    const raincrowWeather = hasRaincrowWeatherBlock(comment)
+    const tide = hasTideBlock(comment)
+    if (snowravenWeather || raincrowWeather) anyWeatherCount++
+    if (snowravenWeather) snowravenWeatherCount++
+    if (raincrowWeather) raincrowWeatherCount++
+    if (tide) snowravenTideCount++
+    if (snowravenWeather && tide) snowravenWeatherAndTideCount++
+  }
+  const nChecklists = checklists.length
+
   return {
     numericCount,
     xCount,
@@ -502,6 +525,17 @@ export function computeQuality(filteredObs: ObservationEntry[], checklists: Chec
     commentRatio: checklists.length > 0 ? checksWithComments / checklists.length : null,
     obsWithSpeciesComments,
     speciesCommentRatio: filteredObs.length > 0 ? obsWithSpeciesComments / filteredObs.length : null,
+    weatherTideTotal: nChecklists,
+    raincrowWeatherCount,
+    snowravenWeatherCount,
+    anyWeatherCount,
+    snowravenTideCount,
+    snowravenWeatherAndTideCount,
+    raincrowWeatherRatio: nChecklists > 0 ? raincrowWeatherCount / nChecklists : null,
+    snowravenWeatherRatio: nChecklists > 0 ? snowravenWeatherCount / nChecklists : null,
+    anyWeatherRatio: nChecklists > 0 ? anyWeatherCount / nChecklists : null,
+    snowravenTideRatio: nChecklists > 0 ? snowravenTideCount / nChecklists : null,
+    snowravenWeatherAndTideRatio: nChecklists > 0 ? snowravenWeatherAndTideCount / nChecklists : null,
   }
 }
 

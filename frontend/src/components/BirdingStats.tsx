@@ -1399,6 +1399,28 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           </>
         )}
 
+        {(quality.anyWeatherCount > 0 || quality.snowravenTideCount > 0) && (
+          <>
+            <Divider />
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Weather &amp; tide blocks</p>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>of {fmt(quality.weatherTideTotal)} checklists</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <BarRow label="Any weather" value={quality.anyWeatherCount} max={quality.weatherTideTotal} pctOf={quality.weatherTideTotal} color="var(--sr-accent)" labelWidth={120} />
+                <BarRow label="Raincrow weather" value={quality.raincrowWeatherCount} max={quality.weatherTideTotal} pctOf={quality.weatherTideTotal} color="var(--sr-chart-slate)" labelWidth={120} />
+                <BarRow label="SnowRaven weather" value={quality.snowravenWeatherCount} max={quality.weatherTideTotal} pctOf={quality.weatherTideTotal} color="var(--sr-graph-photo)" labelWidth={120} />
+                <BarRow label="SnowRaven tide" value={quality.snowravenTideCount} max={quality.weatherTideTotal} pctOf={quality.weatherTideTotal} color="var(--sr-chart-blue-light)" labelWidth={120} />
+                <BarRow label="Weather + tide" value={quality.snowravenWeatherAndTideCount} max={quality.weatherTideTotal} pctOf={quality.weatherTideTotal} color="var(--sr-graph-video)" labelWidth={120} />
+              </div>
+              <p style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', margin: '8px 0 0', lineHeight: 1.4 }}>
+                Detected from SnowRaven/Raincrow blocks pasted into the checklist comment. "Any weather" counts a block from either app; Raincrow blocks are recognized by their raincrow.app credit, SnowRaven blocks by their SnowRaven credit. Tide blocks are SnowRaven-only; "Weather + tide" means a checklist carrying both a SnowRaven weather block and a tide block.
+              </p>
+            </div>
+          </>
+        )}
+
       </SectionCard>
 
       {/* ── Highlights & Records ───────────────────────────────────────────── */}

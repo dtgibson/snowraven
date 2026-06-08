@@ -159,6 +159,8 @@ How you bird, measured. **Totals** lead the section — total time afield (also 
 
 The consistency and completeness of your data: the ratio of numeric counts to X/presence-only records, and your comment coverage (checklist and species comments). (Record counts and rarity lists moved to Highlights & Records.)
 
+If any of your checklist comments contain a weather or tide block (the kind SnowRaven or Raincrow pastes in), a **Weather & tide blocks** breakdown also appears, showing the number and percentage of checklists that carry: **any weather** block (the total), **Raincrow weather**, **SnowRaven weather**, **SnowRaven tide**, and **weather + tide** (a SnowRaven weather block and a tide block on the same checklist). A weather block from either app counts toward "any weather"; Raincrow blocks are recognized by their raincrow.app credit and SnowRaven blocks by their SnowRaven credit. Tide blocks are SnowRaven-only. The breakdown is hidden if none of your checklists carry these blocks.
+
 ### Highlights & Records
 
 Your notable stats in one place: biggest single day, longest consecutive streak of days with any report, longest dry spell between reports, Shannon diversity index (a measure of evenness across species, from your numeric counts), biggest single counts (your largest flocks), Single-Checklist Birds (species recorded on exactly one checklist, excluding one-and-done), and One-and-Done Birds (species with a total individual count of exactly 1). Where applicable, entries link to the relevant checklist.
