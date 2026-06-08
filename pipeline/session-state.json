@@ -1,15 +1,17 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 14,
-  "sessionType": "feature",
-  "currentStage": 9,
-  "lastCompletedStage": 9,
-  "lastCheckpointStatus": "complete",
+  "activeFeature": "weather-info-copy",
+  "sessionNumber": 15,
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "pipeline/weather-info-copy/change-brief.md"
+  ],
   "releasedVersion": "0.5.17",
   "lastFeature": "Tides on the Weather tab (shipped v0.5.17), batched with the 0.5.16 performance sweep + Settings location/5-mile default. All three deployed together from the Mac: merged improve/performance -> main, tagged v0.5.17, Windows CI green, ./release.sh published (macOS notarized universal, Windows signed, latest.json all 3 platforms). Health-checked live. weather-tides feature closed out (Stage 9 Chronicler: PRODUCT_CONTEXT/DECISIONS/ROADMAP updated; DEPLOY-PENDING ledgers deleted).",
   "remainingBacklog": "From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. ROADMAP Up Next: mobile app; accessibility & simplification; Windows code signing.",
-  "createdAt": "2026-06-07T20:12:00Z",
-  "updatedAt": "2026-06-08T01:18:53Z"
+  "createdAt": "2026-06-08T16:19:56Z",
+  "updatedAt": "2026-06-08T16:35:02Z"
 }

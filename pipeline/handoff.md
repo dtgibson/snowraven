@@ -1,56 +1,43 @@
-# Handoff — weather-tides — PAUSED before deploy (ship 0.5.17 on the Mac)
+# Handoff — weather-info-copy — PAUSED before deploy
 
 ## What We Accomplished
 
-Built the Tides feature: looking up a checklist on the Weather tab now also shows
-the historical tide below it, from the nearest NOAA station — observed when a
-gauge reading exists, otherwise predicted (interpolated from the high/low curve
-for prediction-only stations), with the surrounding high/low, rising/falling, the
-station and its distance, and a "Copy Weather and Tide Together" button. Keyless,
-both runtimes, two notices (too-far / outside-US) with a one-tap override. Taken
-through Strategist → Auditor: built, tested (468 frontend + 102 backend, live
-NOAA verified), and security-audited clean. Paused before the deploy step so it
-ships from the Mac with the rest of the batch as **0.5.17**.
+Reworded the Weather tab's helper text (the line under the lookup button) to surface
+the auto-copy behavior and reword the tide note:
+
+- **Before:** "Tide information is also shown below if available."
+- **After:** "Weather information is automatically copied to the clipboard on a successful
+  lookup. Tidal information will also be shown below if available."
+
+Scoped (Evaluator), built (Engineer), tested (Tester — 468 frontend tests green, no
+regressions, no test pinned the old string), and security-audited clean (Auditor — plain
+React-escaped text, no new surface). Paused before deploy to batch the actual release with
+more upcoming work.
 
 ## What Has Been Saved
 
-All committed and pushed to `origin/improve/performance`:
+Working-tree changes (UNCOMMITTED — see note in Resume):
+- `frontend/src/App.tsx` — helper text reworded (one `<p>`)
+- `pipeline/weather-info-copy/change-brief.md` — the change brief
+- `pipeline/session-state.json` — paused at Stage 5
+- `pipeline/handoff.md` — this file
 
-- `weather-tides` pipeline docs (strategic-brief, prd, schema, design-spec,
-  design.html, qa-report, security-report)
-- Frontend: `lib/tide.ts`, `lib/tideStations.ts`, `lib/tideFormatter.ts` (+ tests),
-  `lib/tauri/tideService.ts`, `lib/transport.ts`, `lib/weatherFormatter.ts`,
-  `App.tsx`, `assets/noaa-tide-stations.json`
-- Backend: `routers/tide.py`, `services/{noaa,tide,tide_stations}.py`,
-  `formatters/tide.py`, `main.py`, `staticdata/noaa_tide_stations.json`, tide tests
-- `scripts/build-tide-stations.mjs`
-- Docs/version: CHANGELOG (0.5.17), PRIVACY_POLICY (NOAA), HELP, README,
-  package.json + tauri.conf.json (0.5.17)
-- `pipeline/DEPLOY-PENDING.md` — the single ledger for the 0.5.17 batch
+No version bump, no CHANGELOG entry, nothing committed or deployed yet — all deliberately
+deferred to the batched release.
 
 ## Where We Are
 
-Stage 8, The Deployer — paused by choice. Stages 1–7 complete and approved.
-Three efforts (0.5.16 perf, settings-location, tides) are batched as **0.5.17**,
-to deploy from the Mac next session.
+Stage 5, The Deployer — paused by choice, before deploying. Stages 1–4 (Evaluator,
+Engineer, Tester, Auditor) complete and approved. Improve lane (maintain), session 15.
 
 ## Resume Prompt
 
-To resume: run `/weft` on the Mac.
+To resume: run `/weft`. It reads the saved state and picks up at The Deployer.
 
-- **Deploy (Mac):** follow `pipeline/DEPLOY-PENDING.md` — confirm version 0.5.17,
-  merge to main if applicable, push the `v0.5.17` tag, wait for Windows CI, run
-  `./release.sh`.
-- **Then finish the feature:** `/weft` resumes `weather-tides` at Stage 8
-  (Deployer, confirm live) → Stage 9 (Chronicler: PRODUCT_CONTEXT / DECISIONS /
-  ROADMAP) → close out.
-
-Local web run (any machine): `cd frontend && npm run build`, then
-`cd backend && .venv/bin/uvicorn main:app --port 1620` → http://localhost:1620.
-
----
-
-Project: snowraven. Feature: weather-tides (Feature lane, session 14). Last
-completed stage: 7 (Auditor). Current stage: 8 (Deployer), paused. Branch
-`improve/performance`, pushed. Batched as 0.5.17 with the parked 0.5.16 work.
-Deploy ledger: pipeline/DEPLOY-PENDING.md.
+- The change is currently **uncommitted in the working tree**. Before deploying from the
+  Mac, commit + push it (on its own or batched with the other work) so it syncs across
+  machines.
+- Deploy = bump version (0.5.17 → 0.5.18, or whatever the batch lands on) in BOTH
+  `frontend/package.json` and `src-tauri/tauri.conf.json`, update `CHANGELOG.md`, then
+  `./release.sh` from the Mac (web/Pi update on a plain `git pull`). Then Stage 6
+  (Chronicler) and close out.

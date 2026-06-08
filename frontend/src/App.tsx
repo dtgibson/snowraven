@@ -688,7 +688,7 @@ export default function App() {
           </div>
 
           <p style={{ marginTop: 8, marginBottom: 0, fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
-            Tide information is also shown below if available.
+            Weather information is automatically copied to the clipboard on a successful lookup. Tidal information will also be shown below if available.
           </p>
 
           {hasError && (
