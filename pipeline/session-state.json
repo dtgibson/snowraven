@@ -1,17 +1,15 @@
 {
-  "activeFeature": "quality-accessibility-sweep",
+  "activeFeature": null,
   "sessionNumber": 15,
   "sessionType": "maintain",
-  "currentStage": 2,
-  "lastCompletedStage": 1,
-  "lastCheckpointStatus": "in-progress",
+  "currentStage": null,
+  "lastCompletedStage": null,
+  "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "pipeline/quality-accessibility-sweep/change-brief.md"
-  ],
+  "confirmedArtifacts": [],
   "releasedVersion": "0.5.17",
-  "lastFeature": "Tides on the Weather tab (shipped v0.5.17), batched with the 0.5.16 performance sweep + Settings location/5-mile default. All three deployed together from the Mac: merged improve/performance -> main, tagged v0.5.17, Windows CI green, ./release.sh published (macOS notarized universal, Windows signed, latest.json all 3 platforms). Health-checked live. weather-tides feature closed out (Stage 9 Chronicler: PRODUCT_CONTEXT/DECISIONS/ROADMAP updated; DEPLOY-PENDING ledgers deleted).",
-  "remainingBacklog": "PENDING NEXT RELEASE (built/tested/audited on main, undeployed): comparer-weather-badges \u2014 Checklist Comparer media/breeding/weather/tide badges + side-by-side fresh weather & tide section (0.5.18). Stages 1-7 done (Strategist..Auditor); Deployer + Chronicler pending. Batches with the weather-info-copy helper-text change. Deploy 0.5.18 from the Mac (release.sh); then Chronicler (PRODUCT_CONTEXT/DECISIONS/ROADMAP) + update website/ for the comparer feature. || PENDING NEXT RELEASE (committed to main, undeployed): weather-info-copy \u2014 Weather-tab helper text reworded to mention weather auto-copy + tides (commit 6c1c1ea). Add to CHANGELOG and chronicle (PRODUCT_CONTEXT) at the next release/version bump. || From pipeline/comprehensive-review/audit.md: keyboard-operable map markers; split oversized components; unify day-first date formats; grow component test coverage. ROADMAP Up Next: mobile app; accessibility & simplification; Windows code signing.",
+  "lastFeature": "quality-accessibility-sweep (maintain lane) — COMPLETE on main, undeployed (0.5.18 batch). 5 items: (1) canonical lib/formatDate.ts + Settings date-format picker (month-first default/day-first/ISO); (2) component-test coverage — found already shipped in v0.5.11, verified not redone; (3) accessibility/simplification/onboarding — found already shipped in v0.5.11, verified not redone; (4) keyboard-operable map markers via focusable in-view sidebar lists wired to the same popup; (5) component splits (behavior-preserving, in place): BirdingStats 2036->1893, SpeciesDetail 1793->1461, MapExplorer 2249->1515 into lib/ + statsPrimitives/speciesDetail/map dirs. All CI-green, 561 frontend tests.",
+  "remainingBacklog": "PENDING NEXT RELEASE (built/tested/CI-green on main, undeployed) — the 0.5.18 batch ships together from the Mac (push v0.5.18 tag -> Windows CI -> ./release.sh; then Chronicler + website/ update for the user-facing parts): (1) comparer-weather-badges — Checklist Comparer media/breeding/weather/tide badges + side-by-side fresh weather & tide section, no auto-copy. (2) weather-info-copy — Weather-tab helper text reworded (auto-copy + tides), commit 6c1c1ea. (3) date-format picker — lib/formatDate.ts + Settings Date format control (month-first default). (4) keyboard-operable map markers — in-view focusable sidebar lists (Sightings/Hotspots in view). (5) component splits — BirdingStats/SpeciesDetail/MapExplorer split in place (behavior-preserving). CHANGELOG 0.5.18 covers all five. Chronicler at deploy: PRODUCT_CONTEXT/DECISIONS/ROADMAP for the comparer + date picker + keyboard markers (splits are internal); update website/ List Comparer description. || NOTE: audit.md items 'accessibility & simplification' and 'grow component test coverage' were found already shipped in v0.5.11 — verified, dropped (not redone). || ROADMAP Up Next: mobile app; Windows code signing.",
   "createdAt": "2026-06-08T19:43:39Z",
-  "updatedAt": "2026-06-08T19:43:39Z"
+  "updatedAt": "2026-06-08T21:00:00Z"
 }
