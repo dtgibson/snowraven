@@ -245,6 +245,10 @@ Toolbar options:
 
 County and date-range filters appear in the toolbar when county data is available. These filters narrow which observations are counted for each species.
 
+### Media Comments
+
+Below the species table, a **Media Comments** section surfaces the notes attached to your Macaulay Library uploads — the asset **Caption**, **Media notes**, and the **Observation Details** carried over from the eBird checklist. It shows the most recent comments, with a keyword filter, a Newest/Oldest sort, and a "Show all" control — just like the comments box on Species Detail. Each entry shows the species, the media type (photo/audio/video), the date and place, the comment (with a small label for which field it came from), and a link to that asset on the Macaulay Library. The filter matches across all three comment fields. The section only appears when your ML export actually contains comments.
+
 ---
 
 ## Breeding Codes

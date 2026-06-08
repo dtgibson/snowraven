@@ -10,6 +10,12 @@ export interface MLExportRow {
   county: string | null
   latitude: number | null
   longitude: number | null
+  // Free-text fields (optional; '' when the column is absent or blank). The ML
+  // export carries up to three: the asset Caption, the Media notes, and the
+  // Observation Details (the eBird observation comment carried onto the media row).
+  caption: string
+  mediaNotes: string
+  observationDetails: string
 }
 
 export interface MLExportResult {
@@ -42,23 +48,33 @@ export function aggregateMLRows(rows: MLExportRow[]): LifeListEntry[] {
     })
 }
 
-function parseCSVLine(line: string): string[] {
-  const result: string[] = []
+// Record-aware CSV tokenizer: splits the whole text into records (rows of
+// fields), treating commas and newlines inside double-quotes as literal. This is
+// required because comment fields (Observation Details / Media notes / Caption)
+// can contain embedded newlines; a line-by-line split would truncate them.
+function parseCSVRecords(text: string): string[][] {
+  const records: string[][] = []
+  let row: string[] = []
   let field = ''
   let inQuotes = false
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') { field += '"'; i++ }
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (ch === '"') {
+      if (inQuotes && text[i + 1] === '"') { field += '"'; i++ }
       else inQuotes = !inQuotes
-    } else if (char === ',' && !inQuotes) {
-      result.push(field); field = ''
+    } else if (ch === ',' && !inQuotes) {
+      row.push(field); field = ''
+    } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+      if (ch === '\r' && text[i + 1] === '\n') i++ // CRLF → one boundary
+      row.push(field); field = ''
+      records.push(row); row = []
     } else {
-      field += char
+      field += ch
     }
   }
-  result.push(field)
-  return result
+  row.push(field)
+  records.push(row)
+  return records
 }
 
 function col(cols: string[], idx: number): string {
@@ -78,11 +94,13 @@ function normalizeSpeciesName(name: string): string {
 const VALID_FORMATS = new Set(['Photo', 'Audio', 'Video'])
 
 export function parseMLExport(text: string): MLExportResult {
-  const lines = text.split(/\r?\n/)
-  const headerLine = lines[0]?.trim()
-  if (!headerLine) throw new Error('INVALID_ML_EXPORT')
+  const records = parseCSVRecords(text)
+  const headerRow = records[0]
+  if (!headerRow || (headerRow.length === 1 && headerRow[0].trim() === '')) {
+    throw new Error('INVALID_ML_EXPORT')
+  }
 
-  const headers = parseCSVLine(headerLine).map(h =>
+  const headers = headerRow.map(h =>
     h.trim().replace(/^"|"$/g, '').toLowerCase()
   )
 
@@ -93,10 +111,15 @@ export function parseMLExport(text: string): MLExportResult {
   const scientificNameIdx = headers.findIndex(h => h === 'scientific name')
   const formatIdx         = headers.findIndex(h => h === 'format')
   const dateIdx           = headers.findIndex(h => h === 'date')
-  const locationIdx       = headers.findIndex(h => h === 'location')
+  // A real ML export names this column "Locality"; older/synthetic files use
+  // "Location". Accept either so the location field (and county resolution) work.
+  const locationIdx       = headers.findIndex(h => h === 'location' || h === 'locality')
   const countyIdx         = headers.findIndex(h => h === 'county')
   const latitudeIdx       = headers.findIndex(h => h === 'latitude')
   const longitudeIdx      = headers.findIndex(h => h === 'longitude')
+  const captionIdx        = headers.findIndex(h => h === 'caption')
+  const mediaNotesIdx     = headers.findIndex(h => h === 'media notes')
+  const obsDetailsIdx     = headers.findIndex(h => h === 'observation details')
 
   if (catalogIdx === -1 || commonNameIdx === -1 || formatIdx === -1) {
     throw new Error('INVALID_ML_EXPORT')
@@ -107,10 +130,9 @@ export function parseMLExport(text: string): MLExportResult {
   const speciesMap = new Map<string, Entry>()
   const mlRows: MLExportRow[] = []
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-    const cols = parseCSVLine(line)
+  for (let i = 1; i < records.length; i++) {
+    const cols = records[i]
+    if (cols.length === 1 && cols[0].trim() === '') continue // blank line
 
     const rawId = col(cols, catalogIdx).replace(/^ML/i, '').trim()
     if (!rawId || !/^\d+$/.test(rawId)) continue
@@ -147,6 +169,9 @@ export function parseMLExport(text: string): MLExportResult {
       county:   countyIdx   >= 0 ? (col(cols, countyIdx) || null) : null,
       latitude:  rawLat && !Number.isNaN(latNum) ? latNum : null,
       longitude: rawLng && !Number.isNaN(lngNum) ? lngNum : null,
+      caption:            captionIdx    >= 0 ? col(cols, captionIdx)    : '',
+      mediaNotes:         mediaNotesIdx >= 0 ? col(cols, mediaNotesIdx) : '',
+      observationDetails: obsDetailsIdx >= 0 ? col(cols, obsDetailsIdx) : '',
     })
   }
 

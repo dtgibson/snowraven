@@ -121,3 +121,49 @@ describe('parseMLExport', () => {
     expect(() => parseMLExport('')).toThrow('INVALID_ML_EXPORT')
   })
 })
+
+describe('parseMLExport — comment fields + Locality', () => {
+  // Real ML exports name the place column "Locality" and carry three free-text
+  // columns the parser now surfaces.
+  const FULL = 'ML Catalog Number,Common Name,Scientific Name,Format,Date,Locality,County,Caption,Media notes,Observation Details'
+  const full = (...rows: string[]) => [FULL, ...rows].join('\n')
+
+  it('reads Caption / Media notes / Observation Details into the row', () => {
+    const { rows } = parseMLExport(full(
+      'ML111,American Robin,Turdus migratorius,Photo,2024-05-12,Garret Mountain,Passaic,"Nice light","backlit","Two juveniles, with yellow gapes, following an adult"',
+    ))
+    expect(rows).toHaveLength(1)
+    expect(rows[0].caption).toBe('Nice light')
+    expect(rows[0].mediaNotes).toBe('backlit')
+    expect(rows[0].observationDetails).toBe('Two juveniles, with yellow gapes, following an adult') // quoted commas preserved
+  })
+
+  it('resolves the Locality column into the location field', () => {
+    const { rows } = parseMLExport(full(
+      'ML111,American Robin,Turdus migratorius,Photo,2024-05-12,Garret Mountain Reservation,Passaic,,,',
+    ))
+    expect(rows[0].location).toBe('Garret Mountain Reservation')
+  })
+
+  it('still accepts the legacy "Location" header', () => {
+    const text = ['Catalog Number,Common Name,Scientific Name,Format,Location', '111,American Robin,Turdus migratorius,Photo,Some Park'].join('\n')
+    expect(parseMLExport(text).rows[0].location).toBe('Some Park')
+  })
+
+  it('preserves a comment that spans multiple lines (quoted newline)', () => {
+    const text = [
+      FULL,
+      'ML111,American Robin,Turdus migratorius,Photo,2024-05-12,Garret Mountain,Passaic,,,"First line of the note.\nSecond line, same field."',
+    ].join('\n')
+    const { rows } = parseMLExport(text)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].observationDetails).toBe('First line of the note.\nSecond line, same field.')
+  })
+
+  it('defaults comment fields to empty string when the columns are absent', () => {
+    const { rows } = parseMLExport(['Catalog Number,Common Name,Scientific Name,Format', '111,American Robin,Turdus migratorius,Photo'].join('\n'))
+    expect(rows[0].caption).toBe('')
+    expect(rows[0].mediaNotes).toBe('')
+    expect(rows[0].observationDetails).toBe('')
+  })
+})

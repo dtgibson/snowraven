@@ -12,3 +12,9 @@ export function mlCatalogLink(mediaType: MediaType, taxonCode: string | undefine
   if (userId) url += `&userId=${userId}`
   return url
 }
+
+/** Deep link to a single Macaulay Library asset by its catalog id (digits only,
+ *  ML prefix already stripped by the parser). */
+export function mlAssetUrl(catalogId: string): string {
+  return `https://macaulaylibrary.org/asset/${encodeURIComponent(catalogId)}`
+}

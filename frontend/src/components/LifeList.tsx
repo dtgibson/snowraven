@@ -10,6 +10,7 @@ import type { MLExportRow } from '../lib/parseMLExport'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { LifeListTable } from './LifeListTable'
+import { MediaCommentsSection } from './MediaCommentsSection'
 import type { MediaFilterState, SortState, DateRangeState, ObservationEntry } from '../types'
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
 import { transport } from '../lib/transport'
@@ -146,6 +147,13 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const [countyResolution, setCountyResolution] = useState<'idle' | 'resolving' | 'done'>('idle')
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
+
+  // Normalized eBird backbone names — used to decide whether a media-comment
+  // species links to Species Detail (only species the user has actually recorded).
+  const backboneNames = useMemo(
+    () => new Set(rawEbirdObs.map(o => normalizeSpeciesName(o.commonName))),
+    [rawEbirdObs],
+  )
 
   useEffect(() => {
     if (requestedFilter !== 'is-target') return
@@ -676,6 +684,13 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         wideMode={wideMode}
         onOpenSpecies={onOpenSpecies}
         hasEbirdBackbone={phase.tag === 'ready' && phase.hasEbirdBackbone}
+      />
+
+      <MediaCommentsSection
+        rows={rawRows}
+        backboneNames={backboneNames}
+        taxonMap={taxonMap}
+        onOpenSpecies={onOpenSpecies}
       />
     </div>
   )
