@@ -1,7 +1,7 @@
 name: Deploy website to GitHub Pages
 
 # Publishes the static showcase site in website/ to GitHub Pages
-# (live at https://dtgibson.github.io/snowraven/).
+# (live at https://snowraven.dtgibson.com/).
 # Pages Source is "GitHub Actions"; the Configure Pages step below re-enables it
 # automatically (enablement: true) if it is ever turned off. Every push to main
 # that touches website/ redeploys.

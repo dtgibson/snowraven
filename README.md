@@ -4,7 +4,7 @@ Birding analytics and tools for your eBird workflow — as a standalone Mac or W
 
 SnowRaven turns your own eBird and Macaulay Library exports into a personal birding dashboard: weather for your checklists, deep per-species history, life-list analytics, media-coverage tracking, breeding-code history, and an interactive map — all running on your own device, with your own data.
 
-**See it in action:** the [SnowRaven website](https://dtgibson.github.io/snowraven/) walks through every feature with screenshots.
+**See it in action:** the [SnowRaven website](https://snowraven.dtgibson.com/) walks through every feature with screenshots.
 
 ## What it does
 
