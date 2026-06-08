@@ -1,8 +1,10 @@
 name: Deploy website to GitHub Pages
 
-# Publishes the static showcase site in website/ to GitHub Pages.
-# One-time setup: repo Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
-# After that, every push to main that touches website/ redeploys automatically.
+# Publishes the static showcase site in website/ to GitHub Pages
+# (live at https://dtgibson.github.io/snowraven/).
+# Pages Source is "GitHub Actions"; the Configure Pages step below re-enables it
+# automatically (enablement: true) if it is ever turned off. Every push to main
+# that touches website/ redeploys.
 
 on:
   push:
