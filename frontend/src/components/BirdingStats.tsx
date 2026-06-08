@@ -9,7 +9,6 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, Legend,
 } from 'recharts'
 import { Marker, Popup } from 'react-map-gl/maplibre'
-import type { Map as MaplibreMap } from 'maplibre-gl'
 import { SnowMap } from './SnowMap'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
@@ -32,6 +31,9 @@ import { formatDate as fmtDate } from '../lib/formatDate'
 import type { ObservationEntry, ChecklistEntry } from '../types'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
+import { fmt, sectionSlug, formatDuration, mlCatalogUrl } from '../lib/statsFormat'
+import { fitToPins } from '../lib/fitBounds'
+import { SectionCard, StatCell, BarRow, Divider, SubLabel, RankIcon } from './statsPrimitives'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,33 +53,7 @@ const EMPTY_OBS: ObservationEntry[] = []
 const EMPTY_ML: MLExportRow[] = []
 const SESSION_NOW_MS = Date.now()
 const SUBMISSION_ID_RE = /^S\d+$/
-
-// Spell a total duration (minutes) into yr/mo/day/hr/min, largest non-zero units
-// only (eBird durations are minute-granular, so seconds never apply).
-function formatDuration(totalMin: number): string {
-  let m = Math.round(totalMin)
-  const yr = Math.floor(m / 525600); m -= yr * 525600
-  const mo = Math.floor(m / 43200); m -= mo * 43200
-  const day = Math.floor(m / 1440); m -= day * 1440
-  const hr = Math.floor(m / 60); m -= hr * 60
-  const parts: string[] = []
-  if (yr) parts.push(`${yr} yr${yr !== 1 ? 's' : ''}`)
-  if (mo) parts.push(`${mo} mo`)
-  if (day) parts.push(`${day} day${day !== 1 ? 's' : ''}`)
-  if (hr) parts.push(`${hr} hr${hr !== 1 ? 's' : ''}`)
-  if (m) parts.push(`${m} min`)
-  return parts.length ? parts.join(', ') : '0 min'
-}
 const ML_USER_RE = /^ML__.*_([A-Za-z0-9]+)\.csv$/i
-
-function mlCatalogUrl(name: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null, taxonCode?: string | null): string {
-  const mt = type.toLowerCase()
-  const userSuffix = userId ? `&userId=${encodeURIComponent(userId)}` : ''
-  if (taxonCode) {
-    return `https://search.macaulaylibrary.org/catalog?mediaType=${mt}&taxonCode=${encodeURIComponent(taxonCode)}${userSuffix}`
-  }
-  return `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(name)}&mediaType=${mt}${userSuffix}`
-}
 
 const PROTOCOL_COLORS = [
   'var(--sr-accent)',
@@ -86,18 +62,6 @@ const PROTOCOL_COLORS = [
   'var(--sr-graph-audio)',
   'var(--sr-chart-slate)',
 ]
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function fmt(n: number, decimals = 0): string {
-  return n.toLocaleString(undefined, { maximumFractionDigits: decimals })
-}
-
-// ── Sub-components ────────────────────────────────────────────────────────────
-
-function sectionSlug(title: string): string {
-  return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-}
 
 // Always-present sections, in render order (through Breeding Stats). The two
 // trailing sections — "Media" (only when an ML export is loaded) and the always-
@@ -108,113 +72,6 @@ const NAV_SECTIONS = [
   'Geographic Stats', 'Effort & Outings', 'Data Quality', 'Highlights & Records',
   'Breeding Stats',
 ]
-
-function SectionCard({ children, title, icon }: {
-  children: React.ReactNode; title: string; icon: React.ReactNode
-}) {
-  return (
-    <div id={sectionSlug(title)} style={{
-      scrollMarginTop: 16,
-      background: 'var(--sr-surface)',
-      border: '1px solid var(--sr-border)',
-      borderRadius: 12,
-      padding: 'clamp(14px, 4vw, 24px)',
-      boxShadow: 'var(--sr-card-shadow)',
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        marginBottom: 20, paddingBottom: 16,
-        borderBottom: '1px solid var(--sr-border-subtle)',
-      }}>
-        <span style={{ color: 'var(--sr-accent)' }}>{icon}</span>
-        <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0 }}>{title}</h3>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function StatCell({ label, value, sub, large = true }: {
-  label: string; value: string | number; sub?: string; large?: boolean
-}) {
-  return (
-    <div style={{ padding: '12px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-      <span style={{
-        fontSize: large ? '1.75rem' : '1.375rem',
-        fontWeight: 700,
-        letterSpacing: '-0.02em',
-        color: 'var(--sr-text)',
-        lineHeight: 1,
-      }}>
-        {typeof value === 'number' ? fmt(value) : value}
-      </span>
-      {sub && <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sub}</span>}
-      <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{label}</span>
-    </div>
-  )
-}
-
-function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWidth = 44, pctOf }: {
-  label: string; value: number; max: number; color?: string; labelWidth?: number; pctOf?: number
-}) {
-  const pct = max > 0 ? (value / max) * 100 : 0
-  const pctDisplay = pctOf && pctOf > 0 && value > 0 ? Math.round(value / pctOf * 100) : null
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-      <span style={{
-        fontSize: '0.6875rem', color: 'var(--sr-text-muted)',
-        textAlign: 'right', flexShrink: 0, width: labelWidth,
-      }}>{label}</span>
-      <div style={{
-        flex: 1, height: 8, borderRadius: 4,
-        background: 'var(--sr-surface-subtle)', overflow: 'hidden',
-      }}>
-        <div style={{
-          height: '100%', width: `${pct}%`, background: color,
-          borderRadius: 4, transition: 'width 0.3s',
-        }} />
-      </div>
-      <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: pctDisplay !== null ? 68 : 40, textAlign: 'right' }}>
-        {fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}
-      </span>
-    </div>
-  )
-}
-
-function Divider() {
-  return <div style={{ height: 1, background: 'var(--sr-border-subtle)', margin: '16px 0' }} />
-}
-
-function SubLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: '0 0 10px' }}>
-      {children}
-    </p>
-  )
-}
-
-function RankIcon({ rank, shape }: { rank: number; shape: 'circle' | 'square' }) {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: 'block', cursor: 'pointer' }}>
-      {shape === 'circle'
-        ? <circle cx="12" cy="12" r="11" fill="#2D8653" />
-        : <rect x="1" y="1" width="22" height="22" rx="3" fill="#3B82F6" />}
-      <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="700" fontFamily="system-ui,sans-serif">{rank}</text>
-    </svg>
-  )
-}
-
-/** Fit the map to all pins once it's loaded (replaces the Leaflet bounds-fitter). */
-function fitToPins(map: MaplibreMap, pins: { lat: number; lng: number }[]) {
-  if (pins.length === 0) return
-  if (pins.length === 1) { map.easeTo({ center: [pins[0].lng, pins[0].lat], zoom: 11, duration: 0 }); return }
-  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity
-  for (const p of pins) {
-    minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng)
-    minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat)
-  }
-  map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 28, duration: 0 })
-}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
