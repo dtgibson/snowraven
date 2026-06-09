@@ -1,0 +1,59 @@
+// @vitest-environment jsdom
+//
+// Smoke + content test for the richer Media-card sections. Renders against a
+// computeMediaStats result (the real data shape) and asserts the section
+// headings and key figures appear, plus the empty-state null render. Guards
+// against runtime render crashes in the demographic/behavior/ratings JSX.
+
+import { describe, it, expect, afterEach } from 'vitest'
+import { render, screen, cleanup } from '@testing-library/react'
+import { MediaStatsSections } from './MediaStatsSections'
+import { computeMediaStats } from '../lib/mediaStats'
+import type { MLExportRow } from '../lib/parseMLExport'
+
+afterEach(cleanup)
+
+function row(p: Partial<MLExportRow> & { catalogId: string }): MLExportRow {
+  return {
+    commonName: 'American Robin', scientificName: 'Turdus migratorius',
+    format: 'Photo', date: '2024-05-01', location: 'Loc', county: null,
+    latitude: null, longitude: null, caption: '', mediaNotes: '', observationDetails: '',
+    ageSex: '', behaviors: '', time: '', year: null, month: null, avgRating: null, numRatings: 0,
+    ...p,
+  }
+}
+
+const rows: MLExportRow[] = [
+  row({ catalogId: '1', commonName: 'American Robin', format: 'Photo', date: '2024-05-01', ageSex: 'Adult – 1', behaviors: 'Foraging or Eating', time: '643' }),
+  row({ catalogId: '2', commonName: 'American Robin', format: 'Audio', date: '2024-05-01', behaviors: 'Song', time: '700' }),
+  row({ catalogId: '3', commonName: 'Bald Eagle', format: 'Photo', date: '2024-05-02', ageSex: 'Adult – 1; Juvenile – 1', behaviors: 'Flying; Carrying Food', time: '1030' }),
+  ...Array.from({ length: 10 }, (_, i) =>
+    row({ catalogId: `r${i}`, commonName: 'Osprey', format: 'Photo', date: '2024-06-10', avgRating: 4.5, numRatings: 3, ageSex: 'Adult Male – 1' })),
+]
+
+const renderName = (name: string) => <span>{name}</span>
+
+describe('MediaStatsSections', () => {
+  it('renders the section headings and headline figures', () => {
+    const stats = computeMediaStats(rows, new Set(['american robin', 'bald eagle', 'osprey', 'mallard']))
+    render(<MediaStatsSections stats={stats} renderName={renderName} />)
+    expect(screen.getByText('At a glance')).toBeTruthy()
+    expect(screen.getByText('Documentation coverage')).toBeTruthy()
+    expect(screen.getByText('Age & sex of your subjects')).toBeTruthy()
+    expect(screen.getByText('Behaviors documented')).toBeTruthy()
+    expect(screen.getByText('When you capture media')).toBeTruthy()
+    expect(screen.getByText('Community ratings')).toBeTruthy() // 10 rated assets ≥ threshold
+  })
+
+  it('renders nothing when there is no media', () => {
+    const empty = computeMediaStats([])
+    const { container } = render(<MediaStatsSections stats={empty} renderName={renderName} />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('hides the ratings section when too few assets are rated', () => {
+    const stats = computeMediaStats(rows.slice(0, 3)) // no rated assets
+    render(<MediaStatsSections stats={stats} renderName={renderName} />)
+    expect(screen.queryByText('Community ratings')).toBeNull()
+  })
+})

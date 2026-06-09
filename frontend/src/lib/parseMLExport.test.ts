@@ -167,3 +167,36 @@ describe('parseMLExport — comment fields + Locality', () => {
     expect(rows[0].observationDetails).toBe('')
   })
 })
+
+describe('parseMLExport — media-stat fields (Age/Sex, Behaviors, Time, ratings)', () => {
+  const H = 'ML Catalog Number,Common Name,Scientific Name,Format,Date,Year,Month,Time,Age/Sex,Behaviors,Average Community Rating,Number of Ratings'
+  const one = (...cells: string[]) => parseMLExport([H, cells.join(',')].join('\n')).rows[0]
+
+  it('reads the raw richer fields into the row', () => {
+    const r = one('ML111', 'American Robin', 'Turdus migratorius', 'Photo', '2024-05-12', '2024', '5', '643', 'Adult Female – 1; Adult Male – 1', 'Flying; Vocalizing', '4.67', '3')
+    expect(r.ageSex).toBe('Adult Female – 1; Adult Male – 1')
+    expect(r.behaviors).toBe('Flying; Vocalizing')
+    expect(r.time).toBe('643')
+    expect(r.year).toBe(2024)
+    expect(r.month).toBe(5)
+    expect(r.avgRating).toBeCloseTo(4.67)
+    expect(r.numRatings).toBe(3)
+  })
+
+  it('coerces an unrated leading-dot rating and blank ratings count', () => {
+    const r = one('ML222', 'Mallard', 'Anas platyrhynchos', 'Photo', '2024-01-01', '2024', '1', '', '', '', '.00', '0')
+    expect(r.avgRating).toBe(0)
+    expect(r.numRatings).toBe(0)
+  })
+
+  it('defaults the richer fields when the columns are absent', () => {
+    const r = parseMLExport(['Catalog Number,Common Name,Scientific Name,Format', '111,American Robin,Turdus migratorius,Photo'].join('\n')).rows[0]
+    expect(r.ageSex).toBe('')
+    expect(r.behaviors).toBe('')
+    expect(r.time).toBe('')
+    expect(r.year).toBeNull()
+    expect(r.month).toBeNull()
+    expect(r.avgRating).toBeNull()
+    expect(r.numRatings).toBe(0)
+  })
+})

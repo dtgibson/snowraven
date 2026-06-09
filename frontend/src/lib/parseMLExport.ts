@@ -16,6 +16,17 @@ export interface MLExportRow {
   caption: string
   mediaNotes: string
   observationDetails: string
+  // Richer fields for media statistics (Statistics → Media card). Stored as the
+  // RAW export strings here; parsing/normalization lives in lib/mediaStats.ts so
+  // this stays a thin reader. All optional — '' / null / 0 when the column is
+  // absent (older or column-light exports keep parsing unchanged).
+  ageSex: string        // e.g. "Adult Female – 1; Adult Male – 1" (en-dash + count, "; " groups)
+  behaviors: string     // e.g. "Flying; Vocalizing" (controlled vocab, "; "-joined)
+  time: string          // "HMM"/"HHMM" 24h clock, e.g. "643" = 06:43
+  year: number | null
+  month: number | null  // 1-12
+  avgRating: number | null  // Average Community Rating 0..5 (0 when unrated)
+  numRatings: number    // Number of Ratings (0 when blank — gate "rated" on > 0)
 }
 
 export interface MLExportResult {
@@ -120,6 +131,13 @@ export function parseMLExport(text: string): MLExportResult {
   const captionIdx        = headers.findIndex(h => h === 'caption')
   const mediaNotesIdx     = headers.findIndex(h => h === 'media notes')
   const obsDetailsIdx     = headers.findIndex(h => h === 'observation details')
+  const ageSexIdx         = headers.findIndex(h => h === 'age/sex')
+  const behaviorsIdx      = headers.findIndex(h => h === 'behaviors')
+  const timeIdx           = headers.findIndex(h => h === 'time')
+  const yearIdx           = headers.findIndex(h => h === 'year')
+  const monthIdx          = headers.findIndex(h => h === 'month')
+  const avgRatingIdx      = headers.findIndex(h => h === 'average community rating')
+  const numRatingsIdx     = headers.findIndex(h => h === 'number of ratings')
 
   if (catalogIdx === -1 || commonNameIdx === -1 || formatIdx === -1) {
     throw new Error('INVALID_ML_EXPORT')
@@ -159,6 +177,11 @@ export function parseMLExport(text: string): MLExportResult {
     const latNum = parseFloat(rawLat)
     const lngNum = parseFloat(rawLng)
 
+    const yearNum   = yearIdx      >= 0 ? parseInt(col(cols, yearIdx), 10)      : NaN
+    const monthNum  = monthIdx     >= 0 ? parseInt(col(cols, monthIdx), 10)     : NaN
+    const ratingNum = avgRatingIdx >= 0 ? parseFloat(col(cols, avgRatingIdx))   : NaN
+    const nRatings  = numRatingsIdx>= 0 ? parseInt(col(cols, numRatingsIdx), 10): NaN
+
     mlRows.push({
       catalogId: rawId,
       commonName,
@@ -172,6 +195,13 @@ export function parseMLExport(text: string): MLExportResult {
       caption:            captionIdx    >= 0 ? col(cols, captionIdx)    : '',
       mediaNotes:         mediaNotesIdx >= 0 ? col(cols, mediaNotesIdx) : '',
       observationDetails: obsDetailsIdx >= 0 ? col(cols, obsDetailsIdx) : '',
+      ageSex:    ageSexIdx    >= 0 ? col(cols, ageSexIdx)    : '',
+      behaviors: behaviorsIdx >= 0 ? col(cols, behaviorsIdx) : '',
+      time:      timeIdx      >= 0 ? col(cols, timeIdx)      : '',
+      year:  !Number.isNaN(yearNum)  ? yearNum  : null,
+      month: !Number.isNaN(monthNum) ? monthNum : null,
+      avgRating: !Number.isNaN(ratingNum) ? ratingNum : null,
+      numRatings: !Number.isNaN(nRatings) ? nRatings : 0,
     })
   }
 

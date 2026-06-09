@@ -8,6 +8,7 @@ function row(p: Partial<MLExportRow> & { catalogId: string }): MLExportRow {
     format: 'Photo', date: '2024-01-01', location: 'Loc', county: null,
     latitude: null, longitude: null,
     caption: '', mediaNotes: '', observationDetails: '',
+    ageSex: '', behaviors: '', time: '', year: null, month: null, avgRating: null, numRatings: 0,
     ...p,
   }
 }

@@ -1,15 +1,27 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 15,
-  "sessionType": "maintain",
-  "currentStage": null,
-  "lastCompletedStage": null,
-  "lastCheckpointStatus": "complete",
+  "activeFeature": "media-statistics-expansion",
+  "sessionNumber": 17,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "frontend/src/lib/parseMLExport.ts",
+    "frontend/src/lib/mediaStats.ts",
+    "frontend/src/lib/mediaStats.test.ts",
+    "frontend/src/components/MediaStatsSections.tsx",
+    "frontend/src/components/MediaStatsSections.test.tsx",
+    "frontend/src/components/BirdingStats.tsx",
+    "frontend/src/globals.css",
+    "website/tools/gen-demo-data.mjs",
+    "CHANGELOG.md",
+    "docs/HELP.md",
+    "README.md"
+  ],
   "releasedVersion": "0.5.18",
-  "lastFeature": "0.5.18 batch SHIPPED from the Mac (tag v0.5.18 -> Windows CI green -> ./release.sh; macOS notarized universal DMG + signed Windows installer + latest.json all 3 platforms; health-checked live). Batch: Checklist Comparer weather/tide + media/breeding badges; Multimedia Media Comments section; Statistics Data Quality weather/tide-block coverage; Settings date-format picker (lib/formatDate); keyboard-operable map markers (in-view focusable sidebar lists); behavior-preserving component splits (BirdingStats/SpeciesDetail/MapExplorer). Chronicler done: PRODUCT_CONTEXT/DECISIONS/ROADMAP + website/index.html List Comparer updated. 596 frontend + 102 backend tests.",
-  "remainingBacklog": "ROADMAP Up Next: mobile app (iOS App Store then Android); Windows code signing (Authenticode, to clear the SmartScreen unknown-publisher prompt). Audit items 'accessibility & simplification' and 'grow component test coverage' were verified already shipped (v0.5.11) and dropped. Lower-priority: keyboard-operable map markers shipped in 0.5.18; remaining: unify any stray date formats onto lib/formatDate.",
-  "createdAt": "2026-06-08T19:43:39Z",
-  "updatedAt": "2026-06-09T00:30:00Z"
+  "lastFeature": "0.5.18 SHIPPED (Mac). TWO features now PARKED on pushed branches off main (0.5.18), undeployed, awaiting Mac release: (1) improve/date-unify-media-comments-hint = 0.5.19 (date-format final fix + Multimedia jump-to-comments + reduced-motion scroll helper). (2) feature/media-statistics-expansion = 0.5.20 (THIS: richer Statistics Media card — at-a-glance, documentation+format coverage, age/sex donuts per individual, age-coverage-by-species, behaviors + breeding tiers, time-of-day clock, community ratings; parser reads Age/Sex/Behaviors/Time/Year/Month/ratings into MLExportRow; new lib/mediaStats.ts + components/MediaStatsSections.tsx; demo generator extended). 622 frontend tests. Validated against the real 2073-asset export. Adversarial review: security/privacy clean; 6 minor findings (donut dual-basis, dead field, completeness gating, donut contrast, aria zeros, density) all fixed.",
+  "remainingBacklog": "DEPLOY ORDER from the Mac: release 0.5.19 (branch improve/date-unify-media-comments-hint) FIRST, then 0.5.20 (branch feature/media-statistics-expansion). Both branch off 0.5.18, so each bumps version + edits CHANGELOG top — expect a trivial CHANGELOG/version conflict when integrating the second; keep both entries, version 0.5.20. Per branch: confirm version in frontend/package.json + src-tauri/tauri.conf.json, push vX.Y.Z tag -> Windows CI -> ./release.sh. AT DEPLOY also catch up website/ (BEHIND at v0.5.17: bump pill/footer; add 0.5.18 Media Comments + date-format picker copy, 0.5.19 jump-to-comments, 0.5.20 media-stats; REGENERATE demo screenshots so they show the new media stats) and README. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
+  "createdAt": "2026-06-09T03:24:38Z",
+  "updatedAt": "2026-06-09T04:27:35Z"
 }

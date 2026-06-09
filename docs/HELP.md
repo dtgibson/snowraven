@@ -171,7 +171,17 @@ Confirmed, Probable, and Possible species totals from your eBird backup. A stack
 
 ### Media
 
-A chart showing how your photo, audio, video, and total media counts have grown over time. View it per period or as a cumulative total. Below the chart, ranked lists show your most-photographed, most-recorded, and most-filmed species, each linking to your personal Macaulay Library page filtered by species and media type. Requires your ML export.
+A deep look at your Macaulay Library archive, built from your ML export. It opens with a chart of how your photo, audio, video, and total media counts have grown over time (view it per period or as a cumulative total), then breaks the collection down several ways:
+
+- **At a glance** — total media, species documented, the photo/audio/video split, your busiest media day, and your longest streak of consecutive days with media, spanning your first to most recent upload.
+- **Documentation coverage** — how much of your life list you have captured with media: the share documented with any media, and separately with a photo, audio, and video. A format breakdown shows how your documented species split across photo-only, photo + audio, all three, and so on. This is where the lopsidedness most birders have (lots of photos, little audio) becomes visible.
+- **Age & sex of your subjects** — two donuts showing the age-class mix (adult / immature / juvenile / unknown) and the sex mix (male / female / unknown) across your media, counted per individual, with the unknown share shown honestly and a note of how many assets carry each annotation.
+- **Age coverage by species** — for each species you have aged, which age classes you have captured (adult, immature, juvenile), and a note of how many species you have documented only as adults so far.
+- **Behaviors documented** — how many distinct behaviors you have captured and which are most common (foraging, flying, singing, and so on), plus a tally of species for which you hold media showing breeding behavior, grouped into confirmed, probable, and possible.
+- **When you capture media** — the time-of-day distribution of your captures, split by photo, audio, and video, so the dawn-chorus audio and golden-hour photo patterns stand out.
+- **Community ratings** — when enough of your assets are community-rated, the distribution of ratings, your mean, and your top-rated pieces.
+
+Below all of that, ranked lists show your most-photographed, most-recorded, and most-filmed species, each linking to your personal Macaulay Library page filtered by species and media type. The whole card requires your ML export; the age, sex, behavior, time-of-day, and rating sections fill in to the extent your export carries those annotations.
 
 ### Nearby Lifers
 
