@@ -9,7 +9,7 @@
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.23",
   "lastFeature": "0.5.23 SHIPPED from the Mac (bundled 0.5.21 per-asset media comments + 0.5.22 media-card cleanup + 0.5.23 Named Birds; all were on main undeployed since 0.5.20). tag v0.5.23 -> Windows CI green -> ./release.sh (macOS notarized universal + signed Windows + latest.json all 3) -> health-checked live. Per-feature Chronicler docs (PRODUCT_CONTEXT/DECISIONS/HELP/README) were already done on the dev machine. 650 frontend + 102 backend tests.",
-  "remainingBacklog": "IN PROGRESS: website/ catch-up (shipped 0.5.23, website lagging) — bump the version pill (was ~v0.5.17) to 0.5.23, add a Named Birds feature mention, reflect 0.5.18+ media features, and regenerate the demo screenshots (demo generator now seeds named birds; tools in website/tools/: gen-demo-data.mjs, capture.mjs, process-img.mjs). ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing (Authenticode).",
+  "remainingBacklog": "WEBSITE: text catch-up DONE + live (version pill -> 0.5.23, Named Birds feature section, blurbs current). STILL TODO ON THE VM (not the Mac — screenshot regen is creation work + needs the real-./data swap): regenerate website/assets/shots/*.webp via website/tools/ (gen-demo-data.mjs -> capture.mjs -> process-img.mjs; demo generator now seeds named birds) and add a Named Birds shot if desired. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing (Authenticode).",
   "createdAt": "2026-06-09T17:47:44Z",
   "updatedAt": "2026-06-09T19:40:00Z"
 }
