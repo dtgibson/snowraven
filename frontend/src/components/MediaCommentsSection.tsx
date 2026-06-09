@@ -36,8 +36,8 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
   const visible = showAll ? matches : matches.slice(0, MEDIA_COMMENTS_PAGE)
 
   return (
-    <div style={{
-      marginTop: 16, background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
+    <div id="media-comments" style={{
+      marginTop: 16, scrollMarginTop: 16, background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
       borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--sr-card-shadow)',
     }}>
       {/* Header */}

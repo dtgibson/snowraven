@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar } from 'lucide-react'
+import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar, MessageSquare, ChevronDown } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { ML_EXPORT_STEPS } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
@@ -11,6 +11,8 @@ import { loadEbirdObservations } from '../lib/observationsCache'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { LifeListTable } from './LifeListTable'
 import { MediaCommentsSection } from './MediaCommentsSection'
+import { hasMediaComment } from '../lib/mediaComments'
+import { smoothScrollIntoView } from '../lib/scroll'
 import type { MediaFilterState, SortState, DateRangeState, ObservationEntry } from '../types'
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
 import { transport } from '../lib/transport'
@@ -154,6 +156,11 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     () => new Set(rawEbirdObs.map(o => normalizeSpeciesName(o.commonName))),
     [rawEbirdObs],
   )
+
+  // Media assets carrying a free-text comment, counted the same way the Media
+  // Comments section derives its rows — drives the discoverability hint below so
+  // the count stays in sync with the section it points at.
+  const commentCount = useMemo(() => rawRows.filter(hasMediaComment).length, [rawRows])
 
   useEffect(() => {
     if (requestedFilter !== 'is-target') return
@@ -478,6 +485,31 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
           Media links could not be personalised — the CSV filename was not in the default Macaulay Library format. Links will open the general catalog search instead.
+        </div>
+      )}
+
+      {/* Media Comments discoverability hint — points to the searchable section
+          at the bottom of the tab. Gated on commentCount so it never points at a
+          section that renders null. Mirrors the Statistics "Jump to section" anchor. */}
+      {commentCount > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 12px', marginBottom: 12, flexShrink: 0, flexWrap: 'wrap',
+          background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)',
+          borderRadius: 8, fontSize: '0.78125rem', color: 'var(--sr-text-muted)',
+        }}>
+          <MessageSquare size={13} strokeWidth={2.2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
+          <span>{commentCount === 1 ? '1 media comment is' : `${commentCount} media comments are`} searchable below the table.</span>
+          <a
+            href="#media-comments"
+            onClick={e => { e.preventDefault(); smoothScrollIntoView(document.getElementById('media-comments')) }}
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
+            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+          >
+            Jump to comments
+            <ChevronDown size={13} strokeWidth={2.5} />
+          </a>
         </div>
       )}
 

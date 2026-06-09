@@ -25,6 +25,7 @@ import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 import { formatDate } from '../lib/formatDate'
 import { HEAT_INTENSITY_DEFAULT, heatWeight } from '../lib/heat'
+import { smoothScrollIntoView } from '../lib/scroll'
 import { SnowMap } from './SnowMap'
 import { extractUserId, mlCatalogLink } from '../lib/mlCatalog'
 import { SectionCard, SectionHead, StatLabel, StatValueLink, SUBMISSION_ID_RE } from './speciesDetail/ui'
@@ -247,7 +248,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
       : displaySpeciesList.find(n => normalizeSpeciesName(n) === normalizeSpeciesName(name))
     if (!match) return
     selectSpecies(match)
-    requestAnimationFrame(() => rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    requestAnimationFrame(() => smoothScrollIntoView(rootRef.current))
   }, [mergeSubspecies, displaySpeciesList])
 
   // Consume an external "open this species" request once data is ready (single-use).

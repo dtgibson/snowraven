@@ -7,6 +7,20 @@ All notable changes to SnowRaven are documented here.
 ### Added
 - **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://snowraven.dtgibson.com/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
 
+## [0.5.19] - 2026-06-08
+
+### Added
+- **"Jump to comments" pointer on the Multimedia tab** — when your Macaulay Library export carries media comments, the Multimedia tab now shows a short line at the top telling you how many media comments are searchable, with a **Jump to comments** link that scrolls straight to the Media Comments section at the bottom of the tab. The section was easy to miss below the species table; now it's discoverable without scrolling. The line only appears when you actually have comments, so it never points at an empty section.
+
+### Changed
+- **Your date-format choice now also governs the Weather lookup's checklist line** — when you fetch a checklist's weather on the Weather tab, the date shown next to the checklist now follows your Settings → Appearance → Date format choice (and includes the time), the same as dates everywhere else in the app. This was the last spot still printing the raw eBird date string.
+
+### Fixed
+- **"Reduce motion" is now honored for in-page jump links** — if your operating system is set to reduce motion, the new "Jump to comments" link, the Statistics "Jump to section" navigation, and Species Detail's scroll-to-top when you open a species now jump instantly instead of animating. A CSS rule already covered ordinary scrolling, but these programmatic scrolls passed an explicit "smooth" option that bypassed it, so they previously animated regardless of the setting — contrary to the reduced-motion promise in `ACCESSIBILITY.md`.
+
+### Internal
+- **Consolidated programmatic smooth-scrolls into one motion-aware helper** (`frontend/src/lib/scroll.ts`, `smoothScrollIntoView`) used by all three jump sites, and routed the Weather-tab checklist date through the existing pref-aware `formatObsDate` helper. Date formatting across the app now consistently flows through the canonical `formatDate` / `formatObsDate` path.
+
 ## [0.5.18] - 2026-06-08
 
 ### Added

@@ -1,98 +1,64 @@
-# Handoff — 0.5.18 batch — BUILT, set aside for batched deploy (Mac)
+# Handoff — 0.5.19 — BUILT, parked on a branch for batched Mac deploy
 
 ## What We Accomplished
 
-Three efforts are built, tested, and on `main`, all batched under **0.5.18**,
-undeployed (ships together from the Mac):
+An Improve-lane batch, built/tested/CI-green and pushed to the branch
+**`improve/date-unify-media-comments-hint`**, undeployed (ships from the Mac):
 
-1. **Checklist Comparer: Weather + Badges** — each checklist card shows badges for
-   media types reported (photo/audio/video), whether breeding codes were noted, and
-   whether the comment already contains a SnowRaven weather block and/or tide block
-   (separate weather + tide badges). A new **Weather & Tide** section pulls a fresh
-   weather + tide lookup for each checklist side by side (explicit "Load" button, no
-   auto-fetch, **no auto-copy**; per-side Copy weather / tide / both; an always-note
-   about OpenWeather revising historical data; graceful degradation to a Settings
-   nudge when keys are absent). Frontend-only.
+1. **Date-format unification (final fix)** — the Weather tab's checklist line
+   (`App.tsx`) was the only user-facing date still printing the raw eBird
+   `obsDt`. It now renders via `formatObsDate`, so it follows the Settings →
+   Date format preference and shows the time, like every other date. A
+   multi-angle sweep confirmed this was the *only* remaining stray display
+   date; everything else was already pref-aware or correctly internal (chart
+   axis labels, ISO bucket keys, number formatting).
 
-2. **weather-info-copy** — Weather-tab helper text reworded to mention weather
-   auto-copy on a successful lookup + tides appearing below.
+2. **Multimedia discoverability** — when the ML export carries media comments,
+   the Multimedia tab shows a hint at the top ("N media comments are searchable
+   below the table") with a **Jump to comments** anchor that scrolls to the
+   Media Comments section (new `id="media-comments"` scroll target). Gated on
+   the comment count (same derivation as the section), so it never points at a
+   section that renders null.
 
-   **Weather & tide block coverage in Statistics → Data Quality** — when any
-   checklist comment carries a weather/tide block, a "Weather & tide blocks"
-   breakdown shows the count + % of checklists with: any weather (either app),
-   Raincrow weather (identified by its raincrow.app credit), SnowRaven weather,
-   SnowRaven tide, and SnowRaven weather+tide. Offline over the loaded backup;
-   hidden when no blocks. New detectors `hasSnowravenWeatherBlock` /
-   `hasRaincrowWeatherBlock` in `lib/commentBlocks.ts`; counts in
-   `computeQuality`. Adversarially reviewed.
+3. **Reduced-motion accessibility fix** (surfaced by adversarial review) — the
+   new jump link and the two pre-existing ones (Statistics "Jump to section",
+   Species Detail scroll-to-top) passed `behavior:'smooth'` to
+   `scrollIntoView`, which the global reduced-motion CSS rule does NOT override.
+   All three now route through a shared `lib/scroll.ts` (`smoothScrollIntoView`)
+   that jumps instantly under "reduce motion", restoring the `ACCESSIBILITY.md`
+   promise.
 
-   **Media Comments section on the Multimedia tab** — a section below the species
-   table surfacing the ML export's free-text notes (Caption, Media notes,
-   Observation Details), mirroring the Species Detail comments box: keyword
-   filter, Newest/Oldest, recent-10 + "Show all", per-row species/type/date/place
-   + Macaulay asset link. New `lib/mediaComments.ts`, `MediaCommentsSection.tsx`;
-   `parseMLExport.ts` now reads the comment fields + the real "Locality" column
-   and is record-aware (multi-line comments). Adversarially reviewed.
+Verification: typecheck ✓, lint ✓, production build ✓, **604 frontend tests**
+(+8 new). Two review workflows ran — correctness clean, security/privacy clean,
+both a11y findings fixed.
 
-3. **quality-accessibility-sweep** (maintain lane, 5 items):
-   - **Date formats** — one canonical `lib/formatDate.ts` + a **Settings → Appearance
-     → Date format** control (month-first default / day-first / ISO), persisted.
-   - **Component-test coverage** — *found already shipped in v0.5.11; verified, not redone.*
-   - **Accessibility / simplification / onboarding** — *found already shipped in
-     v0.5.11; verified, not redone.*
-   - **Keyboard-operable map markers** — focusable in-view sidebar lists
-     ("Sightings in view" / "Hotspots in view") wired to the same MapLibre popup a
-     marker click opens; nearest-unvisited + nearest-targets rows open it too.
-   - **Component splits** (behavior-preserving, in place): `BirdingStats` 2036→1893,
-     `SpeciesDetail` 1793→1461, `MapExplorer` 2249→1515 — pure helpers/types pulled to
-     `lib/`, sub-components to `components/statsPrimitives.tsx`, `components/speciesDetail/*`,
-     `components/map/*`. Map marker components keep their popup/cursor/sprite contracts.
+## What Has Been Saved (committed on `improve/date-unify-media-comments-hint`)
 
-All CI-green on `main`. 561 frontend tests pass.
-
-## What Has Been Saved (committed to `main`)
-
-- Comparer code: `frontend/src/lib/{commentBlocks,checklistBadges,tideNotice,keyStatus}.ts`
-  (+ tests), `frontend/src/components/{ChecklistBadges,WeatherTidePanel,WeatherTideSection}.tsx`
-  (+ tests); shared-helper refactors in `lib/{tide,tideFormatter}.ts`; edits to
-  `components/{ChecklistComparer,ListComparer}.tsx`, `App.tsx`; `--sr-accent-strong` token.
-- Date formats: `frontend/src/lib/formatDate.ts`, `Settings.tsx` (DateFormatRow), `App.tsx`.
-- Keyboard markers: `frontend/src/lib/markersInView.ts` (+ test),
-  `components/MapExplorerInViewList.test.tsx`, `MapExplorer.tsx`, `ACCESSIBILITY.md`.
-- Component splits: new `lib/{statsFormat,fitBounds,mlCatalog,mapExplorerTypes,mapExplorerFormat}.ts`,
-  `lib/sightingsGraph.ts` (+labels), `components/statsPrimitives.tsx`,
-  `components/speciesDetail/{ui,SightingsGraph,HeatmapLayer,MapBoundsFitter}.tsx`,
-  `components/map/{MapSidebarUI,MapControls,SightingMarkers,HotspotMarkers,TargetMarkers}.tsx`.
-- Version 0.5.17 → **0.5.18** (`frontend/package.json` + `src-tauri/tauri.conf.json`);
-  `CHANGELOG.md` 0.5.18 covers all of the above; `docs/HELP.md`, `README.md`.
-- Pipeline artifacts under `pipeline/comparer-weather-badges/` and
-  `pipeline/quality-accessibility-sweep/`.
+- Code: `frontend/src/App.tsx`, `frontend/src/components/{LifeList,MediaCommentsSection,BirdingStats,SpeciesDetail}.tsx`,
+  new `frontend/src/lib/scroll.ts`.
+- Tests: new `frontend/src/lib/scroll.test.ts`, new `frontend/src/components/MediaCommentsSection.test.tsx`.
+- Docs/version: `CHANGELOG.md` (0.5.19), `docs/HELP.md`, `frontend/package.json` + `src-tauri/tauri.conf.json` (0.5.18 → 0.5.19).
 
 ## Where We Are
 
-The Weft session is **cleared** (`activeFeature: null`) so new feature work can
-start now. Everything above is **built/tested but undeployed** — the Deployer +
-Chronicler steps happen at the batched deploy on the Mac. Pending-deploy detail
-also in `session-state.json` → `remainingBacklog`.
+Improve lane, paused at **Stage 5 (The Deployer)**. Everything is built and
+documented; the production release happens on the Mac. `main` was left clean so
+a new feature could start in parallel.
 
-## Deploy / resume prompt (on the Mac, when ready to ship)
+## Deploy / resume prompt (on the Mac, when ready to ship 0.5.19)
 
-1. Confirm version **0.5.18** in BOTH `frontend/package.json` and
-   `src-tauri/tauri.conf.json`; confirm `CHANGELOG.md` 0.5.18 covers the whole batch
-   (comparer + weather-info-copy + date-format picker + keyboard map markers +
-   component splits).
-2. `main` is already up to date — push the **`v0.5.18`** tag, wait for Windows CI,
-   then run **`./release.sh`** (macOS notarized universal + Windows signed +
-   `latest.json`). Web/Pi update on a plain `git pull`.
-3. Then the **Chronicler**: update `PRODUCT_CONTEXT.md` / `DECISIONS.md` /
-   `ROADMAP.md` for the user-facing additions (comparer badges + side-by-side
-   weather/tide, the date-format picker, keyboard-operable map markers, the
-   Statistics weather/tide-block coverage breakdown, the Multimedia tab's Media
-   Comments section — the splits are internal), and **update `website/`** (the
-   List Comparer description + Statistics + Multimedia copy + any feature copy) —
-   the website is live, so do this when the features actually ship.
+1. Get the branch onto the release machine: `git fetch` then check out (or merge
+   into `main`) **`improve/date-unify-media-comments-hint`**.
+2. Confirm version **0.5.19** in BOTH `frontend/package.json` and
+   `src-tauri/tauri.conf.json`; confirm `CHANGELOG.md` 0.5.19 covers the batch.
+3. Push the **`v0.5.19`** tag → wait for Windows CI → run **`./release.sh`**
+   (macOS notarized universal + Windows signed + `latest.json`). Web/Pi update
+   on a plain `git pull`.
+4. **Catch up `website/`** (it is behind): bump the version pill + footer from
+   v0.5.17, and add copy for 0.5.18's Media Comments + Settings date-format
+   picker and 0.5.19's Jump-to-comments hint. Also update `README.md` (no Media
+   Comments mention yet). The site auto-deploys on push to `main` touching
+   `website/`, so do this when 0.5.19 actually ships.
 
-> Note: **0.5.18 is the in-progress batch version.** Additional features built
-> before this deploy should accumulate under the 0.5.18 changelog rather than
-> re-bumping, so the whole batch ships as one version (the 0.5.17 three-effort
-> batch is the precedent).
+> Note: a separate new-feature session is running on `main` in parallel. Keep
+> the 0.5.19 release off that work unless you intend to ship them together.

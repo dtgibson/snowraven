@@ -12,6 +12,7 @@ import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
+import { smoothScrollIntoView } from '../lib/scroll'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import type { MLExportRow } from '../lib/parseMLExport'
@@ -432,7 +433,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <a
             key={t}
             href={`#${sectionSlug(t)}`}
-            onClick={e => { e.preventDefault(); document.getElementById(sectionSlug(t))?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }}
+            onClick={e => { e.preventDefault(); smoothScrollIntoView(document.getElementById(sectionSlug(t))) }}
             style={{ fontSize: '0.71875rem', fontWeight: 500, color: 'var(--sr-text-muted)', textDecoration: 'none', padding: '4px 10px', borderRadius: 100, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', whiteSpace: 'nowrap' }}
           >
             {t}

@@ -14,6 +14,7 @@ import type { TextScale } from './lib/textScale'
 import { applyTheme, hydrateStoredTheme } from './lib/theme'
 import { setDateFormatPref, asDateFormatPref } from './lib/formatDate'
 import type { DateFormatPref } from './lib/formatDate'
+import { formatObsDate } from './lib/compareChecklists'
 import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
@@ -765,7 +766,7 @@ export default function App() {
                   fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
                   letterSpacing: '0.01em',
                 }}>
-                  {state.status === 'success' && `${state.checklistId} / ${state.locName} / ${state.obsDt}`}
+                  {state.status === 'success' && `${state.checklistId} / ${state.locName} / ${formatObsDate(state.obsDt)}`}
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
