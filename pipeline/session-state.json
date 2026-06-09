@@ -8,8 +8,8 @@
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.23",
-  "lastFeature": "0.5.23 SHIPPED from the Mac (bundled 0.5.21 per-asset media comments + 0.5.22 media-card cleanup + 0.5.23 Named Birds; all were on main undeployed since 0.5.20). tag v0.5.23 -> Windows CI green -> ./release.sh (macOS notarized universal + signed Windows + latest.json all 3) -> health-checked live. Per-feature Chronicler docs (PRODUCT_CONTEXT/DECISIONS/HELP/README) were already done on the dev machine. 650 frontend + 102 backend tests.",
-  "remainingBacklog": "WEBSITE: text catch-up DONE + live (version pill -> 0.5.23, Named Birds feature section, blurbs current). STILL TODO ON THE VM (not the Mac — screenshot regen is creation work + needs the real-./data swap): regenerate website/assets/shots/*.webp via website/tools/ (gen-demo-data.mjs -> capture.mjs -> process-img.mjs; demo generator now seeds named birds) and add a Named Birds shot if desired. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing (Authenticode).",
+  "lastFeature": "0.5.23 SHIPPED from the Mac (bundled 0.5.21 per-asset media comments + 0.5.22 media-card cleanup + 0.5.23 Named Birds; all were on main undeployed since 0.5.20). tag v0.5.23 -> Windows CI green -> ./release.sh (all 3 platforms) -> health-checked live. Then on the VM: regenerated all 9 website showcase screenshots against the current UI + synthetic demo data (commit aa5a6c4).",
+  "remainingBacklog": "WEBSITE: fully caught up + live — text (v0.5.23 pill, Named Birds section) AND all 9 screenshots regenerated against current UI + synthetic demo data (commit aa5a6c4; auto-deploys via Pages). Screenshot tooling note: `npm install` in website/tools/ needs a LOCAL package.json or it walks up to the repo-root package.json (a local gitignored one now exists on this VM). Optional future: a dedicated Named Birds screenshot (the site's Named Birds section is currently a CSS mock). ROADMAP Up Next: mobile app (iOS then Android); accessibility/clarity/simplification; Windows code signing (Authenticode).",
   "createdAt": "2026-06-09T17:47:44Z",
-  "updatedAt": "2026-06-09T19:40:00Z"
+  "updatedAt": "2026-06-09T20:52:23Z"
 }
