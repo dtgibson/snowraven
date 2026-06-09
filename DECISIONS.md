@@ -4,6 +4,17 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Media card: At a glance alignment + age-coverage rework — 2026-06-09 (v0.5.24)
+
+**What:** Fixed the misaligned "longest streak" dates in **Statistics → Media → At a glance**, and reworked **Age coverage by species** to be filtered, capped, and sortable.
+
+**Decisions:**
+- **Do not mix `StatCell`s with and without a `sub` line in the same `auto-fit` grid.** `StatCell` renders an extra line only when `sub` is set, so a sub-bearing tile is taller; the grid (`repeat(auto-fit, minmax(150px,1fr))`, default `align-items: stretch`) then stretches the whole row to the tallest tile, and because tiles re-wrap per width, *which* tiles share a row with the tall one changes — producing alignment that looks broken at some widths and fine at others. Fix: the At-a-glance grid now holds only the five uniform count tiles; the busiest-day / longest-streak / span facts moved into a centered caption (`atAGlanceFacts.join('  ·  ')`). Keep nugget facts that don't fit the tile shape out of the StatCell grid.
+- **The "documented only as adults so far" note gates on `youngSpecies.length > 0 || onlyAdults.length > 0`.** `speciesWithYoung` (immature||juvenile) and `onlyAdults` (adult-only, ≥3 aged assets) are disjoint sets, so gating the whole Age-coverage block on young-species alone hid the note for exactly the all-adults user it's most informative for. Render the sortable list only when `youngSpecies.length > 0`, but let the note render independently. (Regression caught in adversarial review; covered by an all-adults component test.)
+- **Age-coverage taxonomic sort reuses `/taxonomy/codes`.** The endpoint already returns `orders` alongside `codes`; `BirdingStats` threads it through `orderFor` (same raw-key→normalized→`Infinity` fallback as `codeFor`) into `sortSpeciesAgeCoverage` (unknown order sorts last, name as tiebreak). No new endpoint.
+
+**Implications:** Any new Media-card "fact" that needs a sub-line belongs in a caption, not the StatCell grid. Notes that summarize a superset of a filtered list must not be nested inside the filtered list's render gate.
+
 ## In-app text size via px→rem (v0.5.13) — 2026-06-05
 
 **What:** App-wide Text Size control (Settings → Appearance, 100/125/150/200%) +

@@ -57,4 +57,25 @@ describe('MediaStatsSections', () => {
     const { container } = render(<MediaStatsSections stats={empty} renderName={renderName} />)
     expect(container.firstChild).toBeNull()
   })
+
+  it('shows the age-coverage list with its sort toggle when young birds are documented', () => {
+    // The base fixture documents a Bald Eagle juvenile, so youngSpecies is non-empty.
+    const stats = computeMediaStats(rows, new Set(['american robin', 'bald eagle', 'osprey']))
+    render(<MediaStatsSections stats={stats} renderName={renderName} />)
+    expect(screen.getByText('Age coverage by species')).toBeTruthy()
+    expect(screen.getByRole('group', { name: 'Sort age coverage' })).toBeTruthy()
+  })
+
+  it('still shows the adults-only note when no young birds are documented', () => {
+    // Every aged asset is an adult — youngSpecies is empty, but onlyAdults is not.
+    // The note must survive the empty young-species list (regression guard).
+    const adultsOnly: MLExportRow[] = Array.from({ length: 4 }, (_, i) =>
+      row({ catalogId: `a${i}`, commonName: 'Osprey', format: 'Photo', date: '2024-06-10', ageSex: 'Adult – 1' }))
+    const stats = computeMediaStats(adultsOnly)
+    render(<MediaStatsSections stats={stats} renderName={renderName} />)
+    expect(screen.getByText('Age coverage by species')).toBeTruthy()
+    expect(screen.getByText(/documented only as adults so far/)).toBeTruthy()
+    // No young species → no list, so no sort toggle.
+    expect(screen.queryByRole('group', { name: 'Sort age coverage' })).toBeNull()
+  })
 })

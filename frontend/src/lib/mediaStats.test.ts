@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { MLExportRow } from './parseMLExport'
-import { parseAgeSex, parseBehaviors, parseMlHour, computeMediaStats } from './mediaStats'
+import { parseAgeSex, parseBehaviors, parseMlHour, computeMediaStats, speciesWithYoung, sortSpeciesAgeCoverage, type SpeciesAgeCoverage } from './mediaStats'
 
 function row(p: Partial<MLExportRow> & { catalogId: string }): MLExportRow {
   return {
@@ -145,5 +145,36 @@ describe('computeMediaStats', () => {
     expect(s.withTime).toBe(3)
     expect(s.timeOfDay[6]).toEqual({ hour: 6, photo: 1, audio: 0, video: 0 })
     expect(s.timeOfDay[7]).toEqual({ hour: 7, photo: 0, audio: 1, video: 0 })
+  })
+})
+
+describe('speciesWithYoung', () => {
+  const rows: SpeciesAgeCoverage[] = [
+    { name: 'Bald Eagle', adult: true, immature: false, juvenile: true, classesCaptured: 2, assets: 5 },
+    { name: 'Cedar Waxwing', adult: true, immature: false, juvenile: false, classesCaptured: 1, assets: 9 }, // adult only — excluded
+    { name: "Cooper's Hawk", adult: false, immature: true, juvenile: false, classesCaptured: 1, assets: 3 },
+  ]
+  it('keeps only species with an immature or juvenile', () => {
+    expect(speciesWithYoung(rows).map(r => r.name)).toEqual(['Bald Eagle', "Cooper's Hawk"])
+  })
+})
+
+describe('sortSpeciesAgeCoverage', () => {
+  const rows: SpeciesAgeCoverage[] = [
+    { name: 'Osprey', adult: true, immature: false, juvenile: true, classesCaptured: 2, assets: 1 },
+    { name: 'American Robin', adult: true, immature: true, juvenile: false, classesCaptured: 2, assets: 1 },
+    { name: 'Mallard', adult: true, immature: false, juvenile: true, classesCaptured: 2, assets: 1 },
+  ]
+  const order: Record<string, number> = { 'American Robin': 30, Mallard: 10, Osprey: 20 }
+  const orderOf = (n: string) => order[n] ?? Infinity
+
+  it('sorts by name A–Z', () => {
+    expect(sortSpeciesAgeCoverage(rows, 'name', orderOf).map(r => r.name)).toEqual(['American Robin', 'Mallard', 'Osprey'])
+  })
+  it('sorts by taxonomic order, unknowns last', () => {
+    expect(sortSpeciesAgeCoverage(rows, 'taxonomic', orderOf).map(r => r.name)).toEqual(['Mallard', 'Osprey', 'American Robin'])
+  })
+  it('falls back to name order when no taxonomic order is known', () => {
+    expect(sortSpeciesAgeCoverage(rows, 'taxonomic', () => Infinity).map(r => r.name)).toEqual(['American Robin', 'Mallard', 'Osprey'])
   })
 })

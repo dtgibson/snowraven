@@ -41,6 +41,17 @@ annotations (computed offline):
   coverage) and the Community-ratings section (still computed in `mediaStats`, just
   not rendered); renamed Age & sex → **Photos Tagged With Age or Gender** (donuts
   "Age"/"Gender"); added a separator above the Top-N rankings.
+- **(v0.5.24)** Fixed **At a glance** alignment by moving the busiest-day, longest-
+  streak, and span facts out of the StatCell grid (a `sub`-line tile is a line
+  taller than a plain one, and in the `auto-fit` grid that knocked the row out of
+  alignment) into a centered caption (`atAGlanceFacts`). Reworked **Age coverage by
+  species**: filtered to species with a juvenile/immature documented
+  (`speciesWithYoung`), first 10 + Show all/fewer toggle, sortable by name or
+  taxonomic order (`sortSpeciesAgeCoverage`, unknown-order last, name tiebreak);
+  taxonomic order threaded from `/taxonomy/codes` `orders` via `BirdingStats`'
+  `orderFor` (mirrors `codeFor` normalization). The only-adults note renders on
+  `youngSpecies.length > 0 || onlyAdults.length > 0` so the all-adults case (no
+  young birds) still surfaces it — a regression caught in adversarial review.
 
 ### Date-format unification + Multimedia discoverability (complete — June 2026, v0.5.19)
 

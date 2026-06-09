@@ -98,6 +98,18 @@ function dayNumber(date: string): number | null {
 
 // ── aggregate ────────────────────────────────────────────────────────────────
 
+export interface SpeciesAgeCoverage {
+  name: string
+  adult: boolean
+  immature: boolean
+  juvenile: boolean
+  classesCaptured: number
+  assets: number
+}
+
+/** Sort modes for the age-coverage-by-species list. */
+export type AgeSort = 'name' | 'taxonomic'
+
 export interface MediaStats {
   total: number
   photo: number
@@ -123,14 +135,7 @@ export interface MediaStats {
   agedAssets: number
   sexedAssets: number
 
-  speciesDemographics: {
-    name: string
-    adult: boolean
-    immature: boolean
-    juvenile: boolean
-    classesCaptured: number
-    assets: number
-  }[]
+  speciesDemographics: SpeciesAgeCoverage[]
   onlyAdults: { name: string; assets: number }[]
 
   behaviorCounts: { label: string; value: number }[]
@@ -345,4 +350,34 @@ export function computeMediaStats(rows: MLExportRow[], lifeListNames?: Set<strin
     timeOfDay: hourBuckets,
     withTime,
   }
+}
+
+/** Species with at least one immature or juvenile asset documented (i.e. a young
+ *  bird captured, not just adults). */
+export function speciesWithYoung(rows: SpeciesAgeCoverage[]): SpeciesAgeCoverage[] {
+  return rows.filter(s => s.immature || s.juvenile)
+}
+
+/**
+ * Sort age-coverage rows by name (A–Z, case-insensitive) or taxonomic order.
+ * `orderOf` maps a species name to its eBird taxonomic order (Infinity when
+ * unknown, so unresolved species sort last); ties break by name.
+ */
+export function sortSpeciesAgeCoverage(
+  rows: SpeciesAgeCoverage[],
+  mode: AgeSort,
+  orderOf: (name: string) => number,
+): SpeciesAgeCoverage[] {
+  const byName = (a: SpeciesAgeCoverage, b: SpeciesAgeCoverage) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  const copy = [...rows]
+  if (mode === 'taxonomic') {
+    copy.sort((a, b) => {
+      const oa = orderOf(a.name), ob = orderOf(b.name)
+      return oa !== ob ? oa - ob : byName(a, b)
+    })
+  } else {
+    copy.sort(byName)
+  }
+  return copy
 }

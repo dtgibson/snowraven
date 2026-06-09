@@ -5,11 +5,13 @@
 // `renderName` closure the parent supplies (so BirdName gets the right taxon code
 // + hasEntry without threading those helpers through props).
 
+import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { StatCell, BarRow, SubLabel, Divider } from './statsPrimitives'
 import { fmt } from '../lib/statsFormat'
 import { formatDate } from '../lib/formatDate'
-import type { MediaStats, AgeClass, Sex } from '../lib/mediaStats'
+import { speciesWithYoung, sortSpeciesAgeCoverage } from '../lib/mediaStats'
+import type { MediaStats, AgeClass, Sex, AgeSort } from '../lib/mediaStats'
 
 const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px 12px' } as const
 
@@ -78,10 +80,21 @@ function Dot({ on, color }: { on: boolean; color: string }) {
   )
 }
 
-export function MediaStatsSections({ stats, renderName }: {
+export function MediaStatsSections({ stats, renderName, taxonOrderFor }: {
   stats: MediaStats
   renderName: (name: string) => React.ReactNode
+  /** Maps a species name to its eBird taxonomic order (for the age-coverage sort). */
+  taxonOrderFor?: (name: string) => number
 }) {
+  const [ageSort, setAgeSort] = useState<AgeSort>('name')
+  const [showAllAges, setShowAllAges] = useState(false)
+  // Age coverage: species with a young (immature/juvenile) bird documented, sorted.
+  const youngSpecies = useMemo(() => speciesWithYoung(stats.speciesDemographics), [stats.speciesDemographics])
+  const sortedYoung = useMemo(
+    () => sortSpeciesAgeCoverage(youngSpecies, ageSort, taxonOrderFor ?? (() => Infinity)),
+    [youngSpecies, ageSort, taxonOrderFor],
+  )
+
   if (stats.total === 0) return null
   const s = stats
   // Per-individual age/sex totals so the donut center % shares the ring's basis.
@@ -89,12 +102,20 @@ export function MediaStatsSections({ stats, renderName }: {
   const agedInd = s.ageMix.reduce((a, b) => a + (b.label === 'Unknown' ? 0 : b.value), 0)
   const sexTotal = s.sexMix.reduce((a, b) => a + b.value, 0)
   const sexedInd = s.sexMix.reduce((a, b) => a + (b.label === 'Unknown' ? 0 : b.value), 0)
+  // "At a glance" nugget facts — kept out of the StatCell grid so the grid stays
+  // uniform (mixing tiles with and without a sub-line misaligns them).
+  const atAGlanceFacts: string[] = []
+  if (s.firstDate && s.lastDate) atAGlanceFacts.push(`Spanning ${formatDate(s.firstDate)} – ${formatDate(s.lastDate)}`)
+  if (s.busiestDay) atAGlanceFacts.push(`Busiest day ${formatDate(s.busiestDay.date)} (${fmt(s.busiestDay.count)})`)
+  if (s.longestStreakDays > 1) atAGlanceFacts.push(`Longest streak ${fmt(s.longestStreakDays)} days`)
 
   return (
     <>
       <Divider />
 
-      {/* At a glance */}
+      {/* At a glance — uniform count tiles only; the date/streak nuggets live in
+          the caption below so the grid never mixes tiles with and without a
+          sub-line (the cause of the misalignment). */}
       <SubLabel>At a glance</SubLabel>
       <div style={GRID}>
         <StatCell label="Total media" value={s.total} large={false} />
@@ -102,16 +123,10 @@ export function MediaStatsSections({ stats, renderName }: {
         <StatCell label="Photos" value={s.photo} large={false} />
         <StatCell label="Audio" value={s.audio} large={false} />
         <StatCell label="Video" value={s.video} large={false} />
-        {s.busiestDay && (
-          <StatCell label="Busiest day" value={s.busiestDay.count} sub={formatDate(s.busiestDay.date)} large={false} />
-        )}
-        {s.longestStreakDays > 1 && (
-          <StatCell label="Longest streak" value={s.longestStreakDays} sub="days in a row" large={false} />
-        )}
       </div>
-      {s.firstDate && s.lastDate && (
-        <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'center', margin: '10px 0 0' }}>
-          Spanning {formatDate(s.firstDate)} – {formatDate(s.lastDate)}
+      {atAGlanceFacts.length > 0 && (
+        <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'center', margin: '10px 0 0', lineHeight: 1.6 }}>
+          {atAGlanceFacts.join('  ·  ')}
         </p>
       )}
 
@@ -157,28 +172,70 @@ export function MediaStatsSections({ stats, renderName }: {
         </>
       )}
 
-      {/* Per-species demographic coverage */}
-      {s.speciesDemographics.length > 0 && (
+      {/* Age coverage by species — species you've documented as a juvenile or
+          immature; top 10 + expand; sortable by name or taxonomic order. The
+          adults-only note renders even when no young birds are documented yet
+          (that's the case it's most informative for), so the section opens
+          whenever there's either a young-species list or an adults-only note. */}
+      {(youngSpecies.length > 0 || s.onlyAdults.length > 0) && (
         <>
           <Divider />
-          <SubLabel>Age coverage by species</SubLabel>
-          <div style={{ display: 'flex', gap: 12, fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Adult} /> Adult</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Immature} /> Immature</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Juvenile} /> Juvenile</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
-            {s.speciesDemographics.slice(0, 40).map((sp, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ flex: 1, minWidth: 0 }}>{renderName(sp.name)}</span>
-                <span style={{ display: 'inline-flex', gap: 5, flexShrink: 0 }}>
-                  <Dot on={sp.adult} color={AGE_COLOR.Adult} />
-                  <Dot on={sp.immature} color={AGE_COLOR.Immature} />
-                  <Dot on={sp.juvenile} color={AGE_COLOR.Juvenile} />
-                </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+            <SubLabel>Age coverage by species</SubLabel>
+            {youngSpecies.length > 0 && (
+              <div role="group" aria-label="Sort age coverage" style={{ marginLeft: 'auto', display: 'inline-flex', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, overflow: 'hidden' }}>
+                {([['name', 'A–Z'], ['taxonomic', 'Taxonomic']] as const).map(([key, label], i) => (
+                  <button tabIndex={0}
+                    key={key}
+                    aria-pressed={ageSort === key}
+                    onClick={() => setAgeSort(key)}
+                    style={{
+                      height: 26, padding: '0 10px', border: 'none',
+                      borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
+                      background: ageSort === key ? 'var(--sr-accent-bg)' : 'transparent',
+                      color: ageSort === key ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                      fontSize: '0.6875rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
-            ))}
+            )}
           </div>
+          {youngSpecies.length > 0 && (
+            <>
+              <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
+                Species you've documented as a juvenile or immature — a filled dot marks each age class you've captured.
+              </p>
+              <div style={{ display: 'flex', gap: 12, fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Adult} /> Adult</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Immature} /> Immature</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Juvenile} /> Juvenile</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {(showAllAges ? sortedYoung : sortedYoung.slice(0, 10)).map((sp, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ flex: 1, minWidth: 0 }}>{renderName(sp.name)}</span>
+                    <span style={{ display: 'inline-flex', gap: 5, flexShrink: 0 }}>
+                      <Dot on={sp.adult} color={AGE_COLOR.Adult} />
+                      <Dot on={sp.immature} color={AGE_COLOR.Immature} />
+                      <Dot on={sp.juvenile} color={AGE_COLOR.Juvenile} />
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {sortedYoung.length > 10 && (
+                <button tabIndex={0}
+                  onClick={() => setShowAllAges(v => !v)}
+                  style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', fontFamily: 'inherit', padding: 0 }}
+                >
+                  {showAllAges ? 'Show fewer' : `Show all ${fmt(sortedYoung.length)}`}
+                </button>
+              )}
+            </>
+          )}
           {s.onlyAdults.length > 0 && (
             <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '10px 0 0' }}>
               {fmt(s.onlyAdults.length)} {s.onlyAdults.length === 1 ? 'species is' : 'species are'} documented only as adults so far.

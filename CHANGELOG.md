@@ -7,6 +7,11 @@ All notable changes to SnowRaven are documented here.
 ### Added
 - **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://snowraven.dtgibson.com/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
 
+## [0.5.24] - 2026-06-09
+
+### Changed
+- **Statistics → Media card: fixed alignment and reworked the age-coverage list.** The **At a glance** tiles are now uniform — the busiest-day, longest-streak, and date-span facts moved out of the tile grid (where they made some tiles a line taller and knocked the row out of alignment) into a single caption beneath it, so the streak dates line up with everything else. **Age coverage by species** now lists only species you have documented as a juvenile or immature, shows the first 10 with a "Show all" / "Show fewer" toggle, and is sortable by name (A–Z) or taxonomic order. The "documented only as adults so far" note still appears even when you have no young birds tagged yet.
+
 ## [0.5.23] - 2026-06-09
 
 ### Added

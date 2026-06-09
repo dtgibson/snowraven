@@ -87,6 +87,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const [breedingFilter, setBreedingFilter] = useState<'all' | 'confirmed' | 'probable' | 'possible'>('all')
   const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [mlTaxonMap, setMlTaxonMap] = useState<Record<string, string>>({})
+  const [mlTaxonOrders, setMlTaxonOrders] = useState<Record<string, number>>({})
   const [geoPopup, setGeoPopup] = useState<{ lng: number; lat: number; title: string; sub: string } | null>(null)
   const [nemesisResult, setNemesisResult] = useState<NemesisSpecies[] | null>(null)
   const [nemesisLoading, setNemesisLoading] = useState(false)
@@ -148,8 +149,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         if (seenNames.size > 0) {
           const species = [...seenNames.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
           try {
-            const data = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
-            if (!cancelled) setMlTaxonMap(data.codes)
+            const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>('/taxonomy/codes', { species })
+            if (!cancelled) { setMlTaxonMap(data.codes); setMlTaxonOrders(data.orders ?? {}) }
           } catch { /* taxonomy unavailable — falls back to taxaName */ }
         }
 
@@ -284,6 +285,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     return m
   }, [mlTaxonMap, nemesisTaxonMap])
   const codeFor = (name: string) => mlTaxonMap[name] ?? nemesisTaxonMap[name] ?? normTaxon[normalizeSpeciesName(name)]
+  // Taxonomic order for media species (for the Age coverage by species sort).
+  const normTaxonOrder = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const [name, ord] of Object.entries(mlTaxonOrders)) m[normalizeSpeciesName(name)] = ord
+    return m
+  }, [mlTaxonOrders])
+  const orderFor = (name: string) => mlTaxonOrders[name] ?? normTaxonOrder[normalizeSpeciesName(name)] ?? Infinity
 
   // ── useMemos (all declared before any conditional return) ─────────────────
 
@@ -1775,6 +1783,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
           <MediaStatsSections
             stats={mediaStats}
+            taxonOrderFor={orderFor}
             renderName={name => (
               <BirdName commonName={name} taxonCode={codeFor(name)} hasEntry={hasEntryFor(name)} onOpenSpecies={onOpenSpecies} size="sm" />
             )}
