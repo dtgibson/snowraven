@@ -8,7 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-57 versions shipped. Last shipped: **Tides on the Weather tab (v0.5.17)** -- a checklist lookup now also shows the historical tide below the weather, from the nearest NOAA station (keyless): the water-level range over the checklist, Observed (gauge) or Predicted (interpolated from the high/low curve for prediction-only stations), rising/falling, the surrounding high/low, and the station + distance. Two notices (too-far / outside-US) with a one-tap override, and a "Copy Weather and Tide Together" button.
+58 versions shipped. Last shipped: **Quality & accessibility sweep + Media Comments (v0.5.18)** -- a Multimedia **Media Comments** section (searchable ML captions/notes/details with Macaulay links); Checklist Comparer **weather/tide + badges** (side-by-side weather and tide per checklist); a **Statistics → Data Quality** weather/tide-block coverage stat; a Settings **date-format picker**; **keyboard-operable map markers** (focusable in-view sidebar lists); and behaviour-preserving component splits.
+
+Earlier: **Tides on the Weather tab (v0.5.17)** -- a checklist lookup now also shows the historical tide below the weather, from the nearest NOAA station (keyless): the water-level range over the checklist, Observed (gauge) or Predicted (interpolated from the high/low curve for prediction-only stations), rising/falling, the surrounding high/low, and the station + distance. Two notices (too-far / outside-US) with a one-tap override, and a "Copy Weather and Tide Together" button.
 
 Earlier: **Performance sweep + Settings location & 5-mile default (v0.5.16)** -- app-wide loading/waiting reduction (defer-mount all tabs but Weather, parse-once shared caches, GL map markers + atlas viewport cap, network timeouts, idle-prefetched chunks) plus a boot skeleton, root error boundary, and progress indicators; "Use my location" in Settings and a 5-mile default map radius.
 

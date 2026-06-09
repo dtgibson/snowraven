@@ -1191,3 +1191,17 @@ Both failures were active simultaneously with the missing `http:allow-fetch` sco
 - **US-only with override.** Coarse US bounding boxes flag outside-US; >25 mi flags a far station; both are notices with a one-tap override, never hard blocks. PRIVACY_POLICY updated for the NOAA call.
 
 **Implications:** Regenerate the bundled station list (re-run the script) when refreshing NOAA stations. The tide formatter is split from the weather formatter's attribution so "Copy Weather and Tide Together" emits one SnowRaven credit with NOAA credited inline.
+
+---
+
+## Quality/accessibility sweep: in-place splits, canonical date formatter, keyboard markers, weather-block detectors — 2026-06-08 (v0.5.18)
+
+**Context:** A maintain-lane sweep addressing date formatting, large components, keyboard access to the map, and a Data Quality stat — plus two user-facing additions (Comparer weather/tide, Media Comments). Two audit items ("accessibility & simplification", "grow component test coverage") were found **already shipped in v0.5.11** and verified — dropped, not redone.
+
+**Decisions:**
+- **Canonical date formatting via `lib/formatDate.ts`** with a Settings picker (month-first default / day-first / ISO). One formatter app-wide. The eBird Y-M-D *display* dates must never TZ-shift; only true instants (e.g. upload time) convert to local — `formatDate` is the single intended conversion point.
+- **Keyboard-operable map markers via focusable in-view sidebar lists**, not focusable MapLibre markers (which aren't natively focusable — the standing constraint). The in-view Sightings/Hotspots lists are keyboard targets wired to the same popup, so the map is operable without a mouse.
+- **Component splits are behavior-preserving and in-place** (BirdingStats 2036→1893, SpeciesDetail 1793→1461, MapExplorer 2249→1515, extracted into `lib/`, `statsPrimitives/`, `speciesDetail/`, `map/`). No behavior change — verified by the existing suite (596 tests).
+- **Weather/tide-block detection in Statistics → Data Quality** via `hasSnowravenWeatherBlock` / `hasRaincrowWeatherBlock` / SnowRaven-tide detectors (Raincrow keyed on `raincrow.app`). Counts + % of checklists carrying each block type.
+
+**Implications:** Use `formatDate` for any user-facing date; never hand-format or call `toLocaleDateString` ad hoc. New map "things on the map" need a corresponding focusable sidebar entry for keyboard access. The block detectors are heuristic (string-keyed) — keep them in sync if the weather/tide block formats change.

@@ -5,6 +5,33 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Media Comments on the Multimedia tab (complete — June 2026, v0.5.18)
+
+Surfaces the Caption / Media notes / Observation Details from your ML export as a
+searchable list (keyword filter + Newest/Oldest + recent-10/show-all), each row
+with species/type/date and a Macaulay asset link — mirroring the Species Detail
+comments box. New `lib/mediaComments.ts` + `MediaCommentsSection.tsx`;
+`parseMLExport` now reads the comment fields + Locality and is record-aware.
+
+### Checklist Comparer: weather, tide & badges (complete — June 2026, v0.5.18)
+
+The checklist-compare mode gained media/breeding/weather/tide **badges** per
+species and a **side-by-side fresh weather & tide section** for the two
+checklists (no auto-copy).
+
+### Quality & accessibility sweep (complete — June 2026, v0.5.18)
+
+- **Date-format picker** — canonical `lib/formatDate.ts` + a Settings control
+  (month-first default / day-first / ISO), applied app-wide.
+- **Keyboard-operable map markers** — in-view, focusable sidebar lists
+  (Sightings / Hotspots in view) wired to the same popup, so the map is usable
+  without a mouse.
+- **Statistics → Data Quality: weather/tide block coverage** — count + % of
+  checklists carrying any / Raincrow / SnowRaven weather, SnowRaven tide, and
+  SnowRaven weather+tide blocks (new block detectors).
+- **Internal:** BirdingStats / SpeciesDetail / MapExplorer split into smaller
+  files (behavior-preserving) — see DECISIONS.
+
 ### Tides on the Weather tab (complete — June 2026, v0.5.17)
 
 Looking up a checklist on the Weather tab now also shows the historical tide
