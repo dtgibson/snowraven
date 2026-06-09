@@ -1205,3 +1205,15 @@ Both failures were active simultaneously with the missing `http:allow-fetch` sco
 - **Weather/tide-block detection in Statistics → Data Quality** via `hasSnowravenWeatherBlock` / `hasRaincrowWeatherBlock` / SnowRaven-tide detectors (Raincrow keyed on `raincrow.app`). Counts + % of checklists carrying each block type.
 
 **Implications:** Use `formatDate` for any user-facing date; never hand-format or call `toLocaleDateString` ad hoc. New map "things on the map" need a corresponding focusable sidebar entry for keyboard access. The block detectors are heuristic (string-keyed) — keep them in sync if the weather/tide block formats change.
+
+---
+
+## Media-stats parser is additive/guarded; batched-branch merges need a build (tsc -b), not just vitest — 2026-06-09 (v0.5.20, batched with 0.5.19)
+
+**Context:** Two efforts parked independently off 0.5.18 — `date-unify-media-comments-hint` (0.5.19) and `media-statistics-expansion` (0.5.20) — were batched into one 0.5.20 release on the Mac.
+
+**Decisions:**
+- **ML export parsing stays a thin reader; aggregation lives in `lib/mediaStats.ts`.** `parseMLExport` was extended to read Age/Sex, Behaviors, Time, Year/Month, and community-rating columns **additively and guarded** (`'' / null / 0` when absent), so older/column-light exports keep parsing unchanged. Age/sex counts are **per individual** with Unknown shown honestly. Each Media-card section renders only to the extent the export carries that annotation.
+- **Date formatting is fully unified** on the canonical `formatObsDate`/`formatDate` path (the Weather-tab checklist line was the last stray); programmatic jump-scrolls go through one reduced-motion-aware helper (`lib/scroll.ts`).
+
+**Implications (batched merges):** When batching two branches that both extend a shared type, **run the release build (`tsc -b`), not just `vitest`** — vitest uses esbuild and strips types, so it won't catch a test fixture that's gone stale against an extended interface. Here the date-unify branch's `MLExportRow` test fixture was missing the fields media-stats added; `tsc -b` caught it, vitest didn't. Keep test fixtures in sync when widening a type. The first-merged branch fast-forwards; the second conflicts on the version files + CHANGELOG top (both bump from the same base) — resolve version to the higher, keep both CHANGELOG sections.

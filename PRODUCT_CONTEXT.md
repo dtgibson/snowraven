@@ -5,6 +5,35 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Richer media statistics — Statistics → Media card (complete — June 2026, v0.5.20)
+
+The Media card now reads far more of the ML export and breaks the archive down
+several ways, each section gated on whether the export carries the relevant
+annotations (computed offline):
+
+- **At a glance** — totals, photo/audio/video split, species documented, busiest
+  media day, longest streak, collection span.
+- **Documentation coverage** — % of the life list captured with any media / photo
+  / audio / video, plus format-combination breakdown.
+- **Age & sex** — age-class and sex mixes (per individual, Unknown shown
+  honestly), age coverage by species, only-adults count.
+- **Behaviors** — distinct count + top behaviors + media-backed breeding tiers.
+- **When captured** — time-of-day distribution by format; **community ratings**
+  distribution/mean/top when enough assets are rated.
+- New `lib/mediaStats.ts` (parse/aggregate) + `components/MediaStatsSections.tsx`;
+  `parseMLExport` extended (Age/Sex, Behaviors, Time, Year/Month, ratings —
+  additive + guarded). Demo-data generator extended so the showcase reflects it.
+
+### Date-format unification + Multimedia discoverability (complete — June 2026, v0.5.19)
+
+- The Weather tab's checklist-line date (the last stray raw eBird date) now flows
+  through the canonical pref-aware `formatObsDate` — every user-facing date honors
+  the Settings date-format choice.
+- A **"Jump to comments"** hint + anchor on the Multimedia tab (gated on comment
+  count) makes the Media Comments section discoverable.
+- Reduced-motion now honored for programmatic jump scrolls (shared
+  `lib/scroll.ts` `smoothScrollIntoView`).
+
 ### Media Comments on the Multimedia tab (complete — June 2026, v0.5.18)
 
 Surfaces the Caption / Media notes / Observation Details from your ML export as a

@@ -8,7 +8,9 @@ more about your users and your product. Update it freely.
 
 ## Shipped
 
-58 versions shipped. Last shipped: **Quality & accessibility sweep + Media Comments (v0.5.18)** -- a Multimedia **Media Comments** section (searchable ML captions/notes/details with Macaulay links); Checklist Comparer **weather/tide + badges** (side-by-side weather and tide per checklist); a **Statistics → Data Quality** weather/tide-block coverage stat; a Settings **date-format picker**; **keyboard-operable map markers** (focusable in-view sidebar lists); and behaviour-preserving component splits.
+60 versions shipped. Last shipped: **Richer media statistics + date-format unification (v0.5.20, batched with 0.5.19)** -- the **Statistics → Media card** now goes far beyond the most-photographed lists: documentation coverage, age/sex and behavior breakdowns, format combinations, time-of-day, and community ratings (each gated on what your export carries). Also (0.5.19): the Weather-tab date now follows your date-format preference, a Multimedia **"Jump to comments"** hint, and reduced-motion-honoring jump scrolls. Shipped from the Mac as one batched 0.5.20 release.
+
+Earlier: **Quality & accessibility sweep + Media Comments (v0.5.18)** -- a Multimedia **Media Comments** section (searchable ML captions/notes/details with Macaulay links); Checklist Comparer **weather/tide + badges** (side-by-side weather and tide per checklist); a **Statistics → Data Quality** weather/tide-block coverage stat; a Settings **date-format picker**; **keyboard-operable map markers** (focusable in-view sidebar lists); and behaviour-preserving component splits.
 
 Earlier: **Tides on the Weather tab (v0.5.17)** -- a checklist lookup now also shows the historical tide below the weather, from the nearest NOAA station (keyless): the water-level range over the checklist, Observed (gauge) or Predicted (interpolated from the high/low curve for prediction-only stations), rising/falling, the surrounding high/low, and the station + distance. Two notices (too-far / outside-US) with a one-tap override, and a "Copy Weather and Tide Together" button.
 
