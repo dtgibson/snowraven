@@ -1,15 +1,21 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 17,
-  "sessionType": "feature",
-  "currentStage": null,
-  "lastCompletedStage": null,
-  "lastCheckpointStatus": "complete",
+  "activeFeature": "media-comments-asset-only",
+  "sessionNumber": 18,
+  "sessionType": "maintain",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "frontend/src/lib/mediaComments.ts",
+    "frontend/src/lib/mediaComments.test.ts",
+    "frontend/src/components/MediaCommentsSection.tsx",
+    "CHANGELOG.md",
+    "docs/HELP.md"
+  ],
   "releasedVersion": "0.5.20",
-  "lastFeature": "0.5.20 SHIPPED from the Mac — batched two efforts parked off 0.5.18: 0.5.19 date-unify-media-comments-hint (Weather-tab date via canonical formatObsDate; Multimedia Jump-to-comments hint+anchor; reduced-motion jump scrolls via lib/scroll.ts) + 0.5.20 media-statistics-expansion (richer Statistics->Media card: documentation coverage, age/sex + behavior breakdowns, format combos, time-of-day, community ratings; lib/mediaStats.ts + MediaStatsSections.tsx; parseMLExport extended additively). Deploy: FF date-unify -> main, merge media-stats (resolved version->0.5.20 + kept both CHANGELOG sections), fixed a merge-integration type error (date-unify's MLExportRow test fixture was missing media-stats' new fields — caught by tsc -b, not vitest), tag v0.5.20 -> Windows CI green -> ./release.sh published (macOS notarized universal + signed Windows + latest.json all 3). Health-checked live. Chronicler done: PRODUCT_CONTEXT/DECISIONS/ROADMAP + website/index.html (Statistics blurb). Both branches deleted. 630 frontend + 102 backend tests.",
-  "remainingBacklog": "ROADMAP Up Next: mobile app (iOS App Store then Android); Windows code signing (Authenticode). Lower-priority from earlier audits already addressed (keyboard map markers, date unification, accessibility, component test coverage).",
-  "createdAt": "2026-06-09T04:30:00Z",
-  "updatedAt": "2026-06-09T05:45:00Z"
+  "lastFeature": "0.5.20 SHIPPED (batched 0.5.19 + 0.5.20). media-comments-asset-only (0.5.21) is BUILT/TESTED/CI-green and COMMITTED+PUSHED to main, undeployed — paused at Stage 5 (Deployer) for the Mac to release. Change: the Multimedia Media Comments section (lib/mediaComments.ts) now counts/lists/searches only the per-asset Caption + Media notes; the eBird Observation Details is excluded (the ML export duplicates it across every media item from an observation). observationDetails stays parsed on MLExportRow, just not surfaced. Verified on the real 2073-asset export: list 876 -> 308 entries (568 duplicated obs comments removed). 632 frontend tests. Adversarial review: correctness + security clean; 2 stale code comments fixed.",
+  "remainingBacklog": "DEPLOY 0.5.21 from the Mac: git pull main (already up to date) -> confirm 0.5.21 in frontend/package.json + src-tauri/tauri.conf.json + CHANGELOG -> push v0.5.21 tag -> Windows CI -> ./release.sh -> Chronicler closeout (PRODUCT_CONTEXT/DECISIONS if warranted; website/README only if needed — this is a refinement of an existing feature). ROADMAP Up Next: mobile app (iOS then Android); accessibility/clarity/simplification; Windows code signing (Authenticode).",
+  "createdAt": "2026-06-09T16:05:49Z",
+  "updatedAt": "2026-06-09T16:16:20Z"
 }

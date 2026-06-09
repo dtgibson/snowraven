@@ -1,24 +1,25 @@
-// Pure helpers for the Media Comments section on the Multimedia tab. The ML
-// export carries up to three free-text fields per media asset; these select and
-// filter the ones that have a comment. No React, no I/O.
+// Pure helpers for the Media Comments section on the Multimedia tab. Only the
+// comment on the MEDIA ITSELF counts: the asset Caption and Media notes. The
+// export's Observation Details is the eBird observation comment, which the ML
+// export copies onto every media asset from that observation — so it repeats
+// across items and is intentionally excluded here. No React, no I/O.
 
 import type { MLExportRow } from './parseMLExport'
 
-export type MediaCommentField = 'observationDetails' | 'mediaNotes' | 'caption'
+export type MediaCommentField = 'mediaNotes' | 'caption'
 
-// Priority order for which comment to surface when a row has more than one, and
-// the short label shown next to it.
-const FIELD_ORDER: MediaCommentField[] = ['observationDetails', 'mediaNotes', 'caption']
+// Priority order for which comment to surface when a row has both, and the short
+// label shown next to it.
+const FIELD_ORDER: MediaCommentField[] = ['mediaNotes', 'caption']
 
 export const MEDIA_COMMENT_LABEL: Record<MediaCommentField, string> = {
-  observationDetails: 'Obs details',
   mediaNotes: 'Media note',
   caption: 'Caption',
 }
 
-/** True if the row carries any non-empty comment field. */
+/** True if the row carries a per-asset comment (Caption or Media notes). */
 export function hasMediaComment(row: MLExportRow): boolean {
-  return !!(row.observationDetails.trim() || row.mediaNotes.trim() || row.caption.trim())
+  return !!(row.mediaNotes.trim() || row.caption.trim())
 }
 
 /** The comment to display for a row: the highest-priority field that matches
@@ -39,8 +40,9 @@ export function pickComment(row: MLExportRow, query?: string): { field: MediaCom
   return null
 }
 
-/** Rows with a comment, filtered by a case-insensitive substring across all three
- *  comment fields, sorted by date (catalog id breaks ties for stable ordering). */
+/** Rows with a per-asset comment, filtered by a case-insensitive substring across
+ *  both comment fields (Caption and Media notes), sorted by date (catalog id
+ *  breaks ties for stable ordering). */
 export function filterAndSortMediaComments(
   rows: MLExportRow[],
   query: string,
@@ -51,7 +53,6 @@ export function filterAndSortMediaComments(
     if (!hasMediaComment(r)) return false
     if (!q) return true
     return (
-      r.observationDetails.toLowerCase().includes(q) ||
       r.mediaNotes.toLowerCase().includes(q) ||
       r.caption.toLowerCase().includes(q)
     )

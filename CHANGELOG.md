@@ -7,6 +7,11 @@ All notable changes to SnowRaven are documented here.
 ### Added
 - **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://snowraven.dtgibson.com/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
 
+## [0.5.21] - 2026-06-09
+
+### Changed
+- **The Multimedia tab's Media Comments section now shows only the comment on the media itself** — the asset **Caption** and **Media notes**. The eBird **Observation Details** comment is no longer listed: the Macaulay Library export copies that observation-level comment onto every media item from the same observation, so it was repeating across entries. The list, the count, and the keyword search are now limited to the per-asset Caption and Media notes, so each entry is a real comment about that specific photo, recording, or video.
+
 ## [0.5.20] - 2026-06-08
 
 ### Added

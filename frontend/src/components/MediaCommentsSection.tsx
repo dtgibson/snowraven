@@ -14,10 +14,11 @@ const TYPE_META: Record<MLExportRow['format'], { icon: typeof Camera; color: str
   Video: { icon: Video, color: 'var(--sr-graph-video)' },
 }
 
-// A "Media Comments" section for the Multimedia tab: the most recent media
-// comments (Caption / Media notes / Observation Details from the ML export), with
-// keyword filter + Newest/Oldest sort + paginated "show all", mirroring the
-// Species Detail comments box. Returns null when the export carries no comments.
+// A "Media Comments" section for the Multimedia tab: the most recent per-asset
+// media comments (Caption / Media notes from the ML export), with keyword filter +
+// Newest/Oldest sort + paginated "show all", mirroring the Species Detail comments
+// box. The eBird observation comment is excluded — the export duplicates it across
+// an observation's media. Returns null when the export carries no media comments.
 export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpecies }: {
   rows: MLExportRow[]
   backboneNames: Set<string>
