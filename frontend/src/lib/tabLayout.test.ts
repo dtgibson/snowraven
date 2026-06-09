@@ -152,7 +152,7 @@ describe('parseLayout (used by both the localStorage and storage-seam paths)', (
 describe('serializeLayout', () => {
   it('converts the hidden Set to an array and round-trips through parseLayout', () => {
     const original: TabLayoutState = {
-      order: ['birding-stats', 'weather', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'comparer'],
+      order: ['birding-stats', 'weather', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'named-birds', 'comparer'],
       hidden: new Set(['comparer', 'life-list']),
     }
     const serialized = serializeLayout(original)

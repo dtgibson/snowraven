@@ -5,6 +5,21 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Named Birds — track individual birds over time (complete — June 2026, v0.5.23)
+
+Tracks individual birds the user names in eBird species comments via `[name:…]`
+tags (e.g. `[name:Winky]`, `[name:one-leg-pete]`). A new **Named Birds** tab
+lists each named individual (name, species, first/last seen, sighting count),
+sortable by name/species/last-seen, each expanding to its checklists (date, eBird
+checklist link, the species comment). The same per-species view appears as a
+**Named Individuals** section on Species Detail. Keyed by name + species (same
+name on two species = two birds); name match is case-insensitive; subspecies fold
+to the parent; one sighting per checklist (deduped by submission id). Pure logic
+in `lib/namedBirds.ts`; shared `components/NamedBirdsTable.tsx`; tab in
+`components/NamedBirds.tsx`; wired via `lib/tabLayout.ts` (`named-birds`, which
+`parseLayout` auto-appends to existing saved layouts) + `App.tsx`. Computed
+offline from the eBird backup. The `[name:…]` parser is length-bounded (ReDoS-safe).
+
 ### Richer media statistics — Statistics → Media card (complete — June 2026, v0.5.20)
 
 The Media card now reads far more of the ML export and breaks the archive down

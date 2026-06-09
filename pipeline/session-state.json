@@ -1,15 +1,15 @@
 {
   "activeFeature": null,
-  "sessionNumber": 19,
+  "sessionNumber": 20,
   "sessionType": null,
   "currentStage": null,
-  "lastCompletedStage": 6,
+  "lastCompletedStage": 9,
   "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.20",
-  "lastFeature": "media-stats-cleanup (0.5.22) COMPLETE + chronicled on main (committed + pushed). Cleanup of the 0.5.20 Statistics Media card: removed Format coverage (redundant) + Community ratings (UI only — still computed in mediaStats); renamed 'Age & sex of your subjects' -> 'Photos Tagged With Age or Gender' (donuts Age/Gender); added a divider above the Top-N rankings to fix the section running into 'Most photographed'. 632 frontend tests; review clean. Chronicler done on main: PRODUCT_CONTEXT + DECISIONS + HELP + README + website wording. || 0.5.21 (media-comments-asset-only) also still pending Mac release.",
-  "remainingBacklog": "PENDING MAC RELEASE: main carries 0.5.21 (media-comments per-asset) + 0.5.22 (media-card cleanup), both undeployed. The Mac tags v0.5.22 (ships both since 0.5.20) -> Windows CI -> ./release.sh. No further Chronicler needed (done on main). ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing (Authenticode).",
-  "createdAt": "2026-06-09T16:56:53Z",
-  "updatedAt": "2026-06-09T17:10:53Z"
+  "lastFeature": "named-bird-tracker (0.5.23) COMPLETE + chronicled on main (committed + pushed). New Named Birds tab + Species Detail 'Named Individuals' section: parses [name:…] tags in eBird species comments into per-individual records (name, species, first/last seen, sighting count) with per-bird checklist drill-down (date, eBird link, comment); sortable name/species/last-seen. lib/namedBirds.ts + NamedBirdsTable.tsx + NamedBirds.tsx; tab via tabLayout.ts (parseLayout auto-migrates) + App.tsx; demo generator seeds named birds. 650 frontend tests. Adversarial review (11 agents): fixed a HIGH ReDoS (length-bounded regex), a checklist double-count (dedupe by submissionId), locale-sort consistency, a dead field, and a11y polish; security/privacy clean. Chronicler: PRODUCT_CONTEXT + DECISIONS + HELP + README.",
+  "remainingBacklog": "PENDING MAC RELEASE: main carries 0.5.21 (media-comments per-asset) + 0.5.22 (media-card cleanup) + 0.5.23 (Named Birds), all undeployed. The Mac tags v0.5.23 (ships all three since 0.5.20) -> Windows CI -> ./release.sh. AT DEPLOY: catch up website/ — it's behind (still ~v0.5.17 pill) and needs: a Named Birds feature mention + regenerated demo screenshots (the demo generator now seeds named birds), plus the 0.5.18+ media features. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing (Authenticode).",
+  "createdAt": "2026-06-09T17:47:44Z",
+  "updatedAt": "2026-06-09T18:33:27Z"
 }

@@ -7,6 +7,11 @@ All notable changes to SnowRaven are documented here.
 ### Added
 - **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://snowraven.dtgibson.com/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
 
+## [0.5.23] - 2026-06-09
+
+### Added
+- **Named Birds — track individual birds over time.** Tag a specific bird in an eBird species comment with a `[name:…]` tag (for example `[name:Winky]` or `[name:one-leg-pete]`) and SnowRaven gathers every checklist where that name appears. A new **Named Birds** tab lists each named individual with its species, first- and last-seen dates, and number of sightings, sortable by name, species, or last-seen; each one expands to show every checklist it appears on, with a link to the checklist on eBird and the species comment. The same information for a single species also appears as a **Named Individuals** section on the Species Detail tab. A bird is identified by its name plus its species (so the same name on two species is two individuals), name matching ignores case, and subspecies fold into the parent species. Computed entirely from your eBird backup, offline.
+
 ## [0.5.22] - 2026-06-09
 
 ### Changed

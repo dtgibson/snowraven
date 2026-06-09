@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, Loader2, ChevronDown,
   Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
-  MapPin, Play, Calendar, SlidersHorizontal, Share2,
+  MapPin, Play, Calendar, SlidersHorizontal, Share2, Tag,
 } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
@@ -19,6 +19,8 @@ import {
 } from '../lib/speciesStats'
 import { SpeciesLinks } from './SpeciesLinks'
 import { BirdName } from './BirdName'
+import { computeNamedBirds } from '../lib/namedBirds'
+import { NamedBirdsTable } from './NamedBirdsTable'
 import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
@@ -408,6 +410,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     const q = commentFilter.toLowerCase()
     return sorted.filter(o => o.speciesComments.toLowerCase().includes(q))
   }, [speciesObs, commentSort, commentFilter])
+
+  // Named individuals of this species, parsed from [name:…] tags in comments.
+  const namedIndividuals = useMemo(() => computeNamedBirds(speciesObs), [speciesObs])
 
   // Taxon code for selected species (merge-mode aware)
   const speciesTaxonCode = useMemo(() => {
@@ -1418,6 +1423,19 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               </>
             )}
           </SectionCard>
+
+          {/* Named Individuals — birds named in this species' comments via [name:…] */}
+          {namedIndividuals.length > 0 && (
+            <SectionCard>
+              <SectionHead icon={<Tag size={14} strokeWidth={2.2} />} title="Named Individuals" />
+              <div style={{ padding: '16px 18px' }}>
+                <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
+                  Individuals you've named in this species' checklist comments with a <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.6875rem', color: 'var(--sr-text)' }}>[name:…]</code> tag. The full cross-species list is on the Named Birds tab.
+                </p>
+                <NamedBirdsTable birds={namedIndividuals} showSpecies={false} />
+              </div>
+            </SectionCard>
+          )}
 
           {/* Recent Media — at bottom, only when ML is loaded and species has ≥1 catalog item */}
           {hasML && (['Photo', 'Audio', 'Video'] as MediaType[]).some(t => recentMediaIds[t] !== null) && (

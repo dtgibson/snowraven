@@ -1241,3 +1241,17 @@ Both failures were active simultaneously with the missing `http:allow-fetch` sco
 **Mechanism:** `components/MediaStatsSections.tsx` (removed two section blocks; renamed one) + `BirdingStats.tsx` (gated divider before rankings). **`computeMediaStats` still computes `ratings` and `completenessMix`** — only the rendering was removed, so re-adding either section is UI-only (no parser/aggregation work). Internal types/data (`Sex`, `s.sexMix`, `SEX_COLOR`) kept their names; the "gender" change is display-only.
 
 **Implications:** To bring back ratings or format coverage, just re-add the JSX in `MediaStatsSections` (the data is already on `MediaStats`). Any new "things below the media chart" must sit above the rankings divider or carry their own separator.
+
+---
+
+## Named Birds: track individuals via [name:…] tags in species comments — 2026-06-09 (v0.5.23)
+
+**What:** A feature to track individual birds the user names in eBird species comments (`[name:Winky]`, `[name:one-leg-pete]`). New `lib/namedBirds.ts` parses the tags and groups sightings; a shared `components/NamedBirdsTable.tsx` renders a sortable list with per-bird checklist drill-down; surfaced both as a new **Named Birds** tab (`components/NamedBirds.tsx`) and a **Named Individuals** section on Species Detail.
+
+**Decisions:**
+- **Identity = name + species.** Grouping key is `name.toLowerCase()::normalizeSpeciesName(species).toLowerCase()` — the same name on two species is two individuals; name match is case-insensitive; subspecies fold to the parent.
+- **One sighting per checklist.** Sightings dedupe by `submissionId` per bird (a parent + subspecies row of the same checklist, both tagged, count once) — matching the codebase's checklist-counting convention (`Set<submissionId>`).
+- **The `[name:…]` regex is length-bounded** (`[^\]]{0,120}`), NOT an unbounded lazy/greedy capture. `speciesComments` is uncapped user CSV text parsed synchronously on the main thread for every observation; an unbounded capture backtracks catastrophically (ReDoS) on an unclosed `[name:` + long run and freezes the UI. The bound keeps it linear; the value is trimmed in JS.
+- **New tab via `tabLayout.ts`** — adding `'named-birds'` to `ConfigurableTab`/`DEFAULT_TAB_ORDER`/`TAB_LABELS` is backward-compatible: `parseLayout` appends any default tab missing from a saved layout, so existing users gain the tab without losing their order.
+
+**Implications:** Any future parser over uncapped user text must bound its quantifiers (ReDoS). New cross-checklist per-bird aggregations should dedupe by submission id. Adding a tab is a `tabLayout.ts` + `App.tsx` (icon, DEFERRED_TABS, tabpanel) change; `parseLayout` handles migration.

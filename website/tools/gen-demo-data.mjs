@@ -279,6 +279,33 @@ while (d < endDate) {
   d = new Date(d.getTime() + rint(2, 6) * 86400000);
 }
 
+// ---- inject a few individually-named birds (for the Named Birds tab demo) ----
+// Tag several checklists of the most-observed species with [name:...] so the
+// showcase shows individuals tracked over time. Synthetic only; spreads each
+// bird's sightings across its date range. Observation Details is column index 20.
+{
+  const SP_IDX = 20;
+  const byCommon = new Map();
+  for (const r of ebirdRows) {
+    if (!byCommon.has(r[1])) byCommon.set(r[1], []);
+    byCommon.get(r[1]).push(r);
+  }
+  const ranked = [...byCommon.values()].sort((a, b) => b.length - a.length);
+  const namedPlan = [
+    { name: 'Stumpy', note: 'one-legged regular' },
+    { name: 'Old-Blue', note: 'blue/silver colour band' },
+    { name: 'Notch', note: 'notched tail feather' },
+  ];
+  for (let i = 0; i < namedPlan.length && i < ranked.length; i++) {
+    const rows = ranked[i].slice().sort((a, b) => a[11].localeCompare(b[11]));
+    const step = Math.max(1, Math.floor(rows.length / 5));
+    const tag = `[name:${namedPlan[i].name}] ${namedPlan[i].note}`;
+    for (let j = 0, n = 0; j < rows.length && n < 5; j += step, n++) {
+      rows[j][SP_IDX] = rows[j][SP_IDX] ? `${rows[j][SP_IDX]}; ${tag}` : tag;
+    }
+  }
+}
+
 // ---- write eBird backup ----
 const EB_HEADER = ['Submission ID','Common Name','Scientific Name','Taxonomic Order','Count','State/Province','County','Location ID','Location','Latitude','Longitude','Date','Time','Protocol','Duration (Min)','All Obs Reported','Distance Traveled (km)','Area Covered (ha)','Number of Observers','Breeding Code','Observation Details','Checklist Comments','ML Catalog Numbers'];
 const ebCsv = [EB_HEADER.join(',')].concat(ebirdRows.map(r => r.map(csvEsc).join(','))).join('\n') + '\n';

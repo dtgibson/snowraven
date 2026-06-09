@@ -125,6 +125,8 @@ Graph options control the Sightings Over Time and Media Over Time charts that ap
 
 County and date-range filters appear in the toolbar when your eBird backup contains county data. Active filters apply to all sections including the map, comments, breeding codes, and media counts.
 
+A **Named Individuals** section appears when this species has birds you've named in your checklist comments with a `[name:…]` tag (see the Named Birds tab). Each individual lists its sightings with checklist links and the comment.
+
 ---
 
 ## Statistics
@@ -281,6 +283,16 @@ The filter row above the table includes:
 Multiple pills can be active simultaneously. The table shows only species that have at least one observation for every active selection.
 
 The Unbounded toggle removes the table's horizontal scroll constraint for easier reading on narrow screens.
+
+---
+
+## Named Birds
+
+The Named Birds tab tracks individual birds you've named in your eBird species comments. Tag a specific bird in a checklist's species comment with a `[name:…]` tag — for example `[name:Winky]` or `[name:one-leg-pete]` — and SnowRaven gathers every checklist where that name appears.
+
+Each named bird shows its name, species, first- and last-seen dates, and total number of sightings, and expands to list every checklist it appears on: the date, a link to that checklist on eBird, and the species comment. Sort the list by name, species, or last-seen date.
+
+A bird is identified by its name together with its species, so the same name used for two different species is tracked as two individuals, and name matching ignores case. This tab requires your eBird backup. The same information for a single species also appears as a **Named Individuals** section on the Species Detail tab.
 
 ---
 
