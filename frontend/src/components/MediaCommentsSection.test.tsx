@@ -27,6 +27,13 @@ function row(overrides: Partial<MLExportRow> = {}): MLExportRow {
     caption: '',
     mediaNotes: '',
     observationDetails: '',
+    ageSex: '',
+    behaviors: '',
+    time: '',
+    year: null,
+    month: null,
+    avgRating: null,
+    numRatings: 0,
     ...overrides,
   }
 }
