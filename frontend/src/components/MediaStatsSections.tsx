@@ -1,0 +1,288 @@
+// The richer Statistics → Media card sections, driven by computeMediaStats.
+// Rendered inside BirdingStats' existing <SectionCard title="Media">, between the
+// media-over-time chart and the Top-10 rankings. Kept here (not inline in
+// BirdingStats) to keep that file manageable. Species names render through the
+// `renderName` closure the parent supplies (so BirdName gets the right taxon code
+// + hasEntry without threading those helpers through props).
+
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { StatCell, BarRow, SubLabel, Divider } from './statsPrimitives'
+import { fmt } from '../lib/statsFormat'
+import { formatDate } from '../lib/formatDate'
+import type { MediaStats, AgeClass, Sex } from '../lib/mediaStats'
+
+const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px 12px' } as const
+
+const AGE_COLOR: Record<AgeClass, string> = {
+  Adult: 'var(--sr-age-adult)', Immature: 'var(--sr-age-immature)',
+  Juvenile: 'var(--sr-age-juvenile)', Unknown: 'var(--sr-age-unknown)',
+}
+const SEX_COLOR: Record<Sex, string> = {
+  Male: 'var(--sr-sex-male)', Female: 'var(--sr-sex-female)', Unknown: 'var(--sr-sex-unknown)',
+}
+
+function pct(n: number, d: number): string {
+  return d > 0 ? `${Math.round((n / d) * 100)}%` : '0%'
+}
+
+function hourLabel(h: number): string {
+  const ampm = h < 12 ? 'a' : 'p'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}${ampm}`
+}
+
+// A labelled donut with a centered caption. `data` slices carry their own color.
+function Donut({ title, data, centerValue, centerLabel }: {
+  title: string
+  data: { label: string; value: number; color: string }[]
+  centerValue: string
+  centerLabel: string
+}) {
+  const total = data.reduce((a, b) => a + b.value, 0)
+  const slices = data.filter(d => d.value > 0)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      <SubLabel>{title}</SubLabel>
+      <div style={{ position: 'relative', width: 132, height: 132 }} role="img" aria-label={`${title}: ${slices.map(d => `${d.label} ${fmt(d.value)} (${pct(d.value, total)})`).join(', ')}`}>
+        <PieChart width={132} height={132}>
+          <Pie data={slices} dataKey="value" cx={66} cy={66} innerRadius={40} outerRadius={62} strokeWidth={0} startAngle={90} endAngle={-270}>
+            {slices.map((d, i) => <Cell key={i} fill={d.color} />)}
+          </Pie>
+        </PieChart>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text)', lineHeight: 1 }}>{centerValue}</span>
+          <span style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{centerLabel}</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', justifyContent: 'center', maxWidth: 200 }}>
+        {slices.map(d => (
+          <span key={d.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
+            {d.label} {fmt(d.value)} ({pct(d.value, total)})
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function Dot({ on, color }: { on: boolean; color: string }) {
+  return (
+    <span
+      style={{
+        width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+        background: on ? color : 'transparent',
+        border: on ? 'none' : '1.5px solid var(--sr-border)',
+      }}
+    />
+  )
+}
+
+export function MediaStatsSections({ stats, renderName }: {
+  stats: MediaStats
+  renderName: (name: string) => React.ReactNode
+}) {
+  if (stats.total === 0) return null
+  const s = stats
+  // Per-individual age/sex totals so the donut center % shares the ring's basis.
+  const ageTotal = s.ageMix.reduce((a, b) => a + b.value, 0)
+  const agedInd = s.ageMix.reduce((a, b) => a + (b.label === 'Unknown' ? 0 : b.value), 0)
+  const sexTotal = s.sexMix.reduce((a, b) => a + b.value, 0)
+  const sexedInd = s.sexMix.reduce((a, b) => a + (b.label === 'Unknown' ? 0 : b.value), 0)
+
+  return (
+    <>
+      <Divider />
+
+      {/* At a glance */}
+      <SubLabel>At a glance</SubLabel>
+      <div style={GRID}>
+        <StatCell label="Total media" value={s.total} large={false} />
+        <StatCell label="Species documented" value={s.distinctSpecies} large={false} />
+        <StatCell label="Photos" value={s.photo} large={false} />
+        <StatCell label="Audio" value={s.audio} large={false} />
+        <StatCell label="Video" value={s.video} large={false} />
+        {s.busiestDay && (
+          <StatCell label="Busiest day" value={s.busiestDay.count} sub={formatDate(s.busiestDay.date)} large={false} />
+        )}
+        {s.longestStreakDays > 1 && (
+          <StatCell label="Longest streak" value={s.longestStreakDays} sub="days in a row" large={false} />
+        )}
+      </div>
+      {s.firstDate && s.lastDate && (
+        <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'center', margin: '10px 0 0' }}>
+          Spanning {formatDate(s.firstDate)} – {formatDate(s.lastDate)}
+        </p>
+      )}
+
+      {/* Documentation coverage */}
+      {s.coverage && (
+        <>
+          <Divider />
+          <SubLabel>Documentation coverage</SubLabel>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', margin: '0 0 12px' }}>
+            <strong>{fmt(s.coverage.documented)}</strong> of {fmt(s.coverage.lifeListTotal)} life-list species documented with media
+            {' '}<span style={{ color: 'var(--sr-text-muted)' }}>({pct(s.coverage.documented, s.coverage.lifeListTotal)})</span>
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <BarRow label="Photo" value={s.coverage.withPhoto} max={s.coverage.lifeListTotal} pctOf={s.coverage.lifeListTotal} color="var(--sr-graph-photo)" labelWidth={48} />
+            <BarRow label="Audio" value={s.coverage.withAudio} max={s.coverage.lifeListTotal} pctOf={s.coverage.lifeListTotal} color="var(--sr-graph-audio)" labelWidth={48} />
+            <BarRow label="Video" value={s.coverage.withVideo} max={s.coverage.lifeListTotal} pctOf={s.coverage.lifeListTotal} color="var(--sr-graph-video)" labelWidth={48} />
+          </div>
+        </>
+      )}
+
+      {/* Format coverage (life-list-independent: shows even with no eBird backup) */}
+      {s.completenessMix.length > 1 && (
+        <>
+          <Divider />
+          <SubLabel>Format coverage</SubLabel>
+          <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '0 0 10px' }}>
+            How your {fmt(s.distinctSpecies)} species with media break down by format:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {s.completenessMix.map(m => (
+              <BarRow key={m.label} label={m.label} value={m.value} max={s.completenessMix[0].value} labelWidth={132} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Age & sex of your subjects */}
+      {ageTotal > 0 && (
+        <>
+          <Divider />
+          <SubLabel>Age &amp; sex of your subjects</SubLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'center' }}>
+            <Donut
+              title="Age"
+              data={s.ageMix.map(b => ({ label: b.label, value: b.value, color: AGE_COLOR[b.label] }))}
+              centerValue={pct(agedInd, ageTotal)}
+              centerLabel="aged"
+            />
+            <Donut
+              title="Sex"
+              data={s.sexMix.map(b => ({ label: b.label, value: b.value, color: SEX_COLOR[b.label] }))}
+              centerValue={pct(sexedInd, sexTotal)}
+              centerLabel="sexed"
+            />
+          </div>
+          <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'center', margin: '10px 0 0' }}>
+            Counted per individual: age known for {fmt(agedInd)} and sex for {fmt(sexedInd)} of {fmt(ageTotal)} documented {ageTotal === 1 ? 'individual' : 'individuals'}.
+          </p>
+        </>
+      )}
+
+      {/* Per-species demographic coverage */}
+      {s.speciesDemographics.length > 0 && (
+        <>
+          <Divider />
+          <SubLabel>Age coverage by species</SubLabel>
+          <div style={{ display: 'flex', gap: 12, fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Adult} /> Adult</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Immature} /> Immature</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Juvenile} /> Juvenile</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+            {s.speciesDemographics.slice(0, 40).map((sp, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, minWidth: 0 }}>{renderName(sp.name)}</span>
+                <span style={{ display: 'inline-flex', gap: 5, flexShrink: 0 }}>
+                  <Dot on={sp.adult} color={AGE_COLOR.Adult} />
+                  <Dot on={sp.immature} color={AGE_COLOR.Immature} />
+                  <Dot on={sp.juvenile} color={AGE_COLOR.Juvenile} />
+                </span>
+              </div>
+            ))}
+          </div>
+          {s.onlyAdults.length > 0 && (
+            <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '10px 0 0' }}>
+              {fmt(s.onlyAdults.length)} {s.onlyAdults.length === 1 ? 'species is' : 'species are'} documented only as adults so far.
+            </p>
+          )}
+        </>
+      )}
+
+      {/* Behaviors */}
+      {s.behaviorCounts.length > 0 && (
+        <>
+          <Divider />
+          <SubLabel>Behaviors documented</SubLabel>
+          <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '0 0 10px' }}>
+            {fmt(s.distinctBehaviors)} distinct {s.distinctBehaviors === 1 ? 'behavior' : 'behaviors'} captured.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {s.behaviorCounts.slice(0, 10).map(b => (
+              <BarRow key={b.label} label={b.label} value={b.value} max={s.behaviorCounts[0].value} labelWidth={150} />
+            ))}
+          </div>
+          {(s.breeding.confirmed.length > 0 || s.breeding.probable.length > 0 || s.breeding.possible.length > 0) && (
+            <>
+              <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '14px 0 8px' }}>Species with media showing breeding behavior:</p>
+              <div style={GRID}>
+                <StatCell label="Confirmed" value={s.breeding.confirmed.length} sub="nest / young / food" large={false} />
+                <StatCell label="Probable" value={s.breeding.probable.length} sub="courtship, display" large={false} />
+                <StatCell label="Possible" value={s.breeding.possible.length} sub="singing in habitat" large={false} />
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Time of day */}
+      {s.withTime > 0 && (
+        <>
+          <Divider />
+          <SubLabel>When you capture media</SubLabel>
+          <div style={{ height: 180 }} role="img" aria-label="Bar chart of media captures by hour of day, split by photo, audio, and video">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={s.timeOfDay} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                <XAxis dataKey="hour" tick={{ fontSize: '0.5625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} interval={2} tickFormatter={h => hourLabel(Number(h))} />
+                <YAxis tick={{ fontSize: '0.5625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
+                  labelFormatter={h => hourLabel(Number(h))}
+                />
+                <Bar dataKey="photo" name="Photo" stackId="t" fill="var(--sr-graph-photo)" />
+                <Bar dataKey="audio" name="Audio" stackId="t" fill="var(--sr-graph-audio)" />
+                <Bar dataKey="video" name="Video" stackId="t" fill="var(--sr-graph-video)" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
+
+      {/* Community ratings (auto-hidden below the threshold) */}
+      {s.ratings && (
+        <>
+          <Divider />
+          <SubLabel>Community ratings</SubLabel>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', margin: '0 0 12px' }}>
+            Mean <strong>{s.ratings.mean.toFixed(2)}★</strong>
+            {' '}<span style={{ color: 'var(--sr-text-muted)' }}>across {fmt(s.ratings.rated)} rated {s.ratings.rated === 1 ? 'asset' : 'assets'}</span>
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {s.ratings.histogram.map(h => (
+              <BarRow key={h.label} label={h.label} value={h.value} max={Math.max(...s.ratings!.histogram.map(b => b.value), 1)} color="var(--sr-graph-audio)" labelWidth={28} />
+            ))}
+          </div>
+          {s.ratings.top.length > 0 && (
+            <>
+              <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '14px 0 8px' }}>Your top-rated:</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {s.ratings.top.slice(0, 5).map((t, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ flex: 1, minWidth: 0 }}>{renderName(t.name)}</span>
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>
+                      {t.rating.toFixed(2)}★ · {fmt(t.n)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </>
+  )
+}

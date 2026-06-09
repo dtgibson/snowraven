@@ -78,6 +78,15 @@
   --sr-graph-video: #8B5CF6;
   --sr-graph-media-total: #64748b;
 
+  /* Media demographics (Statistics → Media card) — distinct hues, each ≥3:1 on the surface */
+  --sr-age-adult: #0F766E;
+  --sr-age-immature: #B45309;
+  --sr-age-juvenile: #7C3AED;
+  --sr-age-unknown: #64748B;
+  --sr-sex-male: #2563EB;
+  --sr-sex-female: #DB2777;
+  --sr-sex-unknown: #64748B;
+
   /* Chart palette */
   --sr-chart-slate: #94A3B8;
   --sr-chart-blue-dark: #1D4ED8;
@@ -164,6 +173,15 @@
   --sr-graph-audio: #FCD34D;
   --sr-graph-video: #A78BFA;
   --sr-graph-media-total: #94a3b8;
+
+  /* Media demographics (Statistics → Media card) — distinct hues, each ≥3:1 on the surface */
+  --sr-age-adult: #2DD4BF;
+  --sr-age-immature: #FB923C;
+  --sr-age-juvenile: #A78BFA;
+  --sr-age-unknown: #94A3B8;
+  --sr-sex-male: #60A5FA;
+  --sr-sex-female: #F472B6;
+  --sr-sex-unknown: #94A3B8;
 
   /* Chart palette */
   --sr-chart-slate: #94A3B8;

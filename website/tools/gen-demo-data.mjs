@@ -294,7 +294,30 @@ const mlOut = mlRows.map(m => {
   row[12] = 'United States'; row[13] = `United States/${m.loc.state.replace('US-','')}/${m.loc.county}`;
   row[14] = m.loc.state.replace('US-',''); row[15] = m.loc.county; row[16] = m.loc.name;
   row[17] = m.loc.lat.toFixed(4); row[18] = m.loc.lng.toFixed(4);
-  row[39] = String(m.tax); row[42] = String(rint(2,40));
+  row[39] = String(m.tax);
+  // Time (HMM/HHMM); audio biased to the dawn chorus
+  const hr = m.fmt === 'Audio' ? rint(5, 8) : rint(6, 18);
+  const mn = pick([0, 5, 10, 15, 20, 30, 40, 45, 50]);
+  row[11] = `${hr}${String(mn).padStart(2, '0')}`;
+  // Age/Sex — stills usually annotated, audio rarely (en-dash + per-individual count)
+  if (m.fmt !== 'Audio' ? chance(0.9) : chance(0.35)) {
+    const cls = pick(['Adult','Adult','Adult','Adult','Adult Male','Adult Female','Adult Female','Immature','Juvenile','Unknown']);
+    let ageSex = `${cls} – 1`;
+    if (chance(0.12)) ageSex += `; ${pick(['Juvenile','Immature','Adult Female','Adult Male'])} – 1`;
+    row[19] = ageSex;
+  }
+  // Behaviors — multi-valued ("; "-joined), audio biased to vocalizations
+  if (chance(0.4)) {
+    const vocab = m.fmt === 'Audio'
+      ? ['Song','Call','Vocalizing']
+      : ['Flying','Foraging or Eating','Preening, Scratching, or Bathing','Carrying Food','Nest Building','Feeding Young','Courtship, Display, or Copulation'];
+    const b = new Set([pick(vocab)]);
+    if (chance(0.25)) b.add(pick(vocab));
+    row[20] = [...b].join('; ');
+  }
+  // Community rating (biased high) + number of ratings
+  row[41] = (3 + rnd() * 2).toFixed(2);
+  row[42] = String(rint(2, 40));
   return row.map(csvEsc).join(',');
 });
 const mlCsv = [ML_HEADER.join(',')].concat(mlOut).join('\n') + '\n';

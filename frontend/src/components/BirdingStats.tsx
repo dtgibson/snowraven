@@ -35,6 +35,8 @@ import { storage } from '../lib/storage'
 import { fmt, sectionSlug, formatDuration, mlCatalogUrl } from '../lib/statsFormat'
 import { fitToPins } from '../lib/fitBounds'
 import { SectionCard, StatCell, BarRow, Divider, SubLabel, RankIcon } from './statsPrimitives'
+import { computeMediaStats } from '../lib/mediaStats'
+import { MediaStatsSections } from './MediaStatsSections'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -317,6 +319,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   // ML stats (most photographed / audio / video)
   const mlStats = useMemo(() => computeMlStats(effectiveMl), [effectiveMl])
+
+  // Richer media stats (demographics, behaviors, coverage, ratings, time-of-day)
+  const mediaStats = useMemo(() => computeMediaStats(effectiveMl, backboneNames), [effectiveMl, backboneNames])
 
   // Fun stats
   const funStats = useMemo(() => computeFunStats(filteredObs, checklists, effectiveObs), [filteredObs, checklists, effectiveObs])
@@ -1767,6 +1772,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               </ResponsiveContainer>
             </div>
           )}
+
+          <MediaStatsSections
+            stats={mediaStats}
+            renderName={name => (
+              <BirdName commonName={name} taxonCode={codeFor(name)} hasEntry={hasEntryFor(name)} onOpenSpecies={onOpenSpecies} size="sm" />
+            )}
+          />
 
           {/* Rankings */}
           {mlStats.mostPhotographed.length > 0 && (

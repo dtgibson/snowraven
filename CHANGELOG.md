@@ -7,6 +7,23 @@ All notable changes to SnowRaven are documented here.
 ### Added
 - **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://snowraven.dtgibson.com/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
 
+## [0.5.20] - 2026-06-08
+
+### Added
+- **Richer media statistics on the Statistics → Media card** — the card now goes well beyond the most-photographed/recorded/filmed lists, reading more of your Macaulay Library export to break your archive down several ways:
+  - **At a glance** — total media, species documented, the photo/audio/video split, your busiest media day, and your longest streak of consecutive days with media, across the span of your collection.
+  - **Documentation coverage** — what share of your life list you have captured with media overall and, separately, with a photo, audio, and video, plus how your documented species break down by format (photo-only, photo + audio, all three, and so on).
+  - **Age & sex of your subjects** — the age-class mix (adult / immature / juvenile / unknown) and sex mix (male / female / unknown) across your media, counted per individual, with the unknown share shown honestly and the annotation coverage noted.
+  - **Age coverage by species** — which age classes you have captured per species, and how many species you have documented only as adults so far.
+  - **Behaviors documented** — how many distinct behaviors you have captured and the most common ones, plus a tally of species with media showing breeding behavior (confirmed / probable / possible).
+  - **When you capture media** — the time-of-day distribution of your captures, split by photo, audio, and video (the dawn-chorus audio and golden-hour photo patterns become visible).
+  - **Community ratings** — when enough of your assets are community-rated, the rating distribution, your mean, and your top-rated pieces.
+
+  Each section appears only to the extent your export carries the relevant annotations (age, sex, behavior, time, ratings), so the card stays clean when those fields are sparse. All of it is computed offline from your own export — nothing is uploaded.
+
+### Internal
+- The ML export parser now reads the Age/Sex, Behaviors, Time, Year/Month, and community-rating columns (additive and guarded, so older or column-light exports keep parsing). New `lib/mediaStats.ts` holds the parsing/aggregation (with the verified real-export formats) and the rendering lives in a dedicated `components/MediaStatsSections.tsx`. The synthetic demo-data generator was extended to populate these columns so the showcase reflects the new card.
+
 ## [0.5.19] - 2026-06-08
 
 ### Added
