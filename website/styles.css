@@ -263,6 +263,14 @@ h1 .accent { color: var(--accent); }
 .cmp .win { color: var(--accent-strong); background: var(--accent-bg); border-radius: 6px; }
 .cmp-row.only .cmp-name { color: var(--text-muted); font-style: italic; }
 
+/* Named Birds mock */
+.named { width: 100%; font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
+.named-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 9px 10px; border-radius: 8px; }
+.named-row:nth-child(even) { background: var(--surface-subtle); }
+.named-tag { font-weight: 600; color: var(--accent-strong); background: var(--accent-bg); border-radius: 6px; padding: 2px 7px; font-size: .8rem; }
+.named-sp { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.named-seen { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); font-weight: 600; }
+
 /* ---------- Platforms ---------- */
 .platforms { padding: clamp(56px, 7vw, 96px) 0; background: var(--surface-subtle); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .platforms-grid { display: grid; grid-template-columns: 1.3fr .7fr; gap: clamp(28px, 5vw, 64px); align-items: center; }
