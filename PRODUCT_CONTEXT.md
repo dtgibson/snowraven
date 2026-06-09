@@ -36,11 +36,14 @@ annotations (computed offline):
 
 ### Media Comments on the Multimedia tab (complete — June 2026, v0.5.18)
 
-Surfaces the Caption / Media notes / Observation Details from your ML export as a
-searchable list (keyword filter + Newest/Oldest + recent-10/show-all), each row
-with species/type/date and a Macaulay asset link — mirroring the Species Detail
+Surfaces the per-asset Caption / Media notes from your ML export as a searchable
+list (keyword filter + Newest/Oldest + recent-10/show-all), each row with
+species/type/date and a Macaulay asset link — mirroring the Species Detail
 comments box. New `lib/mediaComments.ts` + `MediaCommentsSection.tsx`;
 `parseMLExport` now reads the comment fields + Locality and is record-aware.
+**(v0.5.21)** The eBird Observation Details comment is excluded — the ML export
+copies it onto every media item from an observation, so it duplicated across the
+list; only the comment on the media itself is shown, counted, and searched.
 
 ### Checklist Comparer: weather, tide & badges (complete — June 2026, v0.5.18)
 

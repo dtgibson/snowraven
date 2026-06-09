@@ -1217,3 +1217,15 @@ Both failures were active simultaneously with the missing `http:allow-fetch` sco
 - **Date formatting is fully unified** on the canonical `formatObsDate`/`formatDate` path (the Weather-tab checklist line was the last stray); programmatic jump-scrolls go through one reduced-motion-aware helper (`lib/scroll.ts`).
 
 **Implications (batched merges):** When batching two branches that both extend a shared type, **run the release build (`tsc -b`), not just `vitest`** — vitest uses esbuild and strips types, so it won't catch a test fixture that's gone stale against an extended interface. Here the date-unify branch's `MLExportRow` test fixture was missing the fields media-stats added; `tsc -b` caught it, vitest didn't. Keep test fixtures in sync when widening a type. The first-merged branch fast-forwards; the second conflicts on the version files + CHANGELOG top (both bump from the same base) — resolve version to the higher, keep both CHANGELOG sections.
+
+---
+
+## Media Comments are per-asset only — the eBird Observation Details is excluded — 2026-06-09 (v0.5.21)
+
+**What:** The Multimedia tab's Media Comments section now lists, counts, and searches only the comment on the media itself — the asset **Caption** and **Media notes**. The eBird **Observation Details** field is no longer treated as a media comment.
+
+**Why:** Observation Details is the observation-level comment, and the Macaulay Library export copies it onto *every* media asset from the same observation. Surfacing it made the same comment repeat across many list entries (on the real 2073-asset export: 876 → 308 entries once excluded; ~568 were duplicated observation comments). Only the per-asset Caption / Media notes are genuinely about a specific photo, recording, or video.
+
+**Mechanism:** `lib/mediaComments.ts` only — `MediaCommentField` narrowed to `mediaNotes | caption`; `FIELD_ORDER`, `MEDIA_COMMENT_LABEL`, `hasMediaComment`, and `filterAndSortMediaComments` dropped `observationDetails`. The field stays parsed on `MLExportRow` (still available data), just not surfaced. Consumers (`MediaCommentsSection`, `LifeList`) call the helpers unchanged.
+
+**Implications:** "Media comment" in this app means a per-asset comment. If a future feature needs the observation-level comment, read `MLExportRow.observationDetails` directly rather than re-adding it here.

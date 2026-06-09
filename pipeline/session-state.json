@@ -1,21 +1,15 @@
 {
-  "activeFeature": "media-comments-asset-only",
+  "activeFeature": null,
   "sessionNumber": 18,
-  "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "paused",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "frontend/src/lib/mediaComments.ts",
-    "frontend/src/lib/mediaComments.test.ts",
-    "frontend/src/components/MediaCommentsSection.tsx",
-    "CHANGELOG.md",
-    "docs/HELP.md"
-  ],
+  "confirmedArtifacts": [],
   "releasedVersion": "0.5.20",
-  "lastFeature": "0.5.20 SHIPPED (batched 0.5.19 + 0.5.20). media-comments-asset-only (0.5.21) is BUILT/TESTED/CI-green and COMMITTED+PUSHED to main, undeployed — paused at Stage 5 (Deployer) for the Mac to release. Change: the Multimedia Media Comments section (lib/mediaComments.ts) now counts/lists/searches only the per-asset Caption + Media notes; the eBird Observation Details is excluded (the ML export duplicates it across every media item from an observation). observationDetails stays parsed on MLExportRow, just not surfaced. Verified on the real 2073-asset export: list 876 -> 308 entries (568 duplicated obs comments removed). 632 frontend tests. Adversarial review: correctness + security clean; 2 stale code comments fixed.",
-  "remainingBacklog": "DEPLOY 0.5.21 from the Mac: git pull main (already up to date) -> confirm 0.5.21 in frontend/package.json + src-tauri/tauri.conf.json + CHANGELOG -> push v0.5.21 tag -> Windows CI -> ./release.sh -> Chronicler closeout (PRODUCT_CONTEXT/DECISIONS if warranted; website/README only if needed — this is a refinement of an existing feature). ROADMAP Up Next: mobile app (iOS then Android); accessibility/clarity/simplification; Windows code signing (Authenticode).",
+  "lastFeature": "media-comments-asset-only (0.5.21) COMPLETE on main (committed + pushed) and CHRONICLED — awaiting only the Mac's mechanical tag + release. Change: the Multimedia Media Comments section (lib/mediaComments.ts) lists/counts/searches only the per-asset Caption + Media notes; the eBird Observation Details is excluded (the ML export duplicates it across every media item from an observation). Verified on the real 2073-asset export: list 876 -> 308 entries (568 duplicated obs comments removed). 632 frontend tests; adversarial review clean. Chronicler: PRODUCT_CONTEXT Media Comments blurb updated + DECISIONS entry added (2026-06-09).",
+  "remainingBacklog": "DEPLOY 0.5.21 from the Mac (mechanical only — code + docs + chronicle all on main): git pull -> push v0.5.21 tag -> Windows CI -> ./release.sh. No further Chronicler needed (done on main). ROADMAP Up Next: mobile app (iOS then Android); accessibility/clarity/simplification; Windows code signing (Authenticode).",
   "createdAt": "2026-06-09T16:05:49Z",
-  "updatedAt": "2026-06-09T16:16:20Z"
+  "updatedAt": "2026-06-09T16:25:00Z"
 }
