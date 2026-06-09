@@ -132,43 +132,27 @@ export function MediaStatsSections({ stats, renderName }: {
         </>
       )}
 
-      {/* Format coverage (life-list-independent: shows even with no eBird backup) */}
-      {s.completenessMix.length > 1 && (
-        <>
-          <Divider />
-          <SubLabel>Format coverage</SubLabel>
-          <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '0 0 10px' }}>
-            How your {fmt(s.distinctSpecies)} species with media break down by format:
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {s.completenessMix.map(m => (
-              <BarRow key={m.label} label={m.label} value={m.value} max={s.completenessMix[0].value} labelWidth={132} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {/* Age & sex of your subjects */}
+      {/* Photos tagged with age or gender */}
       {ageTotal > 0 && (
         <>
           <Divider />
-          <SubLabel>Age &amp; sex of your subjects</SubLabel>
+          <SubLabel>Photos Tagged With Age or Gender</SubLabel>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'center' }}>
             <Donut
               title="Age"
               data={s.ageMix.map(b => ({ label: b.label, value: b.value, color: AGE_COLOR[b.label] }))}
               centerValue={pct(agedInd, ageTotal)}
-              centerLabel="aged"
+              centerLabel="tagged"
             />
             <Donut
-              title="Sex"
+              title="Gender"
               data={s.sexMix.map(b => ({ label: b.label, value: b.value, color: SEX_COLOR[b.label] }))}
               centerValue={pct(sexedInd, sexTotal)}
-              centerLabel="sexed"
+              centerLabel="tagged"
             />
           </div>
           <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'center', margin: '10px 0 0' }}>
-            Counted per individual: age known for {fmt(agedInd)} and sex for {fmt(sexedInd)} of {fmt(ageTotal)} documented {ageTotal === 1 ? 'individual' : 'individuals'}.
+            Counted per individual: age tagged for {fmt(agedInd)} and gender for {fmt(sexedInd)} of {fmt(ageTotal)} documented {ageTotal === 1 ? 'individual' : 'individuals'}.
           </p>
         </>
       )}
@@ -252,37 +236,8 @@ export function MediaStatsSections({ stats, renderName }: {
         </>
       )}
 
-      {/* Community ratings (auto-hidden below the threshold) */}
-      {s.ratings && (
-        <>
-          <Divider />
-          <SubLabel>Community ratings</SubLabel>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', margin: '0 0 12px' }}>
-            Mean <strong>{s.ratings.mean.toFixed(2)}★</strong>
-            {' '}<span style={{ color: 'var(--sr-text-muted)' }}>across {fmt(s.ratings.rated)} rated {s.ratings.rated === 1 ? 'asset' : 'assets'}</span>
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {s.ratings.histogram.map(h => (
-              <BarRow key={h.label} label={h.label} value={h.value} max={Math.max(...s.ratings!.histogram.map(b => b.value), 1)} color="var(--sr-graph-audio)" labelWidth={28} />
-            ))}
-          </div>
-          {s.ratings.top.length > 0 && (
-            <>
-              <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '14px 0 8px' }}>Your top-rated:</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {s.ratings.top.slice(0, 5).map((t, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ flex: 1, minWidth: 0 }}>{renderName(t.name)}</span>
-                    <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>
-                      {t.rating.toFixed(2)}★ · {fmt(t.n)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </>
-      )}
+      {/* Community ratings section removed for now (v0.5.22); computeMediaStats
+          still computes `ratings` so it can be re-added without parser work. */}
     </>
   )
 }

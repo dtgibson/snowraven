@@ -3,7 +3,7 @@
 // Smoke + content test for the richer Media-card sections. Renders against a
 // computeMediaStats result (the real data shape) and asserts the section
 // headings and key figures appear, plus the empty-state null render. Guards
-// against runtime render crashes in the demographic/behavior/ratings JSX.
+// against runtime render crashes in the demographic/behavior/time-of-day JSX.
 
 import { describe, it, expect, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
@@ -39,21 +39,22 @@ describe('MediaStatsSections', () => {
     render(<MediaStatsSections stats={stats} renderName={renderName} />)
     expect(screen.getByText('At a glance')).toBeTruthy()
     expect(screen.getByText('Documentation coverage')).toBeTruthy()
-    expect(screen.getByText('Age & sex of your subjects')).toBeTruthy()
+    expect(screen.getByText('Photos Tagged With Age or Gender')).toBeTruthy()
     expect(screen.getByText('Behaviors documented')).toBeTruthy()
     expect(screen.getByText('When you capture media')).toBeTruthy()
-    expect(screen.getByText('Community ratings')).toBeTruthy() // 10 rated assets ≥ threshold
+  })
+
+  it('does not render the removed Community ratings or Format coverage sections', () => {
+    // rows include 10 community-rated assets, yet the ratings section stays removed.
+    const stats = computeMediaStats(rows, new Set(['american robin', 'bald eagle', 'osprey']))
+    render(<MediaStatsSections stats={stats} renderName={renderName} />)
+    expect(screen.queryByText('Community ratings')).toBeNull()
+    expect(screen.queryByText('Format coverage')).toBeNull()
   })
 
   it('renders nothing when there is no media', () => {
     const empty = computeMediaStats([])
     const { container } = render(<MediaStatsSections stats={empty} renderName={renderName} />)
     expect(container.firstChild).toBeNull()
-  })
-
-  it('hides the ratings section when too few assets are rated', () => {
-    const stats = computeMediaStats(rows.slice(0, 3)) // no rated assets
-    render(<MediaStatsSections stats={stats} renderName={renderName} />)
-    expect(screen.queryByText('Community ratings')).toBeNull()
   })
 })

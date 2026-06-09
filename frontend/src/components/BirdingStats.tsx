@@ -1780,7 +1780,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             )}
           />
 
-          {/* Rankings */}
+          {/* Rankings — separated from the MediaStatsSections block above so the
+              last section can't run into "Most photographed". */}
+          {(mlStats.mostPhotographed.length > 0 || mlStats.mostAudio.length > 0 || mlStats.mostVideo.length > 0) && <Divider />}
           {mlStats.mostPhotographed.length > 0 && (
             <>
               <SubLabel>Most photographed</SubLabel>

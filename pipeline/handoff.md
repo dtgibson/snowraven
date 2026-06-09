@@ -1,42 +1,48 @@
-# Handoff — 0.5.21 (media-comments-asset-only) — COMPLETE + CHRONICLED on main; Mac tag+release pending
+# Handoff — 0.5.22 (media-stats-cleanup) — COMPLETE + CHRONICLED on main; Mac tag+release pending
 
 ## What We Accomplished
 
-The Multimedia tab's **Media Comments** section now shows only the comment on the
-media itself — the asset **Caption** and **Media notes**. The eBird **Observation
-Details** comment is excluded: the Macaulay Library export copies that
-observation-level comment onto every media item from the same observation, so it
-repeated across entries. The list, count, and keyword search are limited to the
-two per-asset fields.
+Cleanup of the Statistics → Media card (built in 0.5.20) after first real use:
 
-Verified on the real 2073-asset export: the list drops from **876 → 308** entries
-(568 duplicated observation comments removed). 632 frontend tests pass; typecheck,
-lint, build green. Adversarial review: correctness + security clean (2 stale code
-comments fixed).
+- **Overlap fixed** — the ratings/top-rated content was running into the Top-N
+  rankings. Removed the ratings section (per request) and added a `<Divider>`
+  above the rankings in `BirdingStats` so nothing can run into "Most photographed".
+- **Format coverage removed** — redundant with, and less clear than, the
+  Documentation coverage section above it.
+- **Renamed** "Age & sex of your subjects" → **"Photos Tagged With Age or Gender"**
+  (donuts now "Age"/"Gender"; reads age/gender throughout).
+- **Community ratings removed for now** — UI only; `computeMediaStats` still
+  computes `ratings`, so re-adding is UI-only.
+
+632 frontend tests pass; typecheck, lint, build green. Adversarial review:
+correctness clean; its two doc-sync findings (README + website still said
+"age/sex") fixed.
 
 ## What Has Been Saved (committed + pushed to `main`)
 
-- `frontend/src/lib/mediaComments.ts` — `MediaCommentField` is now `mediaNotes |
-  caption`; `FIELD_ORDER`, `MEDIA_COMMENT_LABEL`, `hasMediaComment`, and
-  `filterAndSortMediaComments` dropped `observationDetails`. (Still parsed on
-  `MLExportRow`, just not surfaced.)
-- `frontend/src/lib/mediaComments.test.ts` — tests lock the exclusion.
-- `frontend/src/components/MediaCommentsSection.tsx` — header comment only.
-- Docs: `docs/HELP.md`, `CHANGELOG.md` (0.5.21).
-- **Chronicler (done on main):** `PRODUCT_CONTEXT.md` (Media Comments blurb) +
-  `DECISIONS.md` (new 2026-06-09 entry).
-- Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.21.
+- `frontend/src/components/MediaStatsSections.tsx` (removed two sections, renamed
+  one) + `frontend/src/components/BirdingStats.tsx` (divider before rankings).
+- `frontend/src/components/MediaStatsSections.test.tsx` (updated assertions).
+- Docs: `docs/HELP.md`, `README.md`, `website/index.html`, `CHANGELOG.md` (0.5.22).
+- Chronicler: `PRODUCT_CONTEXT.md` + `DECISIONS.md` (2026-06-09 entry).
+- Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.22.
 
 ## Where We Are
 
 The Improve lane is **complete and chronicled** on `main`. The Weft session is
-closed (`activeFeature: null`). Only the Mac's mechanical release remains.
+closed (`activeFeature: null`).
 
 ## Deploy (on the Mac)
 
-1. `git pull` (main is already up to date).
-2. Confirm version **0.5.21** in `frontend/package.json` + `src-tauri/tauri.conf.json`.
-3. Push the **`v0.5.21`** tag, wait for Windows CI, then run **`./release.sh`**.
-   Web/Pi update on a plain `git pull`.
+`main` carries **two** undeployed versions on top of the released 0.5.20:
+**0.5.21** (media-comments per-asset) and **0.5.22** (this cleanup).
 
-No further Chronicler step is needed — the project memory was updated on `main`.
+1. `git pull` (main is up to date).
+2. Confirm version **0.5.22** in `frontend/package.json` + `src-tauri/tauri.conf.json`.
+3. Push the **`v0.5.22`** tag (it ships 0.5.21 + 0.5.22 together — `release.sh`
+   builds at the package.json version, 0.5.22), wait for Windows CI, then run
+   **`./release.sh`**. Web/Pi update on a plain `git pull`.
+
+No further Chronicler step is needed — project memory was updated on `main`. The
+website's age/gender wording is already corrected; its version pill is still behind
+(separate catch-up) if you want it bumped at release.

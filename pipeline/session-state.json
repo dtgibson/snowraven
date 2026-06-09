@@ -1,6 +1,6 @@
 {
   "activeFeature": null,
-  "sessionNumber": 18,
+  "sessionNumber": 19,
   "sessionType": null,
   "currentStage": null,
   "lastCompletedStage": 6,
@@ -8,8 +8,8 @@
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.20",
-  "lastFeature": "media-comments-asset-only (0.5.21) COMPLETE on main (committed + pushed) and CHRONICLED — awaiting only the Mac's mechanical tag + release. Change: the Multimedia Media Comments section (lib/mediaComments.ts) lists/counts/searches only the per-asset Caption + Media notes; the eBird Observation Details is excluded (the ML export duplicates it across every media item from an observation). Verified on the real 2073-asset export: list 876 -> 308 entries (568 duplicated obs comments removed). 632 frontend tests; adversarial review clean. Chronicler: PRODUCT_CONTEXT Media Comments blurb updated + DECISIONS entry added (2026-06-09).",
-  "remainingBacklog": "DEPLOY 0.5.21 from the Mac (mechanical only — code + docs + chronicle all on main): git pull -> push v0.5.21 tag -> Windows CI -> ./release.sh. No further Chronicler needed (done on main). ROADMAP Up Next: mobile app (iOS then Android); accessibility/clarity/simplification; Windows code signing (Authenticode).",
-  "createdAt": "2026-06-09T16:05:49Z",
-  "updatedAt": "2026-06-09T16:25:00Z"
+  "lastFeature": "media-stats-cleanup (0.5.22) COMPLETE + chronicled on main (committed + pushed). Cleanup of the 0.5.20 Statistics Media card: removed Format coverage (redundant) + Community ratings (UI only — still computed in mediaStats); renamed 'Age & sex of your subjects' -> 'Photos Tagged With Age or Gender' (donuts Age/Gender); added a divider above the Top-N rankings to fix the section running into 'Most photographed'. 632 frontend tests; review clean. Chronicler done on main: PRODUCT_CONTEXT + DECISIONS + HELP + README + website wording. || 0.5.21 (media-comments-asset-only) also still pending Mac release.",
+  "remainingBacklog": "PENDING MAC RELEASE: main carries 0.5.21 (media-comments per-asset) + 0.5.22 (media-card cleanup), both undeployed. The Mac tags v0.5.22 (ships both since 0.5.20) -> Windows CI -> ./release.sh. No further Chronicler needed (done on main). ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing (Authenticode).",
+  "createdAt": "2026-06-09T16:56:53Z",
+  "updatedAt": "2026-06-09T17:10:53Z"
 }

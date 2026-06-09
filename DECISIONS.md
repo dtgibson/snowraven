@@ -1229,3 +1229,15 @@ Both failures were active simultaneously with the missing `http:allow-fetch` sco
 **Mechanism:** `lib/mediaComments.ts` only — `MediaCommentField` narrowed to `mediaNotes | caption`; `FIELD_ORDER`, `MEDIA_COMMENT_LABEL`, `hasMediaComment`, and `filterAndSortMediaComments` dropped `observationDetails`. The field stays parsed on `MLExportRow` (still available data), just not surfaced. Consumers (`MediaCommentsSection`, `LifeList`) call the helpers unchanged.
 
 **Implications:** "Media comment" in this app means a per-asset comment. If a future feature needs the observation-level comment, read `MLExportRow.observationDetails` directly rather than re-adding it here.
+
+---
+
+## Statistics → Media card trimmed: dropped Format coverage + Community ratings, renamed Age & sex → "Photos Tagged With Age or Gender" — 2026-06-09 (v0.5.22)
+
+**What:** Cleanup of the 0.5.20 Media card after first real use. Removed the **Format coverage** section, removed the **Community ratings** section, renamed **Age & sex of your subjects** → **Photos Tagged With Age or Gender** (donuts "Age"/"Gender", center label "tagged"), and added a `<Divider>` above the Top-N rankings in `BirdingStats` so the last section can't run into "Most photographed".
+
+**Why:** Format coverage (the per-species format-combination breakdown) was redundant with — and less clear than — the Documentation coverage section directly above it. Community ratings was removed at the user's request ("for now"). The rename uses the user's preferred "gender" wording. The rankings overlap was a real layout bug: the rankings block had no separator above it.
+
+**Mechanism:** `components/MediaStatsSections.tsx` (removed two section blocks; renamed one) + `BirdingStats.tsx` (gated divider before rankings). **`computeMediaStats` still computes `ratings` and `completenessMix`** — only the rendering was removed, so re-adding either section is UI-only (no parser/aggregation work). Internal types/data (`Sex`, `s.sexMix`, `SEX_COLOR`) kept their names; the "gender" change is display-only.
+
+**Implications:** To bring back ratings or format coverage, just re-add the JSX in `MediaStatsSections` (the data is already on `MediaStats`). Any new "things below the media chart" must sit above the rankings divider or carry their own separator.

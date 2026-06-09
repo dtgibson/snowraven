@@ -14,15 +14,18 @@ annotations (computed offline):
 - **At a glance** — totals, photo/audio/video split, species documented, busiest
   media day, longest streak, collection span.
 - **Documentation coverage** — % of the life list captured with any media / photo
-  / audio / video, plus format-combination breakdown.
-- **Age & sex** — age-class and sex mixes (per individual, Unknown shown
-  honestly), age coverage by species, only-adults count.
+  / audio / video.
+- **Photos Tagged With Age or Gender** — age-class and gender mixes (per
+  individual, Unknown shown honestly), age coverage by species, only-adults count.
 - **Behaviors** — distinct count + top behaviors + media-backed breeding tiers.
-- **When captured** — time-of-day distribution by format; **community ratings**
-  distribution/mean/top when enough assets are rated.
+- **When captured** — time-of-day distribution by format.
 - New `lib/mediaStats.ts` (parse/aggregate) + `components/MediaStatsSections.tsx`;
   `parseMLExport` extended (Age/Sex, Behaviors, Time, Year/Month, ratings —
   additive + guarded). Demo-data generator extended so the showcase reflects it.
+- **(v0.5.22)** Removed the Format-coverage breakdown (redundant with Documentation
+  coverage) and the Community-ratings section (still computed in `mediaStats`, just
+  not rendered); renamed Age & sex → **Photos Tagged With Age or Gender** (donuts
+  "Age"/"Gender"); added a separator above the Top-N rankings.
 
 ### Date-format unification + Multimedia discoverability (complete — June 2026, v0.5.19)
 
