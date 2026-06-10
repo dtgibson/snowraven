@@ -8,6 +8,7 @@ function row(p: Partial<MLExportRow> & { catalogId: string }): MLExportRow {
     format: 'Photo', date: '2024-05-01', location: 'Loc', county: null,
     latitude: null, longitude: null, caption: '', mediaNotes: '', observationDetails: '',
     ageSex: '', behaviors: '', time: '', year: null, month: null, avgRating: null, numRatings: 0,
+    checklistId: '',
     ...p,
   }
 }
@@ -124,10 +125,69 @@ describe('computeMediaStats', () => {
     expect(s.coverage!.withAudio).toBe(1) // robin has audio
   })
 
-  it('finds the busiest media day and the longest streak', () => {
+  it('finds the busiest media day and the longest streak with its dates', () => {
     const s = computeMediaStats(rows)
-    expect(s.busiestDay).toEqual({ date: '2024-05-01', count: 2 })
-    expect(s.longestStreakDays).toBe(2) // 2024-05-01 and 2024-05-02 are consecutive
+    expect(s.busiestDay).toEqual({ date: '2024-05-01', count: 2, checklistId: null, checklistCount: 0 })
+    // 2024-05-01 and 2024-05-02 are consecutive; the lone 2024-06-10 doesn't extend it.
+    expect(s.longestStreak).toEqual({ days: 2, start: '2024-05-01', end: '2024-05-02' })
+    expect(s.spanDays).toBe(41) // 2024-05-01 .. 2024-06-10 inclusive
+  })
+
+  it('treats out-of-range dates as undated instead of rolling them onto a neighbor day', () => {
+    // "2024-02-00" used to roll over to Jan 31 via Date.UTC and could split a
+    // genuine streak (pre-0.5.25 dedup regression); now it simply doesn't count.
+    const rows: MLExportRow[] = [
+      row({ catalogId: 'd1', date: '2024-01-30' }),
+      row({ catalogId: 'd2', date: '2024-01-31' }),
+      row({ catalogId: 'd3', date: '2024-02-00' }),
+      row({ catalogId: 'd4', date: '2024-02-01' }),
+      row({ catalogId: 'd5', date: '2024-13-05' }),
+    ]
+    const s = computeMediaStats(rows)
+    expect(s.longestStreak).toEqual({ days: 3, start: '2024-01-30', end: '2024-02-01' })
+    expect(s.spanDays).toBe(3)
+    expect(s.busiestDay!.date).toBe('2024-01-30') // ties keep the first; no rollover key wins
+  })
+
+  it('dedupes distinct date keys that land on the same day so they cannot reset a streak', () => {
+    // 2024-02-30 passes the range check but rolls over to Mar 1 — the same day
+    // as the explicit 2024-03-01 key. The run must continue through Mar 2.
+    const rows: MLExportRow[] = [
+      row({ catalogId: 'r1', date: '2024-02-30' }),
+      row({ catalogId: 'r2', date: '2024-03-01' }),
+      row({ catalogId: 'r3', date: '2024-03-02' }),
+    ]
+    const s = computeMediaStats(rows)
+    expect(s.longestStreak).toEqual({ days: 2, start: '2024-02-30', end: '2024-03-02' })
+  })
+
+  it('ignores checklist ids that do not look like eBird submission ids', () => {
+    const rows: MLExportRow[] = [
+      row({ catalogId: 'j1', date: '2024-05-01', checklistId: 'N/A' }),
+      row({ catalogId: 'j2', date: '2024-05-01', checklistId: 'https://example.com' }),
+    ]
+    const s = computeMediaStats(rows)
+    expect(s.busiestDay).toEqual({ date: '2024-05-01', count: 2, checklistId: null, checklistCount: 0 })
+  })
+
+  it('resolves the busiest day to its dominant checklist', () => {
+    const withIds: MLExportRow[] = [
+      row({ catalogId: 'c1', date: '2024-05-01', checklistId: 'S2' }),
+      row({ catalogId: 'c2', date: '2024-05-01', checklistId: 'S1' }),
+      row({ catalogId: 'c3', date: '2024-05-01', checklistId: 'S1' }),
+      row({ catalogId: 'c4', date: '2024-04-30', checklistId: 'S9' }),
+    ]
+    const s = computeMediaStats(withIds)
+    expect(s.busiestDay).toEqual({ date: '2024-05-01', count: 3, checklistId: 'S1', checklistCount: 2 })
+  })
+
+  it('returns a 1-day streak for a single dated asset and null when nothing is dated', () => {
+    const single = computeMediaStats([row({ catalogId: 's1', date: '2024-05-01' })])
+    expect(single.longestStreak).toEqual({ days: 1, start: '2024-05-01', end: '2024-05-01' })
+    expect(single.spanDays).toBe(1)
+    const undated = computeMediaStats([row({ catalogId: 's2', date: '' })])
+    expect(undated.longestStreak).toBeNull()
+    expect(undated.spanDays).toBe(0)
   })
 
   it('hides ratings below the threshold and shows them above it', () => {

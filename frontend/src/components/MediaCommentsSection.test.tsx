@@ -34,6 +34,7 @@ function row(overrides: Partial<MLExportRow> = {}): MLExportRow {
     month: null,
     avgRating: null,
     numRatings: 0,
+    checklistId: '',
     ...overrides,
   }
 }

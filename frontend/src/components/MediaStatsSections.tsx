@@ -8,12 +8,16 @@
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { StatCell, BarRow, SubLabel, Divider } from './statsPrimitives'
-import { fmt } from '../lib/statsFormat'
-import { formatDate } from '../lib/formatDate'
+import { fmt, formatSpanLength } from '../lib/statsFormat'
+import { formatDate, formatDateRange } from '../lib/formatDate'
 import { speciesWithYoung, sortSpeciesAgeCoverage } from '../lib/mediaStats'
 import type { MediaStats, AgeClass, Sex, AgeSort } from '../lib/mediaStats'
 
 const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px 12px' } as const
+// At a glance only: a wider column floor so the date-range sub-lines
+// ("Jun 12, 2024 – Jun 3, 2026") never wrap to a second line, which would
+// reintroduce the uneven tile heights this grid is built to prevent.
+const GLANCE_GRID = { ...GRID, gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' } as const
 
 const AGE_COLOR: Record<AgeClass, string> = {
   Adult: 'var(--sr-age-adult)', Immature: 'var(--sr-age-immature)',
@@ -102,33 +106,66 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor }: {
   const agedInd = s.ageMix.reduce((a, b) => a + (b.label === 'Unknown' ? 0 : b.value), 0)
   const sexTotal = s.sexMix.reduce((a, b) => a + b.value, 0)
   const sexedInd = s.sexMix.reduce((a, b) => a + (b.label === 'Unknown' ? 0 : b.value), 0)
-  // "At a glance" nugget facts — kept out of the StatCell grid so the grid stays
-  // uniform (mixing tiles with and without a sub-line misaligns them).
-  const atAGlanceFacts: string[] = []
-  if (s.firstDate && s.lastDate) atAGlanceFacts.push(`Spanning ${formatDate(s.firstDate)} – ${formatDate(s.lastDate)}`)
-  if (s.busiestDay) atAGlanceFacts.push(`Busiest day ${formatDate(s.busiestDay.date)} (${fmt(s.busiestDay.count)})`)
-  if (s.longestStreakDays > 1) atAGlanceFacts.push(`Longest streak ${fmt(s.longestStreakDays)} days`)
-
   return (
     <>
       <Divider />
 
-      {/* At a glance — uniform count tiles only; the date/streak nuggets live in
-          the caption below so the grid never mixes tiles with and without a
-          sub-line (the cause of the misalignment). */}
+      {/* At a glance — every fact is a tile (no floating caption: a bare date
+          range below the grid reads as orphaned tile content). Each tile
+          reserves the sub-line slot (reserveSub) so the auto-fit grid stays
+          equal-height at any width (the 0.5.24 misalignment can't return). */}
       <SubLabel>At a glance</SubLabel>
-      <div style={GRID}>
-        <StatCell label="Total media" value={s.total} large={false} />
-        <StatCell label="Species documented" value={s.distinctSpecies} large={false} />
-        <StatCell label="Photos" value={s.photo} large={false} />
-        <StatCell label="Audio" value={s.audio} large={false} />
-        <StatCell label="Video" value={s.video} large={false} />
+      <div style={GLANCE_GRID}>
+        <StatCell label="Total media" value={s.total} large={false} reserveSub />
+        <StatCell label="Species documented" value={s.distinctSpecies} large={false} reserveSub />
+        <StatCell label="Photos" value={s.photo} large={false} reserveSub />
+        <StatCell label="Audio" value={s.audio} large={false} reserveSub />
+        <StatCell label="Video" value={s.video} large={false} reserveSub />
+        {s.busiestDay && (() => {
+          const dayLabel = formatDate(s.busiestDay.date)
+          return (
+            <StatCell
+              label="Busiest day"
+              value={s.busiestDay.count}
+              sub={s.busiestDay.checklistId && dayLabel ? (
+                <a
+                  href={`https://ebird.org/checklist/${encodeURIComponent(s.busiestDay.checklistId)}`}
+                  target="_blank" rel="noreferrer"
+                  aria-label={`${dayLabel} — open this day's ${s.busiestDay.checklistCount > 1 ? 'largest ' : ''}eBird checklist (opens in a new tab)`}
+                  title={s.busiestDay.checklistCount > 1
+                    ? `Opens the checklist with the most media (1 of ${fmt(s.busiestDay.checklistCount)} that day)`
+                    : "Open this day's checklist on eBird"}
+                  style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
+                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                >
+                  {dayLabel}
+                </a>
+              ) : dayLabel || undefined}
+              large={false}
+              reserveSub
+            />
+          )
+        })()}
+        {s.longestStreak && s.longestStreak.days > 1 && (
+          <StatCell
+            label="Longest streak"
+            value={`${fmt(s.longestStreak.days)} days`}
+            sub={formatDateRange(s.longestStreak.start, s.longestStreak.end) || undefined}
+            large={false}
+            reserveSub
+          />
+        )}
+        {s.firstDate && s.lastDate && (
+          <StatCell
+            label="Archive span"
+            value={formatSpanLength(s.spanDays)}
+            sub={formatDateRange(s.firstDate, s.lastDate) || undefined}
+            large={false}
+            reserveSub
+          />
+        )}
       </div>
-      {atAGlanceFacts.length > 0 && (
-        <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'center', margin: '10px 0 0', lineHeight: 1.6 }}>
-          {atAGlanceFacts.join('  ·  ')}
-        </p>
-      )}
 
       {/* Documentation coverage */}
       {s.coverage && (

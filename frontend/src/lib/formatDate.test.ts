@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import {
   formatDate,
+  formatDateRange,
   formatDateMonthFirst,
   formatDateLabel,
   setDateFormatPref,
@@ -173,5 +174,32 @@ describe('back-compat exports', () => {
     setDateFormatPref('day-first')
     expect(formatDateLabel('2026-06-08')).toBe('8 Jun 2026')
     expect(formatDateLabel('')).toBe('')
+  })
+})
+
+describe('formatDateRange', () => {
+  it('collapses a same-month range (month-first)', () => {
+    expect(formatDateRange('2026-03-01', '2026-03-21')).toBe('Mar 1 – 21, 2026')
+  })
+  it('collapses a same-year range (month-first)', () => {
+    expect(formatDateRange('2026-02-20', '2026-03-12')).toBe('Feb 20 – Mar 12, 2026')
+  })
+  it('spells both dates in full across years', () => {
+    expect(formatDateRange('2024-06-12', '2026-06-03')).toBe('Jun 12, 2024 – Jun 3, 2026')
+  })
+  it('collapses equal dates to a single date', () => {
+    expect(formatDateRange('2026-03-01', '2026-03-01')).toBe('Mar 1, 2026')
+  })
+  it('honors day-first and iso prefs', () => {
+    setDateFormatPref('day-first')
+    expect(formatDateRange('2026-03-01', '2026-03-21')).toBe('1 – 21 Mar 2026')
+    expect(formatDateRange('2026-02-20', '2026-03-12')).toBe('20 Feb – 12 Mar 2026')
+    setDateFormatPref('iso')
+    expect(formatDateRange('2026-03-01', '2026-03-21')).toBe('2026-03-01 – 2026-03-21')
+  })
+  it('falls back to the parseable side and returns "" when neither parses', () => {
+    expect(formatDateRange('2026-03-01', '')).toBe('Mar 1, 2026')
+    expect(formatDateRange(null, '2026-03-21')).toBe('Mar 21, 2026')
+    expect(formatDateRange('', null)).toBe('')
   })
 })

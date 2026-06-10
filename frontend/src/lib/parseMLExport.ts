@@ -27,6 +27,7 @@ export interface MLExportRow {
   month: number | null  // 1-12
   avgRating: number | null  // Average Community Rating 0..5 (0 when unrated)
   numRatings: number    // Number of Ratings (0 when blank — gate "rated" on > 0)
+  checklistId: string   // eBird Checklist ID, e.g. "S123456789" ('' when absent)
 }
 
 export interface MLExportResult {
@@ -138,6 +139,7 @@ export function parseMLExport(text: string): MLExportResult {
   const monthIdx          = headers.findIndex(h => h === 'month')
   const avgRatingIdx      = headers.findIndex(h => h === 'average community rating')
   const numRatingsIdx     = headers.findIndex(h => h === 'number of ratings')
+  const checklistIdx      = headers.findIndex(h => h === 'ebird checklist id')
 
   if (catalogIdx === -1 || commonNameIdx === -1 || formatIdx === -1) {
     throw new Error('INVALID_ML_EXPORT')
@@ -202,6 +204,7 @@ export function parseMLExport(text: string): MLExportResult {
       month: !Number.isNaN(monthNum) ? monthNum : null,
       avgRating: !Number.isNaN(ratingNum) ? ratingNum : null,
       numRatings: !Number.isNaN(nRatings) ? nRatings : 0,
+      checklistId: checklistIdx >= 0 ? col(cols, checklistIdx).trim() : '',
     })
   }
 

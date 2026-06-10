@@ -7,6 +7,11 @@ All notable changes to SnowRaven are documented here.
 ### Added
 - **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://snowraven.dtgibson.com/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
 
+## [0.5.25] - 2026-06-09
+
+### Fixed
+- **Statistics → Media card: every At a glance fact is a proper stat tile again.** 0.5.24 squeezed the busiest-day, longest-streak, and date-span facts into one small caption line under the **At a glance** grid, where they read as an afterthought — and the floating date range was easy to misread as belonging to the streak. All three are back in the grid: **Busiest day** with its date underneath (the date links to that day's eBird checklist — the one holding the most of the day's media when there are several), **Longest streak** now showing the actual dates the streak ran (new), and a new **Archive span** tile with the length of your collection ("2 years") over the first-to-latest date range. Every tile reserves its sub-line slot so all eight stay the same height at any window width — the row misalignment 0.5.24 was chasing cannot come back, and nothing floats below the grid.
+
 ## [0.5.24] - 2026-06-09
 
 ### Changed

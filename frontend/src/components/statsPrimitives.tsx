@@ -27,8 +27,11 @@ export function SectionCard({ children, title, icon }: {
   )
 }
 
-export function StatCell({ label, value, sub, large = true }: {
-  label: string; value: string | number; sub?: string; large?: boolean
+export function StatCell({ label, value, sub, large = true, reserveSub = false }: {
+  label: string; value: string | number; sub?: React.ReactNode; large?: boolean
+  /** Render the sub-line slot even without a `sub`, so a grid mixing tiles
+      with and without sub-lines keeps every tile the same height. */
+  reserveSub?: boolean
 }) {
   return (
     <div style={{ padding: '12px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -41,7 +44,7 @@ export function StatCell({ label, value, sub, large = true }: {
       }}>
         {typeof value === 'number' ? fmt(value) : value}
       </span>
-      {sub && <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sub}</span>}
+      {(sub || reserveSub) && <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sub || '\u00A0'}</span>}
       <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{label}</span>
     </div>
   )

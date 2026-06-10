@@ -26,6 +26,18 @@ export function formatDuration(totalMin: number): string {
   return parts.length ? parts.join(', ') : '0 min'
 }
 
+// A whole-day span as one round headline unit ("41 days" / "19 months" /
+// "2 years" / "2.5 years") — for stat-tile values, where "1 yr, 11 mo, 21 days"
+// precision (formatDuration above) would be noise.
+export function formatSpanLength(days: number): string {
+  if (!Number.isFinite(days) || days < 0) return ''
+  if (days < 61) return `${Math.round(days)} day${Math.round(days) !== 1 ? 's' : ''}`
+  const months = Math.round(days / 30.44)
+  if (months < 24) return `${months} months`
+  const halfYears = Math.round(days / 365.25 * 2) / 2
+  return Number.isInteger(halfYears) ? `${halfYears} years` : `${halfYears.toFixed(1)} years`
+}
+
 export function mlCatalogUrl(name: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null, taxonCode?: string | null): string {
   const mt = type.toLowerCase()
   const userSuffix = userId ? `&userId=${encodeURIComponent(userId)}` : ''

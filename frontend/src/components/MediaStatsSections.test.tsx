@@ -19,6 +19,7 @@ function row(p: Partial<MLExportRow> & { catalogId: string }): MLExportRow {
     format: 'Photo', date: '2024-05-01', location: 'Loc', county: null,
     latitude: null, longitude: null, caption: '', mediaNotes: '', observationDetails: '',
     ageSex: '', behaviors: '', time: '', year: null, month: null, avgRating: null, numRatings: 0,
+    checklistId: '',
     ...p,
   }
 }
@@ -28,7 +29,7 @@ const rows: MLExportRow[] = [
   row({ catalogId: '2', commonName: 'American Robin', format: 'Audio', date: '2024-05-01', behaviors: 'Song', time: '700' }),
   row({ catalogId: '3', commonName: 'Bald Eagle', format: 'Photo', date: '2024-05-02', ageSex: 'Adult – 1; Juvenile – 1', behaviors: 'Flying; Carrying Food', time: '1030' }),
   ...Array.from({ length: 10 }, (_, i) =>
-    row({ catalogId: `r${i}`, commonName: 'Osprey', format: 'Photo', date: '2024-06-10', avgRating: 4.5, numRatings: 3, ageSex: 'Adult Male – 1' })),
+    row({ catalogId: `r${i}`, commonName: 'Osprey', format: 'Photo', date: '2024-06-10', avgRating: 4.5, numRatings: 3, ageSex: 'Adult Male – 1', checklistId: 'S100' })),
 ]
 
 const renderName = (name: string) => <span>{name}</span>
@@ -42,6 +43,37 @@ describe('MediaStatsSections', () => {
     expect(screen.getByText('Photos Tagged With Age or Gender')).toBeTruthy()
     expect(screen.getByText('Behaviors documented')).toBeTruthy()
     expect(screen.getByText('When you capture media')).toBeTruthy()
+  })
+
+  it('renders busiest-day, longest-streak, and archive-span as equal-height tiles', () => {
+    // Fixture: busiest day is 2024-06-10 (10 assets); May 1–2 makes a 2-day
+    // streak; the archive spans May 1 – Jun 10 (41 days).
+    const stats = computeMediaStats(rows, new Set(['american robin', 'bald eagle', 'osprey']))
+    render(<MediaStatsSections stats={stats} renderName={renderName} />)
+    expect(screen.getByText('Busiest day')).toBeTruthy()
+    // The busiest-day date links to that day's (dominant) eBird checklist.
+    const dayLink = screen.getByText('Jun 10, 2024').closest('a')!
+    expect(dayLink).toBeTruthy()
+    expect(dayLink.getAttribute('href')).toBe('https://ebird.org/checklist/S100')
+    expect(dayLink.getAttribute('rel')).toContain('noreferrer')
+    // WCAG 2.5.3: the visible date must be part of the accessible name.
+    expect(dayLink.getAttribute('aria-label')).toContain('Jun 10, 2024')
+    expect(screen.getByText('Longest streak')).toBeTruthy()
+    expect(screen.getByText('2 days')).toBeTruthy()
+    expect(screen.getByText('May 1 – 2, 2024')).toBeTruthy() // the streak's own dates
+    expect(screen.getByText('Archive span')).toBeTruthy()
+    expect(screen.getByText('41 days')).toBeTruthy()
+    expect(screen.getByText('May 1 – Jun 10, 2024')).toBeTruthy()
+    // No floating caption below the grid anymore.
+    expect(screen.queryByText(/^Spanning /)).toBeNull()
+    expect(screen.queryByText('days in a row')).toBeNull()
+    // Every tile reserves the sub-line slot (value + sub + label spans), so the
+    // auto-fit grid can't misalign rows that mix tiles with and without a sub.
+    const grid = screen.getByText('Total media').closest('div')!.parentElement!
+    expect(grid.children.length).toBe(8)
+    for (const cell of Array.from(grid.children)) {
+      expect(cell.querySelectorAll('span').length).toBe(3)
+    }
   })
 
   it('does not render the removed Community ratings or Format coverage sections', () => {

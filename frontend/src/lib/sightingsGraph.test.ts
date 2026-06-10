@@ -17,7 +17,7 @@ function mlRow(date: string, format: 'Photo' | 'Audio' | 'Video'): MLExportRow {
     catalogId: '1', commonName: 'Test Bird', scientificName: 'Testus birdus',
     format, date, location: '', county: null, latitude: null, longitude: null,
     caption: '', mediaNotes: '', observationDetails: '',
-    ageSex: '', behaviors: '', time: '', year: null, month: null, avgRating: null, numRatings: 0,
+    ageSex: '', behaviors: '', time: '', year: null, month: null, avgRating: null, numRatings: 0, checklistId: '',
   }
 }
 

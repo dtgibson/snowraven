@@ -91,10 +91,21 @@ export function parseMlHour(time: string): number | null {
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function dayNumber(date: string): number | null {
+  // Range-check month/day (matching formatDate's parseParts) so out-of-range
+  // dates like "2024-13-05" or "2024-02-00" are treated as undated rather than
+  // silently rolled over by Date.UTC onto a neighboring day — a rolled-over key
+  // can become busiestDay/streak/span dates that formatDate refuses to render.
   const m = (date ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (!m) return null
-  return Math.floor(Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86_400_000)
+  const mo = +m[2], d = +m[3]
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null
+  return Math.floor(Date.UTC(+m[1], mo - 1, d) / 86_400_000)
 }
+
+// Same shape check the other ebird.org/checklist link sites apply
+// (BirdingStats SUBMISSION_ID_RE, speciesStats) — junk in the export's
+// "eBird Checklist ID" column must degrade to plain text, not a 404 link.
+const SUBMISSION_ID_RE = /^S\d+$/
 
 // ── aggregate ────────────────────────────────────────────────────────────────
 
@@ -118,8 +129,16 @@ export interface MediaStats {
   distinctSpecies: number
   firstDate: string | null
   lastDate: string | null
-  busiestDay: { date: string; count: number } | null
-  longestStreakDays: number
+  /**
+   * The day with the most media. `checklistId` is the eBird checklist holding
+   * the most of that day's assets (null when the export carries no checklist
+   * ids); `checklistCount` is how many distinct checklists the day spans.
+   */
+  busiestDay: { date: string; count: number; checklistId: string | null; checklistCount: number } | null
+  /** Longest run of consecutive days with any media; null when nothing is dated. */
+  longestStreak: { days: number; start: string; end: string } | null
+  /** Whole-day length of the archive span, first to last media date inclusive; 0 when undated. */
+  spanDays: number
 
   coverage: {
     lifeListTotal: number
@@ -314,25 +333,50 @@ export function computeMediaStats(rows: MLExportRow[], lifeListNames?: Set<strin
     }
   }
 
-  // Longest streak of consecutive days with any media
-  const sortedDays = [...new Set([...perDayCount.keys()].map(d => dayNumber(d)!))].sort((a, b) => a - b)
-  let longestStreakDays = 0, run = 0, prev = NaN
-  for (const d of sortedDays) {
-    run = d === prev + 1 ? run + 1 : 1
-    if (run > longestStreakDays) longestStreakDays = run
+  // Longest streak of consecutive days with any media (with the dates it ran).
+  // Dedupe by day NUMBER, not raw key, as the pre-0.5.25 code did: near-miss
+  // dates ("2024-02-30") roll over onto a neighboring day, and two keys landing
+  // on one day must not reset the run. The representative date for a day is its
+  // first key in lexicographic order; the walk itself orders by day number.
+  const dayToDate = new Map<number, string>()
+  for (const date of [...perDayCount.keys()].sort()) {
+    const d = dayNumber(date)
+    if (d !== null && !dayToDate.has(d)) dayToDate.set(d, date)
+  }
+  let longestStreak: MediaStats['longestStreak'] = null
+  let run = 0, prev = NaN, runStart = ''
+  for (const [d, date] of [...dayToDate.entries()].sort((a, b) => a[0] - b[0])) {
+    if (d === prev + 1) run++
+    else { run = 1; runStart = date }
+    if (!longestStreak || run > longestStreak.days) longestStreak = { days: run, start: runStart, end: date }
     prev = d
   }
 
   let busiestDay: MediaStats['busiestDay'] = null
   for (const [date, count] of perDayCount) {
-    if (!busiestDay || count > busiestDay.count) busiestDay = { date, count }
+    if (!busiestDay || count > busiestDay.count) busiestDay = { date, count, checklistId: null, checklistCount: 0 }
+  }
+  if (busiestDay) {
+    // Resolve the day's dominant checklist (most assets; ties break on id so
+    // the result is deterministic). Second pass over rows, but only once and
+    // only for the one winning day.
+    const tally = new Map<string, number>()
+    for (const r of rows) {
+      if (SUBMISSION_ID_RE.test(r.checklistId) && r.date.slice(0, 10) === busiestDay.date) {
+        tally.set(r.checklistId, (tally.get(r.checklistId) ?? 0) + 1)
+      }
+    }
+    const top = [...tally.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]
+    busiestDay.checklistId = top ? top[0] : null
+    busiestDay.checklistCount = tally.size
   }
 
   return {
     total: rows.length,
     photo, audio, video,
     distinctSpecies: bySpecies.size,
-    firstDate, lastDate, busiestDay, longestStreakDays,
+    firstDate, lastDate, busiestDay, longestStreak,
+    spanDays: firstDate && lastDate ? lastDay - firstDay + 1 : 0,
     coverage,
     completenessMix,
     ageMix: AGE_CLASSES.map(label => ({ label, value: ageMix[label] })),

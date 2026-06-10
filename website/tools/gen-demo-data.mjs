@@ -264,7 +264,7 @@ while (d < endDate) {
           const id = (mlSeq++);
           ids.push(id);
           const fmt = pick(FORMATS);
-          mlRows.push({ id, fmt, common, sci, date: dateStr, loc, tax });
+          mlRows.push({ id, fmt, common, sci, date: dateStr, loc, tax, sub: subId });
         }
         mlIds = ids.join(' ');
       }
@@ -321,6 +321,7 @@ const mlOut = mlRows.map(m => {
   row[12] = 'United States'; row[13] = `United States/${m.loc.state.replace('US-','')}/${m.loc.county}`;
   row[14] = m.loc.state.replace('US-',''); row[15] = m.loc.county; row[16] = m.loc.name;
   row[17] = m.loc.lat.toFixed(4); row[18] = m.loc.lng.toFixed(4);
+  row[30] = m.sub; // eBird Checklist ID — the checklist this media came from
   row[39] = String(m.tax);
   // Time (HMM/HHMM); audio biased to the dawn chorus
   const hr = m.fmt === 'Audio' ? rint(5, 8) : rint(6, 18);

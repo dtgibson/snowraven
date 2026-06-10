@@ -200,3 +200,17 @@ describe('parseMLExport — media-stat fields (Age/Sex, Behaviors, Time, ratings
     expect(r.numRatings).toBe(0)
   })
 })
+
+describe('eBird Checklist ID column', () => {
+  it('captures the checklist id when the column is present, "" when absent', () => {
+    const withCol = parseMLExport([
+      'Catalog Number,Common Name,Scientific Name,Format,eBird Checklist ID',
+      '111111,American Robin,Turdus migratorius,Photo,S123456789',
+      '222222,Bald Eagle,Haliaeetus leucocephalus,Photo,',
+    ].join('\n'))
+    expect(withCol.rows[0].checklistId).toBe('S123456789')
+    expect(withCol.rows[1].checklistId).toBe('')
+    const without = parseMLExport(csv('111111,American Robin,Turdus migratorius,Photo'))
+    expect(without.rows[0].checklistId).toBe('')
+  })
+})

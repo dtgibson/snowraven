@@ -143,6 +143,42 @@ export function formatDate(
   return datePart
 }
 
+/**
+ * A compact date range honoring the current preference (or `opts.pref`),
+ * collapsing shared parts where the format allows:
+ *
+ * - month-first → "Mar 1 – 21, 2026" / "Feb 20 – Mar 12, 2026" / "Jun 12, 2024 – Jun 3, 2026"
+ * - day-first   → "1 – 21 Mar 2026" / "20 Feb – 12 Mar 2026" / "12 Jun 2024 – 3 Jun 2026"
+ * - iso         → always both dates in full
+ *
+ * Equal dates collapse to a single date; one unparseable side falls back to the
+ * other alone; both unparseable → ''. Never throws.
+ */
+export function formatDateRange(
+  start: string | Date | null | undefined,
+  end: string | Date | null | undefined,
+  opts: Pick<FormatDateOpts, 'pref'> = {},
+): string {
+  const a = parseParts(start)
+  const b = parseParts(end)
+  if (!a && !b) return ''
+  const pref = opts.pref ?? currentPref
+  if (!a || !b) return formatDateCore((a ?? b)!, pref, false)
+  if (a.y === b.y && a.mo === b.mo && a.d === b.d) return formatDateCore(a, pref, false)
+  if (pref !== 'iso' && a.y === b.y) {
+    const sameMonth = a.mo === b.mo
+    if (pref === 'day-first') {
+      return sameMonth
+        ? `${a.d} – ${b.d} ${MONTHS_ABBR[a.mo - 1]} ${a.y}`
+        : `${a.d} ${MONTHS_ABBR[a.mo - 1]} – ${b.d} ${MONTHS_ABBR[b.mo - 1]} ${a.y}`
+    }
+    return sameMonth
+      ? `${MONTHS_ABBR[a.mo - 1]} ${a.d} – ${b.d}, ${a.y}`
+      : `${MONTHS_ABBR[a.mo - 1]} ${a.d} – ${MONTHS_ABBR[b.mo - 1]} ${b.d}, ${a.y}`
+  }
+  return `${formatDateCore(a, pref, false)} – ${formatDateCore(b, pref, false)}`
+}
+
 // ── Back-compat named exports (kept so existing imports keep working) ──────────
 
 /**
