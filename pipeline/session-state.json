@@ -7,9 +7,9 @@
   "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
-  "releasedVersion": "0.5.24",
-  "lastFeature": "0.5.24 SHIPPED (live, in-app updater verified): Statistics Media card — (1) fixed 'At a glance' alignment by moving busiest-day/longest-streak/span facts out of the StatCell grid into a caption; (2) reworked 'Age coverage by species' to filter to species with a juvenile/immature, top-10 + Show all/fewer, sortable by name or taxonomic order (BirdingStats now captures /taxonomy/codes orders). Released from the Mac: tag v0.5.24 → Windows CI green → ./release.sh (notarized+stapled, Windows installer signed, latest.json has all 3 platforms, all updater URLs HEAD 200). Website already at 0.5.24 (pill+footer+screenshots regenerated on the VM).",
-  "remainingBacklog": "No pending releases — 0.5.24 is live and matches main. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
+  "releasedVersion": "0.5.25",
+  "lastFeature": "0.5.25 SHIPPED (live, in-app updater verified): Statistics → Media card 'At a glance' rework — 0.5.24 had squeezed busiest-day/longest-streak/span into one caption line; 0.5.25 puts all three back as proper equal-height stat tiles (every tile reserves its sub-line slot so the row can't misalign at any width). Busiest-day date now links to that day's eBird checklist (the one holding the most of the day's media); Longest streak shows the actual run dates; new Archive span tile. Built + chronicled + tagged on the VM; released from the Mac: v0.5.25 tag → Windows CI green → ./release.sh (notarized+stapled, Windows installer signed, latest.json all 3 platforms, updater URLs HEAD 200). 673 tests green. Website at 0.5.25 (VM).",
+  "remainingBacklog": "No pending releases — 0.5.25 is live and matches main. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
   "createdAt": "2026-06-09T21:33:35Z",
-  "updatedAt": "2026-06-09T23:01:45Z"
+  "updatedAt": "2026-06-10T04:14:55Z"
 }

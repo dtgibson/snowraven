@@ -1,55 +1,55 @@
-# Handoff — 0.5.23 (named-bird-tracker) — COMPLETE + CHRONICLED on main; Mac tag+release pending
-
-## What We Accomplished
-
-A new **Named Birds** feature: track individual birds the user names in their
-eBird species comments with `[name:…]` tags (e.g. `[name:Winky]`,
-`[name:one-leg-pete]`).
-
-- **Named Birds tab** — each named individual with species, first/last seen, and
-  sighting count; sortable by name / species / last-seen; expands to its
-  checklists (date, eBird checklist link, the species comment).
-- **Species Detail → Named Individuals** — the same, scoped to the viewed species.
-
-Keyed by name + species (same name on two species = two birds), case-insensitive
-name match, subspecies fold to the parent, one sighting per checklist. Computed
-offline from the eBird backup.
-
-650 frontend tests pass; typecheck, lint, build green. Adversarial review
-(11 agents) found and we fixed: a **HIGH ReDoS** in the tag regex (now
-length-bounded/linear, with a regression guard test), a checklist double-count
-(deduped by submission id), locale-sort consistency, a dead field, and a11y
-polish. Security/privacy otherwise clean (no new network/telemetry; escaped
-throughout; fixed-scheme checklist links).
-
-## What Has Been Saved (committed + pushed to `main`)
-
-- New: `frontend/src/lib/namedBirds.ts` (+ test), `frontend/src/components/NamedBirdsTable.tsx` (+ test), `frontend/src/components/NamedBirds.tsx`.
-- Wiring: `frontend/src/lib/tabLayout.ts` (`named-birds`; `parseLayout` auto-migrates saved layouts), `frontend/src/lib/tabLayout.test.ts`, `frontend/src/App.tsx` (import, TAB_ICONS, DEFERRED_TABS, tabpanel), `frontend/src/components/SpeciesDetail.tsx` (Named Individuals section).
-- Demo: `website/tools/gen-demo-data.mjs` seeds a few synthetic named birds.
-- Docs/version: `docs/HELP.md`, `README.md`, `CHANGELOG.md` (0.5.23), `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.23.
-- Chronicler: `PRODUCT_CONTEXT.md` + `DECISIONS.md` (2026-06-09 entry).
+# Handoff — 0.5.25 SHIPPED & live; pipeline idle, nothing pending
 
 ## Where We Are
 
-Feature lane **complete and chronicled** on `main`. Weft session closed
-(`activeFeature: null`).
+**Idle.** No active Weft session (`activeFeature: null`,
+`lastCheckpointStatus: complete`). Released version **0.5.25** equals `main` —
+nothing undeployed, nothing queued to ship.
 
-## Deploy (on the Mac)
+## What Shipped (live)
 
-`main` carries **three** undeployed versions on top of the live 0.5.20:
-**0.5.21** (media-comments per-asset), **0.5.22** (media-card cleanup), **0.5.23**
-(Named Birds).
+**0.5.25** — Statistics → Media card "At a glance" rework (a follow-up that
+refines 0.5.24's same area):
+- All three facts — **Busiest day**, **Longest streak**, **Archive span** — are
+  back as proper, equal-height stat tiles instead of one cramped caption line.
+  Every tile reserves its sub-line slot, so the row can't misalign at any window
+  width (the bug 0.5.24 was chasing can't recur).
+- **Busiest day** date now links to that day's eBird checklist (the one holding
+  the most of the day's media when there are several).
+- **Longest streak** shows the actual dates the streak ran; new **Archive span**
+  tile shows collection length over the first→latest date range.
 
-1. `git pull` (main is up to date).
-2. Confirm version **0.5.23** in `frontend/package.json` + `src-tauri/tauri.conf.json`.
-3. Push the **`v0.5.23`** tag (ships 0.5.21–0.5.23 together — `release.sh` builds
-   at the package.json version, 0.5.23), wait for Windows CI, then run
-   **`./release.sh`**. Web/Pi update on a plain `git pull`.
-4. **Catch up `website/`** (it lags): add a Named Birds mention, refresh the
-   version pill/footer, fold in the 0.5.18+ media features, and **regenerate the
-   demo screenshots** (the demo generator now seeds named birds + the media-stats
-   columns). The site auto-deploys on push to `main` touching `website/`.
+Built, chronicled (PRODUCT_CONTEXT / DECISIONS / CHANGELOG), version-bumped, and
+tagged on the **VM**; released from the **Mac**: `v0.5.25` tag → Windows CI green
+→ `./release.sh`. macOS universal DMG notarized + stapled (Apple: Accepted);
+Windows installer signed locally with the real minisign key; `latest.json` carries
+all three platforms (`darwin-aarch64`, `darwin-x86_64` → the one universal bundle,
+`windows-x86_64` → `-setup.exe`), every updater URL verified **HEAD 200**.
+673 frontend tests + 102 backend tests green.
 
-Project memory is already updated on `main`; no further Chronicler step needed for
-the code.
+Everything through **0.5.25** is now live (the earlier 0.5.21–0.5.24 backlog all
+shipped in prior Mac releases).
+
+## Website
+
+Current at **0.5.25** (version pill + footer bumped, demo gen updated on the VM).
+
+## Machine boundary (standing rule)
+
+- **Ubuntu VM — all dev work** (coding, content/asset work including website edits
+  + screenshot regeneration, pushing the `vX.Y.Z` tag).
+- **Mac — only signing and shipping** (`./release.sh` needs Xcode + Apple
+  notarization/signing creds). On the Mac, it's to ship — nothing else.
+
+> Note: 0.5.25 landed on `main` from the VM while a Mac shipping session was open,
+> and the VM's commits left `handoff.md` + `session-state.json` narrative fields
+> still describing 0.5.24. Corrected here as part of the 0.5.25 release. When the
+> VM and Mac are both touching `main`, re-pull before editing pipeline files.
+
+## Roadmap — Up Next (pick a lane, build on the VM)
+
+- Mobile app
+- Accessibility / clarity / simplification
+- Windows code signing (remove the SmartScreen "unknown publisher" prompt)
+
+No pending Chronicler or deploy step. Clean slate for the next lane.
