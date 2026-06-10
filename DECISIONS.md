@@ -4,6 +4,18 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Media card: At a glance back to uniform tiles + busiest-day checklist link — 2026-06-10 (v0.5.25)
+
+**What:** Reworked **Statistics → Media → At a glance** again — busiest day, longest streak, and a new archive-span fact are uniform grid tiles once more (not the v0.5.24 caption), and the busiest-day date links to that day's eBird checklist. **This supersedes the v0.5.24 decision below** that moved those facts out of the grid into a caption.
+
+**Decisions:**
+- **Mixed-height `StatCell`s in one `auto-fit` grid are fine *if every tile reserves the sub-line slot*.** v0.5.24 banned mixing sub-bearing and plain tiles because the taller ones stretched the row. The cleaner fix is a `reserveSub` prop on `StatCell` that always renders the sub-line slot (`sub || nbsp`), so every tile is the same height whether or not it carries a sub. All eight At-a-glance tiles set `reserveSub`, so busiest day / longest streak (with the dates it ran) / archive span are tiles again and stay aligned at any width. The v0.5.24 "facts that need a sub-line belong in a caption" guidance is **reversed** — they belong in tiles, with `reserveSub`.
+- **The busiest-day date links to that day's *dominant* eBird checklist, and ids are shape-validated before they become a link.** When a day spans several checklists, the link targets the one with the most media (tooltip explains). Ids are validated against `/^S\d+$/` at tally time, so junk column values never become a styled 404 link; the href is `encodeURIComponent`-wrapped and rendered as escaped JSX — same standing rule as the map popups/links.
+- **Out-of-range export dates are excluded from the date stats, not rolled over.** `dayNumber` previously accepted "2024-13-05" / "2024-02-00" via `Date.UTC` rollover while `formatDate` rejects them, so a tile could lose its sub-line (breaking the uniform height) or render an empty link. `dayNumber` now range-checks month/day like `parseParts`; such rows are treated as undated.
+- **The checklist link's `aria-label` leads with the visible date.** An earlier label replaced the visible date, violating WCAG 2.5.3 (Voice Control users couldn't activate it by its visible text). The accessible name now begins with the date the user sees.
+
+**Implications:** Prefer `reserveSub` over a separate caption when a Media-card fact needs a sub-line — keep facts in the uniform tile grid. Any new external link built from export-column data must shape-validate the id before constructing the href.
+
 ## Media card: At a glance alignment + age-coverage rework — 2026-06-09 (v0.5.24)
 
 **What:** Fixed the misaligned "longest streak" dates in **Statistics → Media → At a glance**, and reworked **Age coverage by species** to be filtered, capped, and sortable.

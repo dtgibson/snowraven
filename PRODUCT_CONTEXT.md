@@ -52,6 +52,13 @@ annotations (computed offline):
   `orderFor` (mirrors `codeFor` normalization). The only-adults note renders on
   `youngSpecies.length > 0 || onlyAdults.length > 0` so the all-adults case (no
   young birds) still surfaces it — a regression caught in adversarial review.
+- **(v0.5.25)** Brought the **At a glance** facts back into uniform tiles (reversing
+  the v0.5.24 caption) — busiest day, longest streak (with the dates it ran), and a
+  new archive-span tile now sit in the grid with the count tiles, kept the same
+  height by a `reserveSub` slot on every `StatCell` so mixed sub/no-sub tiles align
+  at any width. The busiest-day date links to that day's dominant eBird checklist
+  (id shape-validated `^S\d+$`, `encodeURIComponent`-wrapped). Out-of-range export
+  dates are now excluded from the date stats instead of rolling onto a neighboring day.
 
 ### Date-format unification + Multimedia discoverability (complete — June 2026, v0.5.19)
 
