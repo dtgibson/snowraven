@@ -1,13 +1,12 @@
-# Handoff — 0.5.26 BUILT on main; pending Mac release (last live: 0.5.25)
+# Handoff — 0.5.26 SHIPPED & live; pipeline idle, nothing pending
 
 ## Where We Are
 
-No active Weft session (`activeFeature: null`, `lastCheckpointStatus: complete`).
-**0.5.26 is built on `main` but not yet released** — last live release is
-**0.5.25**. `v0.5.26` is tagged and Windows CI is running; once it's green the
-release ships from the **Mac** (`./release.sh`).
+**Idle.** No active Weft session (`activeFeature: null`,
+`lastCheckpointStatus: complete`). Released version **0.5.26** equals `main` —
+nothing undeployed, nothing queued to ship.
 
-## What's Ready To Ship — 0.5.26 (Named Birds feature lane)
+## What Shipped (live) — 0.5.26 (Named Birds feature lane)
 
 - **Per-individual map.** Expanding a named bird shows a small map of everywhere
   that individual has been seen, drawn like the Species Detail map. The map is now
@@ -16,27 +15,21 @@ release ships from the **Mac** (`./release.sh`).
   `NamedBirdRow.tsx`).
 - **Location per report.** Each sighting shows its location between the date and
   the checklist link.
-- **Sorting.** Options are now Name (Individual) / Alphabetical / Taxonomic /
-  Last Seen.
+- **Sorting.** Name (Individual) / Alphabetical / Taxonomic / Last Seen.
 - **Readability polish.** Higher contrast, name + species on a shared baseline,
   each comment in its own quoted block, cards open one at a time.
 
-Chronicled (PRODUCT_CONTEXT / DECISIONS / CHANGELOG) + a product-brief refresh on
-the VM. Version bumped to 0.5.26 (`frontend/package.json` + `src-tauri/tauri.conf.json`).
-Website bumped to 0.5.26 on the VM.
+Built, chronicled (PRODUCT_CONTEXT / DECISIONS / CHANGELOG) + product-brief
+refresh, version-bumped, and tagged on the **VM**; released from the **Mac**:
+`v0.5.26` tag → Windows CI green → `./release.sh`. macOS universal DMG notarized +
+stapled (Apple: Accepted); Windows installer signed locally with the real minisign
+key; `latest.json` carries all three platforms (`darwin-aarch64`, `darwin-x86_64`
+→ the one universal bundle, `windows-x86_64` → `-setup.exe`), every updater URL
+verified **HEAD 200**. 692 frontend + 102 backend tests green.
 
-**Verified on the Mac:** build clean, **692** frontend tests + **102** backend
-tests green.
+## Website
 
-## To Ship (on the Mac)
-
-1. Wait for the **`v0.5.26`** Windows CI run to go green (in progress).
-2. `./release.sh` — builds + notarizes the macOS universal bundle, fetches + signs
-   the CI Windows installer, writes `latest.json` (all 3 platforms).
-3. Health-check: release assets present, `latest.json` version 0.5.26, both macOS
-   arches → the one universal bundle, Windows → `-setup.exe`, every updater URL
-   HEAD 200.
-4. Set `releasedVersion: 0.5.26`, refresh this handoff + `session-state.json`.
+Current at **0.5.26** (version pill + footer bumped on the VM).
 
 ## Machine boundary (standing rule)
 
@@ -49,8 +42,10 @@ tests green.
 > typically does NOT update `handoff.md` / `session-state.json` narrative fields,
 > so they need correcting Mac-side each release.
 
-## Roadmap — Up Next (build on the VM)
+## Roadmap — Up Next (pick a lane, build on the VM)
 
 - Mobile app
 - Accessibility / clarity / simplification
 - Windows code signing (remove the SmartScreen "unknown publisher" prompt)
+
+No pending Chronicler or deploy step. Clean slate for the next lane.

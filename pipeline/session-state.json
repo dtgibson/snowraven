@@ -7,9 +7,9 @@
   "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
-  "releasedVersion": "0.5.25",
-  "lastFeature": "0.5.26 BUILT on main (NOT yet released; last live release is 0.5.25). Named Birds feature lane: (1) per-individual map — expanding a named bird shows a small map of everywhere that individual was seen, via a new shared SightingsMap component now used by both Named Birds and Species Detail (new SightingsMap.tsx, sightingMarkers.ts + tests, NamedBirdRow.tsx); (2) each report shows its location between date and checklist link; (3) sort options now Name(Individual)/Alphabetical/Taxonomic/Last Seen; (4) readability polish — higher contrast, name+species shared baseline, quoted comment blocks, cards open one at a time. Chronicled (PRODUCT_CONTEXT/DECISIONS/CHANGELOG) + product-brief refresh on the VM; version bumped to 0.5.26; v0.5.26 tag pushed. Verified on the Mac: build clean, 692 frontend + 102 backend tests green.",
-  "remainingBacklog": "PENDING RELEASE: v0.5.26 — built, tagged, health-verified on the Mac; awaiting Windows CI green, then ./release.sh from the Mac. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
+  "releasedVersion": "0.5.26",
+  "lastFeature": "0.5.26 SHIPPED (live, in-app updater verified). Named Birds feature lane: (1) per-individual map — expanding a named bird shows a small map of everywhere that individual was seen, via a new shared SightingsMap component now used by both Named Birds and Species Detail (new SightingsMap.tsx, sightingMarkers.ts + tests, NamedBirdRow.tsx); (2) each report shows its location between date and checklist link; (3) sort options now Name(Individual)/Alphabetical/Taxonomic/Last Seen; (4) readability polish — higher contrast, name+species shared baseline, quoted comment blocks, cards open one at a time. Built+chronicled+tagged on the VM; released from the Mac: v0.5.26 tag → Windows CI green → ./release.sh (notarized+stapled, Windows installer signed, latest.json all 3 platforms, updater URLs HEAD 200). 692 frontend + 102 backend tests green. Website at 0.5.26 (VM).",
+  "remainingBacklog": "No pending releases — 0.5.26 is live and matches main. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
   "createdAt": "2026-06-09T21:33:35Z",
-  "updatedAt": "2026-06-10T06:24:48Z"
+  "updatedAt": "2026-06-10T14:43:44Z"
 }
