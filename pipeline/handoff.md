@@ -1,35 +1,44 @@
-# Handoff — 0.5.26 SHIPPED & live; pipeline idle, nothing pending
+# Handoff — 0.5.27 SHIPPED & live; pipeline idle, nothing pending
 
 ## Where We Are
 
 **Idle.** No active Weft session (`activeFeature: null`,
-`lastCheckpointStatus: complete`). Released version **0.5.26** equals `main` —
-nothing undeployed, nothing queued to ship.
+`lastCheckpointStatus: complete`). Released version **0.5.27** equals `main`
+(HEAD `083fdc7`) — nothing undeployed, nothing queued to ship.
 
-## What Shipped (live) — 0.5.26 (Named Birds feature lane)
+## What Shipped (live) — 0.5.27 (Checklists tab feature lane)
 
-- **Per-individual map.** Expanding a named bird shows a small map of everywhere
-  that individual has been seen, drawn like the Species Detail map. The map is now
-  a single shared `SightingsMap` component used by **both** Named Birds and Species
-  Detail (new `SightingsMap.tsx`, `lib/sightingMarkers.ts` + tests,
-  `NamedBirdRow.tsx`).
-- **Location per report.** Each sighting shows its location between the date and
-  the checklist link.
-- **Sorting.** Name (Individual) / Alphabetical / Taxonomic / Last Seen.
-- **Readability polish.** Higher contrast, name + species on a shared baseline,
-  each comment in its own quoted block, cards open one at a time.
+- **New Checklists tab** with three sections: **Checklist Comments** (search
+  every checklist-level comment you've written), **Species Comments** (the same
+  search across observation notes of all species at once, each entry leading with
+  a clickable species name), and **All Checklists** (every outing with date,
+  location, protocol, effort, species/individual counts, at-a-glance indicators,
+  and the checklist comment).
+- **Composable filters.** One pill per category cycles **any → has → doesn't
+  have** for checklist comment, species comments, media, breeding codes, weather
+  block, and tide block — plus Complete/Incomplete, photo/audio/video, protocol,
+  county, and a date range.
+- **Hide pasted weather & tide blocks.** Tab-wide toggle (off by default) strips
+  SnowRaven weather/tide blocks from every comment shown *and from search*; a
+  comment that is only a block counts as having no comment while hidden.
+- **Plumbing/docs.** The safe comment renderer (`CommentText.tsx`) is now shared
+  by the List Comparer and the new tab; new `Checklists.tsx` (+test) and
+  `lib/checklistsTab.ts` (+test); Help TOC now lists Named Birds + Checklists;
+  `PRIVACY_POLICY.md` completed the Cornell Lab provider disclosure (embedded
+  Macaulay media + eBird/BoW link icons) — disclosure only, no behavior change.
 
-Built, chronicled (PRODUCT_CONTEXT / DECISIONS / CHANGELOG) + product-brief
-refresh, version-bumped, and tagged on the **VM**; released from the **Mac**:
-`v0.5.26` tag → Windows CI green → `./release.sh`. macOS universal DMG notarized +
-stapled (Apple: Accepted); Windows installer signed locally with the real minisign
-key; `latest.json` carries all three platforms (`darwin-aarch64`, `darwin-x86_64`
-→ the one universal bundle, `windows-x86_64` → `-setup.exe`), every updater URL
-verified **HEAD 200**. 692 frontend + 102 backend tests green.
+Built, chronicled, version-bumped, and tagged on the **VM**; released from the
+**Mac**: `v0.5.27` tag (`083fdc7`) → Windows CI green → `./release.sh`. macOS
+universal DMG notarized **Accepted** + stapled; Windows installer signed locally
+with the real minisign key; `latest.json` carries all three platforms
+(`darwin-aarch64`, `darwin-x86_64` → the one universal bundle, `windows-x86_64`
+→ `-setup.exe`). Post-release health check: every updater/DMG URL **HEAD 200**,
+and both signatures in `latest.json` are **byte-identical** to the uploaded
+`.sig` assets.
 
 ## Website
 
-Current at **0.5.26** (version pill + footer bumped on the VM).
+Current at **0.5.27** (version pill + footer bumped on the VM).
 
 ## Machine boundary (standing rule)
 

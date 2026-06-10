@@ -1,15 +1,15 @@
 {
   "activeFeature": null,
-  "sessionNumber": 21,
+  "sessionNumber": 22,
   "sessionType": "maintain",
   "currentStage": 1,
   "lastCompletedStage": 1,
   "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
-  "releasedVersion": "0.5.26",
-  "lastFeature": "0.5.26 SHIPPED (live, in-app updater verified). Named Birds feature lane: (1) per-individual map — expanding a named bird shows a small map of everywhere that individual was seen, via a new shared SightingsMap component now used by both Named Birds and Species Detail (new SightingsMap.tsx, sightingMarkers.ts + tests, NamedBirdRow.tsx); (2) each report shows its location between date and checklist link; (3) sort options now Name(Individual)/Alphabetical/Taxonomic/Last Seen; (4) readability polish — higher contrast, name+species shared baseline, quoted comment blocks, cards open one at a time. Built+chronicled+tagged on the VM; released from the Mac: v0.5.26 tag → Windows CI green → ./release.sh (notarized+stapled, Windows installer signed, latest.json all 3 platforms, updater URLs HEAD 200). 692 frontend + 102 backend tests green. Website at 0.5.26 (VM).",
-  "remainingBacklog": "No pending releases — 0.5.26 is live and matches main. ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
+  "releasedVersion": "0.5.27",
+  "lastFeature": "0.5.27 SHIPPED (live, updater verified). Checklists tab feature lane (built on the VM): (1) new Checklists tab with three sections — Checklist Comments (search every checklist-level comment), Species Comments (search observation notes across all species, each leading with a clickable species name), and All Checklists (every outing with date/location/protocol/effort/counts/at-a-glance + comment); (2) composable filters — one pill per category cycles any→has→doesn't-have for checklist comment, species comments, media, breeding codes, weather block, tide block, plus Complete/Incomplete, photo/audio/video, protocol, county, date range; (3) tab-wide toggle to hide pasted weather & tide blocks (also excluded from search). New files: Checklists.tsx (+test), CommentText.tsx (shared safe comment renderer now used by List Comparer too), lib/checklistsTab.ts (+test); Help TOC now lists Named Birds + Checklists; PRIVACY_POLICY.md completed the Cornell Lab provider disclosure (Macaulay media + eBird/BoW link icons). Released from the Mac: v0.5.27 tag (083fdc7) → Windows CI green → ./release.sh (notarized Accepted + stapled, Windows installer signed locally, latest.json all 3 platforms with signatures byte-matching the uploaded .sig assets, every updater/DMG URL HEAD 200).",
+  "remainingBacklog": "No pending releases — 0.5.27 is live and matches main (HEAD 083fdc7). ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
   "createdAt": "2026-06-09T21:33:35Z",
-  "updatedAt": "2026-06-10T14:43:44Z"
+  "updatedAt": "2026-06-10T21:38:36Z"
 }
