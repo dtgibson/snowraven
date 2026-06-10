@@ -6,6 +6,7 @@ export type ConfigurableTab =
   | 'life-list'
   | 'breeding-codes'
   | 'named-birds'
+  | 'checklists'
   | 'comparer'
 
 export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
@@ -16,6 +17,7 @@ export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'life-list',
   'breeding-codes',
   'named-birds',
+  'checklists',
   'comparer',
 ]
 
@@ -27,6 +29,7 @@ export const TAB_LABELS: Record<ConfigurableTab, string> = {
   'life-list':      'Multimedia',
   'breeding-codes': 'Breeding Codes',
   'named-birds':    'Named Birds',
+  'checklists':     'Checklists',
   'comparer':       'List Comparer',
 }
 

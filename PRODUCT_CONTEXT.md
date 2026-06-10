@@ -5,6 +5,53 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Checklists — search-and-browse home for whole outings (complete — June 2026, v0.5.27)
+
+A new top-level **Checklists** tab with three sections. **Checklist Comments**:
+a searchable box of every checklist-level comment (one entry per checklist,
+10-first with "Show all", Newest/Oldest, case-insensitive substring filter,
+date → eBird checklist link gated on `SUBMISSION_ID_RE`). **Species Comments**:
+the same box across ALL species' observation notes at once, each entry led by
+`<BirdName>` (opens Species Detail). **All Checklists**: every outing with
+date/time/location/protocol-name/effort/species+individual counts, badge
+indicators (species comments, media by type, breeding codes), and the checklist
+comment in the quoted-block style — under composable AND filters: cycling
+tri-state pills (one pill cycles any → has → doesn't-have) for checklist
+comment / species comments / media / breeding codes / weather block / tide
+block, a Complete/Incomplete tri-state, Photo/Audio/Video pills (only with the
+ML export; "has media" works from the backup's catalog ids alone), protocol +
+county selects, and a date range. House count label / All-reset / accent
+filter-strip conventions throughout.
+
+A tab-wide **"Show weather & tide blocks"** ToggleSwitch (default hidden)
+governs all three sections: hidden blocks are stripped from display AND
+excluded from search ("search matches what you see"), and a comment that is
+empty after stripping counts as having no comment (boxes and filters alike);
+the has-weather/has-tide *filter pills* read the raw comment regardless.
+Stripping is `stripWeatherTideBlocks()` in `lib/commentBlocks.ts` — SPAN-based,
+emoji header → end of attribution link, never line-based (eBird's CSV export
+collapses a pasted block's newlines into spaces, so prose shares the block's
+line and can continue after the attribution). Handles real export shapes:
+moon-phase-emoji night blocks (RainCrow), bare-name attributions,
+attribution-less blocks (span ends after the last labeled value), and
+emoji-less condition segments (absorbed only when short and not a finished
+sentence). Pinned by real-formatter-fixture regression tests and verified
+against the user's full backup (308 block-bearing comments, 0 residue).
+
+Pure logic in `lib/checklistsTab.ts` (row building, flags, filters, sort —
+tested like `mediaComments.ts`); tab in `components/Checklists.tsx`; the
+comparer's safe comment renderer lifted to shared `components/CommentText.tsx`
+(`raw` = entity-encoded input, `decoded` prop for pre-decoded input — never
+double-decode). Registered as `checklists` in `lib/tabLayout.ts` (auto-appended
+visibly to saved layouts by `parseLayout`). Security review (4-lens,
+adversarially verified) led to three in-stage fixes: quadratic strip made
+linear (precomputed match positions + bounded `<a>` arms; 414KB hostile spam
+4.1s → ~5ms), a stale shared-regex `lastIndex` leak in the strip fallback
+(matchAll clones lastIndex), and the double entity-decode; plus
+`PRIVACY_POLICY.md` now discloses the Cornell Lab asset loads (Macaulay
+embeds + eBird/Birds-of-the-World link icons — pre-existing app-wide
+behavior). Entirely from the parse-once caches; no backend changes.
+
 ### Named Birds — track individual birds over time (complete — June 2026, v0.5.23)
 
 Tracks individual birds the user names in eBird species comments via `[name:…]`

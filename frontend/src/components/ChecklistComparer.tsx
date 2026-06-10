@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, Fragment } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Loader2, AlertCircle, Search, Camera, Mic, Video, MessageSquare, ChevronDown, ChevronRight } from 'lucide-react'
 import { transport, TransportError } from '../lib/transport'
 import { storage } from '../lib/storage'
@@ -11,41 +11,15 @@ import {
 } from '../lib/compareChecklists'
 import { resolveApiBreedingCode, TIER_COLORS } from '../lib/breedingCodes'
 import { protocolName, submissionLabel, formatDuration, formatDistance, formatObservers } from '../lib/checklistMeta'
-import { commentSegments, hasComment } from '../lib/commentText'
+import { hasComment } from '../lib/commentText'
 import { deriveBadges, type BadgeFlags } from '../lib/checklistBadges'
 import type { KeyStatus } from '../lib/keyStatus'
 import { BirdName } from './BirdName'
 import { ChecklistBadges } from './ChecklistBadges'
+import { CommentText } from './CommentText'
 import { WeatherTideSection } from './WeatherTideSection'
 
 type Sort = 'taxonomic' | 'alpha'
-
-// Renders a decoded eBird comment: HTML entities already decoded, http(s) URLs as
-// validated links, and \r\n as line breaks. Text is rendered as escaped React
-// children — only validated http/https URLs ever become <a> elements.
-function CommentText({ raw }: { raw: string }) {
-  const segs = commentSegments(raw)
-  return (
-    <>
-      {segs.map((seg, i) =>
-        // Belt-and-suspenders: only ever emit an <a> for an http(s) href, even though
-        // linkify already guarantees that — so a future change there can't widen it.
-        seg.href && /^https?:\/\//i.test(seg.href) ? (
-          <a key={i} href={seg.href} target="_blank" rel="noopener noreferrer"
-            style={{ color: 'var(--sr-accent)', textDecoration: 'underline', wordBreak: 'break-word' }}>
-            {seg.text}
-          </a>
-        ) : (
-          <Fragment key={i}>
-            {seg.text.split(/\r\n|\r|\n/).map((line, j) => (
-              <Fragment key={j}>{j > 0 && <br />}{line}</Fragment>
-            ))}
-          </Fragment>
-        )
-      )}
-    </>
-  )
-}
 
 // A breeding-evidence code, shown as a small pill colored by tier (matching the
 // Breeding Codes tab). The raw eBird API code is translated to its display code.

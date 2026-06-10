@@ -271,6 +271,16 @@ h1 .accent { color: var(--accent); }
 .named-sp { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .named-seen { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-muted); font-weight: 600; }
 
+/* Checklists comment-search mock */
+.ck { width: 100%; font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
+.ck-search { display: flex; align-items: center; gap: 8px; border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 11px; color: var(--text-muted); font-size: .85rem; margin-bottom: 6px; background: var(--surface); }
+.ck-search svg { width: 14px; height: 14px; flex-shrink: 0; }
+.ck-row { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: baseline; padding: 8px 10px; border-radius: 8px; }
+.ck-row.alt { background: var(--surface-subtle); }
+.ck-date { font-weight: 600; color: var(--accent-strong); font-size: .8rem; white-space: nowrap; }
+.ck-text { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ck-count { text-align: right; color: var(--text-muted); font-size: .75rem; padding: 4px 10px 0; }
+
 /* ---------- Platforms ---------- */
 .platforms { padding: clamp(56px, 7vw, 96px) 0; background: var(--surface-subtle); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .platforms-grid { display: grid; grid-template-columns: 1.3fr .7fr; gap: clamp(28px, 5vw, 64px); align-items: center; }

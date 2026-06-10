@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
@@ -19,6 +19,7 @@ import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
 import { NamedBirds } from './components/NamedBirds'
+import { Checklists } from './components/Checklists'
 import { Settings } from './components/Settings'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
@@ -98,6 +99,7 @@ const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
   'life-list':      <List size={14} strokeWidth={2.5} aria-hidden="true" />,
   'breeding-codes': <Dna size={14} strokeWidth={2.5} aria-hidden="true" />,
   'named-birds':    <Tag size={14} strokeWidth={2.5} aria-hidden="true" />,
+  'checklists':     <ClipboardList size={14} strokeWidth={2.5} aria-hidden="true" />,
   'comparer': (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
@@ -112,7 +114,7 @@ const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
 // the tab is first opened, instead of running it all on first paint.
 const DEFERRED_TABS: Tab[] = [
   'map-explorer', 'species-detail', 'birding-stats',
-  'comparer', 'life-list', 'breeding-codes', 'named-birds', 'settings',
+  'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'settings',
 ]
 
 // Fallback shown while a lazy tab's chunk is being fetched.
@@ -968,6 +970,23 @@ export default function App() {
       >
         {mountedTabs.has('named-birds') && (
           <NamedBirds onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+        )}
+      </div>
+
+      {/* Checklists tab content */}
+      <div
+        role="tabpanel"
+        id="panel-checklists"
+        aria-labelledby="tab-checklists"
+        className="sr-panel"
+        style={{
+          display: activeTab === 'checklists' ? 'flex' : 'none',
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        {mountedTabs.has('checklists') && (
+          <Checklists onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
         )}
       </div>
 

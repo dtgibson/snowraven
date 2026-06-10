@@ -296,6 +296,20 @@ A bird is identified by its name together with its species, so the same name use
 
 ---
 
+## Checklists
+
+The Checklists tab is the home for your checklists as whole outings: search every comment you've ever written, and browse or filter the full list of your checklists. It loads from your stored eBird backup; saving your ML export too adds media-type detail.
+
+**Checklist Comments** lists every checklist-level comment — one entry per checklist, with its date (linking to that checklist on eBird) and location. The 10 most recent show first; expand to see all, switch **Newest/Oldest**, and type in the filter box to search within your comments.
+
+**Species Comments** does the same for the observation notes you've written on individual sightings — across **all** species at once. Each entry leads with the species name; click it to open that species on the Species Detail tab.
+
+**All Checklists** lists every checklist with its date (linking to eBird), location, protocol, effort (duration, distance, observers), species and individual counts, at-a-glance indicators (species comments, media, breeding codes), and the checklist comment. Filters combine: one pill per category cycles **any → has → doesn't have** for checklist comment, species comments, media, breeding codes, weather block, and tide block, plus a **Complete/Incomplete** pill, **photo/audio/video** pills (when your ML export is saved), and protocol, county, and date-range controls. The count label reads "N of M checklists" while anything is filtered, and **All** resets the pills.
+
+**Show weather & tide blocks** (off by default) controls whether pasted SnowRaven weather/tide blocks appear anywhere on the tab. While hidden, block text is also excluded from search — so searching "Humidity" won't match every checklist you pasted a weather block into — and a comment that contains *only* a block counts as having no comment. Flip the toggle to see, and search, the blocks again. (The **Weather block** / **Tide block** filter pills work either way.)
+
+---
+
 ## List Comparer
 
 The List Comparer tab compares two lists and shows which species appear in both and which are unique to each. A toggle at the top switches between two modes: **Life Lists** and **Checklists**.
@@ -304,7 +318,7 @@ The List Comparer tab compares two lists and shows which species appear in both 
 
 Compares two full eBird life lists (CSV backups). If your eBird backup is saved in Settings, your list loads automatically as List A. You can also upload any eBird backup CSV file directly as List A. Drop a second eBird backup CSV file onto the List B slot, then click Compare Lists.
 
-### Checklists
+### Checklists mode
 
 Compares two individual eBird checklists. Paste two checklist IDs or URLs (e.g. `S12345678` or `https://ebird.org/checklist/S12345678`), the same way you would in the Weather tab, then click Compare checklists. This mode uses your eBird API key (set in Settings) to fetch each checklist directly from eBird, so it works for any public checklist, not just your own.
 

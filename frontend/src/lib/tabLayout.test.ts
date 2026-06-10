@@ -147,12 +147,22 @@ describe('parseLayout (used by both the localStorage and storage-seam paths)', (
     expect(parseLayout('nope').order).toEqual(DEFAULT_TAB_ORDER)
     expect(parseLayout({ order: 'bad' }).order).toEqual(DEFAULT_TAB_ORDER)
   })
+
+  it('appends the Checklists tab, visible, to a layout saved before it existed (QA-01)', () => {
+    const preChecklists = parseLayout({
+      order: ['weather', 'species-detail', 'birding-stats', 'map-explorer', 'life-list', 'breeding-codes', 'named-birds', 'comparer'],
+      hidden: ['comparer'],
+    })
+    expect(preChecklists.order).toContain('checklists')
+    expect(preChecklists.hidden.has('checklists')).toBe(false)
+    expect(visibleTabs(preChecklists)).toContain('checklists')
+  })
 })
 
 describe('serializeLayout', () => {
   it('converts the hidden Set to an array and round-trips through parseLayout', () => {
     const original: TabLayoutState = {
-      order: ['birding-stats', 'weather', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'named-birds', 'comparer'],
+      order: ['birding-stats', 'weather', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'comparer'],
       hidden: new Set(['comparer', 'life-list']),
     }
     const serialized = serializeLayout(original)

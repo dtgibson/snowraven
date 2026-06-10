@@ -4,6 +4,54 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Checklists tab: span-based block stripping, regex hygiene as policy, cycling tri-state pills — 2026-06-10 (v0.5.27)
+
+**What:** New Checklists tab (checklist-comment search, all-species species-comment
+search, filterable all-checklists list, weather/tide hide toggle). Four decisions
+worth keeping, two of them born from real-data bug reports and the security review.
+
+**Decisions:**
+- **Hiding a pasted weather/tide block means removing a SPAN — emoji header →
+  end of attribution link — never whole lines.** eBird's CSV export collapses a
+  pasted block's newlines into spaces, so user prose routinely shares one long
+  line with the block and can continue AFTER the attribution. The first
+  (line-based) implementation silently ate user comments; the user defined the
+  correct rule. `stripWeatherTideBlocks()` (lib/commentBlocks.ts) is the single
+  source of truth, with fallbacks for real export shapes: moon-emoji night
+  blocks (RainCrow), bare-name attributions, attribution-less blocks (end after
+  the last labeled value), emoji-less condition segments (absorbed only when
+  short and not a finished sentence). **Post-mortem lesson: when a feature
+  processes round-tripped/pasted text, verify against the REAL export early** —
+  unit fixtures from the formatters all passed while three real-data shapes
+  failed. The real-formatter-fixture + full-backup-sweep combination caught
+  everything (308 block-bearing comments, 0 residue).
+- **"Search matches what you see."** While blocks are hidden, search runs on the
+  stripped text, and an empty-after-strip comment counts as NO comment in both
+  the boxes and the has-comment filters; the has-weather/has-tide filter pills
+  read the raw comment regardless of the toggle.
+- **Regex hygiene is now policy** (from the security review, all three findings
+  fixed in-stage): (1) module-level `/g` regexes carry shared mutable
+  `lastIndex` and `String.prototype.matchAll` CLONES it — a stale offset made
+  the strip silently skip markers order-dependently; always reset, or scan once
+  up front. (2) Regexes scanning untrusted comment text must be linear by
+  construction — precompute match positions, bound lazy quantifiers (the
+  `NAME_TAG_RE` posture): the unbounded version was O(n²), 4.1s @400KB on the
+  main thread, ~5ms after. (3) Decode entities exactly once along a render
+  path — the shared `CommentText` takes `raw` (encoded; comparer/API) or
+  `decoded` (Checklists; strip output) and double-decoding broke
+  display==search.
+- **Cycling tri-state pill for many-category filters.** One pill per category
+  cycling any → has → doesn't-have (label restates its state: "Media" → "Has
+  media" → "No media") instead of the Multimedia tab's paired Has/No pills —
+  nine categories would have meant ~18 pills. This tab only; no retrofit.
+
+**Also:** the comparer's `CommentText` was lifted to shared
+`components/CommentText.tsx` rather than copied a third time;
+`PRIVACY_POLICY.md` gained the "Embedded Bird Media and Link Icons" section
+disclosing the pre-existing Cornell Lab asset loads (Macaulay embeds on Species
+Detail + eBird/Birds-of-the-World favicons app-wide), with README/website/brief
+now deferring to the policy as the full provider list.
+
 ## Named Birds tab: shared `SightingsMap` + single-open accordion as the concurrency bound — 2026-06-10 (v0.5.26)
 
 **What:** Upgraded the Named Birds tab (four-option sort, per-report location, comment quote-blocks, lifted contrast) and gave each individual a per-individual sightings map. Two architectural decisions drove it.

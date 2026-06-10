@@ -1,6 +1,6 @@
 # Privacy Policy — SnowRaven
 
-**Effective date:** June 7, 2026
+**Effective date:** June 10, 2026
 
 ## Overview
 
@@ -47,6 +47,15 @@ The maps in SnowRaven are drawn using map tiles served by third-party providers.
 - **Esri** — the "Satellite" base map. See [Esri's privacy statement](https://www.esri.com/en-us/privacy/overview).
 - **USGS — The National Map** — the "Topo (US)" base map (United States only); a U.S. government service.
 - **Waymarked Trails** — the optional "Trails" overlay. See [waymarkedtrails.org](https://hiking.waymarkedtrails.org/).
+
+## Embedded Bird Media and Link Icons
+
+A few things in the app load directly from the Cornell Lab of Ornithology's websites, the same way any web page loads an embedded image — so, like the map tiles above, those sites receive your IP address and the specific item requested:
+
+- **Macaulay Library embeds** — the Species Detail tab can show your photos, audio, and video embedded from **macaulaylibrary.org**; loading one tells the Macaulay Library which asset was viewed.
+- **Site icons next to bird names** — the small link icons shown beside bird names throughout the app load from **ebird.org** and **birdsoftheworld.org**.
+
+No key or account is used for these loads, no SnowRaven server is involved, and the developer adds no tracking and keeps no copy. These are Cornell Lab of Ornithology services; see [Cornell's privacy statement](https://privacy.cornell.edu/).
 
 ## Children
 

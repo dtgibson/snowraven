@@ -15,13 +15,14 @@ SnowRaven turns your own eBird and Macaulay Library exports into a personal bird
 - **Multimedia** — your life list with photo/audio/video coverage per species, to find what you still need to capture.
 - **Breeding Codes** — every species you've recorded a breeding code for, as a color-coded matrix across all eBird codes.
 - **Named Birds** — track individual birds you've named in your eBird species comments with a `[name:…]` tag (e.g. `[name:Winky]`): each individual's species, first/last-seen, sighting count, and every checklist it appears on (with its location and a map of where that bird has been seen). Sort by name, alphabetical, taxonomic, or last seen. Also surfaces per-species on Species Detail.
+- **Checklists** — your checklists as whole outings: search every checklist comment and every species comment you've ever written (last 10 shown, expandable, with eBird links), and browse a filterable list of all your checklists — combine has/doesn't-have filters for comments, media (by type with the ML export), breeding codes, weather/tide blocks, complete/incomplete, protocol, county, and date range. A toggle (off by default) hides pasted SnowRaven weather/tide blocks from display *and* search.
 - **List Comparer** — compare two life lists (your backup vs. another birder's) to see shared and unique species, or compare two individual eBird checklists by ID/URL with side-by-side counts (higher-count emphasis), breeding codes, photo/audio/video indicators, effort details (type, distance, duration, observers, app), and checklist + species comments (with a side-by-side comments table). Each checklist card also shows at-a-glance badges (media, breeding, and whether the comment already has a weather/tide block), and a **Weather & Tide** section can pull a fresh weather and tide reading for each checklist to compare conditions side by side (on demand, with per-side copy buttons — nothing is copied automatically).
 
 Full per-feature documentation lives in **[docs/HELP.md](docs/HELP.md)**.
 
 ## Privacy
 
-SnowRaven is local-first and **collects nothing** — no accounts, no analytics, no telemetry, and no developer-operated server. Your eBird backup, Macaulay Library export, settings, and API keys stay on your own device (or your own self-hosted machine). The only network calls are made directly to eBird, OpenWeather, OpenStreetMap/Nominatim, and NOAA Tides & Currents (keyless), authenticated with *your* API keys, when you ask for data. See the [Privacy Policy](PRIVACY_POLICY.md) and [Accessibility statement](ACCESSIBILITY.md).
+SnowRaven is local-first and **collects nothing** — no accounts, no analytics, no telemetry, and no developer-operated server. Your eBird backup, Macaulay Library export, settings, and API keys stay on your own device (or your own self-hosted machine). Network requests go directly from your device to the services the app draws from — eBird, OpenWeather, OpenStreetMap/Nominatim, and NOAA Tides & Currents with *your* API keys where keys are needed, plus the keyless map-tile hosts and the Cornell Lab sites that embedded Macaulay media and bird-link icons load from. The full provider list is in the [Privacy Policy](PRIVACY_POLICY.md); see also the [Accessibility statement](ACCESSIBILITY.md).
 
 ## Requirements
 
@@ -32,7 +33,7 @@ Two free API keys, entered once in the app's Settings:
 
 Most analytics tabs also use your own data files (optional, but they unlock most features):
 
-- **eBird backup** (`MyEBirdData.csv`) from [ebird.org/downloadMyData](https://ebird.org/downloadMyData) — powers Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer.
+- **eBird backup** (`MyEBirdData.csv`) from [ebird.org/downloadMyData](https://ebird.org/downloadMyData) — powers Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, Named Birds, Checklists, and List Comparer.
 - **Macaulay Library export** (optional) — adds media coverage and trends.
 
 ## Installation

@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.27] - 2026-06-10
+
+### Added
+- **New Checklists tab.** Your checklists now have a home of their own, with three sections: **Checklist Comments** (search every checklist-level comment you've written — last 10 shown, expandable, Newest/Oldest, with a date link to each checklist on eBird), **Species Comments** (the same search across the observation notes of **all** species at once, each entry leading with a clickable species name), and **All Checklists** (every outing with date, location, protocol, effort, species/individual counts, at-a-glance indicators, and the checklist comment — first 10 shown, expandable).
+- **Composable checklist filters.** One pill per category cycles **any → has → doesn't have** for checklist comment, species comments, media, breeding codes, weather block, and tide block — plus Complete/Incomplete, photo/audio/video pills (when the ML export is saved), protocol, county, and a date range. Filters combine, so questions like "complete checklists with breeding codes but no media" are one click each.
+- **Hide pasted weather & tide blocks.** A tab-wide toggle (off by default) strips SnowRaven weather/tide blocks out of every comment shown on the tab — and out of search, so searching "Humidity" no longer matches every checklist with a pasted block. A comment that is only a block counts as having no comment while hidden. Flip the toggle to see and search the blocks again.
+
+### Changed
+- The comparer's safe comment renderer (entity decoding, validated links, line breaks) is now a shared component used by both the List Comparer and the new Checklists tab.
+- The in-app Help table of contents now lists Named Birds (previously missing) and the new Checklists section.
+- **Privacy policy: completed the provider list.** `PRIVACY_POLICY.md` now discloses the Cornell Lab asset loads that have always been part of the app — embedded Macaulay Library media on Species Detail and the eBird / Birds of the World link icons beside bird names — and the README, website, and product brief now defer to the policy as the full provider list. (Disclosure only; no behavior change.)
+
 ## Website - 2026-06-07
 
 ### Added
