@@ -67,6 +67,17 @@ describe('computeNamedBirds', () => {
     expect(mallardPete.sightings[2]).toMatchObject({ submissionId: 'S1', comment: 'drake [name:Pete]' })
   })
 
+  it('threads location and coordinates onto each sighting from the observation', () => {
+    const birds = computeNamedBirds([
+      obs({ submissionId: 'S1', commonName: 'Mallard', date: '2024-03-01', speciesComments: '[name:Pete]', location: 'Caswell SP', latitude: 37.7, longitude: -121.2 }),
+      obs({ submissionId: 'S2', commonName: 'Mallard', date: '2024-05-01', speciesComments: '[name:Pete]', location: '', latitude: null, longitude: null }),
+    ])
+    const pete = birds[0]
+    // newest first → S2 (no location/coords), then S1
+    expect(pete.sightings[0]).toMatchObject({ submissionId: 'S2', location: '', latitude: null, longitude: null })
+    expect(pete.sightings[1]).toMatchObject({ submissionId: 'S1', location: 'Caswell SP', latitude: 37.7, longitude: -121.2 })
+  })
+
   it('counts one sighting per checklist even across parent + subspecies rows', () => {
     const birds = computeNamedBirds([
       obs({ submissionId: 'S1', commonName: 'Mallard', date: '2024-03-01', speciesComments: '[name:Pete]' }),
@@ -99,10 +110,39 @@ describe('sortNamedBirds', () => {
   it('sorts by name A–Z', () => {
     expect(sortNamedBirds(birds, 'name').map(b => b.name)).toEqual(['Abby', 'Mid', 'Zelda'])
   })
-  it('sorts by species A–Z', () => {
-    expect(sortNamedBirds(birds, 'species').map(b => b.commonName)).toEqual(['Mallard', 'Mallard', 'Osprey'])
+  it('sorts alphabetically by species common name A–Z, name tie-break', () => {
+    // Two Mallards (Abby, Mid) before Osprey (Zelda); Abby before Mid by name.
+    expect(sortNamedBirds(birds, 'alphabetical').map(b => b.name)).toEqual(['Abby', 'Mid', 'Zelda'])
+    expect(sortNamedBirds(birds, 'alphabetical').map(b => b.commonName)).toEqual(['Mallard', 'Mallard', 'Osprey'])
   })
   it('sorts by last seen, newest first', () => {
     expect(sortNamedBirds(birds, 'lastSeen').map(b => b.name)).toEqual(['Abby', 'Mid', 'Zelda'])
+  })
+
+  describe('taxonomic sort', () => {
+    it('orders by eBird taxonomic order, name tie-break within a species', () => {
+      // Osprey before Mallard in this stub order; the two Mallards tie on order
+      // and fall through to the name tie-break (Abby before Mid).
+      const orderFor = (cn: string) => ({ Osprey: 1, Mallard: 5 }[cn] ?? Infinity)
+      expect(sortNamedBirds(birds, 'taxonomic', orderFor).map(b => b.name)).toEqual(['Zelda', 'Abby', 'Mid'])
+    })
+
+    it('sends species with unknown order to a stable tail, then by name', () => {
+      // Only Mallard has a known order; Osprey (unknown → Infinity) tails, and the
+      // two Mallards order by name. Then the Osprey.
+      const orderFor = (cn: string) => ({ Mallard: 2 }[cn] ?? Infinity)
+      expect(sortNamedBirds(birds, 'taxonomic', orderFor).map(b => b.name)).toEqual(['Abby', 'Mid', 'Zelda'])
+    })
+
+    it('degrades to name order when no orders are known (orders not yet loaded)', () => {
+      // Every species resolves to Infinity → comparator first term is NaN for
+      // every pair → pure name order, no error, no empty list.
+      const orderFor = () => Infinity
+      expect(sortNamedBirds(birds, 'taxonomic', orderFor).map(b => b.name)).toEqual(['Abby', 'Mid', 'Zelda'])
+    })
+
+    it('degrades to name order when orderFor is omitted entirely', () => {
+      expect(sortNamedBirds(birds, 'taxonomic').map(b => b.name)).toEqual(['Abby', 'Mid', 'Zelda'])
+    })
   })
 })

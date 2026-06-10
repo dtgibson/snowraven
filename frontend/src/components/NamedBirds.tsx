@@ -3,7 +3,7 @@
 // eBird backup (shared cache), parses + groups via lib/namedBirds, and renders the
 // shared sortable NamedBirdsTable.
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2, AlertCircle, Tag } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
@@ -28,15 +28,18 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
 }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
+  const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
 
   const fetchTaxonCodes = async (birds: NamedBird[]) => {
     try {
       const species = [...new Map(birds.map(b => [b.commonName, b.scientificName])).entries()]
         .map(([commonName, scientificName]) => ({ commonName, scientificName }))
-      const data = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
+      const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>('/taxonomy/codes', { species })
       setTaxonMap(data.codes ?? {})
+      setTaxonOrders(data.orders ?? {})
     } catch {
-      // favicons absent — names still render and link
+      // favicons + taxonomic sort absent — names still render and link, and the
+      // sort degrades to name order until the next successful load
     }
   }
 
@@ -65,6 +68,20 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
   }, [filesVersion])
 
   const codeFor = (name: string) => taxonMap[name] ?? taxonMap[normalizeSpeciesName(name)]
+
+  // Taxonomic-order resolver for the Taxonomic sort — mirrors the BirdingStats
+  // pattern: exact match, then normalized-name fallback, then Infinity (unknown
+  // species land in a stable tail). orderFor's identity changes only when
+  // taxonOrders loads, which is what re-triggers the table's sort memo (FR-14).
+  const normTaxonOrder = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const [name, ord] of Object.entries(taxonOrders)) m[normalizeSpeciesName(name)] = ord
+    return m
+  }, [taxonOrders])
+  const orderFor = useCallback(
+    (name: string) => taxonOrders[name] ?? normTaxonOrder[normalizeSpeciesName(name)] ?? Infinity,
+    [taxonOrders, normTaxonOrder],
+  )
 
   if (phase.tag === 'loading-saved') {
     return (
@@ -124,6 +141,8 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
         <NamedBirdsTable
           birds={birds}
           showSpecies
+          singleOpen
+          orderFor={orderFor}
           renderSpecies={(commonName, scientificName) => (
             <BirdName commonName={commonName} scientificName={scientificName} taxonCode={codeFor(commonName)} hasEntry onOpenSpecies={onOpenSpecies} size="sm" />
           )}

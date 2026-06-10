@@ -14,6 +14,9 @@ export interface NamedSighting {
   date: string            // YYYY-MM-DD
   submissionId: string
   comment: string         // the full species comment for this observation
+  location: string        // from ObservationEntry.location ('' when the export has none)
+  latitude: number | null   // from ObservationEntry.latitude (null when absent)
+  longitude: number | null  // from ObservationEntry.longitude (null when absent)
 }
 
 export interface NamedBird {
@@ -27,7 +30,7 @@ export interface NamedBird {
   sightings: NamedSighting[]  // newest first
 }
 
-export type NamedBirdSort = 'name' | 'species' | 'lastSeen'
+export type NamedBirdSort = 'name' | 'alphabetical' | 'taxonomic' | 'lastSeen'
 
 // Whitespace-lenient: matches [name:Winky], [ name : Old Blue ], [NAME:one-leg-pete].
 // The value is everything up to the closing bracket (trimmed in parseNameTags).
@@ -68,6 +71,9 @@ export function computeNamedBirds(observations: ObservationEntry[]): NamedBird[]
         date: obs.date,
         submissionId: obs.submissionId,
         comment: obs.speciesComments,
+        location: obs.location,
+        latitude: obs.latitude,
+        longitude: obs.longitude,
       }
       const existing = map.get(key)
       if (!existing) {
@@ -105,22 +111,49 @@ export function computeNamedBirds(observations: ObservationEntry[]): NamedBird[]
   return [...map.values()]
 }
 
-/** Sort named birds for display. name/species ascending; lastSeen descending. */
-export function sortNamedBirds(birds: NamedBird[], sort: NamedBirdSort): NamedBird[] {
+/**
+ * Sort named birds for display. Every option carries a name tie-break so equal
+ * primary keys don't jitter.
+ *
+ * - `name` — by individual display name, then species.
+ * - `alphabetical` — by species common name A–Z, then name.
+ * - `taxonomic` — by the species' eBird taxonomic order (via `orderFor`), then
+ *   name. Species with no known order resolve to `Infinity` → a stable tail,
+ *   then name. Until the `orders` map loads, `orderFor` returns `Infinity` for
+ *   every species (or is omitted), so the first comparator term is `NaN` for
+ *   every pair and the list degrades to pure name order (FR-14).
+ * - `lastSeen` — most-recent sighting first, then name.
+ *
+ * `orderFor` is optional: the reduced-set caller (Species Detail) and tests omit
+ * it, in which case `taxonomic` falls back to the name tie-break.
+ */
+export function sortNamedBirds(
+  birds: NamedBird[],
+  sort: NamedBirdSort,
+  orderFor?: (commonName: string) => number,
+): NamedBird[] {
   const copy = [...birds]
+  const byName = (a: NamedBird, b: NamedBird) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  const bySpecies = (a: NamedBird, b: NamedBird) =>
+    a.commonName.localeCompare(b.commonName, undefined, { sensitivity: 'base' })
   switch (sort) {
     case 'name':
-      copy.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-        || a.commonName.localeCompare(b.commonName, undefined, { sensitivity: 'base' }))
+      copy.sort((a, b) => byName(a, b) || bySpecies(a, b))
       break
-    case 'species':
-      copy.sort((a, b) => a.commonName.localeCompare(b.commonName, undefined, { sensitivity: 'base' })
-        || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+    case 'alphabetical':
+      copy.sort((a, b) => bySpecies(a, b) || byName(a, b))
       break
+    case 'taxonomic': {
+      const order = orderFor ?? (() => Infinity)
+      // Infinity - Infinity is NaN (sorts as 0 → no swap), so two unknowns fall
+      // through to the name tie-break — correct and stable.
+      copy.sort((a, b) => (order(a.commonName) - order(b.commonName)) || byName(a, b))
+      break
+    }
     case 'lastSeen':
     default:
-      copy.sort((a, b) => b.lastSeen.localeCompare(a.lastSeen)
-        || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+      copy.sort((a, b) => b.lastSeen.localeCompare(a.lastSeen) || byName(a, b))
       break
   }
   return copy

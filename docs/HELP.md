@@ -290,7 +290,7 @@ The Unbounded toggle removes the table's horizontal scroll constraint for easier
 
 The Named Birds tab tracks individual birds you've named in your eBird species comments. Tag a specific bird in a checklist's species comment with a `[name:…]` tag — for example `[name:Winky]` or `[name:one-leg-pete]` — and SnowRaven gathers every checklist where that name appears.
 
-Each named bird shows its name, species, first- and last-seen dates, and total number of sightings, and expands to list every checklist it appears on: the date, a link to that checklist on eBird, and the species comment. Sort the list by name, species, or last-seen date.
+Each named bird shows its name, species, first- and last-seen dates, and total number of sightings, and expands to list every checklist it appears on — the date, the location, a link to that checklist on eBird, and the species comment — plus a small map of everywhere that individual has been seen. Cards open one at a time. Sort the list by **Name (Individual)**, **Alphabetical**, **Taxonomic**, or **Last Seen**.
 
 A bird is identified by its name together with its species, so the same name used for two different species is tracked as two individuals, and name matching ignores case. This tab requires your eBird backup. The same information for a single species also appears as a **Named Individuals** section on the Species Detail tab.
 

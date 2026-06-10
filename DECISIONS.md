@@ -4,6 +4,18 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Named Birds tab: shared `SightingsMap` + single-open accordion as the concurrency bound — 2026-06-10 (v0.5.26)
+
+**What:** Upgraded the Named Birds tab (four-option sort, per-report location, comment quote-blocks, lifted contrast) and gave each individual a per-individual sightings map. Two architectural decisions drove it.
+
+**Decisions:**
+- **Extract one shared `SightingsMap`; don't inline-duplicate the Species Detail map.** The pins path (DOM `<Marker>` pins + single state-driven `<Popup>` + `MapBoundsFitter`, owning the static `SP_PIN_HTML` sprite and its own `selectedCoord` state) is now `components/SightingsMap.tsx`. Both the new Named Birds card map and Species Detail consume it; Species Detail migrated with a **pixel-identical** pins contract and keeps its heatmap, intensity slider, and map-mode toggle local (the heatmap is deliberately *outside* the extraction boundary). Inlining a second copy would have forced the sprite, popup state machine, link guard, and per-coordinate aggregation to stay hand-synced. The aggregation is a separate pure, unit-tested helper, `lib/sightingMarkers.ts` (`buildSightingMarkers` — skip null coords, group by `lat,lng`, dates newest-first), so the "skip-null / empty→no-map / same-coord aggregation" behavior lives in one tested function used by both surfaces.
+- **Bound concurrent WebGL maps *structurally*, with a single-open accordion — not an instance counter/queue.** The one real engineering risk was several expanded cards each mounting a MapLibre/WebGL context. The Named Birds tab now opens at most one card at a time (`singleOpen` prop; opening a card empties `expanded` to the new key), so at most one map is ever live — the stacked-context failure mode is designed out, not merely "probably fine." Render-only-while-expanded still tears the map down on collapse. Species Detail's map-less `NamedBirdsTable` stays multi-open (the cap is gated on `singleOpen`, so it's no gratuitous UX change there). This subsumed the PRD's open question on a concurrency cap.
+
+**Also:** `location`/`latitude`/`longitude` were threaded onto `NamedSighting` from the already-parsed `ObservationEntry` (no parser change, no new CSV column); the per-row checklist link is now gated with `SUBMISSION_ID_RE` (`/^S\d+$/`) before becoming an anchor (rendering a malformed id as plain text), matching the map popup and the 0.5.25 convention.
+
+**Implications:** When a second surface needs an existing map's pins/popup/bounds-fit, extract the pins path into the shared `SightingsMap` and migrate the original with a pixel-identical contract — don't re-inline the Species Detail map. Prefer a single-open accordion over a counter/queue wherever a list can mount per-row maps. Any external-id href built from CSV data is shape-validated (`SUBMISSION_ID_RE`) before it becomes a link.
+
 ## Media card: At a glance back to uniform tiles + busiest-day checklist link — 2026-06-10 (v0.5.25)
 
 **What:** Reworked **Statistics → Media → At a glance** again — busiest day, longest streak, and a new archive-span fact are uniform grid tiles once more (not the v0.5.24 caption), and the busiest-day date links to that day's eBird checklist. **This supersedes the v0.5.24 decision below** that moved those facts out of the grid into a caption.

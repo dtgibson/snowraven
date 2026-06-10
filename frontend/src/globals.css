@@ -35,6 +35,10 @@
   --sr-accent-surface: #fafffd;
   --sr-on-accent: #FFFFFF;   /* readable foreground ON the accent fill (white on #2D8653 = 4.6:1) */
 
+  /* Quote (Named Birds comment block — one step deeper than --sr-surface-subtle) */
+  --sr-quote-bg: #EFF1F3;
+  --sr-quote-border: #E0E2E6;
+
   /* Error */
   --sr-error: #DC2626;
   --sr-error-bg: #FEF2F2;
@@ -131,6 +135,10 @@
   --sr-accent-border-strong: rgba(52,211,153,0.5);
   --sr-accent-surface: #021a0f;
   --sr-on-accent: #052E16;   /* dark green ON the emerald accent (was white = 1.9:1; now ~7.9:1) */
+
+  /* Quote (Named Birds comment block — separates from the faint expanded panel) */
+  --sr-quote-bg: #2E2E33;
+  --sr-quote-border: #3A3A40;
 
   /* Error */
   --sr-error: #F87171;
@@ -391,6 +399,13 @@ h1, h2, h3, h4, h5, h6 {
 
 .sr-map-container {
   height: 380px;
+  width: 100%;
+}
+
+/* Per-individual sightings map inside an expanded Named Birds card — shorter
+   than the Species Detail map so it fits a collapsible card (height only). */
+.sr-named-map {
+  height: 220px;
   width: 100%;
 }
 

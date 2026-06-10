@@ -1,0 +1,143 @@
+// One row of the Named Birds list: a collapsed header (chevron · name · species ·
+// date-range · sighting count) that expands to the bird's reports and, on the
+// Named Birds tab, a small per-individual sightings map.
+//
+// Extracted from NamedBirdsTable so the per-row `cardMarkers` useMemo lives at a
+// stable hook position — an inline useMemo inside `.map()` would violate the
+// rules of hooks. The map mounts only while the row is open (FR-21) and only when
+// the individual has usable coordinates (FR-23); on the single-open Named Birds
+// tab at most one map (one WebGL context) is ever mounted.
+
+import { useMemo } from 'react'
+import { ChevronRight, ChevronDown, ExternalLink, Map as MapIcon } from 'lucide-react'
+import { formatDate } from '../lib/formatDate'
+import { buildSightingMarkers } from '../lib/sightingMarkers'
+import { SightingsMap } from './SightingsMap'
+import { SUBMISSION_ID_RE } from './speciesDetail/ui'
+import type { NamedBird } from '../lib/namedBirds'
+
+export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies }: {
+  bird: NamedBird
+  open: boolean
+  onToggle: () => void
+  showSpecies: boolean
+  /** Render the per-individual map when expanded (Named Birds tab only). */
+  showMap: boolean
+  renderSpecies?: (commonName: string, scientificName: string) => React.ReactNode
+}) {
+  // Per-coordinate markers for this bird, skipping null-coord sightings (FR-22).
+  // Empty → no map rendered (FR-23). Cheap, but memoized so the array identity is
+  // stable for SightingsMap / MapBoundsFitter across re-renders.
+  const cardMarkers = useMemo(() => buildSightingMarkers(bird.sightings), [bird.sightings])
+
+  return (
+    <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, overflow: 'hidden', background: 'var(--sr-surface)', boxShadow: 'var(--sr-card-shadow)' }}>
+      <button tabIndex={0}
+        aria-expanded={open}
+        onClick={onToggle}
+        style={{
+          display: 'flex', alignItems: 'baseline', gap: 8, width: '100%',
+          padding: '11px 13px', border: 'none', background: 'transparent',
+          cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+        }}
+      >
+        <span style={{ color: 'var(--sr-text-muted)', flexShrink: 0, display: 'inline-flex', alignSelf: 'center' }}>
+          {open ? <ChevronDown size={15} strokeWidth={2.4} aria-hidden /> : <ChevronRight size={15} strokeWidth={2.4} aria-hidden />}
+        </span>
+        <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--sr-text)', flexShrink: 0, letterSpacing: '-0.01em' }}>{bird.name}</span>
+        {showSpecies && (
+          <span style={{ minWidth: 0, overflow: 'hidden', display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
+            {renderSpecies ? renderSpecies(bird.commonName, bird.scientificName) : (
+              <span style={{ fontSize: '0.84375rem', fontWeight: 500, color: 'var(--sr-text)' }}>{bird.commonName}</span>
+            )}
+          </span>
+        )}
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 13, flexShrink: 0 }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-gray)', whiteSpace: 'nowrap' }}>
+            {formatDate(bird.firstSeen)} – {formatDate(bird.lastSeen)}
+          </span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--sr-accent)', whiteSpace: 'nowrap' }}>
+            {bird.sightingCount} {bird.sightingCount === 1 ? 'sighting' : 'sightings'}
+          </span>
+        </span>
+      </button>
+
+      {open && (
+        <div style={{ borderTop: '1px solid var(--sr-border-subtle)', background: 'var(--sr-surface-faint)' }}>
+          {bird.sightings.map((s, i) => (
+            <div
+              key={`${s.submissionId}-${i}`}
+              style={{ padding: '10px 14px 11px 36px', borderBottom: i < bird.sightings.length - 1 ? '1px solid var(--sr-border-subtle)' : 'none' }}
+            >
+              {/* date · location · checklist on one line; location ellipsizes */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0, marginBottom: 4 }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)', flexShrink: 0 }}>{formatDate(s.date)}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0, padding: '0 7px' }} aria-hidden>·</span>
+                {s.location && (
+                  <>
+                    <span
+                      title={s.location}
+                      style={{
+                        fontSize: '0.75rem', color: 'var(--sr-text-muted)',
+                        minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {s.location}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0, padding: '0 7px' }} aria-hidden>·</span>
+                  </>
+                )}
+                {SUBMISSION_ID_RE.test(s.submissionId) ? (
+                  <a
+                    href={`https://ebird.org/checklist/${s.submissionId}`}
+                    target="_blank" rel="noreferrer"
+                    aria-label={`Open eBird checklist ${s.submissionId} (opens in a new tab)`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none' }}
+                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                  >
+                    {s.submissionId}<ExternalLink size={10} strokeWidth={2.5} aria-hidden />
+                  </a>
+                ) : (
+                  <span style={{ flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text-muted)' }}>
+                    {s.submissionId}
+                  </span>
+                )}
+              </div>
+              {s.comment && (
+                <div style={{
+                  fontSize: '0.8125rem', color: 'var(--sr-text)', lineHeight: 1.55,
+                  background: 'var(--sr-quote-bg)',
+                  border: '1px solid var(--sr-quote-border)',
+                  borderLeft: '3px solid var(--sr-accent-border)',
+                  borderRadius: 7, padding: '8px 11px', marginTop: 5,
+                }}>
+                  {s.comment}
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Per-individual sightings map — below the reports, only when this bird
+              has usable coordinates. The empty-array guard keeps the WebGL context
+              from mounting for a no-coordinate individual (FR-23). */}
+          {showMap && cardMarkers.length > 0 && (
+            <div style={{ padding: '12px 14px 14px' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7,
+                fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.04em',
+                textTransform: 'uppercase', color: 'var(--sr-text-muted)',
+              }}>
+                <MapIcon size={12} strokeWidth={2.2} aria-hidden />
+                Where {bird.name} has been seen
+              </div>
+              <div className="sr-named-map" style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
+                <SightingsMap markers={cardMarkers} switcher={false} />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

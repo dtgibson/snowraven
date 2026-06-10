@@ -19,6 +19,17 @@ in `lib/namedBirds.ts`; shared `components/NamedBirdsTable.tsx`; tab in
 `components/NamedBirds.tsx`; wired via `lib/tabLayout.ts` (`named-birds`, which
 `parseLayout` auto-appends to existing saved layouts) + `App.tsx`. Computed
 offline from the eBird backup. The `[name:…]` parser is length-bounded (ReDoS-safe).
+- **(v0.5.26)** Legibility + map upgrade. Sort is now four options — Name
+  (Individual) / Alphabetical / Taxonomic / Last Seen (taxonomic order reuses the
+  `/taxonomy/codes` `orders` already fetched for favicons; Species Detail's
+  "Named Individuals" section keeps its reduced Name + Last Seen set); each report
+  now shows its location between the date and the checklist link; each sighting's
+  comment sits in its own quoted block (new `--sr-quote-bg`/`--sr-quote-border`
+  tokens, both themes); and each expanded individual gets a **per-individual
+  sightings map**. The map is a new shared `components/SightingsMap.tsx` (pins +
+  popup + bounds-fit) that Species Detail's pins map now also uses;
+  `location`/`latitude`/`longitude` were threaded onto `NamedSighting` (no parser
+  change). Contrast lifted off the weakest tokens.
 
 ### Richer media statistics — Statistics → Media card (complete — June 2026, v0.5.20)
 

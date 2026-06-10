@@ -7,6 +7,15 @@ All notable changes to SnowRaven are documented here.
 ### Added
 - **Project showcase website** — a static site in `website/` that introduces SnowRaven and walks through its features with real screenshots, served from GitHub Pages at https://snowraven.dtgibson.com/ and deployed by `.github/workflows/pages.yml` on every push to `main` that touches `website/`. It is dependency-free (hand-written HTML/CSS/JS, system fonts, no third-party requests), supports light and dark mode, and is kept in sync with the README and docs. This lives in the repo only; it is not part of the macOS/Windows/Raspberry Pi app bundle and does not change the app version.
 
+## [0.5.26] - 2026-06-10
+
+### Added
+- **Named Birds: a map for each individual bird.** Expand a named bird and you now see a small map of everywhere that individual has been seen, drawn the same way as the Species Detail map. Each report also shows its **location**, between the date and the checklist link.
+- **Named Birds: taxonomic and alphabetical sorting.** The sort options are now **Name (Individual)**, **Alphabetical**, **Taxonomic**, and **Last Seen** — Taxonomic orders the individuals by their species' taxonomic order, the same as elsewhere in the app.
+
+### Changed
+- **Named Birds: clearer and easier to read.** Lifted the tab's contrast, put each card's individual name and species name on a shared baseline, and set every sighting's comment in its own quoted block so it no longer blends into the card. Behind the scenes the sightings map is now a single shared component used by both Named Birds and Species Detail, and cards on the tab open one at a time.
+
 ## [0.5.25] - 2026-06-09
 
 ### Fixed

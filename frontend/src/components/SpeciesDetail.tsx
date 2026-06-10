@@ -1,4 +1,3 @@
-import { Marker, Popup } from 'react-map-gl/maplibre'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, Loader2, ChevronDown,
@@ -29,6 +28,8 @@ import { formatDate } from '../lib/formatDate'
 import { HEAT_INTENSITY_DEFAULT, heatWeight } from '../lib/heat'
 import { smoothScrollIntoView } from '../lib/scroll'
 import { SnowMap } from './SnowMap'
+import { SightingsMap } from './SightingsMap'
+import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { extractUserId, mlCatalogLink } from '../lib/mlCatalog'
 import { SectionCard, SectionHead, StatLabel, StatValueLink, SUBMISSION_ID_RE } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
@@ -43,18 +44,7 @@ type Phase =
   | { tag: 'error'; message: string }
   | { tag: 'ready'; observations: ObservationEntry[]; mediaMap: Map<string, MediaType>; mlRows: MLExportRow[]; hasML: boolean; userId: string | null }
 
-type CoordMarker = {
-  lat: number
-  lng: number
-  sightings: { submissionId: string; date: string }[]
-}
-
 const COMMENTS_PAGE = 10
-
-// Location pin (teardrop) for the Sighting Locations map. Rendered into a
-// react-map-gl <Marker anchor="bottom"> so the tip lands on the coordinate.
-// Brand-accent fill via CSS var (resolves at paint time in the DOM overlay).
-const SP_PIN_HTML = '<svg viewBox="0 0 28 40" width="24" height="34" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" style="fill:var(--sr-accent)"/><circle cx="14" cy="14" r="5" fill="white"/></svg>'
 
 // ── Main component ─────────────────────────────────────────────────────────
 
@@ -79,7 +69,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   const [showAllLocations, setShowAllLocations] = useState(false)
   const [mapMode, setMapMode] = useState<'pins' | 'heatmap'>('pins')
   const [heatIntensity, setHeatIntensity] = useState(HEAT_INTENSITY_DEFAULT)
-  const [selectedCoord, setSelectedCoord] = useState<string | null>(null)
   const [graphInterval, setGraphInterval] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
   const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   const [showAllCoOccurrence, setShowAllCoOccurrence] = useState(false)
@@ -95,7 +84,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     setShowAllLocations(false)
     setMapMode('pins')
     setHeatIntensity(HEAT_INTENSITY_DEFAULT)
-    setSelectedCoord(null)
     setGraphInterval('monthly')
     setViewMode('per-period')
     setShowAllCoOccurrence(false)
@@ -350,24 +338,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     return ids.size
   }, [phase, countyFilter, dateRange])
 
-  // Map markers: one per unique lat/lng, with all sightings at that coordinate
-  const coordMarkers = useMemo((): CoordMarker[] => {
-    const markerMap = new Map<string, CoordMarker>()
-    for (const o of speciesObs) {
-      if (o.latitude === null || o.longitude === null) continue
-      const key = `${o.latitude},${o.longitude}`
-      const existing = markerMap.get(key)
-      if (existing) {
-        existing.sightings.push({ submissionId: o.submissionId, date: o.date })
-      } else {
-        markerMap.set(key, { lat: o.latitude, lng: o.longitude, sightings: [{ submissionId: o.submissionId, date: o.date }] })
-      }
-    }
-    for (const m of markerMap.values()) {
-      m.sightings.sort((a, b) => b.date.localeCompare(a.date))
-    }
-    return [...markerMap.values()]
-  }, [speciesObs])
+  // Map markers: one per unique lat/lng, with all sightings at that coordinate.
+  // Shared with the Named Birds card map via buildSightingMarkers.
+  const coordMarkers = useMemo(() => buildSightingMarkers(speciesObs), [speciesObs])
 
   const uniqueCoords = useMemo(
     (): [number, number][] => coordMarkers.map(m => [m.lat, m.lng] as [number, number]),
@@ -380,10 +353,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     (): [number, number, number][] => coordMarkers.map(m => [m.lat, m.lng, heatWeight(m.sightings.length, heatIntensity)]),
     [coordMarkers, heatIntensity]
   )
-
-  // The pin whose popup is open (MapLibre uses one state-driven <Popup>, not a
-  // popup bound to each marker as Leaflet did). Keyed by "lat,lng".
-  const selectedMarker = selectedCoord ? coordMarkers.find(m => `${m.lat},${m.lng}` === selectedCoord) ?? null : null
 
   // Graph data (lifted from SightingsGraph for hasGraphData check and GraphOptions card)
   const graphResult = useMemo(
@@ -1219,7 +1188,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   {(['pins', 'heatmap'] as const).map((mode) => (
                     <button tabIndex={0}
                       key={mode}
-                      onClick={() => { setMapMode(mode); setSelectedCoord(null) }}
+                      onClick={() => setMapMode(mode)}
                       style={{
                         padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: '0.6875rem',
                         fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
@@ -1256,50 +1225,23 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 </div>
               )}
               <div className="sr-map-container">
-                <SnowMap
-                  initialViewState={{ longitude: uniqueCoords[0]?.[1] ?? 0, latitude: uniqueCoords[0]?.[0] ?? 0, zoom: 5 }}
-                  style={{ height: '100%', width: '100%' }}
-                  switcher
-                  scrollZoom={false}
-                >
-                  {mapMode === 'pins' && coordMarkers.map(m => (
-                    <Marker key={`${m.lat},${m.lng}`} longitude={m.lng} latitude={m.lat} anchor="bottom"
-                      onClick={e => { e.originalEvent.stopPropagation(); setSelectedCoord(`${m.lat},${m.lng}`) }}>
-                      <div style={{ width: 24, height: 34, cursor: 'pointer' }} dangerouslySetInnerHTML={{ __html: SP_PIN_HTML }} />
-                    </Marker>
-                  ))}
-                  {mapMode === 'pins' && selectedMarker && (
-                    <Popup longitude={selectedMarker.lng} latitude={selectedMarker.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} closeButton={false} maxWidth="260px">
-                      <div style={{ fontSize: '0.8125rem', lineHeight: 1.7, minWidth: 120 }}>
-                        {selectedMarker.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
-                          <div key={`${submissionId}-${i}`}>
-                            {SUBMISSION_ID_RE.test(submissionId) ? (
-                              <a
-                                href={`https://ebird.org/checklist/${submissionId}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
-                                onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                                onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                              >
-                                {formatDate(date)}
-                              </a>
-                            ) : (
-                              <span>{formatDate(date)}</span>
-                            )}
-                          </div>
-                        ))}
-                        {selectedMarker.sightings.length > 6 && (
-                          <div style={{ color: 'var(--sr-text-muted)', marginTop: 2, fontSize: '0.75rem' }}>
-                            +{selectedMarker.sightings.length - 6} more
-                          </div>
-                        )}
-                      </div>
-                    </Popup>
-                  )}
-                  {mapMode === 'heatmap' && <HeatmapLayer points={heatPoints} intensity={heatIntensity} />}
-                  <MapBoundsFitter coordinates={uniqueCoords} />
-                </SnowMap>
+                {/* Pins mode: the shared SightingsMap owns the markers + popup +
+                    its own MapBoundsFitter. Heatmap mode keeps its inline SnowMap
+                    with the HeatmapLayer and a top-level MapBoundsFitter, so the
+                    fitter runs in BOTH modes. */}
+                {mapMode === 'pins' ? (
+                  <SightingsMap markers={coordMarkers} switcher />
+                ) : (
+                  <SnowMap
+                    initialViewState={{ longitude: uniqueCoords[0]?.[1] ?? 0, latitude: uniqueCoords[0]?.[0] ?? 0, zoom: 5 }}
+                    style={{ height: '100%', width: '100%' }}
+                    switcher
+                    scrollZoom={false}
+                  >
+                    <HeatmapLayer points={heatPoints} intensity={heatIntensity} />
+                    <MapBoundsFitter coordinates={uniqueCoords} />
+                  </SnowMap>
+                )}
               </div>
             </SectionCard>
           )}
