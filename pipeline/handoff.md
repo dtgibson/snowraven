@@ -1,80 +1,59 @@
-# Handoff — 0.5.29 SHIPPED & live; pipeline idle, one follow-up for the VM
+# Handoff — missing-hotspot-pins (fix) — PAUSED after the GitHub push, handed off to the Mac for the release
 
 ## What We Accomplished
 
-The flaky-test fix plus the three small SnowRaven Mini mentions are built, shipped,
-and live as 0.5.29. The release is done and the in-app updater has been verified, so
-this improvement is now closed out — nothing is left pending and nothing is queued to
-ship. Released version equals what's on `main`.
+Built and pushed-to-GitHub the v0.5.30 fix release, the full 6-stage fix flow on
+this Linux box — two map fixes after a user-approved Stage 3 scope expansion:
 
-## What Shipped (live) — 0.5.29
+1. **Hotspot pins (the reported bug).** Teardrop sprites could silently never
+   register: the `isStyleLoaded()/once('load')` gate waited on MapLibre's
+   once-per-map-lifetime `load` event whenever a search landed during tile churn
+   (base-layer switch, pan, slow network) — latent since 0.5.16, intermittent
+   because a theme flip or remount self-healed it. Fixed in HotspotMarkers.tsx and
+   AtlasLayer.tsx (same pattern, hatch sprites) with unconditional registration plus
+   per-component `styleimagemissing` safety nets (owned hardcoded ids only,
+   hasImage-guarded, removed on unmount). A deterministic Playwright repro proved
+   the bug and the fix.
+2. **Pins→Heatmap crash (found by QA's regression walk, in shipped 0.5.29).** The
+   mode toggle mutated a react-map-gl `<Source>` id in place, which MapLibre
+   forbids — the whole app crashed to the error boundary. Fixed by keying the two
+   branch Sources in map/SightingMarkers.tsx; the new regression test was proven to
+   fail against pre-fix code.
 
-- **Flake fix.** The recurring ~11% BirdingStats test-suite failure is gone at the
-  root: recharts' bundled @reduxjs/toolkit fires a 100ms fallback timer that outlived
-  a test file's per-test animation-frame stubs and threw a bare `cancelAnimationFrame`
-  error in a later worker file. Fixed with baseline rAF/cAF shims in
-  `frontend/src/test-setup.ts` (wired via vitest `setupFiles`, test-only, verified
-  absent from the production bundle).
-- **SnowRaven Mini mentions.** Three informational, approved-verbatim: a quiet footer
-  line under the Weather tab card (a plain no-fetch anchor), a README "What it does"
-  paragraph, and a HELP.md H3 under Weather (kept out of the sidebar TOC). The website
-  deliberately stays silent about Mini.
+QA FINAL PASSED (repro twice, 31/31 live walk, heatmap-under-atlas contract intact,
+Species Detail untouched); security clean pass, zero findings; 774 frontend + 110
+backend tests green. Two standing map conventions promoted to CLAUDE.md. The
+release itself has NOT run — that happens on the Mac.
 
-## Release (Mac) — verified
+## What Has Been Saved
 
-`v0.5.29` tag → Windows CI green (run 27324903403; `windows-build` artifact
-`SnowRaven_0.5.29_x64-setup.exe` present) → `./release.sh`:
+- The release commit on `main` (both fixes + three new test files, version files at
+  0.5.30, CHANGELOG with two Fixed lines, website pill/footer, DECISIONS /
+  ROADMAP / CLAUDE records, this handoff + session-state). The `v0.5.30` tag points
+  at it and triggers Windows CI, the test Pipeline, and the Pages redeploy.
+- Pipeline artifacts (bug-brief, qa-report, security-report) under
+  `pipeline/missing-hotspot-pins/`, intentionally untracked per the established
+  pattern.
 
-- macOS universal DMG **notarized (Apple: Accepted) + stapled**; bundle-version guard
-  passed at `0.5.29`.
-- Windows installer signed locally with the real minisign key.
-- `latest.json` carries all three platforms: `darwin-aarch64` + `darwin-x86_64` →
-  the one universal `SnowRaven-updater.app.tar.gz` (same URL + same signature),
-  `windows-x86_64` → `SnowRaven_0.5.29_x64-setup.exe`.
-- Every updater + DMG URL verified **HEAD 200**. Release `draft=false, prerelease=false`.
-- https://github.com/dtgibson/snowraven/releases/tag/v0.5.29
+## Where We Are
 
-## Tests
+Stage 6 of 6 (The Chronicler) — records done and pushed (chronicle-before-push).
+The ONLY thing left before closeout is the Mac release: wait for Windows CI green,
+run `./release.sh`, verify the in-app updater sees 0.5.30, author the
+`chore(pipeline): mark 0.5.30 released` closeout commit. Paused here, handed off.
+(See the `release-sequence` and `dev-machines` memories.)
 
-110 backend green. The targeted `cancelAnimationFrame` flake is proven dead — **0
-failures across 18 full-suite Mac runs**. But see the follow-up below.
+## Resume Prompt
 
-## Follow-up for the VM (do this next)
+To resume: run `/weft` in this project AFTER the Mac has shipped 0.5.30 and Dave
+confirms it's live and the updater sees it — at which point this Linux box `git
+pull`s the Mac's closeout commit and the fix is done.
 
-**A SECOND, separate BirdingStats flake remains.** An 18-run Mac sweep (done to verify
-the 0.5.29 fix) caught a different intermittent failure:
-`frontend/src/components/BirdingStats.test.tsx > "mounts the SnowMap only after the
-idle callback fires"` — ~5.5% (1/18), a `requestIdleCallback` timing-assertion race
-around BirdingStats.test.tsx ~lines 180-195. It passes in isolation. It is **not** the
-`cancelAnimationFrame` ReferenceError 0.5.29 fixed, and `BirdingStats.test.tsx` was not
-touched by 0.5.29, so it is pre-existing — it was simply masked by the louder cAF flake
-until that was silenced. The VM's small "8/8 clean" sample (~63% odds of missing a 5.5%
-flake) didn't surface it.
+---
 
-Two things for the VM:
-1. **Fix the idle-callback flake** (likely: make the `requestIdleCallback`/idle stub
-   deterministic, or de-flake the "after the idle callback" assertion).
-2. **Narrow the record.** DECISIONS.md / CHANGELOG say "BirdingStats flake FIXED in
-   0.5.29" — correct it to "cancelAnimationFrame flake fixed; idle-callback timing
-   flake remains," so the file isn't assumed fully deterministic.
-
-(Also still open, separate repo: snowraven-mini's formatter lacks the 0.5.28 moon-phase
-emoji — fix lives in that repo.)
-
-## Machine boundary (standing rule)
-
-- **Ubuntu VM — all dev work** (coding, content/assets incl. website + demo
-  screenshots, pushing the `vX.Y.Z` tag). Fix the idle-callback flake here.
-- **Mac — only signing and shipping** (`./release.sh` needs Xcode + Apple creds).
-
-> The VM keeps pushing while a Mac session is open — re-pull before editing the
-> pipeline files, and treat the VM's commits as authoritative on conflict.
-
-## Roadmap — Up Next (pick a lane, build on the VM)
-
-- Mobile app
-- Accessibility / clarity / simplification
-- Windows code signing (remove the SmartScreen "unknown publisher" prompt)
-
-On the VM: `git pull` to sync this closeout, fix the idle-callback flake, then pick the
-next lane.
+Project snowraven, fix `missing-hotspot-pins` (sessionType "fix"). Stages 1-5
+approved; the GitHub push is done — the release commit and tag `v0.5.30` are on
+`main`. Paused awaiting the Mac release (`release.sh`), not run from this box. The
+Mac authors the mark-released closeout commit; on resume after Dave confirms it's
+live, `git pull` to sync it down — the fix is then shipped. Load
+`pipeline/session-state.json` first.

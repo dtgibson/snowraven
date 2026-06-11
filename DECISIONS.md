@@ -4,6 +4,61 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Map fixes: sprite registration never gated on `isStyleLoaded()`, branch `<Source>`s keyed — 2026-06-11 (v0.5.30)
+
+**What:** Fix lane for the missing hotspot teardrops, expanded mid-lane (user
+approval at Stage 3) to also fix an app-wide crash the regression walk surfaced.
+Two root causes, both proven with deterministic Playwright repros before fixing.
+
+**Bug 1 — hotspot teardrops (and atlas hatches) silently never registered.**
+`HotspotMarkers.tsx`/`AtlasLayer.tsx` gated sprite registration on
+`if (map.isStyleLoaded()) addAll(); else map.once('load', addAll)`.
+`isStyleLoaded()` reads false during ANY tile/source churn (base switch,
+fitBounds, slow network) — and MapLibre's `load` event fires once per map
+lifetime, while the Map Explorer's map stays alive from first tab mount — so a
+listener armed later never fired, `addImage` never ran, and the `sr-hotspot`
+symbol layer rendered nothing (and was unclickable: `queryRenderedFeatures`
+finds nothing). Latent since 0.5.16; presented as intermittent because the
+theme-flip MutationObserver re-bake self-healed it. **Fix:** register
+unconditionally at effect time (`addImage` needs the style present, not
+"loaded"; the `hasImage → updateImage : addImage` idempotency stays) plus a
+per-component `styleimagemissing` safety net that bakes only the component's
+OWN hardcoded image ids (exact-match lookup, `hasImage`-guarded, removed on
+unmount). QA fired the net live (`removeImage` + repaint → re-baked).
+
+**Bug 2 — Map Explorer Pins → Heatmap toggle crashed the whole app**
+("source id changed" → error boundary; pre-existing since 0.5.18, present in
+the shipped 0.5.29). `map/SightingMarkers.tsx` returned `<Source id="sr-heat">`
+or `<Source id="sr-sight">` at the same tree position with no `key`, so React
+reused the instance and react-map-gl asserts on the in-place id change —
+MapLibre forbids mutating a source's id. **Fix:** `key` per branch so the
+Source unmounts/remounts on mode change. Species Detail's heatmap
+(conditionally mounted — the safe pattern) was unaffected and untouched.
+
+**Decisions:**
+- **Scope expansion, approved explicitly.** The heatmap crash was outside the
+  bug brief, but it was a one-click app-killer live in the shipped build; the
+  user folded it into this lane at Stage 3 rather than ship 0.5.30 around a
+  known crash. Recorded so the two-fix diff doesn't read as scope creep.
+- **Deterministic-repro-first verification paid for itself.** The triage's
+  Playwright repro (delayed satellite tiles + mid-churn hotspot search) both
+  proved bug 1's root cause and proves the fix; the post-fix regression walk
+  across the whole map surface is what caught bug 2 at all. And the new
+  `SightingMarkers.test.tsx` was proven to FAIL against pre-fix code in a
+  throwaway worktree before being counted as coverage. Keep this posture in
+  fix lanes: repro before fix, walk the surface after, verify the test bites.
+- **Both root causes promoted to standing CLAUDE.md conventions** (Overlays
+  and stacking): never gate sprite/image registration on
+  `isStyleLoaded()/once('load')`; key (or conditionally mount) any `<Source>`
+  whose id differs between render branches.
+
+**Implications:** Future sprite-registering map components follow the
+`HotspotMarkers`/`AtlasLayer` contract — unconditional registration + an
+owned-ids-only `styleimagemissing` net. Any map-level event handler fed
+external ids acts only on its own hardcoded id set, never using the incoming
+id as an object key or regex input (the 0.5.30 handlers are the reference
+implementation).
+
 ## Flaky suite fixed with setupFiles baseline shims; SnowRaven Mini mentioned in exactly three places — 2026-06-10 (v0.5.29)
 
 **What:** Killed the pre-existing ~11% full-suite vitest flake with

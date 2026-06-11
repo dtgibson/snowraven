@@ -2,6 +2,12 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.30] - 2026-06-11
+
+### Fixed
+- **Hotspot pins could silently fail to appear when searched during map tile loading.** The teardrop sprites were registered only when the map style reported itself fully loaded, with a fallback listener on an event that fires once per map lifetime — so a hotspot search that landed mid tile churn (after a Satellite/Topo base switch, a pan, or on a slow network) registered nothing, and the pins never rendered until a theme flip or a new search with a different result count. Sprites now register unconditionally, with a `styleimagemissing` listener as a safety net that bakes a missing pin sprite on demand. The same fix is applied to the atlas hatch textures (`AtlasLayer`), which used the identical pattern.
+- **The Map Explorer's Pins → Heatmap toggle crashed the entire app.** The sightings layer swapped its map source's identity in place when the display mode changed, which the map library forbids — the toggle threw "source id changed" and dropped the whole app to the error screen (present since 0.5.18). The source now remounts cleanly on a mode change; pins, heatmap, the intensity slider, and the atlas-shading reordering all behave as designed. Species Detail's heatmap was never affected.
+
 ## [0.5.29] - 2026-06-10
 
 ### Added

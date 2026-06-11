@@ -130,7 +130,11 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, atlasSh
     const divisor = heatWeightDivisor(heatIntensity)
     return (
       <>
-        <Source id="sr-heat" type="geojson" data={heatFc}>
+        {/* key matches the id: the pins/heatmap branches put a <Source> at the same
+            tree position with DIFFERENT ids, and an unkeyed swap makes React reuse
+            the instance — react-map-gl asserts ("source id changed") and crashes the
+            app. Distinct keys force unmount/remount on a mode toggle. */}
+        <Source key="sr-heat" id="sr-heat" type="geojson" data={heatFc}>
           {/* When atlas breeding shading is on, sit the heatmap UNDER the atlas fill
               (beforeId) and dim it, so the tier colors read on top. */}
           <Layer id="sr-heat" type="heatmap"
@@ -160,7 +164,8 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, atlasSh
 
   return (
     <>
-      <Source id="sr-sight" type="geojson" data={pinsFc}>
+      {/* key matches the id — see the heatmap branch's note. */}
+      <Source key="sr-sight" id="sr-sight" type="geojson" data={pinsFc}>
         <Layer id="sr-sight-circle" type="circle" paint={circlePaint} />
       </Source>
       {sightPopup}

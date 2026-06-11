@@ -4,12 +4,23 @@
 
 import { useEffect, useMemo } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
-import type { FilterSpecification, MapMouseEvent, SymbolLayerSpecification } from 'maplibre-gl'
+import type { FilterSpecification, MapMouseEvent, MapStyleImageMissingEvent, SymbolLayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection, Point } from 'geojson'
-import { HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData, updateMapCursor } from '../../lib/mapPins'
+import { HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData, updateMapCursor, type HotspotKind } from '../../lib/mapPins'
 import { hatchPixelRatio } from '../../lib/atlasTextures'
 import { formatDate } from '../../lib/formatDate'
 import type { HotspotPin } from '../../lib/mapExplorerTypes'
+
+/** Reverse sprite lookup: image id → hotspot kind, null for ids that aren't
+ *  ours (the styleimagemissing safety net must ignore foreign ids — other
+ *  layers may legitimately miss images). */
+// eslint-disable-next-line react-refresh/only-export-components -- pure lookup tested directly; lives here beside the handler that wraps it
+export function hotspotKindForImage(id: string): HotspotKind | null {
+  for (const kind of HOTSPOT_KINDS) {
+    if (HOTSPOT_IMAGE_ID[kind] === id) return kind
+  }
+  return null
+}
 
 export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
   pins: HotspotPin[]
@@ -45,9 +56,13 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
     })),
   }), [pins])
 
-  // Register the teardrop sprites once the style is ready; regenerate on a
-  // light/dark theme change (colors read the --sr-map-* tokens at bake time —
-  // same contract as the atlas hatch sprites).
+  // Register the teardrop sprites at effect time; regenerate on a light/dark
+  // theme change (colors read the --sr-map-* tokens at bake time — same
+  // contract as the atlas hatch sprites). addImage needs only a style object,
+  // not a "loaded" style — do NOT gate this on isStyleLoaded() (false during
+  // ANY tile/source churn, e.g. right after a base-layer switch) with a
+  // once('load') fallback: `load` fires once per map LIFETIME, so a listener
+  // armed later never fires and the symbol layer silently renders nothing.
   useEffect(() => {
     if (!map) return
     let cancelled = false
@@ -61,11 +76,21 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
         else map.addImage(id, img, { pixelRatio: dpr })
       }
     }
-    if (map.isStyleLoaded()) addAll()
-    else map.once('load', addAll)
+    addAll()
+    // Safety net (MapLibre's canonical mechanism): if the style ever asks for
+    // one of OUR sprites before addAll has run — a style swap, an ordering we
+    // haven't met — bake and add that image on demand. Foreign ids are ignored.
+    const onMissing = (e: MapStyleImageMissingEvent) => {
+      if (cancelled) return
+      const kind = hotspotKindForImage(e.id)
+      if (!kind || map.hasImage(e.id)) return
+      const dpr = hatchPixelRatio()
+      map.addImage(e.id, teardropImageData(kind, dpr), { pixelRatio: dpr })
+    }
+    map.on('styleimagemissing', onMissing)
     const obs = new MutationObserver(addAll)
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => { cancelled = true; obs.disconnect(); map.off('load', addAll) }
+    return () => { cancelled = true; obs.disconnect(); map.off('styleimagemissing', onMissing) }
   }, [map])
 
   // Click selects the top teardrop's hotspot; empty-map click closes the popup.

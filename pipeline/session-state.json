@@ -1,15 +1,19 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 24,
-  "sessionType": "maintain",
-  "currentStage": 1,
-  "lastCompletedStage": 1,
-  "lastCheckpointStatus": "complete",
+  "activeFeature": "missing-hotspot-pins",
+  "sessionNumber": 25,
+  "sessionType": "fix",
+  "currentStage": 6,
+  "lastCompletedStage": 5,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "pipeline/missing-hotspot-pins/bug-brief.md",
+    "pipeline/missing-hotspot-pins/qa-report.md",
+    "pipeline/missing-hotspot-pins/security-report.md"
+  ],
   "releasedVersion": "0.5.29",
-  "lastFeature": "0.5.29 SHIPPED (live, in-app updater verified). Flaky-test fix + SnowRaven Mini mentions (improve lane): (A) the ~11% BirdingStats full-suite flake's root cause — recharts' bundled @reduxjs/toolkit autoBatch 100ms fallback timer throwing a bare cancelAnimationFrame ReferenceError in a later DOM-less worker file — is fixed via baseline rAF/cAF shims in frontend/src/test-setup.ts wired through vitest setupFiles (test-only; verified ABSENT from the production dist bundle). (B) Three informational SnowRaven Mini mentions (App.tsx weather-tab footer no-fetch anchor, README, HELP.md H3); website deliberately silent about Mini. Built+chronicled+tagged on the VM; released from the Mac: v0.5.29 tag → Windows CI green (installer artifact present) → ./release.sh — macOS universal DMG notarized (Apple: Accepted) + stapled, bundle-version guard 0.5.29, Windows installer signed locally, latest.json carries all three keys (darwin-aarch64 + darwin-x86_64 → the one universal bundle/same sig, windows-x86_64 → -setup.exe), every updater + DMG URL HEAD 200. Tests: 110 backend green; the targeted cancelAnimationFrame flake is DEAD (0/18 Mac runs). NOTE: an 18-run sweep exposed a SEPARATE, pre-existing BirdingStats flake — 'mounts the SnowMap only after the idle callback fires' (requestIdleCallback timing, ~5.5%, 1/18) — NOT the cAF flake and NOT touched by 0.5.29; the 'BirdingStats flake FIXED' claim is only true for the cAF mechanism. Website at 0.5.29 (VM).",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. KNOWN ISSUE (fix on VM): BirdingStats.test.tsx still has a SECOND flake distinct from the one 0.5.29 fixed — 'mounts the SnowMap only after the idle callback fires' fails ~5.5% of full-suite runs (requestIdleCallback/idle-timing assertion, BirdingStats.test.tsx ~line 180-195); passes in isolation. The DECISIONS.md / changelog 'BirdingStats flake FIXED in 0.5.29' note should be narrowed to 'cancelAnimationFrame flake fixed; idle-callback timing flake remains'. Cross-repo note: snowraven-mini's formatter lacks the v0.5.28 moon-phase emoji — fix lives in that repo.",
-  "createdAt": "2026-06-11T02:55:23Z",
-  "updatedAt": "2026-06-11T05:42:39Z"
+  "lastFeature": "0.5.30 BUILT + PUSHED, pending Mac release. Missing-hotspot-pins (fix lane, TWO fixes after user-approved scope expansion): (1) Map Explorer hotspot teardrops (and atlas hatch sprites) could silently never register — the isStyleLoaded()/once('load') gate waited on MapLibre's once-per-map-lifetime load event during tile churn (latent since 0.5.16); fixed with unconditional registration + per-component styleimagemissing safety nets (owned ids only, hasImage-guarded, removed on unmount). Deterministic Playwright repro proved bug AND fix (teardrops mid-churn, zero image warnings). (2) Map Explorer Pins→Heatmap toggle crashed the whole app ('source id changed' → error boundary; pre-existing since 0.5.18, in shipped 0.5.29; caught by Stage 3's regression walk): keyed branch <Source>s in map/SightingMarkers.tsx; regression test proven to fail pre-fix. QA FINAL PASSED (repro x2, 31/31 walk, heatmap-under-atlas contract intact, Species Detail unaffected); security clean (no findings); 774 frontend + 110 backend green. Two new CLAUDE.md map conventions chronicled. The Mac: wait CI green → ./release.sh → verify updater sees 0.5.30 → closeout commit.",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. KNOWN ISSUE (fix on VM): BirdingStats.test.tsx second flake — 'mounts the SnowMap only after the idle callback fires' (~5.5%, requestIdleCallback timing); narrow the DECISIONS/CHANGELOG 'flake FIXED' wording to the cAF mechanism. Doc-rot note: PRODUCT_CONTEXT.md's older Species Detail / Map Explorer entries still describe Leaflet-era heat internals (stale since 0.5.9). Cross-repo note: snowraven-mini's formatter lacks the v0.5.28 moon-phase emoji — Dave handles in Mini's own Weft session.",
+  "createdAt": "2026-06-11T06:09:54Z",
+  "updatedAt": "2026-06-11T16:14:17Z"
 }
