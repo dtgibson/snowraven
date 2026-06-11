@@ -1,20 +1,15 @@
 {
-  "activeFeature": "weather-block-raincrow-parity",
+  "activeFeature": null,
   "sessionNumber": 23,
   "sessionType": "maintain",
-  "currentStage": 6,
-  "lastCompletedStage": 5,
-  "lastCheckpointStatus": "paused",
+  "currentStage": 1,
+  "lastCompletedStage": 1,
+  "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "pipeline/weather-block-raincrow-parity/parity-report.md",
-    "pipeline/weather-block-raincrow-parity/change-brief.md",
-    "pipeline/weather-block-raincrow-parity/qa-report.md",
-    "pipeline/weather-block-raincrow-parity/security-report.md"
-  ],
-  "releasedVersion": "0.5.27",
-  "lastFeature": "0.5.28 BUILT + PUSHED, pending Mac release. Weather-block raincrow parity (improve lane): moon-phase emoji appended to the condition emoji (unspaced, e.g. ☁️🌗) on night checklists — night = any sampled hour outside its sunrise–sunset window, phase from the checklist's first hour, Southern-Hemisphere mirrored; hand-ported lunarphase-js@2.0.3 with pure-UTC Julian Day, byte-identical in both formatters via the golden-oracle chain; day blocks byte-unchanged; commentBlocks.ts untouched (unspaced header keeps one emoji run). Dew point verified ALREADY at parity — no change, logged in DECISIONS.md. QA: 769 frontend + 110 backend green, acceptance criteria independently re-derived, real-data moon spot checks match the user's RainCrow examples. Security: clean pass, one informational (accepted). The Mac: wait CI green → ./release.sh → verify updater sees 0.5.28 → closeout commit.",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
+  "confirmedArtifacts": [],
+  "releasedVersion": "0.5.28",
+  "lastFeature": "0.5.28 SHIPPED (live, in-app updater verified). Weather-block raincrow parity (improve lane): moon-phase emoji appended (unspaced, e.g. ☁️🌗) to the condition emoji on night checklists — night = any sampled hour outside its sunrise–sunset window, phase from the checklist's first hour, Southern-Hemisphere mirrored; hand-ported lunarphase-js@2.0.3 with pure-UTC Julian Day, byte-identical across the TS + Python formatters via the golden-oracle chain; day blocks byte-unchanged. Built+chronicled+tagged on the VM; released from the Mac: v0.5.28 tag → Windows CI green (installer artifact present) → ./release.sh — macOS universal DMG notarized (Apple: Accepted) + stapled, bundle-version guard 0.5.28, Windows installer signed locally, latest.json carries all three keys (darwin-aarch64 + darwin-x86_64 → the one universal bundle/same sig, windows-x86_64 → -setup.exe), every updater + DMG URL HEAD 200. Tests: 110 backend green; 769 frontend green EXCEPT a pre-existing flaky BirdingStats.test.tsx (cancelAnimationFrame undefined in jsdom + double-rAF race, ~11%, passes 3/3 in isolation) — NOT in the 0.5.28 diff, no production-build impact; fix on the VM. Website at 0.5.28 (VM).",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. KNOWN ISSUE (fix on VM): frontend BirdingStats.test.tsx is flaky (~11%) — 'ReferenceError: cancelAnimationFrame is not defined' from @reduxjs/toolkit timers + a double-rAF timing race; passes in isolation. Likely needs a cancelAnimationFrame polyfill in the vitest setup. Pre-existing (also latent under 0.5.27), no product/build impact.",
   "createdAt": "2026-06-10T22:17:57Z",
-  "updatedAt": "2026-06-11T00:33:36Z"
+  "updatedAt": "2026-06-11T01:19:43Z"
 }
