@@ -1,19 +1,15 @@
 {
-  "activeFeature": "missing-hotspot-pins",
+  "activeFeature": null,
   "sessionNumber": 25,
   "sessionType": "fix",
-  "currentStage": 6,
-  "lastCompletedStage": 5,
-  "lastCheckpointStatus": "paused",
+  "currentStage": 1,
+  "lastCompletedStage": 1,
+  "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "pipeline/missing-hotspot-pins/bug-brief.md",
-    "pipeline/missing-hotspot-pins/qa-report.md",
-    "pipeline/missing-hotspot-pins/security-report.md"
-  ],
-  "releasedVersion": "0.5.29",
-  "lastFeature": "0.5.30 BUILT + PUSHED, pending Mac release. Missing-hotspot-pins (fix lane, TWO fixes after user-approved scope expansion): (1) Map Explorer hotspot teardrops (and atlas hatch sprites) could silently never register — the isStyleLoaded()/once('load') gate waited on MapLibre's once-per-map-lifetime load event during tile churn (latent since 0.5.16); fixed with unconditional registration + per-component styleimagemissing safety nets (owned ids only, hasImage-guarded, removed on unmount). Deterministic Playwright repro proved bug AND fix (teardrops mid-churn, zero image warnings). (2) Map Explorer Pins→Heatmap toggle crashed the whole app ('source id changed' → error boundary; pre-existing since 0.5.18, in shipped 0.5.29; caught by Stage 3's regression walk): keyed branch <Source>s in map/SightingMarkers.tsx; regression test proven to fail pre-fix. QA FINAL PASSED (repro x2, 31/31 walk, heatmap-under-atlas contract intact, Species Detail unaffected); security clean (no findings); 774 frontend + 110 backend green. Two new CLAUDE.md map conventions chronicled. The Mac: wait CI green → ./release.sh → verify updater sees 0.5.30 → closeout commit.",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. KNOWN ISSUE (fix on VM): BirdingStats.test.tsx second flake — 'mounts the SnowMap only after the idle callback fires' (~5.5%, requestIdleCallback timing); narrow the DECISIONS/CHANGELOG 'flake FIXED' wording to the cAF mechanism. Doc-rot note: PRODUCT_CONTEXT.md's older Species Detail / Map Explorer entries still describe Leaflet-era heat internals (stale since 0.5.9). Cross-repo note: snowraven-mini's formatter lacks the v0.5.28 moon-phase emoji — Dave handles in Mini's own Weft session.",
+  "confirmedArtifacts": [],
+  "releasedVersion": "0.5.30",
+  "lastFeature": "0.5.30 SHIPPED (live, in-app updater verified). Missing-hotspot-pins (fix lane, TWO fixes): (1) Map Explorer hotspot teardrops + atlas hatch sprites could silently never register — the isStyleLoaded()/once('load') gate waited on MapLibre's once-per-lifetime load event during tile churn (latent since 0.5.16); fixed with unconditional registration + per-component styleimagemissing safety nets (owned ids only, hasImage-guarded, removed on unmount) in HotspotMarkers.tsx + AtlasLayer.tsx. (2) Pins→Heatmap toggle crashed the app (in-place <Source> id mutation, MapLibre-forbidden; pre-existing since 0.5.18, shipped in 0.5.29); fixed by keying the branch Sources in map/SightingMarkers.tsx (no beforeId/heatmap-under-atlas regression). Built+chronicled+tagged on the VM; released from the Mac: v0.5.30 tag → Windows CI green (installer artifact present) → ./release.sh — macOS universal DMG notarized (Apple: Accepted) + stapled, bundle-version guard 0.5.30, Windows installer signed locally, latest.json all three keys (darwin-aarch64 + darwin-x86_64 → the one universal bundle/same sig, windows-x86_64 → -setup.exe), every updater + DMG URL HEAD 200. Independent Mac audit: map-fix correctness + standing-convention review clean (regression test bites pre-fix), 774 frontend green across 8/8 runs (the known idle-callback flake did NOT surface), 110 backend green, no new tile provider → privacy unaffected. Website at 0.5.30 (VM).",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. KNOWN ISSUE (fix on VM): BirdingStats.test.tsx second flake — 'mounts the SnowMap only after the idle callback fires' (~5.5%, requestIdleCallback timing); did not surface in the 0.5.30 audit's 8 runs but still latent; narrow the DECISIONS/CHANGELOG 'flake FIXED' wording to the cancelAnimationFrame mechanism. Doc-rot note: PRODUCT_CONTEXT.md's older Species Detail / Map Explorer entries still describe Leaflet-era heat internals (stale since 0.5.9). Cross-repo note: snowraven-mini's formatter lacks the v0.5.28 moon-phase emoji — Dave handles in Mini's own Weft session.",
   "createdAt": "2026-06-11T06:09:54Z",
-  "updatedAt": "2026-06-11T16:14:17Z"
+  "updatedAt": "2026-06-11T17:54:56Z"
 }
