@@ -1,19 +1,15 @@
 {
-  "activeFeature": "flaky-test-and-mini-mentions",
+  "activeFeature": null,
   "sessionNumber": 24,
   "sessionType": "maintain",
-  "currentStage": 6,
-  "lastCompletedStage": 5,
-  "lastCheckpointStatus": "paused",
+  "currentStage": 1,
+  "lastCompletedStage": 1,
+  "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "pipeline/flaky-test-and-mini-mentions/change-brief.md",
-    "pipeline/flaky-test-and-mini-mentions/qa-report.md",
-    "pipeline/flaky-test-and-mini-mentions/security-report.md"
-  ],
-  "releasedVersion": "0.5.28",
-  "lastFeature": "0.5.29 BUILT + PUSHED, pending Mac release. Flaky-test fix + SnowRaven Mini mentions (improve lane): (A) BirdingStats full-suite flake eliminated — root cause recharts' bundled @reduxjs/toolkit autoBatch 100ms fallback timer outliving a jsdom test file's per-test stubs and throwing bare cancelAnimationFrame in a later DOM-less worker file; fix = baseline rAF/cAF shims in frontend/src/test-setup.ts via vitest setupFiles (test-only, excluded from dist — verified). QA proved it both ways: 8/8 shim-enabled runs clean, 2/18 shim-disabled reproduced (~ the historical 11%). (B) Three informational SnowRaven Mini mentions, approved copy verbatim: App.tsx weather-tab footer-register line, README 'What it does' closing paragraph, HELP.md H3 under Weather (no TOC entry — Tides precedent); website deliberately SILENT about Mini (decision recorded). Versions 0.5.29 both files + CHANGELOG + website pill/footer; security clean pass (no findings). The Mac: wait CI green → ./release.sh → verify updater sees 0.5.29 → closeout commit.",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. (BirdingStats flake: FIXED in 0.5.29.) Cross-repo note: snowraven-mini's formatter lacks the v0.5.28 moon-phase emoji — fix lives in that repo.",
+  "confirmedArtifacts": [],
+  "releasedVersion": "0.5.29",
+  "lastFeature": "0.5.29 SHIPPED (live, in-app updater verified). Flaky-test fix + SnowRaven Mini mentions (improve lane): (A) the ~11% BirdingStats full-suite flake's root cause — recharts' bundled @reduxjs/toolkit autoBatch 100ms fallback timer throwing a bare cancelAnimationFrame ReferenceError in a later DOM-less worker file — is fixed via baseline rAF/cAF shims in frontend/src/test-setup.ts wired through vitest setupFiles (test-only; verified ABSENT from the production dist bundle). (B) Three informational SnowRaven Mini mentions (App.tsx weather-tab footer no-fetch anchor, README, HELP.md H3); website deliberately silent about Mini. Built+chronicled+tagged on the VM; released from the Mac: v0.5.29 tag → Windows CI green (installer artifact present) → ./release.sh — macOS universal DMG notarized (Apple: Accepted) + stapled, bundle-version guard 0.5.29, Windows installer signed locally, latest.json carries all three keys (darwin-aarch64 + darwin-x86_64 → the one universal bundle/same sig, windows-x86_64 → -setup.exe), every updater + DMG URL HEAD 200. Tests: 110 backend green; the targeted cancelAnimationFrame flake is DEAD (0/18 Mac runs). NOTE: an 18-run sweep exposed a SEPARATE, pre-existing BirdingStats flake — 'mounts the SnowMap only after the idle callback fires' (requestIdleCallback timing, ~5.5%, 1/18) — NOT the cAF flake and NOT touched by 0.5.29; the 'BirdingStats flake FIXED' claim is only true for the cAF mechanism. Website at 0.5.29 (VM).",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. KNOWN ISSUE (fix on VM): BirdingStats.test.tsx still has a SECOND flake distinct from the one 0.5.29 fixed — 'mounts the SnowMap only after the idle callback fires' fails ~5.5% of full-suite runs (requestIdleCallback/idle-timing assertion, BirdingStats.test.tsx ~line 180-195); passes in isolation. The DECISIONS.md / changelog 'BirdingStats flake FIXED in 0.5.29' note should be narrowed to 'cancelAnimationFrame flake fixed; idle-callback timing flake remains'. Cross-repo note: snowraven-mini's formatter lacks the v0.5.28 moon-phase emoji — fix lives in that repo.",
   "createdAt": "2026-06-11T02:55:23Z",
-  "updatedAt": "2026-06-11T04:58:02Z"
+  "updatedAt": "2026-06-11T05:42:39Z"
 }

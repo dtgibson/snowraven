@@ -1,56 +1,80 @@
-# Handoff — flaky-test-and-mini-mentions (improve) — PAUSED after the GitHub push, handed off to the Mac for the release
+# Handoff — 0.5.29 SHIPPED & live; pipeline idle, one follow-up for the VM
 
 ## What We Accomplished
 
-Built and pushed-to-GitHub the v0.5.29 improvement, the full 6-stage improve flow on
-this Linux box. Two parts: (A) the pre-existing BirdingStats full-suite flake is
-eliminated at the root — recharts' bundled @reduxjs/toolkit fires a 100 ms fallback
-timer that outlived a jsdom test file's per-test animation-frame stubs and threw a
-bare `cancelAnimationFrame` ReferenceError in a later DOM-less worker file; the fix
-is baseline rAF/cAF shims in `frontend/src/test-setup.ts` wired via vitest
-`setupFiles` (test-only; verified excluded from the production bundle). QA proved
-cause and cure: 8/8 shim-enabled full runs clean, and a shim-disabled negative
-control reproduced the error at the historical ~11% rate (2/18). (B) Three
-informational SnowRaven Mini mentions, approved-verbatim copy: a quiet
-footer-register line under the Weather tab card (plain no-fetch anchor), a README
-"What it does" closing paragraph, and a HELP.md H3 under Weather kept out of the
-sidebar TOC. The website deliberately stays silent about Mini (recorded decision).
-Security: clean pass, zero findings. The release itself has NOT run — that happens
-on the Mac.
+The flaky-test fix plus the three small SnowRaven Mini mentions are built, shipped,
+and live as 0.5.29. The release is done and the in-app updater has been verified, so
+this improvement is now closed out — nothing is left pending and nothing is queued to
+ship. Released version equals what's on `main`.
 
-## What Has Been Saved
+## What Shipped (live) — 0.5.29
 
-- The release commit on `main` (test-setup.ts + vite.config.ts, the three mentions,
-  both version files at 0.5.29, CHANGELOG, website pill/footer, DECISIONS /
-  PRODUCT_CONTEXT / ROADMAP / CLAUDE records incl. the new setupFiles-shims testing
-  convention and the corrected backend test count, this handoff + session-state).
-  The `v0.5.29` tag points at it and triggers Windows CI, the test Pipeline, and the
-  Pages redeploy.
-- Pipeline artifacts (change-brief, qa-report, security-report) live under
-  `pipeline/flaky-test-and-mini-mentions/`, intentionally untracked per the
-  established pattern.
+- **Flake fix.** The recurring ~11% BirdingStats test-suite failure is gone at the
+  root: recharts' bundled @reduxjs/toolkit fires a 100ms fallback timer that outlived
+  a test file's per-test animation-frame stubs and threw a bare `cancelAnimationFrame`
+  error in a later worker file. Fixed with baseline rAF/cAF shims in
+  `frontend/src/test-setup.ts` (wired via vitest `setupFiles`, test-only, verified
+  absent from the production bundle).
+- **SnowRaven Mini mentions.** Three informational, approved-verbatim: a quiet footer
+  line under the Weather tab card (a plain no-fetch anchor), a README "What it does"
+  paragraph, and a HELP.md H3 under Weather (kept out of the sidebar TOC). The website
+  deliberately stays silent about Mini.
 
-## Where We Are
+## Release (Mac) — verified
 
-Stage 6 of 6 (The Chronicler) — records done and pushed (chronicle-before-push).
-Everything this Linux box owns is complete. The ONLY thing left before closeout is
-the Mac release: wait for Windows CI green, run `./release.sh` (notarize macOS
-universal, sign the Windows installer, write `latest.json` for all three platform
-keys, publish), verify the in-app updater sees 0.5.29, and author the
-`chore(pipeline): mark 0.5.29 released` closeout commit. Paused here, handed off.
-(See the `release-sequence` and `dev-machines` memories.)
+`v0.5.29` tag → Windows CI green (run 27324903403; `windows-build` artifact
+`SnowRaven_0.5.29_x64-setup.exe` present) → `./release.sh`:
 
-## Resume Prompt
+- macOS universal DMG **notarized (Apple: Accepted) + stapled**; bundle-version guard
+  passed at `0.5.29`.
+- Windows installer signed locally with the real minisign key.
+- `latest.json` carries all three platforms: `darwin-aarch64` + `darwin-x86_64` →
+  the one universal `SnowRaven-updater.app.tar.gz` (same URL + same signature),
+  `windows-x86_64` → `SnowRaven_0.5.29_x64-setup.exe`.
+- Every updater + DMG URL verified **HEAD 200**. Release `draft=false, prerelease=false`.
+- https://github.com/dtgibson/snowraven/releases/tag/v0.5.29
 
-To resume: run `/weft` in this project AFTER the Mac has shipped 0.5.29 and Dave
-confirms it's live and the updater sees it — at which point this Linux box `git
-pull`s the Mac's closeout commit and the improvement is done.
+## Tests
 
----
+110 backend green. The targeted `cancelAnimationFrame` flake is proven dead — **0
+failures across 18 full-suite Mac runs**. But see the follow-up below.
 
-Project snowraven, improvement `flaky-test-and-mini-mentions` (sessionType
-"maintain"). Stages 1-5 approved; the GitHub push is done — the release commit and
-tag `v0.5.29` are on `main`. Paused awaiting the Mac release (`release.sh`), not run
-from this box. The Mac authors the mark-released closeout commit; on resume after
-Dave confirms it's live, `git pull` to sync it down — the improvement is then
-shipped. Load `pipeline/session-state.json` first.
+## Follow-up for the VM (do this next)
+
+**A SECOND, separate BirdingStats flake remains.** An 18-run Mac sweep (done to verify
+the 0.5.29 fix) caught a different intermittent failure:
+`frontend/src/components/BirdingStats.test.tsx > "mounts the SnowMap only after the
+idle callback fires"` — ~5.5% (1/18), a `requestIdleCallback` timing-assertion race
+around BirdingStats.test.tsx ~lines 180-195. It passes in isolation. It is **not** the
+`cancelAnimationFrame` ReferenceError 0.5.29 fixed, and `BirdingStats.test.tsx` was not
+touched by 0.5.29, so it is pre-existing — it was simply masked by the louder cAF flake
+until that was silenced. The VM's small "8/8 clean" sample (~63% odds of missing a 5.5%
+flake) didn't surface it.
+
+Two things for the VM:
+1. **Fix the idle-callback flake** (likely: make the `requestIdleCallback`/idle stub
+   deterministic, or de-flake the "after the idle callback" assertion).
+2. **Narrow the record.** DECISIONS.md / CHANGELOG say "BirdingStats flake FIXED in
+   0.5.29" — correct it to "cancelAnimationFrame flake fixed; idle-callback timing
+   flake remains," so the file isn't assumed fully deterministic.
+
+(Also still open, separate repo: snowraven-mini's formatter lacks the 0.5.28 moon-phase
+emoji — fix lives in that repo.)
+
+## Machine boundary (standing rule)
+
+- **Ubuntu VM — all dev work** (coding, content/assets incl. website + demo
+  screenshots, pushing the `vX.Y.Z` tag). Fix the idle-callback flake here.
+- **Mac — only signing and shipping** (`./release.sh` needs Xcode + Apple creds).
+
+> The VM keeps pushing while a Mac session is open — re-pull before editing the
+> pipeline files, and treat the VM's commits as authoritative on conflict.
+
+## Roadmap — Up Next (pick a lane, build on the VM)
+
+- Mobile app
+- Accessibility / clarity / simplification
+- Windows code signing (remove the SmartScreen "unknown publisher" prompt)
+
+On the VM: `git pull` to sync this closeout, fix the idle-callback flake, then pick the
+next lane.
