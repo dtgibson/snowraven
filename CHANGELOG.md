@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.28] - 2026-06-10
+
+### Added
+- **Moon phase on night weather blocks.** When any sampled hour of a checklist falls before sunrise or after sunset, the generated weather block now appends the current moon-phase emoji to the condition emoji on its first line — `☁️🌔` — matching what raincrow.app includes on night checklists. The phase is computed from the checklist's start time (a self-contained port of the lunarphase-js algorithm — no new API calls, no new providers), and the Southern Hemisphere sees the mirrored emoji. Day blocks are unchanged byte for byte, and the Checklists tab's hide-blocks toggle strips the new night headers cleanly with no stripper changes.
+
 ## [0.5.27] - 2026-06-10
 
 ### Added

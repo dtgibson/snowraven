@@ -1,15 +1,20 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 22,
+  "activeFeature": "weather-block-raincrow-parity",
+  "sessionNumber": 23,
   "sessionType": "maintain",
-  "currentStage": 1,
-  "lastCompletedStage": 1,
-  "lastCheckpointStatus": "complete",
+  "currentStage": 6,
+  "lastCompletedStage": 5,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "pipeline/weather-block-raincrow-parity/parity-report.md",
+    "pipeline/weather-block-raincrow-parity/change-brief.md",
+    "pipeline/weather-block-raincrow-parity/qa-report.md",
+    "pipeline/weather-block-raincrow-parity/security-report.md"
+  ],
   "releasedVersion": "0.5.27",
-  "lastFeature": "0.5.27 SHIPPED (live, updater verified). Checklists tab feature lane (built on the VM): (1) new Checklists tab with three sections — Checklist Comments (search every checklist-level comment), Species Comments (search observation notes across all species, each leading with a clickable species name), and All Checklists (every outing with date/location/protocol/effort/counts/at-a-glance + comment); (2) composable filters — one pill per category cycles any→has→doesn't-have for checklist comment, species comments, media, breeding codes, weather block, tide block, plus Complete/Incomplete, photo/audio/video, protocol, county, date range; (3) tab-wide toggle to hide pasted weather & tide blocks (also excluded from search). New files: Checklists.tsx (+test), CommentText.tsx (shared safe comment renderer now used by List Comparer too), lib/checklistsTab.ts (+test); Help TOC now lists Named Birds + Checklists; PRIVACY_POLICY.md completed the Cornell Lab provider disclosure (Macaulay media + eBird/BoW link icons). Released from the Mac: v0.5.27 tag (083fdc7) → Windows CI green → ./release.sh (notarized Accepted + stapled, Windows installer signed locally, latest.json all 3 platforms with signatures byte-matching the uploaded .sig assets, every updater/DMG URL HEAD 200).",
-  "remainingBacklog": "No pending releases — 0.5.27 is live and matches main (HEAD 083fdc7). ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
-  "createdAt": "2026-06-09T21:33:35Z",
-  "updatedAt": "2026-06-10T21:38:36Z"
+  "lastFeature": "0.5.28 BUILT + PUSHED, pending Mac release. Weather-block raincrow parity (improve lane): moon-phase emoji appended to the condition emoji (unspaced, e.g. ☁️🌗) on night checklists — night = any sampled hour outside its sunrise–sunset window, phase from the checklist's first hour, Southern-Hemisphere mirrored; hand-ported lunarphase-js@2.0.3 with pure-UTC Julian Day, byte-identical in both formatters via the golden-oracle chain; day blocks byte-unchanged; commentBlocks.ts untouched (unspaced header keeps one emoji run). Dew point verified ALREADY at parity — no change, logged in DECISIONS.md. QA: 769 frontend + 110 backend green, acceptance criteria independently re-derived, real-data moon spot checks match the user's RainCrow examples. Security: clean pass, one informational (accepted). The Mac: wait CI green → ./release.sh → verify updater sees 0.5.28 → closeout commit.",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing.",
+  "createdAt": "2026-06-10T22:17:57Z",
+  "updatedAt": "2026-06-11T00:33:36Z"
 }

@@ -13,12 +13,12 @@ import { formatWeather, type HourlyResponse } from '../lib/weatherFormatter'
 
 const hour: HourlyResponse = {
   data: [{
-    temp: 64, humidity: 72, dew_point: 55, wind_speed: 6, wind_deg: 250,
+    dt: 1716570000, temp: 64, humidity: 72, dew_point: 55, wind_speed: 6, wind_deg: 250,
     clouds: 20, weather: [{ id: 801, description: 'few clouds' }],
     sunrise: 1716550000, sunset: 1716600000,
   }],
 }
-const WEATHER_BLOCK = formatWeather([hour], 'America/Los_Angeles')
+const WEATHER_BLOCK = formatWeather([hour], 'America/Los_Angeles', 33.7)
 
 function obs(over: Partial<ObservationEntry>): ObservationEntry {
   return {

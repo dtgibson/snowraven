@@ -250,6 +250,13 @@ raincrow.app output format.
 - Formats output with emoji, Beaufort wind description, cardinal direction, temp/humidity/dew point ranges, sunrise/sunset, and HTML attribution
 - Displays output in a monospace pre block with a one-click copy button
 - Shows inline errors for invalid IDs, not-found checklists, and API failures
+- **(v0.5.28)** Night checklists append a moon-phase emoji to the condition
+  emoji on the header line (unspaced, e.g. `☁️🌗`; mirrored emoji set when
+  lat < 0) — parity with raincrow. Night = any sampled hour with `dt` outside
+  its sunrise–sunset window; phase from the checklist's first sampled hour,
+  computed locally (hand-ported lunarphase-js 2.0.3, pure-UTC Julian Day — no
+  new API calls, no dependency). Identical in the TS and Python formatters,
+  locked by the golden-oracle chain; day blocks byte-unchanged.
 
 **Key files:**
 - `backend/services/ebird.py` — eBird API client with coordinate fallback logic

@@ -54,7 +54,7 @@ async def get_weather(checklist_id: str):
             detail="Weather data unavailable for this checklist's time and location.",
         )
 
-    formatted = format_weather(list(hourly_responses), tz)
+    formatted = format_weather(list(hourly_responses), tz, checklist["lat"])
     return {
         "formatted": formatted,
         "checklist_id": checklist_id,

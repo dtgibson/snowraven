@@ -1,5 +1,6 @@
 export interface HourlyResponse {
   data: Array<{
+    dt: number;
     temp: number;
     humidity: number;
     dew_point: number;
@@ -66,6 +67,50 @@ export function conditionEmoji(owmId: number): string {
   return '🌡️';
 }
 
+// Moon phase — a port of lunarphase-js@2.0.3 (pinned from the npm dist), with one
+// deliberate deviation: the Julian Day is computed in PURE UTC (the library bakes
+// in the runtime's local tz offset). Both runtimes (this file and
+// backend/formatters/weather.py) MUST use this same deterministic form so the
+// TS and Python blocks stay byte-identical.
+const LUNAR_MONTH = 29.53058770576;
+
+// Bin upper bounds (age <) at odd multiples of LUNAR_MONTH / 16; ages at or
+// past the last bound wrap back to New.
+const MOON_PHASE_BOUNDS = [
+  1.84566173161,  // New
+  5.53698519483,  // Waxing Crescent
+  9.22830865805,  // First Quarter
+  12.91963212127, // Waxing Gibbous
+  16.61095558449, // Full
+  20.30227904771, // Waning Gibbous
+  23.99360251093, // Last Quarter
+  27.68492597415, // Waning Crescent
+];
+
+// Indexed by phase: New, Waxing Crescent, First Quarter, Waxing Gibbous, Full,
+// Waning Gibbous, Last Quarter, Waning Crescent. The Southern Hemisphere sees
+// the moon mirrored, so its set swaps the waxing/waning emoji.
+const MOON_NORTH = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘'];
+const MOON_SOUTH = ['🌑', '🌘', '🌗', '🌖', '🌕', '🌔', '🌓', '🌒'];
+
+export function moonPhaseEmoji(unixTs: number, lat: number): string {
+  const jd = (unixTs * 1000) / 86400000 + 2440587.5;
+  let frac = (jd - 2451550.1) / LUNAR_MONTH;
+  frac = frac - Math.floor(frac);
+  if (frac < 0) frac += 1;
+  const age = frac * LUNAR_MONTH;
+  const emojis = lat < 0 ? MOON_SOUTH : MOON_NORTH;
+  for (let i = 0; i < MOON_PHASE_BOUNDS.length; i++) {
+    if (age < MOON_PHASE_BOUNDS[i]) return emojis[i];
+  }
+  return emojis[0];
+}
+
+// A sampled hour is night when its dt falls outside the sunrise–sunset window.
+function isNightHour(d: HourlyResponse['data'][number]): boolean {
+  return d.dt < d.sunrise || d.dt > d.sunset;
+}
+
 export function formatRange(values: number[], unit: string): string {
   const rounded = values.map(bankersRound);
   const lo = Math.min(...rounded);
@@ -97,7 +142,7 @@ function capitalize(s: string): string {
 // The weather block WITHOUT the SnowRaven attribution line. The standalone
 // formatWeather appends ATTRIBUTION; the "Copy Weather and Tide Together" action
 // uses the body so it can emit ONE combined attribution at the very bottom.
-export function formatWeatherBody(responses: HourlyResponse[], tzName: string): string {
+export function formatWeatherBody(responses: HourlyResponse[], tzName: string, lat: number): string {
   const first = responses[0].data[0];
 
   const temps = responses.map(r => r.data[0].temp);
@@ -125,8 +170,17 @@ export function formatWeatherBody(responses: HourlyResponse[], tzName: string): 
   const sunrise = formatLocalTime(first.sunrise, tzName);
   const sunset = formatLocalTime(first.sunset, tzName);
 
+  // Night checklist (any sampled hour outside its sunrise–sunset window): append
+  // the moon-phase emoji — computed from the checklist START hour, matching
+  // raincrow — to the condition emoji, UNSPACED. Unspaced is load-bearing: the
+  // comment stripper (commentBlocks.ts) anchors a block on its last emoji RUN; a
+  // space would split the run and leak the condition emoji on strip.
+  const moon = responses.some(r => isNightHour(r.data[0]))
+    ? moonPhaseEmoji(first.dt, lat)
+    : '';
+
   return [
-    emoji,
+    `${emoji}${moon}`,
     condition,
     `Temperature: ${formatRange(temps, '°F')}`,
     `Wind: ${windDescs.join(' - ')}`,
@@ -139,6 +193,6 @@ export function formatWeatherBody(responses: HourlyResponse[], tzName: string): 
   ].join('\n');
 }
 
-export function formatWeather(responses: HourlyResponse[], tzName: string): string {
-  return `${formatWeatherBody(responses, tzName)}\n${ATTRIBUTION}`;
+export function formatWeather(responses: HourlyResponse[], tzName: string, lat: number): string {
+  return `${formatWeatherBody(responses, tzName, lat)}\n${ATTRIBUTION}`;
 }

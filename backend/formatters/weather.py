@@ -59,6 +59,52 @@ def condition_emoji(owm_id: int) -> str:
     return "🌡️"
 
 
+# Moon phase — a port of lunarphase-js@2.0.3 (pinned from the npm dist), with one
+# deliberate deviation: the Julian Day is computed in PURE UTC (the library bakes
+# in the runtime's local tz offset). Both runtimes (this file and
+# frontend/src/lib/weatherFormatter.ts) MUST use this same deterministic form so
+# the TS and Python blocks stay byte-identical.
+LUNAR_MONTH = 29.53058770576
+
+# Bin upper bounds (age <) at odd multiples of LUNAR_MONTH / 16; ages at or
+# past the last bound wrap back to New.
+MOON_PHASE_BOUNDS = [
+    1.84566173161,   # New
+    5.53698519483,   # Waxing Crescent
+    9.22830865805,   # First Quarter
+    12.91963212127,  # Waxing Gibbous
+    16.61095558449,  # Full
+    20.30227904771,  # Waning Gibbous
+    23.99360251093,  # Last Quarter
+    27.68492597415,  # Waning Crescent
+]
+
+# Indexed by phase: New, Waxing Crescent, First Quarter, Waxing Gibbous, Full,
+# Waning Gibbous, Last Quarter, Waning Crescent. The Southern Hemisphere sees
+# the moon mirrored, so its set swaps the waxing/waning emoji.
+MOON_NORTH = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"]
+MOON_SOUTH = ["🌑", "🌘", "🌗", "🌖", "🌕", "🌔", "🌓", "🌒"]
+
+
+def moon_phase_emoji(unix_ts: int, lat: float) -> str:
+    jd = (unix_ts * 1000) / 86400000 + 2440587.5
+    frac = (jd - 2451550.1) / LUNAR_MONTH
+    frac = frac - math.floor(frac)
+    if frac < 0:
+        frac += 1
+    age = frac * LUNAR_MONTH
+    emojis = MOON_SOUTH if lat < 0 else MOON_NORTH
+    for bound, emoji in zip(MOON_PHASE_BOUNDS, emojis):
+        if age < bound:
+            return emoji
+    return emojis[0]
+
+
+def _is_night_hour(item: dict) -> bool:
+    # A sampled hour is night when its dt falls outside the sunrise–sunset window.
+    return item["dt"] < item["sunrise"] or item["dt"] > item["sunset"]
+
+
 def format_range(values: list[float], unit: str = "") -> str:
     rounded = [round(v) for v in values]
     lo, hi = min(rounded), max(rounded)
@@ -78,7 +124,7 @@ def format_local_time(unix_ts: int, tz: ZoneInfo) -> str:
     return f"{hour}:{dt.strftime('%M%p').lower()}"
 
 
-def format_weather(hourly_responses: list[dict], tz: ZoneInfo) -> str:
+def format_weather(hourly_responses: list[dict], tz: ZoneInfo, lat: float) -> str:
     first = hourly_responses[0]["data"][0]
 
     temps = [r["data"][0]["temp"] for r in hourly_responses]
@@ -102,8 +148,19 @@ def format_weather(hourly_responses: list[dict], tz: ZoneInfo) -> str:
     sunrise = format_local_time(first["sunrise"], tz)
     sunset = format_local_time(first["sunset"], tz)
 
+    # Night checklist (any sampled hour outside its sunrise–sunset window): append
+    # the moon-phase emoji — computed from the checklist START hour, matching
+    # raincrow — to the condition emoji, UNSPACED. Unspaced is load-bearing: the
+    # comment stripper (commentBlocks.ts) anchors a block on its last emoji RUN; a
+    # space would split the run and leak the condition emoji on strip.
+    moon = (
+        moon_phase_emoji(first["dt"], lat)
+        if any(_is_night_hour(r["data"][0]) for r in hourly_responses)
+        else ""
+    )
+
     return (
-        f"{emoji}\n"
+        f"{emoji}{moon}\n"
         f"{condition}\n"
         f"Temperature: {format_range(temps, '°F')}\n"
         f"Wind: {wind_str}\n"

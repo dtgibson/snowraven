@@ -4,6 +4,51 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Weather-block raincrow parity: moon phase via the header emoji, pure-UTC port — 2026-06-10 (v0.5.28)
+
+**What:** SnowRaven's generated weather blocks now append a moon-phase emoji to
+the condition emoji on night checklists (`☁️🌗`), reaching parity with raincrow.
+The other suspected gap — dew point — was verified ALREADY at parity during the
+investigation (both formatters emit it unconditionally; 306 of the user's
+checklists carry it), so **no dew-point change was made**: remaining differences
+vs raincrow are cosmetic (toggleability, °C, half-up vs banker's rounding) and
+deliberately left alone.
+
+**Decisions:**
+- **Header emoji, not a labeled `Moon:` line — and UNSPACED.** The phase emoji
+  is appended directly to the condition emoji as one contiguous emoji run
+  (`☁️🌗`, never `☁️ 🌗`). This is load-bearing: `stripWeatherTideBlocks`
+  anchors a block on its LAST emoji run before the first labeled line, so the
+  unspaced header needed **zero changes to `commentBlocks.ts`** (its diff is
+  empty, verified), while a spaced header would leak `☁️ ` on strip. A labeled
+  `Moon:` line was the worst option — it required `STRONG_MARKER_RE` vocabulary
+  changes plus fixes for two known leak shapes the investigation found. (A
+  raincrow-identical bare-moon header on clear nights was also rejected: that's
+  raincrow's unmapped-night-icon limitation, not a design to copy.)
+- **Pure-UTC Julian Day — a deliberate deviation from `lunarphase-js`.** The
+  algorithm is a hand-ported `lunarphase-js@2.0.3` (pinned from the npm dist,
+  NOT added as a dependency), but v2.0.3 bakes the *runtime's* local timezone
+  offset into its Julian Day, so faithful ports would disagree depending on
+  where the code runs. The port uses `JD = unix_ms/86400000 + 2440587.5` (pure
+  UTC) in BOTH runtimes, duplicated byte-identically in `weatherFormatter.ts`
+  and `backend/formatters/weather.py` and locked by the golden-oracle chain;
+  the deviation only matters within ~±2% of a phase boundary.
+- **Night = any sampled hour with `dt` outside its sunrise–sunset window** —
+  not raincrow's OpenWeather d/n icon-suffix check. All three fields are
+  already in every timemachine hour, so this avoids plumbing the `icon` field
+  through both runtimes' types and mocks; the phase is computed from the
+  checklist's FIRST sampled hour (matching raincrow's start-time behavior).
+  Southern Hemisphere (`lat < 0`) mirrors the emoji set; the formatters gained
+  a `lat` param both callers already held.
+
+**Implications:** Any future weather-block header change must keep the header
+emoji one contiguous run (the strip anchor depends on it) and keep the moon
+emoji OUT of the strip marker vocabulary (it needs none — `EMOJI_RUN_RE`
+already covers it). The moon logic lives inside the byte-golden lockstep chain
+— change `weatherFormatter.ts`, `weather.py`, and `weatherFormatter.golden.py`
+together. And the lane lesson: investigate before building — half the suspected
+parity gap didn't exist.
+
 ## Checklists tab: span-based block stripping, regex hygiene as policy, cycling tri-state pills — 2026-06-10 (v0.5.27)
 
 **What:** New Checklists tab (checklist-comment search, all-species species-comment

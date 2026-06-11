@@ -34,12 +34,12 @@ import { WeatherTideSection } from './WeatherTideSection'
 // ── Fixtures: real formatter output so the section renders the genuine blocks ──
 const hour: HourlyResponse = {
   data: [{
-    temp: 64, humidity: 72, dew_point: 55, wind_speed: 6, wind_deg: 250,
+    dt: 1716570000, temp: 64, humidity: 72, dew_point: 55, wind_speed: 6, wind_deg: 250,
     clouds: 20, weather: [{ id: 801, description: 'few clouds' }],
     sunrise: 1716550000, sunset: 1716600000,
   }],
 }
-const WEATHER_FORMATTED = formatWeather([hour], 'America/Los_Angeles')
+const WEATHER_FORMATTED = formatWeather([hour], 'America/Los_Angeles', 33.7)
 
 const STN: TideStation = { id: '9410660', name: 'Los Angeles', lat: 33.7, lng: -118.2, state: 'CA', obs: true }
 const reading: TideReading = {

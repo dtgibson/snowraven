@@ -161,7 +161,7 @@ export async function getWeather(checklistId: string): Promise<WeatherResult> {
   );
 
   return {
-    formatted: formatWeather(hourlyResponses, tzName),
+    formatted: formatWeather(hourlyResponses, tzName, checklist.lat),
     checklist_id: checklistId,
     loc_name: checklist.loc_name,
     obs_dt: checklist.obs_dt,

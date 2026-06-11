@@ -59,6 +59,43 @@ def condition_emoji(owm_id: int) -> str:
     return "🌡️"
 
 
+# Moon phase — port of lunarphase-js@2.0.3, pure-UTC Julian Day (see
+# backend/formatters/weather.py for the full provenance note).
+LUNAR_MONTH = 29.53058770576
+
+MOON_PHASE_BOUNDS = [
+    1.84566173161,   # New
+    5.53698519483,   # Waxing Crescent
+    9.22830865805,   # First Quarter
+    12.91963212127,  # Waxing Gibbous
+    16.61095558449,  # Full
+    20.30227904771,  # Waning Gibbous
+    23.99360251093,  # Last Quarter
+    27.68492597415,  # Waning Crescent
+]
+
+MOON_NORTH = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"]
+MOON_SOUTH = ["🌑", "🌘", "🌗", "🌖", "🌕", "🌔", "🌓", "🌒"]
+
+
+def moon_phase_emoji(unix_ts: int, lat: float) -> str:
+    jd = (unix_ts * 1000) / 86400000 + 2440587.5
+    frac = (jd - 2451550.1) / LUNAR_MONTH
+    frac = frac - math.floor(frac)
+    if frac < 0:
+        frac += 1
+    age = frac * LUNAR_MONTH
+    emojis = MOON_SOUTH if lat < 0 else MOON_NORTH
+    for bound, emoji in zip(MOON_PHASE_BOUNDS, emojis):
+        if age < bound:
+            return emoji
+    return emojis[0]
+
+
+def _is_night_hour(item: dict) -> bool:
+    return item["dt"] < item["sunrise"] or item["dt"] > item["sunset"]
+
+
 def format_range(values: list, unit: str = "") -> str:
     rounded = [round(v) for v in values]
     lo, hi = min(rounded), max(rounded)
@@ -73,7 +110,7 @@ def format_local_time(unix_ts: int, tz: ZoneInfo) -> str:
     return f"{hour}:{dt.strftime('%M%p').lower()}"
 
 
-def format_weather(hourly_responses: list, tz: ZoneInfo) -> str:
+def format_weather(hourly_responses: list, tz: ZoneInfo, lat: float) -> str:
     first = hourly_responses[0]["data"][0]
     temps = [r["data"][0]["temp"] for r in hourly_responses]
     humids = [r["data"][0]["humidity"] for r in hourly_responses]
@@ -92,8 +129,13 @@ def format_weather(hourly_responses: list, tz: ZoneInfo) -> str:
     clouds_list = [r["data"][0]["clouds"] for r in hourly_responses]
     sunrise = format_local_time(first["sunrise"], tz)
     sunset = format_local_time(first["sunset"], tz)
+    moon = (
+        moon_phase_emoji(first["dt"], lat)
+        if any(_is_night_hour(r["data"][0]) for r in hourly_responses)
+        else ""
+    )
     return (
-        f"{emoji}\n{condition}\n"
+        f"{emoji}{moon}\n{condition}\n"
         f"Temperature: {format_range(temps, '°F')}\n"
         f"Wind: {wind_str}\n"
         f"Wind Direction: {wind_dir}\n"
@@ -115,69 +157,94 @@ TZ_UTC = ZoneInfo("UTC")
 SR = 1714494600   # 1714494600 UTC → 4:30pm UTC
 SS = 1714545000   # 1714545000 UTC → 6:30am UTC (next UTC day wrap)
 
-PRODUCTION = {"data": [{"temp": 54.3, "humidity": 89, "dew_point": 51.5,
+# Sampled-hour dt values relative to the SR/SS window
+DT_DAY = 1714500000      # inside [SR, SS] → day
+DT_NIGHT = 1714491000    # SR - 3600 → night (before sunrise)
+DT_NIGHT_2 = 1714548600  # SS + 3600 → night (after sunset)
+
+# Latitudes (lat only matters on night blocks; lat < 0 mirrors the moon)
+LAT_N = 40.7128
+LAT_S = -33.8688
+
+PRODUCTION = {"data": [{"dt": 1714559400, "temp": 54.3, "humidity": 89, "dew_point": 51.5,
     "wind_speed": 8.3, "wind_deg": 270, "clouds": 100,
     "weather": [{"id": 804, "description": "overcast clouds"}],
     "sunrise": 1714554480, "sunset": 1714603980}]}
 
-CALM = {"data": [{"temp": 72.0, "humidity": 60, "dew_point": 55.0,
+CALM = {"data": [{"dt": DT_DAY, "temp": 72.0, "humidity": 60, "dew_point": 55.0,
     "wind_speed": 0.5, "wind_deg": 0, "clouds": 20,
     "weather": [{"id": 800, "description": "clear sky"}],
     "sunrise": SR, "sunset": SS}]}
 
-GALE = {"data": [{"temp": 45.0, "humidity": 80, "dew_point": 40.0,
+GALE = {"data": [{"dt": DT_DAY, "temp": 45.0, "humidity": 80, "dew_point": 40.0,
     "wind_speed": 45.0, "wind_deg": 315, "clouds": 90,
     "weather": [{"id": 500, "description": "light rain"}],
     "sunrise": SR, "sunset": SS}]}
 
-GENTLE_A = {"data": [{"temp": 60.0, "humidity": 70, "dew_point": 50.0,
+GENTLE_A = {"data": [{"dt": DT_DAY, "temp": 60.0, "humidity": 70, "dew_point": 50.0,
     "wind_speed": 9.0, "wind_deg": 90, "clouds": 30,
     "weather": [{"id": 801, "description": "few clouds"}],
     "sunrise": SR, "sunset": SS}]}
 
-GENTLE_B = {"data": [{"temp": 65.0, "humidity": 65, "dew_point": 48.0,
+GENTLE_B = {"data": [{"dt": DT_DAY, "temp": 65.0, "humidity": 65, "dew_point": 48.0,
     "wind_speed": 11.0, "wind_deg": 180, "clouds": 40,
     "weather": [{"id": 801, "description": "few clouds"}],
     "sunrise": SR, "sunset": SS}]}
 
-FRESH_FIRST = {"data": [{"temp": 60.0, "humidity": 70, "dew_point": 50.0,
+FRESH_FIRST = {"data": [{"dt": DT_DAY, "temp": 60.0, "humidity": 70, "dew_point": 50.0,
     "wind_speed": 20.0, "wind_deg": 90, "clouds": 30,
     "weather": [{"id": 801, "description": "few clouds"}],
     "sunrise": SR, "sunset": SS}]}
 
-LIGHT_SECOND = {"data": [{"temp": 65.0, "humidity": 65, "dew_point": 48.0,
+LIGHT_SECOND = {"data": [{"dt": DT_DAY, "temp": 65.0, "humidity": 65, "dew_point": 48.0,
     "wind_speed": 5.0, "wind_deg": 45, "clouds": 40,
     "weather": [{"id": 801, "description": "few clouds"}],
     "sunrise": SR, "sunset": SS}]}
 
-W_A = {"data": [{"temp": 70.0, "humidity": 50, "dew_point": 45.0,
+W_A = {"data": [{"dt": DT_DAY, "temp": 70.0, "humidity": 50, "dew_point": 45.0,
     "wind_speed": 8.0, "wind_deg": 268, "clouds": 0,
     "weather": [{"id": 800, "description": "clear sky"}],
     "sunrise": SR, "sunset": SS}]}
 
-W_B = {"data": [{"temp": 72.0, "humidity": 48, "dew_point": 44.0,
+W_B = {"data": [{"dt": DT_DAY, "temp": 72.0, "humidity": 48, "dew_point": 44.0,
     "wind_speed": 10.0, "wind_deg": 272, "clouds": 5,
     "weather": [{"id": 800, "description": "clear sky"}],
     "sunrise": SR, "sunset": SS}]}
 
-SW_FIRST = {"data": [{"temp": 68.0, "humidity": 55, "dew_point": 47.0,
+SW_FIRST = {"data": [{"dt": DT_DAY, "temp": 68.0, "humidity": 55, "dew_point": 47.0,
     "wind_speed": 8.0, "wind_deg": 225, "clouds": 10,
     "weather": [{"id": 800, "description": "clear sky"}],
     "sunrise": SR, "sunset": SS}]}
 
-NE_SECOND = {"data": [{"temp": 70.0, "humidity": 52, "dew_point": 45.0,
+NE_SECOND = {"data": [{"dt": DT_DAY, "temp": 70.0, "humidity": 52, "dew_point": 45.0,
     "wind_speed": 9.0, "wind_deg": 45, "clouds": 15,
     "weather": [{"id": 800, "description": "clear sky"}],
     "sunrise": SR, "sunset": SS}]}
 
-EQUAL = {"data": [{"temp": 72.0, "humidity": 60, "dew_point": 55.0,
+EQUAL = {"data": [{"dt": DT_DAY, "temp": 72.0, "humidity": 60, "dew_point": 55.0,
     "wind_speed": 8.0, "wind_deg": 0, "clouds": 50,
     "weather": [{"id": 802, "description": "scattered clouds"}],
     "sunrise": SR, "sunset": SS}]}
 
-CAPS = {"data": [{"temp": 68.0, "humidity": 55, "dew_point": 47.0,
+CAPS = {"data": [{"dt": DT_DAY, "temp": 68.0, "humidity": 55, "dew_point": 47.0,
     "wind_speed": 8.0, "wind_deg": 90, "clouds": 75,
     "weather": [{"id": 803, "description": "BROKEN CLOUDS"}],
+    "sunrise": SR, "sunset": SS}]}
+
+# Night fixtures (moon-phase emoji appended to the condition emoji, unspaced)
+NIGHT_OVERCAST = {"data": [{"dt": DT_NIGHT, "temp": 54.0, "humidity": 88, "dew_point": 51.0,
+    "wind_speed": 5.0, "wind_deg": 270, "clouds": 100,
+    "weather": [{"id": 804, "description": "overcast clouds"}],
+    "sunrise": SR, "sunset": SS}]}
+
+MIXED_DAY_FIRST = {"data": [{"dt": DT_DAY, "temp": 62.0, "humidity": 70, "dew_point": 52.0,
+    "wind_speed": 9.0, "wind_deg": 90, "clouds": 75,
+    "weather": [{"id": 803, "description": "broken clouds"}],
+    "sunrise": SR, "sunset": SS}]}
+
+MIXED_NIGHT_SECOND = {"data": [{"dt": DT_NIGHT_2, "temp": 55.0, "humidity": 82, "dew_point": 50.0,
+    "wind_speed": 6.0, "wind_deg": 135, "clouds": 80,
+    "weather": [{"id": 803, "description": "broken clouds"}],
     "sunrise": SR, "sunset": SS}]}
 
 
@@ -188,15 +255,19 @@ def section(label: str, output: str) -> None:
 
 
 if __name__ == "__main__":
-    section("production fixture (America/New_York)", format_weather([PRODUCTION], TZ_NY))
-    section("calm wind single-hour (UTC)", format_weather([CALM], TZ_UTC))
-    section("gale wind single-hour (UTC)", format_weather([GALE], TZ_UTC))
-    section("multi-hour same beaufort (UTC)", format_weather([GENTLE_A, GENTLE_B], TZ_UTC))
-    section("multi-hour different beaufort sorted (UTC)", format_weather([FRESH_FIRST, LIGHT_SECOND], TZ_UTC))
-    section("multi-hour same direction dedup (UTC)", format_weather([W_A, W_B], TZ_UTC))
-    section("multi-hour different directions insertion order (UTC)", format_weather([SW_FIRST, NE_SECOND], TZ_UTC))
-    section("equal value range (UTC)", format_weather([EQUAL, EQUAL], TZ_UTC))
-    section("capitalize mixed case (UTC)", format_weather([CAPS], TZ_UTC))
+    section("production fixture (America/New_York)", format_weather([PRODUCTION], TZ_NY, LAT_N))
+    section("calm wind single-hour (UTC)", format_weather([CALM], TZ_UTC, LAT_N))
+    section("gale wind single-hour (UTC)", format_weather([GALE], TZ_UTC, LAT_N))
+    section("multi-hour same beaufort (UTC)", format_weather([GENTLE_A, GENTLE_B], TZ_UTC, LAT_N))
+    section("multi-hour different beaufort sorted (UTC)", format_weather([FRESH_FIRST, LIGHT_SECOND], TZ_UTC, LAT_N))
+    section("multi-hour same direction dedup (UTC)", format_weather([W_A, W_B], TZ_UTC, LAT_N))
+    section("multi-hour different directions insertion order (UTC)", format_weather([SW_FIRST, NE_SECOND], TZ_UTC, LAT_N))
+    section("equal value range (UTC)", format_weather([EQUAL, EQUAL], TZ_UTC, LAT_N))
+    section("capitalize mixed case (UTC)", format_weather([CAPS], TZ_UTC, LAT_N))
+
+    section("night single-hour, Northern Hemisphere (UTC)", format_weather([NIGHT_OVERCAST], TZ_UTC, LAT_N))
+    section("night single-hour, Southern Hemisphere mirrored (UTC)", format_weather([NIGHT_OVERCAST], TZ_UTC, LAT_S))
+    section("multi-hour mixed day start + night end (UTC)", format_weather([MIXED_DAY_FIRST, MIXED_NIGHT_SECOND], TZ_UTC, LAT_N))
 
     print("=== format_local_time: noon ===")
     print(repr(format_local_time(1714494600, TZ_NY)))   # → 12:30pm
@@ -208,3 +279,17 @@ if __name__ == "__main__":
     print("=== bankersRound verification (Python round) ===")
     for n in [0.5, 1.5, 2.5, 3.5, 51.5, 54.3, 0.4, 1.6]:
         print(f"  round({n}) = {round(n)}")
+
+    print()
+    print("=== moon_phase_emoji: one timestamp per phase bin (lunation k=300) ===")
+    # unix seconds for a given lunar age within lunation k of the reference epoch
+    def ts_for_age(k: int, age: float) -> int:
+        return round((2451550.1 + k * LUNAR_MONTH + age - 2440587.5) * 86400)
+    for age in [0.9, 3.7, 7.4, 11.1, 14.8, 18.5, 22.1, 25.8, 28.8]:
+        ts = ts_for_age(300, age)
+        print(f"  age {age:>4} → ts {ts} → N {moon_phase_emoji(ts, LAT_N)}  S {moon_phase_emoji(ts, LAT_S)}")
+
+    print()
+    print("=== moon_phase_emoji: fixture dt values ===")
+    for label, ts in [("DT_NIGHT", DT_NIGHT), ("DT_DAY (mixed-block start)", DT_DAY)]:
+        print(f"  {label} = {ts} → N {moon_phase_emoji(ts, LAT_N)}  S {moon_phase_emoji(ts, LAT_S)}")

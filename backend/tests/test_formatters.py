@@ -6,10 +6,14 @@ from formatters.weather import (
     format_local_time,
     format_range,
     format_weather,
+    moon_phase_emoji,
     wind_description,
 )
 
 TZ_ET = ZoneInfo("America/New_York")
+
+LAT_N = 40.7128
+LAT_S = -33.8688
 
 
 class TestWindDescription:
@@ -105,12 +109,14 @@ class TestFormatLocalTime:
 
 
 class TestFormatWeather:
-    def _make_response(self, temp=54.0, humidity=89, dew_point=51.5,
+    def _make_response(self, dt=1714559400, temp=54.0, humidity=89, dew_point=51.5,
                        wind_speed=8.3, wind_deg=270, clouds=100,
                        weather_id=804, description="overcast clouds",
                        sunrise=1714554480, sunset=1714603980):
+        # Default dt (2024-05-01 06:30 ET) sits between sunrise and sunset → day.
         return {
             "data": [{
+                "dt": dt,
                 "temp": temp,
                 "humidity": humidity,
                 "dew_point": dew_point,
@@ -125,7 +131,7 @@ class TestFormatWeather:
 
     def test_output_contains_required_fields(self):
         resp = self._make_response()
-        result = format_weather([resp], TZ_ET)
+        result = format_weather([resp], TZ_ET, LAT_N)
         assert "Temperature:" in result
         assert "Wind:" in result
         assert "Wind Direction:" in result
@@ -138,33 +144,84 @@ class TestFormatWeather:
 
     def test_attribution_contains_link(self):
         resp = self._make_response()
-        result = format_weather([resp], TZ_ET)
+        result = format_weather([resp], TZ_ET, LAT_N)
         assert 'href="https://github.com/dtgibson/snowraven"' in result
 
     def test_overcast_emoji(self):
         resp = self._make_response(weather_id=804)
-        result = format_weather([resp], TZ_ET)
+        result = format_weather([resp], TZ_ET, LAT_N)
         assert result.startswith("☁️")
 
     def test_temperature_range_across_hours(self):
         r1 = self._make_response(temp=54.0)
         r2 = self._make_response(temp=56.0)
-        result = format_weather([r1, r2], TZ_ET)
+        result = format_weather([r1, r2], TZ_ET, LAT_N)
         assert "54 - 56°F" in result
 
     def test_single_temperature_no_dash(self):
         resp = self._make_response(temp=54.0)
-        result = format_weather([resp], TZ_ET)
+        result = format_weather([resp], TZ_ET, LAT_N)
         assert "54°F" in result
         assert "54 - 54°F" not in result
 
     def test_wind_range_across_hours(self):
         r1 = self._make_response(wind_speed=5.0)   # Light breeze
         r2 = self._make_response(wind_speed=10.0)  # Gentle breeze
-        result = format_weather([r1, r2], TZ_ET)
+        result = format_weather([r1, r2], TZ_ET, LAT_N)
         assert "Light breeze - Gentle breeze" in result
 
     def test_west_cardinal(self):
         resp = self._make_response(wind_deg=270)
-        result = format_weather([resp], TZ_ET)
+        result = format_weather([resp], TZ_ET, LAT_N)
         assert "Wind Direction: W" in result
+
+    def test_day_block_has_no_moon(self):
+        resp = self._make_response()
+        result = format_weather([resp], TZ_ET, LAT_N)
+        assert result.startswith("☁️\n")
+
+    def test_night_block_appends_moon_unspaced(self):
+        # dt before sunrise → night; 1714550000 → Last Quarter 🌗 (north).
+        resp = self._make_response(dt=1714550000)
+        result = format_weather([resp], TZ_ET, LAT_N)
+        assert result.startswith("☁️🌗\n")
+
+    def test_night_block_southern_hemisphere_mirrors(self):
+        resp = self._make_response(dt=1714550000)
+        result = format_weather([resp], TZ_ET, LAT_S)
+        assert result.startswith("☁️🌓\n")
+
+    def test_any_night_hour_makes_night_block_phase_from_first(self):
+        # First hour is day, second is after sunset — the block is a night
+        # block and the phase comes from the FIRST hour's dt.
+        r1 = self._make_response()                  # day (dt=1714559400)
+        r2 = self._make_response(dt=1714607580)     # sunset + 3600 → night
+        result = format_weather([r1, r2], TZ_ET, LAT_N)
+        assert result.startswith("☁️" + moon_phase_emoji(1714559400, LAT_N) + "\n")
+
+
+class TestMoonPhaseEmoji:
+    # Timestamps from the golden oracle's "one timestamp per phase bin"
+    # section (lunation k=300 of the 2451550.1 reference epoch).
+    BIN_CASES = [
+        (1712679233, "🌑", "🌑"),  # New
+        (1712921153, "🌒", "🌘"),  # Waxing Crescent
+        (1713240833, "🌓", "🌗"),  # First Quarter
+        (1713560513, "🌔", "🌖"),  # Waxing Gibbous
+        (1713880193, "🌕", "🌕"),  # Full
+        (1714199873, "🌖", "🌔"),  # Waning Gibbous
+        (1714510913, "🌗", "🌓"),  # Last Quarter
+        (1714830593, "🌘", "🌒"),  # Waning Crescent
+        (1715089793, "🌑", "🌑"),  # wraps back to New past the last bound
+    ]
+
+    def test_northern_hemisphere_bins(self):
+        for ts, north, _south in self.BIN_CASES:
+            assert moon_phase_emoji(ts, LAT_N) == north
+
+    def test_southern_hemisphere_mirrors(self):
+        for ts, _north, south in self.BIN_CASES:
+            assert moon_phase_emoji(ts, LAT_S) == south
+
+    def test_equator_uses_northern_set(self):
+        assert moon_phase_emoji(1713560513, 0.0) == "🌔"

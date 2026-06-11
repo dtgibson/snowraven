@@ -10,12 +10,24 @@ import type { TideStation } from './tideStations'
 //    emit, so a wording drift in a formatter breaks these tests (the intent). ──
 const hour: HourlyResponse = {
   data: [{
-    temp: 64, humidity: 72, dew_point: 55, wind_speed: 6, wind_deg: 250,
+    dt: 1716570000, temp: 64, humidity: 72, dew_point: 55, wind_speed: 6, wind_deg: 250,
     clouds: 20, weather: [{ id: 801, description: 'few clouds' }],
     sunrise: 1716550000, sunset: 1716600000,
   }],
 }
-const WEATHER_BLOCK = formatWeather([hour], 'America/Los_Angeles')
+const WEATHER_BLOCK = formatWeather([hour], 'America/Los_Angeles', 33.7)
+
+// A SnowRaven NIGHT block via the real formatter: dt before sunrise → the
+// moon-phase emoji is appended to the condition emoji UNSPACED (☁️🌕), which
+// keeps the header ONE emoji run — the strip anchor these tests exercise.
+const nightHour: HourlyResponse = {
+  data: [{
+    dt: 1716540000, temp: 58, humidity: 80, dew_point: 52, wind_speed: 4, wind_deg: 250,
+    clouds: 90, weather: [{ id: 804, description: 'overcast clouds' }],
+    sunrise: 1716550000, sunset: 1716600000,
+  }],
+}
+const NIGHT_WEATHER_BLOCK = formatWeather([nightHour], 'America/Los_Angeles', 33.7)
 
 const STN: TideStation = { id: '9410660', name: 'Los Angeles', lat: 33.7, lng: -118.2, state: 'CA', obs: true }
 const reading: TideReading = {
@@ -308,5 +320,46 @@ describe('stripWeatherTideBlocks — eBird-collapsed single-line comments (real 
     const ms = performance.now() - t0
     expect(out).toBe('')
     expect(ms).toBeLessThan(1000) // quadratic version measured ~1s here; linear is ~ms
+  })
+})
+
+// ── SnowRaven NIGHT blocks (0.5.28): the moon-phase emoji is appended to the
+//    condition emoji UNSPACED, so the header stays one emoji run and the strip
+//    needs ZERO production changes. These regressions pin that invariant with
+//    blocks built by the real formatter. ──────────────────────────────────────
+
+describe('stripWeatherTideBlocks — SnowRaven night blocks (moon phase appended)', () => {
+  it('the night header is condition emoji + moon, unspaced, on line 1', () => {
+    expect(NIGHT_WEATHER_BLOCK.split('\n')[0]).toBe('☁️🌕')
+  })
+
+  it('a night block round-trips the has-weather flag', () => {
+    expect(hasWeatherBlock(NIGHT_WEATHER_BLOCK)).toBe(true)
+    expect(hasSnowravenWeatherBlock(NIGHT_WEATHER_BLOCK)).toBe(true)
+  })
+
+  it('a night-block-only comment strips to empty (counts as no comment)', () => {
+    expect(stripWeatherTideBlocks(NIGHT_WEATHER_BLOCK)).toBe('')
+  })
+
+  it('strips the whole ☁️🌕 header run — no condition-emoji leak before the moon', () => {
+    const out = stripWeatherTideBlocks(`Owling at the marsh.\n\n${NIGHT_WEATHER_BLOCK}`)
+    expect(out).toBe('Owling at the marsh.')
+    expect(out).not.toContain('☁')
+    expect(out).not.toContain('🌕')
+  })
+
+  it('keeps prose before AND after a collapsed single-line night block (eBird CSV shape)', () => {
+    const collapsed = NIGHT_WEATHER_BLOCK.replace(/\n/g, '  ')
+    const out = stripWeatherTideBlocks(`Heard two Great Horned Owls.    ${collapsed}  Calling stopped at moonset.`)
+    expect(out).toContain('Heard two Great Horned Owls.')
+    expect(out).toContain('Calling stopped at moonset.')
+    expect(out).not.toContain('Temperature')
+    expect(out).not.toContain('🌕')
+  })
+
+  it('strips an entity-encoded night block (decodes first, like the detectors)', () => {
+    const out = stripWeatherTideBlocks(entityEncode(`Quiet night.\n\n${NIGHT_WEATHER_BLOCK}`))
+    expect(out).toBe('Quiet night.')
   })
 })
