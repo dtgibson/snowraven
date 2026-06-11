@@ -5,13 +5,22 @@
 // headings and key figures appear, plus the empty-state null render. Guards
 // against runtime render crashes in the demographic/behavior/time-of-day JSX.
 
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, afterAll } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { MediaStatsSections } from './MediaStatsSections'
 import { computeMediaStats } from '../lib/mediaStats'
 import type { MLExportRow } from '../lib/parseMLExport'
 
 afterEach(cleanup)
+
+// recharts bundles @reduxjs/toolkit, whose autoBatch enhancer arms a 100 ms
+// fallback timer when a chart mounts. Wait it out BEFORE this file's jsdom
+// environment is torn down, so the timer fires where `cancelAnimationFrame`
+// still exists — the node-env shim in test-setup.ts never installs in jsdom
+// files, so a timer leaking past teardown lands in an environment with neither
+// jsdom's cAF nor the shim and fails the run as an unhandled ReferenceError
+// pinned to whatever file runs next.
+afterAll(() => new Promise((r) => setTimeout(r, 120)))
 
 function row(p: Partial<MLExportRow> & { catalogId: string }): MLExportRow {
   return {

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
 import { act, render, screen, cleanup, waitFor } from '@testing-library/react'
 import type { ObservationEntry } from '../types'
 
@@ -124,6 +124,15 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+// recharts bundles @reduxjs/toolkit, whose autoBatch enhancer arms a 100 ms
+// fallback timer when a chart mounts. Wait it out BEFORE this file's jsdom
+// environment is torn down, so the timer fires where `cancelAnimationFrame`
+// still exists — the node-env shim in test-setup.ts never installs in jsdom
+// files, so a timer leaking past teardown lands in an environment with neither
+// jsdom's cAF nor the shim and fails the run as an unhandled ReferenceError
+// pinned to whatever file runs next.
+afterAll(() => new Promise((r) => setTimeout(r, 120)))
+
 // Render + let the async load() effect resolve (it awaits storage + transport),
 // without yet flushing the rAF that flips `computed`.
 async function renderAndLoad() {
@@ -132,6 +141,14 @@ async function renderAndLoad() {
   )
   // Drain the load() promise chain so phase → 'ready'.
   await waitFor(() => expect(screen.getByText('Statistics')).toBeTruthy())
+  // Commit-vs-effect race: the 'Statistics' heading appears on the phase-ready
+  // COMMIT, but the double-rAF cascade is queued by a PASSIVE EFFECT that runs
+  // after that commit. Under suite load, the waitFor above can resolve on the
+  // commit's DOM mutation before the effect has pushed rAF1 into the stubbed
+  // rafQueue — a flush then drains an empty queue, the ladder never completes,
+  // and `computed` never flips. Wait on the observable stub-queue precondition
+  // (no wall-clock) so every flush below is guaranteed to have work.
+  await waitFor(() => expect(rafQueue.length).toBeGreaterThan(0))
   return utils
 }
 
@@ -189,6 +206,10 @@ describe('BirdingStats progressive render', () => {
     // The placeholder shows a "Loading map…" status.
     expect(screen.getAllByText('Loading map…').length).toBeGreaterThan(0)
 
+    // Diagnostic (non-load-bearing): the map-mount effect must already have
+    // queued its idle callback by now — if this fires, the failure is in the
+    // effect scheduling, not the flush below.
+    expect(idleQueue.length).toBeGreaterThan(0)
     // Now fire the idle callback → the map mounts.
     await act(async () => { flushIdle() })
     expect(screen.getByTestId('snowmap-stub')).toBeTruthy()

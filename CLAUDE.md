@@ -32,6 +32,8 @@ decisions that all builders must follow.
 
 This project uses the Weft framework. Run /new-feature to start a new feature.
 
+- **This repo's Weft pipeline tracks SnowRaven only.** Never record issues, follow-ups, or status for outside projects (e.g. snowraven-mini, which has its own repo and its own Weft session) in pipeline state, handoffs, ROADMAP.md, or the record files (DECISIONS.md, PRODUCT_CONTEXT.md, CHANGELOG.md). If work here surfaces something about another project, tell the user in chat and stop there — it does not enter this repo's records.
+
 ## Conventions
 
 ### Ports
@@ -65,6 +67,8 @@ cd backend && python -m pytest tests/ -v
 ```
 
 - **`frontend/src/test-setup.ts` installs baseline `requestAnimationFrame`/`cancelAnimationFrame` shims for every test file** (wired via vitest `test.setupFiles` in `vite.config.ts`). Reason: recharts bundles `@reduxjs/toolkit`, whose autoBatch fallback timer (100 ms, calls bare `cancelAnimationFrame`) can outlive a jsdom test file and fire in a later DOM-less node-env file in the same worker — the source of the old ~11% full-suite flake. Never remove the shims or convert them to per-test `vi.stubGlobal` stubs (per-test stubs can't cover timers that fire after their file's environment is torn down). The shims are `typeof === 'undefined'`-guarded, so jsdom files keep their natives and a file's own stubs still win.
+- **Component tests that stub a scheduling queue must wait on an observable stub-queue precondition before flushing.** A `waitFor` on rendered DOM resolves on the React commit, which under suite load can land BEFORE a passive effect queues into the stubbed queue — flushing then drains an empty queue and the test asserts against a frozen shell (the BirdingStats frozen-shell flake). After the DOM wait, add `await waitFor(() => expect(rafQueue.length).toBeGreaterThan(0))` (or the equivalent for the stubbed queue), then flush. Never assume effect timing relative to `waitFor`, and never substitute a wall-clock sleep. Reference: `renderAndLoad()` in `BirdingStats.test.tsx`.
+- **Every jsdom test file that mounts recharts charts must end with `afterAll(() => new Promise((r) => setTimeout(r, 120)))`.** Toolkit's 100 ms autoBatch fallback timers armed during the file must fire before its jsdom environment is torn down — the `test-setup.ts` shims never install in jsdom files (the globals exist there), so a timer that outlives the file fires where `cancelAnimationFrame` no longer exists and fails a later file with all tests green. Currently applied in `BirdingStats.test.tsx` and `MediaStatsSections.test.tsx`; copy the pattern into any new chart-mounting jsdom file.
 
 ### Bird names
 

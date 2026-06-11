@@ -1,15 +1,15 @@
 {
   "activeFeature": null,
-  "sessionNumber": 25,
-  "sessionType": "fix",
+  "sessionNumber": 26,
+  "sessionType": "maintain",
   "currentStage": 1,
-  "lastCompletedStage": 1,
+  "lastCompletedStage": 6,
   "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.30",
-  "lastFeature": "0.5.30 SHIPPED (live, in-app updater verified). Missing-hotspot-pins (fix lane, TWO fixes): (1) Map Explorer hotspot teardrops + atlas hatch sprites could silently never register — the isStyleLoaded()/once('load') gate waited on MapLibre's once-per-lifetime load event during tile churn (latent since 0.5.16); fixed with unconditional registration + per-component styleimagemissing safety nets (owned ids only, hasImage-guarded, removed on unmount) in HotspotMarkers.tsx + AtlasLayer.tsx. (2) Pins→Heatmap toggle crashed the app (in-place <Source> id mutation, MapLibre-forbidden; pre-existing since 0.5.18, shipped in 0.5.29); fixed by keying the branch Sources in map/SightingMarkers.tsx (no beforeId/heatmap-under-atlas regression). Built+chronicled+tagged on the VM; released from the Mac: v0.5.30 tag → Windows CI green (installer artifact present) → ./release.sh — macOS universal DMG notarized (Apple: Accepted) + stapled, bundle-version guard 0.5.30, Windows installer signed locally, latest.json all three keys (darwin-aarch64 + darwin-x86_64 → the one universal bundle/same sig, windows-x86_64 → -setup.exe), every updater + DMG URL HEAD 200. Independent Mac audit: map-fix correctness + standing-convention review clean (regression test bites pre-fix), 774 frontend green across 8/8 runs (the known idle-callback flake did NOT surface), 110 backend green, no new tile provider → privacy unaffected. Website at 0.5.30 (VM).",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. KNOWN ISSUE (fix on VM): BirdingStats.test.tsx second flake — 'mounts the SnowMap only after the idle callback fires' (~5.5%, requestIdleCallback timing); did not surface in the 0.5.30 audit's 8 runs but still latent; narrow the DECISIONS/CHANGELOG 'flake FIXED' wording to the cancelAnimationFrame mechanism. Doc-rot note: PRODUCT_CONTEXT.md's older Species Detail / Map Explorer entries still describe Leaflet-era heat internals (stale since 0.5.9). Cross-repo note: snowraven-mini's formatter lacks the v0.5.28 moon-phase emoji — Dave handles in Mini's own Weft session.",
-  "createdAt": "2026-06-11T06:09:54Z",
-  "updatedAt": "2026-06-11T17:54:56Z"
+  "lastFeature": "idle-flake-and-doc-rot COMPLETE (improve lane, NO release — tests and records only, rides main until the next release). (A) Both remaining test-suite failure classes fixed test-only: (A1) commit-vs-effect race — waitFor could resolve on the phase-ready DOM commit before the passive double-rAF effect queued into the stubbed rafQueue; fixed with an observable stub-queue precondition in renderAndLoad() (BirdingStats.test.tsx). (A2) inter-environment timer leak — recharts/toolkit 100 ms fallback timers from jsdom chart files firing after environment teardown; fixed with 120 ms afterAll wait-outs (BirdingStats + MediaStatsSections tests). Proven: 45/45 post-fix stress runs vs pre-fix negative control failing at run 12 with the documented class. (B) 0.5.29 'flake FIXED' overclaim narrowed to the cancelAnimationFrame mechanism in DECISIONS/CHANGELOG/ROADMAP; CHANGELOG gained [Unreleased]. (C) PRODUCT_CONTEXT doc-rot cleared: 17 pre-MapLibre passages rewritten/annotated per file conventions + 6 factual drifts corrected; leaflet grep all-historical. New CLAUDE.md conventions: stub-queue precondition pattern, chart-file afterAll wait-outs, and the standing boundary — this repo's pipeline tracks SnowRaven ONLY (outside projects like snowraven-mini live in their own repos/Weft sessions). QA 6/6 fact-checks; security clean. 774 frontend + 110 backend green.",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. Minor: stale 'Leaflet panes' comment in TabNav.tsx:281-282 (one-line touch-up, future lane).",
+  "createdAt": "2026-06-11T19:18:30Z",
+  "updatedAt": "2026-06-11T20:55:05Z"
 }

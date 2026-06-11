@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [Unreleased]
+
+### Fixed
+- **Frontend test suite: the remaining rare timing flake is gone.** Two test-only fixes, both proven under a 30-run stress recipe (single worker, shuffled file order, concurrent CPU load): the `BirdingStats` progressive-render tests now wait for the component's animation-frame effect to have observably queued work before flushing it (under load the tests could outrun the effect and assert against a frozen shell), and the two chart-mounting test files now wait out a charting dependency's 100 ms fallback timer before their test environment is torn down (the timer could otherwise fire into the next file and fail a run whose tests were all green). Test infrastructure only — no production code changed.
+
+### Changed
+- **Records corrected: the 0.5.29 entries overclaimed the flake fix.** 0.5.29 fixed the dominant `cancelAnimationFrame` failure mode; the separate, rarer timing flake above remained until now. The 0.5.29 wording in this file, `DECISIONS.md`, and `ROADMAP.md` now says exactly that. `PRODUCT_CONTEXT.md` also caught up with the v0.5.9 MapLibre migration: its remaining Leaflet-era current-behavior passages were rewritten against the current map stack and the superseded historical entries are now annotated as such.
+
 ## [0.5.30] - 2026-06-11
 
 ### Fixed
@@ -14,7 +22,7 @@ All notable changes to SnowRaven are documented here.
 - **SnowRaven Mini mentions.** Three informational pointers to [SnowRaven Mini](https://github.com/dtgibson/snowraven-mini) — the author's separate Chrome/Firefox extension that runs the same weather and tide lookup directly on an eBird checklist page: a one-line note under the Weather tab's card, a paragraph in the README, and a short subsection in the in-app Help under Weather. Plain links only — no icons, no fetches, no new providers; the privacy policy is unchanged.
 
 ### Fixed
-- **Flaky frontend test suite (~11% of full runs).** recharts bundles `@reduxjs/toolkit`, whose autoBatch enhancer races a captured `requestAnimationFrame` against a 100 ms fallback timer and calls bare `cancelAnimationFrame` when the timer wins; `BirdingStats.test.tsx` stubs rAF per-test, so the fallback fired after the stubs were restored in an environment with no native `cancelAnimationFrame`, producing an unhandled `ReferenceError` pinned on whichever test was running. A tiny vitest setup file (`frontend/src/test-setup.ts`) now installs baseline rAF/cAF shims when the globals are undefined. Test infrastructure only — no production code changed.
+- **Flaky frontend test suite — the dominant `cancelAnimationFrame` failure mode (~11% of full runs).** recharts bundles `@reduxjs/toolkit`, whose autoBatch enhancer races a captured `requestAnimationFrame` against a 100 ms fallback timer and calls bare `cancelAnimationFrame` when the timer wins; `BirdingStats.test.tsx` stubs rAF per-test, so the fallback fired after the stubs were restored in an environment with no native `cancelAnimationFrame`, producing an unhandled `ReferenceError` pinned on whichever test was running. A tiny vitest setup file (`frontend/src/test-setup.ts`) now installs baseline rAF/cAF shims when the globals are undefined. Test infrastructure only — no production code changed. A separate, rarer timing flake was a different mechanism and remained after this fix (addressed separately after 0.5.30).
 
 ## [0.5.28] - 2026-06-10
 

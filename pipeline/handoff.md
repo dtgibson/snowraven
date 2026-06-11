@@ -1,75 +1,48 @@
-# Handoff — 0.5.30 SHIPPED & live; pipeline idle, follow-ups for the VM
+# Handoff — idle-flake-and-doc-rot COMPLETE; pipeline idle; no release (rides main)
 
 ## What We Accomplished
 
-The two map fixes are built, shipped, and live as 0.5.30. The hotspot pins that
-could silently vanish now register reliably, and the Pins→Heatmap toggle no longer
-crashes the app. The release is done and the in-app updater has been verified, so
-this fix is closed out. Released version equals what's on `main`.
+The frontend test suite is now fully deterministic, and the project records are
+accurate again — shipped as a tests-and-records-only push to main (user-ratified:
+no version bump, no tag, no Mac release; the next real release folds CHANGELOG's
+`[Unreleased]` in).
 
-## What Shipped (live) — 0.5.30
+1. **Both remaining flake classes fixed, test-only.** (A1) The "idle-callback"
+   flake's true mechanism was a commit-vs-effect race: `waitFor` could resolve on
+   the phase-ready DOM commit before the passive double-rAF effect queued into the
+   stubbed queue — fixed with an observable stub-queue precondition in
+   `renderAndLoad()`. (A2) recharts/toolkit 100 ms fallback timers from jsdom chart
+   files could fire after environment teardown — fixed with 120 ms `afterAll`
+   wait-outs in the two chart-mounting test files. Proof: 45/45 post-fix stress
+   runs (Engineer 30 + Tester 15) vs. a pre-fix negative-control failure at run 12
+   with the exact documented class.
+2. **0.5.29 record overclaim narrowed** in DECISIONS / CHANGELOG / ROADMAP to the
+   `cancelAnimationFrame` mechanism actually fixed.
+3. **PRODUCT_CONTEXT doc-rot cleared:** 17 pre-MapLibre passages rewritten or
+   annotated per the file's own conventions (plus 6 factual drifts corrected
+   against the real code); every remaining "leaflet" mention is historical.
+4. **New standing conventions in CLAUDE.md:** the stub-queue precondition pattern;
+   the chart-file teardown wait-outs; and the boundary rule — this repo's pipeline
+   and records track SnowRaven ONLY (outside projects like snowraven-mini live in
+   their own repos and Weft sessions).
 
-1. **Hotspot pins silently vanishing** (the reported bug). The teardrop sprites (and
-   atlas hatch sprites) could fail to register because the old
-   `isStyleLoaded()/once('load')` gate waited on MapLibre's once-per-lifetime `load`
-   event whenever a search landed during tile churn (latent since 0.5.16). Fixed in
-   `HotspotMarkers.tsx` + `AtlasLayer.tsx` with unconditional registration plus
-   per-component `styleimagemissing` safety nets (owned ids only, `hasImage`-guarded,
-   removed on unmount). Playwright repro proved bug and fix.
-2. **Pins→Heatmap toggle crash** (found by QA; pre-existing since 0.5.18, shipped in
-   0.5.29). The toggle mutated a `<Source>` id in place, which MapLibre forbids,
-   crashing the app to the error boundary. Fixed by keying the two branch Sources in
-   `map/SightingMarkers.tsx`; the regression test was proven to fail pre-fix.
+## Where We Are
 
-## Release (Mac) — verified
+**Idle.** No active Weft session. Released version 0.5.30 remains live and
+accurate for everything user-facing; main carries the test/record improvements
+ahead of it, by design.
 
-`v0.5.30` tag → Windows CI green (run 27361180999; `windows-build` artifact
-`SnowRaven_0.5.30_x64-setup.exe` present) → `./release.sh`:
+## Follow-ups (minor)
 
-- macOS universal DMG **notarized (Apple: Accepted) + stapled**; bundle-version guard
-  passed at `0.5.30`.
-- Windows installer signed locally with the real minisign key.
-- `latest.json` carries all three platforms: `darwin-aarch64` + `darwin-x86_64` →
-  the one universal `SnowRaven-updater.app.tar.gz` (same URL + same signature),
-  `windows-x86_64` → `SnowRaven_0.5.30_x64-setup.exe`.
-- Every updater + DMG URL verified **HEAD 200**. Release `draft=false, prerelease=false`.
-- https://github.com/dtgibson/snowraven/releases/tag/v0.5.30
+- Stale "Leaflet panes" code comment at `TabNav.tsx:281-282` — one-line touch-up
+  for a future lane (QA finding, out of this lane's no-production-code scope).
 
-## Independent Mac audit (pre-ship)
-
-Clean across the board: map-fix correctness + standing-convention review passed (the
-`styleimagemissing` net is owned-ids-only / `hasImage`-guarded / unmount-removed; the
-keyed Sources don't disturb the `beforeId` heatmap-under-atlas ordering; the
-regression test genuinely bites pre-fix). 774 frontend green across **8/8 runs**, 110
-backend green, no new tile provider so privacy is unaffected.
-
-## Follow-ups for the VM
-
-1. **BirdingStats idle-callback flake** (still open). `BirdingStats.test.tsx >
-   "mounts the SnowMap only after the idle callback fires"` is a ~5.5% `requestIdleCallback`
-   timing flake, distinct from the `cancelAnimationFrame` flake 0.5.29 fixed. It did
-   NOT surface in the 0.5.30 audit's 8 runs, but it's still latent. Fix it, and narrow
-   the "BirdingStats flake FIXED" wording in DECISIONS.md / CHANGELOG to the
-   `cancelAnimationFrame` mechanism.
-2. **Doc-rot.** `PRODUCT_CONTEXT.md`'s older Species Detail / Map Explorer entries
-   still describe Leaflet-era heat internals (stale since 0.5.9).
-3. **Cross-repo.** snowraven-mini's formatter lacks the 0.5.28 moon-phase emoji —
-   handled in Mini's own Weft session, not here.
-
-## Machine boundary (standing rule)
-
-- **Ubuntu VM — all dev work** (coding, content/assets incl. website + demo
-  screenshots, pushing the `vX.Y.Z` tag). Do the follow-ups here.
-- **Mac — only signing and shipping** (`./release.sh` needs Xcode + Apple creds).
-
-> The VM keeps pushing while a Mac session is open — re-pull before editing the
-> pipeline files, and treat the VM's commits as authoritative on conflict.
-
-## Roadmap — Up Next (pick a lane, build on the VM)
+## Roadmap — Up Next
 
 - Mobile app
 - Accessibility / clarity / simplification
-- Windows code signing (remove the SmartScreen "unknown publisher" prompt)
+- Windows code signing
 
-On the VM: `git pull` to sync this closeout, clear the follow-ups, then pick the next
-lane.
+## Resume Prompt
+
+Run `/weft` to start the next thing. Load `pipeline/session-state.json` first.

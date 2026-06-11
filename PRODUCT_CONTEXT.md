@@ -548,7 +548,7 @@ A fifth data tab that shows a complete per-species view from the user's eBird ba
 - **Media statistics:** Photo/Audio/Video counts as links to Macaulay Library catalog filtered by species + media type + userId; "Load ML export in Settings" message when no ML loaded
 - **Breeding codes:** each unique code recorded for the species, with tier-colored dot, abbreviation, full label, and count; sorted tier 4→1 then canonical order; "No breeding codes recorded" empty state
 - **Top locations:** ranked list (by observation count) of every unique location; top 10 shown by default with "Show all N locations" / "Show top 10" expand-collapse; locations with a valid `/^L\d+$/` ID link to `ebird.org/loc/{id}` (works for both public hotspots and personal locations); invalid or missing IDs render as plain text
-- **Sighting locations map:** interactive Leaflet/OpenStreetMap map; one marker per unique lat/lng pair among the selected species' observations; bounds auto-fit on species change (single coordinate → `setView` zoom 12, multiple → `fitBounds` with 30px padding); each marker opens a Popup listing up to 6 dated checklist links ("+N more" overflow label); map hidden when no coordinates are available; 380px tall on desktop, 300px on ≤640px
+- **Sighting locations map:** interactive MapLibre GL map — the shared `SightingsMap` component (`components/SightingsMap.tsx`, also used by the Named Birds tab) rendered through the `SnowMap` wrapper; one teardrop marker per unique lat/lng pair among the selected species' observations (aggregated by `lib/sightingMarkers.ts`); bounds auto-fit on species change via `MapBoundsFitter` (single coordinate → `flyTo` zoom 12, multiple → `fitBounds` with 30px padding); clicking a marker opens the map's single state-driven Popup listing up to 6 dated checklist links ("+N more" overflow label); map hidden when no coordinates are available; 380px tall on desktop, 300px on ≤640px
 - **Comments archive:** all non-empty per-species field notes from the eBird backup; sortable (newest/oldest); filterable by keyword (case-insensitive); first 10 shown with "Show all N comments" expand button; each date is a link to the corresponding checklist
 - **Embedded recent media:** when ML export is loaded and the species has catalog items, the most recently uploaded Photo, Audio, and/or Video (numerically highest catalog ID = most recently uploaded) is embedded via `macaulaylibrary.org/asset/{id}/embed` iframe; responsive 3-column CSS grid (`repeat(3, minmax(0, 1fr))`), 280px tall on desktop, full-width 360px on mobile; `scrolling="no"` + `overflow: hidden` suppress iframe scrollbars; section appears at the very bottom of the detail view
 - All sections render in natural page flow — no expand/collapse toggle
@@ -558,7 +558,7 @@ A fifth data tab that shows a complete per-species view from the user's eBird ba
 **Key files:**
 - `frontend/src/lib/parseEbirdObservations.ts` — character-level CSV parser; one `ObservationEntry` per CSV row; reads Location ID, Latitude, Longitude columns in addition to all prior fields; throws `INVALID_EBIRD` if required columns missing
 - `frontend/src/lib/parseEbirdObservations.test.ts` — 24 tests
-- `frontend/src/components/SpeciesDetail.tsx` — full tab component; `Phase` discriminated union (`loading-saved | idle | error | ready`); inline sub-components `SectionCard`, `SectionHead`, `StatLabel`, `StatValueLink`, `ToggleSwitch`, `MapBoundsFitter`; `CoordMarker` type for grouped marker sightings; Leaflet icon CDN patch at module level
+- `frontend/src/components/SpeciesDetail.tsx` — full tab component; `Phase` discriminated union (`loading-saved | setup-required | error | ready`); UI sub-components `SectionCard`, `SectionHead`, `StatLabel`, `StatValueLink` live in `components/speciesDetail/ui.tsx`, `ToggleSwitch` in `components/ui/ToggleSwitch.tsx`, and `MapBoundsFitter` in `components/speciesDetail/MapBoundsFitter.tsx`; per-coordinate marker grouping is the `SightingMarker` type from `lib/sightingMarkers.ts` (consumed by the shared `SightingsMap`)
 - `frontend/src/types.ts` — `ObservationEntry` now includes `locationId`, `latitude`, `longitude`
 - `frontend/src/globals.css` — `.sr-map-container`, `.sr-media-grid` (CSS grid 3-col), `.sr-media-item`, `.sr-media-iframe` with responsive overrides
 - `frontend/src/App.tsx` — `'species-detail'` tab (unchanged structure)
@@ -575,7 +575,7 @@ A Statistics tab (between Map Explorer and Settings in the tab bar) that derives
 
 **Temporal Stats** — Checklists by year (bar + species count + best single-day species count [linked to checklist]); checklists by month (bar + donut pie with percentage labels); checklists by day-of-week (bars then pie chart + legend below, grouped Sat/Sun/Weekdays, percentage labels); checklists by start hour (bar, excludes no-time checklists, percentage labels). All bar rows show both count and percentage of total.
 
-**Geographic Stats** — Leaflet map at the top showing numbered green circle markers (top by checklists) and blue square markers (top by species); auto-fits bounds to all visible markers; hidden when no locations have lat/lng data. Two ranked location text lists below the map. Counties split into two side-by-side bar charts: by checklists (green bars, with show-all expand) and by species (blue bars, top 8). States/provinces same split. County and state entries link to `ebird.org/region/{stateProvince}` when stateProvince is non-empty and contains a hyphen; plain text otherwise.
+**Geographic Stats** — MapLibre map (the shared `SnowMap` wrapper) at the top showing numbered green circle markers (top by checklists) and blue square markers (top by species); fits bounds to all pins on map load (`fitToPins`); the map's mount is deferred to `requestIdleCallback` behind a fixed-size "Loading map…" placeholder so it causes zero layout shift; hidden when no locations have lat/lng data. Two ranked location text lists below the map. Counties split into two side-by-side bar charts: by checklists (green bars, with show-all expand) and by species (blue bars, top 8). States/provinces same split. County and state entries link to `ebird.org/region/{stateProvince}` when stateProvince is non-empty and contains a hyphen; plain text otherwise.
 
 **Effort & Methodology** — At the top: complete-checklist rate as a two-segment bar (blue = complete, grey = incomplete) with "N of M complete" count label; Traveling and Stationary sub-bars (lighter blue) show per-protocol completion rates with per-protocol counts. Below: Protocol distribution segmented bar + legend. Key metrics grid (avg duration min, avg distance mi, spp/hour, spp/mi). Average-by-protocol table. Observer count: vertical bar chart + donut pie. All bars show percentage labels inside segments when the segment is ≥8% wide. Complete-checklist section only appears when "All Obs Reported" column is present in the CSV.
 
@@ -588,7 +588,7 @@ A Statistics tab (between Map Explorer and Settings in the tab bar) that derives
 **Mobile layout:** `SectionCard` padding uses `clamp(14px, 4vw, 24px)`; two-column grids (Geographic counties/states, Temporal day-of-week/start-hour) use `repeat(auto-fit, minmax(..., 1fr))` to stack on narrow viewports; Effort metrics grid uses `repeat(auto-fill, minmax(80px, 1fr))`; Breeding filter and Media control rows have `flexWrap: 'wrap'`.
 
 **Key files:**
-- `frontend/src/components/BirdingStats.tsx` — full tab component; ~2,230 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant; `mlCatalogUrl()` helper builds Macaulay Library search URLs using taxonCode when available, taxaName as fallback; `ML_USER_RE` extracts userId from ML export filename; `mlTaxonMap` and `nemesisTaxonMap` state populated via `POST /taxonomy/codes`; Leaflet `MapContainer` with `circleIcon`/`squareIcon` divIcon helpers and `TopLocationsBoundsFitter` null-rendering child (calls `map.invalidateSize()` then `fitBounds`)
+- `frontend/src/components/BirdingStats.tsx` — full tab component; ~1,940 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant; `mlCatalogUrl()` helper builds Macaulay Library search URLs using taxonCode when available, taxaName as fallback; `ML_USER_RE` extracts userId from ML export filename; `mlTaxonMap` and `nemesisTaxonMap` state populated via `POST /taxonomy/codes`; geographic map renders through the shared `SnowMap` with DOM `<Marker>` pins (`RankIcon` circle/square sprites), one state-driven `<Popup>`, and a `fitToPins` bounds fit on map load
 - `frontend/src/lib/parseEbirdObservations.ts` — extended with 9 optional checklist-level fields: `time`, `duration`, `distance`, `protocol`, `numObservers`, `allObsReported`, `checklistComments`, `stateProvince`
 - `backend/routers/stats.py` — `GET /stats/nemesis?lat&lng&dist` endpoint; validates params; calls eBird geo/recent API; returns `{species: [{commonName, recentDate, subId}]}`
 - `backend/tests/test_stats_router.py` — 13 tests
@@ -639,7 +639,7 @@ Two new visualization sections added to the Species Detail tab.
 
 **Map heatmap toggle:**
 - Pins / Heatmap segmented toggle in the Sighting Locations map section header
-- Heatmap mode: `leaflet.heat` IIFE loaded lazily via `import('leaflet.heat')` inside `HeatmapLayer` useEffect (after `window.L = L` is set) to work around Vite ESM bundling incompatibility; creates a `(L as any).heatLayer(points, {...})` layer
+- Heatmap mode: MapLibre's native `heatmap` layer via `HeatmapLayer` (`components/speciesDetail/HeatmapLayer.tsx`) — a GeoJSON `Source` of points whose weights already fold in observation count × intensity (`heatWeight`), with paint driven by the shared intensity model in `lib/heat.ts` (`heatRadiusPx` / `heatIntensityFactor`)
 - Each coordinate weighted by observation count at that location (from `coordMarkers[].sightings.length`)
 - Individual markers hidden in heatmap mode (`mapMode === 'pins'` guard)
 - Resets to Pins on species change (via `setMapMode('pins')` in `selectSpecies()`)
@@ -648,7 +648,7 @@ Two new visualization sections added to the Species Detail tab.
 **Key files:**
 - `frontend/src/lib/sightingsGraph.ts` — `buildGraphData(obs, mlRows, interval)` pure function; `GraphPoint` type (includes `checklists` field); `GraphInterval = 'weekly' | 'monthly' | 'yearly'`; ISO week helpers `isoWeekKey()` and `mondayOfISOWeek()`; returns `{ data: GraphPoint[]; interval: GraphInterval }`
 - `frontend/src/lib/sightingsGraph.test.ts` — 18 unit tests (includes weekly bucketing, gap-fill, checklists field)
-- `frontend/src/components/SpeciesDetail.tsx` — `HeatmapLayer`, `SightingsGraph` (controlled component — receives `data`, `interval`, `viewMode`, `hasML` props), `GraphTooltip`, `formatPeriodLabel` components; `mapMode` state; `speciesMlRows` and `heatPoints` useMemos; `Phase.ready` now includes `mlRows: MLExportRow[]`
+- `frontend/src/components/SpeciesDetail.tsx` — `mapMode` state; `speciesMlRows` and `heatPoints` useMemos; `Phase.ready` includes `mlRows: MLExportRow[]`; the map sub-components live in `components/speciesDetail/` (`HeatmapLayer.tsx`, `MapBoundsFitter.tsx`) and the graph components in `components/speciesDetail/SightingsGraph.tsx` (`SightingsGraph` — controlled component receiving `data`, `interval`, `viewMode`, `hasML` props — plus `GraphTooltip`; `formatPeriodLabel` lives in `lib/sightingsGraph.ts`)
 - `frontend/src/globals.css` — `--sr-graph-individuals`, `--sr-graph-photo`, `--sr-graph-audio`, `--sr-graph-video` tokens in both themes
 
 ### Species Detail — Graph Options and Reported With (complete — May 2026)
@@ -764,7 +764,7 @@ Two coordinated changes that make the "Is Target" concept first-class across the
 An interactive map tab with three view modes for exploring birding locations: sightings heatmap, eBird hotspot discovery, and media target hunting. All map data comes from eBird API calls made at query time; the stored eBird backup is used client-side to classify which hotspots have been visited and to supply personal locations.
 
 **Three view modes:**
-- **My Sightings** — fetches recent personal observations via `GET /map/recent-obs`, plots circle markers colored green, and overlays a heatmap. Requires eBird API key. Shows `SetupRequired` component if no key is configured. Supports species code filter (All, any species from the backup's distinct codes), breeding status filter (All/Confirmed/Probable/Possible/None), and date range filter. Distance filter for personal locations in radius miles. **Heatmap intensity slider (v0.5.1):** a 1–10 slider (heatmap mode only) scales `leaflet.heat` radius (18→80 px), `max` (1.0→0.75), and per-point weight (obs divisor 20→2) together, so high intensity makes even sparse low-count sightings burn hot; helpers `heatRadius`/`heatBlur`/`heatMax` in MapExplorer.tsx.
+- **My Sightings** — fetches recent personal observations via `GET /map/recent-obs`, plots circle markers colored green, and overlays a heatmap. Requires eBird API key (a missing key shows the in-sidebar `KeyNotice` warning); a missing eBird backup shows the `SetupRequired` panel in place of the map. Supports species code filter (All, any species from the backup's distinct codes), breeding status filter (All/Confirmed/Probable/Possible/None), and date range filter. Distance filter for personal locations in radius miles. **Heatmap intensity slider (v0.5.1):** a 1–10 slider (heatmap mode only) scales the MapLibre `heatmap` layer's kernel radius (18→72 px), global intensity factor (0.06→0.60), and per-point weight (obs divisor 20→2) together, so high intensity makes even sparse low-count sightings burn hot; the shared model lives in `lib/heat.ts` (`heatRadiusPx` / `heatIntensityFactor` / `heatWeightDivisor` / `heatWeight`), applied as paint properties/expressions in `components/map/SightingMarkers.tsx`.
 - **Hotspots** — fetches regional hotspots via `GET /map/hotspots` (lat/lng/dist parameters). Classifies each as visited (green teardrop), unvisited (blue teardrop), or personal (orange star) using `visitedLocIds` derived from the stored backup. Address search above lat/lng fields. Legend rows are clickable to hide/show each pin category; opacity drops to 40% when hidden; state resets on each new fetch. Clicking the Hotspots tab button re-centers the map to the saved default location and auto-triggers a fetch if coordinates are set.
 - **Media Targets** — fetches recent sightings (`back=30`) for target species. Pins are color-coded green by recency tier (≤7 days / 8–15 days / 16–30 days). Address search above lat/lng. Last 30 Days / Last Week toggle filters pins client-side. Nearest-10 sidebar list ranked by haversine distance from center. Each popup shows a "View checklist {subId}" link when a valid subId is available. Clicking the Media Targets tab button re-centers the map and auto-triggers a fetch (when `phase.tag === 'ready'` and fetch is not disabled).
 
@@ -783,7 +783,7 @@ An interactive map tab with three view modes for exploring birding locations: si
 **Nearest-10 list:**
 - `nearest10` useMemo sorts `displayedTargetPins` by `distanceMiles()` (already in file), slices to 10
 - Each row: tier dot + species name + location + distance (1 decimal, " mi")
-- Clicking sets `panTarget` state; `MapPanner` child inside `MapContainer` calls `map.panTo()`
+- Clicking sets `panTarget` state; the `MapEffects` child inside `SnowMap` (`components/map/MapControls.tsx`) calls `map.flyTo()`
 
 **Mobile layout (≤640px):**
 - The 268px sidebar is hidden from the flex flow by default; map fills 100% width
@@ -798,7 +798,7 @@ An interactive map tab with three view modes for exploring birding locations: si
 
 **Default Location (Settings):**
 - `GET /settings/map-defaults` on MapExplorer mount; on 200, sets `lat`, `lng`, and `radius` state (shared by all three modes) AND sets `defaultCenter` state to trigger a map pan; on 404/error, no-op
-- `DefaultCenterSetter` — null-rendering child inside `MapContainer` (same pattern as `MapPanner`); calls `map.setView([lat, lng], zoom)` once when `defaultCenter` is set, then clears it via `onDone`; zoom derived from radius via `radiusToZoom()` (≤5 mi → 12, ≤10 → 11, ≤25 → 10, >25 → 9); also triggered when the user clicks the Hotspots or Media Targets tab button (re-sets `defaultCenter` from the current lat/lng/radius state)
+- Default-center handling lives in `MapEffects` (`components/map/MapControls.tsx`) — a null-rendering child inside `SnowMap`; calls `map.flyTo({ center, zoom, duration: 0 })` once when `defaultCenter` is set, then clears it via `onDefaultDone`; zoom derived from radius via `radiusToZoom()` (≤5 mi → 12, ≤10 → 11, ≤25 → 10, >25 → 9); also triggered when the user clicks the Hotspots or Media Targets tab button (re-sets `defaultCenter` from the current lat/lng/radius state)
 - Settings → Default Location section: lat/lng/dist inputs + Save + Clear + "✓ Saved" chip (2500ms auto-hide)
 - Save: `POST /settings/map-defaults {lat, lng, dist}`; validates in-range before calling API
 - Clear: `DELETE /settings/map-defaults`; resets inputs to blank; button disabled when no defaults are stored
@@ -816,12 +816,12 @@ An interactive map tab with three view modes for exploring birding locations: si
 
 **Layout:**
 - Tab panel uses `height: calc(100vh - 178px)` (not `flex: 1`) and `overflow: hidden` — see the corresponding decision entry
-- No `sr-panel` wrapper or padding; MapContainer fills the right side with `flex: 1`
-- MapContainer always rendered; `setup-required` state only replaces the sidebar content in My Sightings mode
+- No `sr-panel` wrapper or padding; the map area (`SnowMap`) fills the right side with `flex: 1`
+- In My Sightings mode with no eBird backup stored (`setup-required`), a `SetupRequired` panel replaces the map area itself; Hotspots and Media Targets still render the map (the personal-sightings markers are simply gated off while `setup-required`)
 
 **Location access ("Use my location" button — v0.3.22, fixed v0.3.23):**
 - `CenterPointControl` sidebar section contains a "Use my location" button; clicking it calls `handleUseMyLocation`
-- `handleUseMyLocation` calls `getCurrentLocation()` from `frontend/src/lib/location.ts`; on success sets `lat`/`lng` state, calls `setPanTarget` to re-center the map, sets `detectedLocation` to show a blue `CircleMarker` pin at the detected position, and auto-triggers the active view's fetch if coords were previously empty; editing the lat/lng inputs manually clears `detectedLocation`
+- `handleUseMyLocation` calls `getCurrentLocation()` from `frontend/src/lib/location.ts`; on success sets `lat`/`lng` state, calls `setPanTarget` to re-center the map, sets `detectedLocation` to show a blue dot at the detected position (`DetectedLocationPin`, a DOM `<Marker>` in `components/map/MapControls.tsx`), and auto-triggers the active view's fetch if coords were previously empty; editing the lat/lng inputs manually clears `detectedLocation`
 - `isLocating` state drives loading UI: spinner (`Loader2`) + "Locating…" label while request is in flight; button disabled during request
 - Error codes: `permission-denied` (platform-specific message), `timeout`, `dev-mode` (Tauri dev mode), `insecure-context` (HTTP origin on web), `unavailable` (fallback)
 - **Tauri desktop path:** calls `invoke('get_location')` — a native Rust command in `src-tauri/src/location.rs` that uses `CLLocationManager` directly via `objc2-core-location`. `navigator.geolocation` cannot work in Tauri because wry's `WKWebView` UIDelegate does not implement `webView:requestGeolocationPermissionFor:`, the method macOS 12+ requires to show the system permission dialog. `com.apple.security.personal-information.location` entitlement is required under hardened runtime and is embedded via `src-tauri/entitlements.plist`.
@@ -865,6 +865,8 @@ Two additions to the Map Explorer Hotspots mode.
 - `frontend/src/components/AtlasBlockLayer.tsx`, `MapExplorer.tsx` (toggle + state + nearest list)
 - `frontend/src/assets/ca-atlas-blocks.json`, `scripts/convert-atlas-blocks.mjs`, `globals.css` (`--sr-map-atlas`, `.sr-atlas-block`)
 
+*Superseded by the v0.5.9 MapLibre migration — the overlay now renders as GL `fill`/`line` layers in `AtlasLayer.tsx` (`AtlasBlockLayer.tsx` is gone), viewport-capped at 9,000 blocks via `blocksInBounds` + `padBounds(0.15)` recomputed on `moveend`. The gazetteer asset, `generateBlocks` geometry, block-code → eBird-link scheme, and clickable transparent interiors (a `fill-opacity: 0` MapLibre fill is still hit-tested) all carry over. See the v0.5.9 entry below and CLAUDE.md → "Overlays and stacking".*
+
 ### Map Explorer — Shade Atlas Blocks by Your Highest Breeding Code (complete — June 2026, v0.5.2)
 
 Extends the atlas overlay so it can be tinted by the user's own breeding evidence, and surfaces the whole overlay in every map view.
@@ -890,6 +892,8 @@ Extends the atlas overlay so it can be tinted by the user's own breeding evidenc
 - `frontend/src/components/MapExplorer.tsx` — shared `atlasOverlayControls` in all three sidebars, shade/texture state
 - `frontend/src/globals.css` — `.sr-atlas-tier-1..4` (pattern fills), `.sr-atlas-fill-1..4` (flat fills)
 
+*Superseded by the v0.5.9 MapLibre migration — the SVG `<pattern>` hatches (`AtlasTierPatterns.tsx`, removed) became canvas-baked raster sprites (`lib/atlasTextures.ts`) registered via `map.addImage` and referenced from `fill-pattern`, regenerated on theme change. The shade-by-breeding data model (`atlasBreeding.ts`, `pointToBlockCode`) is unchanged. See the v0.5.9 entry below and CLAUDE.md → "Overlays and stacking".*
+
 ### Heatmap Intensity Parity + Desktop Clipboard Auto-Copy (complete — June 2026, v0.5.3)
 
 Two parity improvements (Improve lane).
@@ -911,6 +915,8 @@ Two parity improvements (Improve lane).
 - `frontend/src/components/MapExplorer.tsx` — imports shared `lib/heat.ts`
 - `frontend/src/App.tsx` — `handleLookup`/`handleCopy` use `copyText`
 - `src-tauri/` — `Cargo.toml`, `src/lib.rs`, `capabilities/default.json` (clipboard plugin)
+
+*The heatmap half is superseded by the v0.5.9 MapLibre migration — both maps now use MapLibre's native `heatmap` layer, and `lib/heat.ts` (still the single shared model) now exports `heatRadiusPx` / `heatIntensityFactor` / `heatWeightDivisor` / `heatWeight`. The clipboard-seam half of this entry is still current. See the v0.5.9 entry below.*
 
 ### macOS Universal Binary — Intel Mac Support (complete — June 2026, v0.5.5)
 
@@ -972,6 +978,14 @@ brand-styled, keyless layer switcher.
 - `frontend/src/globals.css` (`.sr-map-layers*` switcher styles; `--sr-map-void` default)
 - `PRIVACY_POLICY.md`, `docs/HELP.md`, `README.md`
 
+*Superseded by the v0.5.9 MapLibre migration — `lib/basemaps.ts` and `MapBaseLayers.tsx` were replaced by `lib/mapStyle.ts` + the `SnowMap` wrapper; the default base is now the OpenFreeMap vector style (positron, tuned in `fetchTunedBaseStyle`), with Satellite (Esri) / Topo-US (USGS) / Trails (Waymarked) as raster layers toggled by `visibility` inside the one persistent style. The keyless stance, the persisted base/overlay choice, and the PRIVACY_POLICY.md "Map Tiles" disclosure rule all still stand. See the v0.5.9 entry below.*
+
+### Maps — MapLibre Vector Migration (complete — June 2026, v0.5.9)
+
+All three maps (Map Explorer, Species Detail, Statistics) moved from Leaflet + raster tiles to **MapLibre GL** via `react-map-gl` (entry `react-map-gl/maplibre`); Leaflet, react-leaflet, and leaflet.heat were removed entirely. The default base is the **OpenFreeMap** vector style (positron); Satellite/Topo/Trails remain as raster layers toggled by `visibility` within the one persistent style. Everything carried over: the layer switcher, the atlas overlay (GL fill/line layers + canvas-baked hatch sprites in `lib/atlasTextures.ts`), heatmaps (native `heatmap` layer driven by the shared `lib/heat.ts` model), and the popups (a single state-driven `<Popup>` per map, escaped JSX). The shared wrapper is `components/SnowMap.tsx`, with styles/providers in `lib/mapStyle.ts` (including the `VOID_COLOR` placeholder shown while the style loads); the Map Explorer fullscreen toggle shows at all widths since this release.
+
+This is the anchor for the "*Superseded by the v0.5.9 MapLibre migration*" notes on the earlier map entries in this file. **CLAUDE.md → "Overlays and stacking" is the canonical, current description of the map stack** (GL marker layers, atlas viewport cap, heat model, popup/security contracts); DECISIONS.md "Vector basemap: Leaflet → MapLibre GL + OpenFreeMap — 2026-06-04 (v0.5.9)" records the rationale.
+
 ### Map Explorer — Mobile Fullscreen + Ocean-Tone Backdrop (complete — June 2026, v0.5.4)
 
 Improve-lane mobile usability pass on the Map Explorer.
@@ -990,6 +1004,8 @@ Improve-lane mobile usability pass on the Map Explorer.
 - `frontend/src/App.tsx` — `mapFullscreen` state, fixed-overlay panel style, scroll-lock effect, props to MapExplorer, fullscreen-clearing nav callbacks
 - `frontend/src/components/MapExplorer.tsx` — `isFullscreen`/`onToggleFullscreen` props; fullscreen button in the `.sr-map-fab-cluster`
 - `frontend/src/globals.css` — `.sr-map-fab-cluster`, `.sr-map-fullscreen-btn`, `.leaflet-container.leaflet-container` backdrop, `--sr-map-void` token (both themes)
+
+*The backdrop half is superseded by the v0.5.9 MapLibre migration (entry above) — the `.leaflet-container` override is gone; the backdrop now comes from the MapLibre style's own `background` layer, with a `VOID_COLOR` placeholder (`lib/mapStyle.ts`) only while the style loads. The fullscreen CSS-overlay mechanism is still current, and since v0.5.9 the toggle shows at ALL widths, not just ≤640px.*
 
 ### Species Detail Enhancements — Weekly Interval, Checklists Graph, Frequency Stat (complete — May 2026)
 
@@ -1218,7 +1234,7 @@ The main tab navigation adapts to available width. On desktop it is the existing
 - Collapse is driven by **measured overflow**, not a fixed breakpoint: a hidden probe measures the bar's natural width against available width via `ResizeObserver`, decided in `useLayoutEffect` (pre-paint, no flash). Holds at any tab count or zoom.
 - The dropdown lists configurable tabs in the user's saved order with hidden tabs omitted (reusing the same `tabLayout` state as the bar), Settings pinned below a divider, active row highlighted with a checkmark.
 - Preserves the desktop bar's `tablist` semantics and roving arrow-key navigation; the dropdown is a custom accessible listbox (aria-haspopup/expanded/selected, arrow/Home/End/Escape, outside-click and focus-return).
-- Menu sits at `z-index: 1200` so it layers above the Leaflet map on the Map Explorer tab.
+- Menu sits at `z-index: 1200` so it layers above the MapLibre map and its controls on the Map Explorer tab (the CLAUDE.md floating-overlay rule).
 
 **Key files:**
 - `frontend/src/components/TabNav.tsx` — responsive navigation (bar + dropdown); the single source of nav rendering
@@ -1415,11 +1431,11 @@ In the Species Detail tab, merged view is the default (`mergeSubspecies: true`).
 **Top Locations renders all location names as plain text — no links**
 Private eBird locations have no public-facing page; `ebird.org/loc/{id}` and `ebird.org/hotspot/{id}` both fail for personal locations. The eBird CSV export uses the same `L\d+` ID format for public hotspots and personal locations, so they cannot be distinguished without an API call. Location names are rendered as plain text throughout. Do not add location hyperlinks without a reliable way to distinguish public hotspots from private locations at parse time.
 
-**Leaflet map marker icons require a CDN patch in Vite builds**
-Vite's asset hashing breaks Leaflet's default mechanism for resolving marker icon URLs (it walks `_getIconUrl` which relies on a `data-url` import trick that Vite doesn't replicate). Fix: delete `_getIconUrl` from `L.Icon.Default.prototype` (requires `// eslint-disable-next-line @typescript-eslint/no-explicit-any`) then call `L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl })` pointing to the unpkg CDN for the matching Leaflet version. This must run at module level, not inside a component or effect.
+**Leaflet map marker icons require a CDN patch in Vite builds** *(Historical — superseded by the v0.5.9 MapLibre migration)*
+Vite's asset hashing breaks Leaflet's default mechanism for resolving marker icon URLs (it walks `_getIconUrl` which relies on a `data-url` import trick that Vite doesn't replicate). Fix: delete `_getIconUrl` from `L.Icon.Default.prototype` (requires `// eslint-disable-next-line @typescript-eslint/no-explicit-any`) then call `L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl })` pointing to the unpkg CDN for the matching Leaflet version. This must run at module level, not inside a component or effect. *Leaflet is gone; no icon patch exists in the codebase anymore.*
 
-**Leaflet popup inline styles use hardcoded hex for link colors**
-CSS variables (`var(--sr-*)`) are not reliably inherited inside Leaflet popup DOM, which is rendered outside the React tree by Leaflet itself. Popup link colors use `#2D8653` (the light-mode accent) directly. This is a known limitation — acceptable given the popup is a small secondary UI element and the app's threat model doesn't require dark-mode support inside popups.
+**Leaflet popup inline styles use hardcoded hex for link colors** *(Historical — superseded by the v0.5.9 MapLibre migration)*
+CSS variables (`var(--sr-*)`) are not reliably inherited inside Leaflet popup DOM, which is rendered outside the React tree by Leaflet itself. Popup link colors use `#2D8653` (the light-mode accent) directly. This is a known limitation — acceptable given the popup is a small secondary UI element and the app's threat model doesn't require dark-mode support inside popups. *No longer true: MapLibre popups render as JSX inside the React tree, where `var(--sr-*)` tokens resolve normally — new popup code MUST use the tokens, per CLAUDE.md's color rule.*
 
 **Media grid uses CSS grid `repeat(3, minmax(0, 1fr))` instead of flex**
 Flexbox `flex: 1` on media items causes a single item to stretch to full width, making a lone photo embed look awkward (wide + constrained height). CSS grid with three equal fixed columns means one item takes 1/3 width, two items take 2/3, three items fill all columns — proportional regardless of item count. Mobile overrides to `grid-template-columns: 1fr` (single column, taller iframes). `scrolling="no"` + `overflow: hidden` on the iframe suppress any scrollbars the embedded content would otherwise produce.

@@ -4,6 +4,69 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Remaining test-suite flake fixed (two mechanisms, test-only); 0.5.29 records narrowed; PRODUCT_CONTEXT MapLibre doc-rot cleared — 2026-06-11 (no release; rides main until the next release)
+
+**What:** Improve lane that killed both remaining failure classes of the
+frontend suite's rare timing flake with test-only changes.
+**(A1) The commit-vs-effect race:** under suite load, `renderAndLoad()`'s
+`waitFor` on rendered DOM (`BirdingStats.test.tsx`) could resolve on the
+phase-ready React commit BEFORE the component's passive double-rAF effect
+queued anything into the stubbed `rafQueue` — flush #1 then drained an empty
+queue, the rAF ladder never completed, and the next heading assertion failed
+against a frozen shell. Fixed with an observable stub-queue precondition after
+the DOM wait: `await waitFor(() => expect(rafQueue.length).toBeGreaterThan(0))`
+— no wall clock. **(A2) The inter-environment timer leak:** toolkit's 100 ms
+autoBatch fallback timers armed in the two chart-mounting jsdom files could
+fire AFTER the file's jsdom environment was torn down, where neither jsdom's
+`cancelAnimationFrame` nor the node-env shims exist (the 0.5.29 `test-setup.ts`
+guards never install in jsdom files) — failing a later file with all tests
+green. Fixed with `afterAll(() => new Promise((r) => setTimeout(r, 120)))`
+wait-outs in `BirdingStats.test.tsx` and `MediaStatsSections.test.tsx`.
+Proof: 45/45 post-fix stressed runs green (Engineer 30 + QA 15; single worker,
+shuffled file order, concurrent CPU load) against a 3/30 pre-fix failure rate;
+a pre-fix negative control in a throwaway worktree failed at run 12 with the
+exact A2 class — all 82 tests passing, the run failed on the unhandled error.
+
+Also in this lane: the 0.5.29 "flake fixed" overclaim was narrowed in
+DECISIONS.md, CHANGELOG.md, and ROADMAP.md to the `cancelAnimationFrame` arm
+it actually fixed, and PRODUCT_CONTEXT.md's pre-MapLibre doc rot was cleared
+(12 current-behavior passages rewritten against the current map stack, 5
+historical entries annotated as superseded, 2 Key Decisions marked historical,
+and a v0.5.9 MapLibre-migration anchor entry added for the notes to point at).
+
+**Decisions:**
+- **No release — the change rides main until the next real release.** Nothing
+  here ships in the app bundle (tests and records only), so the user scoped
+  the lane to no version bump, no tag, no Mac release; CHANGELOG carries an
+  `[Unreleased]` section that folds into the next release. Running the full
+  release rhythm (tag, Windows CI, notarization, updater) for a change
+  invisible to users buys nothing.
+- **Async UI tests must wait on OBSERVABLE stubbed-queue preconditions —
+  never assume effect timing relative to `waitFor`.** A DOM `waitFor` proves
+  the commit happened, not that passive effects have run; when a test stubs a
+  scheduling queue and then flushes it, the flush is only meaningful once the
+  stub queue observably holds work. The generalized pattern: after the DOM
+  wait, `waitFor` on the stub queue's length, then flush. Rejected
+  alternatives (`vi.resetModules()`, rIC shims in `test-setup.ts`) were
+  evaluated and dropped — they don't touch the mechanism.
+- **Chart-library fallback timers need teardown wait-outs in jsdom files.**
+  The 0.5.29 shims protect node-env files only; a jsdom file's own teardown
+  is still a cliff for any third-party timer armed during it. Any test file
+  that mounts recharts charts ends with the 120 ms `afterAll` wait so the
+  timers fire where `cancelAnimationFrame` still exists.
+- **The outside-project boundary held and is now a standing rule.** The
+  scoping inventory's proposed "resolution note" about snowraven-mini was
+  rejected: this repo's pipeline and records track SnowRaven only. Promoted
+  to CLAUDE.md's pipeline conventions so no future lane re-litigates it.
+
+**Implications:** Both test patterns are promoted to CLAUDE.md (Running
+tests): new chart-mounting jsdom files copy the 120 ms wait-out, and
+component tests that stub scheduling queues flush only after an observable
+precondition. The stress recipe — `npx vitest run src/components
+--maxWorkers=1 --sequence.shuffle.files=true` under concurrent CPU
+busy-loops, 30 runs — is the proven reproducer for suite-order flakes;
+reuse it (plus a pre-fix negative control) before claiming any flake fixed.
+
 ## Map fixes: sprite registration never gated on `isStyleLoaded()`, branch `<Source>`s keyed — 2026-06-11 (v0.5.30)
 
 **What:** Fix lane for the missing hotspot teardrops, expanded mid-lane (user
@@ -59,9 +122,9 @@ external ids acts only on its own hardcoded id set, never using the incoming
 id as an object key or regex input (the 0.5.30 handlers are the reference
 implementation).
 
-## Flaky suite fixed with setupFiles baseline shims; SnowRaven Mini mentioned in exactly three places — 2026-06-10 (v0.5.29)
+## Suite's cancelAnimationFrame flake fixed with setupFiles baseline shims; SnowRaven Mini mentioned in exactly three places — 2026-06-10 (v0.5.29)
 
-**What:** Killed the pre-existing ~11% full-suite vitest flake with
+**What:** Killed the `cancelAnimationFrame` arm of the pre-existing ~11% full-suite vitest flake with
 test-infrastructure-only changes (new `frontend/src/test-setup.ts` + a
 `test.setupFiles` entry in `vite.config.ts`; zero production code), and added
 three informational mentions of **SnowRaven Mini** (the author's separate
@@ -70,6 +133,10 @@ page): a Weather-tab footer line (`App.tsx`), a closing paragraph in README's
 "What it does", and an H3 under HELP.md's Weather section. Copy approved
 verbatim; GitHub repo link only (Mini is not on the extension stores — no
 store or landing-site links).
+
+A separate, rarer idle-callback-adjacent flake in the same suite was a
+different mechanism (commit-vs-effect race) and survived this fix; fixed
+separately after 0.5.30.
 
 **Decisions:**
 - **Library fallback timers that outlive a test file need BASELINE shims in
