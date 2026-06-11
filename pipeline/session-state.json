@@ -1,15 +1,19 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 23,
+  "activeFeature": "flaky-test-and-mini-mentions",
+  "sessionNumber": 24,
   "sessionType": "maintain",
-  "currentStage": 1,
-  "lastCompletedStage": 1,
-  "lastCheckpointStatus": "complete",
+  "currentStage": 6,
+  "lastCompletedStage": 5,
+  "lastCheckpointStatus": "paused",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "pipeline/flaky-test-and-mini-mentions/change-brief.md",
+    "pipeline/flaky-test-and-mini-mentions/qa-report.md",
+    "pipeline/flaky-test-and-mini-mentions/security-report.md"
+  ],
   "releasedVersion": "0.5.28",
-  "lastFeature": "0.5.28 SHIPPED (live, in-app updater verified). Weather-block raincrow parity (improve lane): moon-phase emoji appended (unspaced, e.g. ☁️🌗) to the condition emoji on night checklists — night = any sampled hour outside its sunrise–sunset window, phase from the checklist's first hour, Southern-Hemisphere mirrored; hand-ported lunarphase-js@2.0.3 with pure-UTC Julian Day, byte-identical across the TS + Python formatters via the golden-oracle chain; day blocks byte-unchanged. Built+chronicled+tagged on the VM; released from the Mac: v0.5.28 tag → Windows CI green (installer artifact present) → ./release.sh — macOS universal DMG notarized (Apple: Accepted) + stapled, bundle-version guard 0.5.28, Windows installer signed locally, latest.json carries all three keys (darwin-aarch64 + darwin-x86_64 → the one universal bundle/same sig, windows-x86_64 → -setup.exe), every updater + DMG URL HEAD 200. Tests: 110 backend green; 769 frontend green EXCEPT a pre-existing flaky BirdingStats.test.tsx (cancelAnimationFrame undefined in jsdom + double-rAF race, ~11%, passes 3/3 in isolation) — NOT in the 0.5.28 diff, no production-build impact; fix on the VM. Website at 0.5.28 (VM).",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. KNOWN ISSUE (fix on VM): frontend BirdingStats.test.tsx is flaky (~11%) — 'ReferenceError: cancelAnimationFrame is not defined' from @reduxjs/toolkit timers + a double-rAF timing race; passes in isolation. Likely needs a cancelAnimationFrame polyfill in the vitest setup. Pre-existing (also latent under 0.5.27), no product/build impact.",
-  "createdAt": "2026-06-10T22:17:57Z",
-  "updatedAt": "2026-06-11T01:19:43Z"
+  "lastFeature": "0.5.29 BUILT + PUSHED, pending Mac release. Flaky-test fix + SnowRaven Mini mentions (improve lane): (A) BirdingStats full-suite flake eliminated — root cause recharts' bundled @reduxjs/toolkit autoBatch 100ms fallback timer outliving a jsdom test file's per-test stubs and throwing bare cancelAnimationFrame in a later DOM-less worker file; fix = baseline rAF/cAF shims in frontend/src/test-setup.ts via vitest setupFiles (test-only, excluded from dist — verified). QA proved it both ways: 8/8 shim-enabled runs clean, 2/18 shim-disabled reproduced (~ the historical 11%). (B) Three informational SnowRaven Mini mentions, approved copy verbatim: App.tsx weather-tab footer-register line, README 'What it does' closing paragraph, HELP.md H3 under Weather (no TOC entry — Tides precedent); website deliberately SILENT about Mini (decision recorded). Versions 0.5.29 both files + CHANGELOG + website pill/footer; security clean pass (no findings). The Mac: wait CI green → ./release.sh → verify updater sees 0.5.29 → closeout commit.",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. (BirdingStats flake: FIXED in 0.5.29.) Cross-repo note: snowraven-mini's formatter lacks the v0.5.28 moon-phase emoji — fix lives in that repo.",
+  "createdAt": "2026-06-11T02:55:23Z",
+  "updatedAt": "2026-06-11T04:58:02Z"
 }

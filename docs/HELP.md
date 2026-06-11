@@ -91,6 +91,10 @@ The box shows the water level across your checklist's duration, labeled **Observ
 
 If the nearest station is more than 25 miles away, or your checklist is outside the US (NOAA only covers the US and its territories), the box explains that and offers a one-tap option to show the nearest US station anyway. A **Copy Weather and Tide Together** button copies both blocks at once, with a single SnowRaven credit at the bottom.
 
+### SnowRaven Mini (browser extension)
+
+SnowRaven Mini is a separate companion project: a small Chrome and Firefox extension that runs the same weather and tide lookup directly on an eBird checklist's Edit Comments page and copies the block for pasting, in the same format SnowRaven produces. It is independent of the app — nothing in SnowRaven requires or uses it — and it needs its own copies of the free eBird and OpenWeather keys. It is not yet on the extension stores; source, releases, and documentation live at [github.com/dtgibson/snowraven-mini](https://github.com/dtgibson/snowraven-mini).
+
 ---
 
 ## Species Detail

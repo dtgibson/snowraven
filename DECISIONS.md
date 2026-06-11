@@ -4,6 +4,49 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Flaky suite fixed with setupFiles baseline shims; SnowRaven Mini mentioned in exactly three places — 2026-06-10 (v0.5.29)
+
+**What:** Killed the pre-existing ~11% full-suite vitest flake with
+test-infrastructure-only changes (new `frontend/src/test-setup.ts` + a
+`test.setupFiles` entry in `vite.config.ts`; zero production code), and added
+three informational mentions of **SnowRaven Mini** (the author's separate
+Chrome/Firefox extension running the same weather+tide lookup on the eBird
+page): a Weather-tab footer line (`App.tsx`), a closing paragraph in README's
+"What it does", and an H3 under HELP.md's Weather section. Copy approved
+verbatim; GitHub repo link only (Mini is not on the extension stores — no
+store or landing-site links).
+
+**Decisions:**
+- **Library fallback timers that outlive a test file need BASELINE shims in
+  shared setup — per-test stubs structurally cannot cover cross-file timing.**
+  Root cause: recharts bundles `@reduxjs/toolkit`, whose autoBatch fallback
+  timer (100 ms) calls bare `cancelAnimationFrame`. `BirdingStats.test.tsx`
+  stubs rAF/cAF per-test and restores them in `afterEach`; the stray timer
+  fires AFTER that file finishes — in a later DOM-less node-env file in the
+  same worker, where `cancelAnimationFrame` doesn't exist — and vitest fails
+  whatever test happens to be running. Fix: idempotent,
+  `typeof === 'undefined'`-guarded rAF/cAF shims run for EVERY file via vitest
+  `setupFiles` (jsdom files keep their natives; BirdingStats' own stubs still
+  win during its tests). QA proved it both ways: 8/8 shim-enabled full-suite
+  runs clean; a shim-disabled negative control reproduced the exact
+  ReferenceError at the pinned ~11% rate (2/18). Never remove the shims or
+  convert them back to per-test stubs.
+- **The website stays SILENT about Mini.** CLAUDE.md's website-sync rule
+  exists so the site reflects the app's feature set; a companion-project
+  mention is not an app feature, and the user specified exactly three places.
+  Purpose reading over letter — recorded so a future docs-sync sweep doesn't
+  "fix" the omission by adding Mini to the site.
+- **The HELP mention is an H3 under Weather, deliberately OUT of the HelpDocs
+  TOC** (the Tides precedent). Companion-project info is findable in context,
+  not promoted to navigation — matching the informational, no-promotion
+  register of all three mentions.
+
+**Implications:** Any future flake traced to a third-party timer that
+outlives a test file gets the same treatment (extend `test-setup.ts`, don't
+per-test stub). Out of scope but flagged: snowraven-mini's own formatter
+lacks the v0.5.28 moon-phase emoji — drift in the OTHER repo, not addressed
+here.
+
 ## Weather-block raincrow parity: moon phase via the header emoji, pure-UTC port — 2026-06-10 (v0.5.28)
 
 **What:** SnowRaven's generated weather blocks now append a moon-phase emoji to

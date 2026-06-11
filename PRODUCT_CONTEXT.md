@@ -257,6 +257,11 @@ raincrow.app output format.
   computed locally (hand-ported lunarphase-js 2.0.3, pure-UTC Julian Day — no
   new API calls, no dependency). Identical in the TS and Python formatters,
   locked by the golden-oracle chain; day blocks byte-unchanged.
+- **(v0.5.29)** A footer note under the weather card (and matching paragraphs
+  in README + in-app Help) points to **SnowRaven Mini** — the author's
+  separate Chrome/Firefox extension running the same weather and tide lookup
+  on the eBird page — as a plain informational GitHub link (no fetch until
+  clicked; the website deliberately omits it).
 
 **Key files:**
 - `backend/services/ebird.py` — eBird API client with coordinate fallback logic

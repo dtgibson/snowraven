@@ -20,6 +20,8 @@ SnowRaven turns your own eBird and Macaulay Library exports into a personal bird
 
 Full per-feature documentation lives in **[docs/HELP.md](docs/HELP.md)**.
 
+A companion project, [SnowRaven Mini](https://github.com/dtgibson/snowraven-mini), is a small Chrome and Firefox extension that runs the same weather and tide lookup right on the eBird checklist page. It's separate from SnowRaven and not required by it.
+
 ## Privacy
 
 SnowRaven is local-first and **collects nothing** — no accounts, no analytics, no telemetry, and no developer-operated server. Your eBird backup, Macaulay Library export, settings, and API keys stay on your own device (or your own self-hosted machine). Network requests go directly from your device to the services the app draws from — eBird, OpenWeather, OpenStreetMap/Nominatim, and NOAA Tides & Currents with *your* API keys where keys are needed, plus the keyless map-tile hosts and the Cornell Lab sites that embedded Macaulay media and bird-link icons load from. The full provider list is in the [Privacy Policy](PRIVACY_POLICY.md); see also the [Accessibility statement](ACCESSIBILITY.md).

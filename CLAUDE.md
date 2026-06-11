@@ -47,7 +47,7 @@ This project uses the Weft framework. Run /new-feature to start a new feature.
 ### Stack
 - Backend: Python 3.10+, FastAPI, uvicorn, httpx, timezonefinder
 - Frontend: React, Vite, TypeScript, Tailwind CSS v4, shadcn/ui
-- Tests: pytest (backend, 35 tests), vitest (frontend)
+- Tests: pytest (backend, 110 tests), vitest (frontend)
 - CI: GitHub Actions (`.github/workflows/pipeline.yml`)
 
 ### Running locally
@@ -63,6 +63,8 @@ cd frontend && npm run dev
 ```
 cd backend && python -m pytest tests/ -v
 ```
+
+- **`frontend/src/test-setup.ts` installs baseline `requestAnimationFrame`/`cancelAnimationFrame` shims for every test file** (wired via vitest `test.setupFiles` in `vite.config.ts`). Reason: recharts bundles `@reduxjs/toolkit`, whose autoBatch fallback timer (100 ms, calls bare `cancelAnimationFrame`) can outlive a jsdom test file and fire in a later DOM-less node-env file in the same worker — the source of the old ~11% full-suite flake. Never remove the shims or convert them to per-test `vi.stubGlobal` stubs (per-test stubs can't cover timers that fire after their file's environment is torn down). The shims are `typeof === 'undefined'`-guarded, so jsdom files keep their natives and a file's own stubs still win.
 
 ### Bird names
 

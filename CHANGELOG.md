@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.29] - 2026-06-10
+
+### Added
+- **SnowRaven Mini mentions.** Three informational pointers to [SnowRaven Mini](https://github.com/dtgibson/snowraven-mini) — the author's separate Chrome/Firefox extension that runs the same weather and tide lookup directly on an eBird checklist page: a one-line note under the Weather tab's card, a paragraph in the README, and a short subsection in the in-app Help under Weather. Plain links only — no icons, no fetches, no new providers; the privacy policy is unchanged.
+
+### Fixed
+- **Flaky frontend test suite (~11% of full runs).** recharts bundles `@reduxjs/toolkit`, whose autoBatch enhancer races a captured `requestAnimationFrame` against a 100 ms fallback timer and calls bare `cancelAnimationFrame` when the timer wins; `BirdingStats.test.tsx` stubs rAF per-test, so the fallback fired after the stubs were restored in an environment with no native `cancelAnimationFrame`, producing an unhandled `ReferenceError` pinned on whichever test was running. A tiny vitest setup file (`frontend/src/test-setup.ts`) now installs baseline rAF/cAF shims when the globals are undefined. Test infrastructure only — no production code changed.
+
 ## [0.5.28] - 2026-06-10
 
 ### Added

@@ -893,6 +893,11 @@ export default function App() {
             </>
           )}
         </div>
+        <p style={{ width: '100%', maxWidth: 540, margin: '14px 0 0', textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)' }}>
+          Also for your browser:{' '}
+          <a href="https://github.com/dtgibson/snowraven-mini" target="_blank" rel="noreferrer" aria-label="SnowRaven Mini on GitHub (opens in new tab)" style={{ color: 'inherit', textDecoration: 'underline' }}>SnowRaven Mini</a>
+          , a Chrome/Firefox extension with this same weather and tide lookup.
+        </p>
       </div>
 
       {/* List Comparer tab content */}
