@@ -43,7 +43,7 @@ function RadioGroup<T extends string | number>({
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     const idx = options.findIndex(o => o.key === value)
     if (idx < 0) return
-    let next = idx
+    let next: number
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % options.length
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + options.length) % options.length
     else if (e.key === 'Home') next = 0

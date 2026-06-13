@@ -42,6 +42,7 @@ export interface ChecklistLinkProps {
 
 // The one accessible name for this function, everywhere it appears. Pass the visible
 // `label` (when one is shown) so the name leads with it — WCAG 2.5.3.
+// eslint-disable-next-line react-refresh/only-export-components -- pure accessible-name formula, tested directly; lives here beside the component it names
 export function checklistLinkAriaLabel(submissionId: string, label?: string): string {
   if (label && label !== submissionId) {
     return `${label} — open checklist on eBird (opens in a new tab)`
