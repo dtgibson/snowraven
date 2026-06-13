@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.33] - 2026-06-13
+
+### Added
+- **Sex and age filters on the Multimedia tab.** Two dropdowns — Sex (Male/Female) and Age (Juvenile/Immature/Adult) — let you slice your Macaulay Library media by life stage and sex: pull up all your juveniles, or the males of a sexually dimorphic species to compare plumage. They compose with the existing media and county/date filters; each species' photo/audio/video counts and the "X of N species" total reflect the active filter, species with no matching media drop out, and the Macaulay Library links carry the filter so a click opens the same subset. Combining age and sex targets one kind of bird (a "juvenile female" matches only media with at least one juvenile female), while a single facet stays broad. Built entirely on the age/sex data already in your export — no new data, no backend.
+
 ## [0.5.32] - 2026-06-13
 
 ### Accessibility

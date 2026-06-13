@@ -253,6 +253,7 @@ Each non-zero count in the Photo, Audio, and Video columns is a clickable link t
 Toolbar options:
 
 - Filter pills: All, Has media, Is Target (missing at least one media type), No photo, No audio, No video, Has photo, Has audio, Has video. Multiple pills combine with AND logic.
+- Sex and Age dropdowns: filter the media by **sex** (Male, Female) and **age** (Juvenile, Immature, Adult). They combine with the pills, with each other, and with the county/date filters. While a facet is active, each species' counts reflect only the matching media, species with none drop out of the list, and the Macaulay Library links open scoped to the same filter. Choosing both an age and a sex targets a single kind of bird (e.g. a juvenile female); a single dropdown stays broad (any female, or any juvenile).
 - A-Z / Taxonomic: switch between alphabetical and eBird taxonomic sort order.
 - Merge subspecies: on by default; combines subspecies variants under the parent species name.
 - Show sp./slash: off by default; hides uncertain identifications.

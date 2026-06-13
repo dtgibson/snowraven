@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Multimedia — Sex &amp; Age Filters (design preview)</title>
+<style>
+  :root{
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5;
+    --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-gray:#8A8A93;
+    --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5;
+    --sr-accent:#277448; --sr-accent-bg:#E8F5EE;
+    --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-border-strong:rgba(39,116,72,0.7);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--sr-bg);color:var(--sr-text);
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    padding:32px 28px 64px;line-height:1.5;}
+  .wrap{max-width:1080px;margin:0 auto}
+  h1{font-size:1.125rem;font-weight:700;letter-spacing:-0.01em;margin:0 0 2px}
+  .sub{font-size:0.8125rem;color:var(--sr-text-muted);margin:0 0 24px}
+  .panel{background:var(--sr-surface);border:1px solid var(--sr-border);border-radius:12px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.04);padding:18px;margin-bottom:22px}
+
+  /* controls row — faithful to LifeList.tsx */
+  .controls{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .pills{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border-radius:6px;
+    font-size:0.75rem;font-weight:500;cursor:pointer;white-space:nowrap;
+    border:1.5px solid var(--sr-border);background:var(--sr-surface);color:var(--sr-text-muted)}
+  .pill.pos{border-color:var(--sr-accent-border);background:var(--sr-accent-bg);color:var(--sr-accent)}
+  .sep{width:1px;height:20px;background:var(--sr-border);align-self:center}
+  .selwrap{position:relative;display:inline-flex;align-items:center}
+  select{height:26px;padding-left:10px;padding-right:22px;border-radius:5px;
+    border:1.5px solid var(--sr-border);background:var(--sr-surface);color:var(--sr-text-muted);
+    font-size:0.75rem;font-weight:500;font-family:inherit;cursor:pointer;appearance:none;-webkit-appearance:none}
+  select.icon{padding-left:24px}
+  select.active{border-color:var(--sr-accent-border-strong);background:var(--sr-accent-bg);color:var(--sr-accent)}
+  .selicon{position:absolute;left:7px;pointer-events:none;display:inline-flex;color:var(--sr-text-muted)}
+  select.active + .chev,.selwrap.on .selicon{color:var(--sr-accent)}
+  .chev{position:absolute;right:6px;pointer-events:none;font-size:0.5625rem;color:var(--sr-text-muted)}
+  .count{font-size:0.75rem;color:var(--sr-text-muted)}
+
+  /* "new" highlight ring for the preview only */
+  .isnew{outline:2px dashed var(--sr-accent-border-strong);outline-offset:3px;border-radius:7px}
+  .newtag{position:absolute;top:-9px;left:0;font-size:0.5625rem;font-weight:700;letter-spacing:0.04em;
+    text-transform:uppercase;color:var(--sr-accent);background:var(--sr-bg);padding:0 4px}
+
+  /* mock table */
+  table{width:100%;border-collapse:collapse;margin-top:14px;font-size:0.8125rem}
+  th{text-align:left;font-size:0.6875rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;
+    color:var(--sr-text-muted);padding:8px;border-bottom:1px solid var(--sr-border)}
+  td{padding:8px;border-bottom:1px solid var(--sr-border-subtle)}
+  .sp{font-weight:600}
+  .sci{font-style:italic;font-size:0.71875rem;color:var(--sr-text-gray)}
+  .mlink{color:var(--sr-accent);text-decoration:none;font-weight:600}
+  .mlink:hover{text-decoration:underline}
+  .muted{color:var(--sr-text-muted)}
+  .row.hidden{display:none}
+
+  .note{font-size:0.78125rem;color:var(--sr-text-muted);background:var(--sr-surface-subtle);
+    border:1px solid var(--sr-border);border-radius:8px;padding:10px 12px;margin:10px 0}
+  .note b{color:var(--sr-text)}
+  .callouts{margin-top:8px;font-size:0.8125rem;color:var(--sr-text-muted)}
+  .callouts li{margin:5px 0}
+  .legend{font-size:0.71875rem;color:var(--sr-text-gray);margin-top:6px}
+  code{background:var(--sr-surface-subtle);padding:1px 5px;border-radius:4px;font-size:0.85em}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Multimedia — Sex &amp; Age filters</h1>
+  <p class="sub">Design preview · two native <code>&lt;select&gt;</code> filters added to the existing toolbar, matching the County dropdown pattern. Try the Sex and Age dropdowns below — the table and counts react live.</p>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="pills">
+        <button class="pill pos" disabled>All</button>
+        <button class="pill" disabled>Has media</button>
+        <span class="sep"></span>
+        <button class="pill" disabled>📷 Has photo</button>
+        <button class="pill" disabled>🎙 Has audio</button>
+        <span class="sep"></span>
+
+        <!-- NEW: Sex -->
+        <span class="selwrap isnew" id="sexWrap" style="position:relative">
+          <span class="newtag">new</span>
+          <select id="sex" aria-label="Sex">
+            <option value="">Any sex</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+          <span class="chev">▾</span>
+        </span>
+
+        <!-- NEW: Age -->
+        <span class="selwrap isnew" id="ageWrap" style="position:relative">
+          <span class="newtag">new</span>
+          <select id="age" aria-label="Age">
+            <option value="">Any age</option>
+            <option value="juvenile">Juvenile</option>
+            <option value="immature">Immature</option>
+            <option value="adult">Adult</option>
+          </select>
+          <span class="chev">▾</span>
+        </span>
+
+        <span class="sep"></span>
+        <!-- existing County select, shown for context/consistency -->
+        <span class="selwrap">
+          <span class="selicon">📍</span>
+          <select class="icon" aria-label="County" disabled><option>All Counties</option></select>
+          <span class="chev">▾</span>
+        </span>
+      </div>
+      <div class="count" id="count" aria-live="polite">4 species</div>
+    </div>
+
+    <table>
+      <thead><tr><th>Species</th><th>Photos</th><th>Audio</th><th>Video</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="legend" id="legend">No facet active — totals shown, every species listed (identical to today).</div>
+  </div>
+
+  <ul class="callouts">
+    <li><b>Placement.</b> The two dropdowns sit in the media-filter cluster (after the Has-photo/audio pills), since they refine <i>what's in</i> the media. Easy to move beside County if you'd rather group the dropdowns.</li>
+    <li><b>Active state.</b> A selected facet turns the control accent-green (border + fill + text), exactly like the County filter when a county is chosen.</li>
+    <li><b>Counts react.</b> Each species' photo/audio/video count shows the filtered subset, and the header "<span class="muted">X of N species</span>" updates (it's already an <code>aria-live</code> region).</li>
+    <li><b>Zero hidden.</b> While a facet is active, species with no matching media drop out of the list (your call, confirmed).</li>
+    <li><b>Exact-combo.</b> Age + Sex together targets one kind of bird — try <i>Age: Juvenile</i> + <i>Sex: Female</i> and watch the "Adult ♀ / Juv ♂" species fall away.</li>
+  </ul>
+
+  <div class="note" id="linknote"><b>Macaulay link:</b> with no facet, links open the species' media as today. Pick a facet to see the appended params.</div>
+</div>
+
+<script>
+  // Mock data: each species' assets with media type + age/sex groups (exact-combo aware).
+  const SPECIES = [
+    { name:'Wood Duck', sci:'Aix sponsa', taxon:'wooduc', assets:[
+      {type:'Photo', g:[['adult','male']]}, {type:'Photo', g:[['adult','female']]},
+      {type:'Photo', g:[['juvenile','female']]}, {type:'Audio', g:[['adult','male']]},
+    ]},
+    { name:'Mallard', sci:'Anas platyrhynchos', taxon:'mallar3', assets:[
+      {type:'Photo', g:[['adult','female'],['juvenile','male']]}, // mixed: adult ♀ + juv ♂
+      {type:'Photo', g:[['adult','male']]}, {type:'Video', g:[['adult','male']]},
+    ]},
+    { name:"Anna's Hummingbird", sci:'Calypte anna', taxon:'annhum', assets:[
+      {type:'Photo', g:[['adult','male']]}, {type:'Photo', g:[['immature','male']]}, {type:'Audio', g:[]},
+    ]},
+    { name:'American Robin', sci:'Turdus migratorius', taxon:'amerob', assets:[
+      {type:'Photo', g:[['juvenile','female']]}, {type:'Photo', g:[['adult','female']]},
+    ]},
+  ];
+
+  const matches = (groups, sex, age) => {
+    if(!sex && !age) return true;
+    return groups.some(([a,s]) => (!sex || s===sex) && (!age || a===age));
+  };
+
+  function render(){
+    const sex = document.getElementById('sex').value;
+    const age = document.getElementById('age').value;
+    const rows = document.getElementById('rows');
+    rows.innerHTML='';
+    let shown=0;
+    for(const sp of SPECIES){
+      const keep = sp.assets.filter(a => matches(a.g, sex, age));
+      const counts = {Photo:0,Audio:0,Video:0};
+      for(const a of keep) counts[a.type]++;
+      const total = keep.length;
+      const tr = document.createElement('tr');
+      tr.className='row';
+      if((sex||age) && total===0){ tr.classList.add('hidden'); }
+      else shown++;
+      const cell = (n, mt) => n>0
+        ? `<a class="mlink" href="#">${n}</a>`
+        : `<span class="muted">0</span>`;
+      tr.innerHTML = `<td><span class="sp">${sp.name}</span> <span class="sci">${sp.sci}</span></td>
+        <td>${cell(counts.Photo)}</td><td>${cell(counts.Audio)}</td><td>${cell(counts.Video)}</td>`;
+      rows.appendChild(tr);
+    }
+    const N = SPECIES.length;
+    document.getElementById('count').textContent = (sex||age) ? `${shown} of ${N} species` : `${N} species`;
+    // active styling
+    for(const id of ['sex','age']){
+      const el=document.getElementById(id);
+      el.classList.toggle('active', !!el.value);
+    }
+    // legend + link note
+    const params=[]; if(age) params.push('age='+age); if(sex) params.push('sex='+sex);
+    document.getElementById('legend').textContent = (sex||age)
+      ? `Facet active — counts are the filtered subset; zero-match species hidden.`
+      : `No facet active — totals shown, every species listed (identical to today).`;
+    document.getElementById('linknote').innerHTML = params.length
+      ? `<b>Macaulay link:</b> <code>…/catalog?userId=…&amp;mediaType=photo&amp;taxonCode=wooduc&amp;${params.join('&amp;')}</code>`
+        + (params.length===2 ? ` &nbsp;<span class="muted">(ML applies age &amp; sex independently, so a combined link is the broader set — single facets match the in-app count exactly.)</span>` : ``)
+      : `<b>Macaulay link:</b> with no facet, links open the species' media as today. Pick a facet to see the appended params.`;
+  }
+  document.getElementById('sex').addEventListener('change', render);
+  document.getElementById('age').addEventListener('change', render);
+  render();
+</script>
+</body>
+</html>

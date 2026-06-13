@@ -36,6 +36,8 @@ function renderTable(over: Partial<React.ComponentProps<typeof LifeListTable>> =
       wideMode={over.wideMode ?? false}
       onOpenSpecies={over.onOpenSpecies}
       hasEbirdBackbone={over.hasEbirdBackbone}
+      sexFilter={over.sexFilter}
+      ageFilter={over.ageFilter}
     />
   )
 }
@@ -99,5 +101,32 @@ describe('LifeListTable accessibility', () => {
   it('shows a "no results" message when the filtered row set is empty (F080)', () => {
     renderTable({ entries: [] })
     expect(screen.getByText('No species match these filters.')).toBeTruthy()
+  })
+
+  it('appends the active sex/age facet to the Macaulay links (FR-10)', () => {
+    renderTable({
+      entries: [entry({ commonName: 'Wood Duck', catalogIds: ['p1'] })],
+      mediaMap: { p1: 'Photo' },
+      taxonMap: { 'Wood Duck': 'wooduc' },
+      userId: 'USER1',
+      sexFilter: 'Female',
+      ageFilter: 'Juvenile',
+    })
+    const href = screen.getByRole('link', { name: /1 photo on Macaulay Library/ }).getAttribute('href') || ''
+    expect(href).toContain('https://media.ebird.org/catalog')
+    expect(href).toContain('taxonCode=wooduc')
+    expect(href).toContain('age=juvenile')
+    expect(href).toContain('sex=female')
+  })
+
+  it('omits facet params from the links when no facet is active', () => {
+    renderTable({
+      entries: [entry({ commonName: 'Wood Duck', catalogIds: ['p1'] })],
+      mediaMap: { p1: 'Photo' },
+      taxonMap: { 'Wood Duck': 'wooduc' },
+    })
+    const href = screen.getByRole('link', { name: /1 photo on Macaulay Library/ }).getAttribute('href') || ''
+    expect(href).not.toContain('age=')
+    expect(href).not.toContain('sex=')
   })
 })

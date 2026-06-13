@@ -1,15 +1,15 @@
 {
   "activeFeature": null,
-  "sessionNumber": 28,
+  "sessionNumber": 29,
   "sessionType": null,
   "currentStage": null,
-  "lastCompletedStage": 6,
+  "lastCompletedStage": 9,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.32",
-  "lastFeature": "0.5.32 RELEASED (live) — accessibility-followups improve lane, released from the Mac. Re-tagged v0.5.32 at HEAD (e92b3a0, the post-tag lint-only cleanup) so macOS and Windows ship from the identical commit; Windows CI re-run green (run 27480611877). ./release.sh: macOS universal DMG notarized (Apple: Accepted) + stapled, bundle-version guard 0.5.32, Windows installer signed locally, latest.json all three keys (darwin-aarch64 + darwin-x86_64 -> the one universal bundle/same sig, windows-x86_64 -> -setup.exe). All six release assets HEAD 200; release marked Latest (not draft/prerelease), target main. In-app updater not yet user-confirmed in-app (latest.json correct, so detection is ready). Feature work (built on the VM): (F064) all 14 hand-rolled 'open checklist on eBird' links folded into the shared ChecklistLink — full text+icon / new compact icon-only mode, label-aware accessible name (leads with visible date/count, WCAG 2.5.3); fixed a latent Checklists-tab 2.5.3 regression. (F078) new shared OutboundLink wrapper adds an '(opens in a new tab)' cue to every non-checklist external link. Stale Leaflet comments fixed. Records truthed up (ACCESSIBILITY/DECISIONS/CLAUDE/PRODUCT_CONTEXT/ROADMAP); F082/F106 'Southern-Hemisphere moon phase' found already shipped in 0.5.28 (records were wrong). Verified on the VM: frontend 869, backend 110, tsc + prod build clean, security clean. Artifacts in pipeline/accessibility-followups/.",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; Windows code signing. Optional: Dave to confirm the in-app updater picks up 0.5.32 by opening the app.",
-  "createdAt": "2026-06-13T07:59:11Z",
-  "updatedAt": "2026-06-13T22:24:16Z"
+  "lastFeature": "media-sex-age-filters COMPLETE (feature lane, v0.5.33) — committed + pushed to main and tag v0.5.33 pushed from the VM; release pending (Dave runs ./release.sh from the Mac). Sex (Male/Female) + Age (Juvenile/Immature/Adult) dropdown filters on the Multimedia tab (LifeList.tsx): compose with the existing media/county/date filters; per-species counts + 'X of N species' reflect the facet; zero-match species hidden; Macaulay links carry the filter (media.ebird.org/catalog &age/&sex). Exact-combo matching (single facet broad; age+sex = a juvenile female) and the ML link agrees (confirmed live). One substitution point: project each entry's catalogIds to the facet-matching subset (lib/mediaStats assetMatchesFacet + buildCatalogAgeSex); no facet = unchanged (regression-safe). Frontend-only. Verified: frontend 877, backend 110, lint/typecheck/build clean, security clean, adversarial review. Artifacts in pipeline/media-sex-age-filters/. (Prior: 0.5.32 accessibility-followups RELEASED live from the Mac — re-tagged at e92b3a0 so macOS + Windows ship the identical commit.)",
+  "remainingBacklog": "RELEASE 0.5.33 (Dave, from the Mac): ./release.sh — main + tag v0.5.33 are on GitHub, Windows CI running. 0.5.32 already released live. ROADMAP Up Next: mobile app; Windows code signing.",
+  "createdAt": "2026-06-13T11:51:48Z",
+  "updatedAt": "2026-06-14T01:49:00Z"
 }

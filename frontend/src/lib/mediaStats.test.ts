@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { MLExportRow } from './parseMLExport'
-import { parseAgeSex, parseBehaviors, parseMlHour, computeMediaStats, speciesWithYoung, sortSpeciesAgeCoverage, type SpeciesAgeCoverage } from './mediaStats'
+import { parseAgeSex, parseBehaviors, parseMlHour, computeMediaStats, speciesWithYoung, sortSpeciesAgeCoverage, assetMatchesFacet, buildCatalogAgeSex, type SpeciesAgeCoverage, type AgeClass, type Sex, type AgeSexGroup } from './mediaStats'
 
 function row(p: Partial<MLExportRow> & { catalogId: string }): MLExportRow {
   return {
@@ -236,5 +236,50 @@ describe('sortSpeciesAgeCoverage', () => {
   })
   it('falls back to name order when no taxonomic order is known', () => {
     expect(sortSpeciesAgeCoverage(rows, 'taxonomic', () => Infinity).map(r => r.name)).toEqual(['American Robin', 'Mallard', 'Osprey'])
+  })
+})
+
+describe('assetMatchesFacet', () => {
+  const g = (age: AgeClass, sex: Sex, count = 1): AgeSexGroup => ({ age, sex, count })
+
+  it('matches anything when no facet is set', () => {
+    expect(assetMatchesFacet([], null, null)).toBe(true)
+    expect(assetMatchesFacet([g('Adult', 'Male')], null, null)).toBe(true)
+  })
+  it('a single sex facet is broad (any age)', () => {
+    expect(assetMatchesFacet([g('Adult', 'Female')], 'Female', null)).toBe(true)
+    expect(assetMatchesFacet([g('Adult', 'Male')], 'Female', null)).toBe(false)
+  })
+  it('a single age facet is broad (any sex)', () => {
+    expect(assetMatchesFacet([g('Juvenile', 'Male')], null, 'Juvenile')).toBe(true)
+    expect(assetMatchesFacet([g('Adult', 'Male')], null, 'Juvenile')).toBe(false)
+  })
+  it('exact-combo requires one group to be both that age AND that sex', () => {
+    // "Adult Female; Juvenile Male" — has a female and a juvenile, but no juvenile female.
+    const mixed = [g('Adult', 'Female'), g('Juvenile', 'Male')]
+    expect(assetMatchesFacet(mixed, 'Female', 'Juvenile')).toBe(false)
+    expect(assetMatchesFacet([g('Juvenile', 'Female')], 'Female', 'Juvenile')).toBe(true)
+    // each single facet still matches the mixed asset
+    expect(assetMatchesFacet(mixed, 'Female', null)).toBe(true)
+    expect(assetMatchesFacet(mixed, null, 'Juvenile')).toBe(true)
+  })
+  it('untagged / unknown never matches an active facet', () => {
+    expect(assetMatchesFacet([], 'Female', null)).toBe(false)
+    expect(assetMatchesFacet([g('Unknown', 'Unknown')], 'Female', null)).toBe(false)
+    expect(assetMatchesFacet([g('Unknown', 'Unknown')], null, 'Adult')).toBe(false)
+  })
+})
+
+describe('buildCatalogAgeSex', () => {
+  it('maps each catalog id to its parsed age/sex groups', () => {
+    const rows = [
+      row({ catalogId: 'c1', ageSex: 'Juvenile Female – 1' }),
+      row({ catalogId: 'c2', ageSex: 'Adult Female – 1; Juvenile Male – 1' }),
+      row({ catalogId: 'c3', ageSex: '' }),
+    ]
+    const m = buildCatalogAgeSex(rows)
+    expect(m.get('c1')).toEqual([{ age: 'Juvenile', sex: 'Female', count: 1 }])
+    expect(m.get('c2')).toHaveLength(2)
+    expect(m.get('c3')).toEqual([])
   })
 })

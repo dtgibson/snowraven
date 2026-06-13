@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Multimedia sex & age filters (complete — June 2026, v0.5.33)
+
+The Multimedia tab gained two dropdown filters — Sex (Male/Female) and Age (Juvenile/Immature/Adult) — that slice the per-species media by life stage and sex, built on the per-asset Age/Sex data already parsed for the media stats (`lib/mediaStats.ts`). They compose with the existing media and county/date filters; each species' photo/audio/video counts and the "X of N species" total reflect the active facet, zero-match species drop out, and the Macaulay Library links carry the filter. Matching is exact-combo: a single facet is broad (any female, any juvenile); both together require one individual that is both (a juvenile female), which the ML link also honors. Implemented as one "substitution point" — project each species' catalog ids to the facet-matching subset and every downstream count/filter flows from it; no facet = unchanged. Frontend-only; the Multimedia ML catalog links moved to `media.ebird.org/catalog` (the base that accepts `&age`/`&sex`).
+
 ### Accessibility — a WCAG 2.1 AA pass across the whole app (complete — June 2026, v0.5.31)
 
 A comprehensive accessibility pass that makes the existing app perceivable,

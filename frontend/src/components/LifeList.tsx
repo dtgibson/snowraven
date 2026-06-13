@@ -7,6 +7,8 @@ import { formatDate as formatDateLabel } from '../lib/formatDate'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import { parseMLExport, aggregateMLRows } from '../lib/parseMLExport'
 import type { MLExportRow } from '../lib/parseMLExport'
+import { assetMatchesFacet, buildCatalogAgeSex } from '../lib/mediaStats'
+import type { AgeClass, Sex } from '../lib/mediaStats'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { LifeListTable } from './LifeListTable'
@@ -125,6 +127,22 @@ function ghostBtn(active = false): React.CSSProperties {
   }
 }
 
+// Sex/Age facet dropdowns — styled to match the County <select> on this tab
+// (design-system categorical-filter pattern); accent when a facet is active.
+function facetSelectStyle(active: boolean): React.CSSProperties {
+  return {
+    height: 26, paddingLeft: 10, paddingRight: 22, borderRadius: 5,
+    border: active ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
+    background: active ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
+    color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+    fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
+    cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
+  }
+}
+function facetChevStyle(active: boolean): React.CSSProperties {
+  return { position: 'absolute', right: 6, pointerEvents: 'none', color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)', fontSize: '0.5625rem' }
+}
+
 export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterConsumed, filesVersion, onOpenSpecies }: {
   onGoToSettings: () => void
   requestedFilter?: 'is-target'
@@ -149,6 +167,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const [countyResolution, setCountyResolution] = useState<'idle' | 'resolving' | 'done'>('idle')
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
+  const [sexFilter, setSexFilter] = useState<Sex | null>(null)
+  const [ageFilter, setAgeFilter] = useState<AgeClass | null>(null)
 
   // Normalized eBird backbone names — used to decide whether a media-comment
   // species links to Species Detail (only species the user has actually recorded).
@@ -268,6 +288,10 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
   const hasLocationFilter = countyFilter !== null || !!dateRange.from || !!dateRange.to
 
+  // Per-asset Age/Sex groups by catalog id — parsed once, reused by the facet filter.
+  const catalogAgeSex = useMemo(() => buildCatalogAgeSex(rawRows), [rawRows])
+  const facetActive = sexFilter !== null || ageFilter !== null
+
   const phaseEntries = useMemo(
     () => (phase.tag === 'ready' ? phase.entries : []),
     [phase]
@@ -302,6 +326,20 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     })
   }, [phase, rawEbirdObs, rawRows, filteredRows, phaseEntries, countyFilter, dateRange,
       mergeSubspecies, showSpuh, showNonBird, hasLocationFilter])
+
+  // Apply the sex/age facet by projecting each entry's catalogIds to the matching
+  // subset (exact-combo) and dropping zero-match species — so every downstream
+  // count / filter / sort over catalogIds becomes facet-aware with no further change.
+  // No facet → returns displayEntries unchanged (byte-identical to before this feature).
+  const facetEntries = useMemo((): LifeListEntry[] => {
+    if (!facetActive) return displayEntries
+    const out: LifeListEntry[] = []
+    for (const e of displayEntries) {
+      const ids = e.catalogIds.filter(id => assetMatchesFacet(catalogAgeSex.get(id) ?? [], sexFilter, ageFilter))
+      if (ids.length > 0) out.push({ ...e, catalogIds: ids })
+    }
+    return out
+  }, [displayEntries, facetActive, sexFilter, ageFilter, catalogAgeSex])
 
   // The species universe IGNORING the location/date filter — the correct
   // denominator for the "X of N species" count. displayEntries already applies
@@ -425,8 +463,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const { mediaMap, hasEbirdBackbone } = phase
 
   const mediaFilteredEntries = filterHasMedia
-    ? displayEntries.filter(e => e.catalogIds.some(id => mediaMap[id] === 'Photo' || mediaMap[id] === 'Audio' || mediaMap[id] === 'Video'))
-    : displayEntries
+    ? facetEntries.filter(e => e.catalogIds.some(id => mediaMap[id] === 'Photo' || mediaMap[id] === 'Audio' || mediaMap[id] === 'Video'))
+    : facetEntries
 
   const isTargetFilteredEntries = filterIsTarget
     ? mediaFilteredEntries.filter(e => {
@@ -437,7 +475,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
       })
     : mediaFilteredEntries
 
-  const isFilterClear = !filter.photo && !filter.audio && !filter.video && !filterHasMedia && !filterIsTarget
+  const isFilterClear = !filter.photo && !filter.audio && !filter.video && !filterHasMedia && !filterIsTarget && !facetActive
 
   const filteredCount = isTargetFilteredEntries.filter(entry => {
     const photo = entry.catalogIds.some(id => mediaMap[id] === 'Photo')
@@ -552,7 +590,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
       }}>
         {/* Filter pills */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button tabIndex={0} aria-pressed={isFilterClear} style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false) }}>All</button>
+          <button tabIndex={0} aria-pressed={isFilterClear} style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false); setSexFilter(null); setAgeFilter(null) }}>All</button>
           <button tabIndex={0} aria-pressed={filterHasMedia} style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</button>
           <button tabIndex={0}
             aria-pressed={filterIsTarget}
@@ -590,6 +628,37 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           <button tabIndex={0} aria-pressed={filter.video === 'has'} style={pillStyle(filter.video === 'has' ? 'positive' : 'none')} onClick={() => toggleDimension('video', 'has')}>
             <Video size={11} strokeWidth={2.5} />Has video
           </button>
+
+          <div style={pillSep} />
+
+          {/* Sex / Age media facets — native selects matching the County control */}
+          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <select
+              aria-label="Sex"
+              value={sexFilter ?? ''}
+              onChange={e => setSexFilter((e.target.value || null) as Sex | null)}
+              style={facetSelectStyle(sexFilter !== null)}
+            >
+              <option value="">Any sex</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+            </select>
+            <span style={facetChevStyle(sexFilter !== null)}>▾</span>
+          </div>
+          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <select
+              aria-label="Age"
+              value={ageFilter ?? ''}
+              onChange={e => setAgeFilter((e.target.value || null) as AgeClass | null)}
+              style={facetSelectStyle(ageFilter !== null)}
+            >
+              <option value="">Any age</option>
+              <option value="Juvenile">Juvenile</option>
+              <option value="Immature">Immature</option>
+              <option value="Adult">Adult</option>
+            </select>
+            <span style={facetChevStyle(ageFilter !== null)}>▾</span>
+          </div>
 
           <div style={pillSep} />
 
@@ -752,6 +821,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         wideMode={wideMode}
         onOpenSpecies={onOpenSpecies}
         hasEbirdBackbone={phase.tag === 'ready' && phase.hasEbirdBackbone}
+        sexFilter={sexFilter}
+        ageFilter={ageFilter}
       />
 
       <MediaCommentsSection

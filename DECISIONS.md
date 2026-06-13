@@ -4,6 +4,20 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Multimedia sex & age filters: one substitution point, exact-combo that the ML link also honors — 2026-06-13 (v0.5.33)
+
+**What:** Sex (Male/Female) and Age (Juvenile/Immature/Adult) dropdown filters on the Multimedia tab (`LifeList.tsx`), built on the per-asset Age/Sex already parsed for the media stats. Frontend-only.
+
+**Decisions worth keeping:**
+
+- **One substitution point.** The facet is applied by projecting each species' `catalogIds` to the facet-matching subset (and dropping zero-match species); every existing count/filter/sort over `catalogIds` then becomes facet-aware with no further change, and the no-facet path is byte-identical to before (regression-safe). `assetMatchesFacet` + `buildCatalogAgeSex` live in `lib/mediaStats.ts` beside the parser.
+- **Exact-combo matching (Dave's call), and the ML link agrees.** A single facet is broad (Female = any female of any age); both set requires one individual that is both (Juvenile + Female = a juvenile female). The Macaulay catalog applies `&age` + `&sex` the SAME way — it filters to media depicting an individual that is both (confirmed against the live catalog via user-provided links) — so the in-app count and the link agree. (An earlier assumption that ML treats the facets independently was wrong and was corrected.)
+- **The Multimedia ML catalog links use `media.ebird.org/catalog` with lowercase `&age` / `&sex`.** That is the base where the age/sex params are confirmed; it is the same Cornell Lab/eBird media search already in the privacy disclosure. `BirdingStats` still uses the older `search.macaulaylibrary.org` base — consolidating the two link builders is a future candidate, not done here.
+
+**Out of scope:** no new data / export / parser changes; untagged media is excluded from a facet (no "Unknown" option); no in-app gallery (the tab stays counts + links).
+
+---
+
 ## Accessibility follow-ups: the ChecklistLink rollout finished, an OutboundLink wrapper, and the records caught up to what already shipped — 2026-06-13 (v0.5.32)
 
 **What:** Closed the three cross-cutting accessibility items 0.5.31 had left as Known Exceptions, and corrected the records that misdescribed them. No user-facing feature change.

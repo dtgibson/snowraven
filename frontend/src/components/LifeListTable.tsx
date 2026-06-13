@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Camera, Mic, Video, Minus } from 'lucide-react'
 import type { LifeListEntry } from '../lib/parseLifeList'
 import type { MediaFilterState, SortColumn, SortDir, SortState } from '../types'
+import type { AgeClass, Sex } from '../lib/mediaStats'
 import { BirdName } from './BirdName'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 
@@ -19,6 +20,9 @@ interface Props {
   onOpenSpecies?: (commonName: string) => void
   /** True when the eBird backbone is loaded (so bird entries have a Species Detail entry). */
   hasEbirdBackbone?: boolean
+  /** Active media facet — appended to the Macaulay links so a click opens ML scoped the same way. */
+  sexFilter?: Sex | null
+  ageFilter?: AgeClass | null
 }
 
 function hasMedia(
@@ -37,32 +41,47 @@ function countMedia(
   return entry.catalogIds.filter(id => mediaMap[id] === type).length
 }
 
+// The eBird/Macaulay media catalog. age/sex query params are confirmed against this
+// host (user-provided example links; see pipeline/media-sex-age-filters/schema.md);
+// it is the same media search formerly at search.macaulaylibrary.org/catalog.
+const ML_BASE = 'https://media.ebird.org/catalog'
+
+// Append the active sex/age facet as ML query params (lowercase). ML matches these
+// the same way the in-app filter does: a single facet is broad, and a combined
+// age+sex filters to media depicting an individual that is BOTH (exact-combo,
+// confirmed against the live catalog) — so the link and the in-app count agree. A
+// param is omitted when its facet is unset (a no-facet link is the plain species/type catalog).
+function facetSuffix(sex: Sex | null | undefined, age: AgeClass | null | undefined): string {
+  return `${age ? `&age=${age.toLowerCase()}` : ''}${sex ? `&sex=${sex.toLowerCase()}` : ''}`
+}
+
 function mlUrl(
   commonName: string,
   type: 'Photo' | 'Audio' | 'Video',
   userId: string | null,
-  taxonCode: string | undefined
+  taxonCode: string | undefined,
+  sex: Sex | null | undefined,
+  age: AgeClass | null | undefined
 ): string {
   const mediaType = type.toLowerCase()
-  if (taxonCode) {
-    const base = `https://search.macaulaylibrary.org/catalog?mediaType=${mediaType}&taxonCode=${taxonCode}`
-    return userId ? `${base}&userId=${userId}` : base
-  }
-  const base = `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(commonName)}&mediaType=${mediaType}`
-  return userId ? `${base}&userId=${userId}` : base
+  const base = taxonCode
+    ? `${ML_BASE}?mediaType=${mediaType}&taxonCode=${taxonCode}`
+    : `${ML_BASE}?taxaName=${encodeURIComponent(commonName)}&mediaType=${mediaType}`
+  return `${userId ? `${base}&userId=${userId}` : base}${facetSuffix(sex, age)}`
 }
 
 // All media for the species (no mediaType filter) — the Total count links here.
-// Same shape as mlUrl minus the mediaType parameter.
 function mlUrlAll(
   commonName: string,
   userId: string | null,
-  taxonCode: string | undefined
+  taxonCode: string | undefined,
+  sex: Sex | null | undefined,
+  age: AgeClass | null | undefined
 ): string {
   const base = taxonCode
-    ? `https://search.macaulaylibrary.org/catalog?taxonCode=${taxonCode}`
-    : `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(commonName)}`
-  return userId ? `${base}&userId=${userId}` : base
+    ? `${ML_BASE}?taxonCode=${taxonCode}`
+    : `${ML_BASE}?taxaName=${encodeURIComponent(commonName)}`
+  return `${userId ? `${base}&userId=${userId}` : base}${facetSuffix(sex, age)}`
 }
 
 const iconCell: React.CSSProperties = {
@@ -71,7 +90,7 @@ const iconCell: React.CSSProperties = {
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, wideMode, onOpenSpecies, hasEbirdBackbone }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, wideMode, onOpenSpecies, hasEbirdBackbone, sexFilter, ageFilter }: Props) {
   // Filter + sort are O(n log n) over the whole life list; memoize so they only
   // recompute when their inputs change, not on every parent re-render.
   const filtered = useMemo(() => entries.filter(entry => {
@@ -292,7 +311,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {photoCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Photo', userId, taxonCode)}
+                          href={mlUrl(entry.commonName, 'Photo', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
                           aria-label={`${photoCount} ${photoCount === 1 ? 'photo' : 'photos'} on Macaulay Library (opens in a new tab)`}
@@ -307,7 +326,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {audioCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Audio', userId, taxonCode)}
+                          href={mlUrl(entry.commonName, 'Audio', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
                           aria-label={`${audioCount} audio ${audioCount === 1 ? 'recording' : 'recordings'} on Macaulay Library (opens in a new tab)`}
@@ -322,7 +341,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {videoCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Video', userId, taxonCode)}
+                          href={mlUrl(entry.commonName, 'Video', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
                           aria-label={`${videoCount} ${videoCount === 1 ? 'video' : 'videos'} on Macaulay Library (opens in a new tab)`}
@@ -337,7 +356,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     {totalCount > 0
                       ? <a
-                          href={mlUrlAll(entry.commonName, userId, taxonCode)}
+                          href={mlUrlAll(entry.commonName, userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
                           title="All media on Macaulay Library"

@@ -54,6 +54,27 @@ export function parseAgeSex(raw: string): AgeSexGroup[] {
   return out
 }
 
+/**
+ * Exact-combo facet match for the Multimedia sex/age filters (FR-05). A `null`
+ * facet means "any":
+ *  - sex only  → an asset depicting that sex (any age)
+ *  - age only  → an asset depicting that age (any sex)
+ *  - both set  → a SINGLE group that is that age AND that sex (e.g. a juvenile female)
+ * The dropdowns only ever pass Male/Female and Juvenile/Immature/Adult (never
+ * Unknown), so an untagged/Unknown group never satisfies an active facet.
+ */
+export function assetMatchesFacet(groups: AgeSexGroup[], sex: Sex | null, age: AgeClass | null): boolean {
+  if (!sex && !age) return true
+  return groups.some(g => (!sex || g.sex === sex) && (!age || g.age === age))
+}
+
+/** Map each ML asset (by catalog id) to its parsed Age/Sex groups — build once, reuse. */
+export function buildCatalogAgeSex(rows: MLExportRow[]): Map<string, AgeSexGroup[]> {
+  const m = new Map<string, AgeSexGroup[]>()
+  for (const r of rows) m.set(r.catalogId, parseAgeSex(r.ageSex))
+  return m
+}
+
 // ── Behaviors ────────────────────────────────────────────────────────────────
 
 /** Split the ML "Behaviors" field on "; " (NOT comma — labels contain commas). */
