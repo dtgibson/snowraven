@@ -1,15 +1,15 @@
 {
   "activeFeature": null,
   "sessionNumber": 27,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "approved",
+  "sessionType": "improve",
+  "currentStage": 1,
+  "lastCompletedStage": 1,
+  "lastCheckpointStatus": "complete",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
-  "releasedVersion": "0.5.30",
-  "lastFeature": "accessibility-pass COMPLETE (improve lane, v0.5.31 STAGED on main, NOT YET RELEASED — rides main until Dave pushes + the Mac runs release.sh). Comprehensive WCAG 2.1 AA pass: a multi-phase audit (107 confirmed findings vs 288 verified passes) then a full fix wave. Shipped: accessible names on every filter/date/search control; a typed --sr-* contrast retune in BOTH themes (--sr-tier-N-fg / -text, --sr-map-target-*-text, --sr-border-input, --sr-milestone-*, --sr-rank-pin-*, --sr-on-chart-blue-dark); rebuilt mobile-filter focus trap with single-close-path focus restore; DOM map markers as real <button>s (neutralizeMarkerWrapper); Settings keyboard tab-reorder; skip link + landmarks + headings; alert/status live regions; SegControl aria-pressed; atlas-block keyboard route (self-contained 'Atlas blocks in view' disclosure in AtlasLayer); shared ChecklistLink (3 sites). ACCESSIBILITY.md rewritten true; CHANGELOG/version 0.5.31; records updated. Verification loop caught + fixed two false published claims (in-bar chart-label contrast 4.05:1 dark via theme-aware token; mobile-filter Close/backdrop skipped focus restore) and an info-level unvalidated hotspot locId. Final: frontend 857/857, backend 110/110, tsc clean, prod build clean, security clean (no Critical/High). Deferred (documented Known Exceptions): finish ChecklistLink adoption app-wide (F064), opens-in-new-tab sweep on all links (F078), Southern-Hemisphere moon-phase emoji needs lat at display layer (F082/F106).",
-  "remainingBacklog": "RELEASE (Dave): commit → push main → push v0.5.31 tag (starts Windows CI) → Mac release.sh after CI. ROADMAP Up Next: mobile app; Windows code signing. Small a11y follow-up lane available for the 3 deferred Known Exceptions. Minor: stale 'Leaflet panes' comment in TabNav.tsx:281-282.",
+  "releasedVersion": "0.5.31",
+  "lastFeature": "0.5.31 SHIPPED (live, in-app updater verified). accessibility-pass (improve lane): comprehensive WCAG 2.1 AA pass — a multi-phase audit (107 confirmed findings vs 288 verified passes) then a full fix wave. Shipped: accessible names on every filter/date/search control; a typed --sr-* contrast retune in BOTH themes (--sr-tier-N-fg/-text, --sr-map-target-*-text, --sr-border-input, --sr-milestone-*, --sr-rank-pin-*, --sr-on-chart-blue-dark); rebuilt mobile-filter focus trap with single-close-path focus restore; DOM map markers as real <button>s; Settings keyboard tab-reorder; skip link + landmarks + headings; alert/status live regions; SegControl aria-pressed; atlas-block keyboard route ('Atlas blocks in view' disclosure); shared ChecklistLink (3 sites); two additive Tauri core perms (core:webview:allow-set-webview-zoom, core:window:allow-set-title) for Ctrl/Cmd +/- zoom. ACCESSIBILITY.md rewritten true; CHANGELOG/version 0.5.31; website pill updated. Built+tagged on the VM; released from the Mac: v0.5.31 tag -> Windows CI green (10m49s) -> ./release.sh — macOS universal DMG notarized (Apple: Accepted) + stapled, bundle-version guard 0.5.31, Windows installer signed locally, latest.json all three keys (darwin-aarch64 + darwin-x86_64 -> the one universal bundle/same sig, windows-x86_64 -> -setup.exe), all six release assets HEAD 200, release marked Latest. Independent Mac verification: frontend 857/857 + backend 110/110 green in single runs (the idle-callback flake did NOT surface). No new tile provider -> privacy unaffected. In-app updater confirmed by Dave. Deferred (documented Known Exceptions): finish ChecklistLink adoption app-wide (F064), opens-in-new-tab sweep on all links (F078), Southern-Hemisphere moon-phase emoji needs lat at display layer (F082/F106).",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; Windows code signing. Small a11y follow-up lane available for the 3 deferred Known Exceptions (ChecklistLink app-wide adoption F064, opens-in-new-tab sweep F078, Southern-Hemisphere moon-phase emoji F082/F106). Minor: stale 'Leaflet panes' comment in TabNav.tsx:281-282.",
   "createdAt": "2026-06-11T21:10:00Z",
-  "updatedAt": "2026-06-13T06:26:00Z"
+  "updatedAt": "2026-06-13T15:57:44Z"
 }
