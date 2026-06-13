@@ -50,12 +50,15 @@ What it covers:
   list semantics; collapsed filter panels are made `inert`.
 - The "open checklist on eBird" affordance was unified into one shared
   `components/ChecklistLink.tsx` (consistent identification, `SUBMISSION_ID_RE`
-  guard kept). `ACCESSIBILITY.md` was rewritten to match the shipped code, with
-  the remaining gaps listed as honest Known Exceptions (a shared "opens in a new
-  tab" suffix on all external links; the Southern-Hemisphere moon-phase emoji,
-  which needs latitude at the display layer). See DECISIONS.md for the
-  token-naming contract, the single-close-path focus-restore rule, and the
-  two false published claims the verification loop caught.
+  guard kept), adopted app-wide in v0.5.32 with a `compact` icon-only mode and a
+  label-aware accessible name; a companion `components/OutboundLink.tsx` gives every
+  other external link an "(opens in a new tab)" cue. `ACCESSIBILITY.md` was
+  rewritten to match the shipped code; the cross-cutting Known Exceptions it
+  carried (uniform checklist links, the new-tab announcement, the
+  Southern-Hemisphere moon phase) were all closed by v0.5.32 — the moon phase had
+  in fact already shipped in v0.5.28. See DECISIONS.md for the token-naming
+  contract, the single-close-path focus-restore rule, and the two false published
+  claims the verification loop caught.
 
 ### Checklists — search-and-browse home for whole outings (complete — June 2026, v0.5.27)
 

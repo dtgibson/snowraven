@@ -54,7 +54,7 @@ export interface AtlasData {
   irregular: AtlasBlock[]
 }
 
-/** Map viewport as [minLng, minLat, maxLng, maxLat] (Leaflet bounds). */
+/** Map viewport as [minLng, minLat, maxLng, maxLat] (MapLibre LngLatBounds order). */
 export type Bounds = [number, number, number, number]
 
 /** Generate the block rectangles + names for a single quad. */

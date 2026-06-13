@@ -8,6 +8,7 @@
 import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { StatCell, BarRow, SubLabel, Divider } from './statsPrimitives'
+import { ChecklistLink } from './ChecklistLink'
 import { fmt, formatSpanLength } from '../lib/statsFormat'
 import { formatDate, formatDateRange } from '../lib/formatDate'
 import { speciesWithYoung, sortSpeciesAgeCoverage } from '../lib/mediaStats'
@@ -128,19 +129,13 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor }: {
               label="Busiest day"
               value={s.busiestDay.count}
               sub={s.busiestDay.checklistId && dayLabel ? (
-                <a
-                  href={`https://ebird.org/checklist/${encodeURIComponent(s.busiestDay.checklistId)}`}
-                  target="_blank" rel="noreferrer"
-                  aria-label={`${dayLabel} — open this day's ${s.busiestDay.checklistCount > 1 ? 'largest ' : ''}eBird checklist (opens in a new tab)`}
+                <ChecklistLink
+                  submissionId={s.busiestDay.checklistId}
+                  label={dayLabel}
                   title={s.busiestDay.checklistCount > 1
                     ? `Opens the checklist with the most media (1 of ${fmt(s.busiestDay.checklistCount)} that day)`
                     : "Open this day's checklist on eBird"}
-                  style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
-                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                >
-                  {dayLabel}
-                </a>
+                />
               ) : dayLabel || undefined}
               large={false}
               reserveSub

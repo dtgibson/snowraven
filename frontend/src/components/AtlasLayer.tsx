@@ -14,6 +14,7 @@ import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { FeatureCollection, Polygon } from 'geojson'
 import type { FillLayerSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent, MapStyleImageMissingEvent } from 'maplibre-gl'
 import { blocksInBounds, blockListRows, padBounds, type AtlasData, type Bounds, type BlockListRow } from '../lib/atlasBlocks'
+import { OutboundLink } from './OutboundLink'
 import type { BlockBreeding } from '../lib/atlasBreeding'
 import { hatchImageData, hatchPixelRatio, HATCH_IMAGE_ID, TIERS, type Tier } from '../lib/atlasTextures'
 import { updateMapCursor } from '../lib/mapPins'
@@ -220,10 +221,10 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
           <Popup longitude={sel.lng} latitude={sel.lat} anchor="bottom" offset={8} closeOnClick={false} onClose={() => setSel(null)} maxWidth="240px">
             <div style={{ minWidth: 160 }}>
               {sel.code ? (
-                <a href={`${ATLAS_BLOCK_URL}${encodeURIComponent(sel.code)}`} target="_blank" rel="noreferrer"
+                <OutboundLink href={`${ATLAS_BLOCK_URL}${encodeURIComponent(sel.code)}`}
                   style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--sr-accent)', textDecoration: 'none' }}>
-                  {sel.name} ↗
-                </a>
+                  {sel.name} <span aria-hidden="true">↗</span>
+                </OutboundLink>
               ) : (
                 <div style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{sel.name}</div>
               )}

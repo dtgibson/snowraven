@@ -1185,8 +1185,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   target="_blank"
                   rel="noreferrer"
                   tabIndex={0}
-                  aria-label={`Open ${pin.locName} on eBird (opens in new tab)`}
-                  title="Open on eBird (opens in new tab)"
+                  aria-label={`Open ${pin.locName} on eBird (opens in a new tab)`}
+                  title="Open on eBird (opens in a new tab)"
                   style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, color: 'var(--sr-text-muted)' }}
                 >
                   <ExternalLink size={12} strokeWidth={2} aria-hidden="true" />

@@ -23,6 +23,7 @@ import { Checklists } from './components/Checklists'
 import { Settings } from './components/Settings'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
+import { OutboundLink } from './components/OutboundLink'
 
 // Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
 // Detail, and Help are kept out of the entry bundle so first paint is light. Named
@@ -825,7 +826,7 @@ export default function App() {
                   href={`https://ebird.org/edit/effort?subID=${state.checklistId}`}
                   target="_blank"
                   rel="noreferrer"
-                  aria-label="Edit checklist comment on eBird (opens in new tab)"
+                  aria-label="Edit checklist comment on eBird (opens in a new tab)"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -975,7 +976,7 @@ export default function App() {
         </div>
         <p style={{ width: '100%', maxWidth: 540, margin: '14px 0 0', textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)' }}>
           Also for your browser:{' '}
-          <a href="https://github.com/dtgibson/snowraven-mini" target="_blank" rel="noreferrer" aria-label="SnowRaven Mini on GitHub (opens in new tab)" style={{ color: 'inherit', textDecoration: 'underline' }}>SnowRaven Mini</a>
+          <a href="https://github.com/dtgibson/snowraven-mini" target="_blank" rel="noreferrer" aria-label="SnowRaven Mini on GitHub (opens in a new tab)" style={{ color: 'inherit', textDecoration: 'underline' }}>SnowRaven Mini</a>
           , a Chrome/Firefox extension with this same weather and tide lookup.
         </p>
       </div>
@@ -1187,16 +1188,14 @@ export default function App() {
 
       {/* Footer */}
       <p inert={chromeInert} role="contentinfo" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
-        <a
+        <OutboundLink
           href="https://github.com/dtgibson/snowraven"
-          target="_blank"
-          rel="noreferrer"
           style={{ color: 'inherit', textDecoration: 'none' }}
           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
         >
           SnowRaven
-        </a>
+        </OutboundLink>
         {' · Self-hosted Birding Tools · '}
         <button tabIndex={0}
           onClick={() => setHelpOpen(true)}

@@ -1,55 +1,26 @@
-# Handoff — accessibility-pass COMPLETE; v0.5.31 staged on main, not yet released
+# Handoff — accessibility-followups COMPLETE; v0.5.32 committed & pushed (release pending from the Mac)
 
 ## What We Accomplished
 
-A comprehensive WCAG 2.1 AA accessibility pass across the whole app, shipping as
-v0.5.31 (staged on main; **not released** — it rides main until you push and the
-Mac runs `release.sh`). A multi-phase audit confirmed 107 findings against 288
-verified passes; the fix wave then resolved the critical finding and effectively
-all of the serious tier, with the rest documented honestly. The published
-`ACCESSIBILITY.md` was rewritten to match the shipped code — and the verification
-loop caught and fixed two places where the statement had drifted from reality.
-
-Highlights: accessible names on every filter/date/search control; a typed `--sr-*`
-contrast retune in both light and dark themes; a rebuilt mobile-filter focus trap
-with full focus-restore on every close path; DOM map markers as real buttons; a
-keyboard route to the atlas blocks; keyboard tab-reordering in Settings; landmarks,
-a skip link, and live-region announcements; and a shared `ChecklistLink`.
-
-Final state: frontend 857/857, backend 110/110, `tsc` clean, production build
-clean, security review clean (no Critical/High). Nothing is committed.
+Finished the three deferred accessibility follow-ups from the 0.5.31 pass and corrected the records that described them. Every "open checklist on eBird" link now flows through one shared component (with a compact icon-only mode for dense spots and an accessible name that leads with the visible date so Voice Control can activate it); every external link announces it opens in a new tab via a new shared wrapper, with the wording unified app-wide; and the stale records were truthed up — including that the Southern-Hemisphere moon phase had actually shipped back in 0.5.28, not deferred. No user-facing feature changed. Ships as v0.5.32.
 
 ## What Has Been Saved
 
-- `pipeline/accessibility-pass/` — the audit artifacts (change-brief.md,
-  findings-appendix.md, work/ with per-group data, the token manifest, PROGRESS.md,
-  and the raw workflow outputs).
-- Code: `frontend/src/globals.css` (contrast tokens, both themes) + ~40 component
-  files; `src-tauri/tauri.conf.json` + `frontend/package.json` (version 0.5.31);
-  `src-tauri/capabilities/default.json`.
-- Records: `ACCESSIBILITY.md` (rewritten true), `CHANGELOG.md` (0.5.31),
-  `DECISIONS.md`, `PRODUCT_CONTEXT.md`, `CLAUDE.md`, `ROADMAP.md`,
-  `website/index.html` (version pill).
+- Code: `frontend/src/components/ChecklistLink.tsx` (compact mode, label-aware name, `title` prop), new `frontend/src/components/OutboundLink.tsx`, and the migrated call sites across ~14 files; new tests `ChecklistLink.test.tsx` + `OutboundLink.test.tsx` (and updated BirdingStats / HelpDocs / SpeciesLinks / LifeListTable tests).
+- Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.32; `CHANGELOG.md` entry.
+- Records: `ACCESSIBILITY.md`, `DECISIONS.md`, `CLAUDE.md`, `PRODUCT_CONTEXT.md`, `ROADMAP.md`.
+- Pipeline artifacts: `pipeline/accessibility-followups/` (change-brief, qa-report, security-report, deploy-readiness).
+- **Committed and pushed to `main` from this VM** (rebased onto the Mac's "mark 0.5.31 released" commit). The release itself is still the manual step from the Mac.
 
 ## Where We Are
 
-Improvement complete and recorded. Pipeline idle. v0.5.31 is staged and verified,
-waiting on the release.
+Improvement complete, verified (frontend 869, backend 110, production build + security review clean, adversarial regression review done), committed, and pushed to `main`. Pipeline idle. The release of v0.5.32 is pending from the Mac.
 
-## To Release (your steps — this machine stops at the push)
+## To Release (your steps from the Mac — this VM stops at the push)
 
-1. Review the working tree, then commit and push to `main`.
-2. Push the `v0.5.31` tag (starts the Windows CI build).
-3. After CI finishes, run `./release.sh` from the Mac (notarized macOS build +
-   signed Windows installer + `latest.json`).
-
-## Follow-ups (optional, small a11y lane)
-
-- Finish adopting the shared `ChecklistLink` across every checklist link (F064).
-- A uniform "opens in a new tab" sweep on all external links (F078).
-- Southern-Hemisphere moon-phase emoji — needs the checklist latitude threaded to
-  the display layer + the byte-parity weatherFormatter trio (F082/F106).
-- Stale "Leaflet panes" comment at `TabNav.tsx:281-282` (one-line touch-up).
+1. (Done on the VM: 0.5.32 is committed and pushed to `main`.)
+2. Push the `v0.5.32` tag (starts the Windows CI build).
+3. After CI finishes, run `./release.sh` from the Mac (notarized macOS build + signed Windows installer + `latest.json`).
 
 ## Resume Prompt
 

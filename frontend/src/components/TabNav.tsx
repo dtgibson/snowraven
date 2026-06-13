@@ -293,8 +293,9 @@ function TabDropdown({ items, activeTab, onSelect }: TabNavProps) {
             borderRadius: 8,
             boxShadow: 'var(--sr-card-shadow)',
             padding: 6,
-            // Above Leaflet's panes and controls (which reach ~1000) so the
-            // menu is never painted under the map.
+            // Above the MapLibre map's controls so the menu is never painted
+            // under the map (the z-index: 1200 floating-overlay convention; see
+            // "Overlays and stacking" in CLAUDE.md).
             zIndex: 1200,
           }}
         >

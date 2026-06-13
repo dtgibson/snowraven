@@ -237,19 +237,24 @@ describe('BirdingStats accessibility', () => {
     expect(monthly.getAttribute('aria-pressed')).toBe('false')
   })
 
-  // F033/F064/F078: the bare "↗" checklist links must carry a descriptive
-  // accessible name (incl. the new-tab indication), with the glyph aria-hidden.
-  it('names the ↗ checklist links and hides the glyph from AT', async () => {
-    const { container } = await renderComputed()
-    // The effort "Notable outings" cards render ↗ links (fixture has duration/
-    // distance), each with an aria-label about opening a checklist on eBird.
-    const named = screen.getAllByRole('link', { name: /open .*checklist .* on ebird \(opens in a new tab\)/i })
+  // F033/F064/F078: the dense checklist affordances (location cards, species pills)
+  // now render through the shared ChecklistLink in compact (icon-only) mode — a
+  // descriptive accessible name incl. the new-tab cue, with the external-link icon
+  // decorative (aria-hidden) instead of a bare "↗" glyph the screen reader would read.
+  it('names the compact checklist links and hides their icon from AT', async () => {
+    await renderComputed()
+    // Compact links carry the canonical id-bearing name; the label-leading full
+    // links (date/count) don't match this id-bearing pattern, so this targets the
+    // icon-only affordances specifically.
+    const named = screen.getAllByRole('link', { name: /open checklist S\d+ on ebird \(opens in a new tab\)/i })
     expect(named.length).toBeGreaterThan(0)
-    // No link's accessible name is the bare arrow glyph, and the glyph carries
-    // aria-hidden so it isn't double-announced.
-    const arrowSpans = Array.from(container.querySelectorAll('a > span')).filter(s => s.textContent === '↗')
-    expect(arrowSpans.length).toBeGreaterThan(0)
-    for (const s of arrowSpans) expect(s.getAttribute('aria-hidden')).toBe('true')
+    for (const link of named) {
+      // Named by its function, never by a bare glyph; the icon is decorative.
+      expect(link.getAttribute('aria-label')).not.toBe('↗')
+      const svg = link.querySelector('svg')
+      expect(svg).toBeTruthy()
+      expect(svg?.getAttribute('aria-hidden')).toBe('true')
+    }
   })
 
   // F029: jump-nav targets carry tabindex="-1" so focus can move to them.

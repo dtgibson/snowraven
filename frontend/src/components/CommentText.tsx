@@ -24,6 +24,7 @@ export function CommentText({ raw, decoded = false }: { raw: string; decoded?: b
           <a key={i} href={seg.href} target="_blank" rel="noopener noreferrer"
             style={{ color: 'var(--sr-accent)', textDecoration: 'underline', wordBreak: 'break-word' }}>
             {seg.text}
+            <span className="sr-only"> (opens in a new tab)</span>
           </a>
         ) : (
           <Fragment key={i}>

@@ -295,7 +295,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           href={mlUrl(entry.commonName, 'Photo', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
-                          aria-label={`${photoCount} ${photoCount === 1 ? 'photo' : 'photos'} on Macaulay Library (opens in new tab)`}
+                          aria-label={`${photoCount} ${photoCount === 1 ? 'photo' : 'photos'} on Macaulay Library (opens in a new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
@@ -310,7 +310,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           href={mlUrl(entry.commonName, 'Audio', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
-                          aria-label={`${audioCount} audio ${audioCount === 1 ? 'recording' : 'recordings'} on Macaulay Library (opens in new tab)`}
+                          aria-label={`${audioCount} audio ${audioCount === 1 ? 'recording' : 'recordings'} on Macaulay Library (opens in a new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
@@ -325,7 +325,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           href={mlUrl(entry.commonName, 'Video', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
-                          aria-label={`${videoCount} ${videoCount === 1 ? 'video' : 'videos'} on Macaulay Library (opens in new tab)`}
+                          aria-label={`${videoCount} ${videoCount === 1 ? 'video' : 'videos'} on Macaulay Library (opens in a new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
@@ -341,7 +341,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           target="_blank"
                           rel="noreferrer"
                           title="All media on Macaulay Library"
-                          aria-label={`${totalCount} total media items on Macaulay Library (opens in new tab)`}
+                          aria-label={`${totalCount} total media items on Macaulay Library (opens in a new tab)`}
                           style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', textDecoration: 'none' }}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}

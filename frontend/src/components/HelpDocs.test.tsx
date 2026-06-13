@@ -37,7 +37,7 @@ describe('HelpDocs accessibility (F006/F039/F040/F060/F078)', () => {
     const { container } = render(<HelpDocs onClose={vi.fn()} />)
     const externalLink = container.querySelector('a[target="_blank"]')
     expect(externalLink).toBeTruthy()
-    expect(externalLink!.querySelector('.sr-only')?.textContent).toContain('opens in new tab')
+    expect(externalLink!.querySelector('.sr-only')?.textContent).toContain('opens in a new tab')
   })
 
   it('closes on Escape', () => {

@@ -62,7 +62,7 @@ function renderInline(text: string): React.ReactNode {
             style={{ color: 'var(--sr-accent)', textDecoration: 'underline' }}
           >
             {lm[1]}
-            <span className="sr-only"> (opens in new tab)</span>
+            <span className="sr-only"> (opens in a new tab)</span>
           </a>
         )
       }

@@ -1,4 +1,4 @@
-import { ExternalLink } from 'lucide-react'
+import { ChecklistLink } from '../ChecklistLink'
 
 // ── Presentational primitives ──────────────────────────────────────────────
 
@@ -50,32 +50,23 @@ export function StatLabel({ children }: { children: React.ReactNode }) {
 export const SUBMISSION_ID_RE = /^S\d+$/
 export const LOCATION_ID_RE = /^L\d+$/
 
+// Species Detail's large stat cells (e.g. "first seen", "highest count") link to the
+// checklist behind the value. Renders through the shared ChecklistLink so the
+// accessible name and visual signature match every other checklist link (F064); the
+// big-stat typography rides in via the style prop, and the value leads the
+// accessible name (WCAG 2.5.3).
 export function StatValueLink({ value, submissionId, small }: { value: string; submissionId: string; small?: boolean }) {
-  if (!SUBMISSION_ID_RE.test(submissionId)) {
-    return <span style={{ fontSize: small ? '0.875rem' : '1.25rem', fontWeight: 700, letterSpacing: small ? '-0.01em' : '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>{value}</span>
-  }
   return (
-    <a
-      href={`https://ebird.org/checklist/${submissionId}`}
-      target="_blank"
-      rel="noreferrer"
-      aria-label={`${value} — view checklist on eBird (opens in new tab)`}
+    <ChecklistLink
+      submissionId={submissionId}
+      label={value}
+      size={small ? 'sm' : 'md'}
       style={{
         fontSize: small ? '0.875rem' : '1.25rem',
         fontWeight: 700,
         letterSpacing: small ? '-0.01em' : '-0.02em',
         lineHeight: 1.1,
-        color: 'var(--sr-accent)',
-        textDecoration: 'none',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 4,
       }}
-      onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-      onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-    >
-      {value}
-      <ExternalLink size={small ? 10 : 11} strokeWidth={2.5} />
-    </a>
+    />
   )
 }

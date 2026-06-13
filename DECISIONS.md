@@ -4,6 +4,20 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Accessibility follow-ups: the ChecklistLink rollout finished, an OutboundLink wrapper, and the records caught up to what already shipped — 2026-06-13 (v0.5.32)
+
+**What:** Closed the three cross-cutting accessibility items 0.5.31 had left as Known Exceptions, and corrected the records that misdescribed them. No user-facing feature change.
+
+**Decisions worth keeping:**
+
+- **`ChecklistLink` is the single affordance for every "open checklist on eBird" link, app-wide.** The 14 remaining hand-rolled links across 7 files (Species Detail header stats + comments, Named Birds rows, the Statistics tab, the media stats, the map popups) were folded in. It gained a `compact` (icon-only) mode for dense spots (species pills, location cards, a fixed-width stats column, the map target popup) and a **label-aware accessible name**: with a visible date/count it leads `{label} — open checklist on eBird (opens in a new tab)` (WCAG 2.5.3 Label in Name, so Voice Control can activate it by what's on screen); with no label it names the id directly; the functional suffix is identical everywhere (WCAG 3.2.4). This also fixed a latent 2.5.3 regression — the Checklists-tab date link, moved onto `ChecklistLink` in 0.5.31, had stopped leading its name with the visible date.
+- **`components/OutboundLink.tsx` is the standard wrapper for every NON-checklist external link.** It guarantees `target="_blank"` + `rel="noreferrer"` and an "(opens in a new tab)" cue (a clean spaced `aria-label` from string children / explicit label, else an `.sr-only` cue node for JSX children). Named `OutboundLink`, NOT `ExternalLink`, deliberately — `ExternalLink` is lucide-react's icon, imported widely, and the names would collide. New-tab wording was standardized to "(opens in a new tab)" app-wide (the codebase had mixed "a new tab" / "new tab").
+- **Informative tooltips are kept, not sacrificed for consistency.** Standardizing the media "busiest day" link onto `ChecklistLink` briefly dropped its "largest checklist of N that day" hint; it was restored via a new optional `title` pass-through on `ChecklistLink` (sighted-hover only — the screen-reader name stays canonical). Standing preference: don't drop a useful tooltip to make a component uniform.
+
+**Correction / reversal:** F082/F106 (the Southern-Hemisphere moon-phase emoji) was wrongly recorded in 0.5.31 as a deferred follow-up "scoped out rather than half-done." It was never deferred — the latitude-correct mirroring already shipped in **0.5.28** (`lat < 0 → MOON_SOUTH`, latitude threaded to both formatters, both hemispheres locked by the byte-golden tests). The deferred note below is corrected accordingly. F064 and F078 are now fully shipped, not partial.
+
+---
+
 ## Accessibility pass: a contrast-token system, single-close-path focus restore, and the verification loop that caught two false published claims — 2026-06-12 (v0.5.31)
 
 **What:** A comprehensive WCAG 2.1 AA accessibility pass across the whole
@@ -83,15 +97,14 @@ a record that must be re-verified against the shipped code, not against the
 intent. Dark theme was covered analytically (computed contrast both themes), not
 re-axed, because the theme is persisted, not toggled at runtime.
 
-**Deferred — documented as Known Exceptions in `ACCESSIBILITY.md`, candidates
-for a small follow-up:** F078 an explicit "opens in a new tab" suffix on all ~43
-external links via a shared component (advisory; `ChecklistLink` already does it
-for checklist links); and F082/F106 the correct Southern-Hemisphere moon-phase
-emoji in the weather block — which needs the checklist's latitude threaded to the
-display layer and a coordinated change across the byte-parity weatherFormatter
-trio (`weatherFormatter.ts` / `weather.py` / `weatherFormatter.golden.py`), so it
-was scoped out rather than half-done. (F064, the shared checklist-link component,
-was originally on this deferred list but shipped in this pass as `ChecklistLink`.)
+**Deferred items (as of 0.5.31) — all since resolved; see the 0.5.32 entry above.**
+F064 (the shared checklist-link component) shipped in this 0.5.31 pass and was
+adopted app-wide in 0.5.32. F078 (an explicit "opens in a new tab" suffix on every
+external link via a shared component) shipped in 0.5.32 as `OutboundLink`. F082/F106
+(the Southern-Hemisphere moon-phase emoji) was **not** actually deferred — it
+already shipped in 0.5.28 (`lat < 0 → MOON_SOUTH`, latitude threaded to both
+formatters, locked by the byte-golden tests); the original "scoped out rather than
+half-done" framing was inaccurate and is corrected here.
 
 **Lane note:** no release of its own is recorded here separately — 0.5.31 is the
 version bump, ships in the app bundle, and the records below (CLAUDE.md,
@@ -384,7 +397,7 @@ now deferring to the policy as the full provider list.
 - **Mixed-height `StatCell`s in one `auto-fit` grid are fine *if every tile reserves the sub-line slot*.** v0.5.24 banned mixing sub-bearing and plain tiles because the taller ones stretched the row. The cleaner fix is a `reserveSub` prop on `StatCell` that always renders the sub-line slot (`sub || nbsp`), so every tile is the same height whether or not it carries a sub. All eight At-a-glance tiles set `reserveSub`, so busiest day / longest streak (with the dates it ran) / archive span are tiles again and stay aligned at any width. The v0.5.24 "facts that need a sub-line belong in a caption" guidance is **reversed** — they belong in tiles, with `reserveSub`.
 - **The busiest-day date links to that day's *dominant* eBird checklist, and ids are shape-validated before they become a link.** When a day spans several checklists, the link targets the one with the most media (tooltip explains). Ids are validated against `/^S\d+$/` at tally time, so junk column values never become a styled 404 link; the href is `encodeURIComponent`-wrapped and rendered as escaped JSX — same standing rule as the map popups/links.
 - **Out-of-range export dates are excluded from the date stats, not rolled over.** `dayNumber` previously accepted "2024-13-05" / "2024-02-00" via `Date.UTC` rollover while `formatDate` rejects them, so a tile could lose its sub-line (breaking the uniform height) or render an empty link. `dayNumber` now range-checks month/day like `parseParts`; such rows are treated as undated.
-- **The checklist link's `aria-label` leads with the visible date.** An earlier label replaced the visible date, violating WCAG 2.5.3 (Voice Control users couldn't activate it by its visible text). The accessible name now begins with the date the user sees.
+- **The checklist link's `aria-label` leads with the visible date.** An earlier label replaced the visible date, violating WCAG 2.5.3 (Voice Control users couldn't activate it by its visible text). The accessible name now begins with the date the user sees. (v0.5.32: this rule is baked into the shared `ChecklistLink` — `checklistLinkAriaLabel(id, label)` leads with the label when one is shown — after the 0.5.31 extraction had briefly regressed it on the Checklists tab.)
 
 **Implications:** Prefer `reserveSub` over a separate caption when a Media-card fact needs a sub-line — keep facts in the uniform tile grid. Any new external link built from export-column data must shape-validate the id before constructing the href.
 

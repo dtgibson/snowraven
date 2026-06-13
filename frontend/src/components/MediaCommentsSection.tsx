@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { MessageSquare, Search, ChevronDown, ExternalLink, Camera, Mic, Video } from 'lucide-react'
+import { OutboundLink } from './OutboundLink'
 import type { MLExportRow } from '../lib/parseMLExport'
 import { filterAndSortMediaComments, pickComment, hasMediaComment, MEDIA_COMMENT_LABEL } from '../lib/mediaComments'
 import { mlAssetUrl } from '../lib/mlCatalog'
@@ -133,17 +134,15 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
                   </span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{formatDate(row.date)}</span>
                   {row.location && <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>· {row.location}</span>}
-                  <a
+                  <OutboundLink
                     href={mlAssetUrl(row.catalogId)}
-                    target="_blank"
-                    rel="noreferrer"
                     title={`View asset ML${row.catalogId} on the Macaulay Library`}
                     style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
                     onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                     onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                   >
-                    ML{row.catalogId}<ExternalLink size={10} strokeWidth={2.5} />
-                  </a>
+                    ML{row.catalogId}<ExternalLink size={10} strokeWidth={2.5} aria-hidden="true" />
+                  </OutboundLink>
                 </div>
                 {picked && (
                   <div style={{ fontSize: '0.84375rem', color: 'var(--sr-text)', lineHeight: 1.55 }}>

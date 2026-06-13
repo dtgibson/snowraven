@@ -20,8 +20,8 @@ describe('SpeciesLinks', () => {
 
   it('opens each favicon link in a new tab and announces that in the accessible name (F078)', () => {
     render(<SpeciesLinks speciesCode="annhum" commonName="Anna's Hummingbird" />)
-    const ebird = screen.getByRole('link', { name: "View Anna's Hummingbird on eBird (opens in new tab)" })
-    const bow = screen.getByRole('link', { name: "View Anna's Hummingbird on Birds of the World (opens in new tab)" })
+    const ebird = screen.getByRole('link', { name: "View Anna's Hummingbird on eBird (opens in a new tab)" })
+    const bow = screen.getByRole('link', { name: "View Anna's Hummingbird on Birds of the World (opens in a new tab)" })
     expect(ebird.getAttribute('target')).toBe('_blank')
     expect(bow.getAttribute('target')).toBe('_blank')
     // The visible title stays free of the parenthetical so the tooltip is terse.
@@ -30,6 +30,6 @@ describe('SpeciesLinks', () => {
 
   it('falls back to a generic accessible name when no common name is given', () => {
     render(<SpeciesLinks speciesCode="annhum" />)
-    expect(screen.getByRole('link', { name: 'View on eBird (opens in new tab)' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'View on eBird (opens in a new tab)' })).toBeTruthy()
   })
 })

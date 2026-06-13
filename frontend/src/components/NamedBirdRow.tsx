@@ -9,11 +9,11 @@
 // tab at most one map (one WebGL context) is ever mounted.
 
 import { useMemo } from 'react'
-import { ChevronRight, ChevronDown, ExternalLink, Map as MapIcon } from 'lucide-react'
+import { ChevronRight, ChevronDown, Map as MapIcon } from 'lucide-react'
 import { formatDate } from '../lib/formatDate'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { SightingsMap } from './SightingsMap'
-import { SUBMISSION_ID_RE } from './speciesDetail/ui'
+import { ChecklistLink } from './ChecklistLink'
 import type { NamedBird } from '../lib/namedBirds'
 
 export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies }: {
@@ -87,22 +87,10 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
                     <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0, padding: '0 7px' }} aria-hidden>·</span>
                   </>
                 )}
-                {SUBMISSION_ID_RE.test(s.submissionId) ? (
-                  <a
-                    href={`https://ebird.org/checklist/${s.submissionId}`}
-                    target="_blank" rel="noreferrer"
-                    aria-label={`Open eBird checklist ${s.submissionId} (opens in a new tab)`}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none' }}
-                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                  >
-                    {s.submissionId}<ExternalLink size={10} strokeWidth={2.5} aria-hidden />
-                  </a>
-                ) : (
-                  <span style={{ flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text-muted)' }}>
-                    {s.submissionId}
-                  </span>
-                )}
+                <ChecklistLink
+                  submissionId={s.submissionId}
+                  style={{ flexShrink: 0, fontSize: '0.75rem', fontWeight: 600 }}
+                />
               </div>
               {s.comment && (
                 <div style={{

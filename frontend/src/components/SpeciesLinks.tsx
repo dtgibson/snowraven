@@ -19,7 +19,7 @@ export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
         href={`https://ebird.org/species/${speciesCode}`}
         target="_blank"
         rel="noreferrer"
-        aria-label={`View ${who}on eBird (opens in new tab)`}
+        aria-label={`View ${who}on eBird (opens in a new tab)`}
         title={`View ${who}on eBird`}
         // padding + matching negative margin: a ≥24×24 hit target (WCAG 2.5.8,
         // F098/F099) while the visible 14px favicon stays put in dense rows.
@@ -46,7 +46,7 @@ export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
         href={`https://birdsoftheworld.org/bow/species/${speciesCode}/cur/introduction`}
         target="_blank"
         rel="noreferrer"
-        aria-label={`View ${who}on Birds of the World (opens in new tab)`}
+        aria-label={`View ${who}on Birds of the World (opens in a new tab)`}
         title={`View ${who}on Birds of the World`}
         // padding + matching negative margin: a ≥24×24 hit target (WCAG 2.5.8,
         // F098/F099) while the visible 14px favicon stays put in dense rows.

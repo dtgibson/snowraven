@@ -9,6 +9,7 @@ import { neutralizeMarkerWrapper } from '../../lib/mapPins'
 import { recencyTier, tierColors, escHtml, MEDIA_ICONS } from '../../lib/mapExplorerFormat'
 import { formatDate } from '../../lib/formatDate'
 import { BirdName } from '../BirdName'
+import { ChecklistLink } from '../ChecklistLink'
 import type { DisplayTargetPin } from '../../lib/mapExplorerTypes'
 
 export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies, sel, onSelect }: {
@@ -113,9 +114,7 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
                         <span style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)' }}>{formatDate(pin.recentDate)}</span>
                       </div>
                       {validSubId && (
-                        <a href={`https://ebird.org/checklist/${pin.subId}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.6875rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>
-                          View checklist {pin.subId} →
-                        </a>
+                        <ChecklistLink submissionId={pin.subId ?? ''} compact style={{ fontSize: '0.6875rem' }} />
                       )}
                     </div>
                   )

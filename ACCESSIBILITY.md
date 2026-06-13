@@ -56,9 +56,7 @@ Where focus matters, SnowRaven manages it deliberately. Opening the Map Explorer
 
 ## Known Exceptions
 
-A few items are not yet fully covered, and are noted here rather than glossed over:
-
-- **A handful of cross-cutting niceties are deferred to shared components**, so they land consistently everywhere at once rather than piecemeal: a single uniform style and validation for the "open this checklist on eBird" links across the app, an explicit "opens in a new tab" announcement on every external link, and announcing the correct moon phase for Southern-Hemisphere checklists in the weather block (which requires the checklist's latitude to reach the display layer).
+The cross-cutting items previously tracked here are now addressed: the "open checklist on eBird" links are unified under one shared component with a single consistent accessible name (v0.5.31–v0.5.32), every external link announces that it opens in a new tab (v0.5.32), and the weather block names the correct moon phase for Southern-Hemisphere checklists (shipped v0.5.28). No cross-cutting accessibility exceptions are outstanding at this time.
 
 ---
 

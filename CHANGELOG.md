@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.32] - 2026-06-13
+
+### Accessibility
+
+Finishing the cross-cutting accessibility items that 0.5.31 tracked as known exceptions.
+
+- **Every "open on eBird" checklist link now goes through one shared component.** The checklist links that were still hand-rolled — across Species Detail, the Named Birds reports, the Statistics tab, the media stats, and the map popups — now render through `ChecklistLink`, so they share one visual signature and one screen-reader name everywhere (WCAG 3.2.4 Consistent Identification). Dense spots (the most-individuals and one-and-done species pills, the "most species / checklists" location cards, the year-by-year best-day column, and the Map Explorer target popup) use a new compact icon-only mode that keeps their tight layout while carrying the identical accessible name. That name now leads with the visible date or count a link shows, so a Voice Control user can activate it by what they see (WCAG 2.5.3 Label in Name) — which also corrects the Checklists tab's date link, whose name had drifted from its visible text when the component was first extracted.
+- **Every external link now announces that it opens in a new tab.** A new shared `OutboundLink` wrapper backs the remaining outbound links — eBird region links, the Macaulay Library, the OpenWeather and API-key links in Settings, the map hotspot and atlas popups, comment URLs, and the footer — so screen-reader users are warned before a link leaves the app. The cue is screen-reader-only; nothing visible changed.
+
+### Changed
+- **The Southern-Hemisphere moon-phase note was corrected.** It was tracked as a deferred follow-up, but the latitude-correct moon orientation already shipped in 0.5.28 (the emoji set mirrors for `lat < 0`, the checklist's latitude reaches both the desktop and web formatters, and both hemispheres are covered by the byte-golden tests). The stale "deferred" note is removed and the published accessibility statement now reflects the completed checklist-link and new-tab work.
+- **A stale "Leaflet" code comment was corrected.** The tab-navigation dropdown's z-index comment referenced Leaflet panes; the app moved to MapLibre GL in 0.5.9. Comment-only, no behavior change.
+
 ## [0.5.31] - 2026-06-12
 
 ### Accessibility

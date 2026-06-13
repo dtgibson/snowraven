@@ -81,9 +81,9 @@ describe('LifeListTable accessibility', () => {
       entries: [entry({ commonName: 'Mallard', catalogIds: ['p1', 'a1'] })],
       mediaMap: { p1: 'Photo', a1: 'Audio' },
     })
-    expect(screen.getByRole('link', { name: '1 photo on Macaulay Library (opens in new tab)' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: '1 audio recording on Macaulay Library (opens in new tab)' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: '2 total media items on Macaulay Library (opens in new tab)' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '1 photo on Macaulay Library (opens in a new tab)' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '1 audio recording on Macaulay Library (opens in a new tab)' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '2 total media items on Macaulay Library (opens in a new tab)' })).toBeTruthy()
   })
 
   it('renders an AT-reachable "no media" indicator instead of an unlabeled faint glyph (F082)', () => {

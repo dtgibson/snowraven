@@ -15,7 +15,7 @@ import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 import { formatDate } from '../lib/formatDate'
-import { SUBMISSION_ID_RE } from './speciesDetail/ui'
+import { ChecklistLink } from './ChecklistLink'
 import { neutralizeMarkerWrapper } from '../lib/mapPins'
 import type { SightingMarker } from '../lib/sightingMarkers'
 
@@ -72,20 +72,7 @@ export function SightingsMap({ markers, switcher = true }: {
           <div style={{ fontSize: '0.8125rem', lineHeight: 1.7, minWidth: 120 }}>
             {selected.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
               <div key={`${submissionId}-${i}`}>
-                {SUBMISSION_ID_RE.test(submissionId) ? (
-                  <a
-                    href={`https://ebird.org/checklist/${submissionId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
-                    onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                    onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                  >
-                    {formatDate(date)}
-                  </a>
-                ) : (
-                  <span>{formatDate(date)}</span>
-                )}
+                <ChecklistLink submissionId={submissionId} label={formatDate(date)} />
               </div>
             ))}
             {selected.sightings.length > 6 && (

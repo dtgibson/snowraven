@@ -9,6 +9,7 @@ import type { FeatureCollection, Point } from 'geojson'
 import { HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData, updateMapCursor, type HotspotKind } from '../../lib/mapPins'
 import { hatchPixelRatio } from '../../lib/atlasTextures'
 import { formatDate } from '../../lib/formatDate'
+import { OutboundLink } from '../OutboundLink'
 import type { HotspotPin } from '../../lib/mapExplorerTypes'
 
 /** Reverse sprite lookup: image id → hotspot kind, null for ids that aren't
@@ -145,11 +146,11 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
               <>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>Last visit: {formatDate(selPin.lastVisit)}</div>
-                <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
+                <OutboundLink href={`https://ebird.org/hotspot/${selPin.locId}`} style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird <span aria-hidden="true">→</span></OutboundLink>
               </>
             )}
             {selPin.kind === 'unvisited' && (
-              <a href={`https://ebird.org/hotspot/${selPin.locId}`} target="_blank" rel="noreferrer" style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird →</a>
+              <OutboundLink href={`https://ebird.org/hotspot/${selPin.locId}`} style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', textDecoration: 'none', fontWeight: 500 }}>View on eBird <span aria-hidden="true">→</span></OutboundLink>
             )}
             {selPin.kind === 'personal' && (
               <>

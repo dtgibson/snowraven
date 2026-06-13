@@ -14,6 +14,7 @@ import type { LocationError } from '../lib/location'
 import { clearEbirdObservationsCache } from '../lib/observationsCache'
 import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
+import { OutboundLink } from './OutboundLink'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -1231,7 +1232,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
           label="eBird API Key"
           sublabel="Not configured"
           hint={<>Get a free key at{' '}
-            <a href="https://ebird.org/api/keygen" target="_blank" rel="noreferrer" style={{ color: 'var(--sr-accent)', fontWeight: 500 }}>ebird.org/api/keygen</a>
+            <OutboundLink href="https://ebird.org/api/keygen" style={{ color: 'var(--sr-accent)', fontWeight: 500 }}>ebird.org/api/keygen</OutboundLink>
             {' '}(sign in to your eBird account first).</>}
           value={keys.ebird}
           visible={ebirdKeyVisible}
@@ -1251,7 +1252,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
             label="OpenWeather API Key"
             sublabel="Not configured"
             hint={<>Create a key at{' '}
-              <a href="https://openweathermap.org/api" target="_blank" rel="noreferrer" style={{ color: 'var(--sr-accent)', fontWeight: 500 }}>openweathermap.org</a>, then subscribe it to the free <strong>“One Call by Call”</strong> plan — weather lookups fail without that subscription.</>}
+              <OutboundLink href="https://openweathermap.org/api" style={{ color: 'var(--sr-accent)', fontWeight: 500 }}>openweathermap.org</OutboundLink>, then subscribe it to the free <strong>“One Call by Call”</strong> plan — weather lookups fail without that subscription.</>}
             value={keys.openweather}
             visible={openweatherKeyVisible}
             editing={openweatherKeyEditing}

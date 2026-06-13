@@ -20,6 +20,7 @@ import { SpeciesLinks } from './SpeciesLinks'
 import { BirdName } from './BirdName'
 import { computeNamedBirds } from '../lib/namedBirds'
 import { NamedBirdsTable } from './NamedBirdsTable'
+import { ChecklistLink } from './ChecklistLink'
 import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
@@ -31,7 +32,7 @@ import { SnowMap } from './SnowMap'
 import { SightingsMap } from './SightingsMap'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { extractUserId, mlCatalogLink } from '../lib/mlCatalog'
-import { SectionCard, SectionHead, StatLabel, StatValueLink, SUBMISSION_ID_RE, LOCATION_ID_RE } from './speciesDetail/ui'
+import { SectionCard, SectionHead, StatLabel, StatValueLink, LOCATION_ID_RE } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
@@ -1348,22 +1349,11 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5, flexWrap: 'wrap' }}>
-                      {SUBMISSION_ID_RE.test(o.submissionId) ? (
-                        <a
-                          href={`https://ebird.org/checklist/${o.submissionId}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={`${formatDate(o.date)} — open eBird checklist (opens in a new tab)`}
-                          style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
-                          onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                          onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                        >
-                          {formatDate(o.date)}
-                          <ExternalLink size={10} strokeWidth={2.5} aria-hidden="true" />
-                        </a>
-                      ) : (
-                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>{formatDate(o.date)}</span>
-                      )}
+                      <ChecklistLink
+                        submissionId={o.submissionId}
+                        label={formatDate(o.date)}
+                        style={{ fontSize: '0.75rem', fontWeight: 600 }}
+                      />
                       <span style={{ fontSize: '0.75rem', color: 'var(--sr-gray-300)' }}>·</span>
                       <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{o.location}</span>
                     </div>
