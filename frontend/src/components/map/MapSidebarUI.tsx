@@ -4,17 +4,22 @@
 import { AlertCircle } from 'lucide-react'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 
-export function SegControl({ options, value, onChange }: {
+export function SegControl({ options, value, onChange, ariaLabel }: {
   options: { value: string; label: string }[]
   value: string
   onChange: (v: string) => void
+  /** Optional group name. When set, the wrapper becomes role="group" with this
+   *  label; the active option is always exposed via aria-pressed regardless. */
+  ariaLabel?: string
 }) {
   return (
-    <div style={{ display: 'flex', background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2 }}>
+    <div style={{ display: 'flex', background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2 }}
+      role={ariaLabel ? 'group' : undefined} aria-label={ariaLabel}>
       {options.map(opt => (
         <button tabIndex={0}
           key={opt.value}
           onClick={() => onChange(opt.value)}
+          aria-pressed={value === opt.value}
           style={{
             flex: 1, height: 28, padding: '0 4px',
             background: value === opt.value ? 'var(--sr-surface)' : 'transparent',

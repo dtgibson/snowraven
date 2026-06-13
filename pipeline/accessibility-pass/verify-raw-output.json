@@ -1,0 +1,813 @@
+{
+  "summary": "Adversarial verification of the 93 audit findings, the missed structure dimension, and the completeness check",
+  "agentCount": 39,
+  "logs": [
+    "Running the structure auditor that failed in the first pass",
+    "Structure auditor: 6 findings, 13 passes",
+    "Verifying 93 findings in 35 file-grouped chunks",
+    "[verify:structure:5] failed: You've hit your session limit · resets 3:50am (America/Los_Angeles)",
+    "[verify:structure:0,1,2,3,4] failed: You've hit your session limit · resets 3:50am (America/Los_Angeles)",
+    "Verdicts on saved findings: 89 confirmed, 4 refuted, 0 uncertain. Structure: 0/6 confirmed",
+    "[completeness-critic] failed: You've hit your session limit · resets 3:50am (America/Los_Angeles)",
+    "FINAL: 89 confirmed, 4 refuted, 6 uncertain across saved + structure + gap findings"
+  ],
+  "result": {
+    "savedVerdicts": [
+      {
+        "i": 0,
+        "verdict": "confirmed",
+        "correctedSeverity": "critical",
+        "reasoning": "All six selects verified bare: MapExplorer 853/872/896 (SidebarLabel is an unassociated div), SpeciesDetail 604, LifeList 616, BreedingCodeList 376 (decorative MapPin only); grep confirms no aria-label/title on any of them, while Checklists.tsx 629/644 has the in-house aria-label fix. Accessible name computes to empty, so SR users hear only the current value with no control purpose — axe select-name at critical impact is fairly rated for six primary filter controls across four tabs. Minor imprecision only: for the three MapExplorer selects the visual label is the SidebarLabel div, not a MapPin icon.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 1,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Verified: both date inputs at SpeciesDetail.tsx:629-654 and the LifeList.tsx/BreedingCodeList.tsx duplicates have no aria-label, <label>, or title, while Checklists.tsx:655/:663 carries the exact labels claimed. Real 4.1.2/3.3.2 failure — a SR user gets two identical unnamed date fields and cannot tell From from To. Downgraded critical→serious: 'critical' is axe's rule-impact taxonomy, but contextually these are secondary filter controls that stay operable, the same defect class finding 5 rates serious; the suggested fix is correct and matches the in-repo convention.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 2,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Verified SightingsMap.tsx:54-58 (and TargetMarkers.tsx, BirdingStats.tsx:862-872): pins are plain div Marker children with click wired through react-map-gl's native click listener; maplibre only adds tabindex/keypress via setPopup(), which this code never uses, so no pin is focusable or keyboard-activatable. The Species Detail impact claim checks out — Top Locations rows (SpeciesDetail.tsx:1115-1138) show name+count only and the Comments section filters to commented sightings (line 372), so checklist links for uncommented sightings are popup-only, i.e. pointer-only. ACCESSIBILITY.md's keyboard-alternative claim is explicitly Map Explorer-scoped and its only disclosed exception is chart-label contrast, so this Level A lockout is undisclosed; serious is the right severity.",
+        "fixNote": "The button-child fix needs no custom keydown handler: react-map-gl attaches a native click listener to the marker wrapper, so Enter/Space on a real <button aria-label={`${locName ?? coord}, ${n} sightings`}> child dispatches a click that bubbles to it. One refinement: maplibre's Marker.addTo() already stamps the wrapper div with role='button' + generic aria-label='Map marker', so via the Marker ref call marker.getElement().setAttribute('role','presentation') and removeAttribute('aria-label') to avoid a nested-button announcement (or instead set the descriptive aria-label + tabindex on the wrapper itself through the ref and skip the inner button). Apply the same treatment to TargetMarkers.tsx and the BirdingStats rank pins; the Species Detail alternative (links in Top Locations rows) should reuse the existing NamedBirdRow.tsx aria-label pattern for checklist anchors.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 3,
+        "verdict": "confirmed",
+        "reasoning": "Verified: reorder is exclusively HTML5 DnD on the <li draggable> (Settings.tsx:710-718); the handle div (721-730) is unfocusable, there are no move-up/down buttons, and the file's only onKeyDown is the API-key Enter handler — so ordering is unreachable by keyboard, a hard 2.1.1 Level A failure. The sr-only note at line 699 self-documents it; ACCESSIBILITY.md's keyboard section does not disclose this exception (its only caveat is map markers, which have a keyboard alternative). Severity serious is correct; the suggested fix (move buttons or APG keyboard-drag with aria-live) is sound and fits the existing onReorder/storage-seam plumbing.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 4,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "All three defects verified: (1) the FAB cluster with filtersButtonRef renders only when !sidebarOpen (line 1446, ref 1461), so the Escape handler's focus() at line 202 runs while ref.current is null — dead code — and globals.css confirms .sr-map-sidebar-hidden is display:none on mobile, dropping focus to body; ACCESSIBILITY.md line 51's claim is therefore false. (2) Focusables are snapshotted once (lines 192-196) with [sidebarOpen]-only deps while the sidebar content is dynamic. (3) The Close button (1414) and backdrop (1400) close with no restore. Serious is appropriate: every keyboard close path on mobile strands focus, and the published a11y statement affirms the broken behavior.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 5,
+        "verdict": "confirmed",
+        "reasoning": "Every cited location verified: unnamed selects at SpeciesDetail.tsx:604, LifeList.tsx:616, BreedingCodeList.tsx:376, and MapExplorer.tsx:853/:872/:896 where SidebarLabel (map/MapSidebarUI.tsx:35) is a plain styled <div> with no htmlFor; MapExplorer.tsx:862/:864 are text inputs distinguished only by identical 'YYYY-MM-DD' placeholders. Minor nit: HTML-AAM makes the placeholder a fallback accessible name on the two text inputs, but both compute to the same string so the fields remain indistinguishable, and the selects have no name at all. Serious is fair and the aria-label fix matches the existing Checklists.tsx pattern.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 6,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "SegControl (MapSidebarUI.tsx:15-29) renders plain buttons with style-only active state, and every cited usage checks out: MapExplorer 700/881/912/1285, SpeciesDetail ~1189, BirdingStats 541/1628/1717, ListComparer 215, and the hotspot kind-legend toggles at MapExplorer 1030 whose only state cue is opacity 0.4. The correct pattern does exist in SortSeg (Checklists.tsx, role=group + aria-pressed) and SnowMap.tsx:144, and ACCESSIBILITY.md's 'filter pills announce whether they are pressed' claim is contradicted rather than disclosed as an exception. Serious is fair: a screen-reader user cannot determine the active option on roughly ten primary filter/view controls.",
+        "fixNote": "Give SegControl an ariaLabel prop rendered as role=\"group\" aria-label on its wrapper div plus aria-pressed={value === opt.value} on each button, mirroring SortSeg in Checklists.tsx (the SidebarLabel above it is not programmatically associated, so the group needs its own label). Apply the same aria-pressed to the inline groups in SpeciesDetail, BirdingStats, and ListComparer; for the kind-legend visibility toggles use aria-pressed={!isHidden} so pressed means shown.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 7,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Re-ran WCAG math: white on dark-theme #34D399 = 1.92:1 and #6EE7B7 = 1.52:1 (light-theme mid #5EA07C = 3.09:1), all failing 4.5:1 for the 11px/600 chip text (TargetMarkers.tsx:72) and 10px/600 tier badge (line 100) that carry the Media Targets mode's primary content. tierColors() at mapExplorerFormat.ts:61-62 hardcodes 'white' while the old tier already uses a per-theme --sr-map-target-old-text token, confirming the asymmetry. ACCESSIBILITY.md's only disclosed contrast exception is chart-bar labels and it claims map popups meet AA, so this is undisclosed; serious is the right severity.",
+        "fixNote": "The suggested per-tier text tokens are correct and convention-conforming (define in both :root and [data-theme=\"dark\"]); make explicit that --sr-map-target-mid-text must be dark in the LIGHT theme too (white on light-mid #5EA07C is only 3.09:1, failing 4.5:1 at 11px), while --sr-map-target-fresh-text can stay white in light (#2D8653 = 4.52:1) and go dark (e.g. #052E16) in dark.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 8,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Re-ran all contrast math independently (alpha-compositing tints over --sr-surface with globals.css token values): every claimed ratio reproduces exactly (light tier-1 2.32:1; dark tier-4 1.97, tier-3 2.94, tier-2 4.12, tier-2-on-tier-1 3.53; badge 3.96 dark / 5.38 light), and pill text is 12px/500 so the 4.5:1 normal-text threshold applies. The pairs genuinely co-occur in codePillStyle (line 45) and categoryPillStyle (lines 58-60) active states, plus the cited BirdingStats:1626/1637-1638, SpeciesDetail:786-788, and BreedingCodeTable:219 locations, all verified in current code. ACCESSIBILITY.md does not disclose this — it affirmatively claims filter pills meet 4.5:1 in both themes, so 'serious' is the right severity; the suggested --sr-tier-N-fg fix matches the existing --sr-tier-1-text both-themes token precedent and I verified dark #1A0030 on dark tier-2 #A855F7 = 4.88:1 passes.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 9,
+        "verdict": "confirmed",
+        "reasoning": "Re-ran the WCAG math independently: every reported ratio is exact (light #A1A1AA on #FFFFFF = 2.56:1, on #F9FAFB = 2.45:1; dark #52525B on #18181B = 2.29:1, on #27272A = 1.93:1; muted = 4.83/6.91 on surface). The cited Settings.tsx sites (235, 240, 250, 388, 739, 1143, 1174) are informative content — file dates, sublabels, status chips, explanatory paragraphs — none inside a disabled control, so the 1.4.3 inactive-control exemption does not apply. ACCESSIBILITY.md's contrast section claims AA for body text and discloses only chart-bar labels, not this; serious is the right severity for sub-2.6:1 body-size content text.",
+        "fixNote": "Swapping to --sr-text-muted is right for most sites, but light-theme muted (#71717A) on --sr-surface-subtle (#F4F4F5) is only 4.40:1 — just under AA. The 'No file saved' / 'No key saved' chips (Settings.tsx:250, 388) sit on surface-subtle, so for those either use --sr-text (or a new AA-checked token added to BOTH :root and [data-theme=\"dark\"] in globals.css) or lighten the chip background; all other cited Settings sites are on --sr-surface or --sr-bg where muted passes (4.83:1 / 4.62:1 light, 6.91:1+ dark).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 10,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Verified every cited location in current code: LifeList/BreedingCodeList/SpeciesDetail county selects and date inputs have no aria-label/label/title; MapExplorer's SidebarLabel is a bare <div> (MapSidebarUI.tsx:35-43) so its selects are unnamed and the two text date inputs share the identical 'YYYY-MM-DD' placeholder; Settings lat/lon/radius captions are plain <div>s; ChecklistComparer's <label> has no htmlFor and doesn't wrap the input. Checklists.tsx really does carry the aria-label house pattern the fix cites, and ACCESSIBILITY.md discloses only chart-label contrast as a known exception, not this. Serious is the right severity — repeated unnamed form controls across most data tabs is a genuine 4.1.2/1.3.1 SR barrier, though the controls remain operable.",
+        "fixNote": "The fix is correct and convention-consistent (mirror Checklists.tsx's aria-label=\"County\"/\"From date\"/\"To date\"). One caveat: do not unconditionally convert SidebarLabel to <label htmlFor> — it also captions the Breeding Code SegControl, a button group with no labelable element. Either add aria-label per control in MapExplorer (including format-bearing names like 'Date from (YYYY-MM-DD)' on the free-text date inputs), or give SidebarLabel an optional htmlFor prop that renders <label> only when an id is passed.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 11,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Every cited location verified as a plain styled div/span/p (MapExplorer 105/687/1006/1227, Settings 300-309/476-485/1210/1281-1283 including the field-anonymous 'Check your values' message, ListComparer 276-280); grep shows zero role=alert or aria-live in those files. The cited correct reference implementations all exist (App.tsx role=alert + aria-describedby, ChecklistComparer 372, DropZone 132, WeatherTidePanel 184), so this is inconsistent application of an established house pattern. Serious is fair for 4.1.3/3.3.1: async failures on key flows (location search, CSV upload, API-key save) are completely silent to SR users.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 12,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Verified TargetMarkers.tsx:69-75: chips are click-only divs with no tabindex/role, and MapExplorer.tsx:453-461 confirms nearest10 is distance-from-search-center, slice(0,10), with no mapBounds dependency — so targets beyond the nearest 10 have no keyboard route at all, unlike sightings/hotspots which use markersInView (cap 200, viewport-driven) into InViewMarkerList. ACCESSIBILITY.md line 13's claim that the targets list 'works the same way' and is 'scoped to the current map view' is factually wrong for this mode. Genuine 2.1.1 Level A gap in a primary feature plus an inaccurate published statement; serious stands.",
+        "fixNote": "The suggested InViewMarkerList fix is correct and matches existing conventions, with two precisions: (1) the locId grouping currently lives in TargetMarkers.tsx's locationGroups useMemo, so either lift it to MapExplorer (shared with displayedTargetPins) or recompute it there before feeding markersInView, and wire onActivate to the existing setSelectedTargetLocId + setPanTarget pair (same owner the chip click uses); (2) per CLAUDE.md, update ACCESSIBILITY.md in the same change — either to truthfully describe the viewport-scoped list once built, or immediately to state that the targets list is the nearest 10 from the search center.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 13,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "HelpDocs.tsx lines 341-351 lay out the TOC (inline width:200, flexShrink:0) and content (flex:1, minWidth:0) with gap 40 and 0 24px padding, all inline styles with no className, and globals.css's only width media block (640px) has no help-overlay rules — so at 320 CSS px the content column is ~32px as claimed. ACCESSIBILITY.md line 39 affirmatively claims reflow works (exempting only tables/maps), so this is contradicted rather than disclosed. Severity serious is fair: the in-app documentation becomes unreadable at 400% zoom for exactly the low-vision users it serves.",
+        "fixNote": "The suggested .sr-help-body class + rule in the existing @media (max-width: 640px) block is right, but because the layout is inline styles the override needs !important (the existing block already does this pattern for .sr-header's inline padding) — e.g. add classes to the row and nav and rule `.sr-help-row { flex-direction: column !important; gap: 0 !important; } .sr-help-toc { width: 100% !important; position: static !important; max-height: none !important; }`. The existing 640px breakpoint is sufficient for SC 1.4.10 (failure threshold is 320 CSS px); no new ~700px breakpoint needed.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 14,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Re-ran WCAG luminance math: --sr-text-disabled is 2.56:1 on white / 2.46:1 on --sr-surface-faint (the line 177/668 labels' actual backdrop) light, 2.29:1 / 2.20:1 dark — all well below 4.5:1 for 11-12px informational text. All ten cited locations exist and use the token for real content (count labels that are also the only result-count display, combobox sci names, mini-headers), and ACCESSIBILITY.md's sole disclosed exception (chart-bar percentage labels) covers none of them, so the published AA claim is false as written. Fix is correct and convention-compliant: --sr-text-muted passes in both themes (4.83/4.63 light, 6.91/6.63 dark) and is already defined in both.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 15,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Recomputed all ratios with WCAG luminance: ChecklistComparer's BreedingBadge fails in both themes (light tier-1 white-on-#C084FC = 2.64:1; dark #052E16 on tier-2/3/4 = 3.77/2.62/1.71) at 0.625rem bold small text, and the BreedingCodeTable dark tier-2 (3.96) and SpeciesDetail tier-1 pill (2.46 on the composited 8% surface) sub-claims also verify. ACCESSIBILITY.md line 31 holds the breeding badge up as the AA example and its only disclosed exception is chart-bar labels, so this is not disclosed. Serious is correct: 1.71:1 on confirmed-breeding codes in dark mode is effectively illegible and contradicts the published statement.",
+        "fixNote": "Per the tokens-in-both-themes convention, define per-tier text tokens rather than branching inline: keep --sr-tier-1-text (exists in both themes), add --sr-tier-2-text (#FFFFFF in :root = 5.38:1 on #9333EA; #1A0030 in dark = 4.88:1 on #A855F7) and --sr-tier-3-text/--sr-tier-4-text (#FFFFFF both themes, 5.70–15.0:1). Export a TIER_TEXT_COLORS map alongside TIER_COLORS in lib/breedingCodes.ts and use it in ChecklistComparer's BreedingBadge AND BreedingCodeTable.tsx:219 (whose hardcoded '#fff' also violates the no-raw-hex rule). For the SpeciesDetail.tsx:789 pill, set the tier-1 label color to var(--sr-tier-1-text) instead of the raw tier color.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 16,
+        "verdict": "confirmed",
+        "correctedSeverity": "serious",
+        "reasoning": "Independently recomputed every claimed pair and all match within 0.03 (accent 4.32/4.03/4.11/4.33 as small text incl. the 0.875rem/500 TabNav active label; muted 4.40 on the verified jump pills; disabled 2.33-2.56 confirmed on informative text at Checklists.tsx:177/668 aria-live counts, SpeciesDetail.tsx:638, Settings sublabels; white-on-#3B82F6 3.68 at BirdingStats.tsx:1153; tier-1 2.64 at :1613; accent-border-strong 2.53 at ListComparer.tsx:258). ACCESSIBILITY.md discloses only the chart-bar percentage-label subpart and otherwise claims AA for text/buttons/links in both themes, which the accent/muted/disabled items contradict, so not treated as disclosed. Proposed fixes verified: #277448 yields 5.09-5.46 and #65656e yields 5.25 on the cited surfaces; token-level :root changes fit conventions (dark theme has its own values).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 17,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified: aria-label sits on a plain non-focusable div with implicit generic role (Settings.tsx:721-723), 9 instances (DEFAULT_TAB_ORDER has 9 tabs), and ARIA 1.2 prohibits naming generic elements — a real axe aria-prohibited-attr hit. But the handle is not interactive or in the tab order, so the ignored/inconsistent name costs AT users nothing functional on its own; worst case is a stray confusing announcement in browse mode, and the actual operability failure is separately reported (findings 3/64). Downgrading from axe's mechanical 'serious' to minor; the suggested fix (aria-hidden short-term, real <button> with keyboard reorder long-term) is correct and consistent with the codebase's aria-label-on-button pattern.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 18,
+        "verdict": "confirmed",
+        "reasoning": "recharts 3.8.1 defaults accessibilityLayer to true (PieChart.d.ts) and RootSurface.js then renders the SVG with tabIndex=0 and role=application; the PieChart at BirdingStats.tsx:1287 passes no override and sits directly inside <div aria-hidden=\"true\"> (line 1286). That is exactly axe's aria-hidden-focus (serious): a tab stop screen readers cannot perceive. It is the only aria-hidden chart wrapper in the file, matching the claimed 1 instance; the accessibilityLayer={false} fix is valid for this recharts version.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 19,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "All five cited popups pass closeButton={false} at the exact lines, maplibre-gl's bundle contains zero Escape handling, and MapExplorer's only Escape handler is the mobile-sidebar focus trap — so popups opened via the keyboard-accessible in-view lists (which one-way set locId, never toggling aria-pressed rows off) have no keyboard dismissal at all. The HotspotMarkers popup adds real eBird-link tab stops, making this user-impacting under WCAG 2.1.1. ACCESSIBILITY.md describes the keyboard open path but does not disclose the missing dismissal; the suggested fix is accurate and convention-aligned (AtlasLayer.tsx:205 keeps the default close button, a real <button aria-label=\"Close popup\"> already themed via .maplibregl-popup-close-button with var(--sr-text-muted) in globals.css:576).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 20,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "AtlasLayer.tsx:109-132 opens the block popup only via map.on('click','sr-atlas-fill') canvas hit-testing; I verified InViewMarkerList is used solely for sightings (MapExplorer.tsx:943) and hotspots (:1059) and that breedingByBlock is consumed nowhere but this popup, so no keyboard route to the block name, breeding summary, or eBird atlas portal link exists. ACCESSIBILITY.md's map-markers paragraph documents the sightings/hotspots/targets keyboard lists but never mentions atlas blocks, so this is an undisclosed gap. Real 2.1.1 failure; moderate is fair for a supplementary overlay feature. (Duplicate of finding 58.)",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 21,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "WelcomeScreen.tsx:19-24 handles only Escape with no Tab containment while declaring aria-modal=\"true\", and App.tsx:1195-1201 mounts it inside the full app tree, so the obscured tab bar/footer remain tabbable behind the opaque var(--sr-bg) overlay. The map fullscreen claim also holds: App.tsx:1031-1033 is a fixed inset-0 z-1200 CSS overlay and App.tsx:389-395 locks only body scroll — no inert/aria-hidden/focus-trap exists anywhere in frontend/src. ACCESSIBILITY.md's Focus Management section discloses only the Map Explorer filter-panel trap, not this gap; moderate is the right severity (focus lands on invisible controls but is recoverable, not a 2.1.2 trap).",
+        "fixNote": "The suggested fix is correct and convention-consistent — HelpDocs.tsx:258-274 has exactly the referenced Tab-wrap handler. Two refinements: WelcomeScreen should query focusables from a ref on its own root div (it has no DOM id, unlike HelpDocs' getElementById('sr-help-overlay')), and for map fullscreen the `inert` attribute is safe in both desktop targets (WKWebView/Safari 15.5+, WebView2) — apply it to the sibling tabpanels, TabNav, and footer while mapFullscreen && activeTab === 'map-explorer', clearing it in the same effect cleanup as the existing body scroll lock at App.tsx:390-395. Update ACCESSIBILITY.md's Focus Management section in the same change per CLAUDE.md.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 22,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified: lines 192-196 snapshot focusables once with effect deps [sidebarOpen], while the sidebar holds the collapsible Filters accordion, async hotspot/target lists, and viewport-scoped in-view marker lists that change on every pan/zoom — so the captured last goes stale and Tab from the real last element walks out of the non-inert overlay. HelpDocs.tsx 255-275 re-queries inside the keydown handler exactly as the fix says, so the fix matches house convention. One factual error in the description — 'Escape + focus return work correctly' is wrong (the restore is dead code, see finding 4) — but it doesn't affect this finding's core claim; moderate is right (it partially duplicates finding 4's defect #2, and 2.4.3 is arguably the better SC tag than 2.1.2).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 23,
+        "verdict": "confirmed",
+        "reasoning": "BirdingStats.tsx:449 (and LifeList.tsx:505) call e.preventDefault() + smoothScrollIntoView, and lib/scroll.ts only scrolls — it never moves focus; the targets are plain divs (SectionCard in statsPrimitives.tsx, MediaCommentsSection.tsx:40) with no tabindex. preventDefault suppresses the browser's native fragment-navigation focus relocation, so after a jump the next Tab resumes from the nav chip — the feature is visual-only for keyboard users. The suggested fix (tabindex=-1 on targets + focus({preventScroll:true}) folded into the shared scroll helper) is correct and convention-conforming.",
+        "fixNote": "Put tabIndex={-1} on the SectionCard root div (statsPrimitives.tsx) so all nine Statistics targets inherit it, add the same to the #media-comments div in MediaCommentsSection.tsx, and add a jumpTo(el) wrapper in lib/scroll.ts that calls smoothScrollIntoView(el) then el.focus({ preventScroll: true }); switch the three preventDefault call sites (BirdingStats.tsx:449, LifeList.tsx:505) to it. Add :focus-visible-only outline styling (or outline: none on [tabindex=\"-1\"]) so the programmatic focus doesn't paint the green focus ring on the whole card for mouse users.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 24,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified all claims: 26 inline outline:'none' occurrences match the listed locations, inline style beats the non-!important outline in globals.css:556-563, and only the !important border-color plus the stylesheet box-shadow survive — the designed 2px ring never renders on these controls. However the surviving indicator (1.5px border flipping gray→accent at 4.52:1 light / 9.22:1 dark vs surface, plus a 4px glow, with explicit onFocus borderColor handlers in Settings) is a perceivable, conventional focus treatment, so 2.4.7 AA is not actually failed — the finding itself concedes this. Real as an app-wide design-consistency issue that also makes ACCESSIBILITY.md's published 'border-hugging ring on inputs' claim inaccurate, but a non-failing degradation grades as minor, not moderate.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 25,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Rule verified verbatim at globals.css:306; BirdName renders a <button class=\"sr-birdname-link\"> with no other focus styling, and the (0,2,0) class selector beats the (0,1,1) global button:focus-visible ring, leaving only color+underline plus the near-invisible 12%-alpha box-shadow. However keyboard focus still produces a clearly visible change (4.18:1 color shift plus an underline appearing), so WCAG 2.1 SC 2.4.7 technically passes and 2.4.13 Focus Appearance is AAA in WCAG 2.2 — this is a real consistency issue that also contradicts ACCESSIBILITY.md's 'clear green outline' claim, but not an AA failure, so moderate overstates it.",
+        "fixNote": "No selector split needed: just delete `outline: none` from the combined rule — `.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }`. Hover never paints an outline on a non-focused element, and the suggested split's `:hover { outline: none }` would suppress the ring whenever a focused name is also hovered; with the override gone, the global `button:focus-visible` 3px ring applies on keyboard focus only.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 26,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Fullscreen overlay styles (App.tsx:1031-1033) and body scroll lock (:390-395) exist exactly as cited; grep confirms no Escape handler or inert/focus-trap for fullscreen anywhere (MapExplorer.tsx:200's Escape handler is the mobile filters-panel trap only). The footer links/buttons and tab bar stay focusable behind the fixed z-1200 panel, so the obscured-focus walk is real; exit is FAB-only. Fairly flagged under 2.4.11 (WCAG 2.2 AA) with a real keyboard-UX gap; moderate is right since a keyboard exit does exist.",
+        "fixNote": "Put the Escape handling inside MapExplorer rather than App: MapExplorer owns onToggleFullscreen AND the sidebarOpen filters trap (MapExplorer.tsx:187-221), which already listens for Escape on document — an independent App-level listener would close the filters panel and exit fullscreen on the same keypress. Exit fullscreen on Escape only when sidebarOpen is false (innermost layer first), returning focus to the fullscreen FAB. For the obscured-focus half, React 19 (in use, ^19.2.5) supports the boolean inert prop — set inert on the header div, TabNav, footer <p>, and sibling tabpanels while mapFullscreen && activeTab === 'map-explorer'.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 27,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified App.tsx:1205 is bare `onClose={() => setHelpOpen(false)}`, HelpDocs has no unmount cleanup, and no activeElement capture/restore exists anywhere in src/ — focus is inside the unmounting overlay (Close button focused on mount) and drops to <body> on both Escape (line 257) and the Close button. All three openers (footer App.tsx:1113, Settings.tsx:1078, WelcomeScreen.tsx:100) are affected. ACCESSIBILITY.md's Focus Management section only covers the map filter panel (which does restore focus), so not disclosed; moderate is the right severity.",
+        "fixNote": "The capture-activeElement-in-HelpDocs approach works because the lazy mount uses `fallback={null}` (focus is still on the opener at first effect time), but the capture effect must be declared BEFORE the existing `closeRef.current?.focus()` effect at line 251, with the restore in that effect's cleanup: `useEffect(() => { const opener = document.activeElement as HTMLElement | null; return () => opener?.focus() }, [])`. This covers Escape, the Close button, and all three openers with no prop plumbing.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 28,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "ShowAllButton at Checklists.tsx:205 and :718 renders behind {!showAll && ...} and its onClick flips that state, unmounting the focused button; the file contains no useRef or .focus() call, so focus falls to <body> and the next Tab restarts from the page top. The same pattern is real at MediaCommentsSection.tsx:159, SpeciesDetail.tsx:1347, and Settings KeyRow (Cancel :457, post-save setEditing(false) :973). The toggle variants cited as the model do exist in-repo, so the fix direction matches existing conventions.",
+        "fixNote": "Prefer the stay-mounted toggle ('Show fewer'), matching the existing in-repo model (SpeciesDetail locations/co-occurrence, BirdingStats counties). If moving focus instead, note the revealed rows are plain divs: give the first newly revealed row container tabIndex={-1} and call .focus() on it after the state flip (e.g. via a ref + effect keyed on showAll); for Settings KeyRow, focus the Edit button that replaces the editor.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 29,
+        "verdict": "confirmed",
+        "reasoning": "Verified at SpeciesDetail.tsx:487 — the Escape branch calls (e.target as HTMLInputElement).blur(), and a grep confirms no other code restores focus, so focus lands on <body> and the keyboard user must Tab back from the top; ARIA combobox pattern requires keeping focus in the input. Moderate is fair (workaround exists, but it violates the deliberate-focus-management posture ACCESSIBILITY.md advertises). The suggested 'just closed via Escape' flag is unnecessary, so I supplied a simpler fix.",
+        "fixNote": "Just delete the .blur() call in the Escape branch — nothing else is needed. onFocus only fires on a focus GAIN, and removing the blur means focus never leaves the input, so the auto-open cannot retrigger; selectorDisplayValue (line 400: dropdownOpen ? selectorQuery : selectedSpecies ?? '') already reverts the input text to the selected species the moment dropdownOpen goes false.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 30,
+        "verdict": "confirmed",
+        "reasoning": "Lines 209-211 call close(false) with no preventDefault while real DOM focus sits on an option inside the conditionally-rendered listbox (line 265); under React 19's synchronous discrete-event flush the focused option unmounts before the browser's default Tab traversal, dropping focus to body. On narrow widths this dropdown is the primary navigation, so the 2.4.3 impact and moderate severity are fair. Escape's close(true) contrast claim also checks out (lines 205-207).",
+        "fixNote": "Simplest fix: in the Tab case call close(true) WITHOUT preventDefault. Inside close(), triggerRef.current?.focus() runs synchronously before React flushes the setOpen(false) unmount, so focus is on the trigger when the browser performs the default Tab — focus then moves naturally to the element after the trigger in ONE keystroke (and Shift+Tab to the element before it), with no extra keypress the suggested preventDefault+close(true) variant would require.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 31,
+        "verdict": "refuted",
+        "reasoning": "The core claim ('never manage focus', 'focus stays on the sidebar row, links only reachable by tabbing through map chrome') is false: none of the five Popup usages override maplibre's focusAfterOpen, which defaults to true (maplibre-gl/src/ui/popup.ts:19), and @vis.gl/react-maplibre spreads props into new mapLib.Popup() then calls setDOMContent(container).addTo(map) in its mount effect — after the portal children are committed — so addTo→_update→_focusFirstElement() focuses the popup's first 'View on eBird →' link on open, i.e. the first half of the finding's own fix already ships by default. The only residue (closeButton={false}, remove() not restoring focus) drops focus to body solely when a pointer click/pan closes a popup whose link holds focus — a mixed-input edge case the finding itself concedes is non-serious given the redundant keyboard path (InViewMarkerList rows plus the Nearest Unvisited rows' own aria-labeled eBird links). That residue is polish, not a 2.4.3 AA failure.",
+        "fixNote": "If the residual polish item is ever taken up, only the close side needs work: before clearing sel (unmounting the Popup), check whether document.activeElement is inside the popup's container and, if so, return focus to the owning sidebar row. Do NOT add an open-side focus move — maplibre's default focusAfterOpen already focuses the popup's first link, and duplicating it would double-fire.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 32,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified LifeListTable.tsx:188-250: four <th scope=\"col\" tabIndex={0} onClick onKeyDown aria-sort> headers expose only role columnheader, with no role/button conveying activatability, and the headers are the only column-sort mechanism (LifeList.tsx's toggle only switches nameSortMode). BreedingCodeTable.tsx:122-147 shares the pattern as claimed. ACCESSIBILITY.md describes sortable headers as working, not this gap, so not a disclosed exception; moderate severity is fair since keyboard operation and aria-sort do work — the failure is SR discoverability.",
+        "fixNote": "The button-in-th fix is right (APG sortable-table pattern) but incomplete: also remove tabIndex/onClick/onKeyDown from the <th> and put them on the inner <button type=\"button\"> so there is one tab stop, keep aria-sort on the th, and give the button visible text plus the sort affordance (e.g. aria-label=\"Sort by Entries\" only where the visible label is an icon/terse code). Do NOT instead add role=\"button\" to the th — that would destroy the columnheader role and orphan aria-sort.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 33,
+        "verdict": "confirmed",
+        "reasoning": "All ten App.tsx panels (lines 588-1073) use role=tabpanel + aria-labelledby=\"tab-{id}\", but in collapsed mode the only tab-{id} elements are dropdown options (TabNav.tsx:298) that exist only while the menu is open and carry role=option, not role=tab — so in the normal closed state every labelledby idref dangles and the tabpanels are orphaned with no tablist in the tree. ACCESSIBILITY.md line 19 explicitly claims 'Tabs and their panels are linked with the correct tab/tabpanel roles' and its only disclosed contrast/structure exception is chart-bar labels, so this contradicts a published statement rather than being disclosed. Moderate is fair: it breaks panel names and structure for the entire narrow-viewport/zoom audience.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 34,
+        "verdict": "confirmed",
+        "reasoning": "App.tsx:587-592 carries aria-live=\"polite\" aria-atomic=\"true\" on the entire weather tabpanel, with nested role=\"alert\" (:720) and role=\"status\" (:837-845) regions inside it — every state flip (Looking up…, Copied!, tide states, result insertion) re-announces the full panel atomically plus a duplicate from the scoped child region. This is the default tab, so the verbosity hits every screen-reader session; moderate is correct (annoyance/verbosity, not blocked function). ACCESSIBILITY.md describes the live region as a feature ('announced politely'), not as a known exception, so not disclosed. The suggested fix (drop the panel-level live attrs, keep the scoped children, add a small persistent polite region for the copy confirmation) is correct and matches the existing scoped role=status/alert pattern.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 35,
+        "verdict": "confirmed",
+        "reasoning": "Verified all five state branches: 'checking' (:1148), 'up-to-date' (:1154), 'downloading' (:1180) mount aria-live spans already containing their text, and 'available' (:1156-1178) and 'error' (:1190) have no live semantics at all — a screen-reader user activating Check For Updates can hear nothing for the two outcomes that matter (the idle button also unmounts, so there's no visual-focus fallback either). Moderate is fair: explicit user action with potentially zero feedback, on a feature central to desktop updating. The suggested fix (one persistent always-mounted aria-live span whose text changes across states) is the standard correct pattern; keep the Install-update button as a sibling outside the live span so its mount doesn't depend on live-region timing.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 36,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified: hotspotsError (1006-1011) and targetsError (1227-1232) render as plain divs with an aria-less AlertCircle icon, no role/aria-live anywhere in MapExplorer per grep, and the role=status loading chip (1437) simply unmounts on failure — so an SR user gets no failure feedback. Cited reference implementations (ChecklistComparer 372, App 720, DropZone 132) all exist, and role=alert on these two divs is the correct house-pattern fix. Note this is a strict subset of finding 11 (same two MapExplorer locations); confirmed independently at moderate, but the two should be deduplicated when applying fixes.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 37,
+        "verdict": "confirmed",
+        "reasoning": "Verified all three groups (Settings.tsx:119, 519, 586): role=radiogroup containing role=radio <button>s, every one tabIndex={0}, no roving tabindex, and no arrow-key handler anywhere in the file (only the key-input Enter handler at 439) — so the announced radio interaction model ('use arrow keys') is a no-op and unchecked radios stay in the Tab order. Everything remains operable via Tab+Enter, so moderate (misleading, not blocking) is the right severity. The fix is validated against the codebase: SortSeg exists (Checklists.tsx:67) and aria-pressed buttons are the established house pattern, so either implementing the APG radiogroup pattern or downgrading to aria-pressed is convention-correct.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 38,
+        "verdict": "refuted",
+        "reasoning": "The nesting is real (MapSidebarUI.tsx:101-102: sr-only inside aria-hidden never reaches AT), but no information is lost: the only caller that passes getDotLabel (hotspots in view, MapExplorer.tsx:1068-1072) duplicates the exact kind in getSecondary's visible text ('Visited · N species' / 'Personal location · …' / 'Unvisited hotspot'), which is part of the same button's accessible name, and the sightings list's dot is one uniform color with no getDotLabel. ACCESSIBILITY.md's 'map recency dots' claim refers to the Nearest Targets dot (MapExplorer.tsx:1310-1314), which is NOT aria-hidden and does reach screen readers, so the doc claim is not made false. This is dead code, not a 1.3.1 failure — technically-true with no user impact.",
+        "fixNote": "If cleaning up, delete the dead nested sr-only span rather than moving it out as a sibling — the suggested move would double-announce the kind already spoken via getSecondary in the same button.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 39,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified at ChecklistBadges.tsx:22-24 the Badge is a role-less span whose aria-label (prohibited on role=generic, inconsistently exposed by SRs) is the sole programmatic carrier of present/absent state — both states announce identically when it is dropped — and the role=\"group\" at line 53 is indeed unnamed. Not disclosed in ACCESSIBILITY.md (only the chart-bar contrast exception is). The suggested fix matches the codebase's own established pattern (Checklists.tsx:276 Badge uses role=\"img\" aria-label; Checklists.tsx:69 names its role=\"group\"), so it stands as-is.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 40,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "All claims check out: the title is styled spans in a div (App.tsx:570-580, no h1/header element); grep shows zero heading elements in Settings, LifeList, SpeciesDetail, MapExplorer and SetupRequired (title is a styled div, SetupRequired.tsx:31); ListComparer:184/ChecklistComparer:340 use h1 in tab content while Checklists:522/BirdingStats:424/NamedBirds:128 use h2; TabNav.tsx:105-108 puts role=\"tablist\" on the <nav> (killing the navigation landmark) and the dropdown variant renders no nav at all. Heading navigation is a primary SR strategy and four major views expose nothing, so this is genuinely user-impacting at 1.3.1 Level A; moderate is the right tier since tablist/main/contentinfo landmarks still give a navigation path.",
+        "fixNote": "The suggested heading plan is sound (h1 title in <header>, h2 per view incl. SetupRequired, h3 section cards — statsPrimitives.tsx already uses h3 for stats cards, so follow that pattern), but it omits the landmark half of its own description: also move role=\"tablist\" off the <nav> in TabNav.tsx onto an inner div so the navigation landmark survives, and wrap the dropdown-mode trigger+listbox in the same <nav aria-label=\"Main navigation\">.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 41,
+        "verdict": "confirmed",
+        "reasoning": "Independently recomputed every cited pair with my own WCAG relative-luminance implementation; all match (dark --sr-text on --sr-chart-blue-light = 1.29:1 at lines 1384/1405, white on dark graph-audio 1.44, white on dark accent 1.92 via the hardcoded '#fff' at 1181, dark text-on-slate 2.33 at 1361, white on dark chart-blue-dark 3.68 at 1125), and line 1358's --sr-on-accent does pass both themes (4.52/7.75) proving the fix pattern exists in-code. Labels are 11-12px weight-600, so the 4.5:1 normal-text threshold applies — in dark mode most in-bar labels fail, some catastrophically, which materially exceeds the 'a few cases' wording in ACCESSIBILITY.md line 31. Confirmed at moderate: the percentages are supplemental (raw counts appear in the adjacent header text), but 1.29:1 is effectively invisible text.",
+        "alreadyDisclosed": true
+      },
+      {
+        "i": 42,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified the mechanism end-to-end: lib/mapStyle.ts has no dark basemap variant (Positron only), SightingMarkers.tsx reads --sr-map-visited via useCssToken at runtime (theme-reactive per the data-theme MutationObserver contract), and my recomputation matches exactly — dark tokens #34D399/#E0A060/#7BA7C9 hit 1.69/1.97/2.25:1 on ~#F2F0EB land, with white teardrop glyphs at 2.24/2.56; the pin strokes are hardcoded white (SightingMarkers.tsx:160, mapPins.ts:133) so they add no edge contrast on light tiles. One inaccuracy: light theme does NOT fully pass — --sr-map-personal #C9842A is only 2.70:1 on the land tint, so the personal pin fails 1.4.11 in both themes. ACCESSIBILITY.md documents the sidebar keyboard path to markers but not marker contrast, so not disclosed; the sidebar mitigation keeps moderate the right severity.",
+        "fixNote": "Add dedicated basemap-anchored pin tokens (e.g. --sr-map-pin-*) defined with the SAME values in both :root and [data-theme=\"dark\"] for the GL circle layer and sprite bakes, keeping the existing --sr-map-* for sidebar legend/list dots on app surfaces. Note 'keep the light-theme values' alone is insufficient: light --sr-map-personal #C9842A is itself 2.70:1 on the land tint, so pair the shared pin tokens with a dark stroke ring — replace the hardcoded #ffffff circle-stroke-color (SightingMarkers.tsx:160) and sprite strokeStyle '#fff' (mapPins.ts:133) with a dark outline to supply the 3:1 boundary against light tiles.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 43,
+        "verdict": "confirmed",
+        "reasoning": "Independent WCAG relative-luminance math reproduces every reported ratio exactly: light #2D8653 is 4.03:1 on --sr-accent-bg #E8F5EE, 4.32:1 on --sr-bg #F9FAFB, 4.11:1 on --sr-surface-subtle #F4F4F5 (4.52:1 on white passes; dark theme passes at 7.75-10.35). The pairs genuinely co-occur — dropdown selected option (TabNav 309-314), SpeciesPanel count badge (11px accent text on accent-bg), active tab label over the body's --sr-bg background, footer 'Up to date' span — all normal-size text requiring 4.5:1, and 24 files reference --sr-accent-bg. ACCESSIBILITY.md claims AA for primary interface colors with only chart-bar labels excepted, so this is a real undisclosed AA failure; the suggested --sr-accent-strong fix is convention-compliant (token defined in both themes; verified 7.12:1 on accent-bg, 7.64:1 on bg) and the alternative #27764A verifies at 4.96/5.32/5.56.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 44,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified the pair co-occurs (Checklists.tsx:236 TriPill 'no' state and :488 error banner, plus the other listed files) and re-computed the ratio: #DC2626 on #FEF2F2 = 4.415:1, a genuine but marginal AA miss at 13px text; dark theme (7.07:1) and plain-surface (4.83:1) pass as the finding states. The 0.085 shortfall is perceptually negligible and light-theme-only, so 'moderate' overstates user impact — this is a compliance nudge, not a barrier; downgrading to minor. The fix is validated (#D31F1F = 4.82:1 on #FEF2F2, 5.27:1 on white) and convention-compliant as a single light-theme token edit in globals.css.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 45,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Independent WCAG math confirms the ratios: #71717A is 4.397:1 on #F4F4F5, 4.268:1 on #EFF1F3, and 4.310:1 on #E8F5EE (dark theme passes 5.27-5.82), and the surface-subtle and accent-bg pairings genuinely co-occur at small text sizes (SegControl inactive labels MapSidebarUI.tsx:13+24, basemap switcher globals.css:234/246, TargetMarkers.tsx:92 badges, selected-row secondary text MapSidebarUI.tsx:96+109 and MapExplorer.tsx:1306+1317); these are enabled controls, so the inactive-component exemption does not apply. One cited pairing is wrong: the quote-bg comment blocks (NamedBirdRow.tsx:110, Checklists.tsx:350-351) use full-contrast --sr-text, not muted, so that instance never occurs — but the finding stands on the other two surfaces. The proposed #6B6B74 verifies as passing everywhere (4.66-4.80 on the tinted surfaces, 5.28 on white), and changing only the :root value is convention-clean since the token already exists in both themes; not covered by ACCESSIBILITY.md's chart-bar-label exception.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 46,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Independently recomputed all ratios from globals.css tokens and they match exactly: light off-track #D4D4D8 is 1.48:1 vs both the white surface and the white knob (knob position imperceptible), on-track 4.52:1, dark track 2.29:1 vs surface with knob-vs-track 7.73:1. ACCESSIBILITY.md claims form controls meet AA contrast and discloses only chart-bar labels, so this is not a known exception. Moderate is right: a genuine 1.4.11 failure on a widely-used control, but state remains inferable from green-present/absent (state-vs-state 3.06:1) and aria-checked is correct for AT.",
+        "fixNote": "The suggested hexes verify (#8E8E96 = 3.25:1 on white; #6E6E78 = 3.51:1 vs dark surface, 5.04:1 vs white knob), but '--sr-border-medium-darkened' does not exist and hardcoded hexes in the component would violate the --sr-* token rule. Since --sr-gray-400 has no other consumers, either retune --sr-gray-400 to #8E8E96 (:root) / #6E6E78 ([data-theme=\"dark\"]) in frontend/src/globals.css, or — cleaner, since #8E8E96 would be oddly dark for a 'gray-400' slot — add a dedicated --sr-toggle-off-track token in BOTH themes and reference it at ToggleSwitch.tsx:27. Also update the ACCESSIBILITY.md contrast claim if the fix doesn't ship immediately.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 47,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Re-computed all ratios and they match: --sr-border vs surface is 1.27:1 light / 1.19:1 dark (1.21/1.34 vs page bg), --sr-border-medium 1.73/1.70 — the borders are near-invisible. But the W3C Understanding of 1.4.11 does not require a visible boundary when the control is otherwise identifiable, and every cited control carries a placeholder ('Search by place name', 'Paste your API key', 'e.g. 37.8275') and/or a visible label, and SELECT_STYLE selects show a ~4.7:1 chevron glyph — so this is a genuine low-vision usability weakness, not a clear normative AA failure. Confirmed as a worthwhile polish fix at minor severity rather than moderate.",
+        "fixNote": "The --sr-border-input token approach is right (define in both :root and [data-theme=\"dark\"]), but the suggested dark value #5F5F66 is only 2.80:1 vs --sr-surface #18181B — below the fix's own 3:1 target. Use ~#6B6B73 (3.35:1) or #707078 (3.61:1) for dark; light #949499 passes at 3.02:1 but only barely, so a slightly darker value gives margin.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 48,
+        "verdict": "confirmed",
+        "reasoning": "Hardcoded hexes verified at BirdingStats.tsx:671-677 and statsPrimitives.tsx:95-98 (violating the CLAUDE.md tokens-only rule), and my recomputation matches: tier-1 date 2.76:1 and tier-2 date 4.16:1 at 10px (need 4.5), RankIcon white-on-#3B82F6 3.68:1 at 10px bold (need 4.5). One overstatement: the tier-1 threshold number is 1.25rem/700 = 20px bold = WCAG large text, so its 4.03:1 PASSES at the 3:1 large-text threshold — the real failures are the two date links and the RankIcon square. Still a fair moderate: real sub-AA text plus a standing-convention violation.",
+        "fixNote": "Tokenize the milestone palette into --sr-milestone-* tokens defined in BOTH :root and [data-theme=\"dark\"] (globals.css), darkening only the failing date colors (tier-1 date >= #43755C on #E8F5EE = 4.76:1, tier-2 date similarly); the tier-1 number (20px bold = large text) already passes at 4.03:1 >= 3:1 and needs no change. Do NOT use var(--sr-chart-blue-dark) for the RankIcon square as suggested — it resolves to #3B82F6 in the dark theme, which is 3.68:1 under the white 10px-bold rank text and still fails; instead add a dedicated token (e.g. --sr-rank-square: #1D4ED8 in both themes, 6.70:1 under white) and use var(--sr-accent... ) tokens for the circle.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 49,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Independently recomputed: #C9842A (--sr-map-personal) on #FFF7ED (--sr-is-target-bg) = 2.90:1 in light theme at 11px/600 — small text, fails the 4.5:1 AA minimum exactly as reported; dark theme (#E0A060 on #1C0F00) = 8.38:1, passes. HotspotMarkers.tsx:156 matches the finding, and the badge is the popup's only textual indicator that the pin is a personal location, so it is meaningful text — moderate stands. Not disclosed: ACCESSIBILITY.md affirmatively claims map popups meet AA and lists only chart-bar percentage labels as the known exception.",
+        "fixNote": "Swap color: 'var(--sr-map-personal)' for 'var(--sr-is-target-text)' unconditionally — no light-theme branch needed, since the token is theme-scoped (4.88:1 light, 8.30:1 dark, both pass) and --sr-is-target-bg + --sr-is-target-text is already the codebase's badge pairing (LifeList.tsx:529).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 50,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "DropZone.tsx lines 39-43 and 108 set the error-state border and icon to --sr-error-muted on --sr-error-bg; my own WCAG luminance math reproduces every reported ratio (light 1.74:1 vs error-bg, 1.90:1 vs white surface; dark 2.74:1 vs surface, 3.02:1 vs error-bg), confirming a 1.4.11 failure in light theme and a marginal dark theme. The role=alert text partially conveys the state, so moderate is the right severity. The suggested var(--sr-error) fix is verified in both themes (4.41/4.83:1 light, 7.07/6.40:1 dark) and follows the --sr-* token convention; note it must be applied at both line 40 (border) and line 108 (icon).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 51,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Recomputed all cited ratios independently and each one holds with co-occurring real UI: light accent-on-accent-bg 4.03 / error-on-error-bg 4.41 (LifeList.tsx:107-108 active pills) / active tab on bg 4.32 (TabNav.tsx:94); --sr-text-disabled 2.29-2.57 on non-disabled content (Settings.tsx:240/376 sublabels); dark target chips 1.52/1.92 (white text hardcoded in lib/mapExplorerFormat.ts:61-62); dark breeding pills 1.97-2.94 after alpha-blending the 0.08 tints (BreedingCodeList.tsx:43-60); borders 1.19-1.27. ACCESSIBILITY.md:31 claims AA in both themes with only the chart-bar-label exception, so the published statement is overstated — and CLAUDE.md explicitly requires this file's claims to stay true. The only stated exception does not cover any of these, so alreadyDisclosed is false.",
+        "fixNote": "The two-option fix is sound, with one correction: the dark-theme target-chip failure is not a token edit — lib/mapExplorerFormat.ts hardcodes text: 'white' (itself against the no-hardcoded-colors convention). Fix it like the existing old-tier pattern: add --sr-map-target-fresh-text / --sr-map-target-mid-text tokens to BOTH :root and [data-theme=\"dark\"] in globals.css and reference them, mirroring --sr-map-target-old-text. The breeding-pill fix likewise needs the dark-theme tier text colors lightened (or pill text switched to --sr-text) rather than tint-alpha tweaks, since the 0.08 tint barely moves the blended background. Any token change must land in both theme blocks per convention; ACCESSIBILITY.md edits alone need no version bump.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 52,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "ChecklistComparer.tsx:57 puts aria-label on a bare span (role generic, where ARIA prohibits naming, so exposure is unreliable) wrapping lucide SVGs that carry no text alternative; no other text path in SideCell conveys media presence or counts. The repo's own correct pattern exists at Checklists.tsx:275 (Badge with role=\"img\" aria-label), confirming this component missed it. Moderate is right: real informational content (a headline comparer data point) with no reliable SR exposure, but not a control or blocker.",
+        "fixNote": "The suggested role=\"img\" fix is correct and matches the in-repo Badge pattern; while there, reuse the already-built pluralized text for the name so SR output matches the tooltip: <span role=\"img\" aria-label={`${n} ${label.toLowerCase()}${n > 1 ? 's' : ''}`}> (the current aria-label would announce '2 Photo').",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 53,
+        "verdict": "confirmed",
+        "reasoning": "All three sites verified (BirdingStats.tsx:1332, 1564, 1589): anchor content is solely the ↗ character with title=\"Open checklist\", so per accname computation the name is the glyph (title only supplies the description when content exists) — dozens of identical, non-descriptive links in the chip lists, indistinguishable in a screen-reader links list. The cited in-repo precedent is real: NamedBirdRow.tsx:94 already uses aria-label={`Open eBird checklist ${s.submissionId} (opens in a new tab)`} with an aria-hidden icon. Moderate is fair (2.4.4 in-context is arguable for the chip-adjacent bird name, but the repeated-identical-name failure mode is genuine) and the suggested fix matches the codebase pattern exactly.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 54,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified all three cited surfaces: popup spans (TargetMarkers.tsx:91-97) hold bare unnamed SVGs with no role/aria-label/sr-only text, chip labels inject raw MEDIA_ICONS SVG strings via dangerouslySetInnerHTML (line 62, mapExplorerFormat.ts:30-34) with no ARIA, and the Nearest Targets sidebar rows (MapExplorer.tsx:1315-1319) render only name/location/distance — missingTypes never appears as text on any keyboard/SR path. The type-filter pills filter the set but don't convey per-target info, so the feature's core information is icon-only, contradicting ACCESSIBILITY.md line 19's hidden-label claim. Moderate is the right severity: SR users can reach targets but lose the missing-media detail.",
+        "fixNote": "The suggested fix is right; extend it slightly: also add aria-hidden=\"true\" into the three MEDIA_ICONS SVG strings in lib/mapExplorerFormat.ts so browse-mode screen readers don't hit unnamed images on the on-map chips, and for the sidebar rows reuse the existing sr-only span pattern already used for the recency dot at MapExplorer.tsx:1311-1313 (e.g. <span className=\"sr-only\">Missing photo, audio</span>).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 55,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "The literal 'no role, name' claim is partly wrong — maplibre 5.24's Marker.addTo() (src/ui/marker.ts:340-348) stamps every marker wrapper with role='button' and default aria-label='Map marker' — but the substantive 1.1.1 failure stands: all pins announce identically with no location/count, are not focusable (tabindex comes only from the unused setPopup path), and the popup-only per-coordinate details have no named path. The cited mitigations are real (BirdingStats pins duplicate the adjacent 'Top locations by checklists/species' lists; NamedBirdRow lists every checklist link; TargetMarkers has the Nearest Targets sidebar), so moderate is the right severity. ACCESSIBILITY.md's marker claim is Map Explorer-only and does not disclose this.",
+        "fixNote": "Correction to the finding's mechanism: the markers are not role-less/invisible — maplibre already applies role='button' + a generic identical aria-label ('Map marker') to the wrapper, so the defect is a non-descriptive name plus no focusability. Fix by giving each pin a descriptive per-pin name: either set it on the wrapper via the Marker ref (marker.getElement().setAttribute('aria-label', `${locName ?? coord}, ${n} sightings`) plus tabindex='0' — maplibre preserves a pre-set label), or render a real <button aria-label=...> child and demote the wrapper to role='presentation' via the ref to avoid nested-button announcements. The finding's hand-rolled role='button'/tabIndex/Enter-Space div is workable but creates button-inside-button nesting and re-implements what a native <button> gives for free.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 56,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified every cited input: MapExplorer 862/864 are both placeholder=\"YYYY-MM-DD\" with the 'Date Range' SidebarLabel an unassociated div, so From and To compute identical accessible names; 84, 689/691, 1182, Settings 1216/1228/1240 (visible Latitude/Longitude/Radius labels are plain divs), SpeciesDetail 1268, and MediaCommentsSection 70 all have placeholder-only names. Checklists.tsx 655/663 confirmed as the in-house aria-label=\"From date\"/\"To date\" pattern the fix mirrors. Moderate is right — placeholders provide a partial name fallback, but the indistinguishable date pair is a genuine 2.4.6/1.3.1 failure.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 57,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Read every cited input: MediaCommentsSection.tsx:66-79, the shared CommentSearchBox in Checklists.tsx:161-175 (both instantiations), SpeciesDetail.tsx:1264-1277, MapExplorer.tsx:82-89/:689-692/:1182-1185, and Settings.tsx:424-440 — none has an aria-label, aria-labelledby, or associated <label>; the placeholder is the only identification, and the Settings row label is an unassociated <div>. ACCESSIBILITY.md's only disclosed exception is chart-bar contrast, so this is undisclosed. Moderate is correct: placeholder fallback usually yields *some* accessible name, but it vanishes on input (worst for the bare lat/lng number pair, which affects sighted users too) — a fair 3.3.2 AA failure, not serious, not pedantry.",
+        "fixNote": "The suggested aria-labels are right and match the file-local convention (Checklists.tsx already puts aria-label on its Protocol/County selects and From/To date inputs; MapExplorer/Settings use aria-label heavily elsewhere). One refinement: CommentSearchBox is a shared component, so add a single aria-label derived from its existing title/placeholder prop (e.g. aria-label={placeholder.replace(/…$/, '')}) — one change covers both Checklists instances. For Settings, derive it from the row's label prop (aria-label={`${label} API key value`} or similar) rather than a hardcoded string, since the component renders multiple key rows.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 58,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified the cited handler (AtlasLayer.tsx:109-132) is the sole path to setSel, and grep confirms BlockBreeding/breedingByBlock data is surfaced nowhere else in the app, so the popup content is genuinely pointer-only. The suggested fix matches existing conventions (InViewMarkerList in map/MapSidebarUI.tsx, blocksInBounds viewport scoping, cap+hint pattern) and correctly notes only shaded blocks need listing. Not disclosed in ACCESSIBILITY.md; moderate severity appropriate. (Duplicate of finding 20.)",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 59,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified at MapExplorer.tsx:862-865 the two date inputs are type=text with identical YYYY-MM-DD placeholders and no label/aria-label/aria-labelledby, and SidebarLabel (MapSidebarUI.tsx) is an unassociated styled div; lat/lng (:689-692), place search (:84), species search (:1182) are placeholder-named and the search button (:93) is title-only. One nuance: per HTML-AAM a placeholder remains the computed accessible name even after a value is typed (the 'vanish' is visual-only, a 3.3.2 issue), but the identical meaningless names on the two date fields are a genuine 4.1.2/3.3.2 failure that gates the map filters. Severity moderate is appropriate and the aria-label fix matches existing codebase patterns (e.g. the heatmap slider's aria-label at :930).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 60,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Every claim checks out: maplibre-gl.css sets .maplibregl-map{font:12px/20px Helvetica Neue,...}, the globals.css:568 popup override adds no font-size/family, the AtlasLayer block name (:208-213) has no fontSize, .maplibregl-ctrl-attrib inherits the fixed 12px, and the Text Size control scales only rem text via html{font-size:calc(100% * var(--sr-text-scale))} (globals.css:378). On desktop — which ACCESSIBILITY.md:37 itself says has no browser zoom — this text is un-resizable, a genuine 1.4.4 failure there (web is saved by browser zoom); at 200% the popup title would render smaller than its own muted secondary text. AtlasLayer is indeed the only popup of six without closeButton={false}, but that part of the fix is wrong (see fixNote).",
+        "fixNote": "The CSS parts are right: extend the existing globals.css override with `.maplibregl-popup-content { font-size: 0.8125rem; font-family: var(--font-sans); }` and add `.maplibregl-ctrl-attrib { font-size: 0.6875rem; }`, and give the AtlasLayer block-name elements an explicit rem fontSize (e.g. 0.8125rem). But do NOT pass closeButton={false} on the AtlasLayer popup: it also sets closeOnClick={false}, so the default close button is its only dismiss affordance and its only keyboard-operable control — removing it would strand the popup open and worsen 2.1.1. Instead keep the button and size it via the existing .maplibregl-popup-close-button override (e.g. add `font-size: 1rem; padding: 2px 8px;`), which also addresses the 2.5.8 target-size concern.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 61,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "All four cited sub-patterns exist in current code (BarRow px label/value columns at statsPrimitives.tsx:59-75 with labelWidth 28/48/120/150 at the cited consumer lines; height-20 overflow-hidden sub-bars at BirdingStats.tsx:1151-1158; 100/96px ellipsized county/state columns at 953/984/1028/1057, counties lacking even a title; fixed 120/132px donut charts with absolutely-centered captions). The app's Text Size control doubles the root font-size via --sr-text-scale while these px boxes stay fixed, so single-word labels overlap the bars, sub-bar labels clip at the 20px clip edge, names truncate to a few characters, and donut captions spill across the ring at 200% — and ACCESSIBILITY.md affirmatively claims 1.4.4 is met 'without clipping content', so this contradicts the published statement rather than being disclosed. Two specifics are overstated (the '1,234 (56%)' values wrap onto a second line rather than overlapping since rows use minHeight, and the height-32 media bars at 1356/1380/1401 fit at 200%), but the pattern and moderate severity stand.",
+        "fixNote": "Direction is right, but: BarRow's labelWidth prop is typed `number`, so convert inside the component (width: `${labelWidth / 16}rem`, value column `pctOf ? '4.25rem' : '2.5rem'`) so no call sites change; `height: 20` → `minHeight: 20` on the sub-bars is correct as suggested; recharts PieChart width/height are px numbers so the donut can't be 'sized in rem' — instead give the centered caption maxWidth: '100%' with padding and ellipsis/wrap (or compute the chart px size from the live root font-size); and for the county columns at BirdingStats.tsx:953/984 either add the missing title attribute or replace the hard ellipsis with a rem minWidth that lets names wrap.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 62,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Verified all cited lines: ResultsView.tsx:111 `repeat(5, 1fr)` with nowrap/ellipsis 0.625rem labels (165-176), :129 `repeat(3, 1fr)` panels, and the ChecklistComparer twins (281, 310, ~479) — all inline styles with zero responsive handling (no matchMedia, no media-query class) anywhere in ResultsView/ListComparer/ChecklistComparer. At 320px each stat cell is ~55-64px with 40px horizontal padding, leaving ~15-24px for the label (1-3 chars + ellipsis): 'Checklist A'/'Checklist B' and filename-derived labels (eBird exports share the 'MyEBirdData' prefix) truncate to identical strings — concrete information loss under SC 1.4.10, though the both/A-only/B-only counts are duplicated in the panel headers so only the two totals become truly ambiguous. Moderate is the right severity: real AA failure at 320px/400% zoom, but degraded rather than blocking.",
+        "fixNote": "The stats-bar half of the fix is sound (rem-based `repeat(auto-fit, minmax(7rem, 1fr))` inline also scales with the in-app Text Size control). The panel half won't work as written: the grids' `gridTemplateColumns` are inline styles, and a media-query class rule cannot override an inline declaration — move the grid definition into a class (as SpeciesDetail.tsx:802 uses `className=\"sr-two-col\"` with no inline grid). ResultsView's panel grid is 3 columns, so `.sr-two-col` isn't directly reusable: either add an `.sr-compare-panels { grid-template-columns: repeat(3, 1fr) }` base rule with a `1fr` override in the existing `@media (max-width: 640px)` block in globals.css (the ChecklistComparer's 1fr-1fr grid CAN reuse `.sr-two-col` directly), or skip media queries entirely with inline `repeat(auto-fit, minmax(14rem, 1fr))`. Also note ACCESSIBILITY.md line 39 currently claims narrow-window reflow 'without clipping content' — it should be corrected or the fix shipped to keep that published statement true.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 63,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "nearest10 (MapExplorer.tsx:453-461) is sorted by distance from the lat/lng search-center inputs with deps [displayedTargetPins, lat, lng] — it never reads mapBounds, never reacts to pan/zoom, and has no over-cap hint — while ACCESSIBILITY.md line 13 explicitly includes the Nearest Targets list in 'These lists are scoped to the current map view and update as you pan or zoom'. The gap is functional, not just a claims bug: target chips are DOM divs with onClick but no tabIndex (TargetMarkers.tsx), so targets beyond the 10 nearest to the center have no keyboard path at all while mouse users can click any chip. Moderate is fair (false published assistive-behavior claim plus a real 2.1.1 gap).",
+        "fixNote": "If scoping to the viewport, reuse the existing pattern rather than patching nearest10: derive markersInView(displayedTargetPins, mapBounds) and render through the shared InViewMarkerList (MapSidebarUI.tsx) like sightingsInView/hotspotsInView, which gives the cap + 'zoom in to narrow the list' hint for free. Otherwise the one-line ACCESSIBILITY.md correction ('the targets list shows the 10 nearest the search center') is the cheaper honest fix.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 64,
+        "verdict": "confirmed",
+        "reasoning": "Both halves check out: (a) reordering is pointer-only — DnD on the <li>, unfocusable handle div with an invalid aria-label, no keyboard mechanism in the file — and (b) ACCESSIBILITY.md's Keyboard Navigation section enumerates only the map-marker caveat and never names this exception, so the 'Nearly all' hedge gives readers no way to learn ordering is keyboard-inaccessible. The sr-only in-app note (line 699) is disclosure to SR users but not in the published statement, so alreadyDisclosed stays false. Moderate is fair for the claims-dimension framing (the underlying 2.1.1 failure is index 3's serious finding); the fix — keyboard reorder, or naming the exception in ACCESSIBILITY.md until then — is correct.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 65,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "This is the same defect as index 27 (exact duplicate, different cited line): App.tsx:1203-1205 just sets helpOpen false, no capture/restore code exists, and focus verifiably falls to <body>; the contrast with the map filter sidebar's correct refocus is accurate. Confirmed, but minor understates it — a keyboard user re-Tabs from the document top after every Help close, and the identical finding at index 27 is rated moderate, so aligned to moderate. Should be merged with index 27 as one finding.",
+        "fixNote": "Same fix as index 27: a mount-time effect in HelpDocs declared before the closeRef-focus effect, capturing document.activeElement and refocusing it in the cleanup — covers all three openers without prop plumbing.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 66,
+        "verdict": "confirmed",
+        "correctedSeverity": "moderate",
+        "reasoning": "Line 69's inline outline:'none' overrides globals.css:542-551's [role=\"button\"]:focus-visible / [tabindex]:focus-visible ring (no !important), leaving only the rule's rgba(45,134,83,0.12) box-shadow (~1.05:1 over the light surface, effectively invisible), and the component has no focus-driven styling of its own — isHovered is mouse-only. This directly contradicts ACCESSIBILITY.md's claim that every focused control shows a clear green outline, so it is not a disclosed exception. An effectively absent focus indicator on the List Comparer's two upload controls is a real 2.4.7 AA failure, understated at minor; the suggested fix (delete the inline outline:'none') is correct and safe since :focus-visible does not fire on mouse interaction.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 67,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified: each favicon anchor's hit area is the 14x14 .sr-favicon-slot (globals.css:285) with no padding and a 5px gap, so centers are 19px apart and the 2.5.8 spacing exception fails; SpeciesLinks is composed into the app-wide BirdName, so the targets repeat everywhere. The 2.4.11 half is real but narrower than stated: LifeListTable's sticky header only engages in wideMode (the default-mode overflowX:auto wrapper becomes the scrollport and never scrolls vertically, so the header never sticks), while BreedingCodeTable's sticky 220px first column does engage and can cover the tabIndex=0 sortable column headers. Fairly flagged as forward-looking 2.2 deltas at minor; ACCESSIBILITY.md discloses neither.",
+        "fixNote": "Favicons: add padding (e.g. 5px) on the anchors or .sr-favicon-slot, offset with negative margin to preserve dense-row layout, keeping the img at 14px. Sticky tables: scroll-padding-top must go on the ACTUAL scrolling element — for LifeListTable that is the document (html), not the table wrapper (the wrapper is only a horizontal scrollport, and in wideMode the header sticks to the viewport; scroll-padding-top on the wrapper would be a no-op). For BreedingCodeTable's sticky column the analog is scroll-padding-left: 220px on the overflowX:auto wrapper div.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 68,
+        "verdict": "confirmed",
+        "reasoning": "TabBar's tablist onKeyDown (TabNav.tsx:109-123) handles only ArrowLeft/ArrowRight while the collapsed dropdown implements Home/End (lines 197-204), confirming both the gap and the cross-mode inconsistency. The finding correctly self-classifies as advisory APG polish with no AA failure (Home/End are optional in the APG tabs pattern, and arrow wrapping caps traversal at ~half the tab count), so minor is the right severity. The suggested fix mirrors an existing in-file pattern and is sound.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 69,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "The Filters disclosure button (MapExplorer.tsx:835-847) carries no aria-expanded; the only state cue is the rotated ChevronDown, and the panel collapses via maxHeight 0. Verified the cited convention claim: NamedBirdRow.tsx:36, ChecklistComparer.tsx:76 and :440, and TabNav.tsx:234 all set aria-expanded on their disclosures, so this is an isolated omission. Minor is right and the suggested one-attribute fix (aria-expanded={filterOpen}, optionally aria-controls) is correct and conventional.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 70,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Checklists.tsx:177 puts aria-live=\"polite\" on the count span, and matches recomputes synchronously from the filter input (useMemo on filter, set in onChange), so every count-changing keystroke mutates the live region and queues an announcement over character echo — used by both comment sections. Slight overstatement ('every keystroke' is really 'every keystroke that changes the count') but substantively correct, and minor is the right severity. ACCESSIBILITY.md mentions polite count regions as a feature, not this chattiness as a known issue, so not already disclosed.",
+        "fixNote": "The visible count and the live region are the same span, so a naive debounce would also lag the visible count. Split them: keep the existing visible span immediate but add aria-hidden, and render a visually-hidden sibling with aria-live=\"polite\" fed by a ~400-500 ms debounced copy of the count text (debounced state via useEffect + setTimeout keyed on matches.length). Apply the same pattern to the line 668 checklist-count region, which has the same shape (though it is mostly click-driven, the date inputs can also type-churn it).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 71,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified at ListComparer.tsx:150-165: role=tablist/tab with aria-selected but no aria-controls, no tabpanel on the swapped content (line 168), both tabs tabIndex={0} (no roving), and no onKeyDown anywhere in the file. The nesting claim also holds — App.tsx mounts ListComparer inside the id=panel-comparer role=tabpanel. Keyboard operation still works via Tab+Enter on the real buttons, so minor is the correct severity; ACCESSIBILITY.md does not disclose this (it asserts the main tab bar follows the standard arrow-key pattern), and the suggested SortSeg-style role=group/aria-pressed fix matches the existing convention in Checklists.tsx.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 72,
+        "verdict": "confirmed",
+        "reasoning": "All claims verify in current code: line 269 sets aria-activedescendant={`tab-${activeTab}`} on a listbox div that never receives focus (no tabindex) and points at the selected rather than focused option, options are tabIndex={0} (line 300) despite roving DOM focus, and the trigger (lines 229-237) lacks aria-controls (the listbox also has no id to reference). The component is functionally usable since DOM focus carries announcements, so minor is the correct severity for this ARIA-contradicts-focus-model issue. The suggested fix (drop activedescendant, tabIndex={-1} on options, listbox id + trigger aria-controls) is correct — programmatic .focus() works on tabindex=-1 elements, so the existing focusItem logic is unaffected.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 73,
+        "verdict": "confirmed",
+        "reasoning": "Verified at SpeciesDetail.tsx:521-531 — a <span onClick={() => setDropdownOpen(o => !o)}> with no role, no accessible name, no tabIndex, no key handler, and notably no aria-hidden either, so AT perceives a mystery element while keyboard users cannot reach it. Minor is correct since the function is fully redundant (input focus opens, Escape/Tab closes). The proposed fix (aria-hidden decorative, or a tabIndex={-1} button with aria-label per the APG combobox pattern) is right; note this duplicates finding 84.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 74,
+        "verdict": "confirmed",
+        "reasoning": "All cited instances verified: TabLoading (App.tsx:125, also the Suspense fallbacks), tide chips (:837-845), MapExplorer:1437, BirdingStats:464/:883, AtlasLayer:230, WeatherTidePanel:165-235 — every one is a conditionally-mounted element carrying role=\"status\" together with its message, which AT announces inconsistently since the live region doesn't pre-exist its content change. Real but low-impact (loading-state awareness only; the loaded content itself is perceivable), so minor is the right severity and it's fairly batched as one pattern finding. The persistent-container fix is the standard remedy; note that for the Suspense fallbacks (TabLoading) the persistent region must live outside the Suspense boundary.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 75,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Same favicon facts verified independently (largely a duplicate of finding 67's part (a)): 14x14 anchor hit areas with a 5px gap (centers 19px apart < 24px, so the spacing exception fails), rendered via BirdName across Life List, Breeding Codes, Checklists, and Stats. Correctly framed as a 2.2 delta, not a 2.1 AA failure; minor stands and ACCESSIBILITY.md does not disclose it. The chevron half is weaker: the full-width 40px combobox input opens the dropdown on focus/click (SpeciesDetail.tsx onFocus handler), so the ~16px chevron plausibly meets 2.5.8's Equivalent exception.",
+        "fixNote": "Padding on .sr-favicon-slot works (the anchor wraps the slot, so the anchor's hit area grows); pair it with a matching negative margin so dense table rows don't widen, and keep the img at 14px (the slot's fixed-size layout-shift guard comment in globals.css still holds if width/height become the padded total). The chevron 24px hit box is optional — it is arguably exempt under the 2.5.8 Equivalent exception since the 40px-tall input toggles the same dropdown.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 76,
+        "verdict": "refuted",
+        "reasoning": "The premise 'no ::placeholder rule exists anywhere' is false: globals.css line 1 imports Tailwind v4 (4.2.4), whose preflight sets `::placeholder { color: color-mix(in oklab, currentcolor 50%, transparent) }` (node_modules/tailwindcss/preflight.css:293), applying in Chrome/Firefox/Safari 17+ and overriding the Chrome #757575 UA default the finding's 3.85:1 math depends on. Placeholder-bearing inputs use color: var(--sr-text) on var(--sr-surface), so the actual rendered dark-theme placeholder is ~#868688 on #18181B = 4.88:1 — it PASSES AA; the genuinely marginal pair is the LIGHT theme (50% of #0F1117 on white ≈ 3.54:1), the opposite of what was filed. The missing color-scheme declaration (index.css is indeed dead code — main.tsx imports only globals.css) affects native scrollbars/select chrome only, which the finding itself concedes is cosmetic.",
+        "fixNote": "Though the dark-theme claim is wrong, the suggested remediation is still worth applying for the LIGHT theme: an unlayered `::placeholder { color: var(--sr-text-muted); opacity: 1 }` in globals.css beats the @layer base preflight rule and lifts the real light-theme ~3.54:1 to 4.83:1 (6.91:1 dark), and `color-scheme: light` on :root / `color-scheme: dark` on [data-theme=\"dark\"] fixes the native-widget chrome mismatch.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 77,
+        "verdict": "confirmed",
+        "reasoning": "Recomputed all cited non-text ratios and they match: light --sr-graph-audio #F59E0B vs white 2.15:1 (media LineChart at :1776), --sr-chart-blue-light vs white 1.80:1, tier-1 vs white 2.64:1, and the hand-built stacked breeding bar's adjacent segments at :1677-1679 (tier-2/tier-1 2.04 light / 1.50 dark; tier-4/tier-2 2.79 / 2.20). The stated mitigations are real (role=\"img\" summaries at :557/:1266/:1755, legends, BarRow prints value+pct as text), which correctly keeps this at minor under 1.4.11's redundant-presentation allowance — the amber series line is the strongest genuine instance since the lines themselves carry the trend.",
+        "fixNote": "Darkening light --sr-graph-audio toward #B45309 (5.02:1, matches light --sr-age-immature) is verified and safe. But do NOT shift the shared --sr-tier-* palette to fix the stacked-bar boundaries — those tokens drive the map atlas overlay, hatch sprites (--sr-tier-N-rgb), legend parity, and the breeding-badge dark-text-on-light-tier pairing called out in ACCESSIBILITY.md; instead add 1px var(--sr-surface) gaps between the three stacked segments at BirdingStats.tsx:1677-1679, which fixes segment distinguishability with zero blast radius.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 78,
+        "verdict": "confirmed",
+        "reasoning": "Lines 1775-1778 of BirdingStats.tsx render four <Line> series with dot={false}, no strokeDasharray, and only stroke color differentiating them; Vienot protan/deutan simulation collapses the photo #3B82F6 / video #8B5CF6 pair from RGB distance 88.6 to ~1-2 (same in dark theme #60A5FA/#A78BFA), confirming the confusion claim. SightingsGraph.tsx's media overlay (lines ~157-172) is likewise hue-only (its dots are same-shape circles in the series color). Hover tooltips and the role=img label keep the info reachable, so minor severity is correctly stated.",
+        "fixNote": "Add per-series strokeDasharray to the four <Line>s in BirdingStats.tsx (e.g. photo solid, audio '6 3', video '2 3', total '8 3 2 3'); since dot={false} there, dashes are the practical cue. Apply the same patterns to the photo/audio/video overlay in speciesDetail/SightingsGraph.tsx (~lines 157-172). Note recharts' default Legend line icon does not render the dash pattern, so either pass a custom legend `content` or distinct `legendType` icons so the legend also differs by more than hue. Also note ACCESSIBILITY.md currently claims 'Color is never the only way information is conveyed' — update it (or fix the charts in the same change) per the CLAUDE.md rule that it must stay true.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 79,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Re-ran the WCAG math: light-theme --sr-map-target-old #A8D4BB vs the sidebar's var(--sr-surface) #FFFFFF is 1.64:1 and the dot's --sr-border #E4E4E7 border is 1.27:1 — the reported ratios are exact (the 'old' tier takes the var(--sr-border) border branch at :1310 since its text token isn't 'white'). The sidebar row (:1310-1319) shows name/location/distance but no date or tier text, and the on-map chips (TargetMarkers.tsx) are colored by tier only, so the tier IS color-alone at a glance for sighted users; the sr-only labels (:1311-1313) and the popup's '≤7 days' text + date exist as the finding accurately concedes. Minor is fair given the interaction path, and the fix is valid: --sr-accent-strong exists in both themes (globals.css:30/:131) and is 7.98:1 against the light surface.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 80,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Recomputed independently: --sr-gray-300 on --sr-surface is #D1D5DB/#FFFFFF = 1.47:1 light and #3F3F46/#18181B = 1.70:1 dark — exactly as reported, at lines 288/302/316/331, well under the 3:1 of SC 1.4.11. Minor is the right severity since the absent count link redundantly conveys 'zero'. Not covered by ACCESSIBILITY.md's lone known exception (chart-bar percentage labels).",
+        "fixNote": "Two of the finding's three suggested tokens fail its own 3:1 target: --sr-text-disabled computes to 2.56:1 light / 2.29:1 dark, and --sr-border-medium to 1.73:1 / 1.70:1 (its dark value IS #3F3F46, the currently-failing color). Use the third option only: color the glyph var(--sr-text-muted) (#71717A light = 4.83:1, #A1A1AA dark = 6.91:1; token already defined in both themes), either keeping the <Minus> icon or rendering a text em dash — the text variant additionally gives screen readers something to announce.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 81,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified both halves: LifeListTable.tsx:267 is a plain <td> while BreedingCodeTable.tsx:174 uses <th scope=\"row\"> (with a comment explaining the textAlign reset), so the inconsistency is real and the bare-number link cells (e.g. \"3\") genuinely benefit from row-header semantics. Column headers still provide context, so this sits at the best-practice edge of 1.3.1; minor is the correct severity and the framing is honest, not pedantic.",
+        "fixNote": "Match BreedingCodeTable.tsx:174-187 fully: <th scope=\"row\" style={{ padding: '9px 14px', verticalAlign: 'middle', textAlign: 'left', fontWeight: 'normal' }}>. The fontWeight: 'normal' reset (present in BreedingCodeTable at line 186 but omitted from the finding's snippet) matters because .sr-birdname-sci sets no font-weight, so the italic scientific-name line would otherwise inherit the th bold default.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 82,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "weatherFormatter.ts:93-102 swaps to mirrored emoji for lat<0, so all six asymmetric phases carry the opposite phase's Unicode name (verified: southern waxing crescent emits 🌘 'waning crescent moon'); the emoji is the block's only phase carrier (formatWeatherBody emits `${emoji}${moon}` with no phase text line) and renders as raw text in the Weather tab <pre> (App.tsx:827) and WeatherTidePanel's MonoBlock, where SRs announce it by character name. ACCESSIBILITY.md does not disclose this — it actually claims icon-only info carries hidden text labels. Minor is fair: narrow trigger (southern hemisphere + night checklist + SR) but the announced info is actively wrong, a genuine 1.1.1 failure.",
+        "fixNote": "In the in-app renderings only (App.tsx Weather-tab <pre> ~line 811 and WeatherTidePanel's MonoBlock), split off the header line and wrap the emoji run in <span role=\"img\" aria-label=\"...\"> — a bare span aria-label is not reliably honored by SRs without role=\"img\". Derive the true phase name by exporting it from weatherFormatter.ts (e.g. a moonPhaseName(unixTs) beside moonPhaseEmoji, or reverse-lookup the rendered emoji's index in MOON_SOUTH when lat < 0; northern emoji names are already correct). Do NOT change formatWeatherBody's output string — it is byte-locked with backend/formatters/weather.py and the commentBlocks.ts stripper anchors on the unspaced contiguous emoji run.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 83,
+        "verdict": "confirmed",
+        "reasoning": "Same verified facts as index 37: three role=radiogroup/role=radio groups (119, 519, 586) with all-tabIndex={0} buttons, no arrow-key handling, no roving tabindex, so SR-announced radio semantics contradict actual behavior while Tab+Enter still works. The finding correctly scopes impact to confusion rather than blockage, so minor is appropriate (note 4.1.2 is Level A, not AA as labeled — immaterial). The suggested downgrade to the house aria-pressed pattern is validated (SortSeg at Checklists.tsx:67, aria-pressed used across BreedingCodeList and others).",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 84,
+        "verdict": "confirmed",
+        "reasoning": "Same element as finding 73 (SpeciesDetail.tsx:521-531) viewed through 2.1.1: the visible toggle affordance is a mouse-only <span> — dead for switch/voice users targeting it, invisible to SR — though a full keyboard path exists through the input itself, so minor is the right severity. Confirmed in current code; no aria-hidden present. This is a duplicate of finding 73 and should be merged with it; the fix options given are both acceptable, with the tabIndex={-1} named button being the APG-preferred one.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 85,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "All cited controls verified: the three hand-rolled role=switch buttons are 38x22 (MapExplorer.tsx:726, :759, :788 — 22px tall, under 24), and the padding-0 text buttons exist as described in Settings.tsx:363-373 (Show/Hide), LifeList.tsx:694-703 / Checklists.tsx:685-690 / SpeciesDetail.tsx:658-667 (Clear filter), and App.tsx:611-619 (Go to Settings), all at 0.75rem with no padding (~17px hit height). The finding honestly frames itself as a forward-looking WCAG 2.2 delta and acknowledges the spacing exception currently covers most of them, so minor is the right severity.",
+        "fixNote": "The codebase already has a shared ui/ToggleSwitch.tsx (a 30px-tall role=switch button with the label inside) — prefer migrating the three inline atlas switches to it, or if the label-left/switch-right layout must stay, bump the bare track to >=24px tall (e.g. 44x24). For the zero-padding text buttons, padding (or min-height 24 with negative-margin compensation) as originally suggested is fine.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 86,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified at MapExplorer.tsx:1108-1118: the anchor is inline-flex with no padding around an ExternalLink size={12} icon, giving a ~12px hit target sitting 6px from the flex:1 location-name button on one side and the distance text on the other — under 2.5.8's 24px minimum, and the 6px gap means the spacing exception does not rescue it (the 24px circles of the anchor and the adjacent ~15px-tall name button intersect). The 26x26 crosshair comparison at :1326-1330 checks out. Fairly flagged as a forward-looking 2.2 item; minor is right and the suggested fixed 24x24/26x26 centered box matches the existing crosshair-button pattern.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 87,
+        "verdict": "refuted",
+        "reasoning": "Code claims verify (index.html:23 slows to 2s; globals.css:588-594 has the !important kill), but I confirmed the built dist/index.html loads the bundled CSS as render-blocking <link>s in <head>, so first paint cannot occur before the document-wide reduced-motion kill applies — no RM user of any shipped build (Tauri or web/Pi) ever sees the 2s spin. The ACCESSIBILITY.md 'near-instant' claim is therefore exactly true as experienced, and the residual behavior exists only in dev mode or total-CSS-failure scenarios, neither user-facing. Technically-true but zero real user impact; the finding itself documents its own neutralization.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 88,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "All four inline animation:'spin' sites exist as cited and a repo-wide grep confirms they are the only spinners bypassing the .spin class (line 1438 of the same file uses it). The reduced-motion block (globals.css:588-594) is `*` + !important longhands, which does override inline styles, so the finding's no-current-failure, regression-risk-only framing is accurate and fairly flagged against the published reduced-motion commitment in ACCESSIBILITY.md.",
+        "fixNote": "Suggested fix is correct and convention-aligned. One caveat: .spin runs at 0.7s while lines 657/1003/1224 use 1s, so adopting the class slightly speeds those three spinners — cosmetic and consistent with the rest of the app; line 682 already matches 0.7s.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 89,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "RankIcon (statsPrimitives.tsx:92-101) is exactly as described — fixed 24x24 SVG with fontSize=\"10\" numerals used as map Markers at BirdingStats.tsx:865/871, and a grep confirms it is the only SVG <text> in the app, so the numerals are the one text surface that ignores the Text Size control. The stated mitigations hold (the identical ranks render as scalable HTML text in the lists at BirdingStats.tsx:904-925, and map markers get 1.4.10/1.4.4 latitude), so minor/polish is the right severity; the bundled token complaint is also real — #2D8653/#3B82F6/#71717A are hardcoded against CLAUDE.md's explicit 'no hardcoded hex in component files' rule. The popup gray is worse than stylistic: the MapLibre popup background is themed (var(--sr-surface) = #18181B dark), and I computed #71717A on it at 3.67:1, below AA, while var(--sr-text-muted) is #A1A1AA in dark theme precisely for this.",
+        "fixNote": "Em-sizing the SVG works (DOM markers inherit the scaled root font-size; note pins double in footprint at 200% and overlap more — acceptable). But do NOT blind-swap the pin fills to var(--sr-accent)/var(--sr-graph-photo): those tokens lighten in dark theme (#34D399/#60A5FA) and the white numeral would drop well below AA, while the pins sit on theme-independent map tiles where the current dark fills are correct in both themes — mint dedicated --sr-rank-pin-circle/--sr-rank-pin-square tokens in BOTH :root and [data-theme=dark] (same dark values in each is fine) and use them for both RankIcon and the legend swatches at BirdingStats.tsx:888/892. The popup gray at :876 should become var(--sr-text-muted) — that one is a real dark-theme AA fix (3.67:1 today), not just hygiene.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 90,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Line 848 is exactly `maxHeight: filterOpen ? 600 : 0` with overflow:hidden and no scrollbar path; clipped content would be unreachable since the clamped div sits inside the sidebar scroll container. I re-measured at 200% text scale: selects/inputs/SegControl are fixed-height px and only rem labels grow, so contents land ~420-500px — under the clamp, confirming no present-day 1.4.4 failure exactly as the finding states. Fairly-flagged fail-closed construction on a panel that conditionally gains filters (County, Media), kept at minor as forward-looking only.",
+        "fixNote": "Both suggested options work; the grid-template-rows 0fr/1fr technique requires `min-height: 0` plus `overflow: hidden` on the inner row and is supported in WKWebView (Safari 16+) and WebView2, so it is safe for the desktop targets. The transitionend→maxHeight:'none' variant is the smaller diff for this inline-styled component.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 91,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified width: 132/flexShrink: 0 at line 74, the matching SideHeader 132 at line 506, plus a fixed 34px count box at line 88; lib/textScale.ts scales only rem text (--sr-text-scale up to 2x), so at 200% the rem-sized badge text outgrows the px boxes and a badge-dense row overflows or clips. Cannot be refuted via browser zoom: ACCESSIBILITY.md explicitly claims SC 1.4.4 conformance through the in-app control because the desktop app has no browser zoom, and its only zoom disclosure (horizontal scroll for tables/maps under 1.4.10) does not cover this. Minor is the right severity — localized overlap on the densest rows of one tab.",
+        "fixNote": "Prefer a shared rem-width constant (e.g. const SIDE_CELL_WIDTH = '9rem') used by both SideCell and SideHeader over minWidth — minWidth would let per-row cell widths diverge and break the A/B count alignment the fixed width exists for (per the code comment 'Fixed width so counts line up'). Also convert the inner count box at line 88 from width: 34 to a rem value (e.g. '2.25rem'), since it clips 3-digit counts at 200% independently of the cell width.",
+        "alreadyDisclosed": false
+      },
+      {
+        "i": 92,
+        "verdict": "confirmed",
+        "correctedSeverity": "minor",
+        "reasoning": "Verified: the trap (lines 187-221, deps [sidebarOpen]) snapshots focusables once and wraps against captured first/last, while the sidebar's content is dynamic — the in-view marker lists and the async 'Find hotspots'/targets search results all render inside sidebarRef, so Tab from a newly-appended true-last element escapes the overlay, contradicting the ACCESSIBILITY.md 'keeps it there while open' claim. One correction: the Filters accordion expansion does NOT change the focusable set (its collapsed content stays in the DOM, merely clipped by maxHeight:0, and is already in the snapshot); the async list mutations are the real escape path. Edge case on mobile only, so minor is right; ACCESSIBILITY.md states the opposite, which is a claim, not a disclosure.",
+        "fixNote": "Re-query `sidebar.querySelectorAll(...)` inside handleKeyDown on each Tab press and derive first/last from the live list. While there, filter to visible elements (e.g. `el.offsetParent !== null`) so the controls clipped inside the collapsed Filters accordion (maxHeight:0, overflow:hidden — still tabbable today) stop being invisible tab stops.",
+        "alreadyDisclosed": false
+      }
+    ],
+    "structureFindings": [
+      {
+        "title": "No skip link to bypass the header/tab bar before main content",
+        "file": "frontend/src/App.tsx",
+        "line": 570,
+        "severity": "minor",
+        "wcag": "2.4.1 Bypass Blocks (A)",
+        "description": "There is no skip-to-main-content link anywhere in the app (grep for skip-link patterns across src/, index.css, App.css, globals.css, and main.tsx returns nothing). The branding header (App.tsx:570) and TabNav (App.tsx:583) render before <main> (App.tsx:586). Impact is low — strictly, 2.4.1 is satisfiable via the existing <main> landmark (technique ARIA11), the header contains no focusable elements, and both TabNav variants are a single tab stop (desktop roving tabindex at TabNav.tsx:132; collapsed dropdown is one trigger button) — so a sighted keyboard user pays only one extra Tab per page load. Reported as a best-practice gap rather than a conformance failure.",
+        "evidence": "App.tsx:570 header div and :583 <TabNav> precede <main> at :586; no element or CSS class implementing a skip link exists in the codebase.",
+        "suggestedFix": "Add a visually-hidden-until-focused anchor as the first child of the root div: <a href=\"#sr-main\" className=\"sr-skip-link\">Skip to main content</a>, give <main> id=\"sr-main\" and tabIndex={-1}, and style .sr-skip-link to appear on :focus (positioned fixed, z-index above 1200 since overlays use 1200).",
+        "dim": "structure",
+        "j": 0,
+        "verdict": {
+          "verdict": "uncertain",
+          "reasoning": "verifier unavailable"
+        }
+      },
+      {
+        "title": "Primary navigation and header have no landmark exposure; HelpDocs TOC nav is unlabeled",
+        "file": "frontend/src/components/TabNav.tsx",
+        "line": 105,
+        "severity": "moderate",
+        "wcag": "1.3.1 Info and Relationships (A)",
+        "description": "Three related landmark-structure gaps (merged): (1) Desktop tab bar: <nav aria-label=\"Main navigation\" role=\"tablist\"> (TabNav.tsx:105-108) — the explicit role=\"tablist\" overrides <nav>'s implicit navigation role, so no navigation landmark exists anywhere on the page; screen-reader landmark navigation (rotor/landmark list) shows no way to find the primary navigation. (2) Collapsed mode: TabDropdown renders in a plain <div> (TabNav.tsx:228) with no nav landmark at all, so narrow/mobile users also get no navigation landmark. (3) The app header with branding and tagline is a plain styled div (App.tsx:570), not <header>/banner, leaving it outside any landmark. By contrast <main> (App.tsx:586) and the footer role=\"contentinfo\" (App.tsx:1100) are correct. Additionally the HelpDocs TOC <nav> (HelpDocs.tsx:347) has no accessible name, so it announces as an anonymous navigation region inside the documentation dialog.",
+        "evidence": "TabNav.tsx:105-108 `<nav aria-label=\"Main navigation\" ... role=\"tablist\">`; TabNav.tsx:228 dropdown wrapper is `<div style={{ padding: '12px 16px', position: 'relative' }} ref={wrapRef}>`; App.tsx:570 `<div className=\"sr-header\" ...>`; HelpDocs.tsx:347 `<nav style={{...}}>` with no aria-label.",
+        "suggestedFix": "Wrap the tablist in a labeled nav instead of putting role=\"tablist\" on the nav itself: <nav aria-label=\"Main\"><div role=\"tablist\">…</div></nav>; wrap TabDropdown's container in the same <nav aria-label=\"Main\">; change the App header div to <header> (banner); add aria-label=\"Documentation contents\" to the HelpDocs TOC nav.",
+        "dim": "structure",
+        "j": 1,
+        "verdict": {
+          "verdict": "uncertain",
+          "reasoning": "verifier unavailable"
+        }
+      },
+      {
+        "title": "Collapsed-mode tabpanels reference nonexistent tab ids (dangling aria-labelledby)",
+        "file": "frontend/src/App.tsx",
+        "line": 590,
+        "severity": "moderate",
+        "wcag": "1.3.1 Info and Relationships (A); 4.1.2 Name, Role, Value (A)",
+        "description": "Every tab panel is hard-wired to a tab id, e.g. aria-labelledby=\"tab-weather\" (App.tsx:590; the same pattern on the panels at lines 905, 926, 949, 966, 983, 1000, 1024, 1052, 1071). On narrow screens TabNav swaps the tab bar for a dropdown (TabNav.tsx:69-73), and the elements carrying id=\"tab-<id>\" then exist only while the dropdown menu is open (the role=\"option\" buttons, TabNav.tsx:298). With the menu closed — the normal state — all ten role=\"tabpanel\" regions have aria-labelledby pointing at ids that are not in the DOM, so assistive technology gets unnamed tabpanels, and the tab/tabpanel relationship (aria-controls from options that are not tabs, panels with no tablist) is structurally broken in this mode. The dropdown's aria-activedescendant=\"tab-<activeTab>\" (TabNav.tsx:269) also duplicates DOM focus already placed on the options, and the panels' aria-controls counterparts are listbox options, not tabs.",
+        "evidence": "App.tsx:588-590 `role=\"tabpanel\" id=\"panel-weather\" aria-labelledby=\"tab-weather\"`; TabNav.tsx:69-73 `collapsed ? <TabDropdown .../> : <TabBar .../>`; TabNav.tsx:297-298 `role=\"option\" id={`tab-${item.id}`}` rendered only when `open`.",
+        "suggestedFix": "Give panels a mode-independent name: replace aria-labelledby with a static aria-label per panel (e.g. aria-label=\"Weather\"), or render the panels' role=\"tabpanel\" only when the desktop tablist is present and use plain labeled regions in collapsed mode. Drop aria-activedescendant from the dropdown listbox since focus moves to the options directly.",
+        "dim": "structure",
+        "j": 2,
+        "verdict": {
+          "verdict": "uncertain",
+          "reasoning": "verifier unavailable"
+        }
+      },
+      {
+        "title": "Document title is static; active view is never reflected in the page/window title",
+        "file": "frontend/index.html",
+        "line": 7,
+        "severity": "minor",
+        "wcag": "2.4.2 Page Titled (A) — best-practice delta",
+        "description": "The title is \"SnowRaven\" (index.html:7) and nothing in src/ ever writes document.title (grep finds no occurrences); the Tauri window title is likewise static (src-tauri/tauri.conf.json:14). Because the app is a true single page with an in-page tab widget and no routing (no pushState/hash/router anywhere), the static title technically satisfies 2.4.2. But with ten distinct views (Weather, Species Detail, Map Explorer, Statistics, Settings, …), updating the title on tab change would aid orientation for screen-reader users, browser-tab/window switchers, and history — standard SPA practice.",
+        "evidence": "index.html:7 `<title>SnowRaven</title>`; `grep -rn \"document.title\" frontend/src` returns nothing.",
+        "suggestedFix": "On tab change in App.tsx, set document.title = `${activeLabel} — SnowRaven` (a small useEffect keyed on activeTab); this also updates the desktop window title in Tauri.",
+        "dim": "structure",
+        "j": 3,
+        "verdict": {
+          "verdict": "uncertain",
+          "reasoning": "verifier unavailable"
+        }
+      },
+      {
+        "title": "External links open new windows without any indication (inconsistent across the app)",
+        "file": "frontend/src/components/HelpDocs.tsx",
+        "line": 61,
+        "severity": "minor",
+        "wcag": "3.2.5 / 2.4.4 advisory (G201)",
+        "description": "43 target=\"_blank\" anchors exist across ~20 component files; only two indicate the behavior — App.tsx:748 and App.tsx:898 use \"(opens in new tab)\" in aria-label. All others give no warning, including every link in the Help documentation (HelpDocs.tsx:61 renders all HELP.md links with target=\"_blank\" rel=\"noreferrer\" and no indication), the footer GitHub link (App.tsx:1101-1110), SpeciesLinks.tsx:20/45 (whose aria-labels \"View X on eBird\" omit it), LifeListTable.tsx media-count links, BirdingStats.tsx checklist/region links (15 instances), Checklists.tsx, MapExplorer.tsx, SpeciesDetail.tsx, NamedBirdRow.tsx, Settings.tsx, WeatherTidePanel.tsx, MediaCommentsSection.tsx, MediaStatsSections.tsx, ChecklistComparer.tsx, SightingsMap.tsx, map/HotspotMarkers.tsx, map/TargetMarkers.tsx, AtlasLayer.tsx, speciesDetail/ui.tsx, CommentText.tsx. Unexpected context changes disorient screen-reader and cognitive-disability users; the app already has the right pattern in two places — it just isn't applied consistently.",
+        "evidence": "HelpDocs.tsx:61 `<a key={ki++} href={lm[2]} target=\"_blank\" rel=\"noreferrer\"` with no new-window indication; grep shows 43 target=\"_blank\" instances, only App.tsx:748 and App.tsx:898 carry \"(opens in new tab)\".",
+        "suggestedFix": "Adopt one shared ExternalA component (or extend SpeciesLinks' pattern) that appends \"(opens in new tab)\" to the accessible name (visually-hidden span or aria-label suffix) and use it for all target=\"_blank\" anchors, including HelpDocs' renderInline link branch.",
+        "dim": "structure",
+        "j": 4,
+        "verdict": {
+          "verdict": "uncertain",
+          "reasoning": "verifier unavailable"
+        }
+      },
+      {
+        "title": "Bare \"↗\" glyph checklist links rely on title attribute alone; footer \"SnowRaven\" link hides its GitHub destination",
+        "file": "frontend/src/components/BirdingStats.tsx",
+        "line": 1332,
+        "severity": "minor",
+        "wcag": "2.4.4 Link Purpose (In Context) (A)",
+        "description": "Two weak link-purpose patterns (merged): (1) BirdingStats Highlights/Records links render the single glyph \"↗\" as their only content with title=\"Open checklist\" (BirdingStats.tsx:1332, 1564, 1589). The accessible name comes only from the title fallback — fragile across AT, invisible to sighted keyboard users (title tooltips don't appear on focus), unavailable on touch — and the repeated identical name \"Open checklist\" is distinguished only by surrounding card/row context. (2) The footer link whose text is \"SnowRaven\" (App.tsx:1101-1110) actually navigates to the GitHub repository; neither the link text nor its programmatic context (\"SnowRaven · Self-hosted Birding Tools\") reveals that destination.",
+        "evidence": "BirdingStats.tsx:1332 `<a href={`https://ebird.org/checklist/${card.c.submissionId}`} target=\"_blank\" rel=\"noreferrer\" title=\"Open checklist\" ...>↗</a>`; App.tsx:1101-1109 `<a href=\"https://github.com/dtgibson/snowraven\" ...>SnowRaven</a>`.",
+        "suggestedFix": "Give the ↗ links a real accessible name including their distinguishing context, e.g. aria-label={`Open ${card.label} checklist on eBird`} (keep title for sighted hover if desired); change the footer link text or aria-label to \"SnowRaven on GitHub\".",
+        "dim": "structure",
+        "j": 5,
+        "verdict": {
+          "verdict": "uncertain",
+          "reasoning": "verifier unavailable"
+        }
+      }
+    ],
+    "structurePasses": [
+      "[structure] 3.1.1 Language of Page: <html lang=\"en\"> is set (frontend/index.html:2); no incorrectly-langed content found (per scope, Latin scientific names not assessed).",
+      "[structure] 2.4.2 Page Titled (baseline): a meaningful title exists — <title>SnowRaven</title> (index.html:7) and the Tauri window title matches (src-tauri/tauri.conf.json:14); the app is a genuine single page (no routing, tabs are an in-page widget), so the static title conforms at Level A (improvement noted as a minor finding).",
+      "[structure] Exactly one <main> landmark: App.tsx:586-1097 wraps all ten tabpanels; no other <main> or role=\"main\" exists anywhere in src/, and overlays (HelpDocs, WelcomeScreen) do not introduce a second one.",
+      "[structure] contentinfo landmark present: the footer is <p role=\"contentinfo\"> (App.tsx:1100) containing the GitHub link, Help button, and update controls.",
+      "[structure] HelpDocs markdown rendering preserves semantic structure: parseBlocks/renderBlock (HelpDocs.tsx:88-243) emit real <h1>/<h2>/<h3>, <ul>/<ol>/<li>, <pre>, <hr> elements — not styled divs — and docs/HELP.md has a clean heading hierarchy (one h1, h2 sections, h3 subsections, no skipped levels).",
+      "[structure] HELP.md image alt text: moot — docs/HELP.md contains no images (grep for '![' returns nothing), so the renderer's lack of image support causes no alt-text gap.",
+      "[structure] 2.4.4 link text quality (general): no \"here\"/\"click here\"/\"learn more\" link text anywhere in src/ (case-insensitive grep); no raw-URL visible link text in app chrome — HELP.md and Settings use descriptive domain-style text (e.g. \"ebird.org/api/keygen\", Settings.tsx:1106); raw URLs as link text appear only inside user-generated eBird comments via CommentText.tsx, which is acceptable for user content.",
+      "[structure] 2.4.4 context for numeric links: LifeListTable media-count links (LifeListTable.tsx:280-315) live in a real <table> with <thead>/<th> column headers, so purpose is programmatically determinable from the header cell (technique H77); SpeciesDetail media counts (SpeciesDetail.tsx:905-925) sit next to visible \"Photos/Audios/Videos\" row labels.",
+      "[structure] SpeciesLinks favicon anchors carry descriptive accessible names: aria-label/title \"View {species} on eBird\" and \"View {species} on Birds of the World\" (SpeciesLinks.tsx:22-23, 47-48).",
+      "[structure] Pre-mount boot screen is announced: index.html:28 boot div has role=\"status\" aria-label=\"Loading SnowRaven\", and its spinner honors prefers-reduced-motion (index.html:23).",
+      "[structure] Modal overlays have accessible names and dialog semantics: HelpDocs (role=\"dialog\" aria-modal=\"true\" aria-label=\"SnowRaven Documentation\", HelpDocs.tsx:294-296) and WelcomeScreen (role=\"dialog\" aria-modal aria-label=\"Welcome to SnowRaven\", WelcomeScreen.tsx:28-30).",
+      "[structure] Sub-navigation inside Statistics is a properly labeled landmark: <nav aria-label=\"Jump to section\"> (BirdingStats.tsx:444).",
+      "[structure] ACCESSIBILITY.md makes no claims in this dimension (no skip-link, landmark, or page-title assertions), so nothing in the published statement is contradicted by these findings."
+    ],
+    "gapFindings": [],
+    "gapPasses": [],
+    "gapsRun": [],
+    "criticComplete": null,
+    "counts": {
+      "confirmed": 89,
+      "refuted": 4,
+      "uncertain": 6
+    }
+  }
+}

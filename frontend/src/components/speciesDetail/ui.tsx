@@ -40,7 +40,7 @@ export function StatLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
       fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase' as const,
-      letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 4,
+      letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 4,
     }}>
       {children}
     </div>
@@ -48,6 +48,7 @@ export function StatLabel({ children }: { children: React.ReactNode }) {
 }
 
 export const SUBMISSION_ID_RE = /^S\d+$/
+export const LOCATION_ID_RE = /^L\d+$/
 
 export function StatValueLink({ value, submissionId, small }: { value: string; submissionId: string; small?: boolean }) {
   if (!SUBMISSION_ID_RE.test(submissionId)) {
@@ -58,6 +59,7 @@ export function StatValueLink({ value, submissionId, small }: { value: string; s
       href={`https://ebird.org/checklist/${submissionId}`}
       target="_blank"
       rel="noreferrer"
+      aria-label={`${value} — view checklist on eBird (opens in new tab)`}
       style={{
         fontSize: small ? '0.875rem' : '1.25rem',
         fontWeight: 700,

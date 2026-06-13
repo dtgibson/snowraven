@@ -31,7 +31,7 @@ import { SnowMap } from './SnowMap'
 import { SightingsMap } from './SightingsMap'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { extractUserId, mlCatalogLink } from '../lib/mlCatalog'
-import { SectionCard, SectionHead, StatLabel, StatValueLink, SUBMISSION_ID_RE } from './speciesDetail/ui'
+import { SectionCard, SectionHead, StatLabel, StatValueLink, SUBMISSION_ID_RE, LOCATION_ID_RE } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
@@ -405,8 +405,8 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
   if (phase.tag === 'loading-saved') {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
+      <div role="status" aria-label="Loading saved eBird data" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} aria-hidden="true" />
       </div>
     )
   }
@@ -458,7 +458,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
         <ToggleSwitch label="Show sp./slash" checked={showSpuh} onChange={handleToggleSpuh} />
-        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
           {displaySpeciesList.length} species
         </span>
       </div>
@@ -478,13 +478,15 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               setActiveOptionIdx(-1)
               if (!dropdownOpen) setDropdownOpen(true)
             }}
-            onFocus={() => {
-              setSelectorQuery('')
+            onFocus={e => {
               setActiveOptionIdx(-1)
               setDropdownOpen(true)
+              // Keep any in-progress query (restored on refocus); select it so
+              // typing replaces it for a fresh search instead of appending.
+              e.currentTarget.select()
             }}
             onKeyDown={e => {
-              if (e.key === 'Escape') { setDropdownOpen(false); setActiveOptionIdx(-1); (e.target as HTMLInputElement).blur() }
+              if (e.key === 'Escape') { setDropdownOpen(false); setActiveOptionIdx(-1) }
               if (e.key === 'Tab') { setDropdownOpen(false); setActiveOptionIdx(-1) }
               if (e.key === 'ArrowDown') {
                 e.preventDefault()
@@ -515,20 +517,26 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               borderBottomColor: dropdownOpen ? 'transparent' : undefined,
               fontSize: '0.875rem', fontWeight: selectedSpecies && !dropdownOpen ? 500 : 400,
               fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)',
-              outline: 'none', transition: 'border-color 0.15s',
+              transition: 'border-color 0.15s',
             }}
           />
-          <span
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label="Toggle species list"
             onClick={() => setDropdownOpen(o => !o)}
             style={{
-              position: 'absolute', right: 11, top: '50%',
+              // padding offset by `right` keeps the 16px chevron visually at the
+              // same spot while giving the button a ≥24×24 hit target (WCAG 2.5.8).
+              position: 'absolute', right: 7, top: '50%',
               transform: `translateY(-50%) rotate(${dropdownOpen ? 180 : 0}deg)`,
               transition: 'transform 0.15s', cursor: 'pointer',
               color: 'var(--sr-text-muted)', display: 'flex',
+              background: 'transparent', border: 'none', padding: 4,
             }}
           >
             <ChevronDown size={16} strokeWidth={2} />
-          </span>
+          </button>
         </div>
 
         {dropdownOpen && (
@@ -581,7 +589,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     <span style={{ fontSize: '0.84375rem', fontWeight: 500, color: isSelected ? 'var(--sr-accent)' : 'var(--sr-text)', flex: 1 }}>
                       {name}
                     </span>
-                    <span style={{ fontSize: '0.6875rem', fontStyle: 'italic', color: 'var(--sr-text-disabled)' }}>
+                    <span style={{ fontSize: '0.6875rem', fontStyle: 'italic', color: 'var(--sr-text-muted)' }}>
                       {sciNameMap.get(name)}
                     </span>
                   </div>
@@ -602,6 +610,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               pointerEvents: 'none', flexShrink: 0,
             }} />
             <select
+              aria-label="County"
               value={countyFilter ?? ''}
               onChange={e => setCountyFilter(e.target.value || null)}
               style={{
@@ -610,7 +619,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                 color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                 fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
-                cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', outline: 'none',
+                cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
               }}
             >
               <option value="">All Counties</option>
@@ -628,28 +637,30 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               }} />
               <input
                 type="date"
+                aria-label="From date"
                 value={dateRange.from}
                 onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
                 style={{
                   height: 26, paddingLeft: 24, paddingRight: 6, borderRadius: 5,
                   border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                   background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                  color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                  fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
+                  color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                  fontSize: '0.75rem', fontFamily: 'inherit',
                 }}
               />
             </div>
             <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
             <input
               type="date"
+              aria-label="To date"
               value={dateRange.to}
               onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
               style={{
                 height: 26, paddingLeft: 8, paddingRight: 6, borderRadius: 5,
                 border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                 background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
+                color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                fontSize: '0.75rem', fontFamily: 'inherit',
               }}
             />
           </div>
@@ -660,7 +671,8 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
-                padding: 0, textDecoration: 'underline',
+                padding: '0 2px', minHeight: 24, display: 'inline-flex', alignItems: 'center',
+                textDecoration: 'underline',
               }}
             >
               Clear filter
@@ -687,7 +699,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
             <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--sr-text-muted)' }}>
               Choose a species to see your history with it
             </div>
-            <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-disabled)', marginTop: 4 }}>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', marginTop: 4 }}>
               All statistics come from your loaded eBird backup.
             </div>
           </div>
@@ -767,7 +779,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         } : {
                           background: 'var(--sr-surface-subtle)',
                           borderColor: 'var(--sr-border)',
-                          color: 'var(--sr-text-disabled)',
+                          color: 'var(--sr-text-muted)',
                         }),
                       }}
                     >
@@ -785,7 +797,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     fontSize: '0.75rem', fontWeight: 600,
                     background: `rgba(var(--sr-tier-${breedingPill.tier}-rgb), 0.08)`,
                     border: `1px solid rgba(var(--sr-tier-${breedingPill.tier}-rgb), 0.2)`,
-                    color: TIER_COLORS[breedingPill.tier],
+                    color: `var(--sr-tier-${breedingPill.tier}-fg)`,
                   }}>
                     <span style={{
                       width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
@@ -827,7 +839,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         {sightingsStats.totalIndividuals}
                       </div>
                     ) : (
-                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-disabled)' }}>—</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-muted)' }}>—</div>
                     )}
                   </div>
                   {frequencyDisplay !== null && (
@@ -855,7 +867,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     {sightingsStats.bestObs ? (
                       <StatValueLink value={String(sightingsStats.bestCount)} submissionId={sightingsStats.bestObs.submissionId} />
                     ) : (
-                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-disabled)' }}>—</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-muted)' }}>—</div>
                     )}
                   </div>
                   <div>
@@ -912,6 +924,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                               href={link}
                               target="_blank"
                               rel="noreferrer"
+                              aria-label={`${count} ${type.toLowerCase()} on the Macaulay Library (opens in a new tab)`}
                               style={{
                                 fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-accent)',
                                 textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -920,10 +933,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                               onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                             >
                               {count}
-                              <ExternalLink size={10} strokeWidth={2.5} />
+                              <ExternalLink size={10} strokeWidth={2.5} aria-hidden="true" />
                             </a>
                           ) : (
-                            <span style={{ fontSize: '0.84375rem', fontWeight: 500, color: 'var(--sr-text-disabled)' }}>0</span>
+                            <span style={{ fontSize: '0.84375rem', fontWeight: 500, color: 'var(--sr-text-muted)' }}>0</span>
                           )}
                         </div>
                       )
@@ -1030,7 +1043,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 </div>
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Reported With</span>
                 {coOccurrence.type === 'results' && (
-                  <span style={{ marginLeft: 'auto', fontSize: '0.6875rem', color: 'var(--sr-text-disabled)' }}>
+                  <span style={{ marginLeft: 'auto', fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>
                     of {coOccurrence.totalChecklists} checklists
                   </span>
                 )}
@@ -1057,10 +1070,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       padding: '8px 0 6px', borderBottom: '1px solid var(--sr-border-subtle)', marginBottom: 2,
                     }}>
                       <span style={{ width: 20, flexShrink: 0 }} />
-                      <span style={{ flex: 1, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Species</span>
+                      <span style={{ flex: 1, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>Species</span>
                       <span style={{ width: 100, flexShrink: 0 }} />
-                      <span style={{ width: 38, textAlign: 'right' as const, flexShrink: 0, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Rate</span>
-                      <span style={{ width: 84, textAlign: 'right' as const, flexShrink: 0, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-disabled)' }}>Checklists</span>
+                      <span style={{ width: 38, textAlign: 'right' as const, flexShrink: 0, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>Rate</span>
+                      <span style={{ width: 84, textAlign: 'right' as const, flexShrink: 0, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>Checklists</span>
                     </div>
                     {/* Rows */}
                     {visible.map((r, idx) => (
@@ -1069,7 +1082,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         padding: '9px 0',
                         borderBottom: idx < visible.length - 1 ? '1px solid var(--sr-border-subtle)' : 'none',
                       }}>
-                        <span style={{ width: 20, textAlign: 'right' as const, fontSize: '0.6875rem', color: 'var(--sr-text-disabled)', flexShrink: 0 }}>
+                        <span style={{ width: 20, textAlign: 'right' as const, fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>
                           {idx + 1}
                         </span>
                         <span style={{ flex: 1, minWidth: 0 }}>
@@ -1127,13 +1140,26 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         padding: '9px 0',
                         borderBottom: idx < visibleCount - 1 ? '1px solid var(--sr-border-subtle)' : 'none',
                       }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-disabled)', minWidth: 22, flexShrink: 0, textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', minWidth: 22, flexShrink: 0, textAlign: 'right' }}>
                           {idx + 1}.
                         </span>
                         <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', flex: 1 }}>{location}</span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {count} {count === 1 ? 'sighting' : 'sightings'}
                         </span>
+                        {LOCATION_ID_RE.test(locationId) && (
+                          <a
+                            href={`https://ebird.org/hotspot/${locationId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Open ${location} on eBird (opens in a new tab)`}
+                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, flexShrink: 0, color: 'var(--sr-text-muted)' }}
+                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--sr-accent)')}
+                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--sr-text-muted)')}
+                          >
+                            <ExternalLink size={12} strokeWidth={2} aria-hidden="true" />
+                          </a>
+                        )}
                       </div>
                     )
                   })}
@@ -1181,13 +1207,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   <MapPin size={14} strokeWidth={2.2} />
                 </div>
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Sighting Locations</span>
-                <div style={{
+                <div role="group" aria-label="Map display mode" style={{
                   marginLeft: 'auto', display: 'inline-flex', gap: 2,
                   background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2,
                 }}>
                   {(['pins', 'heatmap'] as const).map((mode) => (
                     <button tabIndex={0}
                       key={mode}
+                      aria-pressed={mapMode === mode}
                       onClick={() => setMapMode(mode)}
                       style={{
                         padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: '0.6875rem',
@@ -1258,7 +1285,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
             }}>
               {/* Keyword filter */}
               <div style={{ position: 'relative', flex: 1 }}>
-                <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--sr-text-disabled)', pointerEvents: 'none' }}>
+                <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--sr-text-muted)', pointerEvents: 'none' }}>
                   <Search size={12} strokeWidth={2.5} />
                 </span>
                 <input
@@ -1266,11 +1293,12 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   value={commentFilter}
                   onChange={e => setCommentFilter(e.target.value)}
                   placeholder="Filter comments…"
+                  aria-label="Filter comments"
                   style={{
                     width: '100%', height: 32, padding: '0 10px 0 30px',
                     border: '1.5px solid var(--sr-border)', borderRadius: 6,
                     fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--sr-text)',
-                    background: 'var(--sr-surface)', outline: 'none',
+                    background: 'var(--sr-surface)',
                   }}
                   onFocus={e => (e.currentTarget.style.borderColor = 'var(--sr-accent)')}
                   onBlur={e => (e.currentTarget.style.borderColor = 'var(--sr-border)')}
@@ -1297,7 +1325,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 ))}
               </div>
 
-              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', fontWeight: 500, flexShrink: 0 }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 500, flexShrink: 0 }}>
                 {allComments.length} {allComments.length === 1 ? 'comment' : 'comments'}
               </span>
             </div>
@@ -1325,12 +1353,13 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                           href={`https://ebird.org/checklist/${o.submissionId}`}
                           target="_blank"
                           rel="noreferrer"
+                          aria-label={`${formatDate(o.date)} — open eBird checklist (opens in a new tab)`}
                           style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 3 }}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >
                           {formatDate(o.date)}
-                          <ExternalLink size={10} strokeWidth={2.5} />
+                          <ExternalLink size={10} strokeWidth={2.5} aria-hidden="true" />
                         </a>
                       ) : (
                         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>{formatDate(o.date)}</span>
@@ -1344,9 +1373,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   </div>
                 ))}
 
-                {!showAllComments && allComments.length > COMMENTS_PAGE && (
+                {allComments.length > COMMENTS_PAGE && (
                   <button tabIndex={0}
-                    onClick={() => setShowAllComments(true)}
+                    onClick={() => setShowAllComments(prev => !prev)}
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       width: '100%', padding: '13px 18px',
@@ -1358,8 +1387,12 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-accent-bg)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-faint)')}
                   >
-                    <ChevronDown size={13} strokeWidth={2.5} />
-                    Show all {allComments.length} comments
+                    <ChevronDown
+                      size={13}
+                      strokeWidth={2.5}
+                      style={{ transform: showAllComments ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}
+                    />
+                    {showAllComments ? 'Show fewer' : `Show all ${allComments.length} comments`}
                   </button>
                 )}
               </>
@@ -1392,7 +1425,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       <div key={type} className="sr-media-item">
                         <div style={{
                           fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase',
-                          letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 8,
+                          letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 8,
                         }}>
                           {type}
                         </div>

@@ -23,6 +23,16 @@ const TIER_LABELS: Record<number, string> = {
   1: 'Possible',
 }
 
+// Text color for the count badge sitting on a solid TIER_COLORS fill. Paired
+// per-theme with --sr-tier-N in globals.css so every tier passes AA in both
+// themes (the old hardcoded white-on-tier-2 was 3.96:1 in dark mode).
+const TIER_TEXT_COLORS: Record<1 | 2 | 3 | 4, string> = {
+  4: 'var(--sr-tier-4-text)',
+  3: 'var(--sr-tier-3-text)',
+  2: 'var(--sr-tier-2-text)',
+  1: 'var(--sr-tier-1-text)',
+}
+
 export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, taxonMap, taxonOrders, wideMode, onOpenSpecies }: Props) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
@@ -60,14 +70,6 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     }
   }
 
-  // Make the sortable column headers keyboard-operable (Enter / Space).
-  function handleHeaderKey(e: React.KeyboardEvent, col: string) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      handleHeaderClick(col)
-    }
-  }
-
   function sortIndicator(col: string) {
     if (sort.column !== col) return null
     return (
@@ -90,7 +92,6 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     fontWeight: 600,
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
-    cursor: 'pointer',
     userSelect: 'none',
     position: 'sticky',
     top: 0,
@@ -98,6 +99,24 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     boxShadow: 'inset 0 -1px 0 var(--sr-border)',
     zIndex: 2,
   }
+
+  // Sortable headers are real <button>s inside the <th> so screen readers
+  // announce them as activatable controls (the <th> keeps role columnheader +
+  // aria-sort). The button inherits the th's text styling and fills the cell.
+  const sortBtn = (active: boolean, justify: 'flex-start' | 'center'): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: justify,
+    width: '100%',
+    font: 'inherit',
+    letterSpacing: 'inherit',
+    textTransform: 'inherit',
+    color: active ? 'var(--sr-text)' : 'var(--sr-text-muted)',
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    cursor: 'pointer',
+  })
 
   return (
     <div style={{
@@ -108,7 +127,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
       flexDirection: 'column',
       ...(wideMode ? { width: 'max-content' } : {}),
     }}>
-      <div style={wideMode ? {} : { overflowX: 'auto' }}>
+      {/* scrollPaddingLeft keeps a focused cell from landing under the sticky
+          first column when keyboard focus scrolls it horizontally (WCAG 2.4.11). */}
+      <div style={wideMode ? {} : { overflowX: 'auto', scrollPaddingLeft: 220 }}>
         <table style={{
           width: '100%',
           minWidth: 'max-content',
@@ -119,9 +140,6 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
             <tr>
               <th
                 scope="col"
-                tabIndex={0}
-                onClick={() => handleHeaderClick('name')}
-                onKeyDown={e => handleHeaderKey(e, 'name')}
                 aria-sort={sort.column === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 style={{
                   ...thBase,
@@ -130,10 +148,11 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   padding: '10px 12px',
                   width: 220,
                   minWidth: 220,
-                  color: sort.column === 'name' ? 'var(--sr-text)' : 'var(--sr-text-muted)',
                 }}
               >
-                Species{sortIndicator('name')}
+                <button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
+                  Species{sortIndicator('name')}
+                </button>
               </th>
               {codesPresent.map(code => {
                 const def = BREEDING_CODE_MAP.get(code)!
@@ -141,9 +160,6 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   <th
                     key={code}
                     scope="col"
-                    tabIndex={0}
-                    onClick={() => handleHeaderClick(code)}
-                    onKeyDown={e => handleHeaderKey(e, code)}
                     aria-sort={sort.column === code ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     title={def.label}
                     style={{
@@ -152,16 +168,32 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                       padding: '10px 0',
                       width: 44,
                       minWidth: 44,
-                      color: sort.column === code ? 'var(--sr-text)' : 'var(--sr-text-muted)',
                     }}
                   >
-                    {code}{sortIndicator(code)}
+                    {/* The visible header is the terse code; the aria-label carries
+                        the full meaning so screen-reader / touch users get it
+                        without the UA title tooltip (which never fires on focus). */}
+                    <button
+                      type="button"
+                      aria-label={`Sort by ${def.label} (${code})`}
+                      style={sortBtn(sort.column === code, 'center')}
+                      onClick={() => handleHeaderClick(code)}
+                    >
+                      {code}{sortIndicator(code)}
+                    </button>
                   </th>
                 )
               })}
             </tr>
           </thead>
           <tbody>
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={codesPresent.length + 1} style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--sr-text-muted)', fontSize: '0.8125rem' }}>
+                  No species match these filters.
+                </td>
+              </tr>
+            )}
             {sorted.map(entry => {
               const isHovered = hoveredRow === entry.commonName
               const rowBg = isHovered ? 'var(--sr-surface-faint)' : 'var(--sr-surface)'
@@ -216,7 +248,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                               height: 28,
                               borderRadius: '50%',
                               background: TIER_COLORS[def.tier],
-                              color: def.tier === 1 ? 'var(--sr-tier-1-text)' : '#fff',
+                              color: TIER_TEXT_COLORS[def.tier],
                               fontSize: '0.6875rem',
                               fontWeight: 700,
                               letterSpacing: '-0.3px',

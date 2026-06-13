@@ -77,7 +77,12 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, atlasSh
     })),
   }), [locations])
 
-  const pinColor = useCssToken('--sr-map-visited', '#2D8653')
+  // Basemap-anchored tokens (same value in both themes): the Positron basemap
+  // stays light in dark mode, so theme-lightened --sr-map-* fills lost contrast
+  // on the tiles (F066). --sr-map-pin-* are tuned against the land tint; the
+  // dark stroke ring supplies the 3:1 boundary the old white stroke didn't.
+  const pinColor = useCssToken('--sr-map-pin-visited', '#2D8653')
+  const pinStroke = useCssToken('--sr-map-pin-stroke', '#3F3F46')
 
   // Click selects the top circle's location; a click on empty map closes the
   // popup. Selection has ONE owner (the Popup's own closeOnClick is off), so
@@ -157,7 +162,7 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, atlasSh
     'circle-radius': pinFillRadiusExpr(),
     'circle-color': pinColor,
     'circle-opacity': pinOpacityExpr(dim),
-    'circle-stroke-color': '#ffffff',
+    'circle-stroke-color': pinStroke,
     'circle-stroke-width': PIN_STROKE_WIDTH,
     'circle-stroke-opacity': pinOpacityExpr(dim),
   }

@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Loader2, AlertCircle, ClipboardList, MessageSquare, MessagesSquare, Search,
-  ChevronDown, ExternalLink, Camera, Mic, Video, Egg, Paperclip, Check, X,
+  ChevronDown, Camera, Mic, Video, Egg, Paperclip, Check, X,
 } from 'lucide-react'
 import type { ObservationEntry } from '../types'
 import { SetupRequired } from './SetupRequired'
@@ -28,10 +28,11 @@ import {
   type ChecklistRowData, type ChecklistCommentEntry, type SpeciesCommentEntry,
   type ChecklistFilterState, type TriState,
 } from '../lib/checklistsTab'
-import { SectionCard, SUBMISSION_ID_RE } from './speciesDetail/ui'
+import { SectionCard } from './speciesDetail/ui'
 import { ToggleSwitch } from './ui/ToggleSwitch'
 import { CommentText } from './CommentText'
 import { BirdName } from './BirdName'
+import { ChecklistLink } from './ChecklistLink'
 
 const PAGE = 10
 
@@ -46,21 +47,14 @@ type CommentSort = 'newest' | 'oldest'
 // ── Small shared pieces ──────────────────────────────────────────────────────
 
 function DateLink({ submissionId, date }: { submissionId: string; date: string }) {
-  // Standing security check: only a shape-valid eBird id becomes a link.
-  if (!SUBMISSION_ID_RE.test(submissionId)) {
-    return <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)', whiteSpace: 'nowrap' }}>{formatDate(date)}</span>
-  }
+  // The shared ChecklistLink is the single "open checklist on eBird" affordance
+  // (F064) and carries the standing SUBMISSION_ID_RE shape check + new-tab name.
   return (
-    <a
-      href={`https://ebird.org/checklist/${submissionId}`}
-      target="_blank"
-      rel="noreferrer"
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}
-      onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-      onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-    >
-      {formatDate(date)}<ExternalLink size={10} strokeWidth={2.5} />
-    </a>
+    <ChecklistLink
+      submissionId={submissionId}
+      label={formatDate(date)}
+      style={{ fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}
+    />
   )
 }
 
@@ -87,10 +81,14 @@ function SortSeg({ value, onChange }: { value: CommentSort; onChange: (v: Commen
   )
 }
 
-function ShowAllButton({ count, noun, onClick }: { count: number; noun: string; onClick: () => void }) {
+// Stays mounted as a toggle ("Show all N" ⇄ "Show fewer") rather than
+// unmounting on activation — an unmounting one-shot button drops keyboard focus
+// to <body>, restarting the next Tab from the top of the page (F036).
+function ShowAllButton({ count, noun, showAll, onToggle }: { count: number; noun: string; showAll: boolean; onToggle: () => void }) {
   return (
     <button tabIndex={0}
-      onClick={onClick}
+      onClick={onToggle}
+      aria-expanded={showAll}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         width: '100%', padding: '13px 18px',
@@ -102,8 +100,8 @@ function ShowAllButton({ count, noun, onClick }: { count: number; noun: string; 
       onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-accent-bg)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-faint)')}
     >
-      <ChevronDown size={13} strokeWidth={2.5} />
-      Show all {count.toLocaleString()} {noun}
+      <ChevronDown size={13} strokeWidth={2.5} style={{ transform: showAll ? 'rotate(180deg)' : 'none' }} />
+      {showAll ? 'Show fewer' : `Show all ${count.toLocaleString()} ${noun}`}
     </button>
   )
 }
@@ -122,6 +120,24 @@ function BoxHead({ icon, title, sub }: { icon: React.ReactNode; title: string; s
       <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{sub}</span>
     </div>
   )
+}
+
+// Debounce a string into the text a live region announces, so rapid changes
+// (typing in a filter) settle to one announcement instead of one per keystroke
+// (F075). The visible value is rendered directly, immediate; only the polite
+// announcement waits ~450ms after the value stops changing.
+function useDebouncedText(value: string): string {
+  const [announced, setAnnounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setAnnounced(value), 450)
+    return () => clearTimeout(t)
+  }, [value])
+  return announced
+}
+
+// The comment-box count, debounced for its live region (F075).
+function useDebouncedCount(count: number): string {
+  return useDebouncedText(`${count.toLocaleString()} ${count === 1 ? 'comment' : 'comments'}`)
 }
 
 // ── Comment search box (sections 1 + 2) ──────────────────────────────────────
@@ -145,6 +161,11 @@ function CommentSearchBox<T extends ChecklistCommentEntry>({
   const matches = useMemo(() => filterAndSortComments(entries, filter, sort), [entries, filter, sort])
   const visible = showAll ? matches : matches.slice(0, PAGE)
 
+  // The visible count updates immediately; the screen-reader announcement is
+  // debounced so a count change on every keystroke doesn't queue an utterance
+  // per character, competing with the input's own character echo (F075).
+  const liveCount = useDebouncedCount(matches.length)
+
   return (
     <SectionCard>
       <BoxHead icon={icon} title={title} sub={sub} />
@@ -163,20 +184,22 @@ function CommentSearchBox<T extends ChecklistCommentEntry>({
             value={filter}
             onChange={e => { setFilter(e.target.value); setShowAll(false) }}
             placeholder={placeholder}
+            aria-label={placeholder.replace(/…$/, '')}
             style={{
               width: '100%', height: 32, padding: '0 10px 0 30px',
               border: '1.5px solid var(--sr-border)', borderRadius: 6,
               fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--sr-text)',
-              background: 'var(--sr-surface)', outline: 'none',
+              background: 'var(--sr-surface)',
             }}
             onFocus={e => (e.currentTarget.style.borderColor = 'var(--sr-accent)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'var(--sr-border)')}
           />
         </div>
         <SortSeg value={sort} onChange={setSort} />
-        <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', fontWeight: 500, flexShrink: 0, marginLeft: 'auto' }}>
+        <span aria-hidden="true" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 500, flexShrink: 0, marginLeft: 'auto' }}>
           {matches.length.toLocaleString()} {matches.length === 1 ? 'comment' : 'comments'}
         </span>
+        <span className="sr-only" aria-live="polite">{liveCount}</span>
       </div>
 
       {matches.length === 0 ? (
@@ -202,8 +225,8 @@ function CommentSearchBox<T extends ChecklistCommentEntry>({
               </div>
             </div>
           ))}
-          {!showAll && matches.length > PAGE && (
-            <ShowAllButton count={matches.length} noun="comments" onClick={() => setShowAll(true)} />
+          {matches.length > PAGE && (
+            <ShowAllButton count={matches.length} noun="comments" showAll={showAll} onToggle={() => setShowAll(v => !v)} />
           )}
         </>
       )}
@@ -262,7 +285,7 @@ function cycle(s: TriState): TriState {
 const selectStyle: React.CSSProperties = {
   height: 28, padding: '0 8px', borderRadius: 6,
   border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
-  color: 'var(--sr-text)', fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
+  color: 'var(--sr-text)', fontSize: '0.75rem', fontFamily: 'inherit',
 }
 
 const rowLabelStyle: React.CSSProperties = {
@@ -459,13 +482,21 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
   const filtersAllClear = pillsClear && filters.protocol === null && filters.county === null && !filters.dateRange.from && !filters.dateRange.to
   const hasLocationFilter = filters.county !== null || !!filters.dateRange.from || !!filters.dateRange.to
 
+  // Visible list count (immediate) + its debounced screen-reader announcement
+  // (F075): the date inputs can type-churn this, so the live region settles
+  // rather than announcing on every change. Hook stays above the early returns.
+  const listCountText = filtersAllClear
+    ? `${rows.length.toLocaleString()} checklists`
+    : `${sortedRows.length.toLocaleString()} of ${rows.length.toLocaleString()} checklists`
+  const liveListCount = useDebouncedText(listCountText)
+
   const codeFor = (name: string) => taxonMap[name] ?? taxonMap[normalizeSpeciesName(name)]
   const setTri = (key: keyof ChecklistFilterState) =>
     () => setFilters(f => ({ ...f, [key]: cycle(f[key] as TriState) }))
 
   if (phase.tag === 'loading-saved') {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div role="status" aria-label="Loading saved eBird data" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} aria-hidden />
       </div>
     )
@@ -665,11 +696,10 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
                 onChange={e => setFilters(f => ({ ...f, dateRange: { ...f.dateRange, to: e.target.value } }))}
                 style={selectStyle}
               />
-              <span aria-live="polite" style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-disabled)', fontWeight: 500, whiteSpace: 'nowrap' }}>
-                {filtersAllClear
-                  ? `${totalChecklists.toLocaleString()} checklists`
-                  : `${sortedRows.length.toLocaleString()} of ${totalChecklists.toLocaleString()} checklists`}
+              <span aria-hidden="true" style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                {listCountText}
               </span>
+              <span className="sr-only" aria-live="polite">{liveListCount}</span>
             </div>
           </div>
 
@@ -715,8 +745,8 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
                   isLast={idx === visibleRows.length - 1}
                 />
               ))}
-              {!showAllList && sortedRows.length > PAGE && (
-                <ShowAllButton count={sortedRows.length} noun="checklists" onClick={() => setShowAllList(true)} />
+              {sortedRows.length > PAGE && (
+                <ShowAllButton count={sortedRows.length} noun="checklists" showAll={showAllList} onToggle={() => setShowAllList(v => !v)} />
               )}
             </>
           )}

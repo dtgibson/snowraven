@@ -61,4 +61,16 @@ describe('MediaCommentsSection', () => {
     expect(container.querySelector('#media-comments')).toBeNull()
     expect(container.firstChild).toBeNull()
   })
+
+  it('makes the #media-comments scroll target focusable so jump links can move focus (F029)', () => {
+    const { container } = render(
+      <MediaCommentsSection rows={[row({ caption: 'Singing at dawn' })]} {...baseProps} />,
+    )
+    expect(container.querySelector('#media-comments')!.getAttribute('tabindex')).toBe('-1')
+  })
+
+  it('the filter input has an accessible name, not just a placeholder (F051)', () => {
+    render(<MediaCommentsSection rows={[row({ caption: 'Singing at dawn' })]} {...baseProps} />)
+    expect(screen.getByRole('textbox', { name: 'Filter media comments' })).toBeTruthy()
+  })
 })

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Named Birds tab (after)</title>
+<style>
+  /* ────────────────────────────────────────────────────────────────────
+     Real SnowRaven tokens, copied verbatim from frontend/src/globals.css.
+     Only the tokens this mockup touches are included; values are unchanged.
+     The ONE new token this upgrade adds — --sr-quote-bg — is marked NEW.
+  ──────────────────────────────────────────────────────────────────── */
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+
+    --sr-text: #0F1117;
+    --sr-text-muted: #71717A;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-gray: #6B7280;
+
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+
+    --sr-accent: #2D8653;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(45,134,83,0.25);
+    --sr-on-accent: #FFFFFF;
+
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+
+    /* NEW — comment quote-block background. A hair deeper than --sr-surface-subtle
+       so a comment reads as quoted even when it sits on the subtle expanded panel. */
+    --sr-quote-bg: #EFF1F3;
+    --sr-quote-border: #E0E2E6;
+
+    --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+    /* map stand-in (NOT a token — a flat CSS land/water gradient so we never
+       fetch live tiles; the real map renders OpenFreeMap via <SnowMap>) */
+    --demo-map-land: #E9ECE4;
+    --demo-map-water: #C9D8DD;
+    --demo-map-road: #FFFFFF;
+  }
+
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-gray: #8A8A92;
+
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-on-accent: #052E16;
+
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+    /* NEW — dark variant: one step up from --sr-surface-subtle (#27272A) */
+    --sr-quote-bg: #2E2E33;
+    --sr-quote-border: #3A3A40;
+
+    --demo-map-land: #20262C;
+    --demo-map-water: #19222B;
+    --demo-map-road: #3A4048;
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--sr-bg); font-size: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  /* ── Mockup chrome (not part of the app) ─────────────────────────────── */
+  .mock-toolbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 20px;
+    background: var(--sr-surface);
+    border-bottom: 1px solid var(--sr-border);
+  }
+  .mock-toolbar .brand { font-weight: 700; font-size: 0.9375rem; color: var(--sr-text); display:flex; align-items:center; gap:8px; }
+  .mock-toolbar .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sr-accent); }
+  .mock-toolbar .tag { font-size: 0.75rem; color: var(--sr-text-muted); }
+  .mock-toolbar .spacer { margin-left: auto; }
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 32px; padding: 0 14px;
+    background: var(--sr-surface); color: var(--sr-text);
+    border: 1px solid var(--sr-border-medium); border-radius: 20px;
+    font: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer;
+  }
+  .theme-toggle:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+
+  .mock-stage { padding: 28px 20px 80px; max-width: 760px; margin: 0 auto; }
+  .mock-note {
+    margin: 0 0 22px; padding: 11px 14px;
+    background: var(--sr-accent-bg); color: var(--sr-accent-strong);
+    border: 1px solid var(--sr-accent-border); border-radius: 10px;
+    font-size: 0.8125rem; line-height: 1.55;
+  }
+  .mock-note b { font-weight: 700; }
+
+  /* ── Tab header (matches NamedBirds.tsx) ─────────────────────────────── */
+  .nb-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+  .nb-head-icon {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nb-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; color: var(--sr-text); }
+  .nb-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+  .nb-head code {
+    font-family: ui-monospace, monospace; font-size: 0.78125rem; color: var(--sr-text);
+    background: var(--sr-surface-subtle); padding: 0 4px; border-radius: 4px;
+  }
+
+  /* ── Sort control (Part 4 — four options) ───────────────────────────── */
+  .nb-sort { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .nb-sort .label { font-size: 0.75rem; color: var(--sr-text-muted); font-weight: 600; }
+  .nb-seg {
+    display: inline-flex; flex-wrap: wrap;
+    border: 1.5px solid var(--sr-accent-border); border-radius: 8px; overflow: hidden;
+  }
+  .nb-seg button {
+    height: 30px; padding: 0 13px; border: none;
+    border-left: 1.5px solid var(--sr-accent-border);
+    background: transparent; color: var(--sr-text-muted);
+    font: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer;
+    white-space: nowrap; transition: background 0.12s, color 0.12s;
+  }
+  .nb-seg button:first-child { border-left: none; }
+  .nb-seg button:hover { color: var(--sr-text); background: var(--sr-surface-subtle); }
+  .nb-seg button.is-active {
+    background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600;
+  }
+  .nb-count { font-size: 0.75rem; color: var(--sr-text-disabled); margin-left: auto; white-space: nowrap; }
+
+  /* ── Cards ───────────────────────────────────────────────────────────── */
+  .nb-rows { display: flex; flex-direction: column; gap: 8px; }
+  .nb-card {
+    border: 1px solid var(--sr-border); border-radius: 10px; overflow: hidden;
+    background: var(--sr-surface); box-shadow: var(--sr-card-shadow);
+  }
+  .nb-card-head {
+    display: flex; align-items: baseline; gap: 8px; width: 100%;
+    padding: 11px 13px; border: none; background: transparent;
+    cursor: pointer; font: inherit; text-align: left; color: inherit;
+  }
+  .nb-card-head:hover { background: var(--sr-surface-subtle); }
+  .nb-chevron { color: var(--sr-text-muted); flex-shrink: 0; display: inline-flex; align-self: center; }
+
+  /* Part 2 — name + species share a baseline (align-items:baseline on the row) */
+  .nb-name { font-size: 0.9375rem; font-weight: 700; color: var(--sr-text); flex-shrink: 0; letter-spacing: -0.01em; }
+  .nb-species {
+    display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; overflow: hidden;
+  }
+  .nb-species .common { font-size: 0.84375rem; font-weight: 500; color: var(--sr-text); white-space: nowrap; }
+  .nb-species .common:hover { color: var(--sr-accent); text-decoration: underline; }
+  .nb-species .sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); white-space: nowrap; }
+  .nb-favicons { display: inline-flex; gap: 3px; align-self: center; }
+  .nb-favicon { width: 13px; height: 13px; border-radius: 3px; opacity: 0.85; flex-shrink: 0; }
+
+  .nb-meta { margin-left: auto; display: flex; align-items: baseline; gap: 13px; flex-shrink: 0; }
+  /* Part 1 — date-range lifted off muted (was 0.6875rem muted) to 0.75rem text-gray */
+  .nb-range { font-size: 0.75rem; color: var(--sr-text-gray); white-space: nowrap; }
+  .nb-sightings { font-size: 0.75rem; font-weight: 700; color: var(--sr-accent); white-space: nowrap; }
+
+  /* ── Expanded panel ──────────────────────────────────────────────────── */
+  .nb-panel { border-top: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+  .nb-report { padding: 10px 14px 11px 36px; }
+  .nb-report + .nb-report { border-top: 1px solid var(--sr-border-subtle); }
+
+  /* Part 5 — date · location · checklist on one line, location truncates */
+  .nb-report-line {
+    display: flex; align-items: center; gap: 0; min-width: 0; margin-bottom: 4px;
+  }
+  /* Part 1 — per-sighting date promoted off muted to --sr-text, 0.75rem */
+  .nb-date { font-size: 0.75rem; font-weight: 600; color: var(--sr-text); flex-shrink: 0; }
+  .nb-sep { font-size: 0.75rem; color: var(--sr-text-disabled); flex-shrink: 0; padding: 0 7px; }
+  .nb-loc {
+    font-size: 0.75rem; color: var(--sr-text-muted);
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Part 1 — checklist link nudged 0.6875rem → 0.75rem */
+  .nb-checklist {
+    display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;
+    font-size: 0.75rem; font-weight: 600; color: var(--sr-accent); text-decoration: none;
+  }
+  .nb-checklist:hover { text-decoration: underline; }
+
+  /* Part 3 — comment is its own quoted block on a distinct background */
+  .nb-comment {
+    font-size: 0.8125rem; color: var(--sr-text); line-height: 1.55;
+    background: var(--sr-quote-bg);
+    border: 1px solid var(--sr-quote-border);
+    border-left: 3px solid var(--sr-accent-border);
+    border-radius: 7px;
+    padding: 8px 11px;
+    margin-top: 5px;
+  }
+
+  /* ── Card map (Part 6) ───────────────────────────────────────────────── */
+  .nb-map-wrap { padding: 12px 14px 14px; }
+  .nb-map-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--sr-text-muted); margin-bottom: 7px;
+  }
+  .sr-named-map {        /* the new CSS class the Engineer adds: height only */
+    height: 220px; width: 100%;
+    border-radius: 10px; overflow: hidden; position: relative;
+    border: 1px solid var(--sr-border);
+    background:
+      radial-gradient(circle at 30% 35%, color-mix(in srgb, var(--demo-map-water) 80%, transparent), transparent 22%),
+      radial-gradient(circle at 72% 60%, color-mix(in srgb, var(--demo-map-water) 70%, transparent), transparent 26%),
+      var(--demo-map-land);
+  }
+  /* faint road lines so the stand-in reads as a map, not a swatch */
+  .demo-roads { position: absolute; inset: 0; opacity: 0.5; }
+  .demo-roads path, .demo-roads line { stroke: var(--demo-map-road); fill: none; }
+  /* the real Species-Detail pin sprite (SP_PIN_HTML), reused as-is */
+  .demo-pin { position: absolute; width: 24px; height: 34px; transform: translate(-50%, -100%); cursor: pointer; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3)); }
+  .demo-pin svg path { fill: var(--sr-accent); }
+  .demo-pin:hover { z-index: 3; }
+  /* a small popup stand-in, themed like .maplibregl-popup-content */
+  .demo-popup {
+    position: absolute; transform: translate(-50%, calc(-100% - 40px));
+    background: var(--sr-surface); color: var(--sr-text);
+    border: 1px solid var(--sr-border); border-radius: 10px;
+    box-shadow: var(--sr-card-shadow); padding: 9px 12px;
+    font-size: 0.8125rem; line-height: 1.7; min-width: 116px; z-index: 4;
+  }
+  .demo-popup a { color: var(--sr-accent); text-decoration: none; }
+  .demo-popup a:hover { text-decoration: underline; }
+  .demo-popup::after {
+    content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%);
+    border: 7px solid transparent; border-top-color: var(--sr-surface); border-bottom: 0;
+  }
+  /* basemap switcher stand-in — included to show the size-vs-clutter judgement */
+  .demo-switcher {
+    position: absolute; top: 8px; right: 8px;
+    display: flex; flex-direction: column; gap: 6px; padding: 6px;
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 9px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
+  .demo-switcher .seg { display: inline-flex; gap: 2px; background: var(--sr-surface-subtle); border-radius: 7px; padding: 2px; }
+  .demo-switcher .seg span { padding: 3px 8px; font-size: 0.6875rem; font-weight: 500; color: var(--sr-text-muted); border-radius: 5px; }
+  .demo-switcher .seg span.on { background: var(--sr-surface); color: var(--sr-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+
+  .icon { display: inline-block; vertical-align: middle; }
+
+  @media (max-width: 560px) {
+    .nb-meta { margin-left: 0; width: 100%; padding-left: 23px; gap: 10px; }
+    .nb-card-head { flex-wrap: wrap; }
+    .nb-species { flex: 1 1 auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ───────────────── Mockup chrome (not part of the app) ───────────────── -->
+<div class="mock-toolbar">
+  <span class="brand"><span class="dot"></span> SnowRaven</span>
+  <span class="tag">Named Birds tab · "after" mockup</span>
+  <span class="spacer"></span>
+  <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">
+    <svg class="icon" id="themeIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M5 5l1.5 1.5M17.5 17.5L19 19M2 12h2M20 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
+    <span id="themeLabel">Dark mode</span>
+  </button>
+</div>
+
+<div class="mock-stage">
+  <p class="mock-note">
+    <b>Starting point — not final.</b> This shows all six upgrades applied to one named-bird's history:
+    lifted contrast, baseline-aligned header, a quoted comment block, the four-option sort, the
+    <code style="font-family:ui-monospace,monospace">date · location · checklist</code> row, and the per-card map. Toggle dark mode (top right) to check both themes.
+  </p>
+
+  <!-- ───────────── Tab header (NamedBirds.tsx) ───────────── -->
+  <div class="nb-head">
+    <div class="nb-head-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29a1 1 0 0 0 1.41 0l8.59-8.59a1 1 0 0 0 0-1.41z"/><circle cx="7" cy="7" r="1.2" fill="currentColor"/></svg>
+    </div>
+    <div>
+      <h2>Named Birds</h2>
+      <p>Individual birds you've named in your eBird species comments with a <code>[name:…]</code> tag — for example <code>[name:Winky]</code> or <code>[name:one-leg-pete]</code> — tracked across every checklist.</p>
+    </div>
+  </div>
+
+  <!-- ───────────── Sort control — Part 4 ───────────── -->
+  <div class="nb-sort" role="group" aria-label="Sort named birds">
+    <span class="label">Sort</span>
+    <div class="nb-seg">
+      <button onclick="setSort(this)">Name (Individual)</button>
+      <button onclick="setSort(this)">Alphabetical</button>
+      <button onclick="setSort(this)">Taxonomic</button>
+      <button class="is-active" onclick="setSort(this)">Last Seen</button>
+    </div>
+    <span class="nb-count">4 named birds</span>
+  </div>
+
+  <!-- ───────────── Cards ───────────── -->
+  <div class="nb-rows">
+
+    <!-- CARD 1 — EXPANDED, with map -->
+    <div class="nb-card">
+      <button class="nb-card-head" aria-expanded="true" onclick="toggleCard(this)">
+        <span class="nb-chevron">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        </span>
+        <span class="nb-name">Winky</span>
+        <span class="nb-species">
+          <span class="common">Great Horned Owl</span>
+          <span class="sci">Bubo virginianus</span>
+          <span class="nb-favicons">
+            <span class="nb-favicon" style="background:#70AD47" title="eBird"></span>
+            <span class="nb-favicon" style="background:#C0392B" title="Birds of the World"></span>
+          </span>
+        </span>
+        <span class="nb-meta">
+          <span class="nb-range">Mar 14, 2022 – May 2, 2026</span>
+          <span class="nb-sightings">7 sightings</span>
+        </span>
+      </button>
+
+      <div class="nb-panel">
+        <!-- report 1: long location truncates -->
+        <div class="nb-report">
+          <div class="nb-report-line">
+            <span class="nb-date">May 2, 2026</span>
+            <span class="nb-sep">·</span>
+            <span class="nb-loc">Caswell Memorial State Park — Oak Woodland Trail, San Joaquin County</span>
+            <span class="nb-sep">·</span>
+            <a class="nb-checklist" href="#" onclick="return false">S352419666 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          </div>
+          <div class="nb-comment">Roosting in the same valley oak as last spring. One owlet visible, branching. [name:Winky]</div>
+        </div>
+        <!-- report 2 -->
+        <div class="nb-report">
+          <div class="nb-report-line">
+            <span class="nb-date">Jan 18, 2026</span>
+            <span class="nb-sep">·</span>
+            <span class="nb-loc">Caswell Memorial SP</span>
+            <span class="nb-sep">·</span>
+            <a class="nb-checklist" href="#" onclick="return false">S338107420 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          </div>
+          <div class="nb-comment">Heard calling at dusk, then flushed to the riparian edge. [name:Winky]</div>
+        </div>
+        <!-- report 3: no location → segment omitted, no empty separator -->
+        <div class="nb-report">
+          <div class="nb-report-line">
+            <span class="nb-date">Nov 30, 2024</span>
+            <span class="nb-sep">·</span>
+            <a class="nb-checklist" href="#" onclick="return false">S205884311 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          </div>
+          <div class="nb-comment">Same bird, recognizable by the notched left ear tuft. [name:Winky]</div>
+        </div>
+
+        <!-- the card map — Part 6 -->
+        <div class="nb-map-wrap">
+          <div class="nb-map-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20l-6-3V4l6 3 6-3 6 3v13l-6-3-6 3z"/><path d="M9 7v13M15 4v13"/></svg>
+            Where Winky has been seen
+          </div>
+          <div class="sr-named-map">
+            <!-- flat CSS map stand-in (no live tiles) -->
+            <svg class="demo-roads" viewBox="0 0 600 220" preserveAspectRatio="none">
+              <path d="M-10 70 Q 150 40 320 95 T 620 80" stroke-width="2"/>
+              <path d="M40 -10 Q 120 110 90 230" stroke-width="1.5"/>
+              <path d="M-10 160 Q 220 140 410 175 T 620 150" stroke-width="2"/>
+              <line x1="430" y1="-10" x2="470" y2="230" stroke-width="1.5"/>
+            </svg>
+
+            <!-- aggregated pins (SP_PIN_HTML sprite, fill = --sr-accent) -->
+            <span class="demo-pin" style="left:36%; top:46%;">
+              <svg viewBox="0 0 28 40" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z"/><circle cx="14" cy="14" r="5" fill="white"/></svg>
+            </span>
+            <span class="demo-pin" style="left:68%; top:63%;">
+              <svg viewBox="0 0 28 40" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z"/><circle cx="14" cy="14" r="5" fill="white"/></svg>
+            </span>
+
+            <!-- one popup open (state-driven, single <Popup>) — aggregates dates -->
+            <div class="demo-popup" style="left:36%; top:46%;">
+              <div><a href="#" onclick="return false">May 2, 2026</a></div>
+              <div><a href="#" onclick="return false">Jan 18, 2026</a></div>
+              <div><a href="#" onclick="return false">Mar 14, 2022</a></div>
+            </div>
+
+            <!-- DROPPED: basemap switcher (switcher={false}) — see design-spec.
+                 Shown here greyed so you can judge the call; toggle it below. -->
+            <div class="demo-switcher" id="demoSwitcher" style="display:none;">
+              <div class="seg"><span class="on">Map</span><span>Satellite</span><span>Topo</span></div>
+            </div>
+          </div>
+          <label style="display:inline-flex; align-items:center; gap:7px; margin-top:9px; font-size:0.75rem; color:var(--sr-text-muted); cursor:pointer;">
+            <input type="checkbox" id="switcherToggle" onchange="document.getElementById('demoSwitcher').style.display = this.checked ? 'flex' : 'none'" style="accent-color: var(--sr-accent);" />
+            Preview <b style="font-weight:600; color:var(--sr-text)">with</b> the basemap switcher (recommended: off — <code style="font-family:ui-monospace,monospace">switcher={false}</code>)
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD 2 — COLLAPSED -->
+    <div class="nb-card">
+      <button class="nb-card-head" aria-expanded="false" onclick="toggleCard(this)">
+        <span class="nb-chevron">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </span>
+        <span class="nb-name">one-leg-pete</span>
+        <span class="nb-species">
+          <span class="common">Snowy Egret</span>
+          <span class="sci">Egretta thula</span>
+          <span class="nb-favicons">
+            <span class="nb-favicon" style="background:#70AD47" title="eBird"></span>
+            <span class="nb-favicon" style="background:#C0392B" title="Birds of the World"></span>
+          </span>
+        </span>
+        <span class="nb-meta">
+          <span class="nb-range">Aug 9, 2023 – Apr 27, 2026</span>
+          <span class="nb-sightings">12 sightings</span>
+        </span>
+      </button>
+    </div>
+
+    <!-- CARD 3 — COLLAPSED, longer species name (header still aligns) -->
+    <div class="nb-card">
+      <button class="nb-card-head" aria-expanded="false" onclick="toggleCard(this)">
+        <span class="nb-chevron">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </span>
+        <span class="nb-name">Scout</span>
+        <span class="nb-species">
+          <span class="common">Black-crowned Night-Heron</span>
+          <span class="sci">Nycticorax nycticorax</span>
+          <span class="nb-favicons">
+            <span class="nb-favicon" style="background:#70AD47" title="eBird"></span>
+            <span class="nb-favicon" style="background:#C0392B" title="Birds of the World"></span>
+          </span>
+        </span>
+        <span class="nb-meta">
+          <span class="nb-range">Jun 2, 2024 – Mar 11, 2026</span>
+          <span class="nb-sightings">5 sightings</span>
+        </span>
+      </button>
+    </div>
+
+    <!-- CARD 4 — COLLAPSED, single sighting / no-coord example -->
+    <div class="nb-card">
+      <button class="nb-card-head" aria-expanded="false" onclick="toggleCard(this)">
+        <span class="nb-chevron">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </span>
+        <span class="nb-name">Crooked-beak</span>
+        <span class="nb-species">
+          <span class="common">American Crow</span>
+          <span class="sci">Corvus brachyrhynchos</span>
+          <span class="nb-favicons">
+            <span class="nb-favicon" style="background:#70AD47" title="eBird"></span>
+            <span class="nb-favicon" style="background:#C0392B" title="Birds of the World"></span>
+          </span>
+        </span>
+        <span class="nb-meta">
+          <span class="nb-range">Feb 20, 2025 – Feb 20, 2025</span>
+          <span class="nb-sightings">1 sighting</span>
+        </span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const html = document.documentElement;
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    document.getElementById('themeLabel').textContent = next === 'dark' ? 'Light mode' : 'Dark mode';
+    const ic = document.getElementById('themeIcon');
+    if (next === 'dark') {
+      ic.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    } else {
+      ic.innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M5 5l1.5 1.5M17.5 17.5L19 19M2 12h2M20 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/>';
+    }
+  }
+
+  // Sort pills — single active (single-open accordion model lives in the table,
+  // but the sort group is single-select)
+  function setSort(btn) {
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+  }
+
+  // Single-open accordion: opening a card collapses any other open card.
+  function toggleCard(head) {
+    const card = head.closest('.nb-card');
+    const panel = card.querySelector('.nb-panel');
+    const isOpen = head.getAttribute('aria-expanded') === 'true';
+    // close every other card (single-open)
+    document.querySelectorAll('.nb-card').forEach(c => {
+      const h = c.querySelector('.nb-card-head');
+      const p = c.querySelector('.nb-panel');
+      if (c !== card) {
+        h.setAttribute('aria-expanded', 'false');
+        setChevron(h, false);
+        if (p) p.style.display = 'none';
+      }
+    });
+    if (!panel) return;
+    const next = !isOpen;
+    head.setAttribute('aria-expanded', String(next));
+    setChevron(head, next);
+    panel.style.display = next ? 'block' : 'none';
+  }
+  function setChevron(head, open) {
+    const svg = head.querySelector('.nb-chevron svg path');
+    if (svg) svg.setAttribute('d', open ? 'M6 9l6 6 6-6' : 'M9 6l6 6-6 6');
+  }
+</script>
+</body>
+</html>

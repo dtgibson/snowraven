@@ -6,8 +6,13 @@ export function SectionCard({ children, title, icon }: {
   children: React.ReactNode; title: string; icon: React.ReactNode
 }) {
   return (
-    <div id={sectionSlug(title)} style={{
+    // tabIndex={-1} so the jump-nav (BirdingStats) can move keyboard focus here
+    // after scrolling (WCAG 2.4.3) — every Statistics section is a jump target.
+    // outline:none keeps the programmatic focus from painting the card ring; the
+    // scroll itself is the cue and the next Tab resumes from the section.
+    <div id={sectionSlug(title)} tabIndex={-1} style={{
       scrollMarginTop: 16,
+      outline: 'none',
       background: 'var(--sr-surface)',
       border: '1px solid var(--sr-border)',
       borderRadius: 12,
@@ -59,7 +64,10 @@ export function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWid
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
       <span style={{
         fontSize: '0.6875rem', color: 'var(--sr-text-muted)',
-        textAlign: 'right', flexShrink: 0, width: labelWidth,
+        // rem so the label box grows with the Text Size control (1.4.4) instead
+        // of clipping the label at 200% scale. labelWidth is a px number prop;
+        // convert here so no call site changes.
+        textAlign: 'right', flexShrink: 0, width: `${labelWidth / 16}rem`,
       }}>{label}</span>
       <div style={{
         flex: 1, height: 8, borderRadius: 4,
@@ -70,7 +78,7 @@ export function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWid
           borderRadius: 4, transition: 'width 0.3s',
         }} />
       </div>
-      <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: pctOf ? 68 : 40, textAlign: 'right' }}>
+      <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: pctOf ? '4.25rem' : '2.5rem', textAlign: 'right' }}>
         {fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}
       </span>
     </div>
@@ -89,12 +97,19 @@ export function SubLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-export function RankIcon({ rank, shape }: { rank: number; shape: 'circle' | 'square' }) {
+export function RankIcon({ rank, shape, label }: { rank: number; shape: 'circle' | 'square'; label?: string }) {
+  // em-sized so the pin + numeral track the root font scale (1.4.4 Resize Text);
+  // fills are tokens (--sr-rank-pin-*, theme-invariant — the basemap stays light
+  // in dark mode) instead of the old hardcoded hexes, and white-numeral contrast
+  // passes (circle 5.71:1, square 6.70:1). `label` names the pin for AT (the
+  // maplibre Marker wrapper otherwise announces a generic "Map marker"); F055.
   return (
-    <svg width="24" height="24" viewBox="0 0 24 24" style={{ display: 'block', cursor: 'pointer' }}>
+    <svg width="1.5em" height="1.5em" viewBox="0 0 24 24"
+      role="img" aria-label={label}
+      style={{ display: 'block', cursor: 'pointer' }}>
       {shape === 'circle'
-        ? <circle cx="12" cy="12" r="11" fill="#2D8653" />
-        : <rect x="1" y="1" width="22" height="22" rx="3" fill="#3B82F6" />}
+        ? <circle cx="12" cy="12" r="11" fill="var(--sr-rank-pin-circle)" />
+        : <rect x="1" y="1" width="22" height="22" rx="3" fill="var(--sr-rank-pin-square)" />}
       <text x="12" y="16" textAnchor="middle" fill="white" fontSize="10" fontWeight="700" fontFamily="system-ui,sans-serif">{rank}</text>
     </svg>
   )

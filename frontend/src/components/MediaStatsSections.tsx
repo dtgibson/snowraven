@@ -55,9 +55,9 @@ function Donut({ title, data, centerValue, centerLabel }: {
             {slices.map((d, i) => <Cell key={i} fill={d.color} />)}
           </Pie>
         </PieChart>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text)', lineHeight: 1 }}>{centerValue}</span>
-          <span style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{centerLabel}</span>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 8px', pointerEvents: 'none' }}>
+          <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text)', lineHeight: 1, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{centerValue}</span>
+          <span style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 2, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{centerLabel}</span>
         </div>
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', justifyContent: 'center', maxWidth: 200 }}>
@@ -318,6 +318,8 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor }: {
                 <XAxis dataKey="hour" tick={{ fontSize: '0.5625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} interval={2} tickFormatter={h => hourLabel(Number(h))} />
                 <YAxis tick={{ fontSize: '0.5625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip
+                  trigger="click"
+                  wrapperStyle={{ pointerEvents: 'auto' }}
                   contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
                   labelFormatter={h => hourLabel(Number(h))}
                 />

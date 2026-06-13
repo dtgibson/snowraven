@@ -137,14 +137,6 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
     }
   }
 
-  // Make the sortable column headers keyboard-operable (Enter / Space).
-  function handleHeaderKey(e: React.KeyboardEvent, column: SortColumn) {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      handleHeaderClick(column)
-    }
-  }
-
   function sortIndicator(column: SortColumn) {
     if (sort.column !== column) return null
     return (
@@ -159,9 +151,27 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
     fontWeight: 600,
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
-    cursor: 'pointer',
     userSelect: 'none',
   }
+
+  // Sortable headers are real <button>s inside the <th> so screen readers
+  // announce them as activatable controls (the <th> keeps role columnheader +
+  // aria-sort). The button inherits the th's text styling and fills the cell.
+  const sortBtn = (active: boolean, justify: 'flex-start' | 'center'): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: justify,
+    gap: 4,
+    width: '100%',
+    font: 'inherit',
+    letterSpacing: 'inherit',
+    textTransform: 'inherit',
+    color: active ? 'var(--sr-text)' : 'var(--sr-text-muted)',
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    cursor: 'pointer',
+  })
 
   const countLinkStyle: React.CSSProperties = {
     fontSize: '0.8125rem',
@@ -187,19 +197,17 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
           }}>
             <th
               scope="col"
-              tabIndex={0}
-              onClick={() => handleHeaderClick('name')}
-              onKeyDown={e => handleHeaderKey(e, 'name')}
               aria-sort={sort.column === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
               style={{
                 ...thBase,
                 padding: '10px 14px',
                 textAlign: 'left',
                 minWidth: 200,
-                color: sort.column === 'name' ? 'var(--sr-text)' : 'var(--sr-text-muted)',
               }}
             >
-              Entries{sortIndicator('name')}
+              <button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
+                Entries{sortIndicator('name')}
+              </button>
             </th>
             {([
               ['Photo', 'photo', <Camera size={11} strokeWidth={2.5} />],
@@ -209,48 +217,47 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
               <th
                 key={label}
                 scope="col"
-                tabIndex={0}
-                onClick={() => handleHeaderClick(col)}
-                onKeyDown={e => handleHeaderKey(e, col)}
                 aria-sort={sort.column === col ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 style={{
                   ...thBase,
                   padding: '10px 14px',
                   width: 80,
                   textAlign: 'center',
-                  color: sort.column === col ? 'var(--sr-text)' : 'var(--sr-text-muted)',
                 }}
               >
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <button type="button" aria-label={`Sort by ${label}`} style={sortBtn(sort.column === col, 'center')} onClick={() => handleHeaderClick(col)}>
                   {icon}
                   {label}
                   {sortIndicator(col)}
-                </div>
+                </button>
               </th>
             ))}
             <th
               scope="col"
-              tabIndex={0}
-              onClick={() => handleHeaderClick('total')}
-              onKeyDown={e => handleHeaderKey(e, 'total')}
               aria-sort={sort.column === 'total' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
               style={{
                 ...thBase,
                 padding: '10px 14px',
                 width: 70,
                 textAlign: 'center',
-                color: 'var(--sr-accent)',
                 borderLeft: '1px solid var(--sr-border)',
               }}
             >
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <button type="button" style={{ ...sortBtn(true, 'center'), color: 'var(--sr-accent)' }} onClick={() => handleHeaderClick('total')}>
                 Total
                 {sortIndicator('total')}
-              </div>
+              </button>
             </th>
           </tr>
         </thead>
         <tbody>
+          {sorted.length === 0 && (
+            <tr>
+              <td colSpan={5} style={{ padding: '20px 14px', textAlign: 'center', color: 'var(--sr-text-muted)', fontSize: '0.8125rem' }}>
+                No species match these filters.
+              </td>
+            </tr>
+          )}
           {sorted.map((entry, idx) => {
             const photoCount = countMedia(entry, mediaMap, 'Photo')
             const audioCount = countMedia(entry, mediaMap, 'Audio')
@@ -264,7 +271,14 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-surface-faint)')}
                 onMouseLeave={e => (e.currentTarget.style.background = '')}
               >
-                <td style={{ padding: '9px 14px', verticalAlign: 'middle' }}>
+                <th scope="row" style={{
+                  padding: '9px 14px',
+                  verticalAlign: 'middle',
+                  // <th> defaults to center + bold; match the left-aligned, normal-weight
+                  // name cells used elsewhere (Breeding Codes, etc.).
+                  textAlign: 'left',
+                  fontWeight: 'normal',
+                }}>
                   <BirdName
                     commonName={entry.commonName}
                     scientificName={entry.scientificName}
@@ -273,7 +287,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                     onOpenSpecies={onOpenSpecies}
                     showSci
                   />
-                </td>
+                </th>
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
                   <div style={iconCell}>
                     {photoCount > 0
@@ -281,11 +295,12 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           href={mlUrl(entry.commonName, 'Photo', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
+                          aria-label={`${photoCount} ${photoCount === 1 ? 'photo' : 'photos'} on Macaulay Library (opens in new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{photoCount}</a>
-                      : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
+                      : <Minus size={16} strokeWidth={2.5} role="img" aria-label="No photos" style={{ color: 'var(--sr-text-muted)' }} />}
                   </div>
                 </td>
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
@@ -295,11 +310,12 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           href={mlUrl(entry.commonName, 'Audio', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
+                          aria-label={`${audioCount} audio ${audioCount === 1 ? 'recording' : 'recordings'} on Macaulay Library (opens in new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{audioCount}</a>
-                      : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
+                      : <Minus size={16} strokeWidth={2.5} role="img" aria-label="No audio" style={{ color: 'var(--sr-text-muted)' }} />}
                   </div>
                 </td>
                 <td style={{ width: 80, padding: '9px 14px', verticalAlign: 'middle' }}>
@@ -309,11 +325,12 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           href={mlUrl(entry.commonName, 'Video', userId, taxonCode)}
                           target="_blank"
                           rel="noreferrer"
+                          aria-label={`${videoCount} ${videoCount === 1 ? 'video' : 'videos'} on Macaulay Library (opens in new tab)`}
                           style={countLinkStyle}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{videoCount}</a>
-                      : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
+                      : <Minus size={16} strokeWidth={2.5} role="img" aria-label="No video" style={{ color: 'var(--sr-text-muted)' }} />}
                   </div>
                 </td>
                 <td style={{ width: 70, padding: '9px 14px', verticalAlign: 'middle', borderLeft: '1px solid var(--sr-border)' }}>
@@ -324,11 +341,12 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                           target="_blank"
                           rel="noreferrer"
                           title="All media on Macaulay Library"
+                          aria-label={`${totalCount} total media items on Macaulay Library (opens in new tab)`}
                           style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', fontVariantNumeric: 'tabular-nums', textDecoration: 'none' }}
                           onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                           onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                         >{totalCount}</a>
-                      : <Minus size={16} strokeWidth={2.5} style={{ color: 'var(--sr-gray-300)' }} />}
+                      : <Minus size={16} strokeWidth={2.5} role="img" aria-label="No media" style={{ color: 'var(--sr-text-muted)' }} />}
                   </div>
                 </td>
               </tr>

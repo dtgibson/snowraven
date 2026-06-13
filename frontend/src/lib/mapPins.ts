@@ -14,7 +14,24 @@
 // re-adds the sprites on a light/dark theme change (same contract as
 // lib/atlasTextures.ts hatchImageData).
 
-import type { ExpressionSpecification, PointLike } from 'maplibre-gl'
+import type { ExpressionSpecification, Marker as MaplibreMarker, PointLike } from 'maplibre-gl'
+
+// ── DOM marker keyboard access ──────────────────────────────────────────────────
+// react-map-gl/maplibre DOM <Marker>s are not keyboard-operable: maplibre stamps
+// the wrapper with role='button' + a generic aria-label='Map marker' but no
+// tabindex, and binds click on the wrapper (Enter/Space don't fire on a div).
+// The fix is to render a real <button aria-label=…> child (Enter/Space → native
+// click → bubbles to the wrapper's listener) and demote the wrapper so AT doesn't
+// announce a button inside a button. Call this from the Marker `ref` callback.
+// Idempotent and null-safe (the ref fires with null on unmount).
+export function neutralizeMarkerWrapper(marker: MaplibreMarker | null): void {
+  if (!marker) return
+  const el = marker.getElement()
+  if (!el) return
+  el.setAttribute('role', 'presentation')
+  el.removeAttribute('aria-label')
+  el.removeAttribute('tabindex')
+}
 
 // ── Sighting circle model ──────────────────────────────────────────────────────
 
@@ -112,18 +129,29 @@ export const TEARDROP = 'M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.
 export const TEARDROP_W = 28
 export const TEARDROP_H = 40
 
-// Light-theme token values, used only when getComputedStyle is unavailable or
-// the token is missing (tests, very early paint).
+// Basemap-anchored fallback values (same in both themes), used only when
+// getComputedStyle is unavailable or the token is missing (tests, very early
+// paint). The GL sprites read the --sr-map-pin-* tokens, not --sr-map-*: the
+// Positron basemap stays light in dark mode, so the theme-lightened --sr-map-*
+// fills lost contrast on the tiles (F066). --sr-map-pin-stroke is the dark ring.
 const KIND_FALLBACK: Record<HotspotKind, string> = {
   visited: '#2D8653',
   unvisited: '#5B7FA6',
-  personal: '#C9842A',
+  personal: '#B0701B',
 }
+
+const PIN_STROKE_FALLBACK = '#3F3F46'
 
 function kindColor(kind: HotspotKind): string {
   if (typeof document === 'undefined') return KIND_FALLBACK[kind]
-  const v = getComputedStyle(document.documentElement).getPropertyValue(`--sr-map-${kind}`).trim()
+  const v = getComputedStyle(document.documentElement).getPropertyValue(`--sr-map-pin-${kind}`).trim()
   return v || KIND_FALLBACK[kind]
+}
+
+function strokeColor(): string {
+  if (typeof document === 'undefined') return PIN_STROKE_FALLBACK
+  const v = getComputedStyle(document.documentElement).getPropertyValue('--sr-map-pin-stroke').trim()
+  return v || PIN_STROKE_FALLBACK
 }
 
 // White glyph per kind, matching the legend SVGs in MapExplorer: a check for
@@ -188,8 +216,14 @@ export function teardropImageData(kind: HotspotKind, dpr: number): ImageData {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('2D canvas context unavailable')
   ctx.scale(dpr, dpr)
+  const teardrop = new Path2D(TEARDROP)
   ctx.fillStyle = kindColor(kind)
-  ctx.fill(new Path2D(TEARDROP))
+  ctx.fill(teardrop)
+  // Dark outline ring supplies the 3:1 boundary against the always-light
+  // basemap tiles (the fill alone could fall under 3:1 in dark mode). F066.
+  ctx.strokeStyle = strokeColor()
+  ctx.lineWidth = 1.5
+  ctx.stroke(teardrop)
   drawGlyph(ctx, kind)
   return ctx.getImageData(0, 0, canvas.width, canvas.height)
 }

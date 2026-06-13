@@ -37,8 +37,8 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
   const visible = showAll ? matches : matches.slice(0, MEDIA_COMMENTS_PAGE)
 
   return (
-    <div id="media-comments" style={{
-      marginTop: 16, scrollMarginTop: 16, background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
+    <div id="media-comments" tabIndex={-1} style={{
+      marginTop: 16, scrollMarginTop: 16, outline: 'none', background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
       borderRadius: 12, overflow: 'hidden', boxShadow: 'var(--sr-card-shadow)',
     }}>
       {/* Header */}
@@ -68,11 +68,12 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
             value={filter}
             onChange={e => { setFilter(e.target.value); setShowAll(false) }}
             placeholder="Filter media comments…"
+            aria-label="Filter media comments"
             style={{
               width: '100%', height: 32, padding: '0 10px 0 30px',
               border: '1.5px solid var(--sr-border)', borderRadius: 6,
               fontSize: '0.8125rem', fontFamily: 'inherit', color: 'var(--sr-text)',
-              background: 'var(--sr-surface)', outline: 'none',
+              background: 'var(--sr-surface)',
             }}
             onFocus={e => (e.currentTarget.style.borderColor = 'var(--sr-accent)')}
             onBlur={e => (e.currentTarget.style.borderColor = 'var(--sr-border)')}
@@ -97,7 +98,7 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
           ))}
         </div>
 
-        <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', fontWeight: 500, flexShrink: 0 }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 500, flexShrink: 0 }}>
           {matches.length} {matches.length === 1 ? 'comment' : 'comments'}
         </span>
       </div>
@@ -156,9 +157,12 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
             )
           })}
 
-          {!showAll && matches.length > MEDIA_COMMENTS_PAGE && (
+          {/* Stays mounted as a toggle so activation doesn't drop keyboard
+              focus to <body> and restart Tab from the page top (F036). */}
+          {matches.length > MEDIA_COMMENTS_PAGE && (
             <button tabIndex={0}
-              onClick={() => setShowAll(true)}
+              onClick={() => setShowAll(v => !v)}
+              aria-expanded={showAll}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 width: '100%', padding: '13px 18px',
@@ -170,8 +174,8 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
               onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-accent-bg)')}
               onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-faint)')}
             >
-              <ChevronDown size={13} strokeWidth={2.5} />
-              Show all {matches.length} comments
+              <ChevronDown size={13} strokeWidth={2.5} style={{ transform: showAll ? 'rotate(180deg)' : 'none' }} />
+              {showAll ? 'Show fewer' : `Show all ${matches.length} comments`}
             </button>
           )}
         </>

@@ -100,43 +100,52 @@ function tabStyle(active: boolean): React.CSSProperties {
 }
 
 function TabBar({ items, activeTab, onSelect }: TabNavProps) {
+  const selectAndFocus = (id: Tab) => {
+    onSelect(id)
+    document.getElementById(`tab-${id}`)?.focus()
+  }
   return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: '0 24px' }}>
-      <nav
-        aria-label="Main navigation"
-        style={{ display: 'flex', maxWidth: 880, width: '100%', justifyContent: 'center' }}
-        role="tablist"
-        onKeyDown={e => {
-          const idx = items.findIndex(it => it.id === activeTab)
-          if (idx === -1) return
-          if (e.key === 'ArrowRight') {
-            e.preventDefault()
-            const next = items[(idx + 1) % items.length]
-            onSelect(next.id)
-            document.getElementById(`tab-${next.id}`)?.focus()
-          } else if (e.key === 'ArrowLeft') {
-            e.preventDefault()
-            const prev = items[(idx - 1 + items.length) % items.length]
-            onSelect(prev.id)
-            document.getElementById(`tab-${prev.id}`)?.focus()
-          }
-        }}
-      >
-        {items.map(item => (
-          <button
-            key={item.id}
-            role="tab"
-            aria-selected={activeTab === item.id}
-            aria-controls={`panel-${item.id}`}
-            id={`tab-${item.id}`}
-            tabIndex={activeTab === item.id ? 0 : -1}
-            style={tabStyle(activeTab === item.id)}
-            onClick={() => onSelect(item.id)}
-          >
-            {item.icon}
-            {item.label}
-          </button>
-        ))}
+      {/* The <nav> is the navigation landmark; role="tablist" lives on the inner
+          div so it doesn't override the landmark (a node can't be both). */}
+      <nav aria-label="Main navigation" style={{ display: 'flex', maxWidth: 880, width: '100%', justifyContent: 'center' }}>
+        <div
+          role="tablist"
+          style={{ display: 'flex', width: '100%', justifyContent: 'center' }}
+          onKeyDown={e => {
+            const idx = items.findIndex(it => it.id === activeTab)
+            if (idx === -1) return
+            if (e.key === 'ArrowRight') {
+              e.preventDefault()
+              selectAndFocus(items[(idx + 1) % items.length].id)
+            } else if (e.key === 'ArrowLeft') {
+              e.preventDefault()
+              selectAndFocus(items[(idx - 1 + items.length) % items.length].id)
+            } else if (e.key === 'Home') {
+              e.preventDefault()
+              selectAndFocus(items[0].id)
+            } else if (e.key === 'End') {
+              e.preventDefault()
+              selectAndFocus(items[items.length - 1].id)
+            }
+          }}
+        >
+          {items.map(item => (
+            <button
+              key={item.id}
+              role="tab"
+              aria-selected={activeTab === item.id}
+              aria-controls={`panel-${item.id}`}
+              id={`tab-${item.id}`}
+              tabIndex={activeTab === item.id ? 0 : -1}
+              style={tabStyle(activeTab === item.id)}
+              onClick={() => onSelect(item.id)}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </div>
       </nav>
     </div>
   )
@@ -207,7 +216,12 @@ function TabDropdown({ items, activeTab, onSelect }: TabNavProps) {
         close(true)
         break
       case 'Tab':
-        close(false)
+        // close() runs triggerRef.focus() synchronously BEFORE React flushes the
+        // unmount, so focus is on the trigger when the browser performs the default
+        // Tab — focus then moves naturally to the next/previous element in ONE
+        // keystroke. Closing with close(false) instead would unmount the focused
+        // option first and drop focus to <body> (F061, WCAG 2.4.3).
+        close(true)
         break
     }
   }
@@ -225,13 +239,14 @@ function TabDropdown({ items, activeTab, onSelect }: TabNavProps) {
   }
 
   return (
-    <div style={{ padding: '12px 16px', position: 'relative' }} ref={wrapRef}>
+    <nav aria-label="Main navigation" style={{ padding: '12px 16px', position: 'relative' }} ref={wrapRef}>
       <button
         ref={triggerRef}
         type="button"
         tabIndex={0}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls="tab-nav-listbox"
         aria-label={`Navigation, current view ${active.label}`}
         onClick={() => setOpen(o => !o)}
         onKeyDown={onTriggerKeyDown}
@@ -264,9 +279,9 @@ function TabDropdown({ items, activeTab, onSelect }: TabNavProps) {
 
       {open && (
         <div
+          id="tab-nav-listbox"
           role="listbox"
           aria-label="Navigate to"
-          aria-activedescendant={`tab-${activeTab}`}
           onKeyDown={onMenuKeyDown}
           style={{
             position: 'absolute',
@@ -295,9 +310,15 @@ function TabDropdown({ items, activeTab, onSelect }: TabNavProps) {
                   ref={el => { itemRefs.current[i] = el }}
                   type="button"
                   role="option"
-                  id={`tab-${item.id}`}
+                  // Distinct from the desktop tabs' `tab-${id}` so the App panels'
+                  // aria-labelledby="tab-{id}" never resolves to a dropdown option
+                  // (which only exists while the menu is open) — F062.
+                  id={`tabopt-${item.id}`}
                   aria-selected={isActive}
-                  tabIndex={0}
+                  // Roving DOM focus drives announcements; options are not in the
+                  // tab sequence (F102). focusItem()'s programmatic .focus() works
+                  // on tabIndex={-1}.
+                  tabIndex={-1}
                   onClick={() => select(item.id)}
                   style={{
                     width: '100%',
@@ -327,6 +348,6 @@ function TabDropdown({ items, activeTab, onSelect }: TabNavProps) {
           })}
         </div>
       )}
-    </div>
+    </nav>
   )
 }

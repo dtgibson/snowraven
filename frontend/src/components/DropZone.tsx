@@ -37,7 +37,7 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
   const isActive = isLoaded || isDragging || (isHovered && !hasError)
 
   const borderColor = hasError
-    ? 'var(--sr-error-muted)'
+    ? 'var(--sr-error)'
     : isActive
       ? 'var(--sr-accent)'
       : 'var(--sr-border)'
@@ -66,7 +66,6 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
         gap: 10,
         padding: '40px 24px 28px',
         textAlign: 'center',
-        outline: 'none',
         transition: 'border-color 0.15s, background 0.15s',
       }}
       onDragOver={handleDragOver}
@@ -105,7 +104,7 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
       {isLoaded ? (
         <CheckIcon />
       ) : hasError ? (
-        <UploadIcon color="var(--sr-error-muted)" />
+        <UploadIcon color="var(--sr-error)" />
       ) : (
         <UploadIcon color={isHovered || isDragging ? 'var(--sr-accent)' : 'var(--sr-border-medium)'} />
       )}

@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo } from 'react'
 import { Marker, Popup, useMap } from 'react-map-gl/maplibre'
+import { neutralizeMarkerWrapper } from '../../lib/mapPins'
 import { recencyTier, tierColors, escHtml, MEDIA_ICONS } from '../../lib/mapExplorerFormat'
 import { formatDate } from '../../lib/formatDate'
 import { BirdName } from '../BirdName'
@@ -56,27 +57,38 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
         const rep = group.reduce((best, p) => p.recentDate > best.recentDate ? p : best)
         const { bg, text } = tierColors(recencyTier(rep.recentDate))
         let labelHtml: string
+        let ariaLabel: string
         if (group.length === 1) {
           const pin = group[0]
           const iconsHtml = pin.missingTypes.length > 0
             ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:5px">${pin.missingTypes.map(t => MEDIA_ICONS[t]).join('')}</span>`
             : ''
           labelHtml = `${escHtml(pin.comName)}${iconsHtml}`
+          const missing = pin.missingTypes.length > 0
+            ? ` — missing ${pin.missingTypes.map(t => t.toLowerCase()).join(', ')}`
+            : ''
+          ariaLabel = `${pin.comName}${missing}, at ${rep.locName}`
         } else {
           labelHtml = `${group.length} species`
+          ariaLabel = `${group.length} target species at ${rep.locName}`
         }
         return (
           <Marker key={`${rep.locId}-${i}`} longitude={rep.lng} latitude={rep.lat} anchor="left"
+            ref={neutralizeMarkerWrapper}
             onClick={e => { e.originalEvent.stopPropagation(); onSelect(rep.locId) }}>
-            <div
-              style={{ display: 'inline-flex', alignItems: 'center', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer' }}
+            {/* Real <button> so Enter/Space open the popup (the native click bubbles
+                to the wrapper's listener); the wrapper is demoted via ref. The
+                media-type SVGs inside labelHtml are aria-hidden, so the descriptive
+                aria-label carries the missing-media info. F014/F045. */}
+            <button type="button" aria-label={ariaLabel}
+              style={{ display: 'inline-flex', alignItems: 'center', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}
               dangerouslySetInnerHTML={{ __html: labelHtml }}
             />
           </Marker>
         )
       })}
       {selGroup && selRep && (
-        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} closeButton={false} maxWidth="280px">
+        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} maxWidth="280px">
               <div style={{ minWidth: 200, maxWidth: 260 }}>
                 <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
                 {selGroup.map((pin, j) => {
@@ -89,10 +101,10 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>
                         <BirdName commonName={pin.comName} taxonCode={speciesCodeMap[pin.comName]} hasEntry={hasEntryFor(pin.comName)} onOpenSpecies={onOpenSpecies} size="sm" />
                         {pin.missingTypes.map(t => (
-                          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 4px', background: 'var(--sr-surface-subtle)', borderRadius: 4, fontSize: '0.625rem', color: 'var(--sr-text-muted)', gap: 2 }}>
-                            {t === 'Photo' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>}
-                            {t === 'Audio' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>}
-                            {t === 'Video' && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>}
+                          <span key={t} role="img" aria-label={`Missing ${t.toLowerCase()}`} style={{ display: 'inline-flex', alignItems: 'center', padding: '0 4px', background: 'var(--sr-surface-subtle)', borderRadius: 4, fontSize: '0.625rem', color: 'var(--sr-text-muted)', gap: 2 }}>
+                            {t === 'Photo' && <svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>}
+                            {t === 'Audio' && <svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>}
+                            {t === 'Video' && <svg aria-hidden="true" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m22 8-6 4 6 4V8z"/><rect width="14" height="12" x="2" y="6" rx="2" ry="2"/></svg>}
                           </span>
                         ))}
                       </div>

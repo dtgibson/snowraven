@@ -116,10 +116,12 @@ describe('Checklists tab', () => {
   it('a block-only comment is absent while hidden and appears when shown (QA-06)', async () => {
     render(<Checklists {...props} />)
     await screen.findByText('Checklist Comments')
-    // hidden: S1 + S2 → "2 comments"; shown: S3 joins → "3 comments"
-    expect(screen.getByText('2 comments')).toBeTruthy()
+    // hidden: S1 + S2 → "2 comments"; shown: S3 joins → "3 comments".
+    // The count appears twice — a visible (aria-hidden) span and a debounced
+    // sr-only live region (F075) — so assert on the count of matches.
+    expect(screen.getAllByText('2 comments').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('switch', { name: /Show weather & tide blocks/ }))
-    expect(screen.getByText('3 comments')).toBeTruthy()
+    expect(screen.getAllByText('3 comments').length).toBeGreaterThan(0)
   })
 
   it('search matches what you see: a block-only term finds nothing while hidden (QA-05)', async () => {
@@ -136,13 +138,14 @@ describe('Checklists tab', () => {
   it('renders checklist rows with protocol names, counts, and a count label (QA-09/12)', async () => {
     render(<Checklists {...props} />)
     await screen.findByText('All Checklists')
-    expect(screen.getByText('3 checklists')).toBeTruthy()
+    // Visible (aria-hidden) span + debounced sr-only live region (F075).
+    expect(screen.getAllByText('3 checklists').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Traveling').length).toBeGreaterThan(0)
 
     // cycle the "Checklist comment" pill to HAS: with blocks hidden the
     // block-only checklist (S3) doesn't count (FR-07) → 2 of 3
     fireEvent.click(screen.getByRole('button', { name: 'Checklist comment' }))
-    expect(screen.getByText('2 of 3 checklists')).toBeTruthy()
+    expect(screen.getAllByText('2 of 3 checklists').length).toBeGreaterThan(0)
   })
 
   it('species comments box lists entries across species with their names', async () => {
@@ -183,6 +186,23 @@ describe('Checklists tab', () => {
     } finally {
       observations.pop()
     }
+  })
+
+  it('comment filter inputs carry an accessible name, not just a placeholder (F051)', async () => {
+    render(<Checklists {...props} />)
+    await screen.findByText('Checklist Comments')
+    // aria-label is derived from the placeholder (trailing ellipsis trimmed).
+    expect(screen.getByRole('textbox', { name: 'Filter checklist comments' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: 'Filter species comments' })).toBeTruthy()
+  })
+
+  it('the filter count is announced via a debounced sr-only live region (F075)', async () => {
+    render(<Checklists {...props} />)
+    await screen.findByText('Checklist Comments')
+    // The visible count span is aria-hidden; the announced copy lives in an
+    // aria-live="polite" region so the count isn't read on every keystroke.
+    const live = document.querySelector('[aria-live="polite"].sr-only')
+    expect(live).not.toBeNull()
   })
 
   it('without an ML export the media-type pills are absent (QA-11)', async () => {

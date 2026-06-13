@@ -145,6 +145,32 @@ export function blocksInBounds(data: AtlasData, bounds: Bounds, cap: number): In
   return { blocks: result, tooMany: false }
 }
 
+/** A block reduced to what the keyboard "blocks in view" list needs: identity
+ *  plus the popup anchor (block-bbox centre, [lng, lat]). */
+export interface BlockListRow {
+  name: string
+  code: string
+  /** [lng, lat] centre of the block bbox — the popup anchor a list row opens. */
+  center: [number, number]
+}
+
+/**
+ * Reduce in-view atlas blocks to a sorted, capped list of rows for the
+ * keyboard-accessible "blocks in view" panel (the only keyboard route to a block
+ * popup — the on-map fill is a pointer-only canvas hit-test). Sorted by name so
+ * the list is scannable; capped like the marker lists so a dense view collapses
+ * to the first `cap` with an over-cap hint. Returns the pre-cap total too.
+ */
+export function blockListRows(blocks: AtlasBlock[], cap: number): { rows: BlockListRow[]; total: number; overCap: boolean } {
+  const sorted = [...blocks].sort((a, b) => a.name.localeCompare(b.name))
+  const rows = sorted.slice(0, cap).map(b => ({
+    name: b.name,
+    code: b.code,
+    center: [(b.bbox[0] + b.bbox[2]) / 2, (b.bbox[1] + b.bbox[3]) / 2] as [number, number],
+  }))
+  return { rows, total: sorted.length, overCap: sorted.length > cap }
+}
+
 // ── Point → block (for joining observations to atlas blocks) ──────────────────
 
 function gridSnap(v: number, step: number): number {

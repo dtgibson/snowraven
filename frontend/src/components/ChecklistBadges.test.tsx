@@ -34,9 +34,19 @@ describe('ChecklistBadges — all six always render (QA-01/02/03 alignment)', ()
     expect(absent.length).toBe(6)
   })
 
-  it('exposes the badge row as a group', () => {
+  it('exposes the badge row as a named group (F034)', () => {
     render(<ChecklistBadges flags={ALL_ABSENT} />)
-    expect(screen.getByRole('group')).toBeTruthy()
+    // The group carries an accessible name so SR users know what it summarizes.
+    expect(screen.getByRole('group', { name: 'Checklist contents' })).toBeTruthy()
+  })
+
+  it('gives each badge role="img" so its aria-label is reliably announced (F034)', () => {
+    // ARIA prohibits naming role=generic; without role="img" the present/absent
+    // state (the badge's whole point, carried only by aria-label) is dropped.
+    render(<ChecklistBadges flags={ALL_PRESENT} />)
+    const imgs = screen.getAllByRole('img')
+    expect(imgs.length).toBe(6)
+    for (const el of imgs) expect(el.getAttribute('aria-label')).toBeTruthy()
   })
 })
 

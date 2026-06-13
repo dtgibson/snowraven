@@ -42,7 +42,8 @@ function codePillStyle(tier: 1 | 2 | 3 | 4, active: boolean): React.CSSPropertie
     ...base,
     background: `rgba(var(--sr-tier-${tier}-rgb),${bgAlpha})`,
     borderColor: `rgba(var(--sr-tier-${tier}-rgb),${borderAlpha})`,
-    color: `var(--sr-tier-${tier})`,
+    // -fg (not the raw -N fill) so the label text meets AA on the tint in both themes.
+    color: `var(--sr-tier-${tier}-fg)`,
   }
 }
 
@@ -54,10 +55,13 @@ function categoryPillStyle(cat: BreedingCategory, active: boolean): React.CSSPro
     cursor: 'pointer', border: '1.5px solid transparent', background: 'none',
   }
   if (!active) return { ...base, borderColor: 'var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
+  // Text uses the -fg tokens (not the raw -N fills) so each label meets AA on
+  // its tint in both themes; tier-2-fg is verified on the tier-1 tint too (the
+  // 'possible' pill's cross-case).
   const styles: Record<BreedingCategory, React.CSSProperties> = {
-    confirmed: { background: 'rgba(var(--sr-tier-4-rgb),0.08)', borderColor: 'rgba(var(--sr-tier-4-rgb),0.3)', color: 'var(--sr-tier-4)' },
-    probable:  { background: 'rgba(var(--sr-tier-2-rgb),0.08)', borderColor: 'rgba(var(--sr-tier-2-rgb),0.3)', color: 'var(--sr-tier-2)' },
-    possible:  { background: 'rgba(var(--sr-tier-1-rgb),0.15)', borderColor: 'rgba(var(--sr-tier-1-rgb),0.5)', color: 'var(--sr-tier-2)' },
+    confirmed: { background: 'rgba(var(--sr-tier-4-rgb),0.08)', borderColor: 'rgba(var(--sr-tier-4-rgb),0.3)', color: 'var(--sr-tier-4-fg)' },
+    probable:  { background: 'rgba(var(--sr-tier-2-rgb),0.08)', borderColor: 'rgba(var(--sr-tier-2-rgb),0.3)', color: 'var(--sr-tier-2-fg)' },
+    possible:  { background: 'rgba(var(--sr-tier-1-rgb),0.15)', borderColor: 'rgba(var(--sr-tier-1-rgb),0.5)', color: 'var(--sr-tier-2-fg)' },
   }
   return { ...base, ...styles[cat] }
 }
@@ -171,8 +175,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
 
   if (phase.tag === 'loading-saved') {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
+      <div role="status" aria-label="Loading saved eBird data" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} aria-hidden />
       </div>
     )
   }
@@ -322,6 +326,9 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   })
                 }}
                 title={def.label}
+                // The visible label is the terse code; the title only shows on mouse
+                // hover, so the aria-label carries the full meaning for SR/touch users.
+                aria-label={`${def.label} (${code})`}
               >
                 <div style={{
                   width: 14, height: 14, borderRadius: '50%',
@@ -374,6 +381,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   pointerEvents: 'none', flexShrink: 0,
                 }} />
                 <select
+                  aria-label="County"
                   value={countyFilter ?? ''}
                   onChange={e => setCountyFilter(e.target.value || null)}
                   style={{
@@ -385,7 +393,6 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                     color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                     fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                     cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
-                    outline: 'none',
                   }}
                 >
                   <option value="">All Counties</option>
@@ -407,6 +414,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   }} />
                   <input
                     type="date"
+                    aria-label="From date"
                     value={dateRange.from}
                     onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
                     style={{
@@ -415,14 +423,15 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                         ? '1.5px solid var(--sr-accent-border-strong)'
                         : '1.5px solid var(--sr-border)',
                       background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                      color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                      fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
+                      color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                      fontSize: '0.75rem', fontFamily: 'inherit',
                     }}
                   />
                 </div>
                 <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
                 <input
                   type="date"
+                  aria-label="To date"
                   value={dateRange.to}
                   onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
                   style={{
@@ -431,8 +440,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                       ? '1.5px solid var(--sr-accent-border-strong)'
                       : '1.5px solid var(--sr-border)',
                     background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                    color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                    fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
+                    color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                    fontSize: '0.75rem', fontFamily: 'inherit',
                   }}
                 />
               </div>
@@ -465,7 +474,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
-              padding: 0, textDecoration: 'underline',
+              // ≥24px hit area (WCAG 2.2 target size) without shifting the row layout.
+              minHeight: 24, padding: '0 6px', margin: '0 -6px', textDecoration: 'underline',
             }}
           >
             Clear filter

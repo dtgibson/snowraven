@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { smoothScrollIntoView, prefersReducedMotion } from './scroll'
+import { smoothScrollIntoView, prefersReducedMotion, jumpTo } from './scroll'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -52,5 +52,38 @@ describe('smoothScrollIntoView', () => {
   it('treats a missing matchMedia (non-DOM env) as motion allowed', () => {
     // matchMedia deleted in afterEach of the prior test / not set here
     expect(prefersReducedMotion()).toBe(false)
+  })
+})
+
+describe('jumpTo', () => {
+  function elWithSpies() {
+    const el = document.createElement('div')
+    const scroll = vi.fn()
+    const focus = vi.fn()
+    el.scrollIntoView = scroll
+    el.focus = focus
+    return { el, scroll, focus }
+  }
+
+  it('scrolls (motion-aware) AND moves focus to the destination without a second scroll', () => {
+    mockReducedMotion(false)
+    const { el, scroll, focus } = elWithSpies()
+    jumpTo(el)
+    expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('jumps instantly under reduced motion but still focuses', () => {
+    mockReducedMotion(true)
+    const { el, scroll, focus } = elWithSpies()
+    jumpTo(el)
+    expect(scroll).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' })
+    expect(focus).toHaveBeenCalledWith({ preventScroll: true })
+  })
+
+  it('no-ops on a null target without throwing', () => {
+    mockReducedMotion(false)
+    expect(() => jumpTo(null)).not.toThrow()
+    expect(() => jumpTo(undefined)).not.toThrow()
   })
 })

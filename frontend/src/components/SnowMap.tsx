@@ -6,7 +6,7 @@
 
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import MapGL, { NavigationControl, Source, Layer } from 'react-map-gl/maplibre'
+import MapGL, { NavigationControl, AttributionControl, Source, Layer } from 'react-map-gl/maplibre'
 import type { StyleSpecification, Map as MaplibreMap } from 'maplibre-gl'
 import { storage } from '../lib/storage'
 import {
@@ -82,6 +82,19 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
   const selectBase = (k: BaseKey) => { setBase(k); if (switcher) void storage.setSetting(BASE_SETTING, k) }
   const toggleTrails = () => setTrails(prev => { const next = !prev; if (switcher) void storage.setSetting(TRAILS_SETTING, next); return next })
 
+  // The app never uses bearing or pitch, and the compass reset is hidden
+  // (showCompass={false}), so leaving rotate/pitch armed strands a touch user
+  // who twists/tilts with no single-pointer reset (WCAG 2.5.1, F056). dragRotate/
+  // touchPitch/pitchWithRotate are turned off as MapGL props; pinch rotation is
+  // disabled here in load (NOT touchZoomRotate={false}, which kills pinch ZOOM).
+  // keyboard.disableRotation() only zeroes Shift+arrow bearing/pitch — plain
+  // arrows still pan.
+  const handleLoad = (e: { target: MaplibreMap }) => {
+    e.target.touchZoomRotate.disableRotation()
+    e.target.keyboard.disableRotation()
+    onLoad?.(e)
+  }
+
   if (!mapStyle) {
     const placeholderStyle: React.CSSProperties = {
       ...style, display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -118,11 +131,18 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
       initialViewState={initialViewState ?? { longitude: -100, latitude: 45, zoom: 3 }}
       mapStyle={mapStyle}
       style={style}
-      attributionControl={{ compact: true }}
+      // Default control disabled; the explicit one below sits bottom-LEFT so the
+      // Map Explorer's bottom-right FAB cluster can't partially obscure the
+      // attribution toggle below the 24×24 target-size minimum (F094).
+      attributionControl={false}
       scrollZoom={scrollZoom}
-      onLoad={onLoad as never}
+      dragRotate={false}
+      touchPitch={false}
+      pitchWithRotate={false}
+      onLoad={handleLoad as never}
     >
       <NavigationControl position="top-left" showCompass={false} />
+      <AttributionControl position="bottom-left" compact />
 
       {/* Raster bases live IN the one style, toggled by visibility (under labels). */}
       <Source id="sr-satellite" type="raster" tiles={RASTER_BASES.satellite.tiles} tileSize={256} attribution={RASTER_BASES.satellite.attribution} maxzoom={RASTER_BASES.satellite.maxzoom}>

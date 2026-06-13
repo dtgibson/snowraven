@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   generateBlocks,
   blocksInBounds,
+  blockListRows,
   padBounds,
   quadBbox,
   buildQuadIndex,
@@ -9,6 +10,7 @@ import {
   type Quad,
   type AtlasScheme,
   type AtlasData,
+  type AtlasBlock,
   type Bounds,
 } from './atlasBlocks'
 
@@ -112,6 +114,52 @@ describe('blocksInBounds', () => {
     const { blocks, tooMany } = blocksInBounds(DATA, [-100.0, 45.0, -99.0, 46.0], 500)
     expect(tooMany).toBe(false)
     expect(blocks).toHaveLength(0)
+  })
+})
+
+describe('blockListRows', () => {
+  // Rows for the keyboard-accessible "blocks in view" panel — the only keyboard
+  // route to a block popup. Each row's center is the popup anchor it opens.
+  const blocks = generateBlocks(QUAD, SCHEME)
+
+  it('sorts rows by block name (scannable list)', () => {
+    const { rows } = blockListRows(blocks, 200)
+    const names = rows.map(r => r.name)
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
+    expect(names[0]).toBe('Mount Diablo CE')
+  })
+
+  it('carries the block code and bbox-centre as the popup anchor', () => {
+    const sw = blocks.find(b => b.name === 'Mount Diablo SW')!
+    const row = blockListRows(blocks, 200).rows.find(r => r.name === 'Mount Diablo SW')!
+    expect(row.code).toBe(sw.code)
+    expect(row.center[0]).toBeCloseTo((sw.bbox[0] + sw.bbox[2]) / 2, 9) // lng
+    expect(row.center[1]).toBeCloseTo((sw.bbox[1] + sw.bbox[3]) / 2, 9) // lat
+  })
+
+  it('caps the row count and reports the pre-cap total + over-cap flag', () => {
+    const { rows, total, overCap } = blockListRows(blocks, 2)
+    expect(rows).toHaveLength(2)
+    expect(total).toBe(6)
+    expect(overCap).toBe(true)
+  })
+
+  it('does not flag over-cap when within the cap', () => {
+    const { total, overCap } = blockListRows(blocks, 200)
+    expect(total).toBe(6)
+    expect(overCap).toBe(false)
+  })
+
+  it('handles an empty in-view set', () => {
+    const empty: AtlasBlock[] = []
+    expect(blockListRows(empty, 200)).toEqual({ rows: [], total: 0, overCap: false })
+  })
+
+  it('does not mutate the input array order', () => {
+    const input = [...blocks]
+    const before = input.map(b => b.name)
+    blockListRows(input, 200)
+    expect(input.map(b => b.name)).toEqual(before)
   })
 })
 

@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Checklists tab (proposed)</title>
+<style>
+  /* ────────────────────────────────────────────────────────────────────
+     Real SnowRaven tokens, copied verbatim from frontend/src/globals.css
+     (incl. --sr-quote-bg added in 0.5.26). Only tokens this mockup touches.
+     The negative-pill tints mirror the Multimedia tab's "No photo" pills —
+     the Engineer uses whatever tokens LifeList already uses there.
+  ──────────────────────────────────────────────────────────────────── */
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+
+    --sr-text: #0F1117;
+    --sr-text-muted: #71717A;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-gray: #6B7280;
+
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+
+    --sr-accent: #2D8653;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(45,134,83,0.25);
+    --sr-on-accent: #FFFFFF;
+
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+
+    --sr-quote-bg: #EFF1F3;
+    --sr-quote-border: #E0E2E6;
+
+    /* negative pill (matches the app's existing "No photo" treatment) */
+    --demo-neg: #B3261E;
+    --demo-neg-bg: #FBEAE9;
+    --demo-neg-border: rgba(179,38,30,0.3);
+
+    --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-gray: #8A8A92;
+
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-on-accent: #052E16;
+
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+    --sr-quote-bg: #2E2E33;
+    --sr-quote-border: #3A3A40;
+
+    --demo-neg: #F2B8B5;
+    --demo-neg-bg: #3A1D1B;
+    --demo-neg-border: rgba(242,184,181,0.25);
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--sr-bg); font-size: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.2s, color 0.2s;
+  }
+  .icon { display: inline-block; vertical-align: middle; flex-shrink: 0; }
+
+  /* ── Mockup chrome (not part of the app) ─────────────────────────────── */
+  .mock-toolbar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 12px 20px;
+    background: var(--sr-surface);
+    border-bottom: 1px solid var(--sr-border);
+  }
+  .mock-toolbar .brand { font-weight: 700; font-size: 0.9375rem; display:flex; align-items:center; gap:8px; }
+  .mock-toolbar .brand .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sr-accent); }
+  .mock-toolbar .tag { font-size: 0.75rem; color: var(--sr-text-muted); }
+  .mock-toolbar .spacer { margin-left: auto; }
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: 8px;
+    height: 32px; padding: 0 14px;
+    background: var(--sr-surface); color: var(--sr-text);
+    border: 1px solid var(--sr-border-medium); border-radius: 20px;
+    font: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer;
+  }
+  .theme-toggle:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+
+  .mock-stage { padding: 24px 20px 80px; max-width: 860px; margin: 0 auto; }
+  .mock-note {
+    margin: 0 0 20px; padding: 11px 14px;
+    background: var(--sr-accent-bg); color: var(--sr-accent-strong);
+    border: 1px solid var(--sr-accent-border); border-radius: 10px;
+    font-size: 0.8125rem; line-height: 1.55;
+  }
+  .mock-note b { font-weight: 700; }
+
+  /* ── Tab bar strip (placement preview only) ──────────────────────────── */
+  .mock-tabs {
+    display: flex; gap: 2px; flex-wrap: wrap;
+    margin: 0 0 22px; padding: 4px;
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 10px; font-size: 0.78125rem;
+  }
+  .mock-tabs span {
+    padding: 6px 11px; border-radius: 7px; color: var(--sr-text-muted); white-space: nowrap;
+  }
+  .mock-tabs span.on {
+    background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600;
+  }
+
+  /* ── Tab header (house pattern, cf. NamedBirds.tsx) ──────────────────── */
+  .cl-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .cl-head-icon {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cl-head h2 { font-size: 1.125rem; font-weight: 700; margin: 0 0 2px; letter-spacing: -0.01em; }
+  .cl-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; max-width: 560px; }
+
+  /* the tab-wide weather/tide switch (house ToggleSwitch) */
+  .cl-switch-row { display: flex; justify-content: flex-end; margin: 0 0 18px; }
+  .sw { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .sw .sw-label { font-size: 0.75rem; color: var(--sr-text-muted); font-weight: 500; }
+  .sw .track {
+    width: 34px; height: 19px; border-radius: 10px; position: relative; flex-shrink: 0;
+    background: var(--sr-border-medium); transition: background 0.15s;
+  }
+  .sw .knob {
+    position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.25); transition: left 0.15s;
+  }
+  .sw[aria-checked="true"] .track { background: var(--sr-accent); }
+  .sw[aria-checked="true"] .knob { left: 17px; }
+
+  /* ── SectionCard / SectionHead (house pattern) ───────────────────────── */
+  .card {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; box-shadow: var(--sr-card-shadow);
+    margin-bottom: 22px; overflow: hidden;
+  }
+  .card-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 13px 18px 12px;
+  }
+  .card-head .ch-icon { color: var(--sr-accent); display: inline-flex; }
+  .card-head h3 { font-size: 0.9375rem; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .card-head .ch-sub { font-size: 0.75rem; color: var(--sr-text-muted); margin-left: 4px; }
+
+  /* controls strip (matches Species Detail comments box) */
+  .controls {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 18px;
+    border-top: 1px solid var(--sr-border-subtle);
+    border-bottom: 1px solid var(--sr-border-subtle);
+    background: var(--sr-surface-faint);
+  }
+  .search { position: relative; flex: 1 1 200px; max-width: 320px; }
+  .search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--sr-text-disabled); }
+  .search input {
+    width: 100%; height: 32px; padding: 0 10px 0 28px;
+    border: 1.5px solid var(--sr-border); border-radius: 6px;
+    background: var(--sr-surface); color: var(--sr-text);
+    font: inherit; font-size: 0.8125rem; outline: none;
+  }
+  .search input:focus { border-color: var(--sr-accent); }
+  .search input::placeholder { color: var(--sr-text-disabled); }
+  .seg { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 7px; overflow: hidden; }
+  .seg button {
+    height: 30px; padding: 0 12px; border: none; border-left: 1.5px solid var(--sr-accent-border);
+    background: transparent; color: var(--sr-text-muted);
+    font: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer;
+  }
+  .seg button:first-child { border-left: none; }
+  .seg button:hover { color: var(--sr-text); background: var(--sr-surface-subtle); }
+  .seg button.is-active { background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600; }
+  .count { font-size: 0.75rem; color: var(--sr-text-disabled); margin-left: auto; white-space: nowrap; }
+
+  /* comment rows */
+  .crow { padding: 13px 18px; border-bottom: 1px solid var(--sr-border-subtle); }
+  .crow:last-of-type { border-bottom: none; }
+  .crow-line { display: flex; align-items: baseline; gap: 0; min-width: 0; margin-bottom: 5px; flex-wrap: wrap; }
+  .cdate {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 0.75rem; font-weight: 600; color: var(--sr-accent); text-decoration: none; white-space: nowrap;
+  }
+  .cdate:hover { text-decoration: underline; }
+  .csep { font-size: 0.75rem; color: var(--sr-text-disabled); padding: 0 7px; }
+  .cloc { font-size: 0.75rem; color: var(--sr-text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ctext { font-size: 0.84375rem; line-height: 1.55; color: var(--sr-text); white-space: pre-line; }
+  .ctext a { color: var(--sr-accent); }
+  /* species line (BirdName conventions) */
+  .sp { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; margin-right: 10px; }
+  .sp .common { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); white-space: nowrap; cursor: pointer; }
+  .sp .common:hover { color: var(--sr-accent); text-decoration: underline; }
+  .sp .sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); white-space: nowrap; }
+  .sp .favs { display: inline-flex; gap: 3px; align-self: center; }
+  .sp .fav { width: 13px; height: 13px; border-radius: 3px; opacity: 0.85; }
+
+  /* weather/tide block inside a comment (visible only when the switch is ON) */
+  .wt-block { display: none; color: var(--sr-text-muted); }
+  body.show-blocks .wt-block { display: inline; }
+  .blocks-only { display: none; }       /* rows whose comment is block-only */
+  body.show-blocks .blocks-only { display: block; }
+
+  /* expander (house "Show all N") */
+  .show-all {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; padding: 10px; border: none; border-top: 1px solid var(--sr-border-subtle);
+    background: var(--sr-surface-faint); color: var(--sr-accent);
+    font: inherit; font-size: 0.78125rem; font-weight: 600; cursor: pointer;
+  }
+  .show-all:hover { background: var(--sr-accent-bg); }
+
+  /* empty state */
+  .empty { padding: 18px; font-size: 0.8125rem; color: var(--sr-text-muted); display: none; }
+
+  /* ── Section 3 — filters ─────────────────────────────────────────────── */
+  .filters {
+    display: flex; flex-direction: column; gap: 9px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--sr-border-subtle);
+    border-bottom: 1px solid var(--sr-border-subtle);
+    background: var(--sr-surface-faint);
+  }
+  .pill-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .pill-row .row-label { font-size: 0.71875rem; font-weight: 600; color: var(--sr-text-muted); width: 64px; flex-shrink: 0; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 30px; padding: 0 11px; border-radius: 15px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+    color: var(--sr-text-muted); font: inherit; font-size: 0.75rem; font-weight: 500;
+    cursor: pointer; white-space: nowrap; transition: all 0.12s;
+  }
+  .pill:hover { border-color: var(--sr-border-medium); color: var(--sr-text); }
+  .pill.has { background: var(--sr-accent-bg); border-color: var(--sr-accent-border); color: var(--sr-accent); font-weight: 600; }
+  .pill.no  { background: var(--demo-neg-bg); border-color: var(--demo-neg-border); color: var(--demo-neg); font-weight: 600; }
+  .pill .state-ic { display: none; }
+  .pill.has .ic-has { display: inline-flex; }
+  .pill.no .ic-no { display: inline-flex; }
+  .pill-sep { width: 1px; height: 20px; background: var(--sr-border); margin: 0 3px; }
+  .pill.all-pill.is-active { background: var(--sr-accent-bg); border-color: var(--sr-accent-border); color: var(--sr-accent); font-weight: 600; }
+
+  .filters select, .filters input[type="date"] {
+    height: 28px; padding: 0 8px; border-radius: 6px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface); color: var(--sr-text);
+    font: inherit; font-size: 0.75rem; outline: none;
+  }
+  .filters select:focus, .filters input[type="date"]:focus { border-color: var(--sr-accent); }
+  .date-arrow { font-size: 0.75rem; color: var(--sr-text-disabled); }
+  .filters-count { margin-left: auto; font-size: 0.75rem; color: var(--sr-text-disabled); white-space: nowrap; }
+
+  /* ── Section 3 — checklist rows ──────────────────────────────────────── */
+  .clrow { padding: 13px 18px 14px; border-bottom: 1px solid var(--sr-border-subtle); }
+  .clrow:last-of-type { border-bottom: none; }
+  .clrow-top { display: flex; align-items: baseline; gap: 0; min-width: 0; flex-wrap: wrap; }
+  .clrow .counts { margin-left: auto; display: flex; align-items: baseline; gap: 12px; flex-shrink: 0; padding-left: 12px; }
+  .n-species { font-size: 0.75rem; font-weight: 700; color: var(--sr-accent); white-space: nowrap; }
+  .n-birds { font-size: 0.75rem; color: var(--sr-text-muted); white-space: nowrap; }
+  .clrow-meta {
+    display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+    font-size: 0.71875rem; color: var(--sr-text-gray); margin-top: 3px;
+  }
+  .clrow-meta .m-sep { color: var(--sr-text-disabled); padding: 0 6px; }
+  .badges { display: inline-flex; gap: 4px; margin-left: 10px; align-self: center; }
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 5px;
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+  }
+  .clrow .quote {
+    font-size: 0.8125rem; color: var(--sr-text); line-height: 1.55;
+    background: var(--sr-quote-bg);
+    border: 1px solid var(--sr-quote-border);
+    border-left: 3px solid var(--sr-accent-border);
+    border-radius: 7px;
+    padding: 8px 11px;
+    margin-top: 7px;
+    white-space: pre-line;
+  }
+  .clrow .quote.gone { display: none; }
+  body.show-blocks .clrow .quote.gone { display: block; }
+
+  @media (max-width: 640px) {
+    .pill-row .row-label { width: 100%; }
+    .clrow .counts { width: 100%; padding-left: 0; margin-top: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ───────────────── Mockup chrome (not part of the app) ───────────────── -->
+<div class="mock-toolbar">
+  <span class="brand"><span class="dot"></span> SnowRaven</span>
+  <span class="tag">Checklists tab · first design direction</span>
+  <span class="spacer"></span>
+  <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">
+    <svg class="icon" id="themeIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M5 5l1.5 1.5M17.5 17.5L19 19M2 12h2M20 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/></svg>
+    <span id="themeLabel">Dark mode</span>
+  </button>
+</div>
+
+<div class="mock-stage">
+  <p class="mock-note">
+    <b>Starting point — not final.</b> Live bits to try: the <b>weather &amp; tide switch</b> (top right of the page)
+    really strips/restores blocks everywhere — including the block-only comment that vanishes entirely;
+    the <b>two search boxes</b> really filter and match only what's visible; the <b>filter pills</b> cycle
+    off → has → doesn't have. List rows are static samples. Toggle dark mode to check both themes.
+  </p>
+
+  <!-- tab-bar placement preview -->
+  <div class="mock-tabs" aria-hidden="true">
+    <span>Weather</span><span>Species Detail</span><span>Statistics</span><span>Map Explorer</span>
+    <span>Multimedia</span><span>Breeding Codes</span><span>Named Birds</span>
+    <span class="on">Checklists</span><span>List Comparer</span>
+  </div>
+
+  <!-- ───────────── Tab header ───────────── -->
+  <div class="cl-head">
+    <div class="cl-head-icon">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M7 9h4M7 13h7M7 17h5"/><path d="M16 2v4M8 2v4"/></svg>
+    </div>
+    <div>
+      <h2>Checklists</h2>
+      <p>Every checklist you've submitted — search the comments you wrote, and browse or filter the full list of your outings.</p>
+    </div>
+  </div>
+  <div class="cl-switch-row">
+    <span class="sw" id="wtSwitch" role="switch" aria-checked="false" tabindex="0"
+          onclick="toggleBlocks()" onkeydown="if(event.key===' '||event.key==='Enter'){event.preventDefault();toggleBlocks();}">
+      <span class="sw-label">Show weather &amp; tide blocks</span>
+      <span class="track"><span class="knob"></span></span>
+    </span>
+  </div>
+
+  <!-- ═════════ SECTION 1 — Checklist comment search ═════════ -->
+  <div class="card">
+    <div class="card-head">
+      <span class="ch-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+      <h3>Checklist Comments</h3>
+      <span class="ch-sub">what you wrote about whole outings</span>
+    </div>
+    <div class="controls">
+      <span class="search">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Filter checklist comments…" oninput="filterBox('box1', this.value)" />
+      </span>
+      <span class="seg" role="group" aria-label="Sort">
+        <button class="is-active" onclick="setSeg(this)">Newest</button>
+        <button onclick="setSeg(this)">Oldest</button>
+      </span>
+      <span class="count" id="box1Count" aria-live="polite">6 comments</span>
+    </div>
+    <div id="box1">
+      <div class="crow">
+        <div class="crow-line">
+          <a class="cdate" href="#" onclick="return false">May 24, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Caswell Memorial State Park — Oak Woodland Trail, San Joaquin County</span>
+        </div>
+        <div class="ctext">Dawn chorus survey with the Stanislaus bird club. Highlight was a singing Yellow-breasted Chat by the river crossing.<span class="wt-block">
+
+———
+Temperature: 52°F
+Wind: 4 mph NW · Cloud Cover: 15%
+Sunrise: 5:48 AM
+Weather generated by SnowRaven</span></div>
+      </div>
+      <div class="crow">
+        <div class="crow-line">
+          <a class="cdate" href="#" onclick="return false">May 9, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Dos Rios Ranch Preserve</span>
+        </div>
+        <div class="ctext">Big movement morning — three flocks of Vaux's Swifts heading north in the first hour. Scope on the gravel bar paid off.</div>
+      </div>
+      <!-- block-only comment: appears ONLY when the switch is on -->
+      <div class="crow blocks-only">
+        <div class="crow-line">
+          <a class="cdate" href="#" onclick="return false">Apr 27, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Modesto WTP — restricted ponds</span>
+        </div>
+        <div class="ctext"><span class="wt-block">Temperature: 61°F
+Wind: 9 mph W · Cloud Cover: 40%
+Sunset: 7:51 PM
+Weather generated by SnowRaven
+
+Water level: 2.1 ft and falling (Observed) · Relative to MLLW
+Station: 9414290 San Francisco, 38 mi
+Tide data from NOAA CO-OPS</span></div>
+      </div>
+      <div class="crow">
+        <div class="crow-line">
+          <a class="cdate" href="#" onclick="return false">Mar 30, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Beckwith Road — west pond</span>
+        </div>
+        <div class="ctext">Mostly a tern check. Forster's count is conservative; birds were trading back and forth constantly.<span class="wt-block">
+
+———
+Temperature: 58°F
+Wind: 12 mph NW
+Weather generated by SnowRaven</span></div>
+      </div>
+      <div class="crow">
+        <div class="crow-line">
+          <a class="cdate" href="#" onclick="return false">Feb 14, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Sandy Mush Road raptor loop</span>
+        </div>
+        <div class="ctext">Annual valentine raptor run. 14 Ferruginous Hawks is a personal high count for this route — most on the new transmission towers.</div>
+      </div>
+      <div class="crow">
+        <div class="crow-line">
+          <a class="cdate" href="#" onclick="return false">Jan 1, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Home count circle — first-of-year walk</span>
+        </div>
+        <div class="ctext">New year tradition: every species counts again. 54 to start the year, two better than last January 1.</div>
+      </div>
+      <div class="empty" id="box1Empty">No checklist comments match this filter.</div>
+    </div>
+    <button class="show-all" tabindex="0">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      Show all 87 comments
+    </button>
+  </div>
+
+  <!-- ═════════ SECTION 2 — Species comment search ═════════ -->
+  <div class="card">
+    <div class="card-head">
+      <span class="ch-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg></span>
+      <h3>Species Comments</h3>
+      <span class="ch-sub">notes you wrote on individual sightings — all species</span>
+    </div>
+    <div class="controls">
+      <span class="search">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" placeholder="Filter species comments…" oninput="filterBox('box2', this.value)" />
+      </span>
+      <span class="seg" role="group" aria-label="Sort">
+        <button class="is-active" onclick="setSeg(this)">Newest</button>
+        <button onclick="setSeg(this)">Oldest</button>
+      </span>
+      <span class="count" id="box2Count" aria-live="polite">5 comments</span>
+    </div>
+    <div id="box2">
+      <div class="crow">
+        <div class="crow-line">
+          <span class="sp">
+            <span class="common">Great Horned Owl</span>
+            <span class="sci">Bubo virginianus</span>
+            <span class="favs"><span class="fav" style="background:#70AD47" title="eBird"></span><span class="fav" style="background:#C0392B" title="Birds of the World"></span></span>
+          </span>
+          <a class="cdate" href="#" onclick="return false">May 2, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Caswell Memorial SP</span>
+        </div>
+        <div class="ctext">Roosting in the same valley oak as last spring. One owlet visible, branching. [name:Winky]</div>
+      </div>
+      <div class="crow">
+        <div class="crow-line">
+          <span class="sp">
+            <span class="common">Yellow-breasted Chat</span>
+            <span class="sci">Icteria virens</span>
+            <span class="favs"><span class="fav" style="background:#70AD47" title="eBird"></span><span class="fav" style="background:#C0392B" title="Birds of the World"></span></span>
+          </span>
+          <a class="cdate" href="#" onclick="return false">May 24, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Caswell Memorial State Park — Oak Woodland Trail</span>
+        </div>
+        <div class="ctext">Singing from the willow tangle at the river crossing — full mimid-style song series, seen briefly at the top. FOY.</div>
+      </div>
+      <div class="crow">
+        <div class="crow-line">
+          <span class="sp">
+            <span class="common">Ferruginous Hawk</span>
+            <span class="sci">Buteo regalis</span>
+            <span class="favs"><span class="fav" style="background:#70AD47" title="eBird"></span><span class="fav" style="background:#C0392B" title="Birds of the World"></span></span>
+          </span>
+          <a class="cdate" href="#" onclick="return false">Feb 14, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Sandy Mush Road</span>
+        </div>
+        <div class="ctext">Adult light morph. Rufous leggings obvious in flight; landed on tower 4 with prey (ground squirrel?). Photos.</div>
+      </div>
+      <div class="crow">
+        <div class="crow-line">
+          <span class="sp">
+            <span class="common">Snowy Egret</span>
+            <span class="sci">Egretta thula</span>
+            <span class="favs"><span class="fav" style="background:#70AD47" title="eBird"></span><span class="fav" style="background:#C0392B" title="Birds of the World"></span></span>
+          </span>
+          <a class="cdate" href="#" onclick="return false">Apr 27, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Modesto WTP</span>
+        </div>
+        <div class="ctext">The one-legged bird again, foraging fine. Distinctive hop-stab feeding. [name:one-leg-pete]</div>
+      </div>
+      <div class="crow">
+        <div class="crow-line">
+          <span class="sp">
+            <span class="common">Vaux's Swift</span>
+            <span class="sci">Chaetura vauxi</span>
+            <span class="favs"><span class="fav" style="background:#70AD47" title="eBird"></span><span class="fav" style="background:#C0392B" title="Birds of the World"></span></span>
+          </span>
+          <a class="cdate" href="#" onclick="return false">May 9, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+          <span class="csep">·</span>
+          <span class="cloc">Dos Rios Ranch Preserve</span>
+        </div>
+        <div class="ctext">Estimated by tens — three pushes of ~40, ~35, ~50 over 70 minutes, all moving due north along the river corridor.</div>
+      </div>
+      <div class="empty" id="box2Empty">No species comments match this filter.</div>
+    </div>
+    <button class="show-all" tabindex="0">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      Show all 412 comments
+    </button>
+  </div>
+
+  <!-- ═════════ SECTION 3 — All checklists ═════════ -->
+  <div class="card">
+    <div class="card-head">
+      <span class="ch-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M7 9h4M7 13h7M7 17h5"/><path d="M16 2v4M8 2v4"/></svg></span>
+      <h3>All Checklists</h3>
+      <span class="ch-sub">every outing, filterable</span>
+    </div>
+
+    <div class="filters">
+      <div class="pill-row">
+        <span class="row-label">Contains</span>
+        <button class="pill all-pill is-active" tabindex="0" onclick="resetPills(this)">All</button>
+        <span class="pill-sep"></span>
+        <button class="pill" tabindex="0" onclick="cyclePill(this)" data-label="Checklist comment">
+          <span class="state-ic ic-has"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="state-ic ic-no"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+          <span class="pl">Checklist comment</span>
+        </button>
+        <button class="pill" tabindex="0" onclick="cyclePill(this)" data-label="Species comments">
+          <span class="state-ic ic-has"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="state-ic ic-no"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+          <span class="pl">Species comments</span>
+        </button>
+        <button class="pill" tabindex="0" onclick="cyclePill(this)" data-label="Media">
+          <span class="state-ic ic-has"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="state-ic ic-no"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+          <span class="pl">Media</span>
+        </button>
+        <button class="pill has" tabindex="0" onclick="cyclePill(this)" data-label="Breeding codes">
+          <span class="state-ic ic-has"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="state-ic ic-no"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+          <span class="pl">Breeding codes</span>
+        </button>
+        <button class="pill" tabindex="0" onclick="cyclePill(this)" data-label="Weather block">
+          <span class="state-ic ic-has"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="state-ic ic-no"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+          <span class="pl">Weather block</span>
+        </button>
+        <button class="pill" tabindex="0" onclick="cyclePill(this)" data-label="Tide block">
+          <span class="state-ic ic-has"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="state-ic ic-no"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+          <span class="pl">Tide block</span>
+        </button>
+      </div>
+      <div class="pill-row">
+        <span class="row-label">Media type</span>
+        <button class="pill" tabindex="0" onclick="cyclePill(this)" data-label="Photo">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+          <span class="pl">Photo</span>
+        </button>
+        <button class="pill no" tabindex="0" onclick="cyclePill(this)" data-label="Audio">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>
+          <span class="pl">No audio</span>
+        </button>
+        <button class="pill" tabindex="0" onclick="cyclePill(this)" data-label="Video">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          <span class="pl">Video</span>
+        </button>
+        <span class="pill-sep"></span>
+        <span class="row-label" style="width:auto;">Effort</span>
+        <button class="pill" tabindex="0" onclick="cyclePill(this)" data-label="Complete">
+          <span class="state-ic ic-has"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
+          <span class="state-ic ic-no"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></span>
+          <span class="pl">Complete</span>
+        </button>
+        <select aria-label="Protocol">
+          <option>All protocols</option><option>Traveling</option><option>Stationary</option><option>Incidental</option>
+        </select>
+      </div>
+      <div class="pill-row">
+        <span class="row-label">Where &amp; when</span>
+        <select aria-label="County">
+          <option>All counties</option><option>San Joaquin</option><option>Stanislaus</option><option>Merced</option>
+        </select>
+        <input type="date" aria-label="From date" />
+        <span class="date-arrow">→</span>
+        <input type="date" aria-label="To date" />
+        <span class="filters-count" aria-live="polite">9 of 1,284 checklists</span>
+      </div>
+    </div>
+
+    <!-- rows -->
+    <div class="clrow">
+      <div class="clrow-top">
+        <a class="cdate" href="#" onclick="return false">May 24, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        <span class="csep">·</span>
+        <span class="cloc">Caswell Memorial State Park — Oak Woodland Trail</span>
+        <span class="badges">
+          <span class="badge" title="Has species comments"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+          <span class="badge" title="Has photos"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+          <span class="badge" title="Has audio"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg></span>
+          <span class="badge" title="Has breeding codes"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4.4 0 8-3.6 8-8 0-5-4-12-8-12S4 9 4 14c0 4.4 3.6 8 8 8z"/></svg></span>
+        </span>
+        <span class="counts"><span class="n-species">61 species</span><span class="n-birds">418 birds</span></span>
+      </div>
+      <div class="clrow-meta">
+        <span>6:02 AM</span><span class="m-sep">·</span><span>Traveling</span><span class="m-sep">·</span><span>2 hr 35 min</span><span class="m-sep">·</span><span>2.4 mi</span><span class="m-sep">·</span><span>7 observers</span><span class="m-sep">·</span><span>San Joaquin, CA</span><span class="m-sep">·</span><span>Complete</span>
+      </div>
+      <div class="quote">Dawn chorus survey with the Stanislaus bird club. Highlight was a singing Yellow-breasted Chat by the river crossing.<span class="wt-block">
+
+———
+Temperature: 52°F
+Wind: 4 mph NW · Cloud Cover: 15%
+Sunrise: 5:48 AM
+Weather generated by SnowRaven</span></div>
+    </div>
+
+    <div class="clrow">
+      <div class="clrow-top">
+        <a class="cdate" href="#" onclick="return false">May 9, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        <span class="csep">·</span>
+        <span class="cloc">Dos Rios Ranch Preserve</span>
+        <span class="badges">
+          <span class="badge" title="Has species comments"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+        </span>
+        <span class="counts"><span class="n-species">48 species</span><span class="n-birds">512 birds</span></span>
+      </div>
+      <div class="clrow-meta">
+        <span>7:15 AM</span><span class="m-sep">·</span><span>Traveling</span><span class="m-sep">·</span><span>1 hr 50 min</span><span class="m-sep">·</span><span>1.8 mi</span><span class="m-sep">·</span><span>Solo</span><span class="m-sep">·</span><span>Stanislaus, CA</span><span class="m-sep">·</span><span>Complete</span>
+      </div>
+      <div class="quote">Big movement morning — three flocks of Vaux's Swifts heading north in the first hour. Scope on the gravel bar paid off.</div>
+    </div>
+
+    <div class="clrow">
+      <div class="clrow-top">
+        <a class="cdate" href="#" onclick="return false">Apr 27, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        <span class="csep">·</span>
+        <span class="cloc">Modesto WTP — restricted ponds</span>
+        <span class="badges">
+          <span class="badge" title="Has photos"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></span>
+        </span>
+        <span class="counts"><span class="n-species">39 species</span><span class="n-birds">1,040 birds</span></span>
+      </div>
+      <div class="clrow-meta">
+        <span>5:40 PM</span><span class="m-sep">·</span><span>Stationary</span><span class="m-sep">·</span><span>45 min</span><span class="m-sep">·</span><span>2 observers</span><span class="m-sep">·</span><span>Stanislaus, CA</span><span class="m-sep">·</span><span>Complete</span>
+      </div>
+      <!-- this checklist's comment is weather+tide only → quote disappears when hidden -->
+      <div class="quote gone"><span class="wt-block">Temperature: 61°F
+Wind: 9 mph W · Cloud Cover: 40%
+Sunset: 7:51 PM
+Weather generated by SnowRaven
+
+Water level: 2.1 ft and falling (Observed) · Relative to MLLW
+Station: 9414290 San Francisco, 38 mi
+Tide data from NOAA CO-OPS</span></div>
+    </div>
+
+    <div class="clrow">
+      <div class="clrow-top">
+        <a class="cdate" href="#" onclick="return false">Mar 30, 2026 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        <span class="csep">·</span>
+        <span class="cloc">Beckwith Road — west pond</span>
+        <span class="counts"><span class="n-species">22 species</span><span class="n-birds">187 birds</span></span>
+      </div>
+      <div class="clrow-meta">
+        <span>8:05 AM</span><span class="m-sep">·</span><span>Stationary</span><span class="m-sep">·</span><span>35 min</span><span class="m-sep">·</span><span>Solo</span><span class="m-sep">·</span><span>Stanislaus, CA</span><span class="m-sep">·</span><span>Incomplete</span>
+      </div>
+      <div class="quote">Mostly a tern check. Forster's count is conservative; birds were trading back and forth constantly.<span class="wt-block">
+
+———
+Temperature: 58°F
+Wind: 12 mph NW
+Weather generated by SnowRaven</span></div>
+    </div>
+
+    <div class="clrow">
+      <div class="clrow-top">
+        <a class="cdate" href="#" onclick="return false">Feb 20, 2025 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        <span class="csep">·</span>
+        <span class="cloc">Backyard — incidental</span>
+        <span class="badges">
+          <span class="badge" title="Has species comments"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+        </span>
+        <span class="counts"><span class="n-species">1 species</span><span class="n-birds">1 bird</span></span>
+      </div>
+      <div class="clrow-meta">
+        <span>Incidental</span><span class="m-sep">·</span><span>Stanislaus, CA</span><span class="m-sep">·</span><span>Incomplete</span>
+      </div>
+      <!-- no checklist comment → no quote block at all -->
+    </div>
+
+    <button class="show-all" tabindex="0">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      Show all 1,284 checklists
+    </button>
+  </div>
+</div>
+
+<script>
+  function toggleTheme() {
+    const html = document.documentElement;
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    document.getElementById('themeLabel').textContent = next === 'dark' ? 'Light mode' : 'Dark mode';
+    const ic = document.getElementById('themeIcon');
+    ic.innerHTML = next === 'dark'
+      ? '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'
+      : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M5 5l1.5 1.5M17.5 17.5L19 19M2 12h2M20 12h2M5 19l1.5-1.5M17.5 6.5L19 5"/>';
+  }
+
+  // The tab-wide weather/tide switch — FR-04/05/06/07 demo.
+  function toggleBlocks() {
+    const sw = document.getElementById('wtSwitch');
+    const on = sw.getAttribute('aria-checked') !== 'true';
+    sw.setAttribute('aria-checked', String(on));
+    document.body.classList.toggle('show-blocks', on);
+    // re-run any active search so matching follows visibility ("search matches what you see")
+    document.querySelectorAll('.search input').forEach(inp => {
+      if (inp.value) inp.dispatchEvent(new Event('input'));
+    });
+    refreshCount('box1'); refreshCount('box2');
+  }
+
+  function setSeg(btn) {
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('is-active'));
+    btn.classList.add('is-active');
+  }
+
+  // Live search demo — matches innerText, which excludes display:none block
+  // text, so hidden weather/tide content genuinely can't match (FR-06).
+  function filterBox(boxId, q) {
+    const box = document.getElementById(boxId);
+    const query = q.trim().toLowerCase();
+    box.querySelectorAll('.crow').forEach(row => {
+      const visibleByToggle = !row.classList.contains('blocks-only') || document.body.classList.contains('show-blocks');
+      const match = !query || row.innerText.toLowerCase().includes(query);
+      row.style.display = (visibleByToggle && match) ? '' : 'none';
+    });
+    refreshCount(boxId);
+  }
+  function refreshCount(boxId) {
+    const box = document.getElementById(boxId);
+    const rows = [...box.querySelectorAll('.crow')];
+    const shown = rows.filter(r => r.style.display !== 'none' &&
+      (!r.classList.contains('blocks-only') || document.body.classList.contains('show-blocks'))).length;
+    document.getElementById(boxId + 'Count').textContent = shown + ' comment' + (shown === 1 ? '' : 's');
+    document.getElementById(boxId + 'Empty').style.display = shown === 0 ? 'block' : 'none';
+  }
+
+  // Filter pills cycle off → has → doesn't have (visual demo only; rows are static)
+  function cyclePill(btn) {
+    const label = btn.dataset.label;
+    const pl = btn.querySelector('.pl');
+    if (btn.classList.contains('has')) {
+      btn.classList.remove('has'); btn.classList.add('no');
+      if (pl && label) pl.textContent = 'No ' + label.toLowerCase();
+    } else if (btn.classList.contains('no')) {
+      btn.classList.remove('no');
+      if (pl && label) pl.textContent = label;
+    } else {
+      btn.classList.add('has');
+      if (pl && label) pl.textContent = 'Has ' + label.toLowerCase();
+    }
+    syncAllPill(btn.closest('.filters'));
+  }
+  function resetPills(allBtn) {
+    const wrap = allBtn.closest('.filters');
+    wrap.querySelectorAll('.pill').forEach(p => {
+      if (p === allBtn) return;
+      p.classList.remove('has', 'no');
+      const pl = p.querySelector('.pl');
+      if (pl && p.dataset.label) pl.textContent = p.dataset.label;
+    });
+    syncAllPill(wrap);
+  }
+  function syncAllPill(wrap) {
+    const any = [...wrap.querySelectorAll('.pill:not(.all-pill)')].some(p => p.classList.contains('has') || p.classList.contains('no'));
+    wrap.querySelector('.all-pill').classList.toggle('is-active', !any);
+  }
+</script>
+</body>
+</html>

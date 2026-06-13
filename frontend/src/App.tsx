@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, createContext, useContext } from 'react'
 import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { storage } from './lib/storage'
@@ -117,12 +117,26 @@ const DEFERRED_TABS: Tab[] = [
   'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'settings',
 ]
 
-// Fallback shown while a lazy tab's chunk is being fetched.
+// Setter for the persistent loading-status region (mounted once in App, OUTSIDE
+// every Suspense boundary). A live region must already exist before its text
+// changes to be announced reliably (F068) — a status node that MOUNTS together
+// with the Suspense fallback (as TabLoading once did) is announced inconsistently.
+const TabLoadingAnnouncerContext = createContext<(label: string | null) => void>(() => {})
+
+// Fallback shown while a lazy tab's chunk is being fetched. Visual-only (no
+// role=status): on mount it pushes its label to the persistent announcer outside
+// the Suspense boundary, and clears it on unmount — so the live region the AT
+// observes is never mounted at the same instant as its text (F068).
 function TabLoading({ label = 'Loading…' }: { label?: string }) {
+  const announce = useContext(TabLoadingAnnouncerContext)
+  useEffect(() => {
+    announce(label)
+    return () => announce(null)
+  }, [announce, label])
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center', justifyContent: 'center', padding: 48, minHeight: 200 }}>
       <Loader2 size={22} className="spin" style={{ color: 'var(--sr-text-muted)' }} aria-hidden="true" />
-      <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }} role="status">{label}</span>
+      <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>{label}</span>
     </div>
   )
 }
@@ -148,7 +162,6 @@ export default function App() {
   // Mobile-only: Map Explorer occupies the full viewport when true.
   const [mapFullscreen, setMapFullscreen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ kind: 'idle' })
-  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [keyStatus, setKeyStatus] = useState<KeyStatus | null>(null)
   const [filesVersion, setFilesVersion] = useState(0)
   const [keysVersion, setKeysVersion] = useState(0)
@@ -162,6 +175,10 @@ export default function App() {
   // Documentation overlay — lifted to App so a Help affordance is reachable from
   // every tab (the footer), not only the button inside Settings.
   const [helpOpen, setHelpOpen] = useState(false)
+  // Text for the persistent loading-status region rendered once in <main>, outside
+  // every Suspense boundary. The TabLoading fallbacks set/clear it via context, so
+  // the live region pre-exists its text change and AT announces it reliably (F068).
+  const [tabLoadingLabel, setTabLoadingLabel] = useState<string | null>(null)
   // Heavy tabs mount on first open and then stay mounted (preserving their state).
   // Seeded with the initial active tab so a heavy default tab mounts immediately.
   const [mountedTabs, setMountedTabs] = useState<Set<Tab>>(() =>
@@ -394,6 +411,21 @@ export default function App() {
     return () => { document.body.style.overflow = prev }
   }, [mapFullscreen, activeTab])
 
+  // Reflect the active view in the page title (web/SPA orientation: 2.4.2) and,
+  // on desktop, the native window title — Tauri v2 does NOT mirror document.title
+  // to the OS window, so set it explicitly behind isTauri()
+  // (core:window:allow-set-title). Label sourced the same way the nav does.
+  const activeTabLabel = activeTab === 'settings' ? 'Settings' : TAB_LABELS[activeTab]
+  useEffect(() => {
+    const title = `${activeTabLabel} — SnowRaven`
+    document.title = title
+    if (isTauri()) {
+      void import('@tauri-apps/api/window')
+        .then(({ getCurrentWindow }) => getCurrentWindow().setTitle(title))
+        .catch(() => {})
+    }
+  }, [activeTabLabel])
+
   // Returns the tide block { formatted, body } when a reading resolved, else null.
   const loadTide = useCallback(async (id: string, force: boolean): Promise<{ formatted: string; body: string } | null> => {
     setTideState({ status: 'loading' })
@@ -478,9 +510,12 @@ export default function App() {
     setTimeout(() => setBothCopied(false), 2000)
   }
 
+  // Every outcome now PERSISTS until the user acts (WCAG 2.2.1 Timing Adjustable):
+  // no content-set time limit erases the answer. The 'idle' Check-For-Updates
+  // button is re-rendered alongside each persistent outcome (see the footer), so
+  // re-checking stays one click away and keyboard focus is never dropped to body.
   const handleUpdateCheck = useCallback(async () => {
     if (updateStatus.kind === 'checking' || updateStatus.kind === 'downloading') return
-    if (updateTimerRef.current) clearTimeout(updateTimerRef.current)
     setUpdateStatus({ kind: 'checking' })
     try {
       if (isTauri()) {
@@ -488,26 +523,21 @@ export default function App() {
         const result = await checkForUpdate()
         if (result.status === 'up-to-date') {
           setUpdateStatus({ kind: 'up-to-date', current: result.current })
-          updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
         } else if (result.status === 'available') {
           setUpdateStatus({ kind: 'available', latest: result.latest })
         } else {
           setUpdateStatus({ kind: 'error' })
-          updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
         }
       } else {
         const data = await transport.get<{ current: string; latest: string; up_to_date: boolean }>('/version/check')
         if (data.up_to_date) {
           setUpdateStatus({ kind: 'up-to-date', current: data.current })
-          updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
         } else {
           setUpdateStatus({ kind: 'available', latest: data.latest })
-          updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 8000)
         }
       }
     } catch {
       setUpdateStatus({ kind: 'error' })
-      updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
     }
   }, [updateStatus.kind])
 
@@ -515,13 +545,24 @@ export default function App() {
     setUpdateStatus({ kind: 'downloading', progress: null })
     try {
       const { downloadAndInstall } = await import('./lib/tauri/updateManager')
+      // Throttle live-region churn: only commit a new state when the rounded
+      // percent actually changes (and at every step it does, AT announces a
+      // single integer rather than chattering dozens of stale sub-percent
+      // figures across a multi-megabyte download — finding F025).
+      let lastPct = -1
       await downloadAndInstall(({ downloaded, total }) => {
-        setUpdateStatus({ kind: 'downloading', progress: total ? downloaded / total : null })
+        const progress = total ? downloaded / total : null
+        const pct = progress === null ? -1 : Math.round(progress * 100)
+        if (pct === lastPct) return
+        lastPct = pct
+        setUpdateStatus({ kind: 'downloading', progress })
       })
+      // downloadAndInstall awaits relaunch() before resolving, so this typically
+      // runs as the process is already exiting; it is a best-effort terminal
+      // state, not a guaranteed paint.
       setUpdateStatus({ kind: 'ready-to-restart' })
     } catch {
       setUpdateStatus({ kind: 'error' })
-      updateTimerRef.current = setTimeout(() => setUpdateStatus({ kind: 'idle' }), 4000)
     }
   }, [])
 
@@ -550,7 +591,17 @@ export default function App() {
     return items
   }, [tabLayout])
 
+  // While the Map Explorer is fullscreen, the app chrome (header, tab nav, footer)
+  // stays in the DOM and the tab order BEHIND the fixed overlay — a keyboard user
+  // tabbing out of the map would land on fully obscured controls (F023/F065,
+  // WCAG 2.4.11). `inert` removes that chrome from focus + AT while the overlay is
+  // up. The non-map tabpanels are already display:none (non-focusable), and the
+  // map panel itself is the overlay, so those are left alone. (React 19 supports
+  // the boolean `inert` prop; supported in both desktop webviews.)
+  const chromeInert = mapFullscreen && activeTab === 'map-explorer'
+
   return (
+    <TabLoadingAnnouncerContext.Provider value={setTabLoadingLabel}>
     <div
       // Carries the date-format version so a pref change is reflected in App's
       // render (and thus re-renders the un-memoized tab tree); formatDate() reads
@@ -565,31 +616,40 @@ export default function App() {
         color: 'var(--sr-text)',
       }}
     >
+      <a href="#sr-main" className="sr-skip-link">Skip to main content</a>
 
-      {/* Header */}
-      <div className="sr-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
+      {/* Header — banner landmark; the wordmark is the page's h1. */}
+      <header inert={chromeInert} className="sr-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <Bird size={30} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
-          <span style={{ fontSize: '1.625rem', fontWeight: 700, letterSpacing: '-0.6px' }}>
+          <Bird size={30} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} aria-hidden="true" />
+          <h1 style={{ fontSize: '1.625rem', fontWeight: 700, letterSpacing: '-0.6px', margin: 0 }}>
             Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
-          </span>
+          </h1>
         </div>
         <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginBottom: 28 }}>
           Birding tools for your eBird workflow
         </p>
+      </header>
+
+      {/* Tab navigation — bar on desktop, dropdown on narrow screens (see TabNav).
+          Wrapped so it can be made inert behind the fullscreen map overlay
+          (display:contents keeps the wrapper layout-neutral). */}
+      <div style={{ display: 'contents' }} inert={chromeInert}>
+        <TabNav items={navItems} activeTab={activeTab} onSelect={setActiveTab} />
       </div>
 
-      {/* Tab navigation — bar on desktop, dropdown on narrow screens (see TabNav) */}
-      <TabNav items={navItems} activeTab={activeTab} onSelect={setActiveTab} />
-
       {/* Weather tab content */}
-      <main>
+      <main id="sr-main" tabIndex={-1} style={{ outline: 'none' }}>
+      {/* Persistent (always-mounted) polite region for the lazy-tab loading state,
+          living OUTSIDE every Suspense boundary so it pre-exists its text change —
+          the TabLoading fallbacks push their label here via context (F068). The
+          visible spinner inside each fallback is no longer a role=status node. */}
+      <span className="sr-only" role="status" aria-live="polite">{tabLoadingLabel ?? ''}</span>
       <div
         role="tabpanel"
         id="panel-weather"
         aria-labelledby="tab-weather"
-        aria-live="polite"
-        aria-atomic="true"
+        aria-label="Weather"
         className="sr-panel"
         style={{
           display: activeTab === 'weather' ? 'flex' : 'none',
@@ -598,6 +658,26 @@ export default function App() {
           padding: '40px 24px 24px',
         }}
       >
+        {/* Persistent polite region for clipboard confirmations only. The panel
+            itself is no longer a live region (F022) — that re-announced the whole
+            weather/tide content on every interaction; the scoped role=alert /
+            role=status children below carry their own state changes. */}
+        <span className="sr-only" role="status" aria-live="polite">
+          {copied ? 'Weather copied to clipboard.'
+            : tideCopied ? 'Tide copied to clipboard.'
+            : bothCopied ? 'Weather and tide copied to clipboard.'
+            : ''}
+        </span>
+        {/* Persistent (always-mounted) polite region for the tide lifecycle, so
+            its state changes are reliably announced — a status node that mounts
+            already carrying its text is announced inconsistently (F068). The
+            visible tide chips below are plain (no role=status) to avoid a double
+            read-out. */}
+        <span className="sr-only" role="status" aria-live="polite">
+          {tideState.status === 'loading' ? 'Loading tide…'
+            : tideState.status === 'unavailable' || tideState.status === 'error' ? 'Tide data unavailable right now.'
+            : ''}
+        </span>
         {keyStatus && (keyStatus.ebird === null || keyStatus.openweather === null) && (
           <div style={{ width: '100%', maxWidth: 540, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {keyStatus.ebird === null && (
@@ -834,15 +914,15 @@ export default function App() {
             <>
               <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
               {tideState.status === 'loading' && (
-                <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
                   <Loader2 size={14} className="spin" aria-hidden="true" /> Loading tide…
                 </div>
               )}
               {tideState.status === 'unavailable' && (
-                <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
               )}
               {tideState.status === 'error' && (
-                <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
               )}
               {(tideState.status === 'too-far' || tideState.status === 'outside-us') && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '13px 15px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
@@ -905,6 +985,7 @@ export default function App() {
         role="tabpanel"
         id="panel-comparer"
         aria-labelledby="tab-comparer"
+        aria-label="List Comparer"
         className="sr-panel"
         style={{
           display: activeTab === 'comparer' ? 'flex' : 'none',
@@ -926,6 +1007,7 @@ export default function App() {
         role="tabpanel"
         id="panel-life-list"
         aria-labelledby="tab-life-list"
+        aria-label="Multimedia"
         className="sr-panel"
         style={{
           display: activeTab === 'life-list' ? 'flex' : 'none',
@@ -949,6 +1031,7 @@ export default function App() {
         role="tabpanel"
         id="panel-breeding-codes"
         aria-labelledby="tab-breeding-codes"
+        aria-label="Breeding Codes"
         className="sr-panel"
         style={{
           display: activeTab === 'breeding-codes' ? 'flex' : 'none',
@@ -966,6 +1049,7 @@ export default function App() {
         role="tabpanel"
         id="panel-named-birds"
         aria-labelledby="tab-named-birds"
+        aria-label="Named Birds"
         className="sr-panel"
         style={{
           display: activeTab === 'named-birds' ? 'flex' : 'none',
@@ -983,6 +1067,7 @@ export default function App() {
         role="tabpanel"
         id="panel-checklists"
         aria-labelledby="tab-checklists"
+        aria-label="Checklists"
         className="sr-panel"
         style={{
           display: activeTab === 'checklists' ? 'flex' : 'none',
@@ -1000,6 +1085,7 @@ export default function App() {
         role="tabpanel"
         id="panel-species-detail"
         aria-labelledby="tab-species-detail"
+        aria-label="Species Detail"
         className="sr-panel"
         style={{
           display: activeTab === 'species-detail' ? 'flex' : 'none',
@@ -1024,6 +1110,7 @@ export default function App() {
         role="tabpanel"
         id="panel-map-explorer"
         aria-labelledby="tab-map-explorer"
+        aria-label="Map Explorer"
         style={{
           display: activeTab === 'map-explorer' ? 'flex' : 'none',
           flexDirection: 'column',
@@ -1052,6 +1139,7 @@ export default function App() {
         role="tabpanel"
         id="panel-birding-stats"
         aria-labelledby="tab-birding-stats"
+        aria-label="Statistics"
         className="sr-panel"
         style={{
           display: activeTab === 'birding-stats' ? 'flex' : 'none',
@@ -1071,6 +1159,7 @@ export default function App() {
         role="tabpanel"
         id="panel-settings"
         aria-labelledby="tab-settings"
+        aria-label="Settings"
         className="sr-panel"
         style={{
           display: activeTab === 'settings' ? 'flex' : 'none',
@@ -1097,7 +1186,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <p role="contentinfo" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
+      <p inert={chromeInert} role="contentinfo" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
         <a
           href="https://github.com/dtgibson/snowraven"
           target="_blank"
@@ -1126,69 +1215,106 @@ export default function App() {
           Help
         </button>
         {' · '}
-        {updateStatus.kind === 'idle' && (
-          <button tabIndex={0}
-            onClick={handleUpdateCheck}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              font: 'inherit',
-              color: 'var(--sr-text-footer)',
-              cursor: 'pointer',
-              textDecoration: 'none',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-            onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-          >
-            Check For Updates
-          </button>
+        {/* Update checker. One persistent polite live region carries every textual
+            outcome (always mounted, so AT reliably announces text changes — F024),
+            and no outcome auto-dismisses (F020: 2.2.1 Timing Adjustable). The
+            Check-For-Updates button stays present except while a check/download is
+            in flight, so re-checking is one click away and keyboard focus is never
+            dropped to <body> when an outcome resolves. */}
+        {(updateStatus.kind === 'idle'
+          || updateStatus.kind === 'up-to-date'
+          || updateStatus.kind === 'available'
+          || updateStatus.kind === 'error') && (
+          <>
+            <button tabIndex={0}
+              onClick={handleUpdateCheck}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                font: 'inherit',
+                color: 'var(--sr-text-footer)',
+                cursor: 'pointer',
+                textDecoration: 'none',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+            >
+              Check For Updates
+            </button>
+            {/* Desktop "available" gets its Install button as a sibling OUTSIDE the
+                live span so its mount doesn't depend on live-region timing (F025). */}
+            {updateStatus.kind === 'available' && isTauri() && (
+              <>
+                {' · '}
+                <button tabIndex={0}
+                  onClick={handleInstallUpdate}
+                  style={{
+                    background: 'none', border: 'none', padding: 0, font: 'inherit',
+                    color: 'var(--sr-warning)', cursor: 'pointer', fontWeight: 600,
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
+                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                >
+                  Install update and restart
+                </button>
+              </>
+            )}
+          </>
         )}
-        {updateStatus.kind === 'checking' && (
-          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>
-            <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
-            Checking…
-          </span>
-        )}
-        {updateStatus.kind === 'up-to-date' && (
-          <span aria-live="polite" style={{ color: 'var(--sr-accent)' }}>Up to date (v{updateStatus.current})</span>
-        )}
-        {updateStatus.kind === 'available' && (
-          isTauri() ? (
-            <span style={{ color: 'var(--sr-warning)' }}>
-              v{updateStatus.latest} available —{' '}
-              <button tabIndex={0}
-                onClick={handleInstallUpdate}
-                style={{
-                  background: 'none', border: 'none', padding: 0, font: 'inherit',
-                  color: 'var(--sr-warning)', cursor: 'pointer', fontWeight: 600,
-                }}
-                onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-              >
-                Install update
-              </button>
-            </span>
-          ) : (
-            <span style={{ color: 'var(--sr-warning)' }}>
+        {/* Always-mounted polite live region (empty while idle). Its text content
+            changes per state, which AT announces reliably. The web "available"
+            branch keeps its actionable ./update.sh instruction here, persistent. */}
+        <span
+          role="status"
+          aria-live="polite"
+          style={{
+            marginLeft: updateStatus.kind === 'idle' ? 0 : 8,
+            color:
+              updateStatus.kind === 'up-to-date' || updateStatus.kind === 'ready-to-restart' ? 'var(--sr-accent)'
+              : updateStatus.kind === 'available' ? 'var(--sr-warning)'
+              : updateStatus.kind === 'error' ? 'var(--sr-error)'
+              : 'var(--sr-text-muted)',
+          }}
+        >
+          {updateStatus.kind === 'checking' && (
+            <>
+              <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
+              Checking…
+            </>
+          )}
+          {updateStatus.kind === 'up-to-date' && `Up to date (v${updateStatus.current})`}
+          {updateStatus.kind === 'available' && !isTauri() && (
+            <>
               v{updateStatus.latest} available — run{' '}
               <code style={{ fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace' }}>./update.sh</code>
-            </span>
-          )
-        )}
+            </>
+          )}
+          {updateStatus.kind === 'available' && isTauri() && `v${updateStatus.latest} available`}
+          {updateStatus.kind === 'ready-to-restart' && 'Update installed — restarting…'}
+          {updateStatus.kind === 'error' && 'Could not check for updates'}
+        </span>
+        {/* Download progress: a real progressbar AT can query as a value, plus the
+            same persistent live text. Indeterminate (no Content-Length) → aria-busy. */}
         {updateStatus.kind === 'downloading' && (
-          <span aria-live="polite" style={{ color: 'var(--sr-text-muted)' }}>
+          <span
+            role="progressbar"
+            aria-label="Downloading update"
+            aria-busy={updateStatus.progress === null}
+            {...(updateStatus.progress !== null
+              ? {
+                  'aria-valuemin': 0,
+                  'aria-valuemax': 100,
+                  'aria-valuenow': Math.round(updateStatus.progress * 100),
+                }
+              : {})}
+            style={{ marginLeft: 8, color: 'var(--sr-text-muted)' }}
+          >
             <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
             {updateStatus.progress !== null
               ? `Downloading… ${Math.round(updateStatus.progress * 100)}%`
               : 'Downloading update…'}
           </span>
-        )}
-        {updateStatus.kind === 'ready-to-restart' && (
-          <span style={{ color: 'var(--sr-accent)' }}>Update installed — restarting…</span>
-        )}
-        {updateStatus.kind === 'error' && (
-          <span style={{ color: 'var(--sr-error)' }}>Could not check for updates</span>
         )}
       </p>
 
@@ -1206,5 +1332,6 @@ export default function App() {
         </Suspense>
       )}
     </div>
+    </TabLoadingAnnouncerContext.Provider>
   )
 }

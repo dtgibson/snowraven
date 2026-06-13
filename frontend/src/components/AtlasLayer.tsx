@@ -13,10 +13,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { FeatureCollection, Polygon } from 'geojson'
 import type { FillLayerSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent, MapStyleImageMissingEvent } from 'maplibre-gl'
-import { blocksInBounds, padBounds, type AtlasData, type Bounds } from '../lib/atlasBlocks'
+import { blocksInBounds, blockListRows, padBounds, type AtlasData, type Bounds, type BlockListRow } from '../lib/atlasBlocks'
 import type { BlockBreeding } from '../lib/atlasBreeding'
 import { hatchImageData, hatchPixelRatio, HATCH_IMAGE_ID, TIERS, type Tier } from '../lib/atlasTextures'
 import { updateMapCursor } from '../lib/mapPins'
+import { MARKER_LIST_CAP } from '../lib/markersInView'
 
 // Fallback tier purples (index = tier 1..4) when the --sr-tier-N tokens can't be
 // read; the live values come from the tokens so the fill tracks light/dark.
@@ -69,6 +70,9 @@ const EMPTY_FC: FeatureCollection<Polygon, { code: string; name: string; tier: n
 export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTextures = false }: Props) {
   const map = useMap().current
   const [sel, setSel] = useState<Selected | null>(null)
+  // Keyboard "blocks in view" panel disclosure (collapsed by default to keep the
+  // map uncluttered; the only keyboard route to a block popup when open).
+  const [listOpen, setListOpen] = useState(false)
   // Bumped on a data-theme change so the tier fill colors re-resolve.
   const [themeRev, setThemeRev] = useState(0)
 
@@ -90,17 +94,21 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
     return () => { map.off('moveend', update) }
   }, [map])
 
-  const { fc, tooMany } = useMemo(() => {
-    if (!data || !bounds) return { fc: EMPTY_FC, tooMany: false }
+  const { fc, tooMany, list, listTotal, listOverCap } = useMemo(() => {
+    if (!data || !bounds) return { fc: EMPTY_FC, tooMany: false, list: [] as BlockListRow[], listTotal: 0, listOverCap: false }
     const res = blocksInBounds(data, padBounds(bounds, BOUNDS_PAD), ATLAS_BLOCK_CAP)
-    if (res.tooMany) return { fc: EMPTY_FC, tooMany: true }
+    if (res.tooMany) return { fc: EMPTY_FC, tooMany: true, list: [] as BlockListRow[], listTotal: 0, listOverCap: false }
     const shadeOn = shade && !!breedingByBlock
     const features = res.blocks.map(b => ({
       type: 'Feature' as const,
       properties: { code: b.code, name: b.name, tier: shadeOn ? (breedingByBlock!.get(b.code)?.tier ?? 0) : 0 },
       geometry: { type: 'Polygon' as const, coordinates: [b.ring] },
     }))
-    return { fc: { type: 'FeatureCollection' as const, features }, tooMany: false }
+    // Keyboard-accessible "blocks in view" list: the on-map fill is a pointer-only
+    // canvas hit-test, so this focusable list is the only keyboard route to a
+    // block popup. Capped like the marker lists with an over-cap "zoom in" hint.
+    const { rows, total, overCap } = blockListRows(res.blocks, MARKER_LIST_CAP)
+    return { fc: { type: 'FeatureCollection' as const, features }, tooMany: false, list: rows, listTotal: total, listOverCap: overCap }
   }, [data, bounds, shade, breedingByBlock])
 
   // Click a block → open its info popup. Hover → pointer cursor. Bound
@@ -168,6 +176,13 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
     return () => { cancelled = true; obs.disconnect(); map.off('styleimagemissing', onMissing) }
   }, [map])
 
+  // Open a block popup from the keyboard list — same setSel a pin click triggers,
+  // centred so the popup is in view (mirrors the marker lists panning to a row).
+  const openBlockFromList = (row: BlockListRow) => {
+    setSel({ lng: row.center[0], lat: row.center[1], code: row.code, name: row.name })
+    map?.flyTo({ center: row.center, duration: 400 })
+  }
+
   if (!data) return null
 
   const shadeOn = shade && !!breedingByBlock
@@ -206,11 +221,11 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
             <div style={{ minWidth: 160 }}>
               {sel.code ? (
                 <a href={`${ATLAS_BLOCK_URL}${encodeURIComponent(sel.code)}`} target="_blank" rel="noreferrer"
-                  style={{ fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none' }}>
+                  style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--sr-accent)', textDecoration: 'none' }}>
                   {sel.name} ↗
                 </a>
               ) : (
-                <div style={{ fontWeight: 600 }}>{sel.name}</div>
+                <div style={{ fontWeight: 600, fontSize: '0.8125rem' }}>{sel.name}</div>
               )}
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>California Breeding Bird Atlas block</div>
               {sb && (
@@ -236,6 +251,79 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
           }}
         >
           Zoom in to see atlas blocks
+        </div>
+      )}
+      {/* Keyboard-accessible "blocks in view" panel. The on-map fill that opens a
+          block popup is a pointer-only canvas hit-test, so this focusable
+          disclosure is the only keyboard route to a block's name, breeding
+          summary and eBird atlas link. Sits below the zoom control; map chrome,
+          so z-index matches the FAB cluster. */}
+      {list.length > 0 && (
+        <div
+          className="sr-atlas-blocklist"
+          style={{
+            position: 'absolute', top: 78, left: 10, zIndex: 1050,
+            width: 220, maxHeight: '60%', display: 'flex', flexDirection: 'column',
+            background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
+            borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', overflow: 'hidden',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setListOpen(o => !o)}
+            aria-expanded={listOpen}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+              width: '100%', padding: '7px 10px', background: 'transparent', border: 'none',
+              borderBottom: listOpen ? '1px solid var(--sr-border)' : 'none',
+              fontFamily: 'inherit', fontSize: '0.71875rem', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.06em',
+              color: 'var(--sr-text-muted)', cursor: 'pointer', textAlign: 'left',
+            }}
+          >
+            <span>Atlas blocks in view ({listTotal.toLocaleString()})</span>
+            <span aria-hidden="true" style={{ transform: listOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>›</span>
+          </button>
+          {listOpen && (
+            <div style={{ overflowY: 'auto', padding: 6 }}>
+              <ul role="list" aria-label="Atlas blocks in view" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {list.map(row => {
+                  const tier = shadeOn ? breedingByBlock!.get(row.code)?.tier ?? 0 : 0
+                  const isSelected = sel?.code === row.code
+                  return (
+                    <li role="listitem" key={row.code}>
+                      <button
+                        type="button"
+                        onClick={() => openBlockFromList(row)}
+                        aria-pressed={isSelected}
+                        className="sr-inview-row"
+                        style={{
+                          display: 'block', width: '100%', padding: '6px 8px', marginBottom: 2,
+                          borderRadius: 6, textAlign: 'left', fontFamily: 'inherit', cursor: 'pointer',
+                          background: isSelected ? 'var(--sr-accent-bg)' : 'transparent',
+                          border: `1px solid ${isSelected ? 'var(--sr-accent-border)' : 'transparent'}`,
+                        }}
+                      >
+                        <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {row.name}
+                        </span>
+                        {tier > 0 && (
+                          <span style={{ display: 'block', fontSize: '0.625rem', color: 'var(--sr-text-muted)' }}>
+                            {breedingByBlock!.get(row.code)!.label} ({breedingByBlock!.get(row.code)!.count})
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+              {listOverCap && (
+                <div style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 4, padding: '0 2px', lineHeight: 1.4 }}>
+                  Showing the first {MARKER_LIST_CAP} of {listTotal.toLocaleString()} in view — zoom in to narrow the list.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </>

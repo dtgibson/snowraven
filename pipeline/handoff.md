@@ -1,47 +1,55 @@
-# Handoff — idle-flake-and-doc-rot COMPLETE; pipeline idle; no release (rides main)
+# Handoff — accessibility-pass COMPLETE; v0.5.31 staged on main, not yet released
 
 ## What We Accomplished
 
-The frontend test suite is now fully deterministic, and the project records are
-accurate again — shipped as a tests-and-records-only push to main (user-ratified:
-no version bump, no tag, no Mac release; the next real release folds CHANGELOG's
-`[Unreleased]` in).
+A comprehensive WCAG 2.1 AA accessibility pass across the whole app, shipping as
+v0.5.31 (staged on main; **not released** — it rides main until you push and the
+Mac runs `release.sh`). A multi-phase audit confirmed 107 findings against 288
+verified passes; the fix wave then resolved the critical finding and effectively
+all of the serious tier, with the rest documented honestly. The published
+`ACCESSIBILITY.md` was rewritten to match the shipped code — and the verification
+loop caught and fixed two places where the statement had drifted from reality.
 
-1. **Both remaining flake classes fixed, test-only.** (A1) The "idle-callback"
-   flake's true mechanism was a commit-vs-effect race: `waitFor` could resolve on
-   the phase-ready DOM commit before the passive double-rAF effect queued into the
-   stubbed queue — fixed with an observable stub-queue precondition in
-   `renderAndLoad()`. (A2) recharts/toolkit 100 ms fallback timers from jsdom chart
-   files could fire after environment teardown — fixed with 120 ms `afterAll`
-   wait-outs in the two chart-mounting test files. Proof: 45/45 post-fix stress
-   runs (Engineer 30 + Tester 15) vs. a pre-fix negative-control failure at run 12
-   with the exact documented class.
-2. **0.5.29 record overclaim narrowed** in DECISIONS / CHANGELOG / ROADMAP to the
-   `cancelAnimationFrame` mechanism actually fixed.
-3. **PRODUCT_CONTEXT doc-rot cleared:** 17 pre-MapLibre passages rewritten or
-   annotated per the file's own conventions (plus 6 factual drifts corrected
-   against the real code); every remaining "leaflet" mention is historical.
-4. **New standing conventions in CLAUDE.md:** the stub-queue precondition pattern;
-   the chart-file teardown wait-outs; and the boundary rule — this repo's pipeline
-   and records track SnowRaven ONLY (outside projects like snowraven-mini live in
-   their own repos and Weft sessions).
+Highlights: accessible names on every filter/date/search control; a typed `--sr-*`
+contrast retune in both light and dark themes; a rebuilt mobile-filter focus trap
+with full focus-restore on every close path; DOM map markers as real buttons; a
+keyboard route to the atlas blocks; keyboard tab-reordering in Settings; landmarks,
+a skip link, and live-region announcements; and a shared `ChecklistLink`.
+
+Final state: frontend 857/857, backend 110/110, `tsc` clean, production build
+clean, security review clean (no Critical/High). Nothing is committed.
+
+## What Has Been Saved
+
+- `pipeline/accessibility-pass/` — the audit artifacts (change-brief.md,
+  findings-appendix.md, work/ with per-group data, the token manifest, PROGRESS.md,
+  and the raw workflow outputs).
+- Code: `frontend/src/globals.css` (contrast tokens, both themes) + ~40 component
+  files; `src-tauri/tauri.conf.json` + `frontend/package.json` (version 0.5.31);
+  `src-tauri/capabilities/default.json`.
+- Records: `ACCESSIBILITY.md` (rewritten true), `CHANGELOG.md` (0.5.31),
+  `DECISIONS.md`, `PRODUCT_CONTEXT.md`, `CLAUDE.md`, `ROADMAP.md`,
+  `website/index.html` (version pill).
 
 ## Where We Are
 
-**Idle.** No active Weft session. Released version 0.5.30 remains live and
-accurate for everything user-facing; main carries the test/record improvements
-ahead of it, by design.
+Improvement complete and recorded. Pipeline idle. v0.5.31 is staged and verified,
+waiting on the release.
 
-## Follow-ups (minor)
+## To Release (your steps — this machine stops at the push)
 
-- Stale "Leaflet panes" code comment at `TabNav.tsx:281-282` — one-line touch-up
-  for a future lane (QA finding, out of this lane's no-production-code scope).
+1. Review the working tree, then commit and push to `main`.
+2. Push the `v0.5.31` tag (starts the Windows CI build).
+3. After CI finishes, run `./release.sh` from the Mac (notarized macOS build +
+   signed Windows installer + `latest.json`).
 
-## Roadmap — Up Next
+## Follow-ups (optional, small a11y lane)
 
-- Mobile app
-- Accessibility / clarity / simplification
-- Windows code signing
+- Finish adopting the shared `ChecklistLink` across every checklist link (F064).
+- A uniform "opens in a new tab" sweep on all external links (F078).
+- Southern-Hemisphere moon-phase emoji — needs the checklist latitude threaded to
+  the display layer + the byte-parity weatherFormatter trio (F082/F106).
+- Stale "Leaflet panes" comment at `TabNav.tsx:281-282` (one-line touch-up).
 
 ## Resume Prompt
 

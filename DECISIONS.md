@@ -4,6 +4,108 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Accessibility pass: a contrast-token system, single-close-path focus restore, and the verification loop that caught two false published claims — 2026-06-12 (v0.5.31)
+
+**What:** A comprehensive WCAG 2.1 AA accessibility pass across the whole
+frontend. A four-phase, ~160-agent audit (inventory → 12-dimension parallel
+audit including *computed* contrast over every `--sr-*` token pair actually used
+together, both themes, plus an axe-core runtime scan → adversarial verification →
+completeness sweep) found **107 confirmed findings (1 critical, 17 serious, 48
+moderate, 41 minor) against 288 verified passes**, then fixed them. The headline
+result was not a bug but the published statement: `ACCESSIBILITY.md` made five
+claims the code contradicted — the same liability as a stale privacy policy — and
+the lane's hard requirement was to end with the statement true.
+
+**Decisions worth keeping:**
+
+- **Contrast is fixed at the token, with a typed naming system — not per
+  component.** `globals.css` gained a vocabulary that distinguishes three
+  text-on-X cases, every token minted in BOTH themes (parity machine-checked):
+  `--sr-tier-N-fg` = tier-colored text ON an 8–15% tier tint; `--sr-tier-N-text`
+  = text ON the solid tier fill; plus `--sr-map-target-*-text`,
+  `--sr-border-input` (form-control boundaries, ≥3:1 non-text), `--sr-milestone-*`,
+  `--sr-rank-pin-*`, and `--sr-on-chart-blue-dark`. Retunes (`--sr-accent`,
+  `--sr-text-muted`, `--sr-error`, `--sr-graph-audio`, `--sr-gray-400`) fixed
+  whole classes of sites with zero component change. The fill palette
+  (`--sr-tier-N` / `-rgb`) was deliberately left untouched so the atlas/hatch
+  parity stays safe — text colors are a separate concern from fill colors.
+- **`--sr-text-disabled` is for genuinely disabled CONTROLS only** (WCAG-exempt);
+  informative and empty-state text must use `--sr-text-muted`. The empty
+  date-input format text using `text-disabled` was an actual failure, fixed in the
+  Tester round. The token now carries an inline comment saying so.
+- **`--sr-on-chart-blue-dark` is theme-aware because a light-vs-dark fill needs
+  OPPOSITE text colors** (post-fleet catch + Tester corroboration). The
+  "complete checklists" meter — the one in-bar percentage label left in the app —
+  printed text on a blue fill that is light in light theme (`#1D4ED8`) and a
+  lighter blue in dark (`#3B82F6`); white passes on the former (6.70) but only
+  3.68 on the latter, while near-black passes on the latter (5.38) and fails the
+  former. No single value could pass both, so the token is `#FFFFFF` light /
+  `#0A0A0A` dark. A false `ACCESSIBILITY.md` sentence claiming bars "no longer
+  print percentage figures inside their saturated fills" was reworded to describe
+  the actual behavior (the figures read from an adjacent label everywhere except
+  this one meter, whose color is now AA in both themes).
+- **One close path that restores focus — for every overlay close affordance.**
+  The Map Explorer mobile filter panel's published claim ("Escape … returns
+  focus to the button that opened it") was true only for Escape; the Close
+  button and the backdrop stranded focus on `<body>`. The Tester caught a
+  regression of exactly this after the fleet's first pass. Fix: all three close
+  affordances route through one `closeSidebar`, and because the Filters button
+  unmounts while the panel is open, the restore runs in an effect AFTER the close
+  render commits (a `restoreFiltersFocusRef` flag), not at close() time when the
+  ref is still null. Escape on fullscreen returns focus to the fullscreen toggle
+  the same way. Standing contract for any new overlay.
+- **`inert` on a decorative recharts wrapper — recharts ignores
+  `accessibilityLayer={false}` on `PieChart`.** The donut's root `<svg>` stays
+  focusable regardless, leaving an axe aria-hidden-focus ghost; wrapping the
+  decorative chart in `inert` kills it for good. (The same `inert` mechanism
+  clamps collapsed filter panels so their hidden controls aren't stray tab stops.)
+- **The atlas keyboard route lives IN `AtlasLayer`, as a self-contained "Atlas
+  blocks in view" disclosure panel — not a MapExplorer sidebar list.** The atlas
+  block popups were pointer-only; the route was deliberately built inside the
+  overlay component so it works on EVERY map that mounts the atlas, not just the
+  Map Explorer. The data layer (`blockListRows` in `lib/atlasBlocks.ts`,
+  viewport-scoped + capped) is unit-tested; the panel rows open the block's
+  breeding summary + eBird atlas link and pan to it. This closed the
+  pointer-only exception that `ACCESSIBILITY.md` had carried.
+- **The "open this checklist on eBird" affordance was unified into one shared
+  `ChecklistLink` component** (WCAG 3.2.4 Consistent Identification) — previously
+  rendered four different ways and named three. One visual signature (the lucide
+  `ExternalLink` icon) and one accessible-name formula
+  (`Open checklist {id} on eBird (opens in a new tab)`), and it keeps the standing
+  `SUBMISSION_ID_RE` shape-validation (junk id → plain text, never a styled 404
+  link).
+
+**The verification loop earned its keep.** Two false published claims reached
+the statement and were caught only by re-checking it against the code: (a) the
+complete-checklists meter above, and (b) the mobile filter focus-restore. The
+lesson mirrors the privacy-policy stance — a published accessibility statement is
+a record that must be re-verified against the shipped code, not against the
+intent. Dark theme was covered analytically (computed contrast both themes), not
+re-axed, because the theme is persisted, not toggled at runtime.
+
+**Deferred — documented as Known Exceptions in `ACCESSIBILITY.md`, candidates
+for a small follow-up:** F078 an explicit "opens in a new tab" suffix on all ~43
+external links via a shared component (advisory; `ChecklistLink` already does it
+for checklist links); and F082/F106 the correct Southern-Hemisphere moon-phase
+emoji in the weather block — which needs the checklist's latitude threaded to the
+display layer and a coordinated change across the byte-parity weatherFormatter
+trio (`weatherFormatter.ts` / `weather.py` / `weatherFormatter.golden.py`), so it
+was scoped out rather than half-done. (F064, the shared checklist-link component,
+was originally on this deferred list but shipped in this pass as `ChecklistLink`.)
+
+**Lane note:** no release of its own is recorded here separately — 0.5.31 is the
+version bump, ships in the app bundle, and the records below (CLAUDE.md,
+PRODUCT_CONTEXT.md, ROADMAP.md) were updated alongside. The on-main-unreleased
+test-determinism work folds into this same 0.5.31 release.
+
+**Implications:** New contrast work goes at the token using the `-fg` / `-text` /
+on-fill naming, in both themes; `text-disabled` is controls-only. Overlays route
+every close path through one focus-restoring function. Decorative recharts
+wrappers get `inert`. New external-id links shape-validate before becoming a
+link. These are promoted to CLAUDE.md.
+
+---
+
 ## Remaining test-suite flake fixed (two mechanisms, test-only); 0.5.29 records narrowed; PRODUCT_CONTEXT MapLibre doc-rot cleared — 2026-06-11 (no release; rides main until the next release)
 
 **What:** Improve lane that killed both remaining failure classes of the

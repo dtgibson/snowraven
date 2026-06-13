@@ -5,6 +5,58 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Accessibility — a WCAG 2.1 AA pass across the whole app (complete — June 2026, v0.5.31)
+
+A comprehensive accessibility pass that makes the existing app perceivable,
+operable, and honestly documented for keyboard and assistive-technology users. No
+new user-facing capability — every change makes a function that already existed
+work for more people. Driven by a four-phase, ~160-agent audit (inventory →
+12-dimension parallel audit including *computed* contrast over every `--sr-*`
+token pair used together in both themes and an axe-core runtime scan →
+adversarial verification → completeness sweep): 107 confirmed findings against
+288 verified passes, all fixed, with the published statement made true.
+
+What it covers:
+
+- **Accessible names.** Every filter `<select>`, date input, and search box that
+  relied on a placeholder or nearby caption now carries an explicit `aria-label`
+  (the `Checklists.tsx` pattern, propagated app-wide). The Settings segmented
+  choices (theme, text size, date format) are real keyboard-operable radio groups.
+- **Contrast.** A full `--sr-*` retune in both themes plus a typed token system —
+  `--sr-tier-N-fg` (text on a tier tint), `--sr-tier-N-text` (text on a solid
+  tier fill), `--sr-map-target-*-text`, `--sr-border-input`, `--sr-milestone-*`,
+  `--sr-rank-pin-*`, and the theme-aware `--sr-on-chart-blue-dark`. Text, buttons,
+  links, popups, map pins, milestone/rank markers, and breeding badges/pills now
+  meet AA (4.5:1 text, 3:1 non-text) in light and dark. Chart figures read from a
+  label beside the bar; the one remaining in-bar percentage (the
+  complete-checklists meter) uses a per-theme text color that passes on its fill.
+- **Keyboard & focus.** A "Skip to main content" link leads the tab order; DOM map
+  markers became real `<button>`s (`neutralizeMarkerWrapper`); the Settings tab
+  reorder list gained Move up / Move down buttons as a drag alternative; the Map
+  Explorer mobile filter panel traps focus and restores it to the Filters button
+  on every close path (Escape, Close, backdrop) via one `closeSidebar`, and
+  Escape also exits map fullscreen to the toggle; in-page "jump to" links move
+  focus to the destination; bird-name links show the focus ring again.
+- **Announcements.** Result counts, loading states, and inline errors are polite
+  live regions or alerts; the over-announcing Weather panel was quieted; the
+  updater shows a progressbar; charts keep their image-role text summaries and
+  decorative flourishes stay hidden.
+- **Maps.** `SegControl` carries `aria-pressed`; the Media Targets "Nearest
+  Targets" list became a viewport-scoped **Targets in view** keyboard list; and
+  the atlas overlay gained a self-contained "Atlas blocks in view" disclosure
+  panel in `AtlasLayer.tsx` (so the keyboard route works on every map that mounts
+  the atlas, not just the Map Explorer).
+- **Structure.** Landmarks and a heading outline; marker-mirroring lists use real
+  list semantics; collapsed filter panels are made `inert`.
+- The "open checklist on eBird" affordance was unified into one shared
+  `components/ChecklistLink.tsx` (consistent identification, `SUBMISSION_ID_RE`
+  guard kept). `ACCESSIBILITY.md` was rewritten to match the shipped code, with
+  the remaining gaps listed as honest Known Exceptions (a shared "opens in a new
+  tab" suffix on all external links; the Southern-Hemisphere moon-phase emoji,
+  which needs latitude at the display layer). See DECISIONS.md for the
+  token-naming contract, the single-close-path focus-restore rule, and the
+  two false published claims the verification loop caught.
+
 ### Checklists — search-and-browse home for whole outings (complete — June 2026, v0.5.27)
 
 A new top-level **Checklists** tab with three sections. **Checklist Comments**:

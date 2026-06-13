@@ -62,6 +62,7 @@ function renderInline(text: string): React.ReactNode {
             style={{ color: 'var(--sr-accent)', textDecoration: 'underline' }}
           >
             {lm[1]}
+            <span className="sr-only"> (opens in new tab)</span>
           </a>
         )
       }
@@ -248,6 +249,16 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
 
+  // Restore focus to whatever opened the overlay (footer Help, Settings, or the
+  // Welcome screen) when it unmounts — standard dialog behavior. The lazy mount
+  // uses fallback={null}, so at first effect time focus is still on the opener.
+  // This effect must run BEFORE the closeRef-focus effect so it captures the
+  // opener, not the Close button.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    return () => opener?.focus()
+  }, [])
+
   useEffect(() => {
     closeRef.current?.focus()
   }, [])
@@ -338,20 +349,20 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
 
       {/* Body */}
       <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', display: 'flex' }}>
-        <div style={{
+        <div className="sr-help-row" style={{
           display: 'flex', width: '100%', maxWidth: 1100,
           margin: '0 auto', padding: '0 24px', gap: 40, alignItems: 'flex-start',
         }}>
 
           {/* TOC Sidebar */}
-          <nav style={{
+          <nav className="sr-help-toc" aria-label="Documentation contents" style={{
             width: 200, flexShrink: 0, padding: '32px 0',
             position: 'sticky', top: 0,
             maxHeight: 'calc(100vh - 52px)', overflowY: 'auto',
           }}>
             <div style={{
               fontSize: '0.65625rem', fontWeight: 700, letterSpacing: '0.08em',
-              textTransform: 'uppercase', color: 'var(--sr-text-disabled)',
+              textTransform: 'uppercase', color: 'var(--sr-text-muted)',
               marginBottom: 10, paddingLeft: 10,
             }}>
               Contents

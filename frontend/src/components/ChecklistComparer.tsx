@@ -16,10 +16,26 @@ import { deriveBadges, type BadgeFlags } from '../lib/checklistBadges'
 import type { KeyStatus } from '../lib/keyStatus'
 import { BirdName } from './BirdName'
 import { ChecklistBadges } from './ChecklistBadges'
+import { ChecklistLink } from './ChecklistLink'
 import { CommentText } from './CommentText'
 import { WeatherTideSection } from './WeatherTideSection'
 
 type Sort = 'taxonomic' | 'alpha'
+
+// Per-tier text color ON the solid tier fill — passes AA in both themes (see
+// globals.css --sr-tier-N-text). Replaces the old flat --sr-on-accent, which
+// failed contrast on tiers 1-4 (down to 1.71:1 in dark mode).
+const TIER_TEXT_COLORS: Record<1 | 2 | 3 | 4, string> = {
+  1: 'var(--sr-tier-1-text)',
+  2: 'var(--sr-tier-2-text)',
+  3: 'var(--sr-tier-3-text)',
+  4: 'var(--sr-tier-4-text)',
+}
+
+// Shared rem width for a SideCell and its SideHeader so the A/B counts line up
+// (the fixed width exists for that alignment) AND the cell grows with text at
+// large Text-Size settings instead of overflowing the species column (F074).
+const SIDE_CELL_WIDTH = '8.25rem'   // ≈ 132px at default scale
 
 // A breeding-evidence code, shown as a small pill colored by tier (matching the
 // Breeding Codes tab). The raw eBird API code is translated to its display code.
@@ -28,11 +44,13 @@ function BreedingBadge({ apiCode }: { apiCode: string | null }) {
   const def = resolveApiBreedingCode(apiCode)
   return (
     <span
+      role="img"
+      aria-label={`${def.code} — ${def.label}`}
       title={`${def.code} — ${def.label}`}
       style={{
         flexShrink: 0, padding: '1px 4px', borderRadius: 4, fontSize: '0.625rem', fontWeight: 700,
         lineHeight: 1.4, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em',
-        color: 'var(--sr-on-accent)', background: TIER_COLORS[def.tier],
+        color: TIER_TEXT_COLORS[def.tier], background: TIER_COLORS[def.tier],
       }}
     >
       {def.code}
@@ -53,11 +71,14 @@ function MediaIcons({ media }: { media: MediaPresence | null }) {
   if (!present.length) return null
   return (
     <span style={{ flexShrink: 0, display: 'inline-flex', gap: 3, alignItems: 'center', color: 'var(--sr-text-muted)' }}>
-      {present.map(([label, n, icon]) => (
-        <span key={label} title={`${n} ${label.toLowerCase()}${n > 1 ? 's' : ''}`} aria-label={`${n} ${label}`} style={{ display: 'inline-flex' }}>
-          {icon}
-        </span>
-      ))}
+      {present.map(([label, n, icon]) => {
+        const name = `${n} ${label.toLowerCase()}${n > 1 ? 's' : ''}`
+        return (
+          <span key={label} role="img" title={name} aria-label={name} style={{ display: 'inline-flex' }}>
+            {icon}
+          </span>
+        )
+      })}
     </span>
   )
 }
@@ -71,7 +92,7 @@ function SideCell({ count, emphasized, breeding, media, hasComment, open, onTogg
   hasComment?: boolean; open?: boolean; onToggle?: () => void
 }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, width: 132, flexShrink: 0, fontSize: '0.75rem' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, width: SIDE_CELL_WIDTH, flexShrink: 0, fontSize: '0.75rem' }}>
       {hasComment && onToggle && (
         <button tabIndex={0} onClick={onToggle} aria-expanded={open}
           aria-label={open ? 'Hide comment' : 'Show comment'} title={open ? 'Hide comment' : 'Show comment'}
@@ -85,7 +106,7 @@ function SideCell({ count, emphasized, breeding, media, hasComment, open, onTogg
       )}
       <BreedingBadge apiCode={breeding} />
       <MediaIcons media={media} />
-      <span style={{ width: 34, textAlign: 'right' }}><Count value={count} emphasized={emphasized} /></span>
+      <span style={{ width: '2.25rem', textAlign: 'right' }}><Count value={count} emphasized={emphasized} /></span>
     </span>
   )
 }
@@ -97,7 +118,7 @@ function sortRows(rows: ChecklistRow[], sort: Sort): ChecklistRow[] {
 
 // A single count value; the higher of the two on a shared species is emphasized.
 function Count({ value, emphasized }: { value: string | null; emphasized: boolean }) {
-  if (value === null) return <span style={{ color: 'var(--sr-text-disabled)' }}>—</span>
+  if (value === null) return <span style={{ color: 'var(--sr-text-muted)' }}>—</span>
   return (
     <span style={{
       fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
@@ -276,9 +297,10 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
           </div>
         </div>
 
-        {/* Stats bar */}
+        {/* Stats bar — auto-fit so cells wrap to a second row rather than
+            ellipsizing to identical labels at narrow widths / large text (F052). */}
         <div role="region" aria-label="Comparison summary" style={{
-          display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', border: '1px solid var(--sr-border)',
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(7rem, 1fr))', border: '1px solid var(--sr-border)',
           borderRadius: 10, overflow: 'hidden', marginBottom: 20,
         }}>
           <Stat value={result.totalA} label="Checklist A" />
@@ -306,8 +328,8 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
           </Panel>
         </div>
 
-        {/* Unique to each — two columns below. */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'start' }}>
+        {/* Unique to each — two columns below, stacking under 640px (F052). */}
+        <div className="sr-two-col" style={{ alignItems: 'start' }}>
           <Panel title="Checklist A only" count={aOnly.length}>
             {aOnly.map(row => (
               <SpeciesRow key={row.speciesCode} row={row} mode="a" hasEntry={isRecorded(row.commonName)} onOpenSpecies={onOpenSpecies} />
@@ -347,10 +369,11 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
         {([['A', inputA, setInputA], ['B', inputB, setInputB]] as const).map(([label, value, setter]) => (
           <div key={label}>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: 6 }}>
+            <label htmlFor={`checklist-input-${label}`} style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 500, marginBottom: 6 }}>
               Checklist {label}
             </label>
             <input
+              id={`checklist-input-${label}`}
               type="text"
               value={value}
               onChange={e => setter(e.target.value)}
@@ -426,11 +449,7 @@ function ChecklistTag({ badge, id, meta, badges }: { badge: 'A' | 'B'; id: strin
         </span>
         <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {date && <>{date} · </>}
-          <a href={`https://ebird.org/checklist/${id}`} target="_blank" rel="noreferrer"
-            title="View this checklist on eBird"
-            style={{ color: 'var(--sr-accent)', textDecoration: 'underline' }}>
-            {id}
-          </a>
+          <ChecklistLink submissionId={id} />
         </span>
         {metaBits.length > 0 && (
           <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{metaBits.join('  ·  ')}</span>
@@ -503,7 +522,7 @@ function Panel({ title, count, headerExtra, children }: {
 // Column label over a SideCell (the "A" / "B" headers in the In Both panel).
 function SideHeader({ label }: { label: string }) {
   return (
-    <span style={{ width: 132, textAlign: 'right', fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>
+    <span style={{ width: SIDE_CELL_WIDTH, textAlign: 'right', fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>
       {label}
     </span>
   )
@@ -531,7 +550,7 @@ function CommentsTable({ result, both, aOnly, bOnly, idA, idB, isRecorded, onOpe
   // Distinguish an empty cell: the bird was on that checklist but had no note
   // ("no comment") vs. it wasn't on that checklist at all ("not reported").
   const empty = (label: string) => (
-    <span style={{ color: 'var(--sr-text-disabled)', fontStyle: 'italic' }}>{label}</span>
+    <span style={{ color: 'var(--sr-text-muted)', fontStyle: 'italic' }}>{label}</span>
   )
   const cell = (text: string, present: boolean) => hasComment(text)
     ? <CommentText raw={text} />

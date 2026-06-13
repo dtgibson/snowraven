@@ -16,6 +16,7 @@ import { SnowMap } from './SnowMap'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 import { formatDate } from '../lib/formatDate'
 import { SUBMISSION_ID_RE } from './speciesDetail/ui'
+import { neutralizeMarkerWrapper } from '../lib/mapPins'
 import type { SightingMarker } from '../lib/sightingMarkers'
 
 export type { SightingMarker } from '../lib/sightingMarkers'
@@ -51,14 +52,23 @@ export function SightingsMap({ markers, switcher = true }: {
       switcher={switcher}
       scrollZoom={false}
     >
-      {markers.map(m => (
-        <Marker key={`${m.lat},${m.lng}`} longitude={m.lng} latitude={m.lat} anchor="bottom"
-          onClick={e => { e.originalEvent.stopPropagation(); setSelectedCoord(`${m.lat},${m.lng}`) }}>
-          <div style={{ width: 24, height: 34, cursor: 'pointer' }} dangerouslySetInnerHTML={{ __html: SP_PIN_HTML }} />
-        </Marker>
-      ))}
+      {markers.map(m => {
+        const n = m.sightings.length
+        const label = `${m.lat.toFixed(4)}, ${m.lng.toFixed(4)} — ${n} sighting${n === 1 ? '' : 's'}`
+        return (
+          <Marker key={`${m.lat},${m.lng}`} longitude={m.lng} latitude={m.lat} anchor="bottom"
+            ref={neutralizeMarkerWrapper}
+            onClick={e => { e.originalEvent.stopPropagation(); setSelectedCoord(`${m.lat},${m.lng}`) }}>
+            {/* Real <button> so Enter/Space open the popup (the native click bubbles
+                to the wrapper's listener); the wrapper is demoted via ref. F014. */}
+            <button type="button" aria-label={label}
+              style={{ width: 24, height: 34, padding: 0, border: 'none', background: 'none', cursor: 'pointer', display: 'block' }}
+              dangerouslySetInnerHTML={{ __html: SP_PIN_HTML }} />
+          </Marker>
+        )
+      })}
       {selected && (
-        <Popup longitude={selected.lng} latitude={selected.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} closeButton={false} maxWidth="260px">
+        <Popup longitude={selected.lng} latitude={selected.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} maxWidth="260px">
           <div style={{ fontSize: '0.8125rem', lineHeight: 1.7, minWidth: 120 }}>
             {selected.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
               <div key={`${submissionId}-${i}`}>

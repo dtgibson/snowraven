@@ -15,16 +15,40 @@ interface WelcomeScreenProps {
 // an empty tab. Dismissing (either button) persists so it never nags again.
 export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeScreenProps) {
   const startRef = useRef<HTMLButtonElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     startRef.current?.focus()
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onDismiss() }
+    // aria-modal="true" tells SR users the background doesn't exist; back that up
+    // for sighted keyboard users by trapping Tab inside the dialog (the app behind
+    // it is not inert), so focus never lands on the obscured tab bar/footer.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onDismiss(); return }
+      if (e.key === 'Tab') {
+        const root = rootRef.current
+        if (!root) return
+        const focusables = Array.from(
+          root.querySelectorAll<HTMLElement>('button, a[href], [tabindex]:not([tabindex="-1"])')
+        ).filter(el => !el.hasAttribute('disabled'))
+        if (focusables.length < 2) return
+        const first = focusables[0]
+        const last = focusables[focusables.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onDismiss])
 
   return (
     <div
+      ref={rootRef}
       role="dialog"
       aria-modal="true"
       aria-label="Welcome to SnowRaven"

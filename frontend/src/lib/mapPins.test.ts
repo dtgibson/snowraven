@@ -8,8 +8,9 @@ import {
   pinRadius, pinOpacity, pinRadiusExpr, pinFillRadiusExpr, pinOpacityExpr,
   PIN_RADIUS_BASE, PIN_RADIUS_STOPS, PIN_OPACITY_BASE, PIN_OPACITY_STOPS,
   ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH,
-  updateMapCursor, INTERACTIVE_MAP_LAYERS, type CursorMap,
+  updateMapCursor, INTERACTIVE_MAP_LAYERS, neutralizeMarkerWrapper, type CursorMap,
 } from './mapPins'
+import type { Marker as MaplibreMarker } from 'maplibre-gl'
 
 // Evaluate a ['step', ['get','count'], base, t1, v1, t2, v2, ...] expression in JS.
 function evalStep(expr: unknown[], count: number): number {
@@ -120,5 +121,34 @@ describe('updateMapCursor (shared canvas-cursor arbiter)', () => {
 
   it('covers every interactive layer id used by the map components', () => {
     expect(INTERACTIVE_MAP_LAYERS).toEqual(['sr-sight-circle', 'sr-hotspot', 'sr-atlas-fill'])
+  })
+})
+
+// DOM markers render a real <button> child for keyboard access; maplibre stamps
+// the wrapper with role='button' + aria-label='Map marker', so the wrapper must
+// be demoted to avoid a button-in-button announcement (F014/F055).
+describe('neutralizeMarkerWrapper', () => {
+  // A fake wrapper element recording attribute ops — no DOM needed (node env).
+  function fakeMarker() {
+    const attrs = new Map<string, string>([['role', 'button'], ['aria-label', 'Map marker']])
+    const el = {
+      setAttribute: (k: string, v: string) => { attrs.set(k, v) },
+      removeAttribute: (k: string) => { attrs.delete(k) },
+    } as unknown as HTMLElement
+    const marker = { getElement: () => el } as unknown as MaplibreMarker
+    return { marker, attrs }
+  }
+
+  it('demotes the wrapper to presentation and strips its generic label/tabindex', () => {
+    const { marker, attrs } = fakeMarker()
+    attrs.set('tabindex', '0')
+    neutralizeMarkerWrapper(marker)
+    expect(attrs.get('role')).toBe('presentation')
+    expect(attrs.has('aria-label')).toBe(false)
+    expect(attrs.has('tabindex')).toBe(false)
+  })
+
+  it('is null-safe (the ref fires with null on unmount)', () => {
+    expect(() => neutralizeMarkerWrapper(null)).not.toThrow()
   })
 })

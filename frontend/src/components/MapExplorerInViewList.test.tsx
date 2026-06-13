@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent, cleanup } from '@testing-library/react'
-import { InViewMarkerList } from './map/MapSidebarUI'
+import { InViewMarkerList, SegControl } from './map/MapSidebarUI'
 import { markersInView, type MarkerBounds } from '../lib/markersInView'
 
 afterEach(cleanup)
@@ -103,5 +103,44 @@ describe('Map Explorer in-view sightings list', () => {
     renderSightingsList([-130, 30, -129, 31], vi.fn())
     expect(screen.queryByRole('button', { name: /Lake Merritt/ })).toBeNull()
     expect(screen.getByText(/None in the current map view/)).toBeTruthy()
+  })
+})
+
+// SegControl is the shared segmented control behind the Map Explorer radius,
+// breeding filter, Pins/Heatmap, and All/Week toggles. Its active option must be
+// exposed via aria-pressed (style-only state is invisible to a screen reader),
+// and when given a group name it must announce as a labelled group (F008).
+describe('SegControl segmented control semantics', () => {
+  const OPTS = [
+    { value: 'pins', label: 'Pins' },
+    { value: 'heatmap', label: 'Heatmap' },
+  ]
+
+  it('exposes the active option via aria-pressed on every button', () => {
+    render(<SegControl options={OPTS} value="pins" onChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Pins' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Heatmap' }).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('moves aria-pressed when the value changes', () => {
+    const { rerender } = render(<SegControl options={OPTS} value="pins" onChange={vi.fn()} />)
+    rerender(<SegControl options={OPTS} value="heatmap" onChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Pins' }).getAttribute('aria-pressed')).toBe('false')
+    expect(screen.getByRole('button', { name: 'Heatmap' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('renders a labelled role=group only when ariaLabel is passed', () => {
+    const { rerender } = render(<SegControl options={OPTS} value="pins" onChange={vi.fn()} />)
+    // No ariaLabel: no group role (the buttons still carry aria-pressed).
+    expect(screen.queryByRole('group')).toBeNull()
+    rerender(<SegControl options={OPTS} value="pins" onChange={vi.fn()} ariaLabel="Display mode" />)
+    expect(screen.getByRole('group', { name: 'Display mode' })).toBeTruthy()
+  })
+
+  it('clicking an option calls onChange with its value', () => {
+    const onChange = vi.fn()
+    render(<SegControl options={OPTS} value="pins" onChange={onChange} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Heatmap' }))
+    expect(onChange).toHaveBeenCalledWith('heatmap')
   })
 })

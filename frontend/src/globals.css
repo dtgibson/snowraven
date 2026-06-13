@@ -15,8 +15,8 @@
 
   /* Text */
   --sr-text: #0F1117;
-  --sr-text-muted: #71717A;
-  --sr-text-disabled: #A1A1AA;
+  --sr-text-muted: #6B6B74;    /* darkened from #71717A: now ≥4.5:1 on the tinted surfaces too (surface-subtle 4.80, quote-bg 4.66, accent-bg 4.70) */
+  --sr-text-disabled: #A1A1AA; /* disabled CONTROLS only (WCAG-exempt) — never informative text; use --sr-text-muted for content */
   --sr-text-footer: #6B7280;   /* darkened to pass AA on white (#B0B0B8 was 2.1:1) */
   --sr-text-gray: #6B7280;     /* sci names — darkened to pass AA (#9CA3AF was 2.5:1) */
 
@@ -24,23 +24,24 @@
   --sr-border: #E4E4E7;
   --sr-border-subtle: #F4F4F5;
   --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;  /* form-control boundaries — ≥3:1 non-text vs surface (3.43), bg (3.28), surface-subtle (3.12) */
 
   /* Accent (green) */
-  --sr-accent: #2D8653;
+  --sr-accent: #277448;        /* darkened from #2D8653: ≥4.5:1 as text on ALL light surfaces (accent-bg 5.09, bg 5.46, surface-subtle 5.19) */
   --sr-accent-strong: #1A5C38;
   --sr-accent-bg: #E8F5EE;
   --sr-accent-bg-hover: #F0FAF4;
-  --sr-accent-border: rgba(45,134,83,0.25);
-  --sr-accent-border-strong: rgba(45,134,83,0.7);
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
   --sr-accent-surface: #fafffd;
-  --sr-on-accent: #FFFFFF;   /* readable foreground ON the accent fill (white on #2D8653 = 4.6:1) */
+  --sr-on-accent: #FFFFFF;   /* readable foreground ON the accent fill (white on #277448 = 5.7:1) */
 
   /* Quote (Named Birds comment block — one step deeper than --sr-surface-subtle) */
   --sr-quote-bg: #EFF1F3;
   --sr-quote-border: #E0E2E6;
 
   /* Error */
-  --sr-error: #DC2626;
+  --sr-error: #D31F1F;       /* darkened from #DC2626: 4.82:1 on error-bg (was 4.41) */
   --sr-error-bg: #FEF2F2;
   --sr-error-border: #FECACA;
   --sr-error-muted: #FCA5A5;
@@ -62,6 +63,16 @@
   --sr-tier-2: #9333EA;
   --sr-tier-1: #C084FC;
   --sr-tier-1-text: #3B0764;   /* dark text on tier-1 badge — passes AA */
+  /* Text ON the solid tier fills (badges/circles) — ≥4.5:1 on the matching --sr-tier-N */
+  --sr-tier-2-text: #FFFFFF;   /* 5.38:1 on #9333EA */
+  --sr-tier-3-text: #FFFFFF;   /* 8.72:1 on #6B21A8 */
+  --sr-tier-4-text: #FFFFFF;   /* 15.0:1 on #3B0764 */
+  /* Tier-colored TEXT on the 8–15% tier tints (active pills) — ≥4.5:1 on
+     rgba(--sr-tier-N-rgb, 0.15) composited over the card surface */
+  --sr-tier-1-fg: #7C3AED;     /* 4.99:1 on tier-1 tint (raw tier-1 #C084FC was 2.32:1) */
+  --sr-tier-2-fg: #8429D8;     /* 5.10:1 on tier-2 tint */
+  --sr-tier-3-fg: #6B21A8;     /* = tier-3; 6.71:1 on its tint */
+  --sr-tier-4-fg: #3B0764;     /* = tier-4; 10.99:1 on its tint */
   /* RGB values for rgba() usage in pill backgrounds */
   --sr-tier-4-rgb: 59,7,100;
   --sr-tier-3-rgb: 107,33,168;
@@ -70,7 +81,7 @@
 
   /* Grays */
   --sr-gray-300: #D1D5DB;
-  --sr-gray-400: #D4D4D8;
+  --sr-gray-400: #8E8E96;      /* toggle off-track — darkened from #D4D4D8 for ≥3:1 non-text vs surface AND the white knob (3.25) */
 
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
@@ -78,7 +89,7 @@
   /* Graph line colors */
   --sr-graph-individuals: #2D8653;
   --sr-graph-photo: #3B82F6;
-  --sr-graph-audio: #F59E0B;
+  --sr-graph-audio: #B45309;   /* darkened from #F59E0B (2.15:1 line on white); 5.02:1 — matches --sr-age-immature */
   --sr-graph-video: #8B5CF6;
   --sr-graph-media-total: #64748b;
 
@@ -95,6 +106,11 @@
   --sr-chart-slate: #94A3B8;
   --sr-chart-blue-dark: #1D4ED8;
   --sr-chart-blue-light: #93C5FD;
+  /* Foreground for text printed INSIDE a chart-blue-dark fill (the completeness
+     bar's in-bar %). Theme-aware: white passes on the dark light-theme blue
+     (#FFF on #1D4ED8 = 6.70), but the dark-theme blue (#3B82F6) is lighter and
+     needs near-black (#0A0A0A = 5.38; white would be only 3.68). */
+  --sr-on-chart-blue-dark: #FFFFFF;
 
   /* Map Explorer pin colors */
   --sr-map-visited:         #2D8653;
@@ -104,7 +120,50 @@
   --sr-map-target-fresh:    #2D8653;
   --sr-map-target-mid:      #5EA07C;
   --sr-map-target-old:      #A8D4BB;
-  --sr-map-target-old-text: #1A5C38;
+  /* Per-tier text ON the recency-tier chip fills (all ≥4.5:1 on the matching fill) */
+  --sr-map-target-fresh-text: #FFFFFF;  /* 4.52:1 on #2D8653 */
+  --sr-map-target-mid-text:   #052E16;  /* 4.82:1 on #5EA07C (white was 3.09:1) */
+  --sr-map-target-old-text:   #1A5C38;
+
+  /* On-map GL pin colors — anchored to the always-light Positron basemap
+     (~#F2F0EB land), NOT the app theme: identical values in both theme blocks.
+     All ≥3:1 vs the land tint; white glyphs inside them stay ≥3:1 too.
+     Use these for GL circle layers / baked sprites; keep --sr-map-* for
+     sidebar legend dots that sit on app surfaces. */
+  --sr-map-pin-visited:   #2D8653;  /* 3.97:1 vs land; white glyph 4.52:1 */
+  --sr-map-pin-unvisited: #5B7FA6;  /* 3.66:1 vs land; white glyph 4.17:1 */
+  --sr-map-pin-personal:  #B0701B;  /* darkened from #C9842A (2.70:1) — 3.56:1 vs land; white glyph 4.05:1 */
+  --sr-map-pin-target:    #7C3AED;  /* 5.00:1 vs land; white glyph 5.70:1 */
+  --sr-map-pin-stroke:    #3F3F46;  /* dark outline ring replacing the old white stroke — 9.17:1 vs land */
+
+  /* Firsts & Milestones chips (Statistics) — light tinted chips, deliberately
+     identical in both themes. -date values darkened to ≥4.5:1 on the darker
+     gradient stop; -num/-check verified (tier-1 num is 20px bold = large text). */
+  --sr-milestone-1-bg: linear-gradient(160deg,#F2FAF5,#E8F5EE);
+  --sr-milestone-1-border: rgba(45,134,83,0.28);
+  --sr-milestone-1-num: #2D8653;    /* 4.03:1 on #E8F5EE — large text, ≥3:1 */
+  --sr-milestone-1-date: #43755C;   /* darkened from #5EA07C (2.76:1) — 4.76:1 */
+  --sr-milestone-1-check: #2D8653;
+  --sr-milestone-2-bg: linear-gradient(160deg,#E5F3EC,#D8EDE4);
+  --sr-milestone-2-border: rgba(28,100,60,0.32);
+  --sr-milestone-2-num: #1C6443;    /* 5.81:1 */
+  --sr-milestone-2-date: #386E4E;   /* darkened from #3E7A56 (4.16:1) — 4.89:1 */
+  --sr-milestone-2-check: #2D8653;
+  --sr-milestone-3-bg: linear-gradient(160deg,#D6EAE0,#C6E2D5);
+  --sr-milestone-3-border: rgba(18,74,44,0.38);
+  --sr-milestone-3-num: #14502E;
+  --sr-milestone-3-date: #2D6644;   /* 4.92:1 */
+  --sr-milestone-3-check: #2D8653;
+  --sr-milestone-4-bg: linear-gradient(160deg,#FEFAEC,#FEF3C7);
+  --sr-milestone-4-border: rgba(146,64,14,0.32);
+  --sr-milestone-4-num: #92400E;    /* 6.37:1 */
+  --sr-milestone-4-date: #B45309;   /* 4.51:1 */
+  --sr-milestone-4-check: #B45309;
+
+  /* Statistics map rank pins + legend swatches — sit on the light basemap, so
+     identical in both themes; white 10px/700 numerals ≥4.5:1 on both fills. */
+  --sr-rank-pin-circle: #277448;    /* white numeral 5.71:1; 5.01:1 vs land */
+  --sr-rank-pin-square: #1D4ED8;    /* white numeral 6.70:1 (was #3B82F6 = 3.68:1); 5.88:1 vs land */
 }
 
 [data-theme="dark"] {
@@ -125,6 +184,7 @@
   --sr-border: #27272A;
   --sr-border-subtle: #1F1F23;
   --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;  /* form-control boundaries — ≥3:1 non-text vs surface (3.61), bg (4.05), surface-subtle (3.03) */
 
   /* Accent (emerald — better contrast on dark) */
   --sr-accent: #34D399;
@@ -163,6 +223,16 @@
   --sr-tier-2: #A855F7;
   --sr-tier-1: #C084FC;
   --sr-tier-1-text: #1A0030;   /* dark text on tier-1 badge in dark mode */
+  /* Text ON the solid tier fills — the dark tier-2 fill is too light for white */
+  --sr-tier-2-text: #1A0030;   /* 4.88:1 on #A855F7 (white was 3.96:1) */
+  --sr-tier-3-text: #FFFFFF;   /* 5.70:1 on #7C3AED */
+  --sr-tier-4-text: #FFFFFF;   /* 8.72:1 on #6B21A8 */
+  /* Tier-colored TEXT on the tier tints — far lighter than the fills (the raw
+     fills were 1.97–4.12:1 on their own tints over the card surface) */
+  --sr-tier-1-fg: #C084FC;     /* = tier-1; 5.28:1 on its tint */
+  --sr-tier-2-fg: #BD80FA;     /* 5.46:1 on tier-2 tint; 5.07:1 even on the lighter tier-1 tint */
+  --sr-tier-3-fg: #A78BFA;     /* 5.82:1 on tier-3 tint */
+  --sr-tier-4-fg: #C795F5;     /* 7.17:1 on tier-4 tint */
   --sr-tier-4-rgb: 107,33,168;
   --sr-tier-3-rgb: 124,58,237;
   --sr-tier-2-rgb: 168,85,247;
@@ -170,7 +240,7 @@
 
   /* Grays */
   --sr-gray-300: #3F3F46;
-  --sr-gray-400: #52525B;
+  --sr-gray-400: #6E6E78;      /* toggle off-track — lightened from #52525B for ≥3:1 vs surface (3.51) and the white knob (5.04) */
 
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
@@ -195,6 +265,7 @@
   --sr-chart-slate: #94A3B8;
   --sr-chart-blue-dark: #3B82F6;
   --sr-chart-blue-light: #BFDBFE;
+  --sr-on-chart-blue-dark: #0A0A0A;   /* near-black on #3B82F6 = 5.38:1 (white is only 3.68) */
 
   /* Map Explorer pin colors — lighter for dark backgrounds */
   --sr-map-visited:         #34D399;
@@ -204,7 +275,45 @@
   --sr-map-target-fresh:    #34D399;
   --sr-map-target-mid:      #6EE7B7;
   --sr-map-target-old:      #A7F3D0;
-  --sr-map-target-old-text: #0D3321;
+  /* Per-tier text ON the recency-tier chip fills — the dark fills are pastel,
+     so the chip text goes dark green (white was 1.52–1.92:1) */
+  --sr-map-target-fresh-text: #052E16;  /* 7.75:1 on #34D399 */
+  --sr-map-target-mid-text:   #052E16;  /* 9.78:1 on #6EE7B7 */
+  --sr-map-target-old-text:   #0D3321;
+
+  /* On-map GL pin colors — same values as :root by design (the basemap stays
+     light in dark mode; see the :root comment) */
+  --sr-map-pin-visited:   #2D8653;
+  --sr-map-pin-unvisited: #5B7FA6;
+  --sr-map-pin-personal:  #B0701B;
+  --sr-map-pin-target:    #7C3AED;
+  --sr-map-pin-stroke:    #3F3F46;
+
+  /* Firsts & Milestones chips — same light-tinted values as :root by design */
+  --sr-milestone-1-bg: linear-gradient(160deg,#F2FAF5,#E8F5EE);
+  --sr-milestone-1-border: rgba(45,134,83,0.28);
+  --sr-milestone-1-num: #2D8653;
+  --sr-milestone-1-date: #43755C;
+  --sr-milestone-1-check: #2D8653;
+  --sr-milestone-2-bg: linear-gradient(160deg,#E5F3EC,#D8EDE4);
+  --sr-milestone-2-border: rgba(28,100,60,0.32);
+  --sr-milestone-2-num: #1C6443;
+  --sr-milestone-2-date: #386E4E;
+  --sr-milestone-2-check: #2D8653;
+  --sr-milestone-3-bg: linear-gradient(160deg,#D6EAE0,#C6E2D5);
+  --sr-milestone-3-border: rgba(18,74,44,0.38);
+  --sr-milestone-3-num: #14502E;
+  --sr-milestone-3-date: #2D6644;
+  --sr-milestone-3-check: #2D8653;
+  --sr-milestone-4-bg: linear-gradient(160deg,#FEFAEC,#FEF3C7);
+  --sr-milestone-4-border: rgba(146,64,14,0.32);
+  --sr-milestone-4-num: #92400E;
+  --sr-milestone-4-date: #B45309;
+  --sr-milestone-4-check: #B45309;
+
+  /* Statistics map rank pins — same values as :root by design (light basemap) */
+  --sr-rank-pin-circle: #277448;
+  --sr-rank-pin-square: #1D4ED8;
 }
 
 /* Nearest-unvisited hotspot rows (Map Explorer hotspots sidebar) */
@@ -303,7 +412,9 @@
   background: none; border: 0; padding: 0; margin: 0; cursor: pointer; text-decoration: none;
   text-align: left;
 }
-.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; outline: none; }
+/* No outline override here: the global button:focus-visible ring must apply on
+   keyboard focus (the old `outline: none` left only color+underline — F103). */
+.sr-birdname-link:hover, .sr-birdname-link:focus-visible { color: var(--sr-accent); text-decoration: underline; }
 .sr-birdname-text { font-weight: 500; color: var(--sr-text); }
 .sr-birdname-sci { font-style: italic; color: var(--sr-text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sr-birdname-md .sr-birdname-link, .sr-birdname-md .sr-birdname-text { font-size: 0.84375rem; }
@@ -395,6 +506,15 @@ h1, h2, h3, h4, h5, h6 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+}
+
+/* List Comparer results panels (ResultsView) — 3-up on desktop, stacked under
+   640px (inline grid styles can't be overridden by a media query, so the grid
+   definition lives here). */
+.sr-compare-panels {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
 }
 
 .sr-map-container {
@@ -562,6 +682,25 @@ select:focus-visible {
   box-shadow: 0 0 0 4px rgba(45, 134, 83, 0.12);
 }
 
+/* Skip link — visually hidden until keyboard-focused, then pinned top-left
+   above every overlay (maps/dropdowns sit at 1200). */
+.sr-skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: 1300;
+  padding: 10px 16px;
+  background: var(--sr-accent);
+  color: var(--sr-on-accent);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+.sr-skip-link:focus {
+  top: 16px;
+}
+
 /* ── MapLibre popups — theme to the app surface (default chrome is hardcoded white,
    which is a visible bug in dark mode). The content box + the little anchor tip both
    need the surface color; the tip is a CSS triangle whose facing border carries it. */
@@ -572,8 +711,18 @@ select:focus-visible {
   border-radius: 10px;
   box-shadow: var(--sr-card-shadow);
   padding: 12px 14px;
+  /* rem-size the popup text so it tracks the Text Size control — maplibre-gl.css
+     pins .maplibregl-map to a fixed 12px Helvetica otherwise (F028) */
+  font-size: 0.8125rem;
+  font-family: var(--font-sans);
 }
-.maplibregl-popup-close-button { color: var(--sr-text-muted); }
+.maplibregl-popup-close-button {
+  color: var(--sr-text-muted);
+  font-size: 1rem;
+  padding: 2px 8px;
+}
+/* Attribution credits also inherit maplibre's fixed 12px — rem-size them */
+.maplibregl-ctrl-attrib { font-size: 0.6875rem; }
 .maplibregl-popup-anchor-top .maplibregl-popup-tip,
 .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
 .maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--sr-surface); }
@@ -599,9 +748,15 @@ select:focus-visible {
   .sr-panel  { padding-top: 20px !important; padding-bottom: 16px !important; }
   .sr-card   { padding: 20px !important; }
   .sr-two-col { grid-template-columns: 1fr; }
+  .sr-compare-panels { grid-template-columns: 1fr; }
   .sr-map-container { height: 300px; }
   .sr-media-grid { grid-template-columns: 1fr; }
   .sr-media-iframe { height: 360px; }
+
+  /* Help overlay: stack the TOC above the content (the row is laid out with
+     inline styles in HelpDocs.tsx, hence the !important overrides) */
+  .sr-help-row { flex-direction: column !important; gap: 0 !important; }
+  .sr-help-toc { width: 100% !important; position: static !important; max-height: none !important; }
 
   .sr-map-sidebar-overlay {
     position: absolute;

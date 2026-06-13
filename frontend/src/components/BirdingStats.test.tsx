@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest'
-import { act, render, screen, cleanup, waitFor } from '@testing-library/react'
+import { act, render, screen, cleanup, waitFor, within } from '@testing-library/react'
 import type { ObservationEntry } from '../types'
 
 // ── Deterministic rAF / rIC control ───────────────────────────────────────────
@@ -47,19 +47,19 @@ const FIXTURE_OBS: ObservationEntry[] = [
     submissionId: 'S1', commonName: 'American Robin', scientificName: 'Turdus migratorius',
     date: '2023-01-10', location: 'Park', locationId: 'L1', latitude: 44.9, longitude: -93.1,
     county: 'Hennepin', count: 2, breedingCode: null, speciesComments: '', catalogIds: [],
-    stateProvince: 'US-MN', duration: 30, distance: 1, protocol: 'Traveling',
+    stateProvince: 'US-MN', duration: 30, distance: 1, protocol: 'Traveling', numObservers: 1,
   },
   {
     submissionId: 'S2', commonName: 'Blue Jay', scientificName: 'Cyanocitta cristata',
     date: '2023-02-15', location: 'Woods', locationId: 'L2', latitude: 45.0, longitude: -93.2,
     county: 'Ramsey', count: 1, breedingCode: null, speciesComments: '', catalogIds: [],
-    stateProvince: 'US-MN', duration: 45, distance: 2, protocol: 'Traveling',
+    stateProvince: 'US-MN', duration: 45, distance: 2, protocol: 'Traveling', numObservers: 2,
   },
   {
     submissionId: 'S3', commonName: 'Northern Cardinal', scientificName: 'Cardinalis cardinalis',
     date: '2023-03-20', location: 'Yard', locationId: 'L3', latitude: 45.1, longitude: -93.3,
     county: 'Hennepin', count: 3, breedingCode: null, speciesComments: '', catalogIds: [],
-    stateProvince: 'US-MN', duration: 15, distance: 0.5, protocol: 'Stationary',
+    stateProvince: 'US-MN', duration: 15, distance: 0.5, protocol: 'Stationary', numObservers: 3,
   },
 ]
 
@@ -213,5 +213,68 @@ describe('BirdingStats progressive render', () => {
     // Now fire the idle callback → the map mounts.
     await act(async () => { flushIdle() })
     expect(screen.getByTestId('snowmap-stub')).toBeTruthy()
+  })
+})
+
+// Render the full computed tree (both rAFs flushed) so section content is present.
+async function renderComputed() {
+  const utils = await renderAndLoad()
+  await act(async () => { flushRaf() })
+  await act(async () => { flushRaf() })
+  return utils
+}
+
+describe('BirdingStats accessibility', () => {
+  // F008: segmented filter/view controls must expose their selected state.
+  it('exposes aria-pressed on the accumulation-granularity segmented control', async () => {
+    await renderComputed()
+    const group = screen.getByRole('group', { name: 'Accumulation granularity' })
+    expect(group).toBeTruthy()
+    // The default granularity is "total" → its button is pressed, the rest not.
+    const total = within(group).getByRole('button', { name: 'Total' })
+    expect(total.getAttribute('aria-pressed')).toBe('true')
+    const monthly = within(group).getByRole('button', { name: 'Monthly' })
+    expect(monthly.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  // F033/F064/F078: the bare "↗" checklist links must carry a descriptive
+  // accessible name (incl. the new-tab indication), with the glyph aria-hidden.
+  it('names the ↗ checklist links and hides the glyph from AT', async () => {
+    const { container } = await renderComputed()
+    // The effort "Notable outings" cards render ↗ links (fixture has duration/
+    // distance), each with an aria-label about opening a checklist on eBird.
+    const named = screen.getAllByRole('link', { name: /open .*checklist .* on ebird \(opens in a new tab\)/i })
+    expect(named.length).toBeGreaterThan(0)
+    // No link's accessible name is the bare arrow glyph, and the glyph carries
+    // aria-hidden so it isn't double-announced.
+    const arrowSpans = Array.from(container.querySelectorAll('a > span')).filter(s => s.textContent === '↗')
+    expect(arrowSpans.length).toBeGreaterThan(0)
+    for (const s of arrowSpans) expect(s.getAttribute('aria-hidden')).toBe('true')
+  })
+
+  // F029: jump-nav targets carry tabindex="-1" so focus can move to them.
+  it('gives each Statistics section card tabindex="-1" so jump links can focus it', async () => {
+    await renderComputed()
+    const heading = screen.getByRole('heading', { name: 'Geographic Stats' })
+    // SectionCard root is the element with the section id; walk up to it.
+    const card = heading.closest('[id]') as HTMLElement
+    expect(card).toBeTruthy()
+    expect(card.getAttribute('tabindex')).toBe('-1')
+  })
+
+  // F002: the decorative observer donut must not leave a focusable SVG inside its
+  // aria-hidden wrapper. recharts' accessibility SVG carries role="application";
+  // with accessibilityLayer={false} none should exist under the hidden wrapper.
+  it('has no role="application" focus ghost inside an aria-hidden chart wrapper', async () => {
+    const { container } = await renderComputed()
+    const hidden = Array.from(container.querySelectorAll('[aria-hidden="true"]'))
+    // The fixture has per-checklist observer counts, so the decorative observer
+    // donut renders inside an aria-hidden wrapper that itself contains an <svg>.
+    const wrapperWithChart = hidden.find(n => n.querySelector('svg'))
+    expect(wrapperWithChart).toBeTruthy()
+    for (const node of hidden) {
+      expect(node.querySelector('[role="application"]')).toBeNull()
+      expect(node.querySelector('svg[tabindex="0"]')).toBeNull()
+    }
   })
 })

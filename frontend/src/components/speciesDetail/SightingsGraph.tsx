@@ -69,13 +69,13 @@ export function SightingsGraph({ data, interval, viewMode, hasML }: {
   const xAxisProps = {
     dataKey: 'key' as const,
     tickFormatter: (k: string) => formatPeriodLabel(k, interval),
-    tick: { fontSize: '0.6875rem', fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
+    tick: { fontSize: '0.6875rem', fill: 'var(--sr-text-muted)', fontFamily: 'inherit' },
     tickLine: false as const,
     axisLine: false as const,
     interval: 'preserveStartEnd' as const,
   }
   const yAxisProps = {
-    tick: { fontSize: '0.6875rem', fill: 'var(--sr-text-disabled)', fontFamily: 'inherit' },
+    tick: { fontSize: '0.6875rem', fill: 'var(--sr-text-muted)', fontFamily: 'inherit' },
     tickLine: false as const,
     axisLine: false as const,
     allowDecimals: false as const,
@@ -150,25 +150,28 @@ export function SightingsGraph({ data, interval, viewMode, hasML }: {
                   cursor={{ stroke: 'var(--sr-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
                 />
                 <Legend
-                  iconType="circle"
-                  iconSize={7}
+                  iconSize={9}
                   wrapperStyle={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', paddingTop: 8 }}
                 />
+                {/* Series differ by dash pattern + legend icon shape, not hue
+                    alone (color-blind safe — F071). */}
                 <Line
-                  type="monotone" dataKey="photo" name="Photo"
+                  type="monotone" dataKey="photo" name="Photo" legendType="circle"
                   stroke="var(--sr-graph-photo)" strokeWidth={1.8} opacity={0.85}
                   dot={{ r: 2.5, fill: 'var(--sr-graph-photo)', stroke: 'white', strokeWidth: 1.5 }}
                   activeDot={{ r: 3.5 }}
                 />
                 <Line
-                  type="monotone" dataKey="audio" name="Audio"
+                  type="monotone" dataKey="audio" name="Audio" legendType="triangle"
                   stroke="var(--sr-graph-audio)" strokeWidth={1.8} opacity={0.85}
+                  strokeDasharray="6 3"
                   dot={{ r: 2.5, fill: 'var(--sr-graph-audio)', stroke: 'white', strokeWidth: 1.5 }}
                   activeDot={{ r: 3.5 }}
                 />
                 <Line
-                  type="monotone" dataKey="video" name="Video"
+                  type="monotone" dataKey="video" name="Video" legendType="rect"
                   stroke="var(--sr-graph-video)" strokeWidth={1.8} opacity={0.85}
+                  strokeDasharray="2 3"
                   dot={{ r: 2.5, fill: 'var(--sr-graph-video)', stroke: 'white', strokeWidth: 1.5 }}
                   activeDot={{ r: 3.5 }}
                 />

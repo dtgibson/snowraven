@@ -102,13 +102,14 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
         </div>
       </div>
 
-      {/* Stats bar */}
+      {/* Stats bar — auto-fit so cells wrap rather than ellipsizing the labels
+          to identical strings at narrow widths / large text (F052). */}
       <div
         role="region"
         aria-label="Comparison summary"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(5, 1fr)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(7rem, 1fr))',
           border: '1px solid var(--sr-border)',
           borderRadius: 10,
           overflow: 'hidden',
@@ -123,12 +124,8 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
         <Stat value={result.bOnly.length} label={`${nameB} only`} isLast />
       </div>
 
-      {/* Panels */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: 12,
-      }}>
+      {/* Panels — 3-up on desktop, stacking under 640px (F052). */}
+      <div className="sr-compare-panels">
         <SpeciesPanel title="In Both" species={displayBoth} taxonMap={taxonMap} hasEntry={listAIsMine} onOpenSpecies={onOpenSpecies} />
         <SpeciesPanel title={`${nameA} only`} species={displayAOnly} taxonMap={taxonMap} hasEntry={listAIsMine} onOpenSpecies={onOpenSpecies} />
         <SpeciesPanel title={`${nameB} only`} species={displayBOnly} taxonMap={taxonMap} hasEntry={false} onOpenSpecies={onOpenSpecies} />

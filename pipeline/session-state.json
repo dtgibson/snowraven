@@ -1,15 +1,15 @@
 {
   "activeFeature": null,
-  "sessionNumber": 26,
-  "sessionType": "maintain",
-  "currentStage": 1,
+  "sessionNumber": 27,
+  "sessionType": null,
+  "currentStage": null,
   "lastCompletedStage": 6,
-  "lastCheckpointStatus": "complete",
+  "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.30",
-  "lastFeature": "idle-flake-and-doc-rot COMPLETE (improve lane, NO release — tests and records only, rides main until the next release). (A) Both remaining test-suite failure classes fixed test-only: (A1) commit-vs-effect race — waitFor could resolve on the phase-ready DOM commit before the passive double-rAF effect queued into the stubbed rafQueue; fixed with an observable stub-queue precondition in renderAndLoad() (BirdingStats.test.tsx). (A2) inter-environment timer leak — recharts/toolkit 100 ms fallback timers from jsdom chart files firing after environment teardown; fixed with 120 ms afterAll wait-outs (BirdingStats + MediaStatsSections tests). Proven: 45/45 post-fix stress runs vs pre-fix negative control failing at run 12 with the documented class. (B) 0.5.29 'flake FIXED' overclaim narrowed to the cancelAnimationFrame mechanism in DECISIONS/CHANGELOG/ROADMAP; CHANGELOG gained [Unreleased]. (C) PRODUCT_CONTEXT doc-rot cleared: 17 pre-MapLibre passages rewritten/annotated per file conventions + 6 factual drifts corrected; leaflet grep all-historical. New CLAUDE.md conventions: stub-queue precondition pattern, chart-file afterAll wait-outs, and the standing boundary — this repo's pipeline tracks SnowRaven ONLY (outside projects like snowraven-mini live in their own repos/Weft sessions). QA 6/6 fact-checks; security clean. 774 frontend + 110 backend green.",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; accessibility/clarity/simplification; Windows code signing. Minor: stale 'Leaflet panes' comment in TabNav.tsx:281-282 (one-line touch-up, future lane).",
-  "createdAt": "2026-06-11T19:18:30Z",
-  "updatedAt": "2026-06-11T20:55:05Z"
+  "lastFeature": "accessibility-pass COMPLETE (improve lane, v0.5.31 STAGED on main, NOT YET RELEASED — rides main until Dave pushes + the Mac runs release.sh). Comprehensive WCAG 2.1 AA pass: a multi-phase audit (107 confirmed findings vs 288 verified passes) then a full fix wave. Shipped: accessible names on every filter/date/search control; a typed --sr-* contrast retune in BOTH themes (--sr-tier-N-fg / -text, --sr-map-target-*-text, --sr-border-input, --sr-milestone-*, --sr-rank-pin-*, --sr-on-chart-blue-dark); rebuilt mobile-filter focus trap with single-close-path focus restore; DOM map markers as real <button>s (neutralizeMarkerWrapper); Settings keyboard tab-reorder; skip link + landmarks + headings; alert/status live regions; SegControl aria-pressed; atlas-block keyboard route (self-contained 'Atlas blocks in view' disclosure in AtlasLayer); shared ChecklistLink (3 sites). ACCESSIBILITY.md rewritten true; CHANGELOG/version 0.5.31; records updated. Verification loop caught + fixed two false published claims (in-bar chart-label contrast 4.05:1 dark via theme-aware token; mobile-filter Close/backdrop skipped focus restore) and an info-level unvalidated hotspot locId. Final: frontend 857/857, backend 110/110, tsc clean, prod build clean, security clean (no Critical/High). Deferred (documented Known Exceptions): finish ChecklistLink adoption app-wide (F064), opens-in-new-tab sweep on all links (F078), Southern-Hemisphere moon-phase emoji needs lat at display layer (F082/F106).",
+  "remainingBacklog": "RELEASE (Dave): commit → push main → push v0.5.31 tag (starts Windows CI) → Mac release.sh after CI. ROADMAP Up Next: mobile app; Windows code signing. Small a11y follow-up lane available for the 3 deferred Known Exceptions. Minor: stale 'Leaflet panes' comment in TabNav.tsx:281-282.",
+  "createdAt": "2026-06-11T21:10:00Z",
+  "updatedAt": "2026-06-13T06:26:00Z"
 }

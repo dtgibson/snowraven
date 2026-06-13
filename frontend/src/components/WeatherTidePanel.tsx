@@ -13,6 +13,7 @@ import { formatObsDate } from '../lib/compareChecklists'
 import { copyText } from '../lib/clipboard'
 import { buildCombined } from '../lib/tideFormatter'
 import { tideTooFarNotice, tideOverrideLabel } from '../lib/tideNotice'
+import { ChecklistLink } from './ChecklistLink'
 
 // ── Per-side state (owned by WeatherTideSection; the panel is a view over it) ──
 
@@ -105,11 +106,7 @@ function IdentityHeader({ badge, id, meta }: { badge: 'A' | 'B'; id: string; met
         </span>
         <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {date && <>{date} · </>}
-          <a href={`https://ebird.org/checklist/${id}`} target="_blank" rel="noreferrer"
-            title="View this checklist on eBird"
-            style={{ color: 'var(--sr-accent)', textDecoration: 'underline' }}>
-            {id}
-          </a>
+          <ChecklistLink submissionId={id} />
         </span>
       </span>
     </div>

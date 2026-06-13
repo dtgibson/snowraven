@@ -147,9 +147,9 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
       alignItems: 'center',
     }}>
       <div style={{ width: '100%', maxWidth: 880, marginBottom: 24, display: 'flex', justifyContent: 'center' }}>
-        <div role="tablist" aria-label="Comparison mode" style={{ display: 'inline-flex', borderRadius: 8, border: '1.5px solid var(--sr-border)', overflow: 'hidden' }}>
+        <div role="group" aria-label="Comparison mode" style={{ display: 'inline-flex', borderRadius: 8, border: '1.5px solid var(--sr-border)', overflow: 'hidden' }}>
           {([['lists', 'Life Lists'], ['checklists', 'Checklists']] as const).map(([m, label], i) => (
-            <button tabIndex={0} key={m} role="tab" aria-selected={mode === m}
+            <button tabIndex={0} key={m} aria-pressed={mode === m}
               onClick={() => setMode(m)}
               style={{
                 height: 36, padding: '0 20px', fontSize: '0.8125rem',
@@ -200,11 +200,11 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
             <div style={{ marginBottom: 16 }}>
               <div style={{
                 fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase' as const,
-                letterSpacing: '0.07em', color: 'var(--sr-text-disabled)', marginBottom: 8,
+                letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 8,
               }}>
                 List A
               </div>
-              <div style={{
+              <div role="group" aria-label="List A source" style={{
                 display: 'inline-flex',
                 borderRadius: 7,
                 border: '1.5px solid var(--sr-border)',
@@ -213,6 +213,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
                 {(['my-list', 'upload'] as const).map((mode, i) => (
                   <button tabIndex={0}
                     key={mode}
+                    aria-pressed={listAMode === mode}
                     onClick={() => setListAMode(mode)}
                     style={{
                       height: 32, padding: '0 14px',
@@ -255,7 +256,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
                 </span>
                 <FileCheck size={28} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
                 <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-accent)' }}>My List</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--sr-accent-border-strong)' }}>Loaded from Settings</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--sr-accent)' }}>Loaded from Settings</span>
               </div>
             ) : (
               <DropZone
@@ -274,7 +275,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
           </div>
 
           {errorA && listAMode === 'my-list' && (
-            <p style={{ fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 12, margin: '0 0 12px' }}>
+            <p role="alert" style={{ fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 12, margin: '0 0 12px' }}>
               {errorA}
             </p>
           )}

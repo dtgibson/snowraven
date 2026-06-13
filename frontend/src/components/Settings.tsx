@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation } from 'lucide-react'
+import { BookOpen, ChevronDown, ChevronUp, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference, persistThemePreference, clearThemePreference, hydrateStoredTheme } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
@@ -16,6 +16,68 @@ import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
 
 type ConsentState = 'idle' | 'pending'
+
+// ---- Accessible radio group (APG pattern) ----
+//
+// role="radiogroup" with role="radio" buttons, roving tabindex, and
+// Arrow/Home/End key navigation that moves the checked option — what a screen
+// reader announces ("radio, 1 of N — use arrow keys") then actually works, and
+// only the checked radio is a Tab stop. Generic over the option key type.
+interface RadioOption<T extends string | number> {
+  key: T
+  /** Accessible name for the radio (falls back to the rendered children). */
+  ariaLabel?: string
+  style: React.CSSProperties
+  children: React.ReactNode
+}
+
+function RadioGroup<T extends string | number>({
+  label, value, options, onChange,
+}: {
+  label: string
+  value: T
+  options: RadioOption<T>[]
+  onChange: (key: T) => void
+}) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const idx = options.findIndex(o => o.key === value)
+    if (idx < 0) return
+    let next = idx
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (idx + 1) % options.length
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (idx - 1 + options.length) % options.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = options.length - 1
+    else return
+    e.preventDefault()
+    const nextKey = options[next].key
+    if (nextKey !== value) onChange(nextKey)
+    // Move focus to the newly checked radio (roving tabindex).
+    const group = e.currentTarget
+    const radios = group.querySelectorAll<HTMLButtonElement>('[role="radio"]')
+    radios[next]?.focus()
+  }
+
+  return (
+    <div role="radiogroup" aria-label={label} style={{ display: 'flex', gap: 6 }} onKeyDown={handleKeyDown}>
+      {options.map(o => {
+        const checked = o.key === value
+        return (
+          <button
+            key={o.key}
+            role="radio"
+            aria-checked={checked}
+            aria-label={o.ariaLabel}
+            tabIndex={checked ? 0 : -1}
+            style={o.style}
+            onClick={() => onChange(o.key)}
+          >
+            {o.children}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 // uploadedAt is a true UTC instant (Date.toISOString); render it in the user's
 // LOCAL time. We build a local Date and hand it to the canonical formatter — the
@@ -116,19 +178,16 @@ function AppearanceRow() {
         <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 10 }}>
           Color scheme
         </div>
-        <div role="radiogroup" aria-label="Color theme" style={{ display: 'flex', gap: 6 }}>
-          {options.map(({ key, label }) => (
-            <button tabIndex={0}
-              key={key}
-              role="radio"
-              aria-checked={preference === key}
-              style={toggleBtnStyle(key)}
-              onClick={() => selectTheme(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <RadioGroup
+          label="Color theme"
+          value={preference}
+          onChange={selectTheme}
+          options={options.map(({ key, label }) => ({
+            key,
+            style: toggleBtnStyle(key),
+            children: label,
+          }))}
+        />
       </div>
 
       {consentState === 'pending' && (
@@ -232,12 +291,12 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
                 fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)',
                 maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }} title={info.filename}>{info.filename}</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
                 · Saved {formatUploadDate(info.uploadedAt)}
               </span>
             </div>
           ) : (
-            <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-disabled)', marginTop: 2 }}>{sublabel}</div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sublabel}</div>
           )}
         </div>
 
@@ -247,7 +306,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
               display: 'inline-flex', alignItems: 'center',
               height: 24, padding: '0 10px',
               background: 'var(--sr-surface-subtle)', borderRadius: 12,
-              fontSize: '0.6875rem', fontWeight: 500, color: 'var(--sr-text-disabled)',
+              fontSize: '0.6875rem', fontWeight: 500, color: 'var(--sr-text-muted)',
             }}>
               No file saved
             </div>
@@ -298,7 +357,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
       </div>
 
       {error && (
-        <div style={{
+        <div role="alert" style={{
           margin: '0 16px 10px',
           padding: '7px 11px',
           background: 'var(--sr-error-bg)', borderRadius: 6,
@@ -336,6 +395,16 @@ function KeyRow({
   onToggleVisible, onStartEdit, onCancelEdit, onInputChange, onSave, onDelete,
 }: KeyRowProps) {
   const isSet = value !== null
+  const startEditRef = useRef<HTMLButtonElement>(null)
+  const wasEditingRef = useRef(editing)
+
+  // When the editor closes (Save or Cancel), the focused Save/Cancel button
+  // unmounts. Move focus to the Update/Add-key button that replaces it so it
+  // doesn't fall to <body> (F036).
+  useEffect(() => {
+    if (wasEditingRef.current && !editing) startEditRef.current?.focus()
+    wasEditingRef.current = editing
+  }, [editing])
 
   return (
     <div>
@@ -373,7 +442,7 @@ function KeyRow({
                 </button>
               </div>
             ) : (
-              <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-disabled)', marginTop: 2 }}>{sublabel}</div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sublabel}</div>
             )
           )}
         </div>
@@ -385,12 +454,13 @@ function KeyRow({
                 display: 'inline-flex', alignItems: 'center',
                 height: 24, padding: '0 10px',
                 background: 'var(--sr-surface-subtle)', borderRadius: 12,
-                fontSize: '0.6875rem', fontWeight: 500, color: 'var(--sr-text-disabled)',
+                fontSize: '0.6875rem', fontWeight: 500, color: 'var(--sr-text-muted)',
               }}>
                 No key saved
               </div>
             )}
             <button tabIndex={0}
+              ref={startEditRef}
               onClick={onStartEdit}
               style={{
                 height: 32, padding: '0 12px',
@@ -426,13 +496,13 @@ function KeyRow({
             value={input}
             onChange={e => onInputChange(e.target.value)}
             placeholder={isSet ? 'Enter new key to replace' : 'Paste your API key'}
+            aria-label={`${label} value`}
             autoFocus
             style={{
               flex: 1, height: 32, padding: '0 10px',
               border: '1.5px solid var(--sr-border)', borderRadius: 6,
               fontSize: '0.8125rem', fontFamily: 'monospace', color: 'var(--sr-text)',
               background: 'var(--sr-surface)',
-              outline: 'none',
             }}
             onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
             onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
@@ -474,7 +544,7 @@ function KeyRow({
       )}
 
       {error && (
-        <div style={{
+        <div role="alert" style={{
           margin: '0 16px 10px',
           padding: '7px 11px',
           background: 'var(--sr-error-bg)', borderRadius: 6,
@@ -516,20 +586,17 @@ function TextSizeRow({ value, onChange }: { value: TextScale; onChange: (s: Text
       <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
         Scale text throughout the app (up to 200%). Also follows your device's text-size setting.
       </p>
-      <div role="radiogroup" aria-label="Text size" style={{ display: 'flex', gap: 6 }}>
-        {TEXT_SIZE_OPTIONS.map(({ scale, label }) => (
-          <button tabIndex={0}
-            key={scale}
-            role="radio"
-            aria-checked={value === scale}
-            aria-label={`Text size ${label}`}
-            style={btnStyle(scale)}
-            onClick={() => onChange(scale)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <RadioGroup
+        label="Text size"
+        value={value}
+        onChange={onChange}
+        options={TEXT_SIZE_OPTIONS.map(({ scale, label }) => ({
+          key: scale,
+          ariaLabel: `Text size ${label}`,
+          style: btnStyle(scale),
+          children: label,
+        }))}
+      />
     </div>
   )
 }
@@ -583,22 +650,24 @@ function DateFormatRow({ onDateFormatChange }: { onDateFormatChange?: () => void
       <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
         How dates are shown throughout the app.
       </p>
-      <div role="radiogroup" aria-label="Date format" style={{ display: 'flex', gap: 6 }}>
-        {DATE_FORMAT_OPTIONS.map(({ key, label }) => (
-          <button tabIndex={0}
-            key={key}
-            role="radio"
-            aria-checked={pref === key}
-            style={btnStyle(key)}
-            onClick={() => selectPref(key)}
-          >
-            <span style={{ display: 'block' }}>{label}</span>
-            <span style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 400, opacity: 0.85, marginTop: 1 }}>
-              {formatDate(today, { pref: key })}
-            </span>
-          </button>
-        ))}
-      </div>
+      <RadioGroup
+        label="Date format"
+        value={pref}
+        onChange={selectPref}
+        options={DATE_FORMAT_OPTIONS.map(({ key, label }) => ({
+          key,
+          ariaLabel: `${label} (${formatDate(today, { pref: key })})`,
+          style: btnStyle(key),
+          children: (
+            <>
+              <span style={{ display: 'block' }}>{label}</span>
+              <span style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 400, marginTop: 1 }}>
+                {formatDate(today, { pref: key })}
+              </span>
+            </>
+          ),
+        }))}
+      />
     </div>
   )
 }
@@ -634,11 +703,35 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const [showRestored, setShowRestored] = useState(false)
   const restoredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Announced to AT after a keyboard move; also keeps the moved row's button focused.
+  const [moveAnnounce, setMoveAnnounce] = useState('')
+  const moveBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({})
 
   const visibleCount = tabOrder.filter(t => !tabHidden.has(t)).length
 
   function handleDragStart(idx: number) {
     dragSrcRef.current = idx
+  }
+
+  // Keyboard alternative to drag-and-drop reorder. dir -1 = up, +1 = down.
+  function handleMove(idx: number, dir: -1 | 1) {
+    const target = idx + dir
+    if (target < 0 || target >= tabOrder.length) return
+    const moved = tabOrder[idx]
+    const next = [...tabOrder]
+    next.splice(idx, 1)
+    next.splice(target, 0, moved)
+    onReorder(next)
+    setMoveAnnounce(`${TAB_LABELS[moved]} moved to position ${target + 1} of ${tabOrder.length}`)
+    // Keep focus on the moved row after the list re-renders. If the move button
+    // for this direction becomes disabled at an edge, fall back to the opposite
+    // direction's button so focus stays on the same row.
+    requestAnimationFrame(() => {
+      const same = moveBtnRefs.current[`${moved}-${dir}`]
+      const opposite = moveBtnRefs.current[`${moved}-${(-dir) as -1 | 1}`]
+      const btn = same && !same.disabled ? same : opposite
+      btn?.focus()
+    })
   }
 
   function handleDragOver(e: React.DragEvent, idx: number) {
@@ -673,6 +766,15 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
   const isDefault =
     tabOrder.every((t, i) => t === DEFAULT_TAB_ORDER[i]) && tabHidden.size === 0
 
+  const moveBtnStyle = (disabled: boolean): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 28, height: 28,
+    border: 'none', borderRadius: 6, background: 'transparent',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    color: disabled ? 'var(--sr-border)' : 'var(--sr-text-muted)',
+    flexShrink: 0,
+  })
+
   const rowStyle = (idx: number, hidden: boolean): React.CSSProperties => ({
     display: 'flex',
     alignItems: 'center',
@@ -696,10 +798,10 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
         <div style={{ flex: 1, height: 1, background: 'var(--sr-border)' }} />
       </div>
 
-      <p className="sr-only">Note: reordering tabs requires a mouse or touch device. Keyboard reordering is not supported in this version.</p>
+      <p aria-live="polite" className="sr-only">{moveAnnounce}</p>
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
         <p style={{ padding: '11px 16px', fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5, borderBottom: '1px solid var(--sr-border-subtle)' }}>
-          Drag to reorder. Use the eye icon to show or hide individual tabs.
+          Drag a row, or use the Move up / Move down buttons, to reorder. Use the eye icon to show or hide individual tabs.
         </p>
 
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -717,9 +819,9 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                 onDragLeave={() => setDragOverIdx(null)}
                 style={rowStyle(idx, hidden)}
               >
-                {/* Drag handle */}
+                {/* Drag handle (decorative — keyboard users use the Move buttons) */}
                 <div
-                  aria-label={`Drag to reorder ${TAB_LABELS[tab]} tab`}
+                  aria-hidden="true"
                   style={{ cursor: 'grab', color: 'var(--sr-text-disabled)', display: 'flex', alignItems: 'center', flexShrink: 0 }}
                 >
                   <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -730,16 +832,40 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                 </div>
 
                 {/* Tab name */}
-                <span style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: hidden ? 'var(--sr-text-disabled)' : 'var(--sr-text)' }}>
+                <span style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: hidden ? 'var(--sr-text-muted)' : 'var(--sr-text)' }}>
                   {TAB_LABELS[tab]}
                 </span>
 
                 {/* Hidden badge */}
                 {hidden && (
-                  <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--sr-text-disabled)', letterSpacing: '0.02em' }}>
+                  <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--sr-text-muted)', letterSpacing: '0.02em' }}>
                     hidden
                   </span>
                 )}
+
+                {/* Move up / down — keyboard reorder alternative to drag-and-drop */}
+                <button tabIndex={0}
+                  ref={el => { moveBtnRefs.current[`${tab}--1`] = el }}
+                  aria-label={`Move ${TAB_LABELS[tab]} tab up`}
+                  disabled={idx === 0}
+                  onClick={() => handleMove(idx, -1)}
+                  style={moveBtnStyle(idx === 0)}
+                  onMouseEnter={e => { if (idx !== 0) { e.currentTarget.style.background = 'var(--sr-surface-subtle)'; e.currentTarget.style.color = 'var(--sr-text)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = idx === 0 ? 'var(--sr-border)' : 'var(--sr-text-muted)' }}
+                >
+                  <ChevronUp size={15} />
+                </button>
+                <button tabIndex={0}
+                  ref={el => { moveBtnRefs.current[`${tab}-1`] = el }}
+                  aria-label={`Move ${TAB_LABELS[tab]} tab down`}
+                  disabled={idx === tabOrder.length - 1}
+                  onClick={() => handleMove(idx, 1)}
+                  style={moveBtnStyle(idx === tabOrder.length - 1)}
+                  onMouseEnter={e => { if (idx !== tabOrder.length - 1) { e.currentTarget.style.background = 'var(--sr-surface-subtle)'; e.currentTarget.style.color = 'var(--sr-text)' } }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = idx === tabOrder.length - 1 ? 'var(--sr-border)' : 'var(--sr-text-muted)' }}
+                >
+                  <ChevronDown size={15} />
+                </button>
 
                 {/* Eye toggle */}
                 <button tabIndex={0}
@@ -775,7 +901,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
             </svg>
           </div>
           <span style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text-muted)' }}>Settings</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.6875rem', color: 'var(--sr-text-disabled)' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>
             <Lock size={11} />
             always last
           </span>
@@ -892,6 +1018,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
   const [mapLocating, setMapLocating] = useState(false)
   const [mapLocError, setMapLocError] = useState('')
   const [mapDefaultsStatus, setMapDefaultsStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [mapDefaultsErrorMsg, setMapDefaultsErrorMsg] = useState('Check your values and try again.')
   const [mapDefaultsHasSaved, setMapDefaultsHasSaved] = useState(false)
   const savedChipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1009,9 +1136,9 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
     const lat = parseFloat(mapLat)
     const lng = parseFloat(mapLng)
     const dist = parseInt(mapDist, 10)
-    if (isNaN(lat) || lat < -90 || lat > 90) { setMapDefaultsStatus('error'); return }
-    if (isNaN(lng) || lng < -180 || lng > 180) { setMapDefaultsStatus('error'); return }
-    if (isNaN(dist) || dist <= 0) { setMapDefaultsStatus('error'); return }
+    if (isNaN(lat) || lat < -90 || lat > 90) { setMapDefaultsErrorMsg('Latitude must be a number between -90 and 90.'); setMapDefaultsStatus('error'); return }
+    if (isNaN(lng) || lng < -180 || lng > 180) { setMapDefaultsErrorMsg('Longitude must be a number between -180 and 180.'); setMapDefaultsStatus('error'); return }
+    if (isNaN(dist) || dist <= 0) { setMapDefaultsErrorMsg('Radius must be a number greater than 0.'); setMapDefaultsStatus('error'); return }
     setMapDefaultsStatus('saving')
     try {
       await storage.setSetting('map-defaults', { lat, lng, dist })
@@ -1020,6 +1147,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
       setMapDefaultsStatus('saved')
       savedChipTimerRef.current = setTimeout(() => setMapDefaultsStatus('idle'), 2500)
     } catch {
+      setMapDefaultsErrorMsg('Could not save. Please try again.')
       setMapDefaultsStatus('error')
     }
   }
@@ -1140,7 +1268,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
         </div>
       </div>
 
-      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
+      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
         {isTauri()
           ? 'Keys are stored in this app\'s local data directory and take effect immediately — no restart needed.'
           : 'Keys are stored in the server\'s .env file and take effect immediately — no restart needed. They stay configured across app restarts.'}
@@ -1171,7 +1299,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
         </div>
       </div>
 
-      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
+      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
         {isTauri()
           ? 'Files are stored in this app\'s local data directory and load automatically when you open the relevant tab.'
           : 'Files are stored on this server and load automatically when you open the relevant tab.'}
@@ -1207,40 +1335,43 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
               : <Navigation size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />}
             {mapLocating ? 'Locating…' : 'Use my location'}
           </button>
-          {mapLocError && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 12 }}>{mapLocError}</div>}
+          {mapLocError && <div role="alert" style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 12 }}>{mapLocError}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: 8, marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Latitude</div>
+              <label htmlFor="sr-map-lat" style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Latitude</label>
               <input
+                id="sr-map-lat"
                 type="number"
                 placeholder="e.g. 37.8275"
                 value={mapLat}
                 onChange={e => setMapLat(e.target.value)}
-                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', boxSizing: 'border-box' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
               />
             </div>
             <div>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Longitude</div>
+              <label htmlFor="sr-map-lng" style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Longitude</label>
               <input
+                id="sr-map-lng"
                 type="number"
                 placeholder="e.g. -122.4238"
                 value={mapLng}
                 onChange={e => setMapLng(e.target.value)}
-                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', boxSizing: 'border-box' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
               />
             </div>
             <div>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Radius (mi)</div>
+              <label htmlFor="sr-map-radius" style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Radius (mi)</label>
               <input
+                id="sr-map-radius"
                 type="number"
                 placeholder="5"
                 value={mapDist}
                 onChange={e => setMapDist(e.target.value)}
-                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--sr-text)', background: 'var(--sr-surface)', boxSizing: 'border-box' }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'var(--sr-accent)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--sr-border)' }}
               />
@@ -1279,7 +1410,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
               <span style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', fontWeight: 500 }}>✓ Saved</span>
             )}
             {mapDefaultsStatus === 'error' && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--sr-error)' }}>Check your values and try again.</span>
+              <span role="alert" style={{ fontSize: '0.75rem', color: 'var(--sr-error)' }}>{mapDefaultsErrorMsg}</span>
             )}
           </div>
         </div>

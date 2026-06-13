@@ -19,9 +19,11 @@ export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
         href={`https://ebird.org/species/${speciesCode}`}
         target="_blank"
         rel="noreferrer"
-        aria-label={`View ${who}on eBird`}
+        aria-label={`View ${who}on eBird (opens in new tab)`}
         title={`View ${who}on eBird`}
-        style={{ opacity: 0.75, display: 'inline-flex', alignItems: 'center' }}
+        // padding + matching negative margin: a ≥24×24 hit target (WCAG 2.5.8,
+        // F098/F099) while the visible 14px favicon stays put in dense rows.
+        style={{ opacity: 0.75, display: 'inline-flex', alignItems: 'center', padding: 5, margin: -5 }}
         onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
         onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.75' }}
       >
@@ -44,9 +46,11 @@ export function SpeciesLinks({ speciesCode, commonName }: SpeciesLinksProps) {
         href={`https://birdsoftheworld.org/bow/species/${speciesCode}/cur/introduction`}
         target="_blank"
         rel="noreferrer"
-        aria-label={`View ${who}on Birds of the World`}
+        aria-label={`View ${who}on Birds of the World (opens in new tab)`}
         title={`View ${who}on Birds of the World`}
-        style={{ opacity: 0.75, display: 'inline-flex', alignItems: 'center' }}
+        // padding + matching negative margin: a ≥24×24 hit target (WCAG 2.5.8,
+        // F098/F099) while the visible 14px favicon stays put in dense rows.
+        style={{ opacity: 0.75, display: 'inline-flex', alignItems: 'center', padding: 5, margin: -5 }}
         onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
         onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.75' }}
       >

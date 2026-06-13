@@ -12,7 +12,7 @@ import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
-import { smoothScrollIntoView } from '../lib/scroll'
+import { jumpTo } from '../lib/scroll'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import type { MLExportRow } from '../lib/parseMLExport'
@@ -446,7 +446,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <a
             key={t}
             href={`#${sectionSlug(t)}`}
-            onClick={e => { e.preventDefault(); smoothScrollIntoView(document.getElementById(sectionSlug(t))) }}
+            onClick={e => { e.preventDefault(); jumpTo(document.getElementById(sectionSlug(t))) }}
             style={{ fontSize: '0.71875rem', fontWeight: 500, color: 'var(--sr-text-muted)', textDecoration: 'none', padding: '4px 10px', borderRadius: 100, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', whiteSpace: 'nowrap' }}
           >
             {t}
@@ -536,11 +536,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             <Divider />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <SubLabel>Life list accumulation</SubLabel>
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div role="group" aria-label="Accumulation granularity" style={{ display: 'flex', gap: 4 }}>
                 {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
-                  <button tabIndex={0}
+                  <button
                     key={g}
                     onClick={() => setAccGranularity(g)}
+                    aria-pressed={accGranularity === g}
                     style={{
                       height: 24, padding: '0 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 500,
                       fontFamily: 'inherit', cursor: 'pointer',
@@ -573,6 +574,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     />
                     <YAxis tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
                     <Tooltip
+                      trigger="click"
+                      wrapperStyle={{ pointerEvents: 'auto' }}
                       contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
                       formatter={(v, _n, props) => [
                         `#${typeof v === 'number' ? fmt(v) : String(v ?? '')}: ${(props?.payload as { species?: string })?.species ?? ''}`,
@@ -599,6 +602,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     />
                     <YAxis tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
                     <Tooltip
+                      trigger="click"
+                      wrapperStyle={{ pointerEvents: 'auto' }}
                       contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
                       formatter={(v) => [typeof v === 'number' ? fmt(v) : String(v ?? ''), 'Species']}
                       labelFormatter={key => formatPeriodLabel(String(key), deferredAccGranularity as PeriodGranularity)}
@@ -668,13 +673,16 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 const m = accumulation.milestones.get(threshold)
                 if (!m) return null
                 const tier = threshold < 100 ? 1 : threshold < 500 ? 2 : threshold < 1000 ? 3 : 4
-                const ts = tier === 1
-                  ? { bg: 'linear-gradient(160deg,#F2FAF5,#E8F5EE)', border: 'rgba(45,134,83,0.28)', num: '#2D8653', date: '#5EA07C', check: '#2D8653' }
-                  : tier === 2
-                  ? { bg: 'linear-gradient(160deg,#E5F3EC,#D8EDE4)', border: 'rgba(28,100,60,0.32)', num: '#1C6443', date: '#3E7A56', check: '#2D8653' }
-                  : tier === 3
-                  ? { bg: 'linear-gradient(160deg,#D6EAE0,#C6E2D5)', border: 'rgba(18,74,44,0.38)', num: '#14502E', date: '#2D6644', check: '#2D8653' }
-                  : { bg: 'linear-gradient(160deg,#FEFAEC,#FEF3C7)', border: 'rgba(146,64,14,0.32)', num: '#92400E', date: '#B45309', check: '#B45309' }
+                // Tokenized milestone palette (--sr-milestone-N-*): replaces the
+                // old hardcoded hexes (CLAUDE.md tokens-only rule); the failing
+                // date colors were darkened to ≥AA in globals.css.
+                const ts = {
+                  bg: `var(--sr-milestone-${tier}-bg)`,
+                  border: `var(--sr-milestone-${tier}-border)`,
+                  num: `var(--sr-milestone-${tier}-num)`,
+                  date: `var(--sr-milestone-${tier}-date)`,
+                  check: `var(--sr-milestone-${tier}-check)`,
+                }
                 return (
                   <div key={threshold} style={{
                     display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -762,9 +770,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     </Pie>
                   </PieChart>
                   {peakMonth && (
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 8px', pointerEvents: 'none' }}>
                       <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--sr-text-muted)', lineHeight: 1 }}>peak</span>
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1.3 }}>{peakMonth.label}</span>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1.3, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{peakMonth.label}</span>
                     </div>
                   )}
                 </div>
@@ -801,9 +809,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                           {dowPieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
                         </Pie>
                       </PieChart>
-                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+                      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 8px', pointerEvents: 'none' }}>
                         <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--sr-text-muted)', lineHeight: 1 }}>wkend</span>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1.3 }}>{weekendPct}%</span>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1.3, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{weekendPct}%</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -862,18 +870,21 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     {clPins.map(pin => (
                       <Marker key={`cl-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
                         onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.checklists)} checklists` }) }}>
-                        <RankIcon rank={pin.rank} shape="circle" />
+                        <RankIcon rank={pin.rank} shape="circle" label={`#${pin.rank} by checklists: ${pin.name}, ${fmt(pin.checklists)} checklists`} />
                       </Marker>
                     ))}
                     {spPins.map(pin => (
                       <Marker key={`sp-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
                         onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.species)} species` }) }}>
-                        <RankIcon rank={pin.rank} shape="square" />
+                        <RankIcon rank={pin.rank} shape="square" label={`#${pin.rank} by species: ${pin.name}, ${fmt(pin.species)} species`} />
                       </Marker>
                     ))}
+                    {/* closeButton enabled so the popup is keyboard-dismissable —
+                        maplibre renders a real <button aria-label="Close popup">
+                        (themed in globals.css); F044. */}
                     {geoPopup && (
-                      <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton={false}>
-                        <span style={{ fontSize: '0.8125rem' }}>{geoPopup.title}</span><br /><span style={{ color: '#71717A', fontSize: '0.75rem' }}>{geoPopup.sub}</span>
+                      <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton>
+                        <span style={{ fontSize: '0.8125rem' }}>{geoPopup.title}</span><br /><span style={{ color: 'var(--sr-text-muted)', fontSize: '0.75rem' }}>{geoPopup.sub}</span>
                       </Popup>
                     )}
                   </SnowMap>
@@ -885,11 +896,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               )}
               <div style={{ display: 'flex', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="#2D8653" /></svg>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="6" fill="var(--sr-rank-pin-circle)" /></svg>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>Top by checklists</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="2" fill="#3B82F6" /></svg>
+                  <svg width="14" height="14" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" rx="2" fill="var(--sr-rank-pin-square)" /></svg>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>Top by species</span>
                 </div>
               </div>
@@ -950,7 +961,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     ) : c.name
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span title={c.name} style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {label}
                         </span>
                         <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
@@ -981,7 +992,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     ) : c.name
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span title={c.name} style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {label}
                         </span>
                         <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
@@ -1025,7 +1036,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     const validSp = s.name && s.name.includes('-')
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
                           {validSp ? (
                             <a
                               href={`https://ebird.org/region/${s.name}`}
@@ -1054,7 +1065,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     const validSp = s.name && s.name.includes('-')
                     return (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 96, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
                           {validSp ? (
                             <a
                               href={`https://ebird.org/region/${s.name}`}
@@ -1122,7 +1133,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 10 }}>
                 <div style={{ width: `${completePct}%`, background: 'var(--sr-chart-blue-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   {completePct >= 8 && (
-                    <span style={{ fontSize: '0.6875rem', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{completePct}%</span>
+                    // Theme-aware on-fill token: white on the light-theme blue (#1D4ED8,
+                    // 6.70) and near-black on the lighter dark-theme blue (#3B82F6, 5.38).
+                    // on-accent was wrong here — its dark value (#052E16) is only 4.05:1
+                    // on #3B82F6, below AA for this 11px label. F032.
+                    <span style={{ fontSize: '0.6875rem', color: 'var(--sr-on-chart-blue-dark)', fontWeight: 600, whiteSpace: 'nowrap' }}>{completePct}%</span>
                   )}
                 </div>
                 <div style={{ flex: 1, background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -1141,20 +1156,18 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
                     {subBars.map(({ name, pc }) => {
                       const pct = Math.round((pc.complete / pc.total) * 100)
-                      const incompletePct = 100 - pct
                       return (
                         <div key={name}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{name}</span>
+                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{name} <span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{pct}%</span></span>
                             <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{fmt(pc.complete)} of {fmt(pc.total)} complete</span>
                           </div>
-                          <div style={{ height: 20, borderRadius: 3, overflow: 'hidden', display: 'flex' }}>
-                            <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                              {pct >= 10 && <span style={{ fontSize: '0.625rem', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{pct}%</span>}
-                            </div>
-                            <div style={{ flex: 1, background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                              {incompletePct >= 10 && <span style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{incompletePct}%</span>}
-                            </div>
+                          {/* % shown in the header above (surface text, AA in both themes)
+                              rather than inside the pale graph-photo fill, which can't
+                              carry AA-contrast text in either theme. F032. */}
+                          <div style={{ minHeight: 20, borderRadius: 3, overflow: 'hidden', display: 'flex' }} aria-hidden="true">
+                            <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)' }} />
+                            <div style={{ flex: 1, background: 'var(--sr-surface-subtle)' }} />
                           </div>
                         </div>
                       )
@@ -1170,17 +1183,15 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         {effort.protocolRows.length > 0 && (
           <>
             <SubLabel>Protocol distribution</SubLabel>
-            <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 10 }}>
+            {/* Per-segment % shown in the legend below (surface text, AA in both
+                themes) rather than inside the multi-hued segments — several
+                PROTOCOL_COLORS fills can't carry AA-contrast in-bar text. F032. */}
+            <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 10 }} aria-hidden="true">
               {effort.protocolRows.map((r, i) => (
                 <div key={r.name} style={{
                   width: `${r.pct}%`,
                   background: PROTOCOL_COLORS[i % PROTOCOL_COLORS.length],
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-                }}>
-                  {r.pct >= 8 && (
-                    <span style={{ fontSize: '0.6875rem', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{r.pct}%</span>
-                  )}
-                </div>
+                }} />
               ))}
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
@@ -1188,7 +1199,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <div style={{ width: 10, height: 10, borderRadius: 2, background: PROTOCOL_COLORS[i % PROTOCOL_COLORS.length], flexShrink: 0 }} />
                   <span style={{ fontSize: '0.75rem' }}>{r.name}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>({fmt(r.count)})</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{r.pct}% ({fmt(r.count)})</span>
                 </div>
               ))}
             </div>
@@ -1274,6 +1285,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         />
                         <YAxis tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
                         <Tooltip
+                          trigger="click"
+                          wrapperStyle={{ pointerEvents: 'auto' }}
                           contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
                           formatter={(v) => [fmt(Number(v)), 'Lists']}
                           labelFormatter={n => n === 5 ? '5+ observers' : `${n} observer${n === 1 ? '' : 's'}`}
@@ -1283,8 +1296,14 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     </ResponsiveContainer>
                   </div>
                   <div>
-                    <div aria-hidden="true">
-                      <PieChart width={120} height={120}>
+                    {/* Decorative donut (the observer breakdown is also the bar
+                        chart + legend beside it). `inert` removes the whole
+                        subtree from the tab order AND from AT — recharts ignores
+                        accessibilityLayer on PieChart and still renders a
+                        focusable root <svg>, so aria-hidden alone left an
+                        axe aria-hidden-focus ghost; inert kills it for good. */}
+                    <div aria-hidden="true" inert>
+                      <PieChart width={120} height={120} accessibilityLayer={false}>
                         <Pie data={effort.observerRows} dataKey="count" cx={60} cy={60} innerRadius={34} outerRadius={56} strokeWidth={0}>
                           {effort.observerRows.map((_, i) => (
                             <Cell key={i} fill={obsPieColors[i % obsPieColors.length]} />
@@ -1329,7 +1348,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>{fmtDate(card.c.date)}</span>
                     {SUBMISSION_ID_RE.test(card.c.submissionId) && (
-                      <a href={`https://ebird.org/checklist/${card.c.submissionId}`} target="_blank" rel="noreferrer" title="Open checklist" style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}>↗</a>
+                      <a
+                        href={`https://ebird.org/checklist/${card.c.submissionId}`}
+                        target="_blank" rel="noreferrer"
+                        aria-label={`Open ${card.label.toLowerCase()} checklist ${card.c.submissionId} on eBird (opens in a new tab)`}
+                        title="Open checklist"
+                        style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
+                      ><span aria-hidden="true">↗</span></a>
                     )}
                   </div>
                 </div>
@@ -1351,15 +1376,14 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
                 <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Count method</p>
-                <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{fmt(quality.numericCount)} numeric · {fmt(quality.xCount)} X / {fmt(total)} observations</span>
+                <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}><span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{numPct}%</span> numeric · <span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{xPct}%</span> X / {fmt(total)} observations</span>
               </div>
-              <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
-                <div style={{ width: `${numPct}%`, background: 'var(--sr-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {numPct >= 8 && <span style={{ fontSize: '0.75rem', color: 'var(--sr-on-accent)', fontWeight: 600 }}>{numPct}% numeric</span>}
-                </div>
-                <div style={{ flex: 1, background: 'var(--sr-chart-slate)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  {xPct >= 8 && <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)', fontWeight: 600 }}>{xPct}% X</span>}
-                </div>
+              {/* % moved to the header (surface text, AA in both themes); the X
+                  segment sits on the pale --sr-chart-slate fill, which can't carry
+                  AA-contrast in-bar text. F032. */}
+              <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex', marginBottom: 6 }} aria-hidden="true">
+                <div style={{ width: `${numPct}%`, background: 'var(--sr-accent)' }} />
+                <div style={{ flex: 1, background: 'var(--sr-chart-slate)' }} />
               </div>
             </>
           )
@@ -1370,42 +1394,44 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             <Divider />
             {quality.commentRatio !== null && (
               <div style={{ marginBottom: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
-                  <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Checklist comments</p>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{fmt(quality.checksWithComments)} of {fmt(checklists.length)} checklists</span>
-                </div>
                 {(() => {
                   const pct = Math.round(quality.commentRatio * 100)
                   return (
-                    <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {pct >= 8 && <span style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600 }}>{pct}%</span>}
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                        <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Checklist comments</p>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}><span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{pct}%</span> · {fmt(quality.checksWithComments)} of {fmt(checklists.length)} checklists</span>
                       </div>
-                      <div style={{ flex: 1, background: 'var(--sr-chart-blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {(100 - pct) >= 8 && <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)', fontWeight: 600 }}>{100 - pct}%</span>}
+                      {/* % shown in the header (surface text, AA both themes); neither
+                          the graph-photo nor the pale chart-blue-light segment can
+                          carry AA-contrast in-bar text. F032. */}
+                      <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex' }} aria-hidden="true">
+                        <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)' }} />
+                        <div style={{ flex: 1, background: 'var(--sr-chart-blue-light)' }} />
                       </div>
-                    </div>
+                    </>
                   )
                 })()}
               </div>
             )}
             {quality.speciesCommentRatio !== null && (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
-                  <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Species notes</p>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{fmt(quality.obsWithSpeciesComments)} of {fmt(filteredObs.length)} observations</span>
-                </div>
                 {(() => {
                   const pct = Math.round(quality.speciesCommentRatio * 100)
                   return (
-                    <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex' }}>
-                      <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {pct >= 8 && <span style={{ fontSize: '0.75rem', color: '#fff', fontWeight: 600 }}>{pct}%</span>}
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                        <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Species notes</p>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}><span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{pct}%</span> · {fmt(quality.obsWithSpeciesComments)} of {fmt(filteredObs.length)} observations</span>
                       </div>
-                      <div style={{ flex: 1, background: 'var(--sr-chart-blue-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {(100 - pct) >= 8 && <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)', fontWeight: 600 }}>{100 - pct}%</span>}
+                      {/* % shown in the header (surface text, AA both themes); neither
+                          the graph-photo nor the pale chart-blue-light segment can
+                          carry AA-contrast in-bar text. F032. */}
+                      <div style={{ height: 32, borderRadius: 4, overflow: 'hidden', display: 'flex' }} aria-hidden="true">
+                        <div style={{ width: `${pct}%`, background: 'var(--sr-graph-photo)' }} />
+                        <div style={{ flex: 1, background: 'var(--sr-chart-blue-light)' }} />
                       </div>
-                    </div>
+                    </>
                   )
                 })()}
               </div>
@@ -1561,7 +1587,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               }}>
                 <BirdName commonName={bird.name} taxonCode={codeFor(bird.name)} hasEntry={hasEntryFor(bird.name)} onOpenSpecies={onOpenSpecies} size="sm" />
                 {SUBMISSION_ID_RE.test(bird.submissionId) && (
-                  <a href={`https://ebird.org/checklist/${bird.submissionId}`} target="_blank" rel="noreferrer" title="Open checklist" style={{ color: 'var(--sr-accent)', textDecoration: 'none', fontSize: '0.6875rem' }}>↗</a>
+                  <a
+                    href={`https://ebird.org/checklist/${bird.submissionId}`}
+                    target="_blank" rel="noreferrer"
+                    aria-label={`Open eBird checklist ${bird.submissionId} for ${bird.name} (opens in a new tab)`}
+                    title="Open checklist"
+                    style={{ color: 'var(--sr-accent)', textDecoration: 'none', fontSize: '0.6875rem' }}
+                  ><span aria-hidden="true">↗</span></a>
                 )}
               </span>
             ))}
@@ -1586,7 +1618,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 }}>
                   <BirdName commonName={bird.name} taxonCode={codeFor(bird.name)} hasEntry={hasEntryFor(bird.name)} onOpenSpecies={onOpenSpecies} size="sm" />
                   {SUBMISSION_ID_RE.test(bird.submissionId) && (
-                    <a href={`https://ebird.org/checklist/${bird.submissionId}`} target="_blank" rel="noreferrer" title="Open checklist" style={{ color: 'var(--sr-accent)', textDecoration: 'none', fontSize: '0.6875rem' }}>↗</a>
+                    <a
+                      href={`https://ebird.org/checklist/${bird.submissionId}`}
+                      target="_blank" rel="noreferrer"
+                      aria-label={`Open eBird checklist ${bird.submissionId} for ${bird.name} (opens in a new tab)`}
+                      title="Open checklist"
+                      style={{ color: 'var(--sr-accent)', textDecoration: 'none', fontSize: '0.6875rem' }}
+                    ><span aria-hidden="true">↗</span></a>
                   )}
                 </span>
               ))}
@@ -1605,9 +1643,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, marginBottom: 20 }}>
               {[
-                { label: 'Confirmed', value: breedingStats.confirmed, color: 'var(--sr-tier-4)' },
-                { label: 'Probable', value: breedingStats.probable, color: 'var(--sr-tier-2)' },
-                { label: 'Possible', value: breedingStats.possible, color: 'var(--sr-tier-1)' },
+                // -fg text tokens (not the raw tier fills) so the colored stat
+                // numbers meet AA on the card surface in both themes (F003/F017).
+                { label: 'Confirmed', value: breedingStats.confirmed, color: 'var(--sr-tier-4-fg)' },
+                { label: 'Probable', value: breedingStats.probable, color: 'var(--sr-tier-2-fg)' },
+                { label: 'Possible', value: breedingStats.possible, color: 'var(--sr-tier-1-fg)' },
               ].map((tier, i) => (
                 <div key={i} style={{ borderRight: '1px solid var(--sr-border-subtle)', borderBottom: '1px solid var(--sr-border-subtle)', padding: '12px 4px', textAlign: 'center' }}>
                   <span style={{ fontSize: '1.5rem', fontWeight: 700, color: tier.color }}>{fmt(tier.value)}</span>
@@ -1618,16 +1658,19 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
               <SubLabel>Breeding activity by month</SubLabel>
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div role="group" aria-label="Filter breeding activity by tier" style={{ display: 'flex', gap: 4 }}>
                 {([
+                  // `color` styles the border (non-text); `fg` is the AA-passing
+                  // text token (F003) used for the active pill label.
                   { key: 'all', label: 'All' },
-                  { key: 'confirmed', label: 'Confirmed', color: 'var(--sr-tier-4)' },
-                  { key: 'probable', label: 'Probable', color: 'var(--sr-tier-2)' },
-                  { key: 'possible', label: 'Possible', color: 'var(--sr-tier-1)' },
+                  { key: 'confirmed', label: 'Confirmed', color: 'var(--sr-tier-4)', fg: 'var(--sr-tier-4-fg)' },
+                  { key: 'probable', label: 'Probable', color: 'var(--sr-tier-2)', fg: 'var(--sr-tier-2-fg)' },
+                  { key: 'possible', label: 'Possible', color: 'var(--sr-tier-1)', fg: 'var(--sr-tier-1-fg)' },
                 ] as const).map(f => (
-                  <button tabIndex={0}
+                  <button
                     key={f.key}
                     onClick={() => setBreedingFilter(f.key)}
+                    aria-pressed={breedingFilter === f.key}
                     style={{
                       height: 24, padding: '0 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 500,
                       fontFamily: 'inherit', cursor: 'pointer',
@@ -1635,7 +1678,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         ? `1.5px solid ${'color' in f ? f.color : 'var(--sr-accent-border)'}`
                         : '1.5px solid var(--sr-border)',
                       background: breedingFilter === f.key ? ('color' in f ? `rgba(var(--sr-tier-${'confirmed' === f.key ? 4 : 'probable' === f.key ? 2 : 1}-rgb), 0.1)` : 'var(--sr-accent-bg)') : 'none',
-                      color: breedingFilter === f.key ? ('color' in f ? f.color : 'var(--sr-accent)') : 'var(--sr-text-muted)',
+                      color: breedingFilter === f.key ? ('fg' in f ? f.fg : 'var(--sr-accent)') : 'var(--sr-text-muted)',
                     }}
                   >
                     {f.label}
@@ -1674,8 +1717,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 28 }}>{r.label}</span>
                           <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden', display: 'flex' }}>
-                            <div style={{ height: '100%', width: `${confPct}%`, background: 'var(--sr-tier-4)', transition: 'width 0.3s' }} />
-                            <div style={{ height: '100%', width: `${probPct}%`, background: 'var(--sr-tier-2)', transition: 'width 0.3s' }} />
+                            {/* 1px surface-colored separators so adjacent tier
+                                segments are distinguishable — the tier fills are
+                                <3:1 against each other (1.4.11 Non-text). F072. */}
+                            <div style={{ height: '100%', width: `${confPct}%`, background: 'var(--sr-tier-4)', borderRight: confPct > 0 && (probPct > 0 || possPct > 0) ? '1px solid var(--sr-surface)' : undefined, transition: 'width 0.3s' }} />
+                            <div style={{ height: '100%', width: `${probPct}%`, background: 'var(--sr-tier-2)', borderRight: probPct > 0 && possPct > 0 ? '1px solid var(--sr-surface)' : undefined, transition: 'width 0.3s' }} />
                             <div style={{ height: '100%', width: `${possPct}%`, background: 'var(--sr-tier-1)', transition: 'width 0.3s' }} />
                           </div>
                           <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: 20, textAlign: 'right' }}>{r.total || ''}</span>
@@ -1712,11 +1758,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 8, marginBottom: 10 }}>
             {/* Per Period / Cumulative toggle — hidden when interval = 'total' */}
             {mediaInterval !== 'total' ? (
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div role="group" aria-label="Media chart mode" style={{ display: 'flex', gap: 4 }}>
                 {(['per-period', 'cumulative'] as const).map(m => (
-                  <button tabIndex={0}
+                  <button
                     key={m}
                     onClick={() => setMediaViewMode(m)}
+                    aria-pressed={mediaViewMode === m}
                     style={{
                       height: 24, padding: '0 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 500,
                       fontFamily: 'inherit', cursor: 'pointer',
@@ -1731,11 +1778,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               </div>
             ) : <div />}
             {/* Interval control */}
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div role="group" aria-label="Media chart interval" style={{ display: 'flex', gap: 4 }}>
               {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
-                <button tabIndex={0}
+                <button
                   key={g}
                   onClick={() => setMediaInterval(g)}
+                  aria-pressed={mediaInterval === g}
                   style={{
                     height: 24, padding: '0 8px', borderRadius: 6, fontSize: '0.6875rem', fontWeight: 500,
                     fontFamily: 'inherit', cursor: 'pointer',
@@ -1766,16 +1814,21 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   />
                   <YAxis tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
                   <Tooltip
+                    trigger="click"
+                    wrapperStyle={{ pointerEvents: 'auto' }}
                     contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
                     labelFormatter={key => mediaInterval === 'total'
                       ? fmtDate(String(key))
                       : formatPeriodLabel(String(key), mediaInterval as PeriodGranularity)}
                   />
                   <Legend wrapperStyle={{ fontSize: '0.6875rem' }} />
-                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="photo" name="Photo" stroke="var(--sr-graph-photo)" strokeWidth={2} dot={false} />
-                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="audio" name="Audio" stroke="var(--sr-graph-audio)" strokeWidth={2} dot={false} />
-                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="video" name="Video" stroke="var(--sr-graph-video)" strokeWidth={2} dot={false} />
-                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="total" name="Total" stroke="var(--sr-graph-media-total)" strokeWidth={2} dot={false} />
+                  {/* Per-series dash patterns + distinct legend marker shapes so
+                      the four lines differ by more than hue (1.4.1 Use of Color);
+                      color-blind users can otherwise confuse photo/video. F071. */}
+                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="photo" name="Photo" stroke="var(--sr-graph-photo)" strokeWidth={2} dot={false} legendType="circle" />
+                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="audio" name="Audio" stroke="var(--sr-graph-audio)" strokeWidth={2} dot={false} strokeDasharray="6 3" legendType="square" />
+                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="video" name="Video" stroke="var(--sr-graph-video)" strokeWidth={2} dot={false} strokeDasharray="2 3" legendType="triangle" />
+                  <Line type={mediaInterval === 'total' ? 'stepAfter' : 'monotone'} dataKey="total" name="Total" stroke="var(--sr-graph-media-total)" strokeWidth={2} dot={false} strokeDasharray="8 3 2 3" legendType="cross" />
                 </LineChart>
               </ResponsiveContainer>
             </div>

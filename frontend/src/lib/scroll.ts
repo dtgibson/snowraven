@@ -28,3 +28,21 @@ export function smoothScrollIntoView(
   if (!el) return
   el.scrollIntoView({ ...opts, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
 }
+
+/**
+ * In-page "jump to" navigation that ALSO moves keyboard focus to the
+ * destination. A fragment jump that only scrolls leaves focus on the link, so a
+ * keyboard user's next Tab resumes from the nav rather than the jumped-to
+ * section (WCAG 2.4.3 Focus Order). After the motion-aware scroll, this focuses
+ * the target — it must carry `tabindex="-1"` so a non-interactive container can
+ * receive programmatic focus. `preventScroll` avoids a second competing scroll
+ * on top of `smoothScrollIntoView`'s. No-ops on a null/undefined target.
+ */
+export function jumpTo(
+  el: (Element & { focus?: (opts?: FocusOptions) => void }) | null | undefined,
+  opts: Omit<ScrollIntoViewOptions, 'behavior'> = { block: 'start' },
+): void {
+  if (!el) return
+  smoothScrollIntoView(el, opts)
+  el.focus?.({ preventScroll: true })
+}

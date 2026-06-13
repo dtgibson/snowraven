@@ -20,6 +20,7 @@ function Badge({ icon, label, present, presentTitle, absentTitle }: {
   const title = present ? presentTitle : absentTitle
   return (
     <span
+      role="img"
       title={title}
       aria-label={title}
       style={{
@@ -51,6 +52,7 @@ export function ChecklistBadges({ flags }: { flags: BadgeFlags }) {
   return (
     <div
       role="group"
+      aria-label="Checklist contents"
       style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'center', marginTop: 5 }}
     >
       <Badge icon={<Camera {...ICON} aria-hidden="true" />} label="Photo" present={flags.photo}

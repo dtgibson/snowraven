@@ -238,7 +238,7 @@ With shading on, a **Use Textures** toggle (off by default) adds a distinct hatc
 
 ### Media Targets
 
-Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. The sidebar shows the 10 nearest target pins ranked by distance. Selecting a row (via its keyboard-operable "show on map" button) opens that location's details popup on the map and pans to it.
+Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. A **Targets in view** list in the sidebar mirrors the target pins currently on screen: each row shows the species, location, the most recent date, and (when you have a search center set) the distance, sorted nearest first. The list updates as you pan or zoom, so it always reflects what's visible; on very dense views it shows the closest first with a note to zoom in to narrow it. Selecting a row (via its keyboard-operable "show on map" button) opens that location's details popup on the map and pans to it. This is the keyboard path to the target chips, which are otherwise mouse-only.
 
 ---
 
@@ -377,7 +377,7 @@ Set a home location used by the Map Explorer and the Nearby Lifers card in Stati
 
 ### Tab Layout
 
-Reorder and show or hide individual tabs. Drag rows to reorder. Click the eye icon to toggle a tab's visibility. At least one tab must remain visible at all times. The Settings tab is always last and cannot be hidden.
+Reorder and show or hide individual tabs. Drag rows to reorder, or use the **Move up** / **Move down** buttons on each row for a keyboard-only alternative to dragging. Click the eye icon to toggle a tab's visibility. At least one tab must remain visible at all times. The Settings tab is always last and cannot be hidden.
 
 On narrow screens and mobile browsers the tab bar automatically collapses into a compact dropdown that follows the same order and visibility choices, so every tab stays reachable without horizontal scrolling.
 

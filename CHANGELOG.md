@@ -2,7 +2,21 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [Unreleased]
+## [0.5.31] - 2026-06-12
+
+### Accessibility
+
+A focused accessibility pass across the whole app, aimed at WCAG 2.1 AA. By theme:
+
+- **Named controls.** Every filter dropdown, date input, search box, and toggle that previously relied on a placeholder or a nearby caption now carries an explicit accessible name, so screen readers announce what each control does. The Settings segmented choices (theme, text size, date format) are now proper keyboard-operable radio groups.
+- **Contrast retune.** The accent green, muted text, error red, chart line colors, toggle tracks, map pins, milestone chips, and statistics rank pins were all darkened or adjusted to meet AA contrast (4.5:1 text, 3:1 non-text) in both light and dark themes. Breeding-tier badges and pills, and map target chips, got dedicated text colors that pass on their fills and tints. Chart figures read from a label beside the bar; the one place a percentage sits inside a bar (the complete-checklists meter) now uses a theme-aware text color that meets AA on that fill in both themes.
+- **Keyboard and focus.** The Settings tab-layout list now has Move up / Move down buttons as a keyboard alternative to drag-and-drop. The Map Explorer's mobile filter panel traps focus while open and restores focus to the Filters button on close (via Escape, the Close button, or the backdrop); Escape also exits map fullscreen and returns focus to the toggle. In-page "jump to" links now move keyboard focus to the destination, not just the scroll position. Bird-name links show the keyboard focus ring again. A "Skip to main content" link leads the page.
+- **Announcements.** Result counts, loading states, and inline errors are exposed as polite live regions or alerts, and a keyboard tab move in Settings is announced. Every chart carries a concise text summary via an image role; decorative chart flourishes are hidden from assistive tech.
+- **Maps.** The Media Targets sidebar's "Nearest Targets" list became a viewport-scoped **Targets in view** list (mirroring the Sightings/Hotspots in-view lists) that updates on pan and zoom and is the keyboard path to the otherwise mouse-only target chips; rows toggle their popup and carry pressed state. When the breeding-atlas overlay is on, an **Atlas blocks in view** panel gives the keyboard the same path to each block's popup (its breeding summary and eBird link), mirroring the marker in-view lists. Map pin strokes and target-chip text use contrast-checked tokens; new-tab links announce that they open in a new tab; map popup text scales with the Text Size control.
+- **Resize and reflow.** Statistics bar-chart labels and the help layout are sized in relative units so they grow with the Text Size control to 200% without clipping, and the help two-column layout collapses to one column on narrow screens. The desktop app now honors the browser zoom hotkeys (Ctrl/Cmd +/−).
+- **Structure.** Lists that mirror map markers use real list semantics; collapsed filter panels are made inert so hidden controls aren't stray tab stops.
+
+Known exceptions (honestly tracked): a few cross-cutting niceties are partly done and still being unified. A shared `ChecklistLink` component now backs the "open on eBird" links in the checklist comparer, the weather/tide panel, and the Checklists tab; extending it to every remaining checklist link across the app is still in progress. Likewise, the main external links now announce that they open in a new tab, but a uniform sweep across all of them remains. And the weather block still names the Northern-Hemisphere moon phase for Southern-Hemisphere checklists — the fix needs the checklist's latitude threaded to the display layer.
 
 ### Fixed
 - **Frontend test suite: the remaining rare timing flake is gone.** Two test-only fixes, both proven under a 30-run stress recipe (single worker, shuffled file order, concurrent CPU load): the `BirdingStats` progressive-render tests now wait for the component's animation-frame effect to have observably queued work before flushing it (under load the tests could outrun the effect and assert against a frozen shell), and the two chart-mounting test files now wait out a charting dependency's 100 ms fallback timer before their test environment is torn down (the timer could otherwise fire into the next file and fail a run whose tests were all green). Test infrastructure only — no production code changed.

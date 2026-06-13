@@ -153,7 +153,7 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
             )}
             {selPin.kind === 'personal' && (
               <>
-                <div style={{ display: 'inline-block', background: 'var(--sr-is-target-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-map-personal)', borderRadius: 4, padding: '2px 6px', fontSize: '0.6875rem', fontWeight: 600, marginBottom: 8 }}>Personal Location</div>
+                <div style={{ display: 'inline-block', background: 'var(--sr-is-target-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-is-target-text)', borderRadius: 4, padding: '2px 6px', fontSize: '0.6875rem', fontWeight: 600, marginBottom: 8 }}>Personal Location</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 3 }}>{selPin.obsCount} observation{selPin.obsCount !== 1 ? 's' : ''}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Last visit: {formatDate(selPin.lastVisit)}</div>
               </>

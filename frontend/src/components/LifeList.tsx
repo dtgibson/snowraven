@@ -303,6 +303,25 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   }, [phase, rawEbirdObs, rawRows, filteredRows, phaseEntries, countyFilter, dateRange,
       mergeSubspecies, showSpuh, showNonBird, hasLocationFilter])
 
+  // The species universe IGNORING the location/date filter — the correct
+  // denominator for the "X of N species" count. displayEntries already applies
+  // the location filter, so reusing its length collapsed the denominator onto
+  // the numerator whenever a county/date filter was active ("0 of 0 species").
+  const unfilteredDisplayEntries = useMemo((): LifeListEntry[] => {
+    const hasEbird = phase.tag === 'ready' && phase.hasEbirdBackbone
+    let base: LifeListEntry[]
+    if (hasEbird && rawEbirdObs.length > 0) {
+      base = buildComprehensiveEntries(rawEbirdObs, rawRows, mergeSubspecies)
+    } else {
+      base = phaseEntries
+    }
+    return base.filter(e => {
+      if (!showSpuh && isSpuhOrSlash(e.commonName)) return false
+      if (!showNonBird && e.isNonBird) return false
+      return true
+    })
+  }, [phase, rawEbirdObs, rawRows, phaseEntries, mergeSubspecies, showSpuh, showNonBird])
+
   useEffect(() => {
     let cancelled = false
     async function autoLoad() {
@@ -359,8 +378,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   // ── Auto-loading saved file ───────────────────────────────────────────────
   if (phase.tag === 'loading-saved') {
     return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} />
+      <div role="status" aria-label="Loading saved Macaulay Library data" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={24} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)' }} aria-hidden />
       </div>
     )
   }
@@ -433,7 +452,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     return true
   }).length
 
-  const totalSpecies = displayEntries.length
+  const totalSpecies = unfilteredDisplayEntries.length
   const countLabel = (isFilterClear && !hasLocationFilter)
     ? `${displayEntries.length} species`
     : `${filteredCount} of ${totalSpecies} species`
@@ -502,7 +521,20 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           <span>{commentCount === 1 ? '1 media comment is' : `${commentCount} media comments are`} searchable below the table.</span>
           <a
             href="#media-comments"
-            onClick={e => { e.preventDefault(); smoothScrollIntoView(document.getElementById('media-comments')) }}
+            onClick={e => {
+              e.preventDefault()
+              const el = document.getElementById('media-comments')
+              smoothScrollIntoView(el)
+              // preventDefault suppresses the browser's native fragment-focus move,
+              // so relocate focus to the section ourselves (2.4.3 Focus Order).
+              // The section div isn't natively focusable; make it programmatically
+              // focusable just-in-time without painting a ring for mouse users.
+              if (el) {
+                el.setAttribute('tabindex', '-1')
+                el.style.outline = 'none'
+                el.focus({ preventScroll: true })
+              }
+            }}
             style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
             onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
             onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
@@ -603,7 +635,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
           {/* County dropdown */}
           {countyResolution === 'resolving' ? (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 26, padding: '0 10px', borderRadius: 5, border: '1.5px dashed var(--sr-border)', background: 'var(--sr-surface-subtle)', color: 'var(--sr-text-disabled)', fontSize: '0.75rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 26, padding: '0 10px', borderRadius: 5, border: '1.5px dashed var(--sr-border)', background: 'var(--sr-surface-subtle)', color: 'var(--sr-text-muted)', fontSize: '0.75rem' }}>
               <Loader2 size={11} strokeWidth={2} className="spin" />
               Resolving counties…
             </div>
@@ -614,6 +646,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
                 pointerEvents: 'none', flexShrink: 0,
               }} />
               <select
+                aria-label="County"
                 value={countyFilter ?? ''}
                 onChange={e => setCountyFilter(e.target.value || null)}
                 style={{
@@ -624,7 +657,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
                   background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                   color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                   fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
-                  cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none', outline: 'none',
+                  cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
                 }}
               >
                 <option value="">All Counties</option>
@@ -643,28 +676,30 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
               }} />
               <input
                 type="date"
+                aria-label="From date"
                 value={dateRange.from}
                 onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
                 style={{
                   height: 26, paddingLeft: 24, paddingRight: 6, borderRadius: 5,
                   border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                   background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                  color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                  fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
+                  color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                  fontSize: '0.75rem', fontFamily: 'inherit',
                 }}
               />
             </div>
             <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
             <input
               type="date"
+              aria-label="To date"
               value={dateRange.to}
               onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
               style={{
                 height: 26, paddingLeft: 8, paddingRight: 6, borderRadius: 5,
                 border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                 background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
-                color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-disabled)',
-                fontSize: '0.75rem', fontFamily: 'inherit', outline: 'none',
+                color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                fontSize: '0.75rem', fontFamily: 'inherit',
               }}
             />
           </div>
@@ -696,7 +731,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
               fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
-              padding: 0, textDecoration: 'underline',
+              // ≥24px hit area (WCAG 2.2 target size) without shifting the row layout.
+              minHeight: 24, padding: '0 6px', margin: '0 -6px', textDecoration: 'underline',
             }}
           >
             Clear filter
