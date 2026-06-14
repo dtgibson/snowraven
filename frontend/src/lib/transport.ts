@@ -51,7 +51,24 @@ class TauriTransport implements TransportAdapter {
   private web = new WebTransport();
 
   async get<T>(path: string, params?: Record<string, string>): Promise<T> {
-    // Route external API paths to direct Tauri service calls
+    // Route external API paths to direct Tauri service calls.
+    // NOTE: the exact '/weather/at' and '/tide/at' matches MUST come before the
+    // '/weather/' and '/tide/' prefix checks below, which would otherwise treat
+    // "at" as a checklist id (mirrors the FastAPI route-order requirement).
+    if (path === '/weather/at') {
+      const { getWeatherAt } = await import('./tauri/weatherService');
+      const lat = parseFloat(params?.lat ?? '0');
+      const lng = parseFloat(params?.lng ?? '0');
+      return getWeatherAt(lat, lng, params?.dt) as Promise<T>;
+    }
+
+    if (path === '/tide/at') {
+      const { getTideAt } = await import('./tauri/tideService');
+      const lat = parseFloat(params?.lat ?? '0');
+      const lng = parseFloat(params?.lng ?? '0');
+      return getTideAt(lat, lng, params?.dt ?? '', params?.force === '1') as Promise<T>;
+    }
+
     if (path.startsWith('/weather/')) {
       const { getWeather } = await import('./tauri/weatherService');
       const checklistId = path.slice('/weather/'.length);

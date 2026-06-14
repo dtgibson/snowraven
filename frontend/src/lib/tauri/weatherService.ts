@@ -2,6 +2,7 @@ import { tauriFetch } from './http';
 import { invoke } from '@tauri-apps/api/core';
 import { storage } from '../storage';
 import { formatWeather, type HourlyResponse } from '../weatherFormatter';
+import { buildWeatherPayload, type OneCallResponse, type WeatherAtResponse } from '../forecastSlice';
 import { getRegionInfo, type RegionInfo } from './regionInfo';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
@@ -166,4 +167,33 @@ export async function getWeather(checklistId: string): Promise<WeatherResult> {
     loc_name: checklist.loc_name,
     obs_dt: checklist.obs_dt,
   };
+}
+
+// Base One Call 3.0 (current + 48h hourly + 8d daily) in one call — the
+// Current/Predict source, twin of backend services.openweather.fetch_forecast.
+async function fetchForecast(lat: number, lng: number, owmKey: string): Promise<OneCallResponse> {
+  const url = `${OWM_BASE}/onecall?lat=${lat}&lon=${lng}&appid=${owmKey}&units=imperial&exclude=minutely,alerts`;
+  const res = await tauriFetch(url);
+  if (!res.ok) throw Object.assign(new Error('Weather data unavailable for this location.'), { status: 502 });
+  return res.json() as Promise<OneCallResponse>;
+}
+
+// Live (Current) or forecast (Predict) weather for an arbitrary location and
+// moment. `dtLocal` is the target's local wall-clock ('YYYY-MM-DD HH:MM'); omit
+// for "now". Twin of GET /weather/at — same { resolution, formatted, summary, tz }.
+export async function getWeatherAt(lat: number, lng: number, dtLocal?: string): Promise<WeatherAtResponse> {
+  const owmKey = await storage.getApiKey('openweather');
+  if (!owmKey) {
+    throw Object.assign(
+      new Error('OpenWeather API key not configured. Add it in Settings.'),
+      { status: 500, detail: 'OpenWeather API key not configured. Add it in Settings.' },
+    );
+  }
+
+  const tzName: string = await invoke('get_timezone', { lat, lng });
+  const targetTs = dtLocal ? Math.floor(parseLocalDateTimeInZone(dtLocal, tzName) / 1000) : undefined;
+
+  const onecall = await fetchForecast(lat, lng, owmKey);
+  const payload = buildWeatherPayload(onecall, targetTs, tzName, lat);
+  return { ...payload, tz: tzName };
 }

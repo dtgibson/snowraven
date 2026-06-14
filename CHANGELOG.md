@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.34] - 2026-06-13
+
+### Added
+- **Current & Predict — weather and tide for now, or any time ahead.** Two new buttons at the bottom of the Weather tab look forward instead of back. **Current** gives you live weather and tide for wherever you are, in one tap. **Predict** lets you pick a place — by name search or by dropping a pin on a small map — plus a date and time, then shows the forecast weather and the predicted tide for that single moment. Weather reaches about eight days out (hour-by-hour for the first couple of days, then a clearly-labeled daily summary beyond that); tide runs much further, because it's astronomical rather than meteorological — so choosing a date past the weather window still gives you the tide, with an honest note that no forecast reaches that far. Each result reads at a glance, with the familiar copy-ready block one tap away. Built entirely on the data sources the app already uses (OpenWeather, NOAA tide stations, OpenStreetMap for place search), so there's nothing new to set up and the local-first privacy promise is unchanged. The existing paste-a-checklist weather lookup is untouched.
+
 ## [0.5.33] - 2026-06-13
 
 ### Added

@@ -36,6 +36,47 @@ export interface TideResponse {
   distanceMi?: number
 }
 
+/** Structured tide fields the readable at-a-glance summary renders (Current /
+ *  Predict). Mirrors the `reading` shape the backend's _serialize_reading emits. */
+export interface TideReadingSummary {
+  source: 'observed' | 'predicted'
+  levelMin: number
+  levelMax: number
+  trend: 'rising' | 'falling'
+  turnedDuring: boolean
+  prevHL: HiLoLabeled | null
+  nextHL: HiLoLabeled | null
+  station: { id: string; name: string }
+  distanceMi: number
+}
+
+/** The shape returned by GET /tide/at (web FastAPI + the desktop TS service). Like
+ *  TideResponse but carries the structured `reading` for the summary. */
+export interface TideAtResponse {
+  status: 'ok' | 'too-far' | 'outside-us' | 'unavailable'
+  formatted?: string
+  body?: string
+  station?: { id: string; name: string }
+  distanceMi?: number
+  reading?: TideReadingSummary
+}
+
+/** Serialize a TideReading into the wire `reading` shape (drops the station's
+ *  lat/lng/obs to match the backend). */
+export function summarizeReading(r: TideReading): TideReadingSummary {
+  return {
+    source: r.source,
+    levelMin: r.levelMin,
+    levelMax: r.levelMax,
+    trend: r.trend,
+    turnedDuring: r.turnedDuring,
+    prevHL: r.prevHL,
+    nextHL: r.nextHL,
+    station: { id: r.station.id, name: r.station.name },
+    distanceMi: r.distanceMi,
+  }
+}
+
 /** A NOAA JSON body is an error when it has a top-level `error` (status is
  *  unreliable — NOAA returns 200 with an error body for no-data). */
 export function isNoaaError(body: unknown): boolean {

@@ -1,6 +1,6 @@
 # Privacy Policy — SnowRaven
 
-**Effective date:** June 10, 2026
+**Effective date:** June 13, 2026
 
 ## Overview
 
@@ -29,15 +29,15 @@ SnowRaven collects nothing about you.
 SnowRaven's job is to fetch birding and weather information for you, so the app does make requests to a few outside services — using your own API keys, and only to get the data you ask for. These requests go directly from your device (or your own self-hosted server) to the provider. There is no SnowRaven server in the middle, and nothing is logged or retained by the developer.
 
 - **eBird** — to look up checklist details, hotspots, and recent nearby sightings. Uses your own eBird API key. See [eBird's terms](https://www.birds.cornell.edu/home/ebird-api-terms-of-use/).
-- **OpenWeather** — to fetch historical weather for a checklist. Uses your own OpenWeather API key. See [OpenWeather's privacy policy](https://openweather.co.uk/privacy-policy).
+- **OpenWeather** — to fetch weather: the historical weather for a checklist, or the current and forecast weather for a location and time you choose. Uses your own OpenWeather API key. See [OpenWeather's privacy policy](https://openweather.co.uk/privacy-policy).
 - **Nominatim (OpenStreetMap)** — to turn a place name you type into map coordinates. See the [OSM privacy policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy).
-- **NOAA Tides & Currents (CO-OPS)** — to fetch the historical tide for a checklist's location and time. No key or account; a U.S. government service. See [NOAA's privacy policy](https://www.noaa.gov/protecting-your-privacy).
+- **NOAA Tides & Currents (CO-OPS)** — to fetch the tide for a checklist's location and time, or the current or predicted tide for a location and time you choose. No key or account; a U.S. government service. See [NOAA's privacy policy](https://www.noaa.gov/protecting-your-privacy).
 
 What you send to these services (a checklist ID, a location, a search term) is governed by each provider's own privacy policy. SnowRaven only relays the request you initiated; it does not add tracking and does not keep a copy.
 
 ## Your Location
 
-When you tap "Use my location" — on the map or when setting a default location in Settings — SnowRaven asks your device or browser for your current coordinates, with your permission. Those coordinates stay on your device: they set the map's center and can be saved as your default location locally. They are only sent outward if you then run a search (for hotspots or nearby sightings), the same as coordinates you type in by hand. You can deny or revoke the permission at any time through your operating system or browser settings.
+When you tap "Use my location" — on the map, when setting a default location in Settings, or with the "Current" weather and tide lookup — SnowRaven asks your device or browser for your current coordinates, with your permission. Those coordinates stay on your device: they set the map's center and can be saved as your default location locally. They are only sent outward if you then run a search (for hotspots or nearby sightings) or use the "Current" lookup, which sends your coordinates to OpenWeather and NOAA to fetch the weather and tide where you are — the same as coordinates you type in by hand. You can deny or revoke the permission at any time through your operating system or browser settings.
 
 ## Map Tiles
 

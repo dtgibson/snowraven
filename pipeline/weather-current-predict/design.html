@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SnowRaven — Current &amp; Predict (design)</title>
+<style>
+  :root {
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+    --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-footer:#6B7280;
+    --sr-border:#E4E4E7; --sr-border-input:#8A8A91;
+    --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE; --sr-accent-bg-hover:#F0FAF4;
+    --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-surface:#fafffd; --sr-on-accent:#FFFFFF;
+    --sr-warning:#92400E; --sr-warning-bg:#FFFBEB; --sr-warning-subtle:#FDE68A;
+    --sr-error:#D31F1F; --sr-error-bg:#FEF2F2;
+    --sr-quote-bg:#EFF1F3; --sr-quote-border:#E0E2E6;
+    --sr-card-shadow:0 1px 4px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.04);
+    --sr-sky-1:#cfe3f3; --sr-sky-2:#eaf2f8;
+    --font-sans:'Inter',system-ui,'Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,"Cascadia Code","Fira Code",Consolas,monospace;
+  }
+  [data-theme="dark"] {
+    --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+    --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-footer:#8A8A92;
+    --sr-border:#27272A; --sr-border-input:#707078;
+    --sr-accent:#34D399; --sr-accent-strong:#34D399; --sr-accent-bg:#052E16; --sr-accent-bg-hover:#064E3B;
+    --sr-accent-border:rgba(52,211,153,0.2); --sr-accent-surface:#021a0f; --sr-on-accent:#052E16;
+    --sr-warning:#FDE68A; --sr-warning-bg:#1C1002; --sr-warning-subtle:#78350F;
+    --sr-error:#F87171; --sr-error-bg:#1C0505;
+    --sr-quote-bg:#2E2E33; --sr-quote-border:#3A3A40;
+    --sr-card-shadow:0 1px 4px rgba(0,0,0,0.4),0 4px 16px rgba(0,0,0,0.25);
+    --sr-sky-1:#13314a; --sr-sky-2:#0e2435;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; }
+  body {
+    font-family:var(--font-sans); background:var(--sr-bg); color:var(--sr-text);
+    -webkit-font-smoothing:antialiased; line-height:1.5; padding:34px 16px 80px;
+  }
+  .wrap { max-width:540px; margin:0 auto; }
+  .toolbar { max-width:540px; margin:0 auto 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .toolbar .t-title { font-size:0.75rem; letter-spacing:0.06em; text-transform:uppercase; color:var(--sr-text-muted); font-weight:600; }
+  .theme-btn {
+    display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 13px; cursor:pointer;
+    background:var(--sr-surface); color:var(--sr-text); border:1px solid var(--sr-border); border-radius:8px;
+    font-family:inherit; font-size:0.75rem; font-weight:600;
+  }
+  .card {
+    width:100%; background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:12px;
+    padding:32px; box-shadow:var(--sr-card-shadow);
+  }
+  .stage-cap {
+    max-width:540px; margin:30px auto 9px; display:flex; align-items:center; gap:9px;
+    font-size:0.6875rem; font-weight:700; letter-spacing:0.09em; text-transform:uppercase; color:var(--sr-text-muted);
+  }
+  .stage-cap::before { content:""; flex:0 0 18px; height:1px; background:var(--sr-border); }
+  .stage-cap::after  { content:""; flex:1; height:1px; background:var(--sr-border); }
+
+  label.fld { display:block; font-size:0.875rem; font-weight:500; margin-bottom:8px; }
+  .input {
+    width:100%; height:44px; padding:0 14px; border:1.5px solid var(--sr-border); border-radius:8px;
+    font-size:0.875rem; font-family:inherit; color:var(--sr-text); background:var(--sr-surface);
+  }
+  .input::placeholder { color:var(--sr-text-muted); }
+  .input.with-icon { padding-left:38px; }
+  .input-wrap { position:relative; }
+  .input-wrap > svg { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--sr-text-muted); }
+
+  .btn-primary {
+    height:44px; padding:0 18px; background:var(--sr-accent); color:var(--sr-on-accent); border:none; border-radius:8px;
+    font-size:0.875rem; font-weight:600; font-family:inherit; cursor:pointer; display:inline-flex; align-items:center;
+    justify-content:center; gap:7px; white-space:nowrap;
+  }
+  .btn-outline {
+    height:44px; padding:0 18px; background:var(--sr-accent-bg); color:var(--sr-accent);
+    border:1.5px solid var(--sr-accent-border); border-radius:8px; font-size:0.875rem; font-weight:600;
+    font-family:inherit; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:7px; white-space:nowrap;
+  }
+  .btn-copy {
+    height:30px; padding:0 12px; background:var(--sr-accent-bg); color:var(--sr-accent);
+    border:1.5px solid var(--sr-accent-border); border-radius:6px; font-size:0.75rem; font-weight:500;
+    font-family:inherit; cursor:pointer; display:inline-flex; align-items:center; gap:5px;
+  }
+  hr.sr { border:none; border-top:1px solid var(--sr-border); margin:24px 0; }
+
+  .seclabel { font-size:0.6875rem; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--sr-text-muted); }
+
+  /* condensed existing lookup row (context) */
+  .ctx-row { display:flex; gap:8px; opacity:0.62; }
+  .ctx-note { margin:8px 0 0; font-size:0.75rem; color:var(--sr-text-muted); }
+
+  /* the two new entry buttons */
+  .entry-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:4px; }
+  .entry-title { font-size:1.0625rem; font-weight:700; letter-spacing:-0.01em; }
+  .entry-sub { margin:0 0 14px; font-size:0.8125rem; color:var(--sr-text-muted); }
+  .entry-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* readable summary block */
+  .summary { background:var(--sr-accent-surface); border:1px solid var(--sr-accent-border); border-radius:10px; padding:16px 18px; }
+  .sum-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:13px; }
+  .sum-loc { display:flex; align-items:center; gap:7px; min-width:0; }
+  .sum-loc .nm { font-size:0.9375rem; font-weight:700; letter-spacing:-0.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pill {
+    display:inline-flex; align-items:center; gap:5px; height:21px; padding:0 9px; border-radius:11px;
+    font-size:0.6875rem; font-weight:700; letter-spacing:0.02em; white-space:nowrap; flex-shrink:0;
+  }
+  .pill.live { background:var(--sr-accent); color:var(--sr-on-accent); }
+  .pill.fc   { background:var(--sr-accent-bg); color:var(--sr-accent); border:1px solid var(--sr-accent-border); }
+  .pill.daily{ background:var(--sr-warning-bg); color:var(--sr-warning); border:1px solid var(--sr-warning-subtle); }
+
+  .wx { display:flex; align-items:center; gap:14px; }
+  .wx-emoji { font-size:2.5rem; line-height:1; }
+  .wx-main { min-width:0; }
+  .wx-temp { font-size:2.1rem; font-weight:700; letter-spacing:-0.02em; line-height:1.05; }
+  .wx-temp .hilo { font-size:0.9375rem; font-weight:600; color:var(--sr-text-muted); margin-left:8px; letter-spacing:0; }
+  .wx-desc { font-size:0.875rem; color:var(--sr-text-muted); margin-top:1px; }
+
+  .stat-row { display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:14px; }
+  .stat { display:flex; align-items:center; gap:6px; font-size:0.8125rem; color:var(--sr-text); }
+  .stat svg { color:var(--sr-text-muted); flex-shrink:0; }
+  .stat b { font-weight:600; }
+  .stat .k { color:var(--sr-text-muted); }
+
+  .tide { margin-top:14px; padding-top:14px; border-top:1px dashed var(--sr-border); }
+  .tide-head { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+  .tide-head .lvl { font-size:1.0625rem; font-weight:700; letter-spacing:-0.01em; }
+  .tide-head .dir { font-size:0.8125rem; font-weight:600; color:var(--sr-accent); }
+  .tide-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 16px; font-size:0.8125rem; }
+  .tide-grid .k { color:var(--sr-text-muted); }
+  .tide-meta { margin-top:9px; font-size:0.71875rem; color:var(--sr-text-muted); }
+
+  details.block { margin-top:13px; }
+  details.block > summary {
+    list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    font-size:0.75rem; font-weight:600; color:var(--sr-accent);
+  }
+  details.block > summary::-webkit-details-marker { display:none; }
+  details.block > summary .chev { transition:transform 0.15s; }
+  details.block[open] > summary .chev { transform:rotate(90deg); }
+  .blocklabelrow { display:flex; align-items:center; justify-content:space-between; margin:12px 0 9px; }
+  pre.sr {
+    background:var(--sr-surface-subtle); border:1px solid var(--sr-border); border-radius:8px; padding:18px 20px;
+    font-family:var(--mono); font-size:0.84375rem; line-height:1.75; color:var(--sr-text); white-space:pre; overflow-x:auto; margin:0;
+  }
+
+  /* predict input panel */
+  .panel { background:var(--sr-surface-faint); border:1px solid var(--sr-border); border-radius:10px; padding:16px 16px 18px; }
+  .panel-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .map {
+    position:relative; height:172px; border-radius:9px; overflow:hidden; border:1px solid var(--sr-border-input);
+    background:
+      linear-gradient(135deg,var(--sr-sky-1),var(--sr-sky-2)),
+      repeating-linear-gradient(0deg,transparent 0 27px,rgba(120,140,160,0.18) 27px 28px),
+      repeating-linear-gradient(90deg,transparent 0 27px,rgba(120,140,160,0.18) 27px 28px);
+    background-blend-mode:normal;
+  }
+  .map .coast { position:absolute; inset:0; }
+  .map .pin { position:absolute; left:50%; top:46%; transform:translate(-50%,-100%); filter:drop-shadow(0 3px 3px rgba(0,0,0,0.3)); }
+  .map .hint {
+    position:absolute; left:10px; bottom:10px; display:inline-flex; align-items:center; gap:6px;
+    background:var(--sr-surface); color:var(--sr-text-muted); border:1px solid var(--sr-border); border-radius:7px;
+    padding:5px 9px; font-size:0.6875rem; font-weight:500; box-shadow:0 2px 8px rgba(0,0,0,0.12);
+  }
+  .map .coordchip {
+    position:absolute; right:10px; top:10px; background:var(--sr-surface); color:var(--sr-text);
+    border:1px solid var(--sr-border); border-radius:7px; padding:4px 9px; font-size:0.6875rem; font-family:var(--mono);
+    box-shadow:0 2px 8px rgba(0,0,0,0.12);
+  }
+  .field-label { display:block; font-size:0.75rem; font-weight:600; color:var(--sr-text-muted); margin-bottom:6px; letter-spacing:0.01em; }
+  .dt-input {
+    width:100%; height:40px; padding:0 12px; border:1.5px solid var(--sr-border); border-radius:8px;
+    font-size:0.84375rem; font-family:inherit; color:var(--sr-text); background:var(--sr-surface);
+    display:flex; align-items:center; gap:8px;
+  }
+  .dt-input svg { color:var(--sr-text-muted); flex-shrink:0; }
+
+  .gap-note {
+    display:flex; align-items:flex-start; gap:9px; background:var(--sr-warning-bg); border:1px solid var(--sr-warning-subtle);
+    color:var(--sr-warning); border-radius:9px; padding:12px 14px; font-size:0.8125rem; line-height:1.5;
+  }
+  .gap-note svg { flex-shrink:0; margin-top:1px; }
+
+  .footnote { max-width:540px; margin:14px auto 0; text-align:center; font-size:0.75rem; color:var(--sr-text-footer); }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="t-title">SnowRaven · Weather tab — Current &amp; Predict</span>
+  <button class="theme-btn" id="themeToggle" type="button">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    <span id="themeLabel">Dark</span>
+  </button>
+</div>
+
+<div class="wrap">
+  <div class="card">
+
+    <!-- ── existing checklist lookup (context, condensed) ─────────────── -->
+    <label class="fld">eBird checklist ID or URL</label>
+    <div class="ctx-row">
+      <input class="input" type="text" value="" placeholder="S12345678 or https://ebird.org/checklist/S12345678" />
+      <button class="btn-primary" type="button" style="flex-shrink:0;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        Get weather
+      </button>
+    </div>
+    <p class="ctx-note">Weather is copied to the clipboard on a successful lookup. Tide is shown below where available.</p>
+
+    <hr class="sr" />
+
+    <!-- ── NEW: Current / Predict entry ───────────────────────────────── -->
+    <div class="entry-head">
+      <span class="entry-title">Now, or any time ahead</span>
+    </div>
+    <p class="entry-sub">Skip the checklist — get weather and tide for right where you are, or for a place and time you choose.</p>
+    <div class="entry-btns">
+      <button class="btn-primary" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+        Current
+      </button>
+      <button class="btn-outline" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M12 14v3l2 1"/></svg>
+        Predict
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════ STATE: Current (live) ════════════════════ -->
+  <div class="stage-cap">Current — live result</div>
+  <div class="card">
+    <div class="summary">
+      <div class="sum-head">
+        <div class="sum-loc">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+          <span class="nm">Berkeley Marina, CA</span>
+        </div>
+        <span class="pill live">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+          NOW · 5:42 PM
+        </span>
+      </div>
+
+      <div class="wx">
+        <div class="wx-emoji">⛅</div>
+        <div class="wx-main">
+          <div class="wx-temp">61°F</div>
+          <div class="wx-desc">Partly cloudy</div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <span class="stat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2M17.6 6.6A2 2 0 1 1 19 10H2"/></svg><span class="k">Wind</span> <b>Gentle breeze, W</b></span>
+        <span class="stat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5S5 13 5 15a7 7 0 0 0 7 7z"/></svg><span class="k">Humidity</span> <b>72%</b></span>
+        <span class="stat"><span class="k">Dew pt</span> <b>52°F</b></span>
+        <span class="stat"><span class="k">Cloud</span> <b>40%</b></span>
+        <span class="stat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6M4.9 10.9l1.4 1.4M2 18h2M20 18h2M17.7 12.3l1.4-1.4M22 22H2"/><path d="M8 18a4 4 0 0 1 8 0"/></svg><span class="k">Sunset</span> <b>8:31 PM</b></span>
+      </div>
+
+      <div class="tide">
+        <div class="tide-head">
+          <span style="font-size:1.15rem;">🌊</span>
+          <span class="lvl">4.2 – 5.1 ft</span>
+          <span class="dir">Rising ↑</span>
+        </div>
+        <div class="tide-grid">
+          <span><span class="k">Next high</span> <b>6.8 ft</b> · 8:14 PM</span>
+          <span><span class="k">Prev low</span> 1.9 ft · 2:02 PM</span>
+        </div>
+        <div class="tide-meta">Berkeley (9414816) · 1.2 mi · <b>Predicted</b> · relative to MLLW</div>
+      </div>
+
+      <details class="block">
+        <summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Copy-ready block</summary>
+        <div class="blocklabelrow">
+          <span class="seclabel">Weather &amp; tide output</span>
+          <button class="btn-copy" type="button"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
+        </div>
+<pre class="sr">⛅
+Partly cloudy
+Temperature: 61&deg;F
+Wind: Gentle breeze
+Wind Direction: W
+Cloud Cover: 40%
+Humidity: 72%
+Dew point: 52&deg;F
+Sunset: 8:31pm
+🌊
+Predicted
+Water level: 4.2 – 5.1 ft
+Tide: Rising
+Next high: 6.8 ft at 8:14pm
+Station: Berkeley (9414816), 1.2 mi away
+Relative to MLLW
+Weather &amp; tide via SnowRaven</pre>
+      </details>
+    </div>
+  </div>
+
+  <!-- ════════════════════ STATE: Predict (input) ════════════════════ -->
+  <div class="stage-cap">Predict — choose a place &amp; time</div>
+  <div class="card">
+    <div class="panel">
+      <label class="field-label">Place</label>
+      <div class="input-wrap" style="margin-bottom:12px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input class="input with-icon" type="text" value="Pillar Point Harbor, Half Moon Bay" />
+      </div>
+
+      <div class="map" role="img" aria-label="Map centered on Pillar Point Harbor with a draggable pin">
+        <div class="coordchip">37.502, -122.482</div>
+        <svg class="pin" width="30" height="30" viewBox="0 0 24 24" fill="var(--sr-accent)" stroke="var(--sr-on-accent)" stroke-width="1.4"><path d="M12 22s7-6.6 7-12A7 7 0 1 0 5 10c0 5.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.6" fill="var(--sr-on-accent)" stroke="none"/></svg>
+        <span class="hint"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6.6 7-12A7 7 0 1 0 5 10c0 5.4 7 12 7 12z"/></svg> Tap to drop a pin · drag to fine-tune</span>
+      </div>
+
+      <div class="panel-grid" style="margin-top:14px;">
+        <div>
+          <label class="field-label">Date</label>
+          <div class="dt-input"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> Sat, Jun 21, 2026</div>
+        </div>
+        <div>
+          <label class="field-label">Time</label>
+          <div class="dt-input"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> 6:30 AM</div>
+        </div>
+      </div>
+
+      <button class="btn-primary" type="button" style="width:100%; margin-top:15px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M5.2 5.2l2.1 2.1M3 12h3M18 12h3M16.7 7.3l2.1-2.1"/><path d="M7 18a5 5 0 0 1 10 0"/><path d="M4 22h16"/></svg>
+        Get forecast
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════ STATE: Predict (daily, 3–8 days) ════════════════════ -->
+  <div class="stage-cap">Predict — daily summary (3–8 days out)</div>
+  <div class="card">
+    <div class="summary">
+      <div class="sum-head">
+        <div class="sum-loc">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6.6 7-12A7 7 0 1 0 5 10c0 5.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          <span class="nm">Pillar Point Harbor</span>
+        </div>
+        <span class="pill daily">FORECAST · SAT JUN 21 (DAILY)</span>
+      </div>
+
+      <div class="wx">
+        <div class="wx-emoji">🌤️</div>
+        <div class="wx-main">
+          <div class="wx-temp">58°<span class="hilo">H 64° · L 51°</span></div>
+          <div class="wx-desc">Mostly sunny — forecast for that day, not an exact-hour reading</div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <span class="stat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2M17.6 6.6A2 2 0 1 1 19 10H2"/></svg><span class="k">Wind</span> <b>Light breeze, NW</b></span>
+        <span class="stat"><span class="k">Humidity</span> <b>78%</b></span>
+        <span class="stat"><span class="k">Dew pt</span> <b>50°F</b></span>
+        <span class="stat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v6M8 22h8"/><path d="M12 2a6 6 0 0 0-6 6c0 4 6 8 6 8s6-4 6-8a6 6 0 0 0-6-6z"/><path d="m9 4 1.5 1.5"/></svg><span class="k">Sunrise</span> <b>5:48 AM</b></span>
+      </div>
+
+      <div class="tide">
+        <div class="tide-head">
+          <span style="font-size:1.15rem;">🌊</span>
+          <span class="lvl">0.4 – 1.1 ft</span>
+          <span class="dir">Falling ↓</span>
+        </div>
+        <div class="tide-grid">
+          <span><span class="k">Next low</span> <b>-0.3 ft</b> · 7:05 AM</span>
+          <span><span class="k">Prev high</span> 5.2 ft · 12:51 AM</span>
+        </div>
+        <div class="tide-meta">Pillar Point (9414131) · 0.6 mi · <b>Predicted</b> · low water at 6:30 AM — good mudflat timing</div>
+      </div>
+
+      <details class="block">
+        <summary><svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg> Copy-ready block</summary>
+        <div class="blocklabelrow">
+          <span class="seclabel">Weather &amp; tide output</span>
+          <button class="btn-copy" type="button"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
+        </div>
+<pre class="sr">🌤️
+Mostly sunny (daily forecast)
+High: 64&deg;F  Low: 51&deg;F
+Wind: Light breeze
+Wind Direction: NW
+Humidity: 78%
+Dew point: 50&deg;F
+Sunrise: 5:48am
+Sunset: 8:32pm
+🌊
+Predicted
+Water level: 0.4 – 1.1 ft
+Tide: Falling
+Next low: -0.3 ft at 7:05am
+Station: Pillar Point (9414131), 0.6 mi away
+Relative to MLLW
+Weather &amp; tide via SnowRaven</pre>
+      </details>
+    </div>
+  </div>
+
+  <!-- ════════════════════ STATE: Predict (beyond forecast) ════════════════════ -->
+  <div class="stage-cap">Predict — beyond the forecast window</div>
+  <div class="card">
+    <div class="summary">
+      <div class="sum-head">
+        <div class="sum-loc">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s7-6.6 7-12A7 7 0 1 0 5 10c0 5.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          <span class="nm">Pillar Point Harbor</span>
+        </div>
+        <span class="pill fc">TIDE ONLY · JUL 30, 4:30 AM</span>
+      </div>
+
+      <div class="gap-note">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+        <span>No weather forecast reaches Jul 30 — that's beyond the ~8-day window. The tide below is an astronomical prediction, so it's still solid this far out.</span>
+      </div>
+
+      <div class="tide" style="border-top:none; margin-top:14px; padding-top:0;">
+        <div class="tide-head">
+          <span style="font-size:1.15rem;">🌊</span>
+          <span class="lvl">-0.1 – 0.6 ft</span>
+          <span class="dir">Falling ↓</span>
+        </div>
+        <div class="tide-grid">
+          <span><span class="k">Next low</span> <b>-0.4 ft</b> · 5:12 AM</span>
+          <span><span class="k">Prev high</span> 4.9 ft · 10:58 PM</span>
+        </div>
+        <div class="tide-meta">Pillar Point (9414131) · 0.6 mi · <b>Predicted</b> · relative to MLLW</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">Design mock · SnowRaven Weather tab · Current &amp; Predict · light + dark via the toggle above</p>
+</div>
+
+<script>
+  var root = document.documentElement, btn = document.getElementById('themeToggle'), lbl = document.getElementById('themeLabel');
+  btn.addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') === 'dark';
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+    lbl.textContent = dark ? 'Dark' : 'Light';
+  });
+</script>
+</body>
+</html>

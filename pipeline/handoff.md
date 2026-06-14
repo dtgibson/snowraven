@@ -1,37 +1,24 @@
-# Handoff — media-sex-age-filters RELEASED; v0.5.33 live on both platforms
+# Handoff — Current & Predict COMPLETE; v0.5.34 pushed to GitHub (release pending from the Mac)
 
 ## What We Accomplished
 
-Shipped v0.5.33. The Sex (Male/Female) and Age (Juvenile/Immature/Adult)
-media filters were built and committed on the VM, but the release had
-stalled at the handoff to the Mac — the `v0.5.33` tag was pushed (so
-Windows CI ran) but `main` and the signed release hadn't been done.
-Dave re-pushed `main`, then this Mac session fast-forwarded `main` to
-the tagged commit and ran `./release.sh`: the macOS universal build was
-notarized and stapled, the CI Windows installer was signed locally, and
-`latest.json` was written with all three updater keys. v0.5.33 is now
-the published, Latest release on both platforms.
+Added **Current** and **Predict** to the bottom of the Weather tab — the first forward-looking weather/tide lookups, alongside the unchanged checklist tool. Current gives live weather and tide for where you are in one tap (in your local timezone). Predict forecasts both for a place (name search or a draggable map pin), date, and time you choose: weather to about eight days out (hour-by-hour, then a labeled daily summary), and tide much further, with an honest note when a date is past the weather window. Built entirely on the providers already in the app — no new third parties, privacy posture unchanged.
 
 ## What Has Been Saved
 
-- Feature code (from the VM, commit `8f627a2`): `frontend/src/lib/mediaStats.ts`, `frontend/src/components/LifeList.tsx`, `frontend/src/components/LifeListTable.tsx`; tests in `mediaStats.test.ts` + `LifeListTable.test.tsx`.
-- Records (from the VM): `CHANGELOG.md`, `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md`, `README.md`, `docs/HELP.md`, `website/index.html`.
-- Pipeline artifacts: `pipeline/media-sex-age-filters/`.
-- This session: fast-forwarded + confirmed `main` at `8f627a2`, ran `./release.sh`, then marked the release in `pipeline/session-state.json` + this handoff.
+- **Code:** `backend/services/forecast.py` + `openweather.fetch_forecast`; routes in `backend/routers/weather.py` (`/weather/at`) and `tide.py` (`/tide/at`); `frontend/src/lib/forecastSlice.ts`, `tauri/weatherService.ts` + `tideService.ts` (`getWeatherAt`/`getTideAt`), `tide.ts`, `transport.ts`; `components/WeatherForecastPanel.tsx` + `PredictMap.tsx`; `App.tsx`. `vite.config.ts` (added `/tide` proxy). Tests: `test_forecast.py`, `test_weather_at.py`, `test_tide_at.py`, `forecastSlice.test.ts`, `WeatherForecastPanel.test.tsx`.
+- **Version:** `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.34; `CHANGELOG.md`.
+- **Records:** `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md` (Shipped → 69), `CLAUDE.md` (vite-proxy convention), `README.md`, `docs/HELP.md`, `website/index.html`, `PRIVACY_POLICY.md`.
+- **Pipeline artifacts:** `pipeline/weather-current-predict/` (strategic-brief, prd, schema, design-spec, design.html, PR, how-to-see, qa-report, security-report).
+- **Committed and pushed to `main` from the VM; tag `v0.5.34` pushed** (starts the Windows CI build). The feature commit was rebased onto the Mac's "mark 0.5.33 released" commit, so `main` is linear and the tag points at the commit on `main`.
 
 ## Where We Are
 
-Released and verified live. `main` and `origin/main` are at `8f627a2`
-(0.5.33). GitHub release `v0.5.33` is published, marked Latest (not
-draft/prerelease), target `main`; all 6 assets return HTTP 200;
-`latest.json` carries `darwin-aarch64` + `darwin-x86_64` (the one
-universal updater bundle) and `windows-x86_64` (the `-setup.exe`).
-Windows CI for the tag was green (run 27485182983). Pipeline idle.
+Feature complete and verified (frontend 889, backend 131, lint/typecheck/build/ruff clean; live-verified against OpenWeather + NOAA; security pass), committed, and pushed to `main` with the `v0.5.34` tag. Pipeline idle. (0.5.33 is already RELEASED live on both platforms from the Mac.)
 
-## Open / Optional
+## To Release v0.5.34 (your steps from the Mac)
 
-- Optional: confirm the in-app updater picks up 0.5.33 by opening the app (latest.json is correct, so detection is ready).
-- ROADMAP Up Next: mobile app; Windows code signing.
+`main` and the `v0.5.34` tag are on GitHub; Windows CI is building. After CI finishes, run `./release.sh` from the Mac (notarized macOS + signed Windows installer + `latest.json`).
 
 ## Resume Prompt
 

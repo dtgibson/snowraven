@@ -39,7 +39,7 @@ This project uses the Weft framework. Run /new-feature to start a new feature.
 ### Ports
 - Backend runs on port **1620** (not 8000)
 - Frontend dev server runs on port **5173** (Vite default)
-- Vite proxies `/weather` and `/health` to `http://localhost:1620`
+- Vite proxies `/weather`, `/tide`, `/nominatim`, and the other backend route prefixes to `http://localhost:1620` (see `frontend/vite.config.ts`). **When you add a backend route, add its path prefix to that proxy.** Otherwise the web-dev path hits Vite's SPA fallback (HTML) instead of the backend and the call silently fails under `npm run dev` — this bit the new `/tide/at` route in 0.5.34 (and, latently, the existing checklist tide, which is normally exercised only via the desktop app or the FastAPI-served build).
 
 ### Environment
 - API keys live in `backend/.env` — never commit this file

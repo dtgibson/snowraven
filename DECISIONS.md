@@ -4,6 +4,25 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Weather & Tide — Current & Predict: one base forecast call, tiered slice reusing the existing formatter, and an honest weather/tide horizon gap — 2026-06-13 (v0.5.34)
+
+**What:** Two new lookups at the bottom of the Weather tab — Current (live weather + tide for the device location) and Predict (forecast weather + predicted tide for a chosen place/date/time) — that bypass the eBird checklist. Backend + frontend; no new providers.
+
+**Decisions worth keeping:**
+
+- **One base OpenWeather One Call 3.0 request serves current + the whole forecast.** The "One Call by Call" subscription already in use for the historical `timemachine` ALSO returns `current` + `hourly` (48h) + `daily` (8d) from the base `onecall` endpoint — confirmed live, not just from docs. A pure tier helper (`pick_forecast_slice`) picks current/hourly/daily/out-of-range, and an adapter maps the chosen slice into the timemachine `{data:[hour]}` shape so the EXISTING `format_weather`/`formatWeather` builds the copy block (byte-consistent, no second formatter). Daily passes two synthetic temp points (min,max) → the block reads as a low–high range. The tier helper + adapter are duplicated TS↔Python with parity tests over identical fixtures, the same posture as the moon-phase port.
+- **The weather/tide horizon gap is shown honestly (Dave's call: tide runs ahead).** Weather is capped at the provider's real ~8-day horizon (hourly ≤48h, a clearly-labeled DAILY summary 48h–8d); beyond that, weather is omitted with a "no forecast reaches this far" note while the tide — astronomical, predictable far ahead — still shows. Never an extrapolated forecast.
+- **New geo+time routes, declared before the checklist routes.** `GET /weather/at` and `GET /tide/at` take lat/lng/time directly and MUST be declared before the `{checklist_id}` routes (FastAPI matches in order) and matched before the `/weather/`/`/tide/` prefixes (TS transport), or "at" is captured as a checklist id. Tide reuses the whole existing pipeline unchanged; future NOAA predictions already work (labeled "Predicted").
+- **Current resolves "now" in the LOCATION's timezone, not the device's.** A verification bug (this UTC dev box showed UTC) led to making `/tide/at`'s `dt` optional (server defaults to location-tz now) and formatting the Current label from the tz the weather response returns — so Current is correct regardless of the device/browser timezone.
+
+**Bug post-mortem (found in verification):** the vite dev proxy was missing `/tide`, so in vite-dev `/tide/at` — and, latently, the EXISTING checklist tide — hit the SPA fallback instead of the backend. Invisible until now because the tide path is normally exercised via the desktop app or the FastAPI-served build, not vite-dev. Added `/tide` to the proxy. **Standing lesson:** a new backend route's path prefix must be added to `frontend/vite.config.ts`'s proxy.
+
+**Known minor (kept deliberately):** the copy-ready block reuses the shared tide formatter, so a tide that turns inside the 1-hour Current/Predict window reads "(turned during your checklist)" even though there's no checklist; kept for byte-parity with the checklist block (the on-screen summary uses "(turning)"). Dave reviewed and chose to keep it.
+
+**Out of scope (v1):** multi-hour/multi-day forecast windows or comparison (single moment only), saved/favorite locations, alerts/notifications, "best time to go" ranking.
+
+---
+
 ## Multimedia sex & age filters: one substitution point, exact-combo that the ML link also honors — 2026-06-13 (v0.5.33)
 
 **What:** Sex (Male/Female) and Age (Juvenile/Immature/Adult) dropdown filters on the Multimedia tab (`LifeList.tsx`), built on the per-asset Age/Sex already parsed for the media stats. Frontend-only.

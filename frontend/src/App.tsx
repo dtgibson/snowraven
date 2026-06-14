@@ -24,6 +24,7 @@ import { Settings } from './components/Settings'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
 import { OutboundLink } from './components/OutboundLink'
+import { WeatherForecastPanel } from './components/WeatherForecastPanel'
 
 // Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
 // Detail, and Help are kept out of the entry bundle so first paint is light. Named
@@ -973,6 +974,11 @@ export default function App() {
               )}
             </>
           )}
+
+          {/* Current / Predict — live + forecast weather and tide, bypassing the
+              checklist. Self-contained; the map (maplibre) lazy-loads only when
+              the user opens Predict, so the first-paint Weather tab stays light. */}
+          <WeatherForecastPanel />
         </div>
         <p style={{ width: '100%', maxWidth: 540, margin: '14px 0 0', textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)' }}>
           Also for your browser:{' '}

@@ -91,6 +91,15 @@ The box shows the water level across your checklist's duration, labeled **Observ
 
 If the nearest station is more than 25 miles away, or your checklist is outside the US (NOAA only covers the US and its territories), the box explains that and offers a one-tap option to show the nearest US station anyway. A **Copy Weather and Tide Together** button copies both blocks at once, with a single SnowRaven credit at the bottom.
 
+### Current and Predict
+
+At the bottom of the Weather tab, two buttons let you look up weather and tide directly — no checklist needed.
+
+- **Current** fetches the live weather and tide for where you are right now, in one tap. Your browser or device will ask permission to share your location the first time.
+- **Predict** lets you choose a place — type a place name to search, or tap the map to drop a pin and drag it to fine-tune — along with a date and time, then shows the forecast weather and the predicted tide for that moment.
+
+Weather forecasts reach about eight days out. Within the first couple of days you get an hour-by-hour reading; further out, you get that day's forecast summary, clearly labeled as a daily summary. Tide runs much further ahead, because tides are astronomical and predictable — so if you pick a date beyond the weather window, SnowRaven still shows you the tide and simply notes that no weather forecast reaches that far. Each result is a readable summary, with the same copy-ready block as the checklist lookup tucked behind a "Copy-ready block" toggle.
+
 ### SnowRaven Mini (browser extension)
 
 SnowRaven Mini is a separate companion project: a small Chrome and Firefox extension that runs the same weather and tide lookup directly on an eBird checklist's Edit Comments page and copies the block for pasting, in the same format SnowRaven produces. It is independent of the app — nothing in SnowRaven requires or uses it — and it needs its own copies of the free eBird and OpenWeather keys. It is not yet on the extension stores; source, releases, and documentation live at [github.com/dtgibson/snowraven-mini](https://github.com/dtgibson/snowraven-mini).

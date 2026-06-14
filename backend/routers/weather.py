@@ -7,9 +7,44 @@ from fastapi import APIRouter, HTTPException
 
 from formatters.weather import format_weather, get_timezone
 from services.ebird import fetch_checklist
-from services.openweather import fetch_historical
+from services.forecast import build_weather_payload
+from services.openweather import fetch_historical, fetch_forecast
 
 router = APIRouter()
+
+
+# NOTE: declared BEFORE /weather/{checklist_id} so FastAPI matches the static path
+# first — otherwise "at" would be captured as a checklist id and rejected.
+@router.get("/weather/at")
+async def get_weather_at(lat: float, lng: float, dt: str | None = None):
+    """Live (Current) or forecast (Predict) weather for an arbitrary location and
+    moment, bypassing the eBird checklist. `dt` is the location's local wall-clock
+    ('YYYY-MM-DD HH:MM' or 'YYYY-MM-DD'); omit it for "now". No eBird key needed."""
+    if not os.getenv("OPENWEATHER_API_KEY"):
+        raise HTTPException(status_code=500, detail="API key not configured. Check your .env file.")
+
+    tz = get_timezone(lat, lng)
+
+    target_ts = None
+    if dt:
+        parsed = None
+        for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                parsed = datetime.strptime(dt, fmt).replace(tzinfo=tz)
+                break
+            except ValueError:
+                continue
+        if parsed is None:
+            raise HTTPException(status_code=400, detail="That doesn't look like a valid date and time.")
+        target_ts = int(parsed.timestamp())
+
+    try:
+        onecall = await fetch_forecast(lat, lng)
+    except Exception:
+        raise HTTPException(status_code=502, detail="Weather data unavailable for this location.")
+
+    payload = build_weather_payload(onecall, target_ts, tz, lat)
+    return {**payload, "tz": str(tz)}
 
 
 @router.get("/weather/{checklist_id}")

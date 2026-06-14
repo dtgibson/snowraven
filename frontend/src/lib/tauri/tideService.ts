@@ -10,7 +10,7 @@ import { fetchChecklist } from './weatherService'
 import { nearestStation, classifyTideLocation, type TideLocationStatus } from '../tideStations'
 import {
   parseObserved, parsePredictions, parseHiLo, computeTideReading,
-  normalizeObsDt, shiftLocal, toNoaaDate,
+  normalizeObsDt, shiftLocal, toNoaaDate, summarizeReading, type TideAtResponse,
 } from '../tide'
 import { formatTide, formatTideBody } from '../tideFormatter'
 
@@ -91,5 +91,46 @@ export async function getTide(checklistId: string, force = false): Promise<TideR
     body: formatTideBody(reading),
     station: { id: nearest.station.id, name: nearest.station.name },
     distanceMi: nearest.distanceMi,
+  }
+}
+
+// Live (Current) or predicted (Predict) tide for an arbitrary location and moment,
+// bypassing the eBird checklist. `dtLocal` is the local wall-clock; a 1-hour
+// window around it gives the trend + bracketing high/low. Twin of GET /tide/at.
+export async function getTideAt(lat: number, lng: number, dtLocal: string, force = false): Promise<TideAtResponse> {
+  const start = normalizeObsDt(dtLocal)
+  const end = shiftLocal(start, 1)
+
+  const nearest = nearestStation(lat, lng)
+  if (!nearest) return { status: 'unavailable' }
+
+  const status = classifyTideLocation(lat, lng, nearest)
+  if (status !== 'ok' && !force) {
+    return { status, station: { id: nearest.station.id, name: nearest.station.name }, distanceMi: nearest.distanceMi }
+  }
+
+  const station = nearest.station.id
+  const begin = toNoaaDate(start), finish = toNoaaDate(end)
+
+  const [obsBody, predBody, hiloBody] = await Promise.all([
+    getJson(noaaUrl({ begin_date: begin, end_date: finish, station, product: 'water_level' })),
+    getJson(noaaUrl({ begin_date: begin, end_date: finish, station, product: 'predictions', interval: '6' })),
+    getJson(noaaUrl({ begin_date: toNoaaDate(shiftLocal(start, -24)), end_date: toNoaaDate(shiftLocal(end, 24)), station, product: 'predictions', interval: 'hilo' })),
+  ])
+
+  const reading = computeTideReading(
+    start, end,
+    parseObserved(obsBody), parsePredictions(predBody), parseHiLo(hiloBody),
+    nearest.station, nearest.distanceMi,
+  )
+  if (!reading) return { status: 'unavailable' }
+
+  return {
+    status: 'ok',
+    formatted: formatTide(reading),
+    body: formatTideBody(reading),
+    station: { id: nearest.station.id, name: nearest.station.name },
+    distanceMi: nearest.distanceMi,
+    reading: summarizeReading(reading),
   }
 }
