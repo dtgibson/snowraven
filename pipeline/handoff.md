@@ -1,25 +1,67 @@
-# Handoff — Nearby Lifers Map COMPLETE; v0.5.35 pushed to GitHub (release pending from the Mac)
+# Handoff — Nearby Lifers RELEASED; v0.5.35 live on both platforms (build-blocker fixed on the Mac)
 
 ## What We Accomplished
 
-Moved **Nearby Lifers** off the Statistics tab and rebuilt it as its own section of the **Map Explorer**. Instead of a flat list of species names, you now see *where* the birds you've never recorded were reported recently near a point you choose: each spot is a labeled pin (the species name, or "{n} species" where several turned up together), colored by how recently it was seen, with a matching list in the panel and click-through to dates and eBird checklist links. It opens on your saved default location and uses the same controls as the other map sections (use my location, place search, radius), plus a new **Time Range** filter (last day / week / 30 days) that was also added to the Media Targets section so the two match.
+Released v0.5.35. **Nearby Lifers** was built and Chronicled on the VM
+(commit `9fa2376`, tag `v0.5.35`) and pushed. This Mac session pulled and
+found the VM's 0.5.35 build was **broken** — both Windows CI runs for the
+tag failed on a TypeScript error. We fixed it, re-tagged, waited for a
+green CI run, then ran `./release.sh` and verified the release live.
 
-## What Has Been Saved
+Nearby Lifers moved off the Statistics tab into a new (4th) Map Explorer
+section: recency-colored, location-grouped labeled pins of recently
+reported species you've never recorded, a mirroring in-view list, the
+standard location chooser, and a new shared **Time Range** filter (last
+day / week / 30 days) also added to Media Targets. Built on the eBird
+data the app already uses; privacy posture unchanged.
 
-- **Code:** new `frontend/src/lib/nearbyLifers.ts` (+ test), `frontend/src/components/map/NearbyLiferMarkers.tsx` (+ test); `frontend/src/components/MapExplorer.tsx` (the new "lifers" mode + shared Time Range control on both panels), `lib/mapExplorerTypes.ts`, `lib/tauri/mapService.ts`, `lib/transport.ts`, `components/BirdingStats.tsx` (removed the old block). Backend `routers/map.py` (codes-optional `/map/recent-obs` + restored lat/lng/dist bounds), `routers/stats.py` deleted, `main.py`, `tests/test_map_router.py`. Removed `lib/tauri/statsService.ts` + `tests/test_stats_router.py`.
-- **Version + docs:** `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.35; `CHANGELOG.md`; `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md`, `CLAUDE.md`, `README.md`, `docs/HELP.md`, `website/index.html`.
-- **Pipeline artifacts:** `pipeline/nearby-lifers-map/` (strategic-brief, prd, schema, design-spec, design.html, PR, how-to-see, qa-report, security-report).
-- **Committed on the VM, rebased onto the Mac's 0.5.34-released commit (`83364e8`) so `main` stays linear, then pushed to `main`; tag `v0.5.35` pushed** (starts Windows CI).
+## The build blocker (fixed this session)
+
+The VM reported "build clean," but its checks missed a real failure:
+`buildNearbyLifers` carried an unused `nowMs` parameter guarded only by
+`// eslint-disable-next-line @typescript-eslint/no-unused-vars`. That
+silences ESLint but **not** the TypeScript compiler — `tsc`'s
+`noUnusedParameters` rejects a trailing unused parameter (TS6133). vitest
+(esbuild, no type-check) and ESLint passed, but the real production build
+(`npm run build` = `tsc -b && vite build`) failed:
+
+```
+src/lib/nearbyLifers.ts(41,3): error TS6133: 'nowMs' is declared but its value is never read.
+```
+
+Both Windows CI runs for the tag (`9fa2376`, and the pre-rebase
+`375c784`) failed this way; it would also have failed the macOS
+`release.sh` build. **Fix** (commit `7af29d5`): removed the dead
+parameter, its `MapExplorer` call site (which dropped a needless
+`Date.now()`), and the test's now-unused `NOW` const. Verified on the
+Mac: `npm run build`, `npm run lint`, and **911/911 vitest** all green.
+Added a CLAUDE.md note so the production build — not just vitest/lint — is
+the pre-push gate.
+
+## How We Released
+
+1. Committed the fix (`7af29d5`), pushed `main`, force-moved the
+   `v0.5.35` tag to `7af29d5`.
+2. New Windows CI run `27512712253` went green; verified its `headSha ==
+   7af29d5 ==` the tag commit `==` `release.sh`'s most-recent-success
+   selection (the tag-re-push guard) **before** releasing.
+3. Ran `./release.sh` from the Mac.
 
 ## Where We Are
 
-Feature complete and verified (frontend 911 vitest, backend 129 pytest, typecheck/eslint/build/ruff clean; live-verified; security PASS, no privacy change), committed, rebased, and pushed to `main` with the `v0.5.35` tag. Pipeline idle. (0.5.34 is already released live on both platforms.)
+Released and verified live. `main` / `origin/main` / tag `v0.5.35` all at
+`7af29d5`. GitHub release `v0.5.35` is published, marked Latest (not
+draft/prerelease), target `main`, published 2026-06-14T21:50:27Z. All 6
+assets return HTTP 200. macOS notarization Accepted (Apple submission
+`1fefdeba`) + stapled. `latest.json`: version 0.5.35, `darwin-aarch64` +
+`darwin-x86_64` → the one universal updater bundle (same sig),
+`windows-x86_64` → `SnowRaven_0.5.35_x64-setup.exe`. Pipeline idle.
 
-## To Release v0.5.35 (your steps from the Mac)
+## Open / Optional
 
-`main` and the `v0.5.35` tag are on GitHub; Windows CI is building. After CI finishes, run `./release.sh` from the Mac.
-
-**Tag re-push hazard — read first.** The `v0.5.35` tag was pushed once at the pre-rebase commit, then moved to the rebased commit, so two Windows CI runs exist. Per the CLAUDE.md standing check, BEFORE running `release.sh` verify the selected run's commit matches the tag: `gh run list --workflow windows-build.yml --status success --limit 1 --json databaseId,headSha` and confirm `headSha == git rev-parse v0.5.35^{commit}`. Wait for the correct (newer-created) run to go green first.
+- Optional: confirm the in-app updater picks up 0.5.35 by opening the app
+  (latest.json is correct, so detection is ready).
+- ROADMAP Up Next: mobile app; Windows code signing.
 
 ## Resume Prompt
 
