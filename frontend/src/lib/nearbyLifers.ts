@@ -28,17 +28,14 @@ import { recencyTier, distanceMiles } from './mapExplorerFormat'
  * - Returned locations are sorted nearest-first by distance from
  *   (centerLat, centerLng) (FR-13 / QA-09).
  *
- * `nowMs` is accepted for signature parity with isWithinWindow / testability; the
- * recency-window filter is applied by the caller via isWithinWindow before/around
- * this. (The tier comes from recencyTier, which reads the current day itself.)
+ * The recency-window filter is the caller's responsibility (via isWithinWindow);
+ * the per-location tier comes from recencyTier, which reads the current day itself.
  */
 export function buildNearbyLifers(
   records: TargetPin[],
   recordedNames: Set<string>,
   centerLat: number,
   centerLng: number,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  nowMs: number,
 ): NearbyLiferLocation[] {
   // Normalize the recorded set once, case-insensitive, with the shared normalizer.
   const recorded = new Set<string>()

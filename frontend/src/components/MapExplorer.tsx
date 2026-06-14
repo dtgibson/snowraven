@@ -760,7 +760,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       const records = await transport.get<TargetPin[]>('/map/recent-obs', {
         lat: String(latNum), lng: String(lngNum), dist: String(distKm),
       })
-      setLiferPins(buildNearbyLifers(records, recordedNames, latNum, lngNum, Date.now()))
+      setLiferPins(buildNearbyLifers(records, recordedNames, latNum, lngNum))
       // recent-obs records already carry eBird speciesCode, so favicons need no
       // extra taxonomy call — merge name → code from the records.
       if (records.length > 0) {

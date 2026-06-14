@@ -30,8 +30,6 @@ function isoDaysAgo(daysAgo: number): string {
   return `${y}-${m}-${day}`
 }
 
-const NOW = Date.UTC(2026, 5, 14) // arbitrary fixed nowMs for window tests
-
 describe('buildNearbyLifers — filter out recorded species', () => {
   it('drops records whose normalized common name is in the recorded set (case-insensitive)', () => {
     const records = [
@@ -41,7 +39,7 @@ describe('buildNearbyLifers — filter out recorded species', () => {
     // Recorded set provided with different case + a parenthetical subspecies form,
     // which normalizeSpeciesName strips.
     const recorded = new Set(['american robin', 'House Finch (Common)'])
-    const out = buildNearbyLifers(records, recorded, 38.5, -121.5, NOW)
+    const out = buildNearbyLifers(records, recorded, 38.5, -121.5)
     expect(out).toHaveLength(1)
     expect(out[0].lifers).toHaveLength(1)
     expect(out[0].lifers[0].comName).toBe('Varied Thrush')
@@ -51,7 +49,7 @@ describe('buildNearbyLifers — filter out recorded species', () => {
   it('normalizes subspecies parentheticals on the record side too', () => {
     const records = [rec({ comName: 'Dark-eyed Junco (Oregon)', speciesCode: 'daejun' })]
     const recorded = new Set(['Dark-eyed Junco'])
-    const out = buildNearbyLifers(records, recorded, 38.5, -121.5, NOW)
+    const out = buildNearbyLifers(records, recorded, 38.5, -121.5)
     expect(out).toHaveLength(0)
   })
 })
@@ -64,7 +62,7 @@ describe('buildNearbyLifers — skip null/invalid coordinates', () => {
       // Force a null through despite the type (mirrors a coordinate-less obs).
       rec({ comName: 'Null Lng', speciesCode: 'nolng', lng: null as unknown as number }),
     ]
-    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5, NOW)
+    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5)
     expect(out).toHaveLength(1)
     expect(out[0].lifers).toHaveLength(1)
     expect(out[0].lifers[0].comName).toBe('Good Bird')
@@ -78,7 +76,7 @@ describe('buildNearbyLifers — group by location', () => {
       rec({ comName: 'Bird B', speciesCode: 'b', locId: 'L1', locName: 'Loc One' }),
       rec({ comName: 'Bird C', speciesCode: 'c', locId: 'L2', locName: 'Loc Two' }),
     ]
-    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5, NOW)
+    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5)
     expect(out).toHaveLength(2)
     const l1 = out.find((l) => l.locId === 'L1')!
     expect(l1.locName).toBe('Loc One')
@@ -94,7 +92,7 @@ describe('buildNearbyLifers — distinct species count', () => {
       rec({ comName: 'Bird A', speciesCode: 'a', locId: 'L1', recentDate: '2026-06-05' }),
       rec({ comName: 'Bird B', speciesCode: 'b', locId: 'L1', recentDate: '2026-06-03' }),
     ]
-    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5, NOW)
+    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5)
     expect(out).toHaveLength(1)
     expect(out[0].count).toBe(2) // a, b — distinct codes
     expect(out[0].lifers).toHaveLength(3) // all records still listed
@@ -108,7 +106,7 @@ describe('buildNearbyLifers — most-recent ordering within a location', () => {
       rec({ comName: 'Newest', speciesCode: 'n', locId: 'L1', recentDate: '2026-06-10' }),
       rec({ comName: 'Middle', speciesCode: 'm', locId: 'L1', recentDate: '2026-06-05' }),
     ]
-    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5, NOW)
+    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5)
     expect(out[0].lifers.map((x) => x.comName)).toEqual(['Newest', 'Middle', 'Older'])
     expect(out[0].mostRecentDate).toBe('2026-06-10')
   })
@@ -117,11 +115,11 @@ describe('buildNearbyLifers — most-recent ordering within a location', () => {
 describe('buildNearbyLifers — tier from newest report', () => {
   it('fresh (≤7 days), mid (≤15), old (>15) using the shared recencyTier', () => {
     const fresh = buildNearbyLifers(
-      [rec({ locId: 'F', recentDate: isoDaysAgo(2) })], new Set(), 0, 0, NOW)
+      [rec({ locId: 'F', recentDate: isoDaysAgo(2) })], new Set(), 0, 0)
     const mid = buildNearbyLifers(
-      [rec({ locId: 'M', recentDate: isoDaysAgo(10) })], new Set(), 0, 0, NOW)
+      [rec({ locId: 'M', recentDate: isoDaysAgo(10) })], new Set(), 0, 0)
     const old = buildNearbyLifers(
-      [rec({ locId: 'O', recentDate: isoDaysAgo(25) })], new Set(), 0, 0, NOW)
+      [rec({ locId: 'O', recentDate: isoDaysAgo(25) })], new Set(), 0, 0)
     expect(fresh[0].tier).toBe('fresh')
     expect(mid[0].tier).toBe('mid')
     expect(old[0].tier).toBe('old')
@@ -131,7 +129,7 @@ describe('buildNearbyLifers — tier from newest report', () => {
     const out = buildNearbyLifers([
       rec({ comName: 'Old one', speciesCode: 'o', locId: 'L1', recentDate: isoDaysAgo(25) }),
       rec({ comName: 'Fresh one', speciesCode: 'f', locId: 'L1', recentDate: isoDaysAgo(1) }),
-    ], new Set(), 0, 0, NOW)
+    ], new Set(), 0, 0)
     expect(out[0].mostRecentDate).toBe(isoDaysAgo(1))
     expect(out[0].tier).toBe('fresh')
   })
@@ -147,18 +145,18 @@ describe('buildNearbyLifers — nearest-first sort', () => {
       // mid: ~0.5 degree away
       rec({ comName: 'Mid', speciesCode: 'mid', locId: 'MID', lat: 39.0, lng: -121.5 }),
     ]
-    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5, NOW)
+    const out = buildNearbyLifers(records, new Set(), 38.5, -121.5)
     expect(out.map((l) => l.locId)).toEqual(['NEAR', 'MID', 'FAR'])
   })
 })
 
 describe('buildNearbyLifers — empty / all-filtered', () => {
   it('returns [] when no records', () => {
-    expect(buildNearbyLifers([], new Set(), 38.5, -121.5, NOW)).toEqual([])
+    expect(buildNearbyLifers([], new Set(), 38.5, -121.5)).toEqual([])
   })
   it('returns [] when every species is recorded', () => {
     const records = [rec({ comName: 'Recorded Bird' })]
-    expect(buildNearbyLifers(records, new Set(['recorded bird']), 38.5, -121.5, NOW)).toEqual([])
+    expect(buildNearbyLifers(records, new Set(['recorded bird']), 38.5, -121.5)).toEqual([])
   })
 })
 
