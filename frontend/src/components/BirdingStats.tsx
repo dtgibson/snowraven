@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import {
-  BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna, Star,
+  BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna,
   AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
   ListOrdered, Award,
 } from 'lucide-react'
@@ -48,15 +48,10 @@ type Phase =
   | { tag: 'error'; message: string }
   | { tag: 'ready'; observations: ObservationEntry[]; mlRows: MLExportRow[]; freshness: string }
 
-type MapDefaults = { lat: number; lng: number; dist: number }
-
-type NemesisSpecies = { commonName: string; recentDate: string }
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const EMPTY_OBS: ObservationEntry[] = []
 const EMPTY_ML: MLExportRow[] = []
-const SESSION_NOW_MS = Date.now()
 const ML_USER_RE = /^ML__.*_([A-Za-z0-9]+)\.csv$/i
 
 const PROTOCOL_COLORS = [
@@ -67,10 +62,10 @@ const PROTOCOL_COLORS = [
   'var(--sr-chart-slate)',
 ]
 
-// Always-present sections, in render order (through Breeding Stats). The two
-// trailing sections — "Media" (only when an ML export is loaded) and the always-
-// present "Other Statistics" — are appended at render time so the jump-nav never
-// shows a chip for a section that isn't on the page.
+// Always-present sections, in render order (through Breeding Stats). The
+// trailing "Media" section (only when an ML export is loaded) is appended at
+// render time so the jump-nav never shows a chip for a section that isn't on
+// the page.
 const NAV_SECTIONS = [
   'Life List Totals', 'Top Species', 'Firsts & Milestones', 'Temporal Stats',
   'Geographic Stats', 'Effort & Outings', 'Data Quality', 'Highlights & Records',
@@ -81,7 +76,6 @@ const NAV_SECTIONS = [
 
 export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings: () => void; onOpenSpecies?: (commonName: string) => void }) {
   const [phase, setPhase]           = useState<Phase>({ tag: 'loading-saved' })
-  const [mapDefaults, setMapDefaults] = useState<MapDefaults | null>(null)
   const [includeSpuh, setIncludeSpuh] = useState(false)
   const [accGranularity, setAccGranularity] = useState<Granularity>('total')
   const [showAllCounties, setShowAllCounties] = useState(false)
@@ -90,10 +84,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const [mlTaxonMap, setMlTaxonMap] = useState<Record<string, string>>({})
   const [mlTaxonOrders, setMlTaxonOrders] = useState<Record<string, number>>({})
   const [geoPopup, setGeoPopup] = useState<{ lng: number; lat: number; title: string; sub: string } | null>(null)
-  const [nemesisResult, setNemesisResult] = useState<NemesisSpecies[] | null>(null)
-  const [nemesisLoading, setNemesisLoading] = useState(false)
-  const [nemesisError, setNemesisError] = useState<string | null>(null)
-  const [nemesisTaxonMap, setNemesisTaxonMap] = useState<Record<string, string>>({})
   const [mediaInterval, setMediaInterval] = useState<MediaGraphInterval>('monthly')
   const [mediaViewMode, setMediaViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   // Progressive-render gates (perf): `computed` flips on after first paint so the
@@ -102,22 +92,15 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const [computed, setComputed] = useState(false)
   const [mapReady, setMapReady] = useState(false)
 
-  // Auto-load eBird backup + ML export + map defaults on mount
+  // Auto-load eBird backup + ML export on mount
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const [status, mapDefaults] = await Promise.all([
-          storage.getFilesStatus(),
-          storage.getSetting<{ lat: number; lng: number; dist: number }>('map-defaults').catch(() => null),
-        ])
+        const status = await storage.getFilesStatus()
 
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
-
-        if (mapDefaults && typeof mapDefaults.lat === 'number' && typeof mapDefaults.lng === 'number') {
-          setMapDefaults(mapDefaults)
-        }
 
         const [ebird, ml] = await Promise.all([
           loadEbirdObservations(),
@@ -163,45 +146,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     load()
     return () => { cancelled = true }
   }, [])
-
-  // Nemesis fetch when map defaults are available
-  useEffect(() => {
-    if (!mapDefaults || phase.tag !== 'ready') return
-    let cancelled = false
-    const run = async () => {
-      setNemesisLoading(true)
-      setNemesisError(null)
-      try {
-        const data = await transport.get<{ species: NemesisSpecies[] }>('/stats/nemesis', {
-          lat: String(mapDefaults.lat),
-          lng: String(mapDefaults.lng),
-          dist: String(mapDefaults.dist),
-        })
-        if (!cancelled) {
-          const species: NemesisSpecies[] = data.species ?? []
-          setNemesisResult(species)
-          const missing = species.map(s => s.commonName).filter(n => !mlTaxonMap[n])
-          if (missing.length > 0) {
-            try {
-              const taxData = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', {
-                species: missing.map(n => ({ commonName: n, scientificName: '' })),
-              })
-              if (!cancelled) setNemesisTaxonMap(taxData.codes)
-            } catch { /* non-fatal */ }
-          }
-        }
-      } catch {
-        if (!cancelled) setNemesisError('Could not load nearby sightings.')
-      } finally {
-        if (!cancelled) setNemesisLoading(false)
-      }
-    }
-    run()
-    return () => { cancelled = true }
-    // mlTaxonMap is read only to skip already-resolved species; including it as a
-    // dep would re-fire the nemesis fetch on every taxon-map update (refetch loop).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapDefaults, phase.tag])
 
   // Raw data — stable refs so useMemos don't thrash when phase tag changes
   const rawObs = phase.tag === 'ready' ? phase.observations : EMPTY_OBS
@@ -279,13 +223,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const normTaxon = useMemo(() => {
     const m: Record<string, string> = {}
     for (const [name, code] of Object.entries(mlTaxonMap)) m[normalizeSpeciesName(name)] = code
-    for (const [name, code] of Object.entries(nemesisTaxonMap)) {
-      const k = normalizeSpeciesName(name)
-      if (!(k in m)) m[k] = code
-    }
     return m
-  }, [mlTaxonMap, nemesisTaxonMap])
-  const codeFor = (name: string) => mlTaxonMap[name] ?? nemesisTaxonMap[name] ?? normTaxon[normalizeSpeciesName(name)]
+  }, [mlTaxonMap])
+  const codeFor = (name: string) => mlTaxonMap[name] ?? normTaxon[normalizeSpeciesName(name)]
   // Taxonomic order for media species (for the Age coverage by species sort).
   const normTaxonOrder = useMemo(() => {
     const m: Record<string, number> = {}
@@ -334,13 +274,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   // Fun stats
   const funStats = useMemo(() => computeFunStats(filteredObs, checklists, effectiveObs), [filteredObs, checklists, effectiveObs])
-
-  // Nearby Lifers (nemesis* internals) filtered against life list
-  const nemesisFiltered = useMemo(() => {
-    if (!nemesisResult) return null
-    const lifeSet = new Set(lifeList.map(s => s.toLowerCase()))
-    return nemesisResult.filter(n => !lifeSet.has(n.commonName.toLowerCase()))
-  }, [nemesisResult, lifeList])
 
   const mediaGraphResult = useMemo(
     () => buildMediaGraphData(effectiveMl, mediaInterval),
@@ -409,11 +342,10 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const maxDow = Math.max(...temporal.dowRows.map(r => r.value), 1)
   const maxHour = Math.max(...temporal.hourRows.map(r => r.value), 1)
   const totalHour = temporal.hourRows.reduce((s, r) => s + r.value, 0)
-  // Jump-nav: base sections + Media (only with an ML export) + Other Statistics.
+  // Jump-nav: base sections + Media (only with an ML export).
   const navSections = [
     ...NAV_SECTIONS,
     ...(rawMlRows.length > 0 ? ['Media'] : []),
-    'Other Statistics',
   ]
 
   return (
@@ -1842,75 +1774,6 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         </SectionCard>
       )}
 
-      {/* ── Section 9: Other Statistics ───────────────────────────────────── */}
-      <SectionCard title="Other Statistics" icon={<Star size={16} />}>
-
-        {/* Nearby Lifers (formerly "Nemesis Birds") */}
-        <SubLabel>Nearby Lifers</SubLabel>
-        <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 12px', borderLeft: '3px solid var(--sr-accent-border)', paddingLeft: 10 }}>
-          <p style={{ margin: '0 0 6px' }}>
-            Species observed near your configured location in the past 30 days that haven't appeared on your life list, sorted by most recently seen. Data comes from eBird's recent observations for the location and search radius set in Settings.
-          </p>
-          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            {[
-              { color: '#EF4444', label: 'Seen in past 7 days' },
-              { color: '#F59E0B', label: '8–14 days ago' },
-              { color: 'var(--sr-text-disabled)', label: '15–30 days ago' },
-            ].map(d => (
-              <div key={d.label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: d.color, flexShrink: 0 }} />
-                <span>{d.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        {!mapDefaults ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--sr-surface-subtle)', borderRadius: 8 }}>
-            <AlertCircle size={14} style={{ color: 'var(--sr-text-muted)', flexShrink: 0 }} />
-            <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: 0 }}>
-              Set a default location in{' '}
-              <button tabIndex={0} onClick={onGoToSettings} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--sr-accent)', fontSize: 'inherit', fontFamily: 'inherit', fontWeight: 600 }}>
-                Settings
-              </button>{' '}
-              to see Nearby Lifers.
-            </p>
-          </div>
-        ) : nemesisLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--sr-text-muted)', fontSize: '0.8125rem' }}>
-            <Loader2 size={14} className="spin" /> Loading nearby sightings…
-          </div>
-        ) : nemesisError ? (
-          <p style={{ fontSize: '0.8125rem', color: 'var(--sr-error)', margin: 0 }}>{nemesisError}</p>
-        ) : nemesisFiltered !== null && nemesisFiltered.length === 0 ? (
-          <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: 0 }}>
-            No nearby lifers — you've seen everything reported nearby in the past 30 days.
-          </p>
-        ) : nemesisFiltered && nemesisFiltered.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {nemesisFiltered.map(bird => {
-              const daysAgo = Math.round(
-                (SESSION_NOW_MS - new Date(bird.recentDate + 'T12:00:00').getTime()) / 86400000
-              )
-              const dotColor = daysAgo <= 7 ? '#EF4444' : daysAgo <= 14 ? '#F59E0B' : 'var(--sr-text-disabled)'
-              const taxonCode = mlTaxonMap[bird.commonName] || nemesisTaxonMap[bird.commonName] || null
-              return (
-                <div key={bird.commonName} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <BirdName
-                      commonName={bird.commonName}
-                      taxonCode={taxonCode ?? undefined}
-                      hasEntry={hasEntryFor(bird.commonName)}
-                      onOpenSpecies={onOpenSpecies}
-                    />
-                  </span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>{fmtDate(bird.recentDate)}</span>
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
-      </SectionCard>
       </>
       )}
     </div>

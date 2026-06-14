@@ -95,7 +95,7 @@ describe('networkCacheKey', () => {
 
   it('different paths and params produce different keys', () => {
     expect(networkCacheKey('/map/hotspots', { lat: '1', lng: '2' }))
-      .not.toBe(networkCacheKey('/stats/nemesis', { lat: '1', lng: '2' }))
+      .not.toBe(networkCacheKey('/map/recent-obs', { lat: '1', lng: '2' }))
     expect(networkCacheKey('/map/hotspots', { dist: '8' }))
       .not.toBe(networkCacheKey('/map/hotspots', { dist: '40' }))
   })

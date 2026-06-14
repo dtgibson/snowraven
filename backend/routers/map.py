@@ -1,7 +1,7 @@
 import os
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 router = APIRouter()
 
@@ -40,11 +40,14 @@ async def get_hotspots(lat: float, lng: float, dist: int = 25):
 
 
 @router.get("/map/recent-obs")
-async def get_recent_obs(lat: float, lng: float, dist: int = 25, codes: str = ""):
+async def get_recent_obs(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    dist: int = Query(25, ge=1, le=200),
+    codes: str = "",
+):
     key = _api_key()
     code_set = {c.strip() for c in codes.split(",") if c.strip()}
-    if not code_set:
-        return []
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
@@ -64,11 +67,12 @@ async def get_recent_obs(lat: float, lng: float, dist: int = 25, codes: str = ""
 
     observations = resp.json()
 
-    # Filter to requested species and group by (speciesCode, locId)
+    # Filter to requested species (when codes given) and group by (speciesCode, locId).
+    # An empty code_set means no filter — return every species in the radius.
     groups: dict[tuple[str, str], dict] = {}
     for obs in observations:
         code = obs.get("speciesCode", "")
-        if code not in code_set:
+        if code_set and code not in code_set:
             continue
         loc_id = obs.get("locId", "")
         group_key = (code, loc_id)

@@ -10,7 +10,7 @@ When you first open SnowRaven, go to the Settings tab. That is where you enter y
 
 The recommended setup sequence is:
 
-1. Enter your eBird API key in Settings. This is required for the Weather tab and the Nearby Lifers card in Statistics.
+1. Enter your eBird API key in Settings. This is required for the Weather tab and the Map Explorer (including its Nearby Lifers section).
 2. Enter your OpenWeather API key in Settings. This is required for the Weather tab.
 3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer tabs.
 4. Upload your ML export from Macaulay Library in Settings. This is optional but unlocks media-specific features in Multimedia, Species Detail, and Statistics.
@@ -23,7 +23,7 @@ An API key is a private code that identifies your account when the app contacts 
 
 ### eBird API key
 
-The eBird API key lets SnowRaven fetch checklist metadata for weather lookups and retrieve recent bird sightings near your location for the Nearby Lifers feature. The key is free and is tied to your standard eBird account.
+The eBird API key lets SnowRaven fetch checklist metadata for weather lookups and retrieve recent bird sightings near your location for the Map Explorer's Nearby Lifers feature. The key is free and is tied to your standard eBird account.
 
 To get your key:
 
@@ -59,7 +59,7 @@ Your eBird backup is a full export of all your eBird observations -- every check
 
 The file is called `MyEBirdData.csv`. To download it, sign in at [ebird.org](https://ebird.org) and go to [ebird.org/downloadMyData](https://ebird.org/downloadMyData). Click "Download My Data" and save the download; if it arrives as a `.zip`, unzip it to find `MyEBirdData.csv`. In SnowRaven, go to Settings and upload that CSV under Default Files.
 
-The eBird backup is used by: Species Detail, Statistics (all cards except Nearby Lifers), Map Explorer, Breeding Codes, Multimedia, and List Comparer.
+The eBird backup is used by: Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer.
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
@@ -197,20 +197,6 @@ A deep look at your Macaulay Library archive, built from your ML export. It open
 
 Below all of that, ranked lists show your most-photographed, most-recorded, and most-filmed species, each linking to your personal Macaulay Library page filtered by species and media type. The whole card requires your ML export; the age, gender, behavior, and time-of-day sections fill in to the extent your export carries those annotations.
 
-### Nearby Lifers
-
-Species observed near your configured location in the past 30 days that do not appear on your life list, sorted by most recently seen.
-
-The configured location is the Default Location set in Settings under Default Location. If no default location has been saved, this card shows no results. The search radius is also set there.
-
-Data comes from eBird's recent observations API for your location and radius. Each species name links to its eBird species account page.
-
-The dot next to each species name shows how recently it was seen:
-
-- Red dot: seen within the past 7 days.
-- Amber dot: seen 8 to 14 days ago.
-- Grey dot: seen 15 to 30 days ago.
-
 ---
 
 ## Map Explorer
@@ -247,7 +233,15 @@ With shading on, a **Use Textures** toggle (off by default) adds a distinct hatc
 
 ### Media Targets
 
-Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. A **Targets in view** list in the sidebar mirrors the target pins currently on screen: each row shows the species, location, the most recent date, and (when you have a search center set) the distance, sorted nearest first. The list updates as you pan or zoom, so it always reflects what's visible; on very dense views it shows the closest first with a note to zoom in to narrow it. Selecting a row (via its keyboard-operable "show on map" button) opens that location's details popup on the map and pans to it. This is the keyboard path to the target chips, which are otherwise mouse-only.
+Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. A **Time Range** filter narrows the window to the last day, last week, or last 30 days. A **Targets in view** list in the sidebar mirrors the target pins currently on screen: each row shows the species, location, the most recent date, and (when you have a search center set) the distance, sorted nearest first. The list updates as you pan or zoom, so it always reflects what's visible; on very dense views it shows the closest first with a note to zoom in to narrow it. Selecting a row (via its keyboard-operable "show on map" button) opens that location's details popup on the map and pans to it. This is the keyboard path to the target chips, which are otherwise mouse-only.
+
+### Nearby Lifers
+
+Maps where species you have never recorded were reported recently near a chosen point -- not just which ones. It opens on your saved Default Location and offers the same controls as the other map sections: **Use my location**, a place-name search, and a Radius control, plus a **Time Range** filter to set the window to the last day, last week, or last 30 days.
+
+Each spot is a labeled pin showing the lifer's name, or "{n} species" where several lifers were reported at one place. Pins are colored by how recently the bird was seen. Click a pin (or a row in the panel list) to see the lifers reported there, each with its date and a link to the eBird checklist. Lifer names appear with the eBird and Birds of the World icons but without a Species Detail link, since they are not in your recorded data.
+
+Data comes from eBird's recent observations API for your location and radius. This view replaces the old flat Nearby Lifers list that lived on the Statistics tab.
 
 ---
 
@@ -383,7 +377,7 @@ Upload your eBird backup CSV and Macaulay Library export. Each file is stored fo
 
 ### Default Location
 
-Set a home location used by the Map Explorer and the Nearby Lifers card in Statistics. Click **Use my location** to fill in your coordinates automatically (the same detection the Map Explorer offers), or enter latitude and longitude by hand. Set a search radius in miles, then click Save. The radius defaults to 5 miles. The Map Explorer uses these coordinates as its starting center and zoom level. The Statistics tab uses this location to fetch nearby recent sightings for the target species list.
+Set a home location used by the Map Explorer. Click **Use my location** to fill in your coordinates automatically (the same detection the Map Explorer offers), or enter latitude and longitude by hand. Set a search radius in miles, then click Save. The radius defaults to 5 miles. The Map Explorer uses these coordinates as its starting center and zoom level, including the starting point for the Nearby Lifers section.
 
 ### Tab Layout
 

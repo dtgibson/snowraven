@@ -4,6 +4,20 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Nearby Lifers Map: lifers as a Map Explorer section keyed on location, the recent-obs route reused with optional codes, and a shared Time Range filter — 2026-06-14 (v0.5.35)
+
+**What:** A new Map Explorer section that maps WHERE species the user has never recorded were reported recently near a chosen point — labeled, recency-colored pins, not a flat list. The old "Nearby Lifers" list was removed from the Statistics tab and rebuilt here. Built entirely on eBird data the app already uses; no new providers, no privacy change.
+
+**Decisions worth keeping:**
+
+- **Nearby Lifers moved from Statistics to its own Map Explorer section, with location as the unit.** The old flat list answered "which lifers are near me"; the map answers "where were they reported." Each spot is one labeled pin showing the species name, or "{n} species" where several lifers were reported at one place; clicking a pin (or a row in the panel list) shows the lifers with dates and eBird checklist links. It opens on the saved default location and carries the same controls as the other map sections — use my location, place-name search, radius — plus the new Time Range filter. Lifer names render plain + favicons (NOT a Species Detail link) because they are not in the user's recorded data.
+- **Reused `/map/recent-obs` by making its `codes` param optional, rather than a new route.** With `codes` empty the route returns all species in the radius (eBird `data/obs/geo/recent`); the life list is subtracted CLIENT-SIDE to leave only lifers. The now-dead `/stats/nemesis` route — which stripped coordinates the map needs — was retired in favor of this.
+- **Each lifer appears at its single most-recent location — accepted, not a defect.** eBird's `data/obs/geo/recent` returns one record per species (the most recent sighting in range), so a lifer reported in several spots shows only its newest. This is the endpoint's contract, kept deliberately rather than fanned out into per-species lookups.
+- **One shared "Time Range" filter (last day / last week / last 30 days) on BOTH Nearby Lifers and Media Targets.** Adding the control to Nearby Lifers, the same filter was given to the existing Media Targets section so the two panels behave identically.
+- **Restored lat/lng/dist bounds on `/map/recent-obs`.** These had been lost when `/stats/nemesis` was deleted; the recent-obs route now re-enforces them.
+
+---
+
 ## Weather & Tide — Current & Predict: one base forecast call, tiered slice reusing the existing formatter, and an honest weather/tide horizon gap — 2026-06-13 (v0.5.34)
 
 **What:** Two new lookups at the bottom of the Weather tab — Current (live weather + tide for the device location) and Predict (forecast weather + predicted tide for a chosen place/date/time) — that bypass the eBird checklist. Backend + frontend; no new providers.

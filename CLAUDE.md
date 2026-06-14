@@ -53,6 +53,8 @@ This project uses the Weft framework. Run /new-feature to start a new feature.
 - Tests: pytest (backend, 110 tests), vitest (frontend)
 - CI: GitHub Actions (`.github/workflows/pipeline.yml`)
 
+- **No impure calls during render — `react-hooks/purity` is enforced by eslint (build-blocking).** Never call `Date.now()` / `new Date()` (or other impure functions) inside a component render body or a `useMemo`/`useCallback`. For a "now" reference in recency / time-window filters, use a module-level session constant (`const SESSION_NOW_MS = Date.now()` at module top) and read it in the memo, or thread a `nowMs` arg into a pure helper — the pattern in `MapExplorer.tsx` (the Time Range window) and `BirdingStats.tsx`. Event handlers may call `Date.now()` directly (they don't run during render).
+
 ### Running locally
 ```
 # Backend

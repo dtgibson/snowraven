@@ -57,14 +57,6 @@ describe('short-TTL network cache (transport seam)', () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
   });
 
-  it('nemesis GETs are cached too', async () => {
-    vi.stubGlobal('fetch', okFetch({ species: [] }));
-    const { transport } = await import('./transport');
-    await transport.get('/stats/nemesis', { lat: '38.5', lng: '-121.5', dist: '25' });
-    await transport.get('/stats/nemesis', { lat: '38.5', lng: '-121.5', dist: '25' });
-    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
-  });
-
   it('a failed GET is not cached — the retry re-fetches', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: false, status: 502 })

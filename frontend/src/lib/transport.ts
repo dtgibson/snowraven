@@ -92,14 +92,6 @@ class TauriTransport implements TransportAdapter {
       return getTide(checklistId, params?.force === '1') as Promise<T>;
     }
 
-    if (path === '/stats/nemesis') {
-      const { getNemesis } = await import('./tauri/statsService');
-      const lat = parseFloat(params?.lat ?? '0');
-      const lng = parseFloat(params?.lng ?? '0');
-      const dist = parseInt(params?.dist ?? '25', 10);
-      return getNemesis(lat, lng, dist) as Promise<T>;
-    }
-
     if (path === '/nominatim/search') {
       const { forwardGeocode } = await import('./tauri/nominatimService');
       return forwardGeocode(params?.q ?? '') as Promise<T>;
@@ -147,7 +139,7 @@ class TauriTransport implements TransportAdapter {
 // from the short-TTL cache instead of re-hitting eBird. Decorating the
 // transport covers BOTH runtimes — web/Pi (FastAPI) and desktop (TS services) —
 // at their one common chokepoint. Errors are never cached (see networkCache).
-const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/stats/nemesis']);
+const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs']);
 
 class CachedTransport implements TransportAdapter {
   private inner: TransportAdapter;

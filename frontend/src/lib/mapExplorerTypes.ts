@@ -4,7 +4,7 @@
 import type { MLExportRow } from './parseMLExport'
 import type { ObservationEntry } from '../types'
 
-export type ViewMode = 'sightings' | 'hotspots' | 'targets'
+export type ViewMode = 'sightings' | 'hotspots' | 'targets' | 'lifers'
 export type DisplayMode = 'pins' | 'heatmap'
 
 export type MapPhase =
@@ -43,4 +43,19 @@ export interface LocationGroup {
   count: number
   species: Set<string>
   lastDate: string
+}
+
+// One pin per distinct location for the Nearby Lifers section: every nearby-lifer
+// species reported there, the distinct-species count, and the recency tier of the
+// most recent report. Built from the recent-obs records (TargetPin shape, which is
+// exactly what GET /map/recent-obs returns) by lib/nearbyLifers.buildNearbyLifers.
+export type NearbyLiferLocation = {
+  locId: string
+  locName: string
+  lat: number
+  lng: number
+  lifers: { comName: string; speciesCode: string; recentDate: string; subId: string }[]
+  count: number
+  mostRecentDate: string
+  tier: RecencyTier
 }

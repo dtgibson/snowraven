@@ -1,0 +1,123 @@
+// @vitest-environment jsdom
+//
+// NearbyLiferMarkers renders one DOM <Marker> per location (a real <button>
+// labeled with the lifer's name, or "{n} species" for several, + a descriptive
+// aria-label) and ONE lifted state-driven <Popup> listing each lifer at the
+// selected location. This test locks those contracts with plain React stubs for
+// react-map-gl/maplibre and ./SnowMap — no maplibre-gl, no WebGL:
+//   - every marker is a real <button> labeled by name / "{n} species", with an
+//     aria-label naming the lifer(s) and the location
+//   - clicking a marker lifts the selection (onSelect(locId))
+//   - the popup lists each lifer (name + checklist link) and has a close
+//     affordance routed through onSelect(null)
+
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, within, cleanup } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { NearbyLiferMarkers } from './NearbyLiferMarkers'
+import type { NearbyLiferLocation } from '../../lib/mapExplorerTypes'
+
+// Plain React stubs — render the children as DOM so the marker <button> and the
+// popup contents are queryable; expose Popup's onClose via a "Close" button so
+// the close affordance is testable without maplibre's controls.
+vi.mock('react-map-gl/maplibre', () => ({
+  Marker: ({ children, onClick }: { children?: ReactNode; onClick?: (e: { originalEvent: { stopPropagation: () => void } }) => void }) => (
+    <div data-testid="marker" onClick={() => onClick?.({ originalEvent: { stopPropagation: () => {} } })}>{children}</div>
+  ),
+  Popup: ({ children, onClose }: { children?: ReactNode; onClose?: () => void }) => (
+    <div role="dialog" data-testid="popup">
+      <button type="button" aria-label="Close" onClick={() => onClose?.()}>×</button>
+      {children}
+    </div>
+  ),
+  useMap: () => ({ current: undefined }),
+}))
+
+// NearbyLiferMarkers doesn't import SnowMap, but stub it defensively so no
+// maplibre/WebGL module is pulled in transitively under any future change.
+vi.mock('../SnowMap', () => ({ SnowMap: ({ children }: { children?: ReactNode }) => <div>{children}</div> }))
+
+const fresh = '2026-06-12' // within 7 days of the 2026-06-14 test clock
+const mid = '2026-06-02'
+
+const pins: NearbyLiferLocation[] = [
+  {
+    locId: 'L100', locName: 'Coyote Hills Regional Park', lat: 37.55, lng: -122.09,
+    count: 2, mostRecentDate: fresh, tier: 'fresh',
+    lifers: [
+      { comName: "Lewis's Woodpecker", speciesCode: 'lewwoo', recentDate: fresh, subId: 'S111' },
+      { comName: 'Sage Thrasher', speciesCode: 'sagthr', recentDate: mid, subId: 'S222' },
+    ],
+  },
+  {
+    locId: 'L200', locName: 'Hayward Regional Shoreline', lat: 37.63, lng: -122.14,
+    count: 1, mostRecentDate: fresh, tier: 'fresh',
+    lifers: [
+      { comName: "Lawrence's Goldfinch", speciesCode: 'lawgol', recentDate: fresh, subId: 'S333' },
+    ],
+  },
+]
+
+const baseProps = {
+  pins,
+  speciesCodeMap: { "Lewis's Woodpecker": 'lewwoo', 'Sage Thrasher': 'sagthr', "Lawrence's Goldfinch": 'lawgol' },
+  onOpenSpecies: () => {},
+}
+
+afterEach(() => cleanup())
+
+describe('NearbyLiferMarkers', () => {
+  it('renders one real <button> marker per location — species name for one lifer, "{n} species" for several — with a descriptive aria-label', () => {
+    render(<NearbyLiferMarkers {...baseProps} sel={null} onSelect={() => {}} />)
+
+    // Several lifers at a spot → "{n} species" chip, like the Media Targets markers.
+    const many = screen.getByRole('button', { name: '2 nearby lifers at Coyote Hills Regional Park' })
+    expect(many.tagName).toBe('BUTTON')
+    expect(many.textContent).toContain('2 species')
+
+    // A single lifer → the species name is on the chip.
+    const one = screen.getByRole('button', { name: "Lawrence's Goldfinch, a nearby lifer at Hayward Regional Shoreline" })
+    expect(one.tagName).toBe('BUTTON')
+    expect(one.textContent).toContain("Lawrence's Goldfinch")
+  })
+
+  it('lifts the selection to the parent when a marker is clicked', () => {
+    const onSelect = vi.fn()
+    render(<NearbyLiferMarkers {...baseProps} sel={null} onSelect={onSelect} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '2 nearby lifers at Coyote Hills Regional Park' }))
+    expect(onSelect).toHaveBeenCalledWith('L100')
+  })
+
+  it('renders no popup when nothing is selected', () => {
+    render(<NearbyLiferMarkers {...baseProps} sel={null} onSelect={() => {}} />)
+    expect(screen.queryByTestId('popup')).toBeNull()
+  })
+
+  it('opens one popup for the selected location listing every lifer with a checklist link', () => {
+    render(<NearbyLiferMarkers {...baseProps} sel="L100" onSelect={() => {}} />)
+
+    const popups = screen.getAllByTestId('popup')
+    expect(popups).toHaveLength(1)
+    const popup = popups[0]
+
+    // The location name heads the popup, and both lifers are listed by name.
+    expect(popup.textContent).toContain('Coyote Hills Regional Park')
+    expect(within(popup).getByText("Lewis's Woodpecker")).toBeTruthy()
+    expect(within(popup).getByText('Sage Thrasher')).toBeTruthy()
+
+    // Each lifer's checklist id becomes an eBird link (ChecklistLink + SUBMISSION_ID_RE).
+    const links = within(popup).getAllByRole('link')
+    expect(links.length).toBeGreaterThanOrEqual(2)
+    expect(links.some(a => a.getAttribute('href') === 'https://ebird.org/checklist/S111')).toBe(true)
+    expect(links.some(a => a.getAttribute('href') === 'https://ebird.org/checklist/S222')).toBe(true)
+  })
+
+  it('routes the popup close affordance through onSelect(null)', () => {
+    const onSelect = vi.fn()
+    render(<NearbyLiferMarkers {...baseProps} sel="L100" onSelect={onSelect} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onSelect).toHaveBeenCalledWith(null)
+  })
+})

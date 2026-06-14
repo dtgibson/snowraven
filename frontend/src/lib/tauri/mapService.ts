@@ -47,9 +47,12 @@ export async function getRecentObs(
   dist: number,
   codes: string
 ): Promise<RecentObs[]> {
-  if (!codes) return [];
-  const headers = await ebirdHeaders();
+  // codes is OPTIONAL: empty/omitted ⇒ return every species in the radius (skip
+  // the species-code filter). Media Targets always passes codes; Nearby Lifers
+  // passes none. Mirrors backend/routers/map.py get_recent_obs (dual-transport
+  // parity) — keep both in lockstep.
   const codeSet = new Set(codes.split(',').map(c => c.trim()).filter(Boolean));
+  const headers = await ebirdHeaders();
   const url = `${EBIRD_BASE}/data/obs/geo/recent?lat=${lat}&lng=${lng}&dist=${dist}&back=30&fmt=json`;
   const res = await tauriFetch(url, { headers });
   if (!res.ok) {
@@ -63,7 +66,13 @@ export async function getRecentObs(
   const groups = new Map<string, RecentObs>();
   for (const obs of observations) {
     const code = (obs['speciesCode'] as string) ?? '';
-    if (!codeSet.has(code)) continue;
+    if (codeSet.size > 0 && !codeSet.has(code)) continue;
+    // Skip records missing numeric coordinates (the lifers path maps by coord;
+    // a coordinate-less obs would otherwise plot at 0,0).
+    const recLat = obs['lat'];
+    const recLng = obs['lng'];
+    if (typeof recLat !== 'number' || typeof recLng !== 'number'
+        || Number.isNaN(recLat) || Number.isNaN(recLng)) continue;
     const locId = (obs['locId'] as string) ?? '';
     const groupKey = `${code}|${locId}`;
     if (!groups.has(groupKey)) {
@@ -72,8 +81,8 @@ export async function getRecentObs(
         comName: (obs['comName'] as string) ?? '',
         locId,
         locName: (obs['locName'] as string) ?? '',
-        lat: (obs['lat'] as number),
-        lng: (obs['lng'] as number),
+        lat: recLat,
+        lng: recLng,
         recentDate: (obs['obsDt'] as string) ?? '',
         checklistCount: 0,
         subId: (obs['subId'] as string) ?? '',

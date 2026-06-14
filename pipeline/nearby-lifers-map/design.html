@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SnowRaven — Nearby Lifers (Map Explorer) · design</title>
+<style>
+  :root{
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+    --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-gray:#6B7280; --sr-text-disabled:#A1A1AA;
+    --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE; --sr-border-input:#8A8A91;
+    --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE; --sr-accent-bg-hover:#F0FAF4;
+    --sr-accent-border:rgba(39,116,72,.25); --sr-on-accent:#FFFFFF;
+    --sr-fresh:#2D8653; --sr-fresh-text:#FFFFFF; --sr-mid:#5EA07C; --sr-mid-text:#052E16; --sr-old:#A8D4BB; --sr-old-text:#1A5C38;
+    --sr-card-shadow:0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+    --sr-land:#F2F0EB; --sr-water:#CFE0E8;
+  }
+  html[data-theme="dark"]{
+    --sr-bg:#0E0F13; --sr-surface:#17181D; --sr-surface-subtle:#1F2027; --sr-surface-faint:#15161B;
+    --sr-text:#F3F4F6; --sr-text-muted:#A0A0AB; --sr-text-gray:#9CA3AF; --sr-text-disabled:#5B5B66;
+    --sr-border:#2A2B31; --sr-border-subtle:#222329; --sr-border-medium:#3A3B43; --sr-border-input:#6B6C75;
+    --sr-accent:#34D399; --sr-accent-strong:#6EE7B7; --sr-accent-bg:#0C2A1D; --sr-accent-bg-hover:#0F3526;
+    --sr-accent-border:rgba(52,211,153,.30); --sr-on-accent:#06140C;
+    --sr-card-shadow:0 1px 4px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--sr-bg); color:var(--sr-text);
+    font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:18px 20px 40px}
+  /* App house header */
+  .house{display:flex; align-items:center; gap:11px; margin-bottom:14px}
+  .house .tile{width:30px;height:30px;border-radius:8px;background:var(--sr-accent-bg);
+    display:flex;align-items:center;justify-content:center;color:var(--sr-accent)}
+  .house h1{font-size:1.125rem; font-weight:700; letter-spacing:-.01em; margin:0}
+  .house p{margin:1px 0 0; font-size:.8125rem; color:var(--sr-text-muted)}
+  .themebtn{margin-left:auto; font-size:.71875rem; color:var(--sr-text-muted); background:var(--sr-surface);
+    border:1px solid var(--sr-border); border-radius:8px; padding:6px 10px; cursor:pointer}
+  /* Mode bar */
+  .modebar{display:flex; gap:7px; margin-bottom:12px; flex-wrap:wrap}
+  .mode{display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 14px; border-radius:17px;
+    border:1px solid var(--sr-border-medium); background:var(--sr-surface); color:var(--sr-text-muted);
+    font-size:.8125rem; font-weight:600; cursor:pointer}
+  .mode svg{width:15px;height:15px}
+  .mode[aria-pressed="true"]{background:var(--sr-accent-bg); color:var(--sr-accent); border-color:var(--sr-accent-border)}
+  /* Layout */
+  .explorer{display:grid; grid-template-columns:268px 1fr; gap:14px; align-items:stretch}
+  .panel{background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:12px;
+    box-shadow:var(--sr-card-shadow); padding:13px 13px 8px; display:flex; flex-direction:column; min-height:560px}
+  .lbl{font-size:.71875rem; font-weight:600; letter-spacing:.02em; text-transform:uppercase;
+    color:var(--sr-text-muted); margin:2px 0 7px}
+  .lbl.mt{margin-top:14px}
+  /* Search + controls */
+  .search{display:flex; align-items:center; gap:7px; border:1px solid var(--sr-border-input); border-radius:9px;
+    background:var(--sr-surface-faint); padding:7px 9px; color:var(--sr-text-gray)}
+  .search svg{width:14px;height:14px; flex:0 0 auto}
+  .search input{border:0; background:transparent; outline:none; font:inherit; font-size:.8125rem; color:var(--sr-text); width:100%}
+  .locrow{display:flex; gap:7px; margin-top:8px}
+  .mybtn{display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:1; height:34px;
+    border-radius:9px; border:1px solid var(--sr-border-medium); background:var(--sr-surface);
+    color:var(--sr-text); font-size:.78125rem; font-weight:600; cursor:pointer}
+  .mybtn svg{width:14px;height:14px; color:var(--sr-accent)}
+  .mybtn:hover{background:var(--sr-surface-subtle)}
+  .seg{display:flex; border:1px solid var(--sr-border-medium); border-radius:9px; overflow:hidden; margin-top:8px}
+  .seg button{flex:1; border:0; background:var(--sr-surface); color:var(--sr-text-muted); font:inherit;
+    font-size:.78125rem; font-weight:600; padding:7px 0; cursor:pointer; border-right:1px solid var(--sr-border-subtle)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed="true"]{background:var(--sr-accent); color:var(--sr-on-accent)}
+  /* count line */
+  .count{font-size:.71875rem; color:var(--sr-text-muted); margin:13px 0 6px; padding-top:11px; border-top:1px solid var(--sr-border-subtle)}
+  .count b{color:var(--sr-text); font-weight:700}
+  /* in-view list */
+  .list{list-style:none; margin:0; padding:0; overflow:auto; flex:1; margin:0 -5px}
+  .item{width:100%; text-align:left; border:0; background:transparent; cursor:pointer; padding:9px 8px;
+    border-radius:9px; display:block; border:1px solid transparent}
+  .item:hover{background:var(--sr-surface-subtle)}
+  .item[aria-pressed="true"]{background:var(--sr-accent-bg); border-color:var(--sr-accent-border)}
+  .item .top{display:flex; align-items:center; gap:8px}
+  .badge{flex:0 0 auto; min-width:20px; height:20px; padding:0 5px; border-radius:10px; font-size:.6875rem;
+    font-weight:700; display:inline-flex; align-items:center; justify-content:center}
+  .b-fresh{background:var(--sr-fresh); color:var(--sr-fresh-text)}
+  .b-mid{background:var(--sr-mid); color:var(--sr-mid-text)}
+  .b-old{background:var(--sr-old); color:var(--sr-old-text)}
+  .item .loc{font-size:.82rem; font-weight:600; color:var(--sr-text); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .item .dist{font-size:.6875rem; color:var(--sr-text-gray); flex:0 0 auto}
+  .item .who{font-size:.75rem; color:var(--sr-text-muted); margin:3px 0 0 28px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .item .who .sci{font-style:italic; color:var(--sr-text-gray)}
+  /* Map */
+  .mapwrap{position:relative; border:1px solid var(--sr-border); border-radius:12px; overflow:hidden; min-height:560px;
+    background:
+      radial-gradient(circle at 78% 70%, var(--sr-water) 0 16%, transparent 16.4%),
+      radial-gradient(circle at 12% 22%, var(--sr-water) 0 9%, transparent 9.4%),
+      linear-gradient(var(--sr-land), var(--sr-land));
+  }
+  .grid{position:absolute; inset:0; background-image:
+      linear-gradient(rgba(0,0,0,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,0,0,.04) 1px, transparent 1px);
+    background-size:46px 46px; pointer-events:none}
+  .road{position:absolute; background:rgba(255,255,255,.7); height:3px; border-radius:3px}
+  /* pins */
+  .pin{position:absolute; transform:translate(-50%,-100%); cursor:pointer; filter:drop-shadow(0 2px 3px rgba(0,0,0,.28))}
+  .pin .body{width:30px;height:30px;border-radius:50% 50% 50% 0; transform:rotate(-45deg);
+    display:flex; align-items:center; justify-content:center; border:2px solid rgba(255,255,255,.9)}
+  .pin .num{transform:rotate(45deg); font-size:.75rem; font-weight:800}
+  .pin.fresh .body{background:var(--sr-fresh)} .pin.fresh .num{color:var(--sr-fresh-text)}
+  .pin.mid .body{background:var(--sr-mid)} .pin.mid .num{color:var(--sr-mid-text)}
+  .pin.old .body{background:var(--sr-old)} .pin.old .num{color:var(--sr-old-text)}
+  .pin.sel .body{outline:3px solid var(--sr-accent); outline-offset:2px}
+  /* user location dot */
+  .you{position:absolute; transform:translate(-50%,-50%); width:16px;height:16px;border-radius:50%;
+    background:#2563EB; border:3px solid #fff; box-shadow:0 0 0 4px rgba(37,99,235,.25)}
+  /* popup */
+  .popup{position:absolute; transform:translate(-50%,calc(-100% - 34px)); width:264px; background:var(--sr-surface);
+    border:1px solid var(--sr-border); border-radius:12px; box-shadow:var(--sr-card-shadow); padding:12px 13px; z-index:5}
+  .popup:after{content:""; position:absolute; left:50%; bottom:-8px; transform:translateX(-50%);
+    border:8px solid transparent; border-top-color:var(--sr-surface); border-bottom:0; filter:drop-shadow(0 1px 0 var(--sr-border))}
+  .popup h3{margin:0 0 2px; font-size:.84rem; font-weight:700}
+  .popup .meta{font-size:.71875rem; color:var(--sr-text-muted); margin-bottom:9px; display:flex; align-items:center; gap:6px}
+  .popup .x{position:absolute; top:8px; right:8px; width:22px;height:22px; border:0; background:transparent;
+    color:var(--sr-text-muted); cursor:pointer; border-radius:6px; display:flex;align-items:center;justify-content:center}
+  .popup .x:hover{background:var(--sr-surface-subtle)}
+  .sp{display:flex; align-items:center; gap:7px; padding:6px 0; border-top:1px solid var(--sr-border-subtle)}
+  .sp:first-of-type{border-top:0}
+  .dot{width:9px;height:9px;border-radius:50%; flex:0 0 auto}
+  .d-fresh{background:var(--sr-fresh)} .d-mid{background:var(--sr-mid)} .d-old{background:var(--sr-old)}
+  .sp .nm{font-size:.8rem; font-weight:600; color:var(--sr-text); flex:1}
+  .sp .fav{display:inline-flex; gap:3px; margin-left:4px; vertical-align:middle}
+  .sp .fav i{width:12px;height:12px;border-radius:3px;background:var(--sr-border-medium); display:inline-block}
+  .sp .dt{font-size:.6875rem; color:var(--sr-text-gray); flex:0 0 auto}
+  .sp .ext{color:var(--sr-accent); display:inline-flex}
+  .sp .ext svg{width:13px;height:13px}
+  .legend{position:absolute; left:12px; bottom:12px; background:var(--sr-surface); border:1px solid var(--sr-border);
+    border-radius:10px; box-shadow:var(--sr-card-shadow); padding:8px 11px; font-size:.6875rem; color:var(--sr-text-muted)}
+  .legend .row{display:flex; align-items:center; gap:6px; margin:2px 0}
+  .legend .sw{width:11px;height:11px;border-radius:50%}
+  .fab{position:absolute; right:12px; bottom:12px; display:flex; gap:8px}
+  .fab button{width:38px;height:38px;border-radius:10px;border:1px solid var(--sr-border); background:var(--sr-surface);
+    color:var(--sr-text-muted); box-shadow:var(--sr-card-shadow); cursor:pointer; display:flex;align-items:center;justify-content:center}
+  .fab svg{width:17px;height:17px}
+  .note{max-width:1180px;margin:16px auto 0;font-size:.75rem;color:var(--sr-text-gray)}
+  @media (max-width:760px){ .explorer{grid-template-columns:1fr} .panel{min-height:0} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="house">
+    <div class="tile" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+    </div>
+    <div>
+      <h1>Map Explorer</h1>
+      <p>Your sightings, hotspots, media targets, and nearby lifers on one map.</p>
+    </div>
+    <button class="themebtn" onclick="document.documentElement.dataset.theme = document.documentElement.dataset.theme==='dark'?'light':'dark'">Toggle theme</button>
+  </div>
+
+  <div class="modebar" role="group" aria-label="Map view">
+    <button class="mode" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 2a8 8 0 0 0-8 8c0 5.4 8 12 8 12s8-6.6 8-12a8 8 0 0 0-8-8z"/></svg>Sightings</button>
+    <button class="mode" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="2.5"/></svg>Hotspots</button>
+    <button class="mode" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="m3 17 5-4 4 3 3-2 6 4"/></svg>Media Targets</button>
+    <button class="mode" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h.01M22 9c-3 0-5 1.5-7 4-2-1-4 0-5 2 4 1 6-1 7-2 1 2 0 4-2 5 5 0 7-4 7-9z"/><path d="M2 21c2-3 5-4 8-4"/></svg>Nearby Lifers</button>
+  </div>
+
+  <div class="explorer">
+
+    <!-- PANEL -->
+    <aside class="panel" aria-label="Nearby Lifers controls">
+      <div class="lbl">Center</div>
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Search a place…" aria-label="Search for a location" value="Fremont, CA" />
+      </label>
+      <div class="locrow">
+        <button class="mybtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Use my location</button>
+      </div>
+
+      <div class="lbl mt">Radius</div>
+      <div class="seg" role="group" aria-label="Search radius">
+        <button aria-pressed="false">5 mi</button>
+        <button aria-pressed="false">10 mi</button>
+        <button aria-pressed="true">25 mi</button>
+        <button aria-pressed="false">50 mi</button>
+      </div>
+
+      <div class="lbl mt">Time range</div>
+      <div class="seg" role="group" aria-label="Time range">
+        <button aria-pressed="false" aria-label="Last day">Day</button>
+        <button aria-pressed="false" aria-label="Last week">Week</button>
+        <button aria-pressed="true" aria-label="Last 30 days">30 days</button>
+      </div>
+
+      <div class="count"><b>9</b> spots · <b>14</b> lifers · 25 mi, last 30 days</div>
+
+      <ul class="list" aria-label="Nearby lifer locations in view">
+        <li><button class="item" aria-pressed="true">
+          <div class="top"><span class="badge b-fresh">3</span><span class="loc">Coyote Hills Regional Park</span><span class="dist">4.1 mi</span></div>
+          <div class="who">Lewis's Woodpecker, Sage Thrasher +1</div>
+        </button></li>
+        <li><button class="item">
+          <div class="top"><span class="badge b-fresh">1</span><span class="loc">Hayward Regional Shoreline</span><span class="dist">6.3 mi</span></div>
+          <div class="who">Lawrence's Goldfinch <span class="sci">Spinus lawrencei</span></div>
+        </button></li>
+        <li><button class="item">
+          <div class="top"><span class="badge b-mid">2</span><span class="loc">Garin / Dry Creek Pioneer RP</span><span class="dist">7.8 mi</span></div>
+          <div class="who">Yellow-billed Magpie, Mountain Quail</div>
+        </button></li>
+        <li><button class="item">
+          <div class="top"><span class="badge b-mid">1</span><span class="loc">Sunol Regional Wilderness</span><span class="dist">11.2 mi</span></div>
+          <div class="who">Rufous-crowned Sparrow <span class="sci">Aimophila ruficeps</span></div>
+        </button></li>
+        <li><button class="item">
+          <div class="top"><span class="badge b-old">4</span><span class="loc">Del Valle Regional Park</span><span class="dist">14.6 mi</span></div>
+          <div class="who">Tricolored Blackbird, Vaux's Swift +2</div>
+        </button></li>
+        <li><button class="item">
+          <div class="top"><span class="badge b-old">1</span><span class="loc">Mines Road (Alameda Co.)</span><span class="dist">19.0 mi</span></div>
+          <div class="who">Costa's Hummingbird <span class="sci">Calypte costae</span></div>
+        </button></li>
+      </ul>
+    </aside>
+
+    <!-- MAP -->
+    <div class="mapwrap" role="img" aria-label="Map of nearby lifer locations">
+      <div class="grid"></div>
+      <div class="road" style="left:8%; top:38%; width:62%; transform:rotate(8deg)"></div>
+      <div class="road" style="left:30%; top:18%; width:40%; height:3px; transform:rotate(72deg)"></div>
+
+      <div class="you" style="left:41%; top:54%" title="Your location"></div>
+
+      <div class="pin fresh sel" style="left:33%; top:44%"><div class="body"><span class="num">3</span></div></div>
+      <div class="pin fresh" style="left:52%; top:60%"><div class="body"><span class="num">1</span></div></div>
+      <div class="pin mid" style="left:62%; top:35%"><div class="body"><span class="num">2</span></div></div>
+      <div class="pin mid" style="left:24%; top:69%"><div class="body"><span class="num">1</span></div></div>
+      <div class="pin old" style="left:74%; top:62%"><div class="body"><span class="num">4</span></div></div>
+      <div class="pin old" style="left:84%; top:30%"><div class="body"><span class="num">1</span></div></div>
+      <div class="pin fresh" style="left:46%; top:24%"><div class="body"><span class="num">1</span></div></div>
+      <div class="pin mid" style="left:16%; top:46%"><div class="body"><span class="num">1</span></div></div>
+
+      <!-- open popup on the selected location -->
+      <div class="popup" style="left:33%; top:44%" role="dialog" aria-label="Coyote Hills Regional Park lifers">
+        <button class="x" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <h3>Coyote Hills Regional Park</h3>
+        <div class="meta">3 lifers reported here · 4.1 mi away</div>
+
+        <div class="sp">
+          <span class="dot d-fresh"></span>
+          <span class="nm">Lewis's Woodpecker <span class="fav" aria-hidden="true"><i></i><i></i></span></span>
+          <span class="dt">2 days ago</span>
+          <a class="ext" href="#" aria-label="Open checklist on eBird (opens in a new tab)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></a>
+        </div>
+        <div class="sp">
+          <span class="dot d-fresh"></span>
+          <span class="nm">Sage Thrasher <span class="fav" aria-hidden="true"><i></i><i></i></span></span>
+          <span class="dt">5 days ago</span>
+          <a class="ext" href="#" aria-label="Open checklist on eBird (opens in a new tab)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></a>
+        </div>
+        <div class="sp">
+          <span class="dot d-mid"></span>
+          <span class="nm">Cassin's Finch <span class="fav" aria-hidden="true"><i></i><i></i></span></span>
+          <span class="dt">9 days ago</span>
+          <a class="ext" href="#" aria-label="Open checklist on eBird (opens in a new tab)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg></a>
+        </div>
+      </div>
+
+      <div class="legend" aria-hidden="true">
+        <div class="row"><span class="sw" style="background:var(--sr-fresh)"></span> Seen in last 7 days</div>
+        <div class="row"><span class="sw" style="background:var(--sr-mid)"></span> 8–14 days</div>
+        <div class="row"><span class="sw" style="background:var(--sr-old)"></span> 15–30 days</div>
+      </div>
+
+      <div class="fab">
+        <button title="Filters" aria-label="Filters"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg></button>
+        <button title="Fullscreen" aria-label="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3"/></svg></button>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="note">Mockup — light/dark via the toggle. Pins are recency-colored and carry the lifer count; the selected pin and its list row share one popup. Built within the existing Map Explorer / Media Targets pattern; names render plain + favicons (no Species Detail link) because lifers aren't in your data yet. The same Time range control is added to the Media Targets panel so the two panels stay consistent.</p>
+</div>
+
+<script>
+  // cosmetic: clicking a pin selects it (visual only)
+  document.querySelectorAll('.pin').forEach(p=>p.addEventListener('click',()=>{
+    document.querySelectorAll('.pin').forEach(x=>x.classList.remove('sel'));
+    p.classList.add('sel');
+  }));
+  document.querySelector('.popup .x').addEventListener('click',e=>{
+    e.currentTarget.closest('.popup').style.display='none';
+  });
+</script>
+</body>
+</html>

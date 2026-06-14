@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Camera, ChevronDown, Crosshair, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -25,7 +25,7 @@ import { BirdName } from './BirdName'
 import { LOCATION_ID_RE } from './speciesDetail/ui'
 import type {
   ViewMode, DisplayMode, MapPhase, BreedingFilter,
-  HotspotPin, TargetPin, DisplayTargetPin, LocationGroup,
+  HotspotPin, TargetPin, DisplayTargetPin, LocationGroup, NearbyLiferLocation,
 } from '../lib/mapExplorerTypes'
 import {
   distanceMiles, recencyTier, tierColors, radiusToZoom,
@@ -36,6 +36,8 @@ import { MapEffects, BoundsTracker, DetectedLocationPin } from './map/MapControl
 import { SightingMarkers } from './map/SightingMarkers'
 import { HotspotMarkers } from './map/HotspotMarkers'
 import { TargetMarkers } from './map/TargetMarkers'
+import { NearbyLiferMarkers } from './map/NearbyLiferMarkers'
+import { buildNearbyLifers, isWithinWindow } from '../lib/nearbyLifers'
 
 interface MapExplorerProps {
   onGoToSettings: () => void
@@ -54,6 +56,20 @@ interface MapExplorerProps {
 const POSSIBLE_CODES  = new Set(BREEDING_CODES.filter(d => d.tier === 1).map(d => d.code))
 const PROBABLE_CODES  = new Set(BREEDING_CODES.filter(d => d.tier === 2 || d.tier === 3).map(d => d.code))
 const CONFIRMED_CODES = new Set(BREEDING_CODES.filter(d => d.tier === 4).map(d => d.code))
+
+// Shared "Time Range" filter — used by both Media Targets and Nearby Lifers so
+// the two panels stay consistent. 'all' = the full 30-day fetch window.
+type TimeWindow = 'day' | 'week' | 'all'
+const TIME_WINDOW_OPTS = [
+  { value: 'day',  label: 'Day' },
+  { value: 'week', label: 'Week' },
+  { value: 'all',  label: '30 days' },
+]
+const WINDOW_DAYS: Record<TimeWindow, number> = { day: 1, week: 7, all: 30 }
+
+// Session-stable "now" for the recency windows — computed once at module load,
+// not during render (calling Date.now() inside a memo trips react-hooks/purity).
+const SESSION_NOW_MS = Date.now()
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -158,12 +174,20 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [targetsError, setTargetsError]       = useState('')
   const [manualTargets, setManualTargets]     = useState<Set<string>>(new Set())
   const [targetSearch, setTargetSearch]       = useState('')
-  const [targetViewMode, setTargetViewMode]   = useState<'all' | 'week'>('all')
+  const [targetViewMode, setTargetViewMode]   = useState<TimeWindow>('all')
   // Selected target LOCATION (locId) — shared between the "Nearest Targets"
   // sidebar list and the TargetMarkers popup, so a sidebar row opens the same
   // popup the map marker does (consistent with the sightings/hotspots lists).
   const [selectedTargetLocId, setSelectedTargetLocId] = useState<string | null>(null)
   const [targetTypeFilter, setTargetTypeFilter] = useState<Set<'Photo' | 'Audio' | 'Video'>>(new Set())
+
+  // Nearby Lifers state — recent reports near the center of species NOT on the
+  // user's life list, grouped by location. Shares the center/radius controls.
+  const [liferPins, setLiferPins]           = useState<NearbyLiferLocation[] | null>(null)
+  const [lifersLoading, setLifersLoading]   = useState(false)
+  const [lifersError, setLifersError]       = useState('')
+  const [liferWindow, setLiferWindow]       = useState<TimeWindow>('all')
+  const [selectedLiferLocId, setSelectedLiferLocId] = useState<string | null>(null)
 
   // Map pan target (set by sidebar clicks, consumed by MapEffects inside SnowMap)
   const [panTarget, setPanTarget]             = useState<{ lat: number; lng: number } | null>(null)
@@ -475,14 +499,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       ...pin,
       missingTypes: ALL_TYPES.filter(t => !mediaTypes.get(pin.comName)?.has(t)),
     }))
-    // Pass 1: recency filter
+    // Pass 1: recency filter — shared Time Range windows (Day / Week / 30 days)
     let filtered = withMissing
     if (targetViewMode !== 'all') {
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 7); cutoff.setHours(0, 0, 0, 0)
-      filtered = withMissing.filter(pin => {
-        const [y, m, d] = pin.recentDate.split(' ')[0].split('-').map(Number)
-        return new Date(y, m - 1, d) >= cutoff
-      })
+      const days = WINDOW_DAYS[targetViewMode]
+      filtered = withMissing.filter(pin => isWithinWindow(pin.recentDate, days, SESSION_NOW_MS))
     }
     // Pass 2: type filter — AND logic; empty set means All
     if (targetTypeFilter.size > 0) {
@@ -516,6 +537,36 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       })),
     }
   }, [displayedTargetPins, lat, lng, mapBounds])
+
+  // Nearby lifers, narrowed by the Time Range window (client-side, no refetch).
+  // A location is kept if it has at least one lifer within the window; the count
+  // badge and tier reflect only the in-window lifers.
+  const displayedLiferLocations = useMemo((): NearbyLiferLocation[] => {
+    if (!liferPins) return []
+    if (liferWindow === 'all') return liferPins
+    const days = WINDOW_DAYS[liferWindow]
+    const out: NearbyLiferLocation[] = []
+    for (const loc of liferPins) {
+      const lifers = loc.lifers.filter(l => isWithinWindow(l.recentDate, days, SESSION_NOW_MS))
+      if (lifers.length === 0) continue
+      const mostRecentDate = lifers.reduce((m, l) => (l.recentDate > m ? l.recentDate : m), '')
+      out.push({ ...loc, lifers, count: lifers.length, mostRecentDate, tier: recencyTier(mostRecentDate) })
+    }
+    return out
+  }, [liferPins, liferWindow])
+
+  // Nearby lifers in view — keyboard path to the location pins, scoped to the
+  // viewport and recomputed on pan/zoom (already sorted nearest-first by
+  // buildNearbyLifers).
+  const lifersInView = useMemo(
+    () => markersInView(displayedLiferLocations, mapBounds),
+    [displayedLiferLocations, mapBounds],
+  )
+
+  const totalLifers = useMemo(
+    () => displayedLiferLocations.reduce((s, l) => s + l.count, 0),
+    [displayedLiferLocations],
+  )
 
   // Ten closest UNVISITED hotspots from the current hotspot search, by distance
   // from the center point. Rendered in the Hotspots sidebar as eBird links.
@@ -572,6 +623,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     setSelectedHotspotLocId(pin.locId)
     setPanTarget({ lat: pin.lat, lng: pin.lng })
   }, [selectedHotspotLocId])
+
+  const openLiferFromList = useCallback((loc: NearbyLiferLocation) => {
+    if (selectedLiferLocId === loc.locId) { setSelectedLiferLocId(null); return }
+    setSelectedLiferLocId(loc.locId)
+    setPanTarget({ lat: loc.lat, lng: loc.lng })
+  }, [selectedLiferLocId])
 
   // Atlas overlay toggle — lazy-loads the block gazetteer on first enable so it
   // never affects initial app load, then just shows/hides the layer.
@@ -690,6 +747,41 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
   }, [lat, lng, radius, phase, targetSpecies, speciesCodeMap, manualTargets])
 
+  const handleFindLifers = useCallback(async (overrideLat?: number, overrideLng?: number) => {
+    const latNum = overrideLat ?? parseFloat(lat)
+    const lngNum = overrideLng ?? parseFloat(lng)
+    if (isNaN(latNum) || isNaN(lngNum)) { setLifersError('Enter a valid latitude and longitude.'); return }
+    if (phase.tag !== 'ready') { setLifersError('Load your eBird backup in Settings to find nearby lifers.'); return }
+    setLifersLoading(true); setLifersError('')
+    try {
+      const distKm = Math.round(radius * 1.60934)
+      // No `codes` param ⇒ the route returns all species in the radius; we then
+      // subtract the user's life list and group by location client-side.
+      const records = await transport.get<TargetPin[]>('/map/recent-obs', {
+        lat: String(latNum), lng: String(lngNum), dist: String(distKm),
+      })
+      setLiferPins(buildNearbyLifers(records, recordedNames, latNum, lngNum, Date.now()))
+      // recent-obs records already carry eBird speciesCode, so favicons need no
+      // extra taxonomy call — merge name → code from the records.
+      if (records.length > 0) {
+        setSpeciesCodeMap(prev => {
+          const next = { ...prev }
+          for (const r of records) if (r.speciesCode && !next[r.comName]) next[r.comName] = r.speciesCode
+          return next
+        })
+      }
+    } catch (err) {
+      const e = err as { status?: number; detail?: string }
+      const errStatus = err instanceof TransportError ? err.status : e.status
+      const errDetail = err instanceof TransportError ? err.detail : (e.detail ?? (err instanceof Error ? err.message : undefined))
+      setLifersError(errStatus === 401
+        ? 'eBird API key not configured. Add it in Settings.'
+        : (errDetail ?? 'Failed to fetch nearby lifers.'))
+    } finally {
+      setLifersLoading(false)
+    }
+  }, [lat, lng, radius, phase, recordedNames])
+
   const handleUseMyLocation = useCallback(async () => {
     setGeoError('')
     setIsLocating(true)
@@ -703,13 +795,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       if (wasEmpty) {
         if (viewMode === 'hotspots') handleFindHotspots(loc.lat, loc.lng)
         else if (viewMode === 'targets') handleFindSightings(loc.lat, loc.lng)
+        else if (viewMode === 'lifers') handleFindLifers(loc.lat, loc.lng)
       }
     } catch (err) {
       setGeoError(describeLocationError(err as LocationError))
     } finally {
       setIsLocating(false)
     }
-  }, [lat, lng, viewMode, handleFindHotspots, handleFindSightings, setPanTarget, setDetectedLocation])
+  }, [lat, lng, viewMode, handleFindHotspots, handleFindSightings, handleFindLifers, setPanTarget, setDetectedLocation])
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -1359,9 +1452,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           <div style={{ marginBottom: 12 }}>
             <SidebarLabel>Time Range</SidebarLabel>
             <SegControl
-              options={[{ value: 'all', label: 'Last 30 Days' }, { value: 'week', label: 'Last Week' }]}
+              options={TIME_WINDOW_OPTS}
               value={targetViewMode}
-              onChange={v => { setTargetViewMode(v as 'all' | 'week'); setSelectedTargetLocId(null) }}
+              onChange={v => { setTargetViewMode(v as TimeWindow); setSelectedTargetLocId(null) }}
             />
           </div>
           {atlasOverlayControls}
@@ -1453,6 +1546,83 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     </div>
   )
 
+  const lifersSidebar = (
+    <div style={{ padding: '14px 16px', overflowY: 'auto', flex: 1 }}>
+      {hasEbirdKey === false && <KeyNotice onGoToSettings={onGoToSettings} />}
+      <AddressSearch onLocate={(aLat, aLng) => {
+        setLat(aLat.toFixed(5)); setLng(aLng.toFixed(5))
+        handleFindLifers(aLat, aLng)
+      }} />
+      {CenterPointControl}
+      {RadiusControl}
+      <button tabIndex={0}
+        onClick={() => handleFindLifers()}
+        disabled={lifersLoading || hasEbirdKey === false || phase.tag !== 'ready'}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          width: '100%', height: 36,
+          background: lifersLoading || hasEbirdKey === false || phase.tag !== 'ready' ? 'var(--sr-text-disabled)' : 'var(--sr-accent)',
+          color: 'var(--sr-on-accent)', border: 'none', borderRadius: 6,
+          fontSize: '0.8125rem', fontWeight: 500, fontFamily: 'inherit',
+          cursor: lifersLoading || hasEbirdKey === false || phase.tag !== 'ready' ? 'not-allowed' : 'pointer',
+          marginBottom: 10,
+        }}
+      >
+        {lifersLoading
+          ? <><Loader2 size={14} className="spin" /> Finding…</>
+          : 'Find Nearby Lifers'}
+      </button>
+      {phase.tag !== 'ready' && (
+        <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5, marginBottom: 10 }}>
+          Load your eBird backup in Settings to identify which nearby species are lifers for you.
+        </div>
+      )}
+      {lifersError && (
+        <div role="alert" style={{ display: 'flex', gap: 6, fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 10 }}>
+          <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
+          {lifersError}
+        </div>
+      )}
+
+      {liferPins !== null && (
+        <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
+          <div style={{ marginBottom: 12 }}>
+            <SidebarLabel>Time Range</SidebarLabel>
+            <SegControl
+              options={TIME_WINDOW_OPTS}
+              value={liferWindow}
+              onChange={v => { setLiferWindow(v as TimeWindow); setSelectedLiferLocId(null) }}
+            />
+          </div>
+          <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 12 }}>
+            {displayedLiferLocations.length.toLocaleString()} spot{displayedLiferLocations.length !== 1 ? 's' : ''} · {totalLifers.toLocaleString()} lifer{totalLifers !== 1 ? 's' : ''}
+          </div>
+          {atlasOverlayControls}
+          {displayedLiferLocations.length > 0 ? (
+            <InViewMarkerList
+              heading="Nearby lifers in view"
+              instructions="Select a spot to open its details on the map. Updates as you pan or zoom."
+              items={lifersInView.visible}
+              total={lifersInView.total}
+              overCap={lifersInView.overCap}
+              selectedId={selectedLiferLocId}
+              getId={l => l.locId}
+              getPrimary={l => l.locName}
+              getSecondary={l => `${l.count} lifer${l.count !== 1 ? 's' : ''} · ${l.lifers.map(s => s.comName).join(', ')}`}
+              getDotColor={l => tierColors(l.tier).bg}
+              getDotLabel={l => l.tier === 'fresh' ? 'Seen in last 7 days' : l.tier === 'mid' ? 'Seen 8–14 days ago' : 'Seen 15–30 days ago'}
+              onActivate={openLiferFromList}
+            />
+          ) : (
+            <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
+              No nearby lifers in this time range.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
   // ── Layout ────────────────────────────────────────────────────────────────────
 
   return (
@@ -1463,13 +1633,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           { mode: 'sightings' as ViewMode, label: 'My Sightings',  icon: <MapPin size={14} strokeWidth={2.5} /> },
           { mode: 'hotspots' as ViewMode,  label: 'Hotspots',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg> },
           { mode: 'targets' as ViewMode,   label: 'Media Targets', icon: <Camera size={14} strokeWidth={2.5} /> },
+          { mode: 'lifers' as ViewMode,    label: 'Nearby Lifers', icon: <Binoculars size={14} strokeWidth={2.5} /> },
         ] as { mode: ViewMode; label: string; icon: React.ReactNode }[]).map(({ mode, label, icon }) => (
           <button tabIndex={0}
             key={mode}
             aria-pressed={viewMode === mode}
             onClick={() => {
               setViewMode(mode)
-              if (mode === 'hotspots' || mode === 'targets') {
+              if (mode === 'hotspots' || mode === 'targets' || mode === 'lifers') {
                 const latNum = parseFloat(lat)
                 const lngNum = parseFloat(lng)
                 if (!isNaN(latNum) && !isNaN(lngNum)) {
@@ -1478,6 +1649,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     handleFindHotspots(latNum, lngNum)
                   } else if (mode === 'targets' && !targetsFetchDisabled && phase.tag === 'ready') {
                     handleFindSightings(latNum, lngNum)
+                  } else if (mode === 'lifers' && !lifersLoading && hasEbirdKey !== false && phase.tag === 'ready') {
+                    handleFindLifers(latNum, lngNum)
                   }
                 }
               }
@@ -1533,6 +1706,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {viewMode === 'sightings' && sightingsSidebar}
           {viewMode === 'hotspots' && hotspotsSidebar}
           {viewMode === 'targets'  && targetsSidebar}
+          {viewMode === 'lifers'   && lifersSidebar}
         </div>
 
         {/* Map area */}
@@ -1540,10 +1714,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {/* Loading chip over the canvas while a search is in flight — the
               sidebar button already shows "Finding…", but on mobile (sidebar
               closed) the map itself gave no signal. */}
-          {((viewMode === 'hotspots' && hotspotsLoading) || (viewMode === 'targets' && targetsLoading)) && (
+          {((viewMode === 'hotspots' && hotspotsLoading) || (viewMode === 'targets' && targetsLoading) || (viewMode === 'lifers' && lifersLoading)) && (
             <div className="sr-map-loading-chip" role="status">
               <Loader2 size={13} className="spin" aria-hidden="true" />
-              {viewMode === 'hotspots' ? 'Finding hotspots…' : 'Finding sightings…'}
+              {viewMode === 'hotspots' ? 'Finding hotspots…' : viewMode === 'targets' ? 'Finding sightings…' : 'Finding nearby lifers…'}
             </div>
           )}
           {/* Floating map controls, hidden while the mobile sidebar overlay is open.
@@ -1612,6 +1786,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               )}
               {viewMode === 'targets' && targetPins && (
                 <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} sel={selectedTargetLocId} onSelect={setSelectedTargetLocId} />
+              )}
+              {viewMode === 'lifers' && liferPins && (
+                <NearbyLiferMarkers key={`${displayedLiferLocations.length}-${liferWindow}`} pins={displayedLiferLocations} speciesCodeMap={speciesCodeMap} onOpenSpecies={onOpenSpecies} sel={selectedLiferLocId} onSelect={setSelectedLiferLocId} />
               )}
             </SnowMap>
           )}

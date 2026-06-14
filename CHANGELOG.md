@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.35] - 2026-06-14
+
+### Added
+- **Nearby Lifers on the Map Explorer.** The Nearby Lifers list moved off the Statistics tab and became its own section of the Map Explorer, so you can see *where* the birds you've never recorded are turning up, not just which ones. Each spot is a labeled pin — the species name, or "{n} species" where several of your lifers were reported at one place — colored by how recently it was seen; click a pin (or a row in the panel list) for the full list, each with its date and a link to the eBird checklist. It opens on your saved default location and gives you the same controls as the other map sections: use your current location or search for a place, set the radius, and a new **Time Range** filter (last day, last week, or last 30 days). That same Time Range filter was added to the Media Targets section too, so the two panels behave the same. Built entirely on the eBird data the app already uses — no new providers, and the local-first privacy promise is unchanged.
+
 ## [0.5.34] - 2026-06-13
 
 ### Added
