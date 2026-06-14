@@ -1,24 +1,60 @@
-# Handoff — Current & Predict COMPLETE; v0.5.34 pushed to GitHub (release pending from the Mac)
+# Handoff — Current & Predict RELEASED; v0.5.34 live on both platforms
 
 ## What We Accomplished
 
-Added **Current** and **Predict** to the bottom of the Weather tab — the first forward-looking weather/tide lookups, alongside the unchanged checklist tool. Current gives live weather and tide for where you are in one tap (in your local timezone). Predict forecasts both for a place (name search or a draggable map pin), date, and time you choose: weather to about eight days out (hour-by-hour, then a labeled daily summary), and tide much further, with an honest note when a date is past the weather window. Built entirely on the providers already in the app — no new third parties, privacy posture unchanged.
+Released v0.5.34. **Current** and **Predict** were built and Chronicled
+on the VM (commit `a0cafa5`, records all updated) and the `v0.5.34`
+tag pushed; this Mac session pulled, verified the version bump, ran
+`./release.sh`, and verified the published release. Current and Predict
+are the first forward-looking weather/tide lookups at the bottom of the
+Weather tab, alongside the unchanged checklist tool — live weather and
+tide for where you are in one tap, or a forecast for a place (name
+search or a draggable map pin), date, and time you choose. Built
+entirely on the providers already in the app, privacy posture unchanged.
 
 ## What Has Been Saved
 
-- **Code:** `backend/services/forecast.py` + `openweather.fetch_forecast`; routes in `backend/routers/weather.py` (`/weather/at`) and `tide.py` (`/tide/at`); `frontend/src/lib/forecastSlice.ts`, `tauri/weatherService.ts` + `tideService.ts` (`getWeatherAt`/`getTideAt`), `tide.ts`, `transport.ts`; `components/WeatherForecastPanel.tsx` + `PredictMap.tsx`; `App.tsx`. `vite.config.ts` (added `/tide` proxy). Tests: `test_forecast.py`, `test_weather_at.py`, `test_tide_at.py`, `forecastSlice.test.ts`, `WeatherForecastPanel.test.tsx`.
-- **Version:** `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.34; `CHANGELOG.md`.
-- **Records:** `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md` (Shipped → 69), `CLAUDE.md` (vite-proxy convention), `README.md`, `docs/HELP.md`, `website/index.html`, `PRIVACY_POLICY.md`.
-- **Pipeline artifacts:** `pipeline/weather-current-predict/` (strategic-brief, prd, schema, design-spec, design.html, PR, how-to-see, qa-report, security-report).
-- **Committed and pushed to `main` from the VM; tag `v0.5.34` pushed** (starts the Windows CI build). The feature commit was rebased onto the Mac's "mark 0.5.33 released" commit, so `main` is linear and the tag points at the commit on `main`.
+- Feature code + records (from the VM, commit `a0cafa5`): the new
+  `/weather/at` + `/tide/at` routes and services, `WeatherForecastPanel`
+  / `PredictMap`, the TS↔Python forecast parity; `CHANGELOG.md`,
+  `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md`, `CLAUDE.md`
+  (vite-proxy convention), `README.md`, `docs/HELP.md`,
+  `website/index.html`, and `PRIVACY_POLICY.md` (new live/forecast
+  data flow).
+- Pipeline artifacts: `pipeline/weather-current-predict/`.
+- This session: fast-forwarded `main` to `a0cafa5`, verified the bump,
+  ran `./release.sh`, verified the release live, then marked the
+  release in `pipeline/session-state.json` + this handoff.
 
 ## Where We Are
 
-Feature complete and verified (frontend 889, backend 131, lint/typecheck/build/ruff clean; live-verified against OpenWeather + NOAA; security pass), committed, and pushed to `main` with the `v0.5.34` tag. Pipeline idle. (0.5.33 is already RELEASED live on both platforms from the Mac.)
+Released and verified live. `main` and `origin/main` are at `a0cafa5`
+(0.5.34) = the `v0.5.34` tag. GitHub release `v0.5.34` is published,
+marked Latest (not draft/prerelease), target `main`; all 6 assets
+return HTTP 200; `latest.json` carries `darwin-aarch64` +
+`darwin-x86_64` (the one universal updater bundle) and `windows-x86_64`
+(the `-setup.exe`). macOS notarization Accepted (Apple submission
+`6fc61e41`) + stapled. Pipeline idle.
 
-## To Release v0.5.34 (your steps from the Mac)
+## Release note — re-pushed-tag / stale-CI-run hazard (caught this session)
 
-`main` and the `v0.5.34` tag are on GitHub; Windows CI is building. After CI finishes, run `./release.sh` from the Mac (notarized macOS + signed Windows installer + `latest.json`).
+The `v0.5.34` tag had been re-pushed (a false-start): first at orphaned
+commit `c1b7ff2`, then moved to `a0cafa5` — leaving two Windows CI runs.
+`release.sh` picks the Windows artifact by most-recently-created
+**successful** `windows-build.yml` run, and its only guard checks the
+installer *filename* contains the version — which can't tell two runs of
+the same version apart. The stale `c1b7ff2` run finished success first
+and briefly topped the selection list. The fix was to wait for the
+correct `a0cafa5` run to finish green (it was created later, so it sorts
+above the stale one) and verify the selected run's `headSha == a0cafa5`
+before running `release.sh`. Standing check for any future tag re-push:
+confirm the selected CI run's commit equals the tag commit before
+releasing.
+
+## Open / Optional
+
+- Optional: confirm the in-app updater picks up 0.5.34 by opening the app (latest.json is correct, so detection is ready).
+- ROADMAP Up Next: mobile app; Windows code signing.
 
 ## Resume Prompt
 
