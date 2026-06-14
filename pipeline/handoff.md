@@ -1,24 +1,37 @@
-# Handoff — media-sex-age-filters COMPLETE; v0.5.33 pushed to GitHub (release pending from the Mac)
+# Handoff — media-sex-age-filters RELEASED; v0.5.33 live on both platforms
 
 ## What We Accomplished
 
-Added Sex (Male/Female) and Age (Juvenile/Immature/Adult) dropdown filters to the Multimedia tab. They compose with the existing media and county/date filters; each species' photo/audio/video counts and the "X of N species" total reflect the active filter, species with no matching media drop out, and the Macaulay Library links carry the filter so a click opens the same subset. A single facet is broad (any female, any juvenile); choosing both targets one kind of bird (a juvenile female), which the Macaulay link also honors. Frontend only, no backend. Ships as v0.5.33.
+Shipped v0.5.33. The Sex (Male/Female) and Age (Juvenile/Immature/Adult)
+media filters were built and committed on the VM, but the release had
+stalled at the handoff to the Mac — the `v0.5.33` tag was pushed (so
+Windows CI ran) but `main` and the signed release hadn't been done.
+Dave re-pushed `main`, then this Mac session fast-forwarded `main` to
+the tagged commit and ran `./release.sh`: the macOS universal build was
+notarized and stapled, the CI Windows installer was signed locally, and
+`latest.json` was written with all three updater keys. v0.5.33 is now
+the published, Latest release on both platforms.
 
 ## What Has Been Saved
 
-- Code: `frontend/src/lib/mediaStats.ts` (`assetMatchesFacet` + `buildCatalogAgeSex`), `frontend/src/components/LifeList.tsx` (the two filters + the facet projection), `frontend/src/components/LifeListTable.tsx` (facet-aware counts + links); tests in `mediaStats.test.ts` + `LifeListTable.test.tsx`.
-- Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.33; `CHANGELOG.md` entry.
-- Records: `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md`, `README.md`, `docs/HELP.md`, `website/index.html`.
+- Feature code (from the VM, commit `8f627a2`): `frontend/src/lib/mediaStats.ts`, `frontend/src/components/LifeList.tsx`, `frontend/src/components/LifeListTable.tsx`; tests in `mediaStats.test.ts` + `LifeListTable.test.tsx`.
+- Records (from the VM): `CHANGELOG.md`, `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md`, `README.md`, `docs/HELP.md`, `website/index.html`.
 - Pipeline artifacts: `pipeline/media-sex-age-filters/`.
-- **Committed and pushed to `main` from the VM; tag `v0.5.33` pushed** (rebased onto the Mac's "mark 0.5.32 released" commit).
+- This session: fast-forwarded + confirmed `main` at `8f627a2`, ran `./release.sh`, then marked the release in `pipeline/session-state.json` + this handoff.
 
 ## Where We Are
 
-Feature complete, verified (frontend 877, backend 110, build + security clean), committed, and pushed to `main` with the `v0.5.33` tag (Windows CI building). Pipeline idle. **0.5.32 is already released live.** The release of v0.5.33 is pending from the Mac.
+Released and verified live. `main` and `origin/main` are at `8f627a2`
+(0.5.33). GitHub release `v0.5.33` is published, marked Latest (not
+draft/prerelease), target `main`; all 6 assets return HTTP 200;
+`latest.json` carries `darwin-aarch64` + `darwin-x86_64` (the one
+universal updater bundle) and `windows-x86_64` (the `-setup.exe`).
+Windows CI for the tag was green (run 27485182983). Pipeline idle.
 
-## To Release v0.5.33 (your steps from the Mac)
+## Open / Optional
 
-`main` and the `v0.5.33` tag are on GitHub and Windows CI is running. After CI finishes, run `./release.sh` from the Mac (notarized macOS build + signed Windows installer + `latest.json`).
+- Optional: confirm the in-app updater picks up 0.5.33 by opening the app (latest.json is correct, so detection is ready).
+- ROADMAP Up Next: mobile app; Windows code signing.
 
 ## Resume Prompt
 
