@@ -1,15 +1,25 @@
 {
   "activeFeature": null,
-  "sessionNumber": 32,
+  "sessionNumber": 33,
   "sessionType": null,
   "currentStage": null,
   "lastCompletedStage": 9,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "pipeline/frivolous-lists/strategic-brief.md",
+    "pipeline/frivolous-lists/prd.md",
+    "pipeline/frivolous-lists/schema.md",
+    "pipeline/frivolous-lists/design-spec.md",
+    "pipeline/frivolous-lists/design.html",
+    "pipeline/frivolous-lists/PR.md",
+    "pipeline/frivolous-lists/how-to-see.md",
+    "pipeline/frivolous-lists/qa-report.md",
+    "pipeline/frivolous-lists/security-report.md"
+  ],
   "releasedVersion": "0.5.35",
-  "lastFeature": "0.5.35 RELEASED (live, both platforms) — nearby-lifers-map, released from the Mac. The feature was built + Chronicled on the VM (commit 9fa2376, tag v0.5.35) and pushed; this Mac session pulled and discovered the VM's 0.5.35 build was BROKEN: both Windows CI runs for the tag (9fa2376 and the pre-rebase 375c784) FAILED with `src/lib/nearbyLifers.ts(41,3): error TS6133: 'nowMs' is declared but its value is never read.` ROOT CAUSE: buildNearbyLifers carried an unused `nowMs` param guarded only by `// eslint-disable-next-line @typescript-eslint/no-unused-vars` — which silences ESLint but NOT tsc's noUnusedParameters (TS6133). vitest (esbuild, no typecheck) + eslint passed on the VM, but the real `tsc -b` production build failed, which would also have broken the macOS release build. FIX (commit 7af29d5): removed the dead param, its MapExplorer call site (dropped a needless Date.now()), and the test's now-unused NOW const; verified locally build+lint+911 vitest green; force-moved the v0.5.35 tag to 7af29d5; new Windows CI run 27512712253 went green; verified its headSha == tag commit (7af29d5) == release.sh's most-recent-success selection BEFORE releasing (the tag-re-push guard from the 0.5.34 post-mortem). Then ran ./release.sh from the Mac: macOS universal DMG notarized (Apple submission 1fefdeba-7d84-449f-a3d0-76a84c27e9c8, Accepted) + stapled, bundle-version guard 0.5.35; Windows installer fetched from CI run 27512712253 + signed locally; latest.json all three keys (darwin-aarch64 + darwin-x86_64 -> the one universal updater bundle/same sig, windows-x86_64 -> SnowRaven_0.5.35_x64-setup.exe). All 6 release assets HTTP 200; GitHub /releases/latest confirms v0.5.35 is Latest (not draft/prerelease), target main, published 2026-06-14T21:50:27Z. Feature (built on the VM): Nearby Lifers moved off the Statistics tab into a new 4th Map Explorer section — location-grouped, recency-colored labeled pins (species name / '{n} species') of recently-reported species not on the life list, a mirroring in-view list, the standard location chooser (default / use-my-location / place search / radius), plus a new shared Time Range filter (last day/week/30 days) ALSO added to Media Targets. Reused /map/recent-obs with codes made OPTIONAL; client-side life-list subtraction + per-location grouping in lib/nearbyLifers.ts; /stats/nemesis retired. Artifacts in pipeline/nearby-lifers-map/. (Prior: 0.5.34 weather-current-predict RELEASED live on both platforms from the Mac.)",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; Windows code signing. Optional: Dave to confirm the in-app updater picks up 0.5.35 by opening the app (latest.json is correct, so detection is ready). NEW STANDING TRAP (recorded in CLAUDE.md this session): an `eslint-disable @typescript-eslint/no-unused-vars` does NOT silence tsc's noUnusedParameters (TS6133) — a trailing unused param fails the production `tsc -b` build even though vitest (esbuild) + eslint pass. The pre-push gate must be `npm run build` (or at least `npm run typecheck`), not just vitest/lint; to intentionally keep an unused param, prefix it with `_` (tsc exempts `_`-prefixed).",
-  "createdAt": "2026-06-14T21:33:00Z",
-  "updatedAt": "2026-06-14T21:53:00Z"
+  "lastFeature": "frivolous-lists COMPLETE (feature lane, v0.5.36) \u2014 a playful 'Frivolous Lists' section at the bottom of the Statistics page: Avian American (22), California Dreamer (7), and Rainbow Warrior (7 colors), computed entirely from the loaded eBird backup. Rainbow uses a lexicographically-greedy max bipartite matching (distinct bird per color where possible; forced double shows the color's earliest), whole-word color matching, oracle-verified (3 bugs found+fixed). Favicons on not-yet-seen birds via the existing /taxonomy/codes batch. New lib/frivolousLists.ts (+test, 21 cases) + FrivolousListsSections.tsx; BirdingStats.tsx final SectionCard + jump-nav; 7 --sr-rainbow-* tokens both themes. Frontend-only, no new providers, privacy unchanged. Built on the reconciled origin/main (0.5.35-released base, 10dfe02) after the VM was found 2 commits behind. Verified: frontend 932 vitest, backend 129 pytest, lint/tsc -b/build clean; 2-lens security PASS no findings; Dave live-verified. Committed (one feat commit) + pushed to main; tag v0.5.36 pushed (starts Windows CI). Artifacts in pipeline/frivolous-lists/.",
+  "remainingBacklog": "RELEASE 0.5.36 (Dave, from the Mac): after Windows CI is green, verify the selected run's commit == the tag (CLAUDE.md standing check: gh run list --workflow windows-build.yml --status success --limit 1 --json databaseId,headSha; confirm headSha == git rev-parse v0.5.36^{commit}), then run ./release.sh. v0.5.36 is a FRESH tag (no re-push hazard). ROADMAP Up Next: mobile app; Windows code signing.",
+  "createdAt": "2026-06-15T04:30:15Z",
+  "updatedAt": "2026-06-15T13:57:05Z"
 }

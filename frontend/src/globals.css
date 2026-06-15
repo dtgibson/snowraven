@@ -164,6 +164,18 @@
      identical in both themes; white 10px/700 numerals ≥4.5:1 on both fills. */
   --sr-rank-pin-circle: #277448;    /* white numeral 5.71:1; 5.01:1 vs land */
   --sr-rank-pin-square: #1D4ED8;    /* white numeral 6.70:1 (was #3B82F6 = 3.68:1); 5.88:1 vs land */
+
+  /* Rainbow Warrior swatches (Statistics → Frivolous Lists) — decorative color
+     dots; the color NAME is the accessible text, so these are not held to text
+     contrast. Each carries a 1px --sr-border-medium ring and is chosen to read as
+     the named color on the light surfaces. */
+  --sr-rainbow-red: #DC2626;
+  --sr-rainbow-orange: #EA580C;
+  --sr-rainbow-yellow: #EAB308;
+  --sr-rainbow-green: #16A34A;
+  --sr-rainbow-blue: #2563EB;
+  --sr-rainbow-indigo: #4F46E5;
+  --sr-rainbow-violet: #7C3AED;
 }
 
 [data-theme="dark"] {
@@ -314,6 +326,15 @@
   /* Statistics map rank pins — same values as :root by design (light basemap) */
   --sr-rank-pin-circle: #277448;
   --sr-rank-pin-square: #1D4ED8;
+
+  /* Rainbow Warrior swatches — luminous variants for the dark surfaces */
+  --sr-rainbow-red: #F87171;
+  --sr-rainbow-orange: #FB923C;
+  --sr-rainbow-yellow: #FACC15;
+  --sr-rainbow-green: #4ADE80;
+  --sr-rainbow-blue: #60A5FA;
+  --sr-rainbow-indigo: #818CF8;
+  --sr-rainbow-violet: #A78BFA;
 }
 
 /* Nearest-unvisited hotspot rows (Map Explorer hotspots sidebar) */

@@ -25,6 +25,7 @@ never promotional.
 - **Quote blocks:** `--sr-quote-bg`/`--sr-quote-border` (v0.5.26) for quoted
   user comments.
 - **Tiers:** `--sr-tier-N` (+`-rgb` triplets) for breeding-code tiers.
+- **Rainbow swatches:** `--sr-rainbow-{red,orange,yellow,green,blue,indigo,violet}` (Statistics → Frivolous Lists / Rainbow Warrior, v0.5.36) — decorative color dots, per-theme (saturated on light, luminous on dark), each with a 1px `--sr-border-medium` ring and `opacity: 0.30` when unfilled. The color NAME is the accessible text, so these are not held to text contrast.
 - **Rule:** every color via `var(--sr-*)`; new tokens go in BOTH themes before
   use; rgba alphas via the `-rgb` triplet pattern.
 

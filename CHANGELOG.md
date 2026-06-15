@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.36] - 2026-06-14
+
+### Added
+- **Frivolous Lists on the Statistics page.** A new section at the very bottom of Statistics, just for the fun of it: three self-completing collections that fill in from your own life list. **Avian American** and **California Dreamer** check off every "American …" and "California …" bird as you record it — with a count of how many you have and a badge when you complete the set. **Rainbow Warrior** finds the first bird of each rainbow color you ever logged — red through violet — and shows where and when you first saw it, with a link to that checklist; a color you haven't found yet waits with a blank (a name counts for a color only as a whole word, so "Red-tailed Hawk" fills red but "Reddish Egret" doesn't, and one bird like the Violet-green Swallow can fill two). Built entirely from the eBird data the app already has — no new providers, and the local-first privacy promise is unchanged.
+
 ## [0.5.35] - 2026-06-14
 
 ### Added

@@ -197,6 +197,16 @@ A deep look at your Macaulay Library archive, built from your ML export. It open
 
 Below all of that, ranked lists show your most-photographed, most-recorded, and most-filmed species, each linking to your personal Macaulay Library page filtered by species and media type. The whole card requires your ML export; the age, gender, behavior, and time-of-day sections fill in to the extent your export carries those annotations.
 
+### Frivolous Lists
+
+At the very bottom of the Statistics page is a section just for the fun of it — three self-completing collections that fill in from your own life list:
+
+- **Avian American** — every bird whose name starts with "American," from the American Avocet to the American Woodcock. Each one you've recorded gets a checkmark, with a running count and a badge once you've seen them all.
+- **California Dreamer** — the same idea for the "California" birds: Condor, Gnatcatcher, Gull, Quail, Scrub-Jay, Thrasher, and Towhee.
+- **Rainbow Warrior** — the first bird of each rainbow color you ever logged: red, orange, yellow, green, blue, indigo, violet. Each filled color shows that bird with the date and place you first saw it and a link to the checklist. A color counts only when it appears as a whole word in a name, so "Red-tailed Hawk" fills red but "Reddish Egret" doesn't — and one bird can fill two colors (a Violet-green Swallow counts for both violet and green). Colors you haven't found yet wait with a blank, and a badge appears once all seven are filled.
+
+These lists are built entirely from your loaded eBird data — nothing new to set up.
+
 ---
 
 ## Map Explorer

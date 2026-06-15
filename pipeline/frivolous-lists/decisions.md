@@ -1,0 +1,14 @@
+# Decisions — Frivolous Lists
+
+Feature-local decision log (Case 1/3 changes, deliberate design-system extensions, and resolved questions). The Chronicler folds the durable ones back at Stage 9.
+
+## Stage 4 — Designer
+
+- **NEW design-system extension — seven `--sr-rainbow-*` swatch tokens.** The Rainbow Warrior list needs seven named color swatches that read as the color in both themes. Added a tokenized palette (`--sr-rainbow-{red,orange,yellow,green,blue,indigo,violet}`) with per-theme values (saturated on light, luminous on dark), each rendered with a 1px `--sr-border-medium` ring and `opacity: 0.30` when the color is unfilled. This is a deliberate, logged extension to the design system (not silent drift); the swatches are decorative (the color name is the accessible text), so they are not held to text-contrast, but were chosen to stay legible on both surfaces. **Chronicler:** fold this palette into `pipeline/design-system.md` (Tokens) at Stage 9.
+- **Header subtitle removed** (user review): the section shows just the **Frivolous Lists** title + Sparkles icon, no descriptive sub-line.
+- **Name-lists are a two-column responsive grid**; **Complete!** is the completion-badge copy (reusing the milestone-1 chip); empty rainbow rows read "— no {color} bird yet".
+
+## Stage 5 — Engineer (user refinements after first look)
+
+- **Favicons on not-yet-seen birds.** Originally unseen Avian American / California Dreamer rows showed a plain name with no favicons (no taxon code resolved). Per user request, the eBird + Birds of the World favicons now render on unseen rows too. Implemented by adding the 29 hardcoded names to the existing `/taxonomy/codes` batch in `BirdingStats.tsx` (scientific name blank → resolved by common name; works in both the web and Tauri transports and reads the live taxonomy, so the recent splits like "American Goshawk" resolve correctly). The name still does NOT link to Species Detail when unseen (correct — the user hasn't recorded it); only the favicons appear. Mockup updated to match.
+- **Rainbow Warrior avoids doubling a bird across colors.** Earlier, each color independently took its earliest-first-seen match, so one bird (e.g. Violet-green Swallow) could fill two colors even when a distinct alternative existed. Now the assignment is a **maximum bipartite matching** (colors ↔ species, Kuhn's augmenting paths): each color gets a DISTINCT bird wherever possible, preferring earliest-first-seen (candidates earliest-first, colors in spectrum order); a bird fills two colors only when a color has no other candidate ("absolutely necessary"). Example: with Green Heron + Violet-green Swallow seen, green → Green Heron and violet → Violet-green Swallow, even though the Swallow was logged first. Distinctness takes priority over strict per-color earliest; deterministic (date then submissionId tie-break).

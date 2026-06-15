@@ -1,68 +1,27 @@
-# Handoff — Nearby Lifers RELEASED; v0.5.35 live on both platforms (build-blocker fixed on the Mac)
+# Handoff — Frivolous Lists COMPLETE; v0.5.36 pushed (release pending from the Mac)
 
 ## What We Accomplished
 
-Released v0.5.35. **Nearby Lifers** was built and Chronicled on the VM
-(commit `9fa2376`, tag `v0.5.35`) and pushed. This Mac session pulled and
-found the VM's 0.5.35 build was **broken** — both Windows CI runs for the
-tag failed on a TypeScript error. We fixed it, re-tagged, waited for a
-green CI run, then ran `./release.sh` and verified the release live.
+Added a **Frivolous Lists** section at the bottom of the Statistics page — three playful, self-completing collections (Avian American, California Dreamer, Rainbow Warrior) computed entirely from the loaded eBird backup. Built, verified (including a brute-force oracle for the Rainbow Warrior matching), security-reviewed (no findings), and documented; committed and pushed to `main` with the `v0.5.36` tag.
 
-Nearby Lifers moved off the Statistics tab into a new (4th) Map Explorer
-section: recency-colored, location-grouped labeled pins of recently
-reported species you've never recorded, a mirroring in-view list, the
-standard location chooser, and a new shared **Time Range** filter (last
-day / week / 30 days) also added to Media Targets. Built on the eBird
-data the app already uses; privacy posture unchanged.
+This session also reconciled a stale local checkout: the VM was found 2 commits behind `origin/main` (it lacked Dave's `7af29d5` nowMs build fix and the `10dfe02` 0.5.35-released marker). The feature work was rebased onto the current base before shipping.
 
-## The build blocker (fixed this session)
+## What Has Been Saved
 
-The VM reported "build clean," but its checks missed a real failure:
-`buildNearbyLifers` carried an unused `nowMs` parameter guarded only by
-`// eslint-disable-next-line @typescript-eslint/no-unused-vars`. That
-silences ESLint but **not** the TypeScript compiler — `tsc`'s
-`noUnusedParameters` rejects a trailing unused parameter (TS6133). vitest
-(esbuild, no type-check) and ESLint passed, but the real production build
-(`npm run build` = `tsc -b && vite build`) failed:
-
-```
-src/lib/nearbyLifers.ts(41,3): error TS6133: 'nowMs' is declared but its value is never read.
-```
-
-Both Windows CI runs for the tag (`9fa2376`, and the pre-rebase
-`375c784`) failed this way; it would also have failed the macOS
-`release.sh` build. **Fix** (commit `7af29d5`): removed the dead
-parameter, its `MapExplorer` call site (which dropped a needless
-`Date.now()`), and the test's now-unused `NOW` const. Verified on the
-Mac: `npm run build`, `npm run lint`, and **911/911 vitest** all green.
-Added a CLAUDE.md note so the production build — not just vitest/lint — is
-the pre-push gate.
-
-## How We Released
-
-1. Committed the fix (`7af29d5`), pushed `main`, force-moved the
-   `v0.5.35` tag to `7af29d5`.
-2. New Windows CI run `27512712253` went green; verified its `headSha ==
-   7af29d5 ==` the tag commit `==` `release.sh`'s most-recent-success
-   selection (the tag-re-push guard) **before** releasing.
-3. Ran `./release.sh` from the Mac.
+- **Code:** `frontend/src/lib/frivolousLists.ts` (+ `frivolousLists.test.ts`, 21 cases), `frontend/src/components/FrivolousListsSections.tsx`; `frontend/src/components/BirdingStats.tsx` (final `SectionCard` + jump-nav entry + the 29 hardcoded names added to the existing `/taxonomy/codes` batch); `frontend/src/globals.css` (seven `--sr-rainbow-*` tokens, both themes).
+- **Version + docs:** `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.36; `CHANGELOG.md`; `docs/HELP.md`; `README.md`; `website/index.html`.
+- **Records:** `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md`, `pipeline/design-system.md`.
+- **Pipeline artifacts:** `pipeline/frivolous-lists/` (strategic-brief, prd, schema, design-spec, design.html, decisions, PR, how-to-see, qa-report, security-report).
+- Committed on the VM as one `feat` commit and pushed to `main`; tag `v0.5.36` pushed (starts Windows CI).
 
 ## Where We Are
 
-Released and verified live. `main` / `origin/main` / tag `v0.5.35` all at
-`7af29d5`. GitHub release `v0.5.35` is published, marked Latest (not
-draft/prerelease), target `main`, published 2026-06-14T21:50:27Z. All 6
-assets return HTTP 200. macOS notarization Accepted (Apple submission
-`1fefdeba`) + stapled. `latest.json`: version 0.5.35, `darwin-aarch64` +
-`darwin-x86_64` → the one universal updater bundle (same sig),
-`windows-x86_64` → `SnowRaven_0.5.35_x64-setup.exe`. Pipeline idle.
+Feature complete. `main` and the `v0.5.36` tag are on GitHub; Windows CI is building. Release pending: Dave runs `./release.sh` from the Mac after CI is green.
 
-## Open / Optional
+## To Release v0.5.36 (your steps from the Mac)
 
-- Optional: confirm the in-app updater picks up 0.5.35 by opening the app
-  (latest.json is correct, so detection is ready).
-- ROADMAP Up Next: mobile app; Windows code signing.
+After Windows CI finishes, verify the selected run's commit matches the tag (CLAUDE.md standing check): `gh run list --workflow windows-build.yml --status success --limit 1 --json databaseId,headSha` and confirm `headSha == git rev-parse v0.5.36^{commit}`. Then run `./release.sh`. This is a FRESH tag (pushed once), so no re-push hazard.
 
 ## Resume Prompt
 
-Run `/weft` to start the next thing. Load `pipeline/session-state.json` first.
+Run `/weft` to start the next thing. It reads saved state and picks up from here.

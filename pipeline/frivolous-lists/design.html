@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Frivolous Lists — design preview</title>
+<style>
+  :root {
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+    --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA; --sr-text-gray:#6B7280;
+    --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE;
+    --sr-accent:#277448; --sr-accent-bg:#E8F5EE; --sr-accent-border:rgba(39,116,72,0.25); --sr-on-accent:#FFFFFF;
+    --sr-card-shadow:0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-milestone-1-bg:linear-gradient(160deg,#F2FAF5,#E8F5EE); --sr-milestone-1-border:rgba(45,134,83,0.28);
+    --sr-milestone-1-num:#2D8653; --sr-milestone-1-check:#2D8653;
+    /* Rainbow Warrior swatches (NEW) — tuned for the light surfaces */
+    --sr-rainbow-red:#DC2626; --sr-rainbow-orange:#EA580C; --sr-rainbow-yellow:#EAB308;
+    --sr-rainbow-green:#16A34A; --sr-rainbow-blue:#2563EB; --sr-rainbow-indigo:#4F46E5; --sr-rainbow-violet:#7C3AED;
+  }
+  [data-theme="dark"] {
+    --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+    --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-disabled:#52525B; --sr-text-gray:#8A8A92;
+    --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46;
+    --sr-accent:#34D399; --sr-accent-bg:#052E16; --sr-accent-border:rgba(52,211,153,0.2); --sr-on-accent:#052E16;
+    --sr-card-shadow:0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+    --sr-milestone-1-bg:linear-gradient(160deg,#F2FAF5,#E8F5EE); --sr-milestone-1-border:rgba(45,134,83,0.28);
+    --sr-milestone-1-num:#2D8653; --sr-milestone-1-check:#2D8653;
+    /* Rainbow Warrior swatches (NEW) — luminous on the dark surfaces */
+    --sr-rainbow-red:#F87171; --sr-rainbow-orange:#FB923C; --sr-rainbow-yellow:#FACC15;
+    --sr-rainbow-green:#4ADE80; --sr-rainbow-blue:#60A5FA; --sr-rainbow-indigo:#818CF8; --sr-rainbow-violet:#A78BFA;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--sr-bg); color:var(--sr-text);
+    font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.5; padding:32px 16px 64px; }
+  .page { max-width:900px; margin:0 auto; }
+  .crumb { font-size:0.71875rem; color:var(--sr-text-muted); letter-spacing:0.02em; margin:0 0 14px; }
+  .crumb b { color:var(--sr-text); font-weight:600; }
+  .toggle { position:fixed; top:16px; right:16px; font:inherit; font-size:0.75rem; font-weight:600;
+    color:var(--sr-text); background:var(--sr-surface); border:1px solid var(--sr-border-medium);
+    border-radius:8px; padding:7px 12px; cursor:pointer; box-shadow:var(--sr-card-shadow); }
+
+  /* SectionCard */
+  .card { background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:12px;
+    box-shadow:var(--sr-card-shadow); padding:clamp(16px,4vw,24px); }
+  .card-head { display:flex; align-items:center; gap:11px; margin-bottom:20px; padding-bottom:16px;
+    border-bottom:1px solid var(--sr-border-subtle); }
+  .icon-tile { width:30px; height:30px; border-radius:8px; background:var(--sr-accent-bg);
+    display:flex; align-items:center; justify-content:center; color:var(--sr-accent); flex-shrink:0; }
+  .card-head h3 { margin:0; font-size:1.125rem; font-weight:700; letter-spacing:-0.01em; }
+  .card-head .sub { margin:2px 0 0; font-size:0.75rem; color:var(--sr-text-muted); }
+
+  .block { padding:4px 0 2px; }
+  .block + .block { margin-top:8px; padding-top:18px; border-top:1px solid var(--sr-border-subtle); }
+  .block-head { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  .sublabel { font-size:0.6875rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
+    color:var(--sr-text-muted); margin:0; }
+  .progress { margin-left:auto; font-size:0.75rem; font-weight:600; color:var(--sr-text-muted);
+    font-variant-numeric:tabular-nums; }
+  .badge { display:inline-flex; align-items:center; gap:5px; padding:3px 9px 3px 7px; border-radius:8px;
+    background:var(--sr-milestone-1-bg); border:1.5px solid var(--sr-milestone-1-border);
+    color:var(--sr-milestone-1-num); font-size:0.6875rem; font-weight:700; letter-spacing:0.01em; }
+  .badge .chk { width:13px; height:13px; }
+
+  /* name-list grids */
+  .namegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:4px 18px; }
+  .nrow { display:flex; align-items:center; gap:8px; padding:4px 2px; min-height:28px; }
+  .check { width:14px; height:14px; border-radius:50%; background:var(--sr-milestone-1-check);
+    color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .check svg { width:9px; height:9px; }
+  .nospot { width:14px; height:14px; flex-shrink:0; }
+  .bird { font-size:0.84375rem; }
+  .bird.seen { color:var(--sr-accent); font-weight:500; cursor:pointer; }
+  .bird.seen:hover { text-decoration:underline; }
+  .bird.unseen { color:var(--sr-text-muted); }
+  .fav { display:inline-flex; gap:3px; margin-left:5px; vertical-align:-1px; }
+  .fav i { width:11px; height:11px; border-radius:3px; display:inline-block; opacity:0.8; }
+  .fav .e { background:#1f7a3f; } .fav .b { background:#3b6fb0; }
+
+  /* rainbow rows */
+  .rainbow { display:flex; flex-direction:column; }
+  .rrow { display:flex; align-items:center; gap:12px; padding:9px 10px; border-radius:8px; }
+  .rrow + .rrow { margin-top:4px; }
+  .rrow.filled { background:var(--sr-surface-subtle); }
+  .swatch { width:16px; height:16px; border-radius:50%; flex-shrink:0; border:1px solid var(--sr-border-medium); }
+  .swatch.empty { opacity:0.30; }
+  .colorname { width:64px; flex-shrink:0; font-size:0.75rem; font-weight:600; text-transform:capitalize;
+    color:var(--sr-text-muted); letter-spacing:0.01em; }
+  .rbird { flex:1; min-width:0; font-size:0.84375rem; }
+  .rbird .seen { color:var(--sr-accent); font-weight:500; cursor:pointer; }
+  .rbird .seen:hover { text-decoration:underline; }
+  .rmeta { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+  .clink { display:inline-flex; align-items:center; gap:4px; color:var(--sr-accent); font-size:0.75rem;
+    font-weight:500; cursor:pointer; white-space:nowrap; }
+  .clink:hover { text-decoration:underline; }
+  .clink svg { width:11px; height:11px; }
+  .loc { font-size:0.71875rem; color:var(--sr-text-muted); white-space:nowrap; max-width:190px;
+    overflow:hidden; text-overflow:ellipsis; }
+  .empty-txt { color:var(--sr-text-disabled); font-size:0.8125rem; font-style:italic; }
+  @media (max-width:640px){ .loc{ display:none; } .colorname{ width:54px; } }
+</style>
+</head>
+<body>
+<button class="toggle" id="tog" onclick="(function(){var h=document.documentElement;var d=h.getAttribute('data-theme')==='dark';h.setAttribute('data-theme',d?'light':'dark');document.getElementById('tog').textContent=d?'☼ Light':'☾ Dark';})()">&#9790; Dark</button>
+<div class="page">
+  <p class="crumb">Statistics &nbsp;&#9656;&nbsp; <b>Frivolous Lists</b> &nbsp;&middot;&nbsp; the last section on the page</p>
+
+  <section class="card">
+    <div class="card-head">
+      <span class="icon-tile">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8L19.7 10l-5.8 1.9L12 17.7 10.1 11.9 4.3 10l5.8-1.9z"/><path d="M19 15l.7 2.1L22 18l-2.3.9L19 21l-.7-2.1L16 18l2.3-.9z"/></svg>
+      </span>
+      <div>
+        <h3>Frivolous Lists</h3>
+      </div>
+    </div>
+
+    <!-- Avian American -->
+    <div class="block">
+      <div class="block-head">
+        <p class="sublabel">Avian American</p>
+        <span class="progress">12 / 22</span>
+      </div>
+      <div class="namegrid">
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Avocet<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Barn Owl<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Bittern<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Black Duck<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Coot<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Crow<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Dipper<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Flamingo<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Golden-Plover<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Goldfinch<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Goshawk<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Herring Gull<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Kestrel<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Oystercatcher<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Pipit<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Redstart<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Robin<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Three-toed Woodpecker<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Tree Sparrow<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American White Pelican<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">American Wigeon<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="nospot"></span><span class="bird unseen">American Woodcock<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+      </div>
+    </div>
+
+    <!-- California Dreamer -->
+    <div class="block">
+      <div class="block-head">
+        <p class="sublabel">California Dreamer</p>
+        <span class="progress">7 / 7</span>
+        <span class="badge"><svg class="chk" viewBox="0 0 24 24" fill="none" stroke="var(--sr-milestone-1-check)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Complete!</span>
+      </div>
+      <div class="namegrid">
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">California Condor<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">California Gnatcatcher<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">California Gull<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">California Quail<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">California Scrub-Jay<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">California Thrasher<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+        <div class="nrow"><span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span><span class="bird seen">California Towhee<span class="fav"><i class="e"></i><i class="b"></i></span></span></div>
+      </div>
+    </div>
+
+    <!-- Rainbow Warrior -->
+    <div class="block">
+      <div class="block-head">
+        <p class="sublabel">Rainbow Warrior</p>
+        <span class="progress">6 / 7</span>
+      </div>
+      <div class="rainbow">
+        <div class="rrow filled"><span class="swatch" style="background:var(--sr-rainbow-red)"></span><span class="colorname">red</span><span class="rbird"><span class="seen">Red-winged Blackbird<span class="fav"><i class="e"></i><i class="b"></i></span></span></span><span class="rmeta"><span class="clink">Mar 3, 2019 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span class="loc">Berkeley Aquatic Park</span></span></div>
+        <div class="rrow filled"><span class="swatch" style="background:var(--sr-rainbow-orange)"></span><span class="colorname">orange</span><span class="rbird"><span class="seen">Orange-crowned Warbler<span class="fav"><i class="e"></i><i class="b"></i></span></span></span><span class="rmeta"><span class="clink">Apr 12, 2019 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span class="loc">Tilden Regional Park</span></span></div>
+        <div class="rrow filled"><span class="swatch" style="background:var(--sr-rainbow-yellow)"></span><span class="colorname">yellow</span><span class="rbird"><span class="seen">Yellow-rumped Warbler<span class="fav"><i class="e"></i><i class="b"></i></span></span></span><span class="rmeta"><span class="clink">Jan 6, 2019 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span class="loc">Lake Merritt</span></span></div>
+        <div class="rrow filled"><span class="swatch" style="background:var(--sr-rainbow-green)"></span><span class="colorname">green</span><span class="rbird"><span class="seen">Green Heron<span class="fav"><i class="e"></i><i class="b"></i></span></span></span><span class="rmeta"><span class="clink">Jun 21, 2019 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span class="loc">Jewel Lake</span></span></div>
+        <div class="rrow filled"><span class="swatch" style="background:var(--sr-rainbow-blue)"></span><span class="colorname">blue</span><span class="rbird"><span class="seen">Blue-gray Gnatcatcher<span class="fav"><i class="e"></i><i class="b"></i></span></span></span><span class="rmeta"><span class="clink">May 2, 2019 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span class="loc">Mines Road</span></span></div>
+        <div class="rrow"><span class="swatch empty" style="background:var(--sr-rainbow-indigo)"></span><span class="colorname">indigo</span><span class="rbird"><span class="empty-txt">&mdash; no indigo bird yet</span></span><span class="rmeta"></span></div>
+        <div class="rrow filled"><span class="swatch" style="background:var(--sr-rainbow-violet)"></span><span class="colorname">violet</span><span class="rbird"><span class="seen">Violet-green Swallow<span class="fav"><i class="e"></i><i class="b"></i></span></span></span><span class="rmeta"><span class="clink">Mar 28, 2019 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M10 14L21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span><span class="loc">Sunol Regional Wilderness</span></span></div>
+      </div>
+    </div>
+
+  </section>
+</div>
+</body>
+</html>

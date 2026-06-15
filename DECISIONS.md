@@ -4,6 +4,21 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Frivolous Lists: lexicographically-greedy max-matching for the rainbow, whole-word color matching, and favicons-on-unseen via the existing taxonomy batch — 2026-06-15 (v0.5.36)
+
+**What:** A playful "Frivolous Lists" section at the bottom of Statistics — Avian American (22), California Dreamer (7), and Rainbow Warrior (7 colors) — computed entirely from the loaded eBird backup. Frontend-only; no new providers; privacy unchanged.
+
+**Decisions worth keeping:**
+
+- **Rainbow Warrior assigns birds to colors by a lexicographically-greedy MAXIMUM bipartite matching, not a per-color earliest pick.** The user's rule is "show the first bird of each color, but avoid using one bird for two colors when an alternative exists." A naive per-color earliest pick doubles a shared bird (e.g. Violet-green Swallow for both violet and green) even when a distinct bird is available. The algorithm maximizes DISTINCT birds first (minimize doubles); among max-distinct assignments the higher-priority (spectrum-order) color keeps its earliest bird; a bird fills two colors only when a color has no other candidate, and then it shows that color's EARLIEST bird (not a later "distinct" pick that merely relocates the double). Determinism comes from a total-order candidate sort (date, submissionId, commonName).
+- **Color matching is whole-word, case-insensitive (`/\bCOLOR\b/i`), non-global.** "Red-tailed Hawk" fills red; "Reddish Egret", "Black Redstart", "American Redstart", "Common Yellowthroat" do not. One bird may fill multiple colors (Violet-green Swallow → violet + green). Non-global so `.test()` is stateless (no shared `lastIndex`, per the 0.5.27 regex-hygiene rule).
+- **Verified by a brute-force oracle, which caught three bugs example-based tests missed.** An adversarial verification (an independent oracle enumerating the lexicographically-minimal max-distinct assignment over thousands of random inputs) found non-determinism on date+submissionId ties, a higher-priority color bumped onto a later bird, and a forced-double showing a later bird than its earliest — all fixed and regression-tested. Worth repeating for any non-trivial pure combinatorial/assignment logic.
+- **Favicons on not-yet-seen birds via the existing `/taxonomy/codes` batch.** The 29 hardcoded names are added to the batch `BirdingStats` already sends; the endpoint resolves by common name in both the web (FastAPI) and Tauri (TS) transports and reads the live taxonomy, so unseen rows show the eBird/BoW favicons (still no Species Detail link) and recent splits resolve. No new request.
+- **The lists reflect the ALL-TIME life list,** independent of the Statistics tab's "include spuh" toggle — "have you ever seen this?" is an all-time question. Hardcoded lists use current canonical eBird names only; a pre-split export won't tick until re-downloaded (no legacy alias map in v1).
+- **Seven new `--sr-rainbow-*` swatch tokens** (both themes) for the color dots — a deliberate, logged design-system extension (folded into design-system.md); decorative (the color NAME is the accessible text), so not held to text contrast.
+
+---
+
 ## Nearby Lifers Map: lifers as a Map Explorer section keyed on location, the recent-obs route reused with optional codes, and a shared Time Range filter — 2026-06-14 (v0.5.35)
 
 **What:** A new Map Explorer section that maps WHERE species the user has never recorded were reported recently near a chosen point — labeled, recency-colored pins, not a flat list. The old "Nearby Lifers" list was removed from the Statistics tab and rebuilt here. Built entirely on eBird data the app already uses; no new providers, no privacy change.

@@ -2,7 +2,7 @@ import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna,
   AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
-  ListOrdered, Award,
+  ListOrdered, Award, Sparkles,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -37,6 +37,8 @@ import { fitToPins } from '../lib/fitBounds'
 import { SectionCard, StatCell, BarRow, Divider, SubLabel, RankIcon } from './statsPrimitives'
 import { computeMediaStats } from '../lib/mediaStats'
 import { MediaStatsSections } from './MediaStatsSections'
+import { FrivolousListsSections } from './FrivolousListsSections'
+import { AVIAN_AMERICAN, CALIFORNIA_DREAMER } from '../lib/frivolousLists'
 import { ChecklistLink } from './ChecklistLink'
 import { OutboundLink } from './OutboundLink'
 
@@ -129,6 +131,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         }
         for (const r of mlRows) {
           if (!seenNames.has(r.commonName)) seenNames.set(r.commonName, r.scientificName)
+        }
+        // Frivolous Lists shows the hardcoded "American" / "California" birds whether
+        // or not the user has recorded them; resolve their codes too so the eBird /
+        // Birds of the World favicons render on the not-yet-seen rows (matched by
+        // common name — robust to recent eBird splits like American Goshawk).
+        for (const name of [...AVIAN_AMERICAN, ...CALIFORNIA_DREAMER]) {
+          if (!seenNames.has(name)) seenNames.set(name, '')
         }
         if (seenNames.size > 0) {
           const species = [...seenNames.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
@@ -346,6 +355,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const navSections = [
     ...NAV_SECTIONS,
     ...(rawMlRows.length > 0 ? ['Media'] : []),
+    'Frivolous Lists',
   ]
 
   return (
@@ -1773,6 +1783,16 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           )}
         </SectionCard>
       )}
+
+      {/* ── Section 9: Frivolous Lists ───────────────────────────────────────── */}
+      <SectionCard title="Frivolous Lists" icon={<Sparkles size={16} />}>
+        <FrivolousListsSections
+          observations={effectiveObs}
+          codeFor={codeFor}
+          hasEntryFor={hasEntryFor}
+          onOpenSpecies={onOpenSpecies}
+        />
+      </SectionCard>
 
       </>
       )}
