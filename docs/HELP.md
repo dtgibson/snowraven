@@ -12,7 +12,7 @@ The recommended setup sequence is:
 
 1. Enter your eBird API key in Settings. This is required for the Weather tab and the Map Explorer (including its Nearby Lifers section).
 2. Enter your OpenWeather API key in Settings. This is required for the Weather tab.
-3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer tabs.
+3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, Named Birds, Checklists, and List Comparer tabs.
 4. Upload your ML export from Macaulay Library in Settings. This is optional but unlocks media-specific features in Multimedia, Species Detail, and Statistics.
 
 ---
@@ -59,7 +59,7 @@ Your eBird backup is a full export of all your eBird observations -- every check
 
 The file is called `MyEBirdData.csv`. To download it, sign in at [ebird.org](https://ebird.org) and go to [ebird.org/downloadMyData](https://ebird.org/downloadMyData). Click "Download My Data" and save the download; if it arrives as a `.zip`, unzip it to find `MyEBirdData.csv`. In SnowRaven, go to Settings and upload that CSV under Default Files.
 
-The eBird backup is used by: Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer.
+The eBird backup is used by: Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, Named Birds, Checklists, and List Comparer.
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
