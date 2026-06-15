@@ -1,27 +1,57 @@
-# Handoff — Frivolous Lists COMPLETE; v0.5.36 pushed (release pending from the Mac)
+# Handoff — Frivolous Lists RELEASED; v0.5.36 live on both platforms
 
 ## What We Accomplished
 
-Added a **Frivolous Lists** section at the bottom of the Statistics page — three playful, self-completing collections (Avian American, California Dreamer, Rainbow Warrior) computed entirely from the loaded eBird backup. Built, verified (including a brute-force oracle for the Rainbow Warrior matching), security-reviewed (no findings), and documented; committed and pushed to `main` with the `v0.5.36` tag.
+Released **v0.5.36**. Frivolous Lists was built and Chronicled on the VM
+(commit `40eeca3`, tag `v0.5.36`) and pushed. This Mac session pulled,
+verified the build locally, waited for Windows CI to go green, ran
+`./release.sh`, and verified the release live on both platforms.
 
-This session also reconciled a stale local checkout: the VM was found 2 commits behind `origin/main` (it lacked Dave's `7af29d5` nowMs build fix and the `10dfe02` 0.5.35-released marker). The feature work was rebased onto the current base before shipping.
+Frivolous Lists is a playful section at the bottom of the Statistics
+page — three self-completing collections from your own life list:
+**Avian American** (22), **California Dreamer** (7), and **Rainbow
+Warrior** (first bird of each of seven rainbow colors). Frontend-only,
+built on the eBird data the app already has; privacy posture unchanged.
 
-## What Has Been Saved
+## The signing hiccup (fixed this session)
 
-- **Code:** `frontend/src/lib/frivolousLists.ts` (+ `frivolousLists.test.ts`, 21 cases), `frontend/src/components/FrivolousListsSections.tsx`; `frontend/src/components/BirdingStats.tsx` (final `SectionCard` + jump-nav entry + the 29 hardcoded names added to the existing `/taxonomy/codes` batch); `frontend/src/globals.css` (seven `--sr-rainbow-*` tokens, both themes).
-- **Version + docs:** `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.36; `CHANGELOG.md`; `docs/HELP.md`; `README.md`; `website/index.html`.
-- **Records:** `PRODUCT_CONTEXT.md`, `DECISIONS.md`, `ROADMAP.md`, `pipeline/design-system.md`.
-- **Pipeline artifacts:** `pipeline/frivolous-lists/` (strategic-brief, prd, schema, design-spec, design.html, decisions, PR, how-to-see, qa-report, security-report).
-- Committed on the VM as one `feat` commit and pushed to `main`; tag `v0.5.36` pushed (starts Windows CI).
+The first `./release.sh` stopped at preflight with `APPLE_SIGNING_IDENTITY
+is not set`. Cause: it was invoked as a bare `./release.sh`, which spawns
+a non-login shell. The four Apple signing credentials are exported in the
+**login** profile, so they were absent. Re-running the documented way —
+`zsh -lc './release.sh'` (a login shell) — loaded the profile and the
+release ran normally. Not a signing or environment regression; just the
+invocation. (Standing note added to session-state.)
+
+## How We Released
+
+1. Pulled `main` to `40eeca3`; confirmed tag `v0.5.36` points at it.
+2. Verified locally: `tsc -b && vite build` clean (the 0.5.35-trap check
+   on the release machine), both version files at `0.5.36`.
+3. Waited for Windows CI run `27551462193` to go green; verified its
+   `headSha == 40eeca3 ==` the tag commit `==` `release.sh`'s
+   most-recent-success selection (the tag-re-push guard) **before**
+   releasing. Fresh single-push tag — no re-push hazard.
+4. Ran `./release.sh` via `zsh -lc`.
 
 ## Where We Are
 
-Feature complete. `main` and the `v0.5.36` tag are on GitHub; Windows CI is building. Release pending: Dave runs `./release.sh` from the Mac after CI is green.
+Released and verified live. `main` / `origin/main` / tag `v0.5.36` all at
+`40eeca3`. GitHub release `v0.5.36` is published, marked Latest (not
+draft/prerelease), target `main`, published 2026-06-15T14:55:52Z. All 6
+assets return HTTP 200. macOS notarization Accepted (Apple submission
+`785639ed`) + stapled. `latest.json`: version 0.5.36, `darwin-aarch64` +
+`darwin-x86_64` → the one universal updater bundle (same sig),
+`windows-x86_64` → `SnowRaven_0.5.36_x64-setup.exe`. Pipeline idle.
 
-## To Release v0.5.36 (your steps from the Mac)
+## Open / Optional
 
-After Windows CI finishes, verify the selected run's commit matches the tag (CLAUDE.md standing check): `gh run list --workflow windows-build.yml --status success --limit 1 --json databaseId,headSha` and confirm `headSha == git rev-parse v0.5.36^{commit}`. Then run `./release.sh`. This is a FRESH tag (pushed once), so no re-push hazard.
+- Optional: confirm the in-app updater picks up 0.5.36 by opening the app
+  (latest.json is correct, so detection is ready).
+- Not part of this release: origin has an unmerged
+  `docs/snoa-3-accuracy-fixes` branch — left untouched.
+- ROADMAP Up Next: mobile app; Windows code signing.
 
 ## Resume Prompt
 
-Run `/weft` to start the next thing. It reads saved state and picks up from here.
+Run `/weft` to start the next thing. Load `pipeline/session-state.json` first.
