@@ -1,40 +1,51 @@
-# Handoff — Behavior ML links + coverage fix pushed (v0.5.38); awaiting Mac release.sh
+# Handoff — Behavior ML links + coverage fix RELEASED; v0.5.38 live on both platforms
 
 ## What We Accomplished
 
-Shipped the **Statistics media-behavior links + coverage fix (0.5.38)** off the VM.
+Released **v0.5.38**. The Statistics media-behavior links + coverage fix was built,
+verified, and Chronicled on the VM (commit `679817f`, tag `v0.5.38`) and pushed.
+This Mac session pulled, verified the build locally, confirmed Windows CI was green
+on the right commit, ran `./release.sh`, and verified the release live on both
+platforms.
+
 On the Statistics → Media card, each behavior count now links to that behavior
 filtered to your own media in the Macaulay Library, each breeding behavior is listed
 and linked on its own (and dropped from the top behaviors list so it isn't shown
 twice), and the tab's catalog links were unified onto `media.ebird.org/catalog`.
 Folded in with approval: the "documentation coverage" denominator was corrected to
-stop counting `sp.`/slash/hybrid forms against the life list (it had pushed the total
-above the real life list). Frontend-only; no new providers; privacy unchanged.
+stop counting `sp.`/slash/hybrid forms against the life list. Frontend-only — no
+provider or privacy changes.
 
-## What Has Been Saved
+## How We Released
 
-- Code: `lib/{mediaStats,statsFormat,speciesUtils}.ts`,
-  `components/{statsPrimitives,MediaStatsSections,BirdingStats}.tsx` + tests.
-- Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → `0.5.38`;
-  `CHANGELOG.md` entry.
-- Docs: `docs/HELP.md`; `website/index.html` (version pill + footer → v0.5.38, a
-  Statistics copy line on the count→ML links).
-- Pipeline artifacts: `pipeline/stats-behavior-ml-links/` (change-brief, qa-report,
-  security-report).
-- Records: `DECISIONS.md`, `PRODUCT_CONTEXT.md`, `ROADMAP.md` (Shipped → 73),
-  `CLAUDE.md` (two conventions + corrected the stale website-version note).
-- Committed to `main` and pushed; tag `v0.5.38` pushed (starts Windows CI).
+1. Pulled `main` to `679817f`; confirmed tag `v0.5.38` points at it (HEAD == tag).
+2. Verified locally: both version files at `0.5.38`, `createUpdaterArtifacts: true`,
+   CHANGELOG 0.5.38 entry, website v0.5.38, and `tsc -b && vite build` clean (the
+   0.5.35-trap check on the release machine).
+3. Confirmed Windows CI run `27653200530` green with `headSha == 679817f ==` the tag
+   commit `==` `release.sh`'s most-recent-success selection (the tag-re-push guard).
+   Fresh single-push tag — no re-push hazard.
+4. Ran `./release.sh` via `zsh -lc` (login shell — Apple signing creds live only in
+   the login profile; a bare `./release.sh` fails preflight with
+   `APPLE_SIGNING_IDENTITY is not set`).
 
 ## Where We Are
 
-Improvement complete and pushed from the VM. **Next: on the Mac, once Windows CI is
-green, run `zsh -lc './release.sh'`** (login shell — the Apple signing creds live
-only in the login profile; a bare `./release.sh` fails preflight with
-`APPLE_SIGNING_IDENTITY is not set`). Before releasing, verify the selected Windows CI
-run's `headSha == git rev-parse v0.5.38^{commit}` (tag-re-push guard; this is a fresh
-single-push tag, so no hazard expected). After `release.sh`, confirm the assets return
-HTTP 200 and `/releases/latest` shows v0.5.38 as Latest, then mark `releasedVersion`
-0.5.38.
+Released and verified live. `main` / `origin/main` / tag `v0.5.38` all at `679817f`.
+GitHub release `v0.5.38` is published, marked Latest (not draft/prerelease), target
+`main`, published 2026-06-16T23:25:09Z. All 6 assets return HTTP 200. macOS
+notarization Accepted (Apple submission `547f44f5`) + stapled. `latest.json`: version
+0.5.38, `darwin-aarch64` + `darwin-x86_64` → the one universal updater bundle
+`SnowRaven-updater.app.tar.gz` (same sig), `windows-x86_64` →
+`SnowRaven_0.5.38_x64-setup.exe`. Pipeline idle.
+
+## Open / Optional
+
+- Optional: confirm the in-app updater picks up 0.5.38 by opening the app
+  (latest.json is correct, so detection is ready).
+- Not part of this release: origin has an unmerged `docs/snoa-3-accuracy-fixes`
+  branch — left untouched.
+- ROADMAP Up Next: mobile app (responsive groundwork done); Windows code signing.
 
 ## Resume Prompt
 
