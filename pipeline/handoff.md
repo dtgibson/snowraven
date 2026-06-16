@@ -1,41 +1,52 @@
-# Handoff — Mobile-responsive sweep pushed (v0.5.37); awaiting Mac release.sh
+# Handoff — Mobile-responsive sweep RELEASED; v0.5.37 live on both platforms
 
 ## What We Accomplished
 
-Shipped the **mobile-responsive sweep (0.5.37)** off this machine: every screen
-now flows from a ~320px phone up to a large desktop with no overlapping rows and
-no sideways scrolling, and large screens cap to a comfortable width. It was built
-by generalizing the app's existing CSS-class responsive system — a small shared
-vocabulary of layout hooks plus breakpoint tiers (480 / 640 / 1024 + a 1280px
-desktop cap) — and migrating ~35 components onto it, rather than inline-styling.
-Two dead leftover stylesheets (`index.css`, `App.css`) were removed.
+Released **v0.5.37**. The mobile-responsive sweep was built and Chronicled on the
+VM (commit `bc13906`, tag `v0.5.37`) and pushed. This Mac session pulled, verified
+the build locally, confirmed Windows CI was green on the right commit, ran
+`./release.sh`, and verified the release live on both platforms.
 
-Verified by driving the real app with Playwright at 320 / 360 / 1440px across all
-ten tabs (zero horizontal page scroll everywhere) plus the full CI mirror — lint,
-typecheck, 932 tests, production build, all green. One accepted limitation: the
-Statistics tab still scrolls ~34px sideways only at 200% in-app text size.
+The sweep makes every screen flow from a ~320px phone up to a large desktop with
+no overlapping rows and no sideways scrolling; large screens cap to a comfortable
+reading width. Built by generalizing the app's existing CSS-class responsive
+system (a shared layout vocabulary + breakpoint tiers) across ~35 components, not
+inline styling. Two dead leftover stylesheets (`index.css`, `App.css`) were
+removed. Frontend styling only — no provider or privacy changes.
 
-## What Has Been Saved
+## How We Released
 
-- Code: responsive changes across ~35 components + new hooks in
-  `frontend/src/globals.css`; `index.css` and `App.css` deleted.
-- Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → `0.5.37`;
-  `CHANGELOG.md` entry added.
-- Pipeline artifacts: `pipeline/mobile-responsive-sweep/` (change-brief,
-  responsive-audit, qa-report, security-report); `pipeline/project.json` created.
-- Records: `DECISIONS.md` (responsive system + the two page-scroll lessons),
-  `CLAUDE.md` (Responsive layout conventions), `ROADMAP.md` (Shipped → 72).
-- Committed to `main` and pushed; tag `v0.5.37` pushed (starts Windows CI).
+1. Pulled `main` to `bc13906`; confirmed tag `v0.5.37` points at it.
+2. Verified locally: both version files at `0.5.37`, `createUpdaterArtifacts:
+   true`, CHANGELOG 0.5.37 entry, and `tsc -b && vite build` clean (the
+   0.5.35-trap check on the release machine).
+3. Confirmed Windows CI run `27597414622` green with `headSha == bc13906 ==` the
+   tag commit `==` `release.sh`'s most-recent-success selection (the tag-re-push
+   guard). Fresh single-push tag — no re-push hazard.
+4. Ran `./release.sh` via `zsh -lc` (login shell — Apple signing creds live only
+   in the login profile; a bare `./release.sh` fails preflight with
+   `APPLE_SIGNING_IDENTITY is not set`).
 
 ## Where We Are
 
-Improvement complete and pushed from the VM. **Next: on the Mac, once Windows CI
-is green, run `zsh -lc './release.sh'`** (login shell — the Apple signing creds
-live only in the login profile). Before releasing, verify the selected Windows CI
-run's `headSha == git rev-parse v0.5.37^{commit}` (tag-re-push guard; this is a
-fresh single-push tag, so no hazard expected). After release.sh, confirm the six
-assets return HTTP 200 and `/releases/latest` shows v0.5.37 as Latest, then mark
-`releasedVersion` 0.5.37.
+Released and verified live. `main` / `origin/main` / tag `v0.5.37` all at
+`bc13906`. GitHub release `v0.5.37` is published, marked Latest (not
+draft/prerelease), target `main`, published 2026-06-16T06:15:06Z. All 6 assets
+return HTTP 200. macOS notarization Accepted (Apple submission `ca1136f2`) +
+stapled. `latest.json`: version 0.5.37, `darwin-aarch64` + `darwin-x86_64` → the
+one universal updater bundle `SnowRaven-updater.app.tar.gz` (same sig),
+`windows-x86_64` → `SnowRaven_0.5.37_x64-setup.exe`. Pipeline idle.
+
+## Open / Optional
+
+- Optional: confirm the in-app updater picks up 0.5.37 by opening the app
+  (latest.json is correct, so detection is ready).
+- Known limitation (accepted): Statistics still scrolls ~34px sideways only at
+  200% in-app text size — see `pipeline/mobile-responsive-sweep/qa-report.md`.
+- Not part of this release: origin has an unmerged `docs/snoa-3-accuracy-fixes`
+  branch — left untouched.
+- ROADMAP Up Next: mobile app (responsive groundwork now done); Windows code
+  signing.
 
 ## Resume Prompt
 
