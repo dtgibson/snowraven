@@ -38,11 +38,27 @@ export function formatSpanLength(days: number): string {
   return Number.isInteger(halfYears) ? `${halfYears} years` : `${halfYears.toFixed(1)} years`
 }
 
+// The current Macaulay Library catalog host. The older search.macaulaylibrary.org
+// /catalog still resolves but is legacy; the Multimedia tab already builds on this
+// host, so the Statistics links use it too (consolidating the two link builders the
+// 0.5.33 work had deferred). It is also the host that accepts the `tag=` behavior
+// filters (see mlBehaviorCatalogUrl).
+const ML_CATALOG_BASE = 'https://media.ebird.org/catalog'
+
 export function mlCatalogUrl(name: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null, taxonCode?: string | null): string {
   const mt = type.toLowerCase()
   const userSuffix = userId ? `&userId=${encodeURIComponent(userId)}` : ''
   if (taxonCode) {
-    return `https://search.macaulaylibrary.org/catalog?mediaType=${mt}&taxonCode=${encodeURIComponent(taxonCode)}${userSuffix}`
+    return `${ML_CATALOG_BASE}?mediaType=${mt}&taxonCode=${encodeURIComponent(taxonCode)}${userSuffix}`
   }
-  return `https://search.macaulaylibrary.org/catalog?taxaName=${encodeURIComponent(name)}&mediaType=${mt}${userSuffix}`
+  return `${ML_CATALOG_BASE}?taxaName=${encodeURIComponent(name)}&mediaType=${mt}${userSuffix}`
+}
+
+// Deep link to the user's Macaulay Library media filtered by a single behavior (or
+// sound-type) tag — e.g. media.ebird.org/catalog?userId=USER123&tag=flying_flight.
+// Behaviors aren't per-species here: this is "all my <behavior> media". The caller
+// gates on a non-null userId (a behavior link with no user is a meaningless global
+// view) and on a known slug (lib/mediaStats behaviorTagSlug).
+export function mlBehaviorCatalogUrl(slug: string, userId: string): string {
+  return `${ML_CATALOG_BASE}?userId=${encodeURIComponent(userId)}&tag=${encodeURIComponent(slug)}`
 }

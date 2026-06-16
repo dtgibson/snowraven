@@ -1,6 +1,7 @@
 // Presentational sub-components shared by BirdingStats. Pure JSX, no data
 // dependencies beyond the formatting/slug helpers in lib/statsFormat.
 import { fmt, sectionSlug } from '../lib/statsFormat'
+import { OutboundLink } from './OutboundLink'
 
 export function SectionCard({ children, title, icon }: {
   children: React.ReactNode; title: string; icon: React.ReactNode
@@ -55,8 +56,11 @@ export function StatCell({ label, value, sub, large = true, reserveSub = false }
   )
 }
 
-export function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWidth = 44, pctOf }: {
+export function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWidth = 44, pctOf, href, linkLabel }: {
   label: string; value: number; max: number; color?: string; labelWidth?: number; pctOf?: number
+  /** When set, the count becomes an outbound link (e.g. a Macaulay Library filter).
+      `linkLabel` is its accessible name; OutboundLink appends the new-tab cue. */
+  href?: string; linkLabel?: string
 }) {
   const pct = max > 0 ? (value / max) * 100 : 0
   const pctDisplay = pctOf && pctOf > 0 && value > 0 ? Math.round(value / pctOf * 100) : null
@@ -83,7 +87,9 @@ export function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWid
         }} />
       </div>
       <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: pctOf ? '4.25rem' : '2.5rem', textAlign: 'right' }}>
-        {fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}
+        {href
+          ? <OutboundLink href={href} aria-label={linkLabel} style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}>{fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}</OutboundLink>
+          : <>{fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}</>}
       </span>
     </div>
   )

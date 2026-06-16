@@ -10,7 +10,7 @@
 //  - Time:      "HMM"/"HHMM" 24h clock                     (e.g. "643" = 06:43)
 
 import type { MLExportRow } from './parseMLExport'
-import { normalizeSpeciesName } from './speciesUtils'
+import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
 
 // ── Age/Sex ──────────────────────────────────────────────────────────────────
 
@@ -88,12 +88,42 @@ export function parseBehaviors(raw: string): string[] {
 // is NOT eBird's breeding-code set — it's a separate keyword map). Mirrors the
 // Breeding card's tiering for visual consistency only.
 export type BreedingTier = 'confirmed' | 'probable' | 'possible'
-const BREEDING_BEHAVIOR_TIER: Record<string, BreedingTier> = {
+export const BREEDING_BEHAVIOR_TIER: Record<string, BreedingTier> = {
   'Feeding Young': 'confirmed',
   'Carrying Food': 'confirmed',
   'Nest Building': 'confirmed',
   'Courtship, Display, or Copulation': 'probable',
   'Song': 'possible',
+}
+
+// Map each ML "Behaviors"-column label to its Macaulay Library catalog `tag=`
+// slug, so a behavior count can deep-link to that filter on the catalog. The slug
+// is NOT a transform of the label — "Flying" → flying_flight, "Mechanical Sound"
+// → non_vocal, "Preening, Scratching, or Bathing" → preening, "Courtship, Display,
+// or Copulation" → courtship_display_or_copulation — so this is a fixed lookup,
+// verified against the live catalog UI. Behavior and sound-type tags share the
+// catalog's single `tag=` param. Labels not in this map render as plain text (no
+// link), so an unrecognized export value can never produce a broken filter link.
+export const BEHAVIOR_TAG_SLUG: Record<string, string> = {
+  'Flying': 'flying_flight',
+  'Foraging or Eating': 'foraging_eating',
+  'Vocalizing': 'vocalizing',
+  'Song': 'song',
+  'Call': 'call',
+  'Preening, Scratching, or Bathing': 'preening',
+  'Carrying Food': 'carrying_food',
+  'Nest Building': 'nest_building',
+  'Feeding Young': 'feeding_young',
+  'Courtship, Display, or Copulation': 'courtship_display_or_copulation',
+  'Mechanical Sound': 'non_vocal',
+  'Molting': 'molting',
+  'Carrying Fecal Sac': 'carrying_fecal_sac',
+}
+
+/** The Macaulay Library catalog `tag=` slug for a behavior label, or null if the
+    label isn't in the known vocabulary (caller then renders it as plain text). */
+export function behaviorTagSlug(label: string): string | null {
+  return BEHAVIOR_TAG_SLUG[label] ?? null
 }
 
 // ── Time ─────────────────────────────────────────────────────────────────────
@@ -283,21 +313,29 @@ export function computeMediaStats(rows: MLExportRow[], lifeListNames?: Set<strin
     }
   }
 
-  // Coverage vs. the life list (normalized common names)
+  // Coverage vs. the life list (normalized common names). The denominator must be the
+  // user's COUNTABLE life list: the passed set is the full recorded-name set (correct
+  // for Species-Detail linking, where it originates), so it can carry non-countable
+  // forms — spuh ("Gull sp."), slash ("Greater/Lesser Scaup"), hybrids ("Mallard x …").
+  // Counting those overstated N in "X of N life-list species documented with media" and
+  // understated the percentage. Drop them from both the denominator and the numerator.
   let coverage: MediaStats['coverage'] = null
   if (lifeListNames && lifeListNames.size > 0) {
-    // Case-insensitive match: both sides are normalized eBird names, but guard
-    // against any casing drift between the eBird and ML name sources.
-    const lifeLower = new Set([...lifeListNames].map(n => n.toLowerCase()))
-    let documented = 0, withPhoto = 0, withAudio = 0, withVideo = 0
-    for (const [key, sp] of bySpecies) {
-      if (!lifeLower.has(key.toLowerCase())) continue
-      documented++
-      if (sp.formats.has('Photo')) withPhoto++
-      if (sp.formats.has('Audio')) withAudio++
-      if (sp.formats.has('Video')) withVideo++
+    const countable = [...lifeListNames].filter(n => !isNonCountableSpecies(n))
+    if (countable.length > 0) {
+      // Case-insensitive match: both sides are normalized eBird names, but guard
+      // against any casing drift between the eBird and ML name sources.
+      const lifeLower = new Set(countable.map(n => n.toLowerCase()))
+      let documented = 0, withPhoto = 0, withAudio = 0, withVideo = 0
+      for (const [key, sp] of bySpecies) {
+        if (!lifeLower.has(key.toLowerCase())) continue
+        documented++
+        if (sp.formats.has('Photo')) withPhoto++
+        if (sp.formats.has('Audio')) withAudio++
+        if (sp.formats.has('Video')) withVideo++
+      }
+      coverage = { lifeListTotal: countable.length, documented, withPhoto, withAudio, withVideo }
     }
-    coverage = { lifeListTotal: lifeListNames.size, documented, withPhoto, withAudio, withVideo }
   }
 
   // Completeness mix: how with-media species split across format combinations

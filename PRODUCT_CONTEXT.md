@@ -5,6 +5,14 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Statistics media-card behavior links + corrected coverage count (complete — June 2026, v0.5.38)
+
+On the Statistics → Media card, each behavior in the "Behaviors documented" list now links to the Macaulay Library catalog filtered to that behavior across the user's own media (`media.ebird.org/catalog?userId=<id>&tag=<slug>`), and each breeding behavior (feeding young, carrying food, nest building, courtship/display, song) is listed and linked on its own below the breeding tier tiles. The tab's most-photographed / most-recorded / most-filmed links were consolidated onto the same `media.ebird.org/catalog` host. Frontend-only; no new providers; privacy unchanged.
+
+- **Tag-slug map** in `lib/mediaStats.ts` (`BEHAVIOR_TAG_SLUG` + `behaviorTagSlug`): a fixed, live-verified label→catalog-tag lookup (slugs are not derivable from labels — `Flying`→`flying_flight`, `Mechanical Sound`→`non_vocal`); unmapped behaviors render plain. URL builder `mlBehaviorCatalogUrl` in `lib/statsFormat.ts` (now also home to the shared `ML_CATALOG_BASE`); links render through `BarRow`'s new `href`/`linkLabel` (the count carries the link; the accessible name leads with the count) and the shared `OutboundLink`.
+- **Breeding links + dedup** in `components/MediaStatsSections.tsx`: breeding behaviors (via the now-exported `BREEDING_BEHAVIOR_TIER`) get their own linked group; gated on a userId, and removed from the top behaviors list when shown so each appears once.
+- **Coverage fix:** the "X of N life-list species documented with media" denominator now excludes spuh/slash/hybrid via the new shared `isNonCountableSpecies` (`lib/speciesUtils.ts`), correcting an overcount (it had counted every distinct observed name). Isolated to `computeMediaStats`; `backboneNames` (Species-Detail linking) untouched.
+
 ### Frivolous Lists — three self-completing collections on the Statistics page (complete — June 2026, v0.5.36)
 
 A new section at the bottom of the Statistics tab, just for fun: three collections that fill in from the user's own life list, computed entirely from the already-loaded eBird backup (no backend, no new providers, privacy unchanged). **Avian American** (22 "American …" species) and **California Dreamer** (7 "California …" species) check off each recorded species with a `recorded / total` count and a completion badge; **Rainbow Warrior** shows, for each rainbow color (red→violet), the earliest-first-seen bird whose name contains that color, with that sighting's date + location and a checklist link, a blank for colors not yet found, and a badge at 7/7.

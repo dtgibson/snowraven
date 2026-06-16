@@ -9,9 +9,9 @@ import { useMemo, useState } from 'react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { StatCell, BarRow, SubLabel, Divider } from './statsPrimitives'
 import { ChecklistLink } from './ChecklistLink'
-import { fmt, formatSpanLength } from '../lib/statsFormat'
+import { fmt, formatSpanLength, mlBehaviorCatalogUrl } from '../lib/statsFormat'
 import { formatDate, formatDateRange } from '../lib/formatDate'
-import { speciesWithYoung, sortSpeciesAgeCoverage } from '../lib/mediaStats'
+import { speciesWithYoung, sortSpeciesAgeCoverage, behaviorTagSlug, BREEDING_BEHAVIOR_TIER } from '../lib/mediaStats'
 import type { MediaStats, AgeClass, Sex, AgeSort } from '../lib/mediaStats'
 
 const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px 12px' } as const
@@ -85,11 +85,16 @@ function Dot({ on, color }: { on: boolean; color: string }) {
   )
 }
 
-export function MediaStatsSections({ stats, renderName, taxonOrderFor }: {
+export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }: {
   stats: MediaStats
   renderName: (name: string) => React.ReactNode
   /** Maps a species name to its eBird taxonomic order (for the age-coverage sort). */
   taxonOrderFor?: (name: string) => number
+  /** The user's Macaulay Library id (parsed from the ML export filename). Each
+      behavior count deep-links to that behavior filtered to the user's media; when
+      absent, behavior counts stay plain text (a behavior link with no user is a
+      meaningless global view). */
+  userId?: string | null
 }) {
   const [ageSort, setAgeSort] = useState<AgeSort>('name')
   const [showAllAges, setShowAllAges] = useState(false)
@@ -102,6 +107,15 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor }: {
 
   if (stats.total === 0) return null
   const s = stats
+  // Behaviors split: when we can link to the user's media (userId present), breeding
+  // behaviors are pulled into their own linked list below, so drop them from the top
+  // "Behaviors documented" list rather than list the same behavior twice. With no
+  // userId there is no breeding list, so they stay in the documented list (unlinked).
+  const breedingBehaviors = s.behaviorCounts.filter(b => BREEDING_BEHAVIOR_TIER[b.label])
+  const showBreedingLinks = !!userId && breedingBehaviors.length > 0
+  const topBehaviors = (showBreedingLinks
+    ? s.behaviorCounts.filter(b => !BREEDING_BEHAVIOR_TIER[b.label])
+    : s.behaviorCounts).slice(0, 10)
   // Per-individual age/sex totals so the donut center % shares the ring's basis.
   const ageTotal = s.ageMix.reduce((a, b) => a + b.value, 0)
   const agedInd = s.ageMix.reduce((a, b) => a + (b.label === 'Unknown' ? 0 : b.value), 0)
@@ -285,9 +299,15 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor }: {
             {fmt(s.distinctBehaviors)} distinct {s.distinctBehaviors === 1 ? 'behavior' : 'behaviors'} captured.
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {s.behaviorCounts.slice(0, 10).map(b => (
-              <BarRow key={b.label} label={b.label} value={b.value} max={s.behaviorCounts[0].value} labelWidth={150} />
-            ))}
+            {topBehaviors.map(b => {
+              const slug = behaviorTagSlug(b.label)
+              const href = slug && userId ? mlBehaviorCatalogUrl(slug, userId) : undefined
+              return (
+                <BarRow key={b.label} label={b.label} value={b.value} max={topBehaviors[0]?.value ?? 1} labelWidth={150}
+                  href={href}
+                  linkLabel={href ? `${fmt(b.value)} — Open your ${b.label} media in the Macaulay Library` : undefined} />
+              )
+            })}
           </div>
           {(s.breeding.confirmed.length > 0 || s.breeding.probable.length > 0 || s.breeding.possible.length > 0) && (
             <>
@@ -297,6 +317,25 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor }: {
                 <StatCell label="Probable" value={s.breeding.probable.length} sub="courtship, display" large={false} />
                 <StatCell label="Possible" value={s.breeding.possible.length} sub="singing in habitat" large={false} />
               </div>
+              {/* Each breeding behavior the user has, linked to its own Macaulay
+                  filter — breeding behaviors are often rarer than the top-10 cut, so
+                  this surfaces them individually (the tiles above count species). */}
+              {showBreedingLinks && (
+                <>
+                  <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '12px 0 6px' }}>Your media by breeding behavior:</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {breedingBehaviors.map(b => {
+                      const slug = behaviorTagSlug(b.label)
+                      const href = slug && userId ? mlBehaviorCatalogUrl(slug, userId) : undefined
+                      return (
+                        <BarRow key={b.label} label={b.label} value={b.value} max={breedingBehaviors[0]?.value ?? 1} labelWidth={150}
+                          href={href}
+                          linkLabel={href ? `${fmt(b.value)} — Open your ${b.label} media in the Macaulay Library` : undefined} />
+                      )
+                    })}
+                  </div>
+                </>
+              )}
             </>
           )}
         </>

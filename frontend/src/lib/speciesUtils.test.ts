@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeSpeciesName, isSpuhOrSlash } from './speciesUtils'
+import { normalizeSpeciesName, isSpuhOrSlash, isNonCountableSpecies } from './speciesUtils'
 
 describe('normalizeSpeciesName', () => {
   it('returns name unchanged when no parenthetical', () => {
@@ -46,5 +46,19 @@ describe('isSpuhOrSlash', () => {
 
   it('returns false for empty string', () => {
     expect(isSpuhOrSlash('')).toBe(false)
+  })
+})
+
+describe('isNonCountableSpecies', () => {
+  it('excludes spuh, slash, and hybrid forms', () => {
+    expect(isNonCountableSpecies('Gull sp.')).toBe(true)
+    expect(isNonCountableSpecies('Greater/Lesser Scaup')).toBe(true)
+    expect(isNonCountableSpecies('Mallard x American Black Duck')).toBe(true)
+  })
+  it('keeps countable species (including the hybrid "x" only as a separated word)', () => {
+    expect(isNonCountableSpecies('American Robin')).toBe(false)
+    expect(isNonCountableSpecies('Mallard')).toBe(false)
+    // "x" must be space-delimited to count as a hybrid marker, not any embedded x.
+    expect(isNonCountableSpecies('Xantus\'s Hummingbird')).toBe(false)
   })
 })

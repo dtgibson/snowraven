@@ -1717,6 +1717,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <MediaStatsSections
             stats={mediaStats}
             taxonOrderFor={orderFor}
+            userId={mlUserId}
             renderName={name => (
               <BirdName commonName={name} taxonCode={codeFor(name)} hasEntry={hasEntryFor(name)} onOpenSpecies={onOpenSpecies} size="sm" />
             )}

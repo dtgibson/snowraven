@@ -4,6 +4,23 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Statistics media-card behavior links + a countable-life-list coverage fix — 2026-06-16 (v0.5.38)
+
+**What:** On the Statistics → Media card, each behavior count now links to the Macaulay Library catalog filtered to that behavior for the user, each breeding behavior is listed and linked on its own, the tab's catalog links were consolidated onto one host, and the media documentation-coverage denominator was corrected to stop counting non-countable forms. Frontend-only; no new providers; privacy unchanged.
+
+**Decisions worth keeping:**
+
+- **ML behavior catalog links use `media.ebird.org/catalog?userId=<id>&tag=<slug>`, and the slug is a FIXED, live-verified lookup — not derivable from the label.** `Flying`→`flying_flight`, `Mechanical Sound`→`non_vocal`, `Preening, Scratching, or Bathing`→`preening`, `Courtship, Display, or Copulation`→`courtship_display_or_copulation` show the slug is not a transform of the display label, so `BEHAVIOR_TAG_SLUG` (`lib/mediaStats.ts`) is hardcoded and verified against the live catalog UI (each tag rendered its expected removable-filter label). Behavior and sound-type tags share the one `tag=` param. An unmapped behavior renders as plain text, never a broken link.
+- **Statistics catalog links consolidated onto `media.ebird.org/catalog`, finishing (Statistics-side) the consolidation the v0.5.33 decision deferred.** `lib/statsFormat.ts` `mlCatalogUrl` moved off the legacy `search.macaulaylibrary.org/catalog`; the Multimedia tab already used the new host. SpeciesDetail's `lib/mlCatalog.ts` still uses the legacy host (out of scope here) — a remaining consolidation candidate. Both hosts resolve, so this is consistency, not a fix.
+- **Each breeding behavior is linked individually and de-duplicated from the top list.** The three breeding tier tiles (species counts) stay as a summary; below them each breeding behavior the user has is its own link. When that breeding list shows (userId present), breeding behaviors are removed from the top "Behaviors documented" list so each appears once; with no userId there is no breeding list, so they remain in the documented list (unlinked).
+- **A "life-list COUNT" must exclude spuh/slash/hybrid — new shared `isNonCountableSpecies` (`lib/speciesUtils.ts`).** The media documentation-coverage denominator ("X of N life-list species documented with media") was counting every distinct observed name, including `sp.`/slash/hybrid forms, so N overstated the life list (the user caught it: "more than my life list"). Fixed inside `computeMediaStats` (pure/testable) by filtering the passed name-set through `isNonCountableSpecies` for both the denominator AND the numerator. `backboneNames` (which also drives Species-Detail linking and correctly contains every recorded name) is left untouched — the fix is isolated to the coverage computation. `isSpuhOrSlash` deliberately omits hybrids (it is the display-filter primitive), so `isNonCountableSpecies` (= `isSpuhOrSlash || " x "`) is the canonical countable-life-list predicate. A parallel audit of `birdingStats.ts`/`speciesStats.ts` confirmed no other stat had the same overcount — every other species count already runs on filtered observations.
+
+**Scope note:** the coverage-denominator fix was a user-approved scope expansion folded into this Improve lane (the work was already on the Statistics page); recorded so the two-part diff doesn't read as scope creep. The breeding-links shape (per-behavior, not the tier tiles) and the dedup were also user follow-ups on review.
+
+**Implications:** New ML catalog links use `media.ebird.org/catalog` + the `BEHAVIOR_TAG_SLUG` map (don't guess slugs — verify against the live catalog). Any "life list" COUNT uses `isNonCountableSpecies`, not bare `isSpuhOrSlash`. The accessible name of a count-link leads with the visible count (the `ChecklistLink`/WCAG-2.5.3 convention), set via `BarRow`'s `linkLabel`. Promoted to CLAUDE.md.
+
+---
+
 ## Mobile-responsive sweep: generalized the CSS-class responsive system; two hidden-element page-scroll lessons — 2026-06-16 (v0.5.37)
 
 **What:** An exhaustive responsive pass so every screen flows from ~320px phones to large desktops with no overlap and no sideways page scroll, in preparation for the mobile app. The app was inline-styled with a single `@media (max-width: 640px)` block reaching five class names; this generalized it into a small shared class vocabulary + breakpoint tiers, then migrated ~35 components to it. Also deleted the dead Vite-template `index.css` and `App.css` (never imported — only `globals.css` is).

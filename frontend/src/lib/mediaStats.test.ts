@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { MLExportRow } from './parseMLExport'
-import { parseAgeSex, parseBehaviors, parseMlHour, computeMediaStats, speciesWithYoung, sortSpeciesAgeCoverage, assetMatchesFacet, buildCatalogAgeSex, type SpeciesAgeCoverage, type AgeClass, type Sex, type AgeSexGroup } from './mediaStats'
+import { parseAgeSex, parseBehaviors, parseMlHour, computeMediaStats, speciesWithYoung, sortSpeciesAgeCoverage, assetMatchesFacet, buildCatalogAgeSex, behaviorTagSlug, type SpeciesAgeCoverage, type AgeClass, type Sex, type AgeSexGroup } from './mediaStats'
 
 function row(p: Partial<MLExportRow> & { catalogId: string }): MLExportRow {
   return {
@@ -55,6 +55,21 @@ describe('parseBehaviors', () => {
   })
   it('returns [] for blank', () => {
     expect(parseBehaviors('')).toEqual([])
+  })
+})
+
+describe('behaviorTagSlug', () => {
+  it('maps known ML behavior labels to their Macaulay catalog tag slug', () => {
+    // The slug is not a transform of the label — these are the non-obvious cases.
+    expect(behaviorTagSlug('Flying')).toBe('flying_flight')
+    expect(behaviorTagSlug('Feeding Young')).toBe('feeding_young')
+    expect(behaviorTagSlug('Mechanical Sound')).toBe('non_vocal')
+    expect(behaviorTagSlug('Preening, Scratching, or Bathing')).toBe('preening')
+    expect(behaviorTagSlug('Courtship, Display, or Copulation')).toBe('courtship_display_or_copulation')
+  })
+  it('returns null for an unknown or blank label (so it renders as plain text)', () => {
+    expect(behaviorTagSlug('Loafing')).toBeNull()
+    expect(behaviorTagSlug('')).toBeNull()
   })
 })
 
@@ -123,6 +138,18 @@ describe('computeMediaStats', () => {
     expect(s.coverage!.lifeListTotal).toBe(4)
     expect(s.coverage!.documented).toBe(3)
     expect(s.coverage!.withAudio).toBe(1) // robin has audio
+  })
+
+  it('excludes spuh / slash / hybrid forms from the coverage life-list total', () => {
+    // The passed set is the full recorded-name set (it also drives Species-Detail
+    // linking), so it can contain non-countable forms; the denominator must not.
+    const life = new Set([
+      'american robin', 'bald eagle', 'mallard', 'osprey',
+      'gull sp.', 'greater/lesser scaup', 'mallard x american black duck',
+    ])
+    const s = computeMediaStats(rows, life)
+    expect(s.coverage!.lifeListTotal).toBe(4) // the three non-countable forms dropped
+    expect(s.coverage!.documented).toBe(3)    // unchanged — same documented species
   })
 
   it('finds the busiest media day and the longest streak with its dates', () => {

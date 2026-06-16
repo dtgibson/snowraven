@@ -15,3 +15,12 @@ export function normalizeSpeciesName(name: string): string {
 export function isSpuhOrSlash(name: string): boolean {
   return name.endsWith(' sp.') || name.includes('/')
 }
+
+// A countable life-list species excludes spuh ("Gull sp."), slash ("Greater/Lesser
+// Scaup"), AND hybrids ("Mallard x American Black Duck") — the same rule the eBird/ML
+// parsers and Frivolous Lists apply. `isSpuhOrSlash` deliberately omits the hybrid
+// case (it's the minimal display-filter primitive used by the includeSpuh toggle), so
+// anything that needs a true "life list" count must use this instead.
+export function isNonCountableSpecies(name: string): boolean {
+  return isSpuhOrSlash(name) || name.includes(' x ')
+}

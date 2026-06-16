@@ -119,4 +119,40 @@ describe('MediaStatsSections', () => {
     // No young species → no list, so no sort toggle.
     expect(screen.queryByRole('group', { name: 'Sort age coverage' })).toBeNull()
   })
+
+  it('links each behavior count to the Macaulay Library catalog when a userId is present', () => {
+    const stats = computeMediaStats(rows)
+    render(<MediaStatsSections stats={stats} renderName={renderName} userId="USER4741544" />)
+    // "Flying" is in the fixture (row 3); its count deep-links to that behavior tag.
+    const link = screen.getByRole('link', { name: /Flying media in the Macaulay Library/i })
+    expect(link.getAttribute('href')).toBe('https://media.ebird.org/catalog?userId=USER4741544&tag=flying_flight')
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toContain('noreferrer')
+  })
+
+  it('renders behavior counts as plain text when there is no userId', () => {
+    const stats = computeMediaStats(rows)
+    render(<MediaStatsSections stats={stats} renderName={renderName} />)
+    expect(screen.getByText('Behaviors documented')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /media in the Macaulay Library/i })).toBeNull()
+  })
+
+  it('lists each breeding behavior as its own Macaulay Library link', () => {
+    const stats = computeMediaStats(rows)
+    render(<MediaStatsSections stats={stats} renderName={renderName} userId="USER4741544" />)
+    expect(screen.getByText('Your media by breeding behavior:')).toBeTruthy()
+    // "Carrying Food" is a breeding behavior in the fixture; it gets its own tag link
+    // in the breeding list and is dropped from the top-behaviors list (no duplicate).
+    const links = screen.getAllByRole('link', { name: /Carrying Food media in the Macaulay Library/i })
+    expect(links).toHaveLength(1)
+    expect(links[0].getAttribute('href')).toBe('https://media.ebird.org/catalog?userId=USER4741544&tag=carrying_food')
+  })
+
+  it('drops a breeding behavior from the top "Behaviors documented" list once it is shown in the breeding list', () => {
+    const stats = computeMediaStats(rows)
+    // "Song" is a breeding (possible) behavior in the fixture. With a userId it should
+    // appear once — in the breeding list — and not in the top-behaviors list.
+    render(<MediaStatsSections stats={stats} renderName={renderName} userId="USER4741544" />)
+    expect(screen.getAllByRole('link', { name: /Song media in the Macaulay Library/i })).toHaveLength(1)
+  })
 })

@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.38] - 2026-06-16
+
+### Added
+- **The behavior counts on the Statistics media card are now links to the Macaulay Library.** In the Media card's "Behaviors documented" list, each behavior's count opens the Macaulay Library catalog filtered to that behavior across your own media — your flying shots, your feeding-young shots, and so on — the same way the most-photographed lists already link to your media. Each breeding behavior (feeding young, carrying food, nest building, courtship/display, song) is listed and linked individually in its own group just below the behaviors list, so you can open just that behavior's media (they move into the breeding group rather than doubling up in the top-behaviors list). Built on the Macaulay Library user ID the app already reads from your export filename, so a click lands on your own media. (A behavior the catalog doesn't recognize stays as plain text rather than becoming a broken link.) While there, the most-photographed, most-recorded, and most-filmed links on the same card were moved onto the current Macaulay catalog address (media.ebird.org) so every Macaulay Library link on the Statistics tab uses one host.
+
+### Fixed
+- **The media "documentation coverage" denominator no longer overcounts your life list.** The "X of N life-list species documented with media" figure was counting every distinct name in your eBird data toward N — including "sp." entries, slashes (Greater/Lesser Scaup), and hybrids — which pushed the total above your real life list and understated your coverage percentage. It now counts only countable species, matching how the Life List and the other statistics already treat them.
+
 ## [0.5.37] - 2026-06-15
 
 ### Changed
