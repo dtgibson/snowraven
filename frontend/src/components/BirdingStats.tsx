@@ -467,9 +467,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         {(accumulation.liferPoints.length > 1 || accumulation.chartData.length > 1) && (
           <>
             <Divider />
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div className="sr-action-row" style={{ marginBottom: 10 }}>
               <SubLabel>Life list accumulation</SubLabel>
-              <div role="group" aria-label="Accumulation granularity" style={{ display: 'flex', gap: 4 }}>
+              <div role="group" aria-label="Accumulation granularity" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                   <button
                     key={g}
@@ -677,7 +677,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             fill: totalMonth > 0 ? `hsl(145,60%,${Math.round(80 - (r.checklists / maxMonth) * 45)}%)` : 'var(--sr-chart-slate)',
           }))
           return (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 16, alignItems: 'start', marginBottom: 4 }}>
+            <div className="sr-grid-chart-aside" style={{ alignItems: 'start', marginBottom: 4, ['--sr-aside' as string]: '160px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {temporal.monthRows.map(r => (
                   <BarRow key={r.label} label={r.label} value={r.checklists} max={maxMonthChecklists} labelWidth={28} pctOf={totalMonth} />
@@ -834,10 +834,10 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             <SubLabel>Top locations by checklists</SubLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
               {geo.topLocations.map((loc, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', flexWrap: 'wrap', rowGap: 2 }}>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ fontSize: '0.8125rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.name}</span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>{fmt(loc.checklists)} lists · {fmt(loc.species)} sp.</span>
+                  <span style={{ fontSize: '0.8125rem', flex: '1 1 140px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.name}</span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, marginLeft: 'auto' }}>{fmt(loc.checklists)} lists · {fmt(loc.species)} sp.</span>
                 </div>
               ))}
             </div>
@@ -849,10 +849,10 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             <SubLabel>Top locations by species</SubLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
               {geo.topLocationsBySpecies.map((loc, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', flexWrap: 'wrap', rowGap: 2 }}>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ fontSize: '0.8125rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.name}</span>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>{fmt(loc.species)} sp. · {fmt(loc.checklists)} lists</span>
+                  <span style={{ fontSize: '0.8125rem', flex: '1 1 140px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.name}</span>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, marginLeft: 'auto' }}>{fmt(loc.species)} sp. · {fmt(loc.checklists)} lists</span>
                 </div>
               ))}
             </div>
@@ -1144,8 +1144,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <>
             <Divider />
             <SubLabel>Average by protocol</SubLabel>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+            <div className="sr-scroll-x">
+              {/* width:max-content + min-width:100% — the wrapper scrolls on
+                  phones (instead of crushing the 4 columns to wrapped headers)
+                  while the table still fills the card on desktop. */}
+              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                 <thead>
                   <tr>
                     {(['Protocol', 'Avg Duration (min)', 'Avg Distance (mi)', 'Count'] as const).map(h => (
@@ -1190,7 +1193,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 'var(--sr-chart-slate)',
               ]
               return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 160px', gap: 16, alignItems: 'start' }}>
+                <div className="sr-grid-chart-aside" style={{ alignItems: 'start', ['--sr-aside' as string]: '160px' }}>
                   <div style={{ height: 110 }} role="img" aria-label="Bar chart of checklists grouped by number of observers">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={effort.observerRows} margin={{ top: 4, right: 4, bottom: 16, left: -20 }}>
@@ -1423,8 +1426,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <>
             <Divider />
             <SubLabel>Biggest single counts</SubLabel>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+            <div className="sr-scroll-x">
+              {/* width:max-content + min-width:100% — scrolls on phones so the
+                  Species (BirdName + favicons) column isn't crushed past the
+                  card edge; fills the card on desktop. */}
+              <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                 <thead>
                   <tr>
                     {(['Species', 'Count', 'Date', 'Location'] as const).map(h => (
@@ -1512,7 +1518,10 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           </p>
         ) : (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0, marginBottom: 20 }}>
+            {/* Fixed 3-up: three short stat numbers fit at every width down to
+                320px, and the per-cell divider borders stay coherent (a
+                collapsing grid would leave a dangling border on a wrapped row). */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 0, marginBottom: 20 }}>
               {[
                 // -fg text tokens (not the raw tier fills) so the colored stat
                 // numbers meet AA on the card surface in both themes (F003/F017).
@@ -1529,7 +1538,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
               <SubLabel>Breeding activity by month</SubLabel>
-              <div role="group" aria-label="Filter breeding activity by tier" style={{ display: 'flex', gap: 4 }}>
+              <div role="group" aria-label="Filter breeding activity by tier" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {([
                   // `color` styles the border (non-text); `fg` is the AA-passing
                   // text token (F003) used for the active pill label.
@@ -1629,7 +1638,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', rowGap: 8, marginBottom: 10 }}>
             {/* Per Period / Cumulative toggle — hidden when interval = 'total' */}
             {mediaInterval !== 'total' ? (
-              <div role="group" aria-label="Media chart mode" style={{ display: 'flex', gap: 4 }}>
+              <div role="group" aria-label="Media chart mode" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                 {(['per-period', 'cumulative'] as const).map(m => (
                   <button
                     key={m}
@@ -1649,7 +1658,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               </div>
             ) : <div />}
             {/* Interval control */}
-            <div role="group" aria-label="Media chart interval" style={{ display: 'flex', gap: 4 }}>
+            <div role="group" aria-label="Media chart interval" style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                 <button
                   key={g}

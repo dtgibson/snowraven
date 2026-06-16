@@ -736,8 +736,9 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             </div>
           )}
 
-          {/* Date range */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {/* Date range — .sr-field-row stacks From/To full-width ≤480 where
+              native date inputs can't shrink below their intrinsic min-width. */}
+          <div className="sr-field-row" style={{ gap: 4 }}>
             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <Calendar size={11} strokeWidth={2} style={{
                 position: 'absolute', left: 7, color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
@@ -788,17 +789,16 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
       </div>
 
       {hasLocationFilter && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        <div className="sr-action-row sr-action-row-stack" style={{
           padding: '7px 12px', marginBottom: 8,
           background: 'var(--sr-accent-bg)', borderRadius: 6,
           fontSize: '0.75rem', color: 'var(--sr-accent)', flexShrink: 0,
         }}>
-          <span style={{ fontWeight: 500 }}>{filterStripText}</span>
+          <span className="sr-min0" style={{ fontWeight: 500 }}>{filterStripText}</span>
           <button tabIndex={0}
             onClick={() => { setCountyFilter(null); setDateRange(DATE_RANGE_CLEAR) }}
             style={{
-              background: 'none', border: 'none', cursor: 'pointer',
+              background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0,
               fontSize: '0.75rem', color: 'var(--sr-accent)', fontFamily: 'inherit',
               // ≥24px hit area (WCAG 2.2 target size) without shifting the row layout.
               minHeight: 24, padding: '0 6px', margin: '0 -6px', textDecoration: 'underline',

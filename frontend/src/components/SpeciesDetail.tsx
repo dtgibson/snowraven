@@ -587,10 +587,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     <span style={{ width: 16, flexShrink: 0, color: 'var(--sr-accent)' }}>
                       {isSelected && <Check size={13} strokeWidth={3} />}
                     </span>
-                    <span style={{ fontSize: '0.84375rem', fontWeight: 500, color: isSelected ? 'var(--sr-accent)' : 'var(--sr-text)', flex: 1 }}>
+                    <span className="sr-truncate" style={{ fontSize: '0.84375rem', fontWeight: 500, color: isSelected ? 'var(--sr-accent)' : 'var(--sr-text)', flex: 1 }}>
                       {name}
                     </span>
-                    <span style={{ fontSize: '0.6875rem', fontStyle: 'italic', color: 'var(--sr-text-muted)' }}>
+                    <span className="sr-truncate" style={{ fontSize: '0.6875rem', fontStyle: 'italic', color: 'var(--sr-text-muted)', flex: '0 1 auto', textAlign: 'right' }}>
                       {sciNameMap.get(name)}
                     </span>
                   </div>
@@ -630,7 +630,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           </div>
 
           {/* Date range */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <div className="sr-field-row" style={{ gap: 4 }}>
             <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <Calendar size={11} strokeWidth={2} style={{
                 position: 'absolute', left: 7, color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
@@ -723,13 +723,12 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               : observations.filter((o: ObservationEntry) => o.commonName === selectedSpecies).length
             parts.push(`Showing ${speciesObs.length} of ${baseCount} checklists`)
             return (
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              <div className="sr-action-row" style={{
                 padding: '7px 14px',
                 background: 'var(--sr-accent-bg)', borderRadius: 6,
                 fontSize: '0.75rem', color: 'var(--sr-accent)',
               }}>
-                <span style={{ fontWeight: 500 }}>{parts.join(' · ')}</span>
+                <span className="sr-min0" style={{ fontWeight: 500 }}>{parts.join(' · ')}</span>
                 <button tabIndex={0}
                   onClick={() => { setCountyFilter(null); setDateRange({ from: '', to: '' }) }}
                   style={{
@@ -747,7 +746,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           {sightingsStats && (<>
           {/* Summary card */}
           <SectionCard>
-            <div style={{ padding: '20px 22px 18px' }}>
+            <div className="sr-pad-x-trim" style={{ padding: '20px 22px 18px' }}>
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.2, color: 'var(--sr-text)', wordBreak: 'break-word' }}>
                   {selectedSpecies}
@@ -967,7 +966,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               <SectionCard>
                 <SectionHead icon={<SlidersHorizontal size={14} strokeWidth={2.2} />} title="Graph Options" />
                 <div style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-                  <div role="group" aria-label="Graph interval" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div role="group" aria-label="Graph interval" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
                       Interval
                     </span>
@@ -979,7 +978,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       ))}
                     </div>
                   </div>
-                  <div role="group" aria-label="Graph view mode" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div role="group" aria-label="Graph view mode" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
                       View
                     </span>
@@ -1014,7 +1013,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: TIER_COLORS[tier] }} />
                     <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--sr-text)', minWidth: 28, fontFamily: 'inherit' }}>{code}</span>
-                    <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', flex: 1 }}>{label}</span>
+                    <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>{label}</span>
                     <span style={{
                       fontSize: '0.75rem', fontWeight: 500, color: 'var(--sr-text-muted)',
                       background: 'var(--sr-surface-subtle)', padding: '2px 8px', borderRadius: 10, whiteSpace: 'nowrap',
@@ -1065,13 +1064,17 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   : coOccurrence.results.slice(0, 10)
                 return (
                   <div style={{ padding: '0 18px' }}>
+                    {/* Wide row layout (rank + name + 100px bar + rate + checklists ≈ 282px
+                        of fixed cells) crushes the name column on phones; the wrapper
+                        scrolls horizontally instead (house wideMode pattern). */}
+                    <div className="sr-scroll-x">
                     {/* Column headers */}
                     <div style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
+                      display: 'flex', alignItems: 'center', gap: 10, minWidth: 320,
                       padding: '8px 0 6px', borderBottom: '1px solid var(--sr-border-subtle)', marginBottom: 2,
                     }}>
                       <span style={{ width: 20, flexShrink: 0 }} />
-                      <span style={{ flex: 1, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>Species</span>
+                      <span style={{ flex: 1, minWidth: 80, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>Species</span>
                       <span style={{ width: 100, flexShrink: 0 }} />
                       <span style={{ width: 38, textAlign: 'right' as const, flexShrink: 0, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>Rate</span>
                       <span style={{ width: 84, textAlign: 'right' as const, flexShrink: 0, fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>Checklists</span>
@@ -1079,14 +1082,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     {/* Rows */}
                     {visible.map((r, idx) => (
                       <div key={r.name} style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
+                        display: 'flex', alignItems: 'center', gap: 10, minWidth: 320,
                         padding: '9px 0',
                         borderBottom: idx < visible.length - 1 ? '1px solid var(--sr-border-subtle)' : 'none',
                       }}>
                         <span style={{ width: 20, textAlign: 'right' as const, fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0 }}>
                           {idx + 1}
                         </span>
-                        <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ flex: 1, minWidth: 80 }}>
                           <BirdName commonName={r.name} taxonCode={taxonCodeFor(r.name)} hasEntry onOpenSpecies={openSpeciesInTab} />
                         </span>
                         <div style={{ width: 100, height: 5, background: 'var(--sr-surface-subtle)', borderRadius: 3, flexShrink: 0, overflow: 'hidden' }}>
@@ -1100,6 +1103,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         </span>
                       </div>
                     ))}
+                    </div>
                     {/* Expand / collapse */}
                     {coOccurrence.results.length > 10 && (
                       <button tabIndex={0}
@@ -1144,7 +1148,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', minWidth: 22, flexShrink: 0, textAlign: 'right' }}>
                           {idx + 1}.
                         </span>
-                        <span style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', flex: 1 }}>{location}</span>
+                        <span className="sr-truncate" style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', flex: 1 }}>{location}</span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {count} {count === 1 ? 'sighting' : 'sightings'}
                         </span>
@@ -1196,7 +1200,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           {coordMarkers.length > 0 && (
             <SectionCard>
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 8,
+                display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
                 padding: '14px 18px 12px',
                 borderBottom: '1px solid var(--sr-border-subtle)',
               }}>
@@ -1280,12 +1284,12 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
             {/* Controls */}
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
+              display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
               padding: '12px 18px', borderBottom: '1px solid var(--sr-border-subtle)',
               background: 'var(--sr-surface-faint)',
             }}>
               {/* Keyword filter */}
-              <div style={{ position: 'relative', flex: 1 }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 160 }}>
                 <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--sr-text-muted)', pointerEvents: 'none' }}>
                   <Search size={12} strokeWidth={2.5} />
                 </span>
@@ -1355,7 +1359,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         style={{ fontSize: '0.75rem', fontWeight: 600 }}
                       />
                       <span style={{ fontSize: '0.75rem', color: 'var(--sr-gray-300)' }}>·</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{o.location}</span>
+                      <span className="sr-wrap-anywhere" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{o.location}</span>
                     </div>
                     <div style={{ fontSize: '0.84375rem', color: 'var(--sr-text)', lineHeight: 1.55 }}>
                       {o.speciesComments}

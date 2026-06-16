@@ -1,56 +1,41 @@
-# Handoff — Frivolous Lists RELEASED; v0.5.36 live on both platforms
+# Handoff — Mobile-responsive sweep pushed (v0.5.37); awaiting Mac release.sh
 
 ## What We Accomplished
 
-Released **v0.5.36**. Frivolous Lists was built and Chronicled on the VM
-(commit `40eeca3`, tag `v0.5.36`) and pushed. This Mac session pulled,
-verified the build locally, waited for Windows CI to go green, ran
-`./release.sh`, and verified the release live on both platforms.
+Shipped the **mobile-responsive sweep (0.5.37)** off this machine: every screen
+now flows from a ~320px phone up to a large desktop with no overlapping rows and
+no sideways scrolling, and large screens cap to a comfortable width. It was built
+by generalizing the app's existing CSS-class responsive system — a small shared
+vocabulary of layout hooks plus breakpoint tiers (480 / 640 / 1024 + a 1280px
+desktop cap) — and migrating ~35 components onto it, rather than inline-styling.
+Two dead leftover stylesheets (`index.css`, `App.css`) were removed.
 
-Frivolous Lists is a playful section at the bottom of the Statistics
-page — three self-completing collections from your own life list:
-**Avian American** (22), **California Dreamer** (7), and **Rainbow
-Warrior** (first bird of each of seven rainbow colors). Frontend-only,
-built on the eBird data the app already has; privacy posture unchanged.
+Verified by driving the real app with Playwright at 320 / 360 / 1440px across all
+ten tabs (zero horizontal page scroll everywhere) plus the full CI mirror — lint,
+typecheck, 932 tests, production build, all green. One accepted limitation: the
+Statistics tab still scrolls ~34px sideways only at 200% in-app text size.
 
-## The signing hiccup (fixed this session)
+## What Has Been Saved
 
-The first `./release.sh` stopped at preflight with `APPLE_SIGNING_IDENTITY
-is not set`. Cause: it was invoked as a bare `./release.sh`, which spawns
-a non-login shell. The four Apple signing credentials are exported in the
-**login** profile, so they were absent. Re-running the documented way —
-`zsh -lc './release.sh'` (a login shell) — loaded the profile and the
-release ran normally. Not a signing or environment regression; just the
-invocation. (Standing note added to session-state.)
-
-## How We Released
-
-1. Pulled `main` to `40eeca3`; confirmed tag `v0.5.36` points at it.
-2. Verified locally: `tsc -b && vite build` clean (the 0.5.35-trap check
-   on the release machine), both version files at `0.5.36`.
-3. Waited for Windows CI run `27551462193` to go green; verified its
-   `headSha == 40eeca3 ==` the tag commit `==` `release.sh`'s
-   most-recent-success selection (the tag-re-push guard) **before**
-   releasing. Fresh single-push tag — no re-push hazard.
-4. Ran `./release.sh` via `zsh -lc`.
+- Code: responsive changes across ~35 components + new hooks in
+  `frontend/src/globals.css`; `index.css` and `App.css` deleted.
+- Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → `0.5.37`;
+  `CHANGELOG.md` entry added.
+- Pipeline artifacts: `pipeline/mobile-responsive-sweep/` (change-brief,
+  responsive-audit, qa-report, security-report); `pipeline/project.json` created.
+- Records: `DECISIONS.md` (responsive system + the two page-scroll lessons),
+  `CLAUDE.md` (Responsive layout conventions), `ROADMAP.md` (Shipped → 72).
+- Committed to `main` and pushed; tag `v0.5.37` pushed (starts Windows CI).
 
 ## Where We Are
 
-Released and verified live. `main` / `origin/main` / tag `v0.5.36` all at
-`40eeca3`. GitHub release `v0.5.36` is published, marked Latest (not
-draft/prerelease), target `main`, published 2026-06-15T14:55:52Z. All 6
-assets return HTTP 200. macOS notarization Accepted (Apple submission
-`785639ed`) + stapled. `latest.json`: version 0.5.36, `darwin-aarch64` +
-`darwin-x86_64` → the one universal updater bundle (same sig),
-`windows-x86_64` → `SnowRaven_0.5.36_x64-setup.exe`. Pipeline idle.
-
-## Open / Optional
-
-- Optional: confirm the in-app updater picks up 0.5.36 by opening the app
-  (latest.json is correct, so detection is ready).
-- Not part of this release: origin has an unmerged
-  `docs/snoa-3-accuracy-fixes` branch — left untouched.
-- ROADMAP Up Next: mobile app; Windows code signing.
+Improvement complete and pushed from the VM. **Next: on the Mac, once Windows CI
+is green, run `zsh -lc './release.sh'`** (login shell — the Apple signing creds
+live only in the login profile). Before releasing, verify the selected Windows CI
+run's `headSha == git rev-parse v0.5.37^{commit}` (tag-re-push guard; this is a
+fresh single-push tag, so no hazard expected). After release.sh, confirm the six
+assets return HTTP 200 and `/releases/latest` shows v0.5.37 as Latest, then mark
+`releasedVersion` 0.5.37.
 
 ## Resume Prompt
 

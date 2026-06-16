@@ -56,11 +56,13 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
 
       {/* Controls */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
+        // flexWrap so the flexShrink:0 sort toggle + count drop below the search
+        // input on narrow phones instead of starving the input to ~90px.
+        display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', rowGap: 8,
         padding: '12px 18px', borderBottom: '1px solid var(--sr-border-subtle)',
         background: 'var(--sr-surface-faint)',
       }}>
-        <div style={{ position: 'relative', flex: 1 }}>
+        <div style={{ position: 'relative', flex: '1 1 160px', minWidth: 0 }}>
           <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--sr-text-disabled)', pointerEvents: 'none' }}>
             <Search size={12} strokeWidth={2.5} />
           </span>
@@ -133,7 +135,7 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
                     <TypeIcon size={12} strokeWidth={2.4} style={{ color: tm.color }} />{row.format}
                   </span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{formatDate(row.date)}</span>
-                  {row.location && <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>· {row.location}</span>}
+                  {row.location && <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.location}>· {row.location}</span>}
                   <OutboundLink
                     href={mlAssetUrl(row.catalogId)}
                     title={`View asset ML${row.catalogId} on the Macaulay Library`}

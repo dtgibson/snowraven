@@ -76,7 +76,7 @@ export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, o
       {selLoc && (
         <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} maxWidth="280px" closeOnClick={false}>
           <div style={{ minWidth: 200, maxWidth: 260 }}>
-            <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selLoc.locName}</div>
+            <div className="sr-wrap-anywhere" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selLoc.locName}</div>
             {selLoc.lifers.map((lifer, j) => {
               const liferTier = recencyTier(lifer.recentDate)
               const { bg: dotBg } = tierColors(liferTier)

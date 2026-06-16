@@ -1354,7 +1354,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           />
           <div style={{ maxHeight: 130, overflowY: 'auto', border: '1.5px solid var(--sr-border)', borderRadius: 6, background: 'var(--sr-surface)' }}>
             {filteredManualSpecies.slice(0, 60).map(s => (
-              <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem' }}>
+              <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', minWidth: 0 }}>
                 <input
                   type="checkbox"
                   checked={manualTargets.has(s)}
@@ -1365,7 +1365,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   })}
                   style={{ flexShrink: 0 }}
                 />
-                <span style={{ color: 'var(--sr-text)' }}>{s}</span>
+                <span style={{ color: 'var(--sr-text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s}</span>
               </label>
             ))}
           </div>
@@ -1627,8 +1627,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
-      {/* Mode bar */}
-      <div role="group" aria-label="Map view mode" style={{ display: 'flex', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--sr-border)', background: 'var(--sr-surface)', flexShrink: 0 }}>
+      {/* Mode bar — flexWrap so the four pills drop to a second/third line on a
+          narrow phone (or at a large in-app text size) instead of forcing the
+          whole panel into horizontal overflow. */}
+      <div role="group" aria-label="Map view mode" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--sr-border)', background: 'var(--sr-surface)', flexShrink: 0 }}>
         {([
           { mode: 'sightings' as ViewMode, label: 'My Sightings',  icon: <MapPin size={14} strokeWidth={2.5} /> },
           { mode: 'hotspots' as ViewMode,  label: 'Hotspots',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg> },
@@ -1686,7 +1688,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         <div
           ref={sidebarRef}
           className={`sr-map-sidebar-overlay${sidebarOpen ? '' : ' sr-map-sidebar-hidden'}`}
-          style={{ width: 268, flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)' }}
+          /* width clamps so the 641–1024 tablet band gets a usable map instead
+             of a fixed 268px column eating the width; the ≤640 overlay class
+             still controls position/display (never put inline `display` here —
+             it would override the class's display toggle). */
+          style={{ width: 'clamp(240px, 28vw, 300px)', flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)' }}
         >
           {/* Mobile-only header with close button */}
           <div className="sr-map-sidebar-close">
@@ -1715,8 +1721,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               sidebar button already shows "Finding…", but on mobile (sidebar
               closed) the map itself gave no signal. */}
           {((viewMode === 'hotspots' && hotspotsLoading) || (viewMode === 'targets' && targetsLoading) || (viewMode === 'lifers' && lifersLoading)) && (
-            <div className="sr-map-loading-chip" role="status">
-              <Loader2 size={13} className="spin" aria-hidden="true" />
+            /* Bound + allow wrap (overriding the class's nowrap) so the centered
+               chip stays compact on a narrow phone and doesn't reach across to
+               touch the top-right layers switcher. */
+            <div className="sr-map-loading-chip" role="status" style={{ maxWidth: 'calc(100% - 24px)', whiteSpace: 'normal', textAlign: 'center' }}>
+              <Loader2 size={13} className="spin" aria-hidden="true" style={{ flexShrink: 0 }} />
               {viewMode === 'hotspots' ? 'Finding hotspots…' : viewMode === 'targets' ? 'Finding sightings…' : 'Finding nearby lifers…'}
             </div>
           )}

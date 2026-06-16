@@ -27,11 +27,11 @@ export function CommentText({ raw, decoded = false }: { raw: string; decoded?: b
             <span className="sr-only"> (opens in a new tab)</span>
           </a>
         ) : (
-          <Fragment key={i}>
+          <span key={i} style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
             {seg.text.split(/\r\n|\r|\n/).map((line, j) => (
               <Fragment key={j}>{j > 0 && <br />}{line}</Fragment>
             ))}
-          </Fragment>
+          </span>
         )
       )}
     </>

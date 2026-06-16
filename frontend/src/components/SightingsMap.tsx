@@ -68,7 +68,7 @@ export function SightingsMap({ markers, switcher = true }: {
         )
       })}
       {selected && (
-        <Popup longitude={selected.lng} latitude={selected.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} maxWidth="260px">
+        <Popup longitude={selected.lng} latitude={selected.lat} anchor="bottom" offset={36} onClose={() => setSelectedCoord(null)} maxWidth="min(260px, 80vw)">
           <div style={{ fontSize: '0.8125rem', lineHeight: 1.7, minWidth: 120 }}>
             {selected.sightings.slice(0, 6).map(({ submissionId, date }, i) => (
               <div key={`${submissionId}-${i}`}>

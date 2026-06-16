@@ -569,6 +569,66 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
+/* ── Responsive layout hooks — mobile-responsive-sweep (v0.5.37) ────────────
+   React inline styles have specificity 1,0,0 and BEAT class rules, and inline
+   grids cannot be reached by a media query (see .sr-two-col above and the
+   DECISIONS.md note). So any layout that must respond to the viewport is LIFTED
+   to one of these classes: the element DROPS its inline display/grid/flex
+   layout props and adopts the class — non-layout inline styles (padding,
+   colors, borders) stay. Breakpoint tiers: 480 (small phone), 640 (phone — the
+   established boundary), 1024 (tablet). Large desktops are capped by max-width,
+   not a query. Collapse rules live in the media blocks at the bottom. */
+
+/* Desktop max-width cap: tab panels stop stretching edge-to-edge on big screens
+   (laptops are ~unaffected; only >1280px viewports gain centered margins). */
+.sr-panel { max-width: var(--sr-panel-max, 1280px); margin-inline: auto; }
+/* Opt-in content caps for screens wanting a tighter measure than the panel. */
+.sr-container { width: 100%; max-width: var(--sr-container-max, 1100px); margin-inline: auto; }
+.sr-container-wide { width: 100%; max-width: 1320px; margin-inline: auto; }
+
+/* Action row: a growable label/text child + trailing action(s). Wraps instead
+   of overflowing on narrow screens; give the growable child .sr-min0 so it can
+   shrink. Add .sr-action-row-stack to force text-over-action stacking ≤480. */
+.sr-action-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+
+/* Self-collapsing grid: as many columns as fit at --sr-grid-min (default 220px),
+   no breakpoint math. Best default for card/tile grids. */
+.sr-grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--sr-grid-min, 220px), 100%), 1fr)); gap: var(--sr-grid-gap, 14px); }
+
+/* Fixed N-up grids that collapse on smaller screens (see the media blocks). */
+.sr-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sr-grid-gap, 14px); }
+.sr-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sr-grid-gap, 14px); }
+.sr-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sr-grid-gap, 14px); }
+
+/* Chart-beside-list: an asymmetric 2-col (content + a fixed-ish aside, e.g. a
+   pie/donut) that stacks on phones. Tune the aside with --sr-aside. */
+.sr-grid-chart-aside { display: grid; grid-template-columns: 1fr minmax(140px, var(--sr-aside, 180px)); gap: 16px; align-items: center; }
+
+/* Field row: inline form controls (e.g. a From/To date pair) that stack on
+   small phones, where native date/time inputs can't shrink below their min. */
+.sr-field-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* Horizontal-scroll wrapper for wide content/tables — the WRAPPER scrolls, not
+   the page (matches the table wideMode pattern; preserves the page no-scroll). */
+/* min-width:0 lets the wrapper shrink below its content when it's a flex child
+   (so overflow-x:auto actually engages instead of the wide content pushing the
+   page — matters most at large text-scale); position:relative scopes any
+   absolutely-positioned .sr-only screen-reader spans in scrolled cells so they
+   are clipped here rather than escaping to force horizontal page scroll. */
+.sr-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; min-width: 0; position: relative; }
+
+/* Map Explorer (non-fullscreen) panel height. Replaces the inline
+   calc(100vh - 178px) magic number: dvh tracks the mobile browser toolbar, the
+   offset (app chrome) shrinks on phones, and a min-height keeps the map usable
+   on short/landscape viewports (the page scrolls rather than the map vanishing). */
+.sr-map-explorer-panel { height: calc(100dvh - 178px); min-height: 340px; }
+@media (max-width: 640px) { .sr-map-explorer-panel { height: calc(100dvh - 132px); } }
+
+/* Leaf utilities — attach to the specific child that needs them. */
+.sr-min0 { min-width: 0; }
+.sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-wrap-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+
 /* Map Explorer — mobile overlay sidebar */
 .sr-map-content {
   position: relative;
@@ -764,6 +824,17 @@ select:focus-visible {
   }
 }
 
+/* Tablet tier — fill the band between phone and desktop the single 640px
+   breakpoint used to leave untreated. Must precede the 640px block so the
+   narrower rules win at ≤640. */
+@media (max-width: 1024px) {
+  .sr-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sr-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* NB: .sr-compare-panels (ResultsView's three co-equal In Both / A / B panels)
+     intentionally stays 3-up through the tablet band and collapses straight to
+     1-up at 640 — a 2-up tier would leave a lone half-width orphan panel. */
+}
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
   .sr-panel  { padding-top: 20px !important; padding-bottom: 16px !important; }
@@ -773,6 +844,13 @@ select:focus-visible {
   .sr-map-container { height: 300px; }
   .sr-media-grid { grid-template-columns: 1fr; }
   .sr-media-iframe { height: 360px; }
+
+  /* New layout hooks collapse to a single column on phones. */
+  .sr-grid-2, .sr-grid-3, .sr-grid-4 { grid-template-columns: 1fr; }
+  .sr-grid-chart-aside { grid-template-columns: 1fr; }
+  /* Component-local horizontal padding trim (reaches inline-padded containers
+     via !important, same approach as .sr-card above). */
+  .sr-pad-x-trim { padding-left: 16px !important; padding-right: 16px !important; }
 
   /* Help overlay: stack the TOC above the content (the row is laid out with
      inline styles in HelpDocs.tsx, hence the !important overrides) */
@@ -800,4 +878,15 @@ select:focus-visible {
   .sr-map-sidebar-close {
     display: flex;
   }
+}
+
+/* Small-phone tier — stack inline rows that can't shrink further (action rows,
+   native date/time field pairs) and trim padding harder. Must follow the 640px
+   block so it wins at ≤480. */
+@media (max-width: 480px) {
+  .sr-action-row-stack { flex-direction: column; align-items: stretch; }
+  .sr-action-row-stack > * { width: 100%; }
+  .sr-field-row { flex-direction: column; align-items: stretch; }
+  .sr-field-row > * { width: 100%; }
+  .sr-pad-x-trim { padding-left: 12px !important; padding-right: 12px !important; }
 }

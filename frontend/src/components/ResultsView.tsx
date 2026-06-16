@@ -39,22 +39,20 @@ export function ResultsView({ listALabel, listBLabel, result, onReset, sort, onS
       display: 'flex',
       flexDirection: 'column',
     }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+      {/* Header — wraps the sort+reset cluster below the description on narrow
+          widths (matches ChecklistComparer's results header). */}
+      <div className="sr-action-row" style={{
         marginBottom: 20,
         gap: 16,
         flexShrink: 0,
       }}>
-        <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', margin: 0 }}>
+        <p className="sr-min0 sr-wrap-anywhere" style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', margin: 0 }}>
           Comparing{' '}
           <strong style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{nameA}</strong>
           {' '}and{' '}
           <strong style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{nameB}</strong>
         </p>
-        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }}>
             {(['taxonomic', 'alpha'] as SortOrder[]).map((s, i) => (
               <button tabIndex={0}

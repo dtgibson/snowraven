@@ -125,11 +125,19 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
       background: 'var(--sr-surface)',
       display: 'flex',
       flexDirection: 'column',
+      // min-width:0 lets this card shrink below the table's max-content width
+      // when it's a flex child of the panel, so the inner overflowX:auto wrapper
+      // actually engages and scrolls instead of pushing the whole page wide.
+      minWidth: 0,
       ...(wideMode ? { width: 'max-content' } : {}),
     }}>
       {/* scrollPaddingLeft keeps a focused cell from landing under the sticky
           first column when keyboard focus scrolls it horizontally (WCAG 2.4.11). */}
-      <div style={wideMode ? {} : { overflowX: 'auto', scrollPaddingLeft: 220 }}>
+      {/* position:relative scopes the cells' absolutely-positioned .sr-only
+          screen-reader spans to THIS scroll container, so they're clipped with
+          the table instead of escaping to the page and forcing horizontal page
+          scroll on phones (the wide matrix sits far right of the viewport). */}
+      <div style={wideMode ? {} : { overflowX: 'auto', scrollPaddingLeft: 220, minWidth: 0, position: 'relative' }}>
         <table style={{
           width: '100%',
           minWidth: 'max-content',

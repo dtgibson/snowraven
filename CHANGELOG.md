@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.37] - 2026-06-15
+
+### Changed
+- **A full responsive pass so every screen flows on phones and big desktops.** Every tab now reflows cleanly from a ~320px phone up to a large desktop, with no overlapping rows and no sideways scrolling. Rows that used to collide on a narrow screen — the Map Explorer's view-mode buttons, Settings' file and key rows, the filter strips, the comparison columns — now wrap or stack; wide tables scroll within their own box instead of dragging the whole page sideways; charts and multi-column grids fold to a single column; and long place and species names wrap instead of spilling over. On large screens the content is capped to a comfortable reading width rather than stretching edge to edge. Built on the app's existing styling, so nothing about what each screen does or shows has changed — it just fits the screen it's on. (Two unused leftover stylesheets from the project's original template were also removed.)
+
 ## [0.5.36] - 2026-06-14
 
 ### Added

@@ -683,13 +683,12 @@ export default function App() {
         {keyStatus && (keyStatus.ebird === null || keyStatus.openweather === null) && (
           <div style={{ width: '100%', maxWidth: 540, marginBottom: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {keyStatus.ebird === null && (
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              <div className="sr-action-row sr-action-row-stack" style={{
                 padding: '10px 14px', background: 'var(--sr-warning-bg)',
                 border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
                 fontSize: '0.8125rem', color: 'var(--sr-warning)',
               }}>
-                <span>eBird API key not configured — weather lookups require an eBird API key.</span>
+                <span className="sr-min0">eBird API key not configured — weather lookups require an eBird API key.</span>
                 <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
@@ -702,13 +701,12 @@ export default function App() {
               </div>
             )}
             {keyStatus.openweather === null && (
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              <div className="sr-action-row sr-action-row-stack" style={{
                 padding: '10px 14px', background: 'var(--sr-warning-bg)',
                 border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
                 fontSize: '0.8125rem', color: 'var(--sr-warning)',
               }}>
-                <span>OpenWeather API key not configured — weather lookups won't return conditions. If you don't use weather features, you can disable or move this tab in Settings.</span>
+                <span className="sr-min0">OpenWeather API key not configured — weather lookups won't return conditions. If you don't use weather features, you can disable or move this tab in Settings.</span>
                 <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
@@ -846,7 +844,7 @@ export default function App() {
                 </a>
               )}
               <div style={{ marginBottom: 14 }}>
-                <span style={{
+                <span className="sr-wrap-anywhere" style={{
                   fontSize: '0.75rem',
                   color: 'var(--sr-text-muted)',
                   fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace',
@@ -927,8 +925,8 @@ export default function App() {
                 <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
               )}
               {(tideState.status === 'too-far' || tideState.status === 'outside-us') && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '13px 15px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
-                  <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <div className="sr-action-row sr-action-row-stack" style={{ background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '13px 15px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                  <span className="sr-min0" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                     <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
                     {tideTooFarNotice(tideState.station, tideState.distanceMi, tideState.status)}
                   </span>
@@ -1118,13 +1116,14 @@ export default function App() {
         id="panel-map-explorer"
         aria-labelledby="tab-map-explorer"
         aria-label="Map Explorer"
+        className={mapFullscreen ? undefined : 'sr-map-explorer-panel'}
         style={{
           display: activeTab === 'map-explorer' ? 'flex' : 'none',
           flexDirection: 'column',
           overflow: 'hidden',
           ...(mapFullscreen
-            ? { position: 'fixed', inset: 0, width: '100vw', height: '100dvh', zIndex: 1200, background: 'var(--sr-bg)' }
-            : { height: 'calc(100vh - 178px)' }),
+            ? { position: 'fixed', inset: 0, height: '100dvh', zIndex: 1200, background: 'var(--sr-bg)' }
+            : {}),
         }}
       >
         {mountedTabs.has('map-explorer') && (
@@ -1193,7 +1192,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <p inert={chromeInert} role="contentinfo" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
+      <p inert={chromeInert} role="contentinfo" className="sr-pad-x-trim" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
         <OutboundLink
           href="https://github.com/dtgibson/snowraven"
           style={{ color: 'inherit', textDecoration: 'none' }}

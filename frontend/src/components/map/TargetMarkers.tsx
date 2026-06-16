@@ -91,7 +91,7 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
       {selGroup && selRep && (
         <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} maxWidth="280px">
               <div style={{ minWidth: 200, maxWidth: 260 }}>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
+                <div className="sr-wrap-anywhere" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
                 {selGroup.map((pin, j) => {
                   const pinTier = recencyTier(pin.recentDate)
                   const { bg: pinBg, text: pinText } = tierColors(pinTier)

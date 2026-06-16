@@ -9,6 +9,11 @@ import { SnowMap } from './SnowMap'
 
 export interface LatLng { lat: number; lng: number }
 
+// Responsive map height: 180px on phones (the audited-fine floor), growing to
+// ~280px on wide screens so the picker isn't cramped vertically in a roomy card.
+// Shared so the Suspense fallback in WeatherForecastPanel stays in lockstep.
+export const PREDICT_MAP_HEIGHT = 'clamp(180px, 28vw, 280px)'
+
 interface Props {
   coord: LatLng | null
   onPick: (c: LatLng) => void
@@ -51,7 +56,7 @@ export function PredictMap({ coord, onPick }: Props) {
   return (
     <SnowMap
       initialViewState={{ longitude: coord?.lng ?? -98, latitude: coord?.lat ?? 39, zoom: coord ? 11 : 3 }}
-      style={{ height: 180, width: '100%', borderRadius: 9, overflow: 'hidden', border: '1px solid var(--sr-border-input)' }}
+      style={{ height: PREDICT_MAP_HEIGHT, width: '100%', borderRadius: 9, overflow: 'hidden', border: '1px solid var(--sr-border-input)' }}
       scrollZoom={false}
     >
       <Pin coord={coord} onPick={onPick} />

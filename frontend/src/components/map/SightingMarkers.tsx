@@ -115,14 +115,14 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, atlasSh
   const sightPopup = selLoc && (
     <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => onSelect(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
       <div style={{ minWidth: 190 }}>
-        <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 6 }}>{selLoc.locName}</div>
+        <div className="sr-wrap-anywhere" style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 6 }}>{selLoc.locName}</div>
         <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>
           {selLoc.count.toLocaleString()} observation{selLoc.count !== 1 ? 's' : ''}
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 10 }}>Last: {formatDate(selLoc.lastDate)}</div>
         <div style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 5 }}>Species seen here</div>
         {[...selLoc.species].slice(0, 5).map(s => (
-          <div key={s} style={{ fontSize: '0.75rem', color: 'var(--sr-text)', marginBottom: 2 }}>{s}</div>
+          <div key={s} className="sr-wrap-anywhere" style={{ fontSize: '0.75rem', color: 'var(--sr-text)', marginBottom: 2 }}>{s}</div>
         ))}
         {selLoc.species.size > 5 && (
           <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>+{selLoc.species.size - 5} more species</div>

@@ -52,18 +52,26 @@ export function TabNav({ items, activeTab, onSelect }: TabNavProps) {
   return (
     <div ref={wrapRef} style={{ borderBottom: '1px solid var(--sr-border)', flexShrink: 0, position: 'relative' }}>
       {/* Hidden probe: the full bar at its natural width, used only to measure
-          whether the visible bar would overflow. */}
+          whether the visible bar would overflow. Wrapped in a zero-height,
+          full-width, clipped box so the probe's off-screen natural width (≈ the
+          whole bar, far wider than a phone) never adds page horizontal scroll on
+          narrow viewports — the inner element still reports its natural
+          scrollWidth for the collapse measurement. */}
       <div
-        ref={probeRef}
         aria-hidden="true"
-        style={{ position: 'absolute', top: 0, left: 0, visibility: 'hidden', pointerEvents: 'none', display: 'inline-flex', whiteSpace: 'nowrap' }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 0, overflow: 'hidden', pointerEvents: 'none' }}
       >
-        {items.map(item => (
-          <span key={item.id} style={{ ...tabStyle(false), display: 'inline-flex' }}>
-            {item.icon}
-            {item.label}
-          </span>
-        ))}
+        <div
+          ref={probeRef}
+          style={{ display: 'inline-flex', whiteSpace: 'nowrap', visibility: 'hidden' }}
+        >
+          {items.map(item => (
+            <span key={item.id} style={{ ...tabStyle(false), display: 'inline-flex' }}>
+              {item.icon}
+              {item.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       {collapsed ? (
@@ -293,6 +301,13 @@ function TabDropdown({ items, activeTab, onSelect }: TabNavProps) {
             borderRadius: 8,
             boxShadow: 'var(--sr-card-shadow)',
             padding: 6,
+            // Cap the open menu to the viewport and scroll the overflow, so every
+            // option (Settings is always last) stays reachable on a short/landscape
+            // phone where the full list would otherwise exceed the viewport and clip
+            // the bottom entries. dvh tracks the mobile browser toolbar; the offset
+            // clears the dropdown trigger above plus a small bottom margin.
+            maxHeight: 'calc(100dvh - 96px)',
+            overflowY: 'auto',
             // Above the MapLibre map's controls so the menu is never painted
             // under the map (the z-index: 1200 floating-overlay convention; see
             // "Overlays and stacking" in CLAUDE.md).

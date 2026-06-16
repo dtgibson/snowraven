@@ -4,6 +4,22 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Mobile-responsive sweep: generalized the CSS-class responsive system; two hidden-element page-scroll lessons — 2026-06-16 (v0.5.37)
+
+**What:** An exhaustive responsive pass so every screen flows from ~320px phones to large desktops with no overlap and no sideways page scroll, in preparation for the mobile app. The app was inline-styled with a single `@media (max-width: 640px)` block reaching five class names; this generalized it into a small shared class vocabulary + breakpoint tiers, then migrated ~35 components to it. Also deleted the dead Vite-template `index.css` and `App.css` (never imported — only `globals.css` is).
+
+**Decisions:**
+- **Do responsive layout by LIFTING to a class, never inline.** React inline styles are specificity 1,0,0 and beat class rules, and inline grids/flex can't be media-queried (the long-standing reason `.sr-two-col` etc. exist). New `globals.css` hooks: `.sr-action-row` (wrapping label+action row), `.sr-grid-2/-3/-4` (collapse 3/4→2 at ≤1024, all→1 at ≤640), self-collapsing `.sr-grid-auto`, `.sr-grid-chart-aside`, `.sr-field-row` (stacks native date inputs ≤480), `.sr-scroll-x` (contained wide-table scroll; carries `min-width:0` + `position:relative`), leaf helpers `.sr-min0/.sr-truncate/.sr-wrap-anywhere`, `.sr-pad-x-trim`, `.sr-map-explorer-panel`. Tiers: ~480 (small phone), 640 (existing boundary, unchanged), ~1024 (tablet), plus a `.sr-panel` max-width cap (1280px, centered) for large desktops.
+- **A `position:absolute` element wider than the viewport leaks PAGE horizontal scroll on phones even when invisible.** Two real (pre-existing) phone overflows were fixed: (1) TabNav's overflow-measurement PROBE (`visibility:hidden`, the full bar at natural width) scrolled every page sideways — now wrapped in a zero-height `overflow:hidden` box (the inner probe still reports `scrollWidth` for the collapse decision); (2) absolutely-positioned `.sr-only` spans inside a horizontally-scrolled table (the breeding-code matrix) escaped the scroll wrapper until it was made `position:relative`. **Standing check:** any wide/`max-content` element or off-screen measurement node must sit under an `overflow:hidden`/`position:relative` ancestor so it can't extend `document.scrollWidth` on a phone.
+
+**Touched, not reversed:** the responsive-nav dropdown (kept its ResizeObserver overflow-collapse — no JS window checks added), the Map Explorer mobile-overlay rules (class-toggled `display` + z-index 1200 preserved), the table `wideMode`/`max-content` pattern (reused, not refactored), and the in-app text-scale (sizing stays rem-based — no rem→px). Extended, not changed.
+
+**Known limitation:** at 200% in-app text size the Statistics tab still scrolls ~34px sideways at 360px (dense filter-pill rows don't re-wrap at doubled text); every screen is clean at normal text size. Accepted by the user rather than reworking those rows. See `pipeline/mobile-responsive-sweep/qa-report.md`.
+
+**Implications:** Future responsive work uses these class hooks + tiers — do not re-introduce inline responsive layout. Wrap any new wide table in `.sr-scroll-x`. The full per-screen audit + fix list is in `pipeline/mobile-responsive-sweep/responsive-audit.md`.
+
+---
+
 ## Frivolous Lists: lexicographically-greedy max-matching for the rainbow, whole-word color matching, and favicons-on-unseen via the existing taxonomy batch — 2026-06-15 (v0.5.36)
 
 **What:** A playful "Frivolous Lists" section at the bottom of Statistics — Avian American (22), California Dreamer (7), and Rainbow Warrior (7 colors) — computed entirely from the loaded eBird backup. Frontend-only; no new providers; privacy unchanged.

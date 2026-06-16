@@ -9,7 +9,7 @@ interface SetupRequiredProps {
 
 export function SetupRequired({ title, body, steps, onGoToSettings }: SetupRequiredProps) {
   return (
-    <div style={{
+    <div className="sr-pad-x-trim" style={{
       flex: 1,
       display: 'flex',
       flexDirection: 'column',

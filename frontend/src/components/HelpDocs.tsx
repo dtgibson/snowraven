@@ -50,6 +50,7 @@ function renderInline(text: string): React.ReactNode {
           border: '1px solid var(--sr-border)',
           borderRadius: 4, padding: '1px 5px',
           color: 'var(--sr-text)',
+          overflowWrap: 'anywhere',
         }}>
           {m[2].slice(1, -1)}
         </code>
@@ -318,9 +319,12 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
         display: 'flex', alignItems: 'center', padding: '0 20px', gap: 12,
         flexShrink: 0, background: 'var(--sr-surface)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
           <BookOpen size={16} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--sr-text)' }}>
+          <span style={{
+            fontSize: '0.875rem', fontWeight: 600, color: 'var(--sr-text)',
+            minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
             SnowRaven Documentation
           </span>
         </div>
@@ -349,7 +353,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
 
       {/* Body */}
       <div ref={bodyRef} style={{ flex: 1, overflowY: 'auto', display: 'flex' }}>
-        <div className="sr-help-row" style={{
+        <div className="sr-help-row sr-pad-x-trim" style={{
           display: 'flex', width: '100%', maxWidth: 1100,
           margin: '0 auto', padding: '0 24px', gap: 40, alignItems: 'flex-start',
         }}>

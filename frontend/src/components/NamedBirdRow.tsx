@@ -36,7 +36,11 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
         aria-expanded={open}
         onClick={onToggle}
         style={{
-          display: 'flex', alignItems: 'baseline', gap: 8, width: '100%',
+          // flexWrap lets the date-range/count group drop to its own line on
+          // phones instead of overflowing (the card clips at overflow:hidden);
+          // the bird name gets min-width:0 so it ellipsizes rather than forcing
+          // the right group off-row.
+          display: 'flex', alignItems: 'baseline', gap: 8, rowGap: 4, flexWrap: 'wrap', width: '100%',
           padding: '11px 13px', border: 'none', background: 'transparent',
           cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
         }}
@@ -44,7 +48,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
         <span style={{ color: 'var(--sr-text-muted)', flexShrink: 0, display: 'inline-flex', alignSelf: 'center' }}>
           {open ? <ChevronDown size={15} strokeWidth={2.4} aria-hidden /> : <ChevronRight size={15} strokeWidth={2.4} aria-hidden />}
         </span>
-        <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--sr-text)', flexShrink: 0, letterSpacing: '-0.01em' }}>{bird.name}</span>
+        <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--sr-text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>{bird.name}</span>
         {showSpecies && (
           <span style={{ minWidth: 0, overflow: 'hidden', display: 'inline-flex', alignItems: 'baseline', gap: 5 }}>
             {renderSpecies ? renderSpecies(bird.commonName, bird.scientificName) : (
@@ -52,7 +56,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
             )}
           </span>
         )}
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 13, flexShrink: 0 }}>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 13, flexShrink: 0 }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-gray)', whiteSpace: 'nowrap' }}>
             {formatDate(bird.firstSeen)} – {formatDate(bird.lastSeen)}
           </span>

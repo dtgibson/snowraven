@@ -273,7 +273,8 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px' }}>
+      <div className="sr-action-row sr-action-row-stack" style={{ padding: '14px 16px' }}>
+        <div className="sr-min0" style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
         <div style={{
           width: 38, height: 38, borderRadius: 9, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -300,8 +301,9 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
             <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{sublabel}</div>
           )}
         </div>
+        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
           {!info && (
             <div style={{
               display: 'inline-flex', alignItems: 'center',
@@ -409,7 +411,8 @@ function KeyRow({
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', paddingBottom: editing ? 8 : 14 }}>
+      <div className="sr-action-row sr-action-row-stack" style={{ padding: '14px 16px', paddingBottom: editing ? 8 : 14 }}>
+        <div className="sr-min0" style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
         <div style={{
           width: 38, height: 38, borderRadius: 9, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -447,9 +450,10 @@ function KeyRow({
             )
           )}
         </div>
+        </div>
 
         {!editing && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
             {!isSet && (
               <div style={{
                 display: 'inline-flex', alignItems: 'center',
@@ -491,7 +495,7 @@ function KeyRow({
       </div>
 
       {editing && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 16px 14px', flexWrap: 'wrap' }}>
           <input
             type="text"
             value={input}
@@ -500,7 +504,7 @@ function KeyRow({
             aria-label={`${label} value`}
             autoFocus
             style={{
-              flex: 1, height: 32, padding: '0 10px',
+              flex: 1, minWidth: 160, height: 32, padding: '0 10px',
               border: '1.5px solid var(--sr-border)', borderRadius: 6,
               fontSize: '0.8125rem', fontFamily: 'monospace', color: 'var(--sr-text)',
               background: 'var(--sr-surface)',
@@ -833,7 +837,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                 </div>
 
                 {/* Tab name */}
-                <span style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: hidden ? 'var(--sr-text-muted)' : 'var(--sr-text)' }}>
+                <span className="sr-truncate" style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: hidden ? 'var(--sr-text-muted)' : 'var(--sr-text)' }}>
                   {TAB_LABELS[tab]}
                 </span>
 
@@ -901,8 +905,8 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
               <circle cx="5"  cy="12.5" r="1.1"/><circle cx="11" cy="12.5" r="1.1"/>
             </svg>
           </div>
-          <span style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text-muted)' }}>Settings</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>
+          <span className="sr-truncate" style={{ flex: 1, fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text-muted)' }}>Settings</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
             <Lock size={11} />
             always last
           </span>
@@ -1181,12 +1185,12 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
 
       <SectionHeader label="Help &amp; Documentation" />
 
-      <div style={{
+      <div className="sr-action-row sr-action-row-stack" style={{
         border: '1px solid var(--sr-border)', borderRadius: 10,
         background: 'var(--sr-surface)', overflow: 'hidden',
-        marginBottom: 24, display: 'flex', alignItems: 'center',
-        gap: 16, padding: 16,
+        marginBottom: 24, padding: 16,
       }}>
+        <div className="sr-min0" style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
         <div style={{
           width: 40, height: 40, borderRadius: 10, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1202,6 +1206,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
           <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
             Setup guides, feature walkthroughs, and API key instructions. Available offline.
           </div>
+        </div>
         </div>
         <button tabIndex={0}
           onClick={onOpenHelp}
@@ -1337,7 +1342,9 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
             {mapLocating ? 'Locating…' : 'Use my location'}
           </button>
           {mapLocError && <div role="alert" style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 12 }}>{mapLocError}</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: 8, marginBottom: 12 }}>
+          {/* Self-collapsing 3->2->1: the narrow radius field sizes with its
+              siblings (no half-width orphan, never balloons to a full row). */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(7rem, 100%), 1fr))', gap: 8, marginBottom: 12 }}>
             <div>
               <label htmlFor="sr-map-lat" style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', marginBottom: 4 }}>Latitude</label>
               <input
@@ -1378,7 +1385,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
               />
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <button tabIndex={0}
               onClick={handleSaveMapDefaults}
               disabled={mapDefaultsStatus === 'saving'}
@@ -1411,7 +1418,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
               <span style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', fontWeight: 500 }}>✓ Saved</span>
             )}
             {mapDefaultsStatus === 'error' && (
-              <span role="alert" style={{ fontSize: '0.75rem', color: 'var(--sr-error)' }}>{mapDefaultsErrorMsg}</span>
+              <span role="alert" style={{ fontSize: '0.75rem', color: 'var(--sr-error)', minWidth: 0 }}>{mapDefaultsErrorMsg}</span>
             )}
           </div>
         </div>

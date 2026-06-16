@@ -42,7 +42,7 @@ const CHECK_CIRCLE: CSSProperties = {
 const CHECK_SPACER: CSSProperties = { width: 14, height: 14, flexShrink: 0 }
 const RAINBOW_LIST: CSSProperties = { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }
 const COLOR_NAME: CSSProperties = { width: 64, flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, textTransform: 'capitalize', color: 'var(--sr-text-muted)' }
-const LOC: CSSProperties = { fontSize: '0.71875rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis' }
+const LOC: CSSProperties = { fontSize: '0.71875rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', minWidth: 0, maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis' }
 
 function CompletionBadge() {
   return (
@@ -97,6 +97,10 @@ function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies }: {
         {rows.map(({ color, bird }) => (
           <li key={color} style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '9px 10px', borderRadius: 8,
+            // Wrap on narrow phones: the flexShrink:0 date+location cluster can't
+            // shrink, so without a wrap the row overflows ~290px usable width and
+            // crushes the BirdName. flexWrap lets the cluster drop below the name.
+            flexWrap: 'wrap',
             background: bird ? 'var(--sr-surface-subtle)' : 'transparent',
           }}>
             <span aria-hidden="true" style={{
@@ -110,7 +114,11 @@ function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies }: {
                 <span style={{ flex: 1, minWidth: 0 }}>
                   <BirdName commonName={bird.commonName} taxonCode={codeFor(bird.commonName)} hasEntry={hasEntryFor(bird.commonName)} onOpenSpecies={onOpenSpecies} size="sm" />
                 </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                {/* minWidth:0 (not flexShrink:0) so this date+location cluster
+                    shrinks to the available width when it wraps below the name on
+                    a narrow phone — the location ellipsizes instead of poking past
+                    the card edge. The date link keeps its intrinsic width. */}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexShrink: 1 }}>
                   <ChecklistLink submissionId={bird.submissionId} label={formatDate(bird.date)} />
                   <span style={LOC} title={bird.location}>{bird.location}</span>
                 </span>

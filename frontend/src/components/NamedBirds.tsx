@@ -126,7 +126,7 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
         </div>
         <div>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-text)' }}>Named Birds</h2>
-          <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: 0, lineHeight: 1.5 }}>
+          <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: 0, lineHeight: 1.5, maxWidth: '68ch' }}>
             Individual birds you've named in your eBird species comments with a <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.78125rem', color: 'var(--sr-text)' }}>[name:…]</code> tag — for example <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.78125rem', color: 'var(--sr-text)' }}>[name:Winky]</code> or <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.78125rem', color: 'var(--sr-text)' }}>[name:one-leg-pete]</code> — tracked across every checklist.
           </p>
         </div>

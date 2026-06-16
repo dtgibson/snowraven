@@ -155,11 +155,14 @@ function SpeciesRow({ row, mode, hasEntry, onOpenSpecies }: {
   const toggle = () => setOpen(o => !o)
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '4px 14px', minWidth: 0 }}>
+      {/* Name on the left, A/B side cell(s) on the right. flexWrap lets the
+          fixed-rem side cells drop below the name on narrow widths / large
+          Text Size rather than crushing or overflowing the name (F074). */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px 8px', padding: '4px 14px', minWidth: 0 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', minWidth: 0 }}>
           <BirdName commonName={row.commonName} taxonCode={row.speciesCode} hasEntry={hasEntry} onOpenSpecies={onOpenSpecies} size="sm" />
         </span>
-        <span style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <span style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, flexShrink: 0, marginLeft: 'auto' }}>
           {mode !== 'b' && <SideCell count={row.countA} emphasized={hi === 'a'} breeding={row.breedingA} media={row.mediaA} hasComment={cA} open={open} onToggle={toggle} />}
           {(mode === 'both' || mode === 'b') && <SideCell count={row.countB} emphasized={hi === 'b'} breeding={row.breedingB} media={row.mediaB} hasComment={cB} open={open} onToggle={toggle} />}
         </span>
@@ -272,7 +275,7 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
             <ChecklistTag badge="A" id={idA} meta={result.metaA} badges={badgesA} />
             <ChecklistTag badge="B" id={idB} meta={result.metaB} badges={badgesB} />
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', borderRadius: 6, overflow: 'hidden', border: '1.5px solid var(--sr-accent-border)' }}>
               {(['taxonomic', 'alpha'] as Sort[]).map((s, i) => (
                 <button tabIndex={0} key={s} onClick={() => setSort(s)}
@@ -316,7 +319,7 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
             title="In Both"
             count={both.length}
             headerExtra={
-              <span style={{ display: 'flex', gap: 8 }}>
+              <span style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, flexShrink: 0, marginLeft: 'auto' }}>
                 <SideHeader label="A" />
                 <SideHeader label="B" />
               </span>
@@ -469,7 +472,7 @@ function ChecklistTag({ badge, id, meta, badges }: { badge: 'A' | 'B'; id: strin
               <div style={{
                 marginTop: 4, padding: '8px 10px', borderRadius: 6, background: 'var(--sr-bg)',
                 border: '1px solid var(--sr-border-subtle)', fontSize: '0.75rem',
-                color: 'var(--sr-text-muted)', lineHeight: 1.5, maxWidth: 460, wordBreak: 'break-word',
+                color: 'var(--sr-text-muted)', lineHeight: 1.5, maxWidth: 'min(460px, 100%)', wordBreak: 'break-word',
               }}>
                 <CommentText raw={meta.comments} />
               </div>
@@ -506,7 +509,7 @@ function Panel({ title, count, headerExtra, children }: {
 }) {
   return (
     <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', minWidth: 0 }}>
-      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--sr-border-subtle)', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
+      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--sr-border-subtle)', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px 8px' }}>
         <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{title}</span>
         {headerExtra ?? <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{count}</span>}
       </div>
@@ -547,6 +550,11 @@ function CommentsTable({ result, both, aOnly, bOnly, idA, idB, isRecorded, onOpe
   if (speciesRows.length === 0 && !hasChecklistNote) return null
 
   const COLS = 'minmax(120px, 1.2fr) 2fr 2fr'
+  // Floor for one grid row so the three columns stay readable; below this the
+  // .sr-scroll-x wrapper scrolls horizontally instead of the card (overflow:hidden)
+  // clipping the comment columns on a phone (F074). minWidth on every row (same
+  // value) keeps the columns aligned across rows within the shared scroll viewport.
+  const ROW_MIN_WIDTH = 440
   // Distinguish an empty cell: the bird was on that checklist but had no note
   // ("no comment") vs. it wasn't on that checklist at all ("not reported").
   const empty = (label: string) => (
@@ -569,33 +577,37 @@ function CommentsTable({ result, both, aOnly, bOnly, idA, idB, isRecorded, onOpe
           ({speciesRows.length + (hasChecklistNote ? 1 : 0)})
         </span>
       </div>
-      {/* Header */}
-      <div style={{ display: 'grid', gridTemplateColumns: COLS }}>
-        {['Species', `A · ${idA}`, `B · ${idB}`].map((h, i) => (
-          <span key={h} style={{
-            ...cellStyle(i), padding: '8px 12px', fontSize: '0.625rem', fontWeight: 700,
-            textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)',
-            background: 'var(--sr-bg)',
-          }}>{h}</span>
+      {/* Rows scroll horizontally as a group on narrow widths (the card is
+          overflow:hidden, so an un-scrolled grid would clip, not scroll). */}
+      <div className="sr-scroll-x">
+        {/* Header */}
+        <div style={{ display: 'grid', gridTemplateColumns: COLS, minWidth: ROW_MIN_WIDTH }}>
+          {['Species', `A · ${idA}`, `B · ${idB}`].map((h, i) => (
+            <span key={h} style={{
+              ...cellStyle(i), padding: '8px 12px', fontSize: '0.625rem', fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)',
+              background: 'var(--sr-bg)',
+            }}>{h}</span>
+          ))}
+        </div>
+        {hasChecklistNote && (
+          <div style={{ display: 'grid', gridTemplateColumns: COLS, minWidth: ROW_MIN_WIDTH, borderTop: '1px solid var(--sr-border-subtle)' }}>
+            <span style={{ ...cellStyle(0), fontWeight: 600, color: 'var(--sr-text)' }}>📋 Checklist note</span>
+            {/* both checklists always "present" for their own checklist-level note */}
+            <span style={cellStyle(1)}>{cell(result.metaA.comments, true)}</span>
+            <span style={cellStyle(2)}>{cell(result.metaB.comments, true)}</span>
+          </div>
+        )}
+        {speciesRows.map(r => (
+          <div key={r.speciesCode} style={{ display: 'grid', gridTemplateColumns: COLS, minWidth: ROW_MIN_WIDTH, borderTop: '1px solid var(--sr-border-subtle)' }}>
+            <span style={{ ...cellStyle(0), color: 'var(--sr-text)' }}>
+              <BirdName commonName={r.commonName} taxonCode={r.speciesCode} hasEntry={isRecorded(r.commonName)} onOpenSpecies={onOpenSpecies} size="sm" />
+            </span>
+            <span style={cellStyle(1)}>{cell(r.commentsA, r.countA !== null)}</span>
+            <span style={cellStyle(2)}>{cell(r.commentsB, r.countB !== null)}</span>
+          </div>
         ))}
       </div>
-      {hasChecklistNote && (
-        <div style={{ display: 'grid', gridTemplateColumns: COLS, borderTop: '1px solid var(--sr-border-subtle)' }}>
-          <span style={{ ...cellStyle(0), fontWeight: 600, color: 'var(--sr-text)' }}>📋 Checklist note</span>
-          {/* both checklists always "present" for their own checklist-level note */}
-          <span style={cellStyle(1)}>{cell(result.metaA.comments, true)}</span>
-          <span style={cellStyle(2)}>{cell(result.metaB.comments, true)}</span>
-        </div>
-      )}
-      {speciesRows.map(r => (
-        <div key={r.speciesCode} style={{ display: 'grid', gridTemplateColumns: COLS, borderTop: '1px solid var(--sr-border-subtle)' }}>
-          <span style={{ ...cellStyle(0), color: 'var(--sr-text)' }}>
-            <BirdName commonName={r.commonName} taxonCode={r.speciesCode} hasEntry={isRecorded(r.commonName)} onOpenSpecies={onOpenSpecies} size="sm" />
-          </span>
-          <span style={cellStyle(1)}>{cell(r.commentsA, r.countA !== null)}</span>
-          <span style={cellStyle(2)}>{cell(r.commentsB, r.countB !== null)}</span>
-        </div>
-      ))}
     </div>
   )
 }

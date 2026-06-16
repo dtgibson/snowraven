@@ -19,6 +19,11 @@ import type { LatLng } from './PredictMap'
 
 const PredictMap = lazy(() => import('./PredictMap').then(m => ({ default: m.PredictMap })))
 
+// Mirror of PredictMap's PREDICT_MAP_HEIGHT — kept as a local literal (not a
+// static import) so the lazy PredictMap chunk (and maplibre-gl) is NOT pulled
+// into the Weather tab's initial bundle. Keep the two values in lockstep.
+const PREDICT_MAP_HEIGHT = 'clamp(180px, 28vw, 280px)'
+
 const MONO = 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -121,7 +126,7 @@ function TideSummaryView({ r }: { r: TideReadingSummary }) {
           {r.trend === 'rising' ? 'Rising ↑' : 'Falling ↓'}{r.turnedDuring ? ' (turning)' : ''}
         </span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', fontSize: '0.8125rem' }}>
+      <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '6px 16px', fontSize: '0.8125rem' }}>
         {r.nextHL && <span><span style={{ color: 'var(--sr-text-muted)' }}>Next {r.nextHL.kind}</span> <b>{r.nextHL.v.toFixed(1)} ft</b> · {r.nextHL.timeLocal}</span>}
         {r.prevHL && <span><span style={{ color: 'var(--sr-text-muted)' }}>Prev {r.prevHL.kind}</span> {r.prevHL.v.toFixed(1)} ft · {r.prevHL.timeLocal}</span>}
       </div>
@@ -329,7 +334,7 @@ export function WeatherForecastPanel() {
         Skip the checklist — get weather and tide for where you are, or for a place and time you choose.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+      <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '10px' }}>
         <button type="button" tabIndex={0} onClick={onCurrent} style={primaryBtn} aria-label="Get current weather and tide for my location">
           <Navigation size={16} strokeWidth={2.2} aria-hidden="true" /> Current
         </button>
@@ -346,7 +351,7 @@ export function WeatherForecastPanel() {
       )}
 
       {phase.kind === 'predict' && (
-        <div style={{ marginTop: 16, background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border)', borderRadius: 10, padding: 16 }}>
+        <div className="sr-pad-x-trim" style={{ marginTop: 16, background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border)', borderRadius: 10, padding: 16 }}>
           {locError && (
             <div role="alert" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 14, padding: '10px 13px', background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, fontSize: '0.8125rem', lineHeight: 1.5 }}>
               <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
@@ -369,12 +374,12 @@ export function WeatherForecastPanel() {
             </button>
           </div>
 
-          <Suspense fallback={<div style={{ height: 180, borderRadius: 9, border: '1px solid var(--sr-border-input)', background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
+          <Suspense fallback={<div style={{ height: PREDICT_MAP_HEIGHT, borderRadius: 9, border: '1px solid var(--sr-border-input)', background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
             <PredictMap coord={coord} onPick={setCoord} />
           </Suspense>
           <p style={{ margin: '7px 0 0', fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>Tap the map to drop a pin, drag to fine-tune — or type coordinates below.</p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+          <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '12px', marginTop: 12 }}>
             <div>
               <label htmlFor="predict-lat" style={fieldLabel}>Latitude</label>
               <input id="predict-lat" type="number" step="0.0001" min={-90} max={90} value={latStr} onChange={e => applyLat(e.target.value)} aria-label="Latitude (-90 to 90)" style={textInput} />
@@ -416,9 +421,9 @@ export function WeatherForecastPanel() {
         const pill = pillFor(d.source, wx ? wx.resolution : null)
         const copyTextValue = buildCopyText(d)
         return (
-          <div role="region" aria-label="Weather and tide result" style={{ marginTop: 16, background: 'var(--sr-accent-surface)', border: '1px solid var(--sr-accent-border)', borderRadius: 10, padding: '16px 18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 13 }}>
-              <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{d.place}</h3>
+          <div role="region" aria-label="Weather and tide result" className="sr-pad-x-trim" style={{ marginTop: 16, background: 'var(--sr-accent-surface)', border: '1px solid var(--sr-accent-border)', borderRadius: 10, padding: '16px 18px' }}>
+            <div className="sr-action-row" style={{ marginBottom: 13 }}>
+              <h3 className="sr-min0" style={{ fontSize: '0.9375rem', fontWeight: 700, letterSpacing: '-0.01em', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{d.place}</h3>
               <span style={pillStyle(pill.kind)}>{pill.text}</span>
             </div>
             <div style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', fontFamily: MONO, marginBottom: 12 }}>
@@ -443,8 +448,8 @@ export function WeatherForecastPanel() {
               : d.tide && (d.tide.status === 'too-far' || d.tide.status === 'outside-us') && d.tide.station
                 ? (
                   <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--sr-border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '11px 13px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
-                      <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <div className="sr-action-row sr-action-row-stack" style={{ background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '11px 13px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
+                      <span className="sr-min0" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                         <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
                         {tideTooFarNotice(d.tide.station.name, d.tide.distanceMi ?? 0, d.tide.status)}
                       </span>
@@ -462,14 +467,14 @@ export function WeatherForecastPanel() {
             {copyTextValue && (
               <details style={{ marginTop: 14 }}>
                 <summary style={{ cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)' }}>Copy-ready block</summary>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '12px 0 9px' }}>
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--sr-text-muted)' }}>Weather &amp; tide output</span>
+                <div className="sr-action-row" style={{ margin: '12px 0 9px' }}>
+                  <span className="sr-min0" style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--sr-text-muted)' }}>Weather &amp; tide output</span>
                   <button type="button" tabIndex={0} onClick={() => void doCopy(copyTextValue)} aria-label="Copy weather and tide to clipboard" style={copyBtn(copied)}>
                     {copied ? <Check size={12} strokeWidth={2.5} aria-hidden="true" /> : <ClipboardCopy size={12} strokeWidth={2.5} aria-hidden="true" />}
                     {copied ? 'Copied!' : 'Copy'}
                   </button>
                 </div>
-                <pre style={{ background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', borderRadius: 8, padding: '18px 20px', fontFamily: MONO, fontSize: '0.84375rem', lineHeight: 1.75, color: 'inherit', whiteSpace: 'pre', overflowX: 'auto', margin: 0 }}>{copyTextValue}</pre>
+                <pre className="sr-pad-x-trim" style={{ background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', borderRadius: 8, padding: '18px 20px', fontFamily: MONO, fontSize: '0.84375rem', lineHeight: 1.75, color: 'inherit', whiteSpace: 'pre', overflowX: 'auto', margin: 0 }}>{copyTextValue}</pre>
               </details>
             )}
           </div>

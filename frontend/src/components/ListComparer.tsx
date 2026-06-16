@@ -232,7 +232,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div className="sr-two-col" style={{ gap: 12, marginBottom: 16 }}>
             {listAMode === 'my-list' ? (
               <div style={{
                 minHeight: 192,

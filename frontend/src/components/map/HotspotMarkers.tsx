@@ -141,7 +141,7 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
       {selPin && (
         <Popup longitude={selPin.lng} latitude={selPin.lat} anchor="bottom" offset={42} onClose={() => onSelect(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
           <div style={{ minWidth: 190 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 8 }}>{selPin.locName}</div>
+            <div className="sr-wrap-anywhere" style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 8 }}>{selPin.locName}</div>
             {selPin.kind === 'visited' && (
               <>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>

@@ -63,12 +63,11 @@ async function loadSideTide(id: string, force: boolean, set: (s: SideTideState) 
 
 function Nudge({ text, onGoToSettings }: { text: string; onGoToSettings: () => void }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+    <div className="sr-action-row sr-action-row-stack" style={{
       padding: '10px 14px', background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)',
       borderRadius: 8, fontSize: '0.8125rem', color: 'var(--sr-warning)',
     }}>
-      <span>{text}</span>
+      <span className="sr-min0">{text}</span>
       <button tabIndex={0} onClick={onGoToSettings}
         style={{
           background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 600,
@@ -111,8 +110,8 @@ export function WeatherTideSection({ idA, idB, metaA, metaB, keyStatus, onGoToSe
   const keysMissing = missing.length > 0
 
   const header = (
-    <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--sr-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Weather &amp; Tide</span>
+    <div className="sr-action-row" style={{ padding: '10px 14px', borderBottom: '1px solid var(--sr-border-subtle)' }}>
+      <span className="sr-min0" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>Weather &amp; Tide</span>
       {!keysMissing && !loaded && (
         <button tabIndex={0} onClick={() => { void loadConditions() }} disabled={loading}
           style={{

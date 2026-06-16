@@ -58,8 +58,8 @@ function BlockEyebrow({ label, onCopy }: { label: string; onCopy?: () => void })
     setTimeout(() => setCopied(false), 2000)
   }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 9 }}>
-      <span style={{
+    <div className="sr-action-row" style={{ marginBottom: 9 }}>
+      <span className="sr-min0" style={{
         fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em',
         textTransform: 'uppercase' as const, color: 'var(--sr-text-muted)',
       }}>
@@ -205,12 +205,11 @@ export function WeatherTidePanel({ badge, id, meta, weather, tide, hasEmbeddedWe
             )}
             {tide.status === 'ok' && <MonoBlock text={tide.formatted} />}
             {(tide.status === 'too-far' || tide.status === 'outside-us') && (
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+              <div className="sr-action-row sr-action-row-stack" style={{
                 background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)',
                 borderRadius: 8, padding: '13px 15px', fontSize: '0.8125rem', lineHeight: 1.5,
               }}>
-                <span style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <span className="sr-min0" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                   <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
                   {tideTooFarNotice(tide.station, tide.distanceMi, tide.status)}
                 </span>

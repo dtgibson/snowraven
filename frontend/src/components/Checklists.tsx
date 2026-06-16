@@ -175,7 +175,7 @@ function CommentSearchBox<T extends ChecklistCommentEntry>({
         padding: '12px 18px', borderBottom: '1px solid var(--sr-border-subtle)',
         background: 'var(--sr-surface-faint)',
       }}>
-        <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: 340 }}>
+        <div style={{ position: 'relative', flex: '1 1 140px', maxWidth: 340 }}>
           <span style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--sr-text-disabled)', pointerEvents: 'none' }}>
             <Search size={12} strokeWidth={2.5} />
           </span>
@@ -286,6 +286,9 @@ const selectStyle: React.CSSProperties = {
   height: 28, padding: '0 8px', borderRadius: 6,
   border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
   color: 'var(--sr-text)', fontSize: '0.75rem', fontFamily: 'inherit',
+  // Long county/protocol names (or wide native date controls) must not push the
+  // filter row past the card and scroll the page on a phone (F074).
+  maxWidth: '100%',
 }
 
 const rowLabelStyle: React.CSSProperties = {
@@ -345,7 +348,7 @@ function ChecklistRow({ row, showBlocks, mlLoaded, isLast }: {
           )}
           {row.hasBreeding && <Badge title="Has breeding codes"><Egg size={11} strokeWidth={2.2} /></Badge>}
         </span>
-        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 12, flexShrink: 0, paddingLeft: 12 }}>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '2px 12px', flexShrink: 0, paddingLeft: 12 }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--sr-accent)', whiteSpace: 'nowrap' }}>
             {c.speciesCount.toLocaleString()} species
           </span>

@@ -262,9 +262,11 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
       {list.length > 0 && (
         <div
           className="sr-atlas-blocklist"
+          /* width clamps to 60vw on a narrow phone so the panel can't blanket
+             most of the map (220px ≈ 70% of a 320px screen otherwise). */
           style={{
             position: 'absolute', top: 78, left: 10, zIndex: 1050,
-            width: 220, maxHeight: '60%', display: 'flex', flexDirection: 'column',
+            width: 'min(220px, 60vw)', maxHeight: '60%', display: 'flex', flexDirection: 'column',
             background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
             borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', overflow: 'hidden',
           }}

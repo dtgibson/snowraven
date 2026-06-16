@@ -61,16 +61,20 @@ export function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWid
   const pct = max > 0 ? (value / max) * 100 : 0
   const pctDisplay = pctOf && pctOf > 0 && value > 0 ? Math.round(value / pctOf * 100) : null
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
       <span style={{
         fontSize: '0.6875rem', color: 'var(--sr-text-muted)',
         // rem so the label box grows with the Text Size control (1.4.4) instead
         // of clipping the label at 200% scale. labelWidth is a px number prop;
-        // convert here so no call site changes.
-        textAlign: 'right', flexShrink: 0, width: `${labelWidth / 16}rem`,
+        // convert here so no call site changes. The width is a PREFERRED size
+        // (flex-basis) that can shrink (flexShrink:1 + minWidth:0) when the row
+        // would otherwise overflow — e.g. a wide label (labelWidth 150) at 200%
+        // text-scale on a phone — ellipsizing instead of pushing the page wide.
+        textAlign: 'right', flexShrink: 1, minWidth: 0, width: `${labelWidth / 16}rem`,
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>{label}</span>
       <div style={{
-        flex: 1, height: 8, borderRadius: 4,
+        flex: 1, minWidth: 0, height: 8, borderRadius: 4,
         background: 'var(--sr-surface-subtle)', overflow: 'hidden',
       }}>
         <div style={{

@@ -111,7 +111,11 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
                       <span style={{ display: 'block', fontSize: '0.78125rem', color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {getPrimary(item)}
                       </span>
-                      <span style={{ display: 'block', fontSize: '0.625rem', color: 'var(--sr-text-muted)' }}>
+                      {/* Clamp the secondary to 2 lines so a long join (e.g. the
+                          Nearby-Lifers "N lifers · name, name, …" list) can't
+                          balloon a row to many lines; short secondaries are
+                          unaffected. */}
+                      <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', fontSize: '0.625rem', color: 'var(--sr-text-muted)', overflowWrap: 'anywhere' }}>
                         {getSecondary(item)}
                       </span>
                     </span>
@@ -134,12 +138,12 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
 export function KeyNotice({ onGoToSettings }: { onGoToSettings: () => void }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10,
+      display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10,
       padding: '10px 12px', background: 'var(--sr-warning-bg)',
       border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
       fontSize: '0.75rem', color: 'var(--sr-warning)', marginBottom: 14,
     }}>
-      <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
         <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>eBird API key required. Add it in Settings to use this feature.</span>
       </div>

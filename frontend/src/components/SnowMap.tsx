@@ -158,7 +158,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
       </Source>
 
       {switcher && (
-        <div className="sr-map-layers" style={{ position: 'absolute', top: 8, right: 8, zIndex: 1 }}>
+        <div className="sr-map-layers" style={{ position: 'absolute', top: 8, right: 8, zIndex: 1, maxWidth: 'calc(100vw - 16px)' }}>
           <div className="sr-map-layers-seg" role="group" aria-label="Base map">
             {(['positron', 'satellite', 'topo'] as BaseKey[]).map(k => (
               <button key={k} type="button" tabIndex={0} className={base === k ? 'is-active' : ''} aria-pressed={base === k} onClick={() => selectBase(k)}>
