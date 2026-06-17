@@ -7,6 +7,7 @@
 import { useMemo, useState } from 'react'
 import { sortNamedBirds, type NamedBird, type NamedBirdSort } from '../lib/namedBirds'
 import { NamedBirdRow } from './NamedBirdRow'
+import { useHotspotSet } from '../lib/useHotspotSet'
 
 export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, singleOpen }: {
   birds: NamedBird[]
@@ -23,6 +24,7 @@ export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, s
 }) {
   const [sort, setSort] = useState<NamedBirdSort>('lastSeen')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const { isHotspot } = useHotspotSet()
 
   // orderFor in deps so the list re-sorts when the taxonomic orders load (its
   // identity changes only then) — the graceful-degradation signal for FR-14.
@@ -90,6 +92,7 @@ export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, s
             showSpecies={showSpecies}
             showMap={!!singleOpen}
             renderSpecies={renderSpecies}
+            isHotspot={isHotspot}
           />
         ))}
       </div>

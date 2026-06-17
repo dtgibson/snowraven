@@ -200,3 +200,55 @@ def test_recent_obs_rejects_out_of_range_lng():
 def test_recent_obs_rejects_out_of_range_dist():
     resp = client.get("/map/recent-obs?lat=44.9&lng=-93.0&dist=99999")
     assert resp.status_code == 422
+
+
+# ── /map/hotspot-region (public-hotspot Set source) ───────────────────────────
+
+MOCK_REGION_HOTSPOTS = [
+    {"locId": "L100", "locName": "Park", "lat": 44.9, "lng": -93.0},
+    {"locId": "L200", "locName": "Lake", "lat": 45.0, "lng": -93.1},
+    {"locName": "No id here", "lat": 1.0, "lng": 2.0},  # missing locId → skipped
+]
+
+
+def test_hotspot_region_missing_api_key(monkeypatch):
+    monkeypatch.delenv("EBIRD_API_KEY", raising=False)
+    resp = client.get("/map/hotspot-region?regionCode=US-CA")
+    assert resp.status_code == 401
+    assert "key" in resp.json()["detail"].lower()
+
+
+def test_hotspot_region_returns_locids_only(monkeypatch):
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    with patch("routers.map.httpx.AsyncClient") as MockClient:
+        MockClient.return_value = _mock_client(MOCK_REGION_HOTSPOTS)
+        resp = client.get("/map/hotspot-region?regionCode=US-CA")
+    assert resp.status_code == 200
+    # Just the ids, and the id-less entry is dropped.
+    assert resp.json() == ["L100", "L200"]
+
+
+def test_hotspot_region_rejects_malformed_region():
+    # Lowercase / junk fails the pattern before any eBird call.
+    resp = client.get("/map/hotspot-region?regionCode=not-a-region")
+    assert resp.status_code == 422
+
+
+def test_hotspot_region_api_error_is_502(monkeypatch):
+    import httpx
+
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    instance = AsyncMock()
+    request = httpx.Request("GET", "https://api.ebird.org/v2/ref/hotspot/US-CA")
+    response = httpx.Response(500, request=request)
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError("err", request=request, response=response)
+    )
+    instance.get.return_value = mock_resp
+    instance.__aenter__ = AsyncMock(return_value=instance)
+    instance.__aexit__ = AsyncMock(return_value=False)
+    with patch("routers.map.httpx.AsyncClient") as MockClient:
+        MockClient.return_value = instance
+        resp = client.get("/map/hotspot-region?regionCode=US-CA")
+    assert resp.status_code == 502

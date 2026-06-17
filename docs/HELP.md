@@ -121,7 +121,7 @@ The tab shows the following sections for each species:
 - Media: photo, audio, and video catalog counts, each linking to your personal Macaulay Library page filtered by species and media type. Requires ML export.
 - Breeding Codes: every breeding code you have recorded for the species, with tier color, abbreviation, full label, and count.
 - Reported With: species most frequently appearing on the same checklists as the selected species, ranked by co-occurrence percentage.
-- Top Locations: ranked list of locations where you have observed the species, with links to each location on eBird.
+- Top Locations: ranked list of locations where you have observed the species. A location that is a public eBird hotspot is a link to its hotspot page on eBird; a personal location stays as plain text.
 - Sighting Locations map: an interactive map with a pin at every unique observation coordinate. Click any pin to see the dates and checklist links for that location. Toggle between Pins and Heatmap view; in Heatmap mode a Heatmap Intensity slider (1–10) lets you dial the coverage from tighter to broader and hotter, the same control as the Map Explorer's My Sightings map.
 - Comments: all your per-species field notes from the eBird backup, sortable by date and filterable by keyword.
 - Recent Media: the most recently uploaded photo, audio recording, and video from your Macaulay Library, embedded inline. Requires ML export and at least one item in the catalog for this species.
@@ -164,7 +164,7 @@ Checklist activity broken down by year, month, day of week, and start hour. Each
 
 ### Geographic Stats
 
-A map of your most-visited locations alongside ranked lists of your top locations, counties, and states (shown by full name, e.g. Minnesota) by checklist count and species count. County and state entries link to their eBird region page. The map shows numbered markers for your top locations by checklists (green circles) and top locations by species (blue squares).
+A map of your most-visited locations alongside ranked lists of your top locations, counties, and states (shown by full name, e.g. Minnesota) by checklist count and species count. A top-location name that is a public eBird hotspot links to its hotspot page on eBird (personal locations stay plain); county and state entries link to their eBird region page. The map shows numbered markers for your top locations by checklists (green circles) and top locations by species (blue squares).
 
 ### Effort and Outings
 
@@ -313,7 +313,7 @@ The Unbounded toggle removes the table's horizontal scroll constraint for easier
 
 The Named Birds tab tracks individual birds you've named in your eBird species comments. Tag a specific bird in a checklist's species comment with a `[name:…]` tag — for example `[name:Winky]` or `[name:one-leg-pete]` — and SnowRaven gathers every checklist where that name appears.
 
-Each named bird shows its name, species, first- and last-seen dates, and total number of sightings, and expands to list every checklist it appears on — the date, the location, a link to that checklist on eBird, and the species comment — plus a small map of everywhere that individual has been seen. Cards open one at a time. Sort the list by **Name (Individual)**, **Alphabetical**, **Taxonomic**, or **Last Seen**.
+Each named bird shows its name, species, first- and last-seen dates, and total number of sightings, and expands to list every checklist it appears on — the date, the location (a link to the hotspot page on eBird when the location is a public hotspot), a link to that checklist on eBird, and the species comment — plus a small map of everywhere that individual has been seen. Cards open one at a time. Sort the list by **Name (Individual)**, **Alphabetical**, **Taxonomic**, or **Last Seen**.
 
 A bird is identified by its name together with its species, so the same name used for two different species is tracked as two individuals, and name matching ignores case. This tab requires your eBird backup. The same information for a single species also appears as a **Named Individuals** section on the Species Detail tab.
 
@@ -323,7 +323,7 @@ A bird is identified by its name together with its species, so the same name use
 
 The Checklists tab is the home for your checklists as whole outings: search every comment you've ever written, and browse or filter the full list of your checklists. It loads from your stored eBird backup; saving your ML export too adds media-type detail.
 
-**Checklist Comments** lists every checklist-level comment — one entry per checklist, with its date (linking to that checklist on eBird) and location. The 10 most recent show first; expand to see all, switch **Newest/Oldest**, and type in the filter box to search within your comments.
+**Checklist Comments** lists every checklist-level comment — one entry per checklist, with its date (linking to that checklist on eBird) and location (a link to the hotspot page on eBird when the location is a public hotspot). The 10 most recent show first; expand to see all, switch **Newest/Oldest**, and type in the filter box to search within your comments.
 
 **Species Comments** does the same for the observation notes you've written on individual sightings — across **all** species at once. Each entry leads with the species name; click it to open that species on the Species Detail tab.
 

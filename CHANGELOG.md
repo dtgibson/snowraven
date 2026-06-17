@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.40] - 2026-06-16
+
+### Added
+- **Public hotspot names are now links to their eBird hotspot page — everywhere a location appears.** When a place in your data is a public eBird hotspot, its name becomes a link straight to that hotspot's page on eBird; a personal location (your yard, a stakeout pin) stays as plain text, since those have no public page to open. This is consistent across the app: Species Detail's top locations and comments, the Statistics top-locations and notable-outings cards, the Checklists tab (both the list and the comment search), the Named Birds reports, and the Rainbow Warrior first-sightings. Whether a location is a public hotspot is worked out from eBird's own list of hotspots for the regions your data covers — a small, cached lookup, not a per-location call — so it stays fast even on a large backup. (No eBird key, or eBird unreachable? Names simply stay plain text rather than guessing.)
+
+### Fixed
+- **Location links no longer point at dead pages.** Previously a couple of spots (Species Detail's top-locations list among them) turned any location id into an eBird hotspot link — including personal locations, whose hotspot page doesn't exist, so the link 404'd. Links now appear only for genuine public hotspots.
+
 ## [0.5.39] - 2026-06-16
 
 ### Added

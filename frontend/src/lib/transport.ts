@@ -105,6 +105,11 @@ class TauriTransport implements TransportAdapter {
       return getHotspots(lat, lng, dist) as Promise<T>;
     }
 
+    if (path === '/map/hotspot-region') {
+      const { getHotspotRegion } = await import('./tauri/mapService');
+      return getHotspotRegion(params?.regionCode ?? '') as Promise<T>;
+    }
+
     if (path === '/map/recent-obs') {
       const { getRecentObs } = await import('./tauri/mapService');
       const lat = parseFloat(params?.lat ?? '0');
@@ -139,7 +144,7 @@ class TauriTransport implements TransportAdapter {
 // from the short-TTL cache instead of re-hitting eBird. Decorating the
 // transport covers BOTH runtimes — web/Pi (FastAPI) and desktop (TS services) —
 // at their one common chokepoint. Errors are never cached (see networkCache).
-const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs']);
+const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/map/hotspot-region']);
 
 class CachedTransport implements TransportAdapter {
   private inner: TransportAdapter;

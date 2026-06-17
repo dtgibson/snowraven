@@ -276,7 +276,7 @@ export function computeTemporal(checklists: ChecklistEntry[], filteredObs: Obser
 
 /** Top locations / counties / states by checklist count and by species count. */
 export function computeGeo(checklists: ChecklistEntry[], filteredObs: ObservationEntry[]) {
-  const locationMap = new Map<string, { name: string; count: number; species: Set<string>; lat: number | null; lng: number | null }>()
+  const locationMap = new Map<string, { locationId: string; name: string; count: number; species: Set<string>; lat: number | null; lng: number | null }>()
   const countyMap = new Map<string, number>()
   const countyStateMap = new Map<string, string | null>()
   const countySpecies = new Map<string, Set<string>>()
@@ -285,7 +285,7 @@ export function computeGeo(checklists: ChecklistEntry[], filteredObs: Observatio
 
   for (const c of checklists) {
     if (!locationMap.has(c.locationId)) {
-      locationMap.set(c.locationId, { name: c.location, count: 0, species: new Set(), lat: null, lng: null })
+      locationMap.set(c.locationId, { locationId: c.locationId, name: c.location, count: 0, species: new Set(), lat: null, lng: null })
     }
     const loc = locationMap.get(c.locationId)!
     loc.count++
@@ -313,7 +313,7 @@ export function computeGeo(checklists: ChecklistEntry[], filteredObs: Observatio
   }
 
   const allLocations = [...locationMap.values()]
-    .map(l => ({ name: l.name, checklists: l.count, species: l.species.size, lat: l.lat, lng: l.lng }))
+    .map(l => ({ locationId: l.locationId, name: l.name, checklists: l.count, species: l.species.size, lat: l.lat, lng: l.lng }))
 
   const topLocations = [...allLocations].sort((a, b) => b.checklists - a.checklists).slice(0, 10)
   const topLocationsBySpecies = [...allLocations].sort((a, b) => b.species - a.species).slice(0, 10)
@@ -487,7 +487,7 @@ export function computeQuality(filteredObs: ObservationEntry[], checklists: Chec
     .slice(0, 10)
     .map(([name, { count, submissionId }]) => {
       const cl = checklistBySubId.get(submissionId)
-      return { name, count, submissionId, date: cl?.date ?? '', location: cl?.location ?? '' }
+      return { name, count, submissionId, date: cl?.date ?? '', location: cl?.location ?? '', locationId: cl?.locationId ?? '' }
     })
 
   const checksWithComments = checklists.filter(c => c.checklistComments.trim().length > 0).length

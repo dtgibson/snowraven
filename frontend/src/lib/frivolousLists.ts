@@ -97,6 +97,7 @@ export interface FirstSeen {
   scientificName: string
   date: string              // YYYY-MM-DD
   location: string
+  locationId: string
   submissionId: string
 }
 
@@ -159,6 +160,7 @@ export function computeFrivolousLists(observations: ObservationEntry[]): Frivolo
       scientificName: o.scientificName,
       date: o.date,
       location: o.location,
+      locationId: o.locationId,
       submissionId: o.submissionId,
     }
     const prev = firstSeen.get(norm)

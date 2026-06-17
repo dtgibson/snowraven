@@ -15,6 +15,7 @@ export interface NamedSighting {
   submissionId: string
   comment: string         // the full species comment for this observation
   location: string        // from ObservationEntry.location ('' when the export has none)
+  locationId: string      // from ObservationEntry.locationId ('' when the export has none)
   latitude: number | null   // from ObservationEntry.latitude (null when absent)
   longitude: number | null  // from ObservationEntry.longitude (null when absent)
 }
@@ -72,6 +73,7 @@ export function computeNamedBirds(observations: ObservationEntry[]): NamedBird[]
         submissionId: obs.submissionId,
         comment: obs.speciesComments,
         location: obs.location,
+        locationId: obs.locationId,
         latitude: obs.latitude,
         longitude: obs.longitude,
       }

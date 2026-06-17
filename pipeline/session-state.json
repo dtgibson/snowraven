@@ -1,15 +1,17 @@
 {
   "activeFeature": null,
-  "sessionNumber": 40,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "approved",
+  "sessionNumber": 41,
+  "sessionType": "feature",
+  "currentStage": 9,
+  "lastCompletedStage": 9,
+  "lastCheckpointStatus": "in-progress",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "pipeline/public-hotspot-links/strategic-brief.md"
+  ],
   "releasedVersion": "0.5.39",
-  "lastFeature": "0.5.39 frivolous-lists-expansion RELEASED (live, both platforms). Built, verified, Chronicled, and PUSHED from the VM (main + tag v0.5.39, session 39) on top of the Mac's 0.5.38 release. This Mac session (40) pulled to da85292, confirmed HEAD == tag commit, ran the release readiness checks (both version files 0.5.39, createUpdaterArtifacts true, CHANGELOG 0.5.39 entry, website v0.5.39 both pills, local `tsc -b && vite build` clean — the 0.5.35-trap check) and confirmed Windows CI run 27659828267 green with headSha == da85292 == tag commit == release.sh's most-recent-success selection (the tag-re-push guard; fresh single-push tag, no hazard) BEFORE releasing. Ran `zsh -lc './release.sh'` (login shell — the documented invocation). macOS universal DMG signed (Developer ID Application: DAVID THOMAS GIBSON, 8QKC3L2FKP), notarized (Apple submission 42786efe-f8b7-421e-84a3-a86a085f7bc8, Accepted) + stapled, bundle-version guard 0.5.39; Windows installer fetched from CI run 27659828267 + signed locally; latest.json all three keys (darwin-aarch64 + darwin-x86_64 -> the one universal updater bundle SnowRaven-updater.app.tar.gz/same sig, windows-x86_64 -> SnowRaven_0.5.39_x64-setup.exe). All 6 release assets HTTP 200; GitHub /releases/latest confirms v0.5.39 is Latest (not draft/prerelease), target main, published 2026-06-17T01:57:54Z. The change: five new Statistics Frivolous Lists — 3 flat (Phoebe Phanatic, Scrub Jay All Day, Crow Pro / Raven Maven) + 2 grouped with sub-category headers (Heron is Carin' 12sp, Best of the Crest 38sp); new GroupedListResult/groupedList/GroupedNameList; 3 eBird renames applied. Frontend-only; no providers/privacy change. Prior: 0.5.38 RELEASED both platforms.",
-  "remainingBacklog": "ROADMAP Up Next: mobile app (responsive groundwork done); Windows code signing. Optional: Dave to confirm the in-app updater picks up 0.5.39 by opening the app (latest.json is correct, so detection is ready). STANDING RELEASE NOTE: always run the release via `zsh -lc './release.sh'` — the Apple signing creds are exported only in the LOGIN profile, so a bare ./release.sh spawns a non-login shell and fails preflight with `APPLE_SIGNING_IDENTITY is not set`. NOT-FOR-RELEASE: origin has an unmerged docs/snoa-3-accuracy-fixes branch — left untouched.",
-  "createdAt": "2026-06-17T02:07:15Z",
-  "updatedAt": "2026-06-17T02:07:15Z"
+  "lastFeature": "0.5.40 public-hotspot-links BUILT + verified on the VM (frontend 967 / backend 133 green; full CI mirror passed; 4-dimension adversarial review run, 2 HIGH staleness findings fixed via invalidateHotspotSet). Version bumped, CHANGELOG/HELP/README/website/CLAUDE/DECISIONS/PRODUCT_CONTEXT/ROADMAP updated. VM commits + pushes main + tag v0.5.40; Mac runs release.sh. Prior: 0.5.39 RELEASED (live, both platforms).",
+  "remainingBacklog": "public-hotspot-links awaiting Mac release.sh for v0.5.40 (both platforms). Known minor deferred: computeLocationsSorted (speciesStats.ts) groups by location NAME keeping first-seen locId — Set-gated, never a 404; align to locId (like computeGeo) when next touched. ROADMAP Up Next: mobile app; Windows code signing. NOT-FOR-RELEASE: origin has an unmerged docs/snoa-3-accuracy-fixes branch.",
+  "createdAt": "2026-06-17T02:08:00Z",
+  "updatedAt": "2026-06-17T03:30:00Z"
 }

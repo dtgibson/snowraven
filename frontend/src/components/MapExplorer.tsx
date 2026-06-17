@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, ExternalLink, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -22,7 +22,7 @@ import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { markersInView, MARKER_LIST_CAP, type MarkerBounds } from '../lib/markersInView'
 import { formatDate } from '../lib/formatDate'
 import { BirdName } from './BirdName'
-import { LOCATION_ID_RE } from './speciesDetail/ui'
+import { HotspotLink } from './HotspotLink'
 import type {
   ViewMode, DisplayMode, MapPhase, BreedingFilter,
   HotspotPin, TargetPin, DisplayTargetPin, LocationGroup, NearbyLiferLocation,
@@ -1269,22 +1269,17 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               >
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pin.locName}</span>
               </button>
-              {/* Shape-validate the eBird location id before it becomes a link
-                  (standing check), matching the sibling Species Detail hotspot
-                  link; a junk id renders no link rather than a styled 404. */}
-              {LOCATION_ID_RE.test(pin.locId) && (
-                <a
-                  href={`https://ebird.org/hotspot/${pin.locId}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  tabIndex={0}
-                  aria-label={`Open ${pin.locName} on eBird (opens in a new tab)`}
-                  title="Open on eBird (opens in a new tab)"
-                  style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, color: 'var(--sr-text-muted)' }}
-                >
-                  <ExternalLink size={12} strokeWidth={2} aria-hidden="true" />
-                </a>
-              )}
+              {/* The trailing ↗ links to the eBird hotspot page. This list is, by
+                  type, only unvisited hotspots — all public — so isHotspot is true;
+                  the shared HotspotLink still shape-validates the id (no styled 404). */}
+              <HotspotLink
+                locId={pin.locId}
+                name={pin.locName}
+                isHotspot
+                compact
+                title="Open on eBird (opens in a new tab)"
+                style={{ flexShrink: 0, width: 26, height: 26, justifyContent: 'center' }}
+              />
               <span style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{dist.toFixed(1)} mi</span>
             </div>
           ))}

@@ -39,6 +39,33 @@ async def get_hotspots(lat: float, lng: float, dist: int = 25):
     return resp.json()
 
 
+@router.get("/map/hotspot-region")
+async def get_hotspot_region(
+    regionCode: str = Query(..., min_length=2, max_length=12, pattern=r"^[A-Z]{2}(-[A-Z0-9]+){0,2}$"),
+):
+    """All PUBLIC hotspot locIds in an eBird region (country / subnational1 / subnational2,
+    e.g. "US-CA"). Used to build the region-scoped hotspot Set that classifies a location
+    as a public hotspot (link) vs a personal location (plain text) — O(regions) calls, not
+    one per location. Returns just the ids; the Set only needs membership."""
+    key = _api_key()
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            resp = await client.get(
+                f"{_EBIRD_BASE}/ref/hotspot/{regionCode}",
+                params={"fmt": "json"},
+                headers={"X-eBirdApiToken": key},
+            )
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"eBird API error: {exc.response.status_code}",
+            )
+        except httpx.RequestError:
+            raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
+    return [h["locId"] for h in resp.json() if h.get("locId")]
+
+
 @router.get("/map/recent-obs")
 async def get_recent_obs(
     lat: float = Query(..., ge=-90, le=90),

@@ -88,6 +88,7 @@ export interface ChecklistCommentEntry {
   submissionId: string
   date: string
   location: string
+  locationId: string
   text: string
 }
 
@@ -109,6 +110,7 @@ export function buildChecklistComments(
       submissionId: r.checklist.submissionId,
       date: r.checklist.date,
       location: r.checklist.location,
+      locationId: r.checklist.locationId,
       text,
     })
   }
@@ -132,6 +134,7 @@ export function buildSpeciesComments(
       submissionId: o.submissionId,
       date: o.date,
       location: o.location,
+      locationId: o.locationId,
       text,
       commonName: o.commonName,
       scientificName: o.scientificName,

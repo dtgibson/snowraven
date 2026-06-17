@@ -33,6 +33,8 @@ import { ToggleSwitch } from './ui/ToggleSwitch'
 import { CommentText } from './CommentText'
 import { BirdName } from './BirdName'
 import { ChecklistLink } from './ChecklistLink'
+import { HotspotLink } from './HotspotLink'
+import { useHotspotSet } from '../lib/useHotspotSet'
 
 const PAGE = 10
 
@@ -143,7 +145,7 @@ function useDebouncedCount(count: number): string {
 // ── Comment search box (sections 1 + 2) ──────────────────────────────────────
 
 function CommentSearchBox<T extends ChecklistCommentEntry>({
-  icon, title, sub, placeholder, entries, emptyAll, emptyFiltered, renderLead,
+  icon, title, sub, placeholder, entries, emptyAll, emptyFiltered, renderLead, isHotspot,
 }: {
   icon: React.ReactNode
   title: string
@@ -153,6 +155,7 @@ function CommentSearchBox<T extends ChecklistCommentEntry>({
   emptyAll: string
   emptyFiltered: string
   renderLead?: (entry: T) => React.ReactNode
+  isHotspot: (locId: string | null | undefined) => boolean
 }) {
   const [filter, setFilter] = useState('')
   const [sort, setSort] = useState<CommentSort>('newest')
@@ -216,7 +219,7 @@ function CommentSearchBox<T extends ChecklistCommentEntry>({
                 {e.location && (
                   <>
                     <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }}>·</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.location}</span>
+                    <HotspotLink locId={e.locationId} name={e.location} isHotspot={isHotspot(e.locationId)} truncate style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', minWidth: 0 }} />
                   </>
                 )}
               </div>
@@ -309,11 +312,12 @@ function Badge({ title, children }: { title: string; children: React.ReactNode }
   )
 }
 
-function ChecklistRow({ row, showBlocks, mlLoaded, isLast }: {
+function ChecklistRow({ row, showBlocks, mlLoaded, isLast, isHotspot }: {
   row: ChecklistRowData
   showBlocks: boolean
   mlLoaded: boolean
   isLast: boolean
+  isHotspot: (locId: string | null | undefined) => boolean
 }) {
   const c = row.checklist
   const comment = displayComment(row, showBlocks)
@@ -334,7 +338,7 @@ function ChecklistRow({ row, showBlocks, mlLoaded, isLast }: {
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 7, flexWrap: 'wrap', minWidth: 0 }}>
         <DateLink submissionId={c.submissionId} date={c.date} />
         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)' }}>·</span>
-        <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.location}</span>
+        <HotspotLink locId={c.locationId} name={c.location} isHotspot={isHotspot(c.locationId)} truncate style={{ fontSize: '0.8125rem', fontWeight: 500, minWidth: 0 }} />
         <span style={{ display: 'inline-flex', gap: 4, alignSelf: 'center' }}>
           {row.hasSpeciesComments && <Badge title="Has species comments"><MessageSquare size={11} strokeWidth={2.2} /></Badge>}
           {mlLoaded ? (
@@ -399,6 +403,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [showBlocks, setShowBlocks] = useState(false)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
+  const { isHotspot } = useHotspotSet()
 
   // Section 3 state
   const [listSort, setListSort] = useState<CommentSort>('newest')
@@ -579,6 +584,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
           entries={checklistComments}
           emptyAll="No checklist comments found."
           emptyFiltered="No checklist comments match this filter."
+          isHotspot={isHotspot}
         />
 
         {/* Section 2 — species comments, all species */}
@@ -590,6 +596,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
           entries={speciesComments}
           emptyAll="No species comments found."
           emptyFiltered="No species comments match this filter."
+          isHotspot={isHotspot}
           renderLead={(e: SpeciesCommentEntry) => (
             <span style={{ marginRight: 3 }}>
               <BirdName
@@ -746,6 +753,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
                   showBlocks={showBlocks}
                   mlLoaded={mlLoaded}
                   isLast={idx === visibleRows.length - 1}
+                  isHotspot={isHotspot}
                 />
               ))}
               {sortedRows.length > PAGE && (

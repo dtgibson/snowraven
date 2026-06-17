@@ -29,6 +29,22 @@ export async function getHotspots(lat: number, lng: number, dist: number): Promi
   return res.json() as Promise<Hotspot[]>;
 }
 
+/** All PUBLIC hotspot locIds in an eBird region (e.g. "US-CA"). Mirrors backend
+ *  /map/hotspot-region (dual-transport parity — keep both in lockstep). */
+export async function getHotspotRegion(regionCode: string): Promise<string[]> {
+  const headers = await ebirdHeaders();
+  const url = `${EBIRD_BASE}/ref/hotspot/${encodeURIComponent(regionCode)}?fmt=json`;
+  const res = await tauriFetch(url, { headers });
+  if (!res.ok) {
+    throw Object.assign(
+      new Error(`eBird API error: ${res.status}`),
+      { status: 502, detail: `eBird API error: ${res.status}` }
+    );
+  }
+  const data = await res.json() as Array<{ locId?: string }>;
+  return data.map(h => h.locId).filter((id): id is string => !!id);
+}
+
 export interface RecentObs {
   speciesCode: string;
   comName: string;

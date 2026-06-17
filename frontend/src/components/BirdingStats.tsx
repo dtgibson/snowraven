@@ -41,6 +41,8 @@ import { FrivolousListsSections } from './FrivolousListsSections'
 import { AVIAN_AMERICAN, CALIFORNIA_DREAMER, PHOEBE_PHANATIC, SCRUB_JAY_ALL_DAY, CROW_RAVEN, HERON_IS_CARIN, BEST_OF_THE_CREST } from '../lib/frivolousLists'
 import { ChecklistLink } from './ChecklistLink'
 import { OutboundLink } from './OutboundLink'
+import { HotspotLink } from './HotspotLink'
+import { useHotspotSet } from '../lib/useHotspotSet'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -86,6 +88,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const [mlTaxonMap, setMlTaxonMap] = useState<Record<string, string>>({})
   const [mlTaxonOrders, setMlTaxonOrders] = useState<Record<string, number>>({})
   const [geoPopup, setGeoPopup] = useState<{ lng: number; lat: number; title: string; sub: string } | null>(null)
+  const { isHotspot } = useHotspotSet()
   const [mediaInterval, setMediaInterval] = useState<MediaGraphInterval>('monthly')
   const [mediaViewMode, setMediaViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   // Progressive-render gates (perf): `computed` flips on after first paint so the
@@ -444,7 +447,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 }}>
                   <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '0 0 4px' }}>{label}</p>
                   <ChecklistLink submissionId={cl.submissionId} label={fmtDate(cl.date)} style={{ fontSize: '0.9375rem', fontWeight: 700, margin: '0 0 3px' }} />
-                  <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: 0 }}>{cl.location}</p>
+                  <div style={{ fontSize: '0.6875rem' }}>
+                    <HotspotLink locId={cl.locationId} name={cl.location} isHotspot={isHotspot(cl.locationId)} style={{ color: 'var(--sr-text-muted)' }} />
+                  </div>
                 </div>
               ))}
               {accumulation.firstSpecies && (
@@ -841,7 +846,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               {geo.topLocations.map((loc, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', flexWrap: 'wrap', rowGap: 2 }}>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ fontSize: '0.8125rem', flex: '1 1 140px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.name}</span>
+                  <HotspotLink locId={loc.locationId} name={loc.name} isHotspot={isHotspot(loc.locationId)} truncate style={{ fontSize: '0.8125rem', flex: '1 1 140px' }} />
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, marginLeft: 'auto' }}>{fmt(loc.checklists)} lists · {fmt(loc.species)} sp.</span>
                 </div>
               ))}
@@ -856,7 +861,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               {geo.topLocationsBySpecies.map((loc, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', flexWrap: 'wrap', rowGap: 2 }}>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', width: 16, textAlign: 'right', flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ fontSize: '0.8125rem', flex: '1 1 140px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{loc.name}</span>
+                  <HotspotLink locId={loc.locationId} name={loc.name} isHotspot={isHotspot(loc.locationId)} truncate style={{ fontSize: '0.8125rem', flex: '1 1 140px' }} />
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, marginLeft: 'auto' }}>{fmt(loc.species)} sp. · {fmt(loc.checklists)} lists</span>
                 </div>
               ))}
@@ -1269,7 +1274,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 <div key={card.label} style={{ background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, padding: '10px 12px' }}>
                   <div style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)' }}>{card.label}</div>
                   <div style={{ fontSize: '1.25rem', fontWeight: 700, lineHeight: 1.1, margin: '2px 0 4px' }}>{card.metric}</div>
-                  <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.c.location}</div>
+                  <div style={{ fontSize: '0.6875rem', display: 'flex' }}>
+                    <HotspotLink locId={card.c.locationId} name={card.c.location} isHotspot={isHotspot(card.c.locationId)} truncate style={{ flex: 1 }} />
+                  </div>
                   <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span>{fmtDate(card.c.date)}</span>
                     <ChecklistLink submissionId={card.c.submissionId} compact />
@@ -1459,8 +1466,10 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>
                         {entry.date ? fmtDate(entry.date) : '—'}
                       </td>
-                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {entry.location || '—'}
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)', maxWidth: 180 }}>
+                        {entry.location
+                          ? <HotspotLink locId={entry.locationId} name={entry.location} isHotspot={isHotspot(entry.locationId)} truncate style={{ color: 'var(--sr-text-muted)', maxWidth: '100%', justifyContent: 'flex-end' }} />
+                          : '—'}
                       </td>
                     </tr>
                   ))}

@@ -11,6 +11,8 @@ import type { CSSProperties } from 'react'
 import { Check } from 'lucide-react'
 import { BirdName } from './BirdName'
 import { ChecklistLink } from './ChecklistLink'
+import { HotspotLink } from './HotspotLink'
+import { useHotspotSet } from '../lib/useHotspotSet'
 import { SubLabel, Divider } from './statsPrimitives'
 import { formatDate } from '../lib/formatDate'
 import { computeFrivolousLists } from '../lib/frivolousLists'
@@ -117,8 +119,9 @@ function GroupedNameList({ title, list, codeFor, hasEntryFor, onOpenSpecies }: {
   )
 }
 
-function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies }: {
+function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies, isHotspot }: {
   rows: RainbowEntry[]; complete: boolean
+  isHotspot: (locId: string | null | undefined) => boolean
 } & Pick<Props, 'codeFor' | 'hasEntryFor' | 'onOpenSpecies'>) {
   const filled = rows.reduce((acc, r) => acc + (r.bird ? 1 : 0), 0)
   return (
@@ -157,7 +160,7 @@ function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies }: {
                     the card edge. The date link keeps its intrinsic width. */}
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexShrink: 1 }}>
                   <ChecklistLink submissionId={bird.submissionId} label={formatDate(bird.date)} />
-                  <span style={LOC} title={bird.location}>{bird.location}</span>
+                  <HotspotLink locId={bird.locationId} name={bird.location} isHotspot={isHotspot(bird.locationId)} truncate title={bird.location} style={LOC} />
                 </span>
               </>
             ) : (
@@ -174,6 +177,7 @@ function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies }: {
 
 export function FrivolousListsSections({ observations, codeFor, hasEntryFor, onOpenSpecies }: Props) {
   const data = useMemo(() => computeFrivolousLists(observations), [observations])
+  const { isHotspot } = useHotspotSet()
   return (
     <>
       <NameList title="Avian American" list={data.avianAmerican} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
@@ -190,7 +194,7 @@ export function FrivolousListsSections({ observations, codeFor, hasEntryFor, onO
       <Divider />
       <GroupedNameList title="Best of the Crest" list={data.bestOfTheCrest} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
       <Divider />
-      <RainbowList rows={data.rainbowWarrior.rows} complete={data.rainbowWarrior.complete} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+      <RainbowList rows={data.rainbowWarrior.rows} complete={data.rainbowWarrior.complete} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} isHotspot={isHotspot} />
     </>
   )
 }

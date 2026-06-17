@@ -21,6 +21,8 @@ import { BirdName } from './BirdName'
 import { computeNamedBirds } from '../lib/namedBirds'
 import { NamedBirdsTable } from './NamedBirdsTable'
 import { ChecklistLink } from './ChecklistLink'
+import { HotspotLink } from './HotspotLink'
+import { useHotspotSet } from '../lib/useHotspotSet'
 import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
 import { transport } from '../lib/transport'
@@ -32,7 +34,7 @@ import { SnowMap } from './SnowMap'
 import { SightingsMap } from './SightingsMap'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { extractUserId, mlCatalogLink } from '../lib/mlCatalog'
-import { SectionCard, SectionHead, StatLabel, StatValueLink, LOCATION_ID_RE } from './speciesDetail/ui'
+import { SectionCard, SectionHead, StatLabel, StatValueLink } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
@@ -73,6 +75,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   const [graphInterval, setGraphInterval] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
   const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   const [showAllCoOccurrence, setShowAllCoOccurrence] = useState(false)
+
+  // Public-hotspot membership for location names (Top Locations, Comments). Loads the
+  // backup itself via the shared cache, so it's safe to call before the phase guard.
+  const { isHotspot } = useHotspotSet()
 
   const selectorRef = useRef<HTMLDivElement>(null)
   const dropdownListRef = useRef<HTMLDivElement>(null)
@@ -1148,23 +1154,16 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', minWidth: 22, flexShrink: 0, textAlign: 'right' }}>
                           {idx + 1}.
                         </span>
-                        <span className="sr-truncate" style={{ fontSize: '0.8125rem', color: 'var(--sr-text)', flex: 1 }}>{location}</span>
+                        <HotspotLink
+                          locId={locationId}
+                          name={location}
+                          isHotspot={isHotspot(locationId)}
+                          truncate
+                          style={{ fontSize: '0.8125rem', flex: 1 }}
+                        />
                         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                           {count} {count === 1 ? 'sighting' : 'sightings'}
                         </span>
-                        {LOCATION_ID_RE.test(locationId) && (
-                          <a
-                            href={`https://ebird.org/hotspot/${locationId}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            aria-label={`Open ${location} on eBird (opens in a new tab)`}
-                            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: 6, flexShrink: 0, color: 'var(--sr-text-muted)' }}
-                            onMouseEnter={e => (e.currentTarget.style.color = 'var(--sr-accent)')}
-                            onMouseLeave={e => (e.currentTarget.style.color = 'var(--sr-text-muted)')}
-                          >
-                            <ExternalLink size={12} strokeWidth={2} aria-hidden="true" />
-                          </a>
-                        )}
                       </div>
                     )
                   })}
@@ -1359,7 +1358,13 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         style={{ fontSize: '0.75rem', fontWeight: 600 }}
                       />
                       <span style={{ fontSize: '0.75rem', color: 'var(--sr-gray-300)' }}>·</span>
-                      <span className="sr-wrap-anywhere" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{o.location}</span>
+                      <HotspotLink
+                        locId={o.locationId}
+                        name={o.location}
+                        isHotspot={isHotspot(o.locationId)}
+                        className="sr-wrap-anywhere"
+                        style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}
+                      />
                     </div>
                     <div style={{ fontSize: '0.84375rem', color: 'var(--sr-text)', lineHeight: 1.55 }}>
                       {o.speciesComments}

@@ -14,9 +14,10 @@ import { formatDate } from '../lib/formatDate'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { SightingsMap } from './SightingsMap'
 import { ChecklistLink } from './ChecklistLink'
+import { HotspotLink } from './HotspotLink'
 import type { NamedBird } from '../lib/namedBirds'
 
-export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies }: {
+export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies, isHotspot }: {
   bird: NamedBird
   open: boolean
   onToggle: () => void
@@ -24,6 +25,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
   /** Render the per-individual map when expanded (Named Birds tab only). */
   showMap: boolean
   renderSpecies?: (commonName: string, scientificName: string) => React.ReactNode
+  isHotspot: (locId: string | null | undefined) => boolean
 }) {
   // Per-coordinate markers for this bird, skipping null-coord sightings (FR-22).
   // Empty → no map rendered (FR-23). Cheap, but memoized so the array identity is
@@ -79,15 +81,14 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
                 <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0, padding: '0 7px' }} aria-hidden>·</span>
                 {s.location && (
                   <>
-                    <span
+                    <HotspotLink
+                      locId={s.locationId}
+                      name={s.location}
+                      isHotspot={isHotspot(s.locationId)}
+                      truncate
                       title={s.location}
-                      style={{
-                        fontSize: '0.75rem', color: 'var(--sr-text-muted)',
-                        minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {s.location}
-                    </span>
+                      style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', minWidth: 0 }}
+                    />
                     <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0, padding: '0 7px' }} aria-hidden>·</span>
                   </>
                 )}

@@ -41,6 +41,23 @@ describe('short-TTL network cache (transport seam)', () => {
     expect(b).toEqual(a);
   });
 
+  it('a repeated /map/hotspot-region GET with the same regionCode hits fetch only once', async () => {
+    vi.stubGlobal('fetch', okFetch(['L99']));
+    const { transport } = await import('./transport');
+    const a = await transport.get('/map/hotspot-region', { regionCode: 'US-CA' });
+    const b = await transport.get('/map/hotspot-region', { regionCode: 'US-CA' });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1); // pins the CACHED_GET_PATHS membership
+    expect(b).toEqual(a);
+  });
+
+  it('a different regionCode misses the cache', async () => {
+    vi.stubGlobal('fetch', okFetch([]));
+    const { transport } = await import('./transport');
+    await transport.get('/map/hotspot-region', { regionCode: 'US-CA' });
+    await transport.get('/map/hotspot-region', { regionCode: 'US-MN' });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+
   it('different params miss the cache', async () => {
     vi.stubGlobal('fetch', okFetch([]));
     const { transport } = await import('./transport');

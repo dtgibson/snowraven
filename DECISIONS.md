@@ -4,6 +4,29 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Public-hotspot links: classify a location by region-scoped Set membership, not by id format — 2026-06-16 (v0.5.40)
+
+**What:** A location NAME now links to its `ebird.org/hotspot/{locId}` page when — and only when — the location is a PUBLIC eBird hotspot, app-wide (Species Detail top-locations + comments, Statistics geo/notable-outings/biggest-counts/first-recent cards, Checklists list + comment search, Named Birds reports, Frivolous Rainbow first-sightings). Personal locations stay plain text. New shared `components/HotspotLink.tsx` + `lib/hotspotSet.ts` + the parameterless `useHotspotSet()` hook + a new backend route `GET /map/hotspot-region` (and its Tauri-service twin).
+
+**Decisions worth keeping:**
+
+- **Public-vs-personal can't be read from the CSV — classify by membership in a region-scoped Set.** The eBird export uses the same `L\d+` id for hotspots and personal locations, so id format alone can't distinguish them (the misnomer that caused the bug below). The Set is built from eBird's `ref/hotspot/{regionCode}`: ONE cached fetch per distinct `stateProvince` region in the backup (typically 1–3), unioned → O(1) membership tested on every location surface — NOT one `ref/hotspot/info/{locId}` call per location. This is the efficient design the original `location-links-broken` bug explicitly punted on as out-of-scope.
+- **This is the proper resolution of `location-links-broken` (2026-05-20), which had only REMOVED the links.** That fix rendered all Top-Locations names as plain text (deferring "a backend call to verify hotspot-ness"). `/hotspot/` links were later reintroduced gated on id-format ALONE — silently re-creating the 404-on-personal-location bug (latent). `HotspotLink` adds the Set-membership gate AND keeps the `LOCATION_ID_RE` shape guard, so a junk/personal id always renders plain — never a styled 404 link.
+- **`HotspotLink` wraps `OutboundLink` and reuses the shared eBird-link name formula** (`Open {name} on eBird (opens in a new tab)`), with `compact` (icon-only, map popups) and `truncate` (ellipsis + trailing icon) modes. The linked state is FORCED `var(--sr-accent)` so a caller's plain-text color (e.g. a muted comment location) can't bleed onto a link. The truncate plain-branch mirrors the link branch's `inline-flex` + inner `sr-truncate` span so a personal name and a hotspot name baseline-align in a mixed row.
+- **The hook is parameterless and shares ONE build.** `useHotspotSet()` loads the backup itself via `observationsCache` (no extra read/parse) and builds through the region-keyed `getHotspotSet` module cache, so N tabs calling it trigger one fetch set. Where a list renders many rows (Checklists, Named Birds), call the hook ONCE in the parent and pass `isHotspot` down — never per-row.
+- **Graceful degradation is the whole no-data story:** no eBird key, or any region fetch failing, contributes an empty Set → those locations read as personal (plain text), never a speculative link. MapExplorer keeps its OWN kind knowledge (`pin.kind`) rather than the Set — its hotspots come straight from `ref/hotspot/geo`, so it's authoritative there; its name stays a map-pan button with the `↗` as the eBird affordance.
+
+**Adversarial review caught two HIGH staleness bugs — fixed with a module-level invalidation signal (not per-tab version props):**
+
+- **A Set built empty (no key yet, or a transient eBird outage) was cached for the whole session** — keyed on the region list, which doesn't change when the user later adds their key, so links never appeared until a full reload. **And** a backup swap to a NEW region never reloaded the Set on persistent tabs (the hook's effect was mount-only; tabs stay mounted via additive `mountedTabs` + `display:none`).
+- **Fix:** `hotspotSet.ts` exposes `invalidateHotspotSet()` (drops the cache + bumps an epoch + notifies subscribers); `useHotspotSet` subscribes via `useSyncExternalStore`, so every mounted tab reloads on invalidation with NO per-tab version threading (rejected — the 5 consumers have heterogeneous access to `filesVersion`/`keysVersion`, and BirdingStats isn't even passed `filesVersion`). Settings fires `invalidateHotspotSet()` at the same four points it already clears the other caches: eBird file save/delete AND key save/delete. Locked by `hotspotSet.test.ts` (refetch-for-same-regions-after-invalidate) and a jsdom `useHotspotSet.test.tsx` (reload-on-invalidate).
+
+**Known minor (deferred, recorded):** `computeLocationsSorted` (`speciesStats.ts`, pre-existing since v0.5.12) groups by location NAME and keeps the first-seen `locId`; a name shared by a hotspot and a personal location can mislabel one Species-Detail row. The feature newly makes that row link-bearing, but it is Set-gated (worst case a missing or mildly-miscounted link, never a 404). `birdingStats.computeGeo` correctly keys by `locId`; aligning `speciesStats` is the clean fix when next touched.
+
+**Implications:** New location-name surfaces render through `HotspotLink` + `useHotspotSet()` — never a hand-rolled `<a href={ebird.org/hotspot/…}>` gated on id-format alone. Any cache keyed on backup-derived data that a key/file change can stale needs an invalidation path (the `invalidateHotspotSet` pattern). The backend route and `lib/tauri/mapService.ts` `getHotspotRegion` are dual-transport parity. Promoted to CLAUDE.md.
+
+---
+
 ## Frivolous Lists expansion: grouped (sub-category) lists + verify hardcoded names against the live taxonomy — 2026-06-16 (v0.5.39)
 
 **What:** Five new self-completing collections on the Statistics Frivolous Lists card — three flat (Phoebe Phanatic, Scrub Jay All Day, Crow Pro / Raven Maven) and two grouped with labeled sub-categories shown in the card (Heron is Carin', Best of the Crest). Frontend-only; no new providers; privacy unchanged. Extends the v0.5.36 Frivolous Lists.

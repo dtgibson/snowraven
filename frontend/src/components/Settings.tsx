@@ -14,6 +14,7 @@ import type { LocationError } from '../lib/location'
 import { clearEbirdObservationsCache } from '../lib/observationsCache'
 import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
+import { invalidateHotspotSet } from '../lib/hotspotSet'
 import { OutboundLink } from './OutboundLink'
 
 type ConsentState = 'idle' | 'pending'
@@ -1061,7 +1062,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
     try {
       const content = await file.text()
       await storage.writeFile(slot, content, file.name)
-      if (slot === 'ebird') clearEbirdObservationsCache()
+      if (slot === 'ebird') { clearEbirdObservationsCache(); invalidateHotspotSet() }
       if (slot === 'ml') clearMLExportCache()
       const updatedStatus = await storage.getFilesStatus()
       setStatus(updatedStatus)
@@ -1078,7 +1079,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
     setError(null)
     try {
       await storage.deleteFile(slot)
-      if (slot === 'ebird') clearEbirdObservationsCache()
+      if (slot === 'ebird') { clearEbirdObservationsCache(); invalidateHotspotSet() }
       if (slot === 'ml') clearMLExportCache()
       setStatus(prev => ({ ...prev, [slot]: null }))
     } catch {
@@ -1099,8 +1100,9 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
       await storage.setApiKey(slot, input.trim())
       // A new eBird key must invalidate live eBird responses cached under the
       // old one (hotspots / recent-obs / nemesis / region-info), or they'd
-      // linger up to the 90s TTL.
-      if (slot === 'ebird') clearNetworkCache()
+      // linger up to the 90s TTL. It also rebuilds the public-hotspot Set — a Set
+      // built empty before the key was set would otherwise stay empty all session.
+      if (slot === 'ebird') { clearNetworkCache(); invalidateHotspotSet() }
       setKeys(prev => ({ ...prev, [slot]: input.trim() }))
       setEditing(false)
       setInput('')
@@ -1118,7 +1120,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
     setError(null)
     try {
       await storage.deleteApiKey(slot)
-      if (slot === 'ebird') clearNetworkCache()
+      if (slot === 'ebird') { clearNetworkCache(); invalidateHotspotSet() }
       setKeys(prev => ({ ...prev, [slot]: null }))
       setVisible(false)
       onKeysSaved?.()
