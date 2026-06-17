@@ -33,6 +33,11 @@ export default defineConfig({
     },
   },
   build: {
+    // After the maplibre defer (0.5.42), the only chunk over the default 500 kB
+    // limit is vendor-maplibre (~1 MB) — now off the first-paint path and loaded
+    // only by the lazy map surfaces. Raise the limit so the build stops warning
+    // about a chunk that is intentionally isolated and no longer eagerly loaded.
+    chunkSizeWarningLimit: 1100,
     rollupOptions: {
       output: {
         manualChunks(id) {

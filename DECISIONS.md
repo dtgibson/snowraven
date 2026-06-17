@@ -4,6 +4,21 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Initial-load optimization + Checklists tab-order tweak + dev-audit clarity — 2026-06-17 (v0.5.42)
+
+**What:** A bundled Improve run with three independent threads. (1) The default tab order moved Checklists to sit between Breeding Codes and List Comparer (`DEFAULT_TAB_ORDER`, `frontend/src/lib/tabLayout.ts`). (2) The maplibre map library (~273 KB gzip) was taken off the app's first-paint path: `NamedBirdRow`'s static import of the per-row `SightingsMap` was the sole eager edge dragging maplibre into the entry chunk, and is now `React.lazy` + `<Suspense>`; the List Comparer and Checklists tabs are also `React.lazy` now; all are warmed via App's existing `requestIdleCallback` warmer; `vite` `chunkSizeWarningLimit` was raised to 1100. (3) `npm audit fix` cleared two dev-only advisories and the Pi `update.sh`/README now explain the install-time audit scope.
+
+**Decisions worth keeping:**
+
+- **maplibre must stay off the entry chunk.** Even with the map *tabs* lazy, one statically-imported component (`NamedBirdRow` → `SightingsMap` → `react-map-gl/maplibre`) silently pulled the full ~1 MB / 273 KB-gz maplibre bundle onto first paint — a latent regression. Rule going forward: no component reachable from App's static import graph may statically import `SightingsMap` / `SnowMap` / `react-map-gl/maplibre`; the per-row map and the map tabs stay lazy, warmed at idle. Verified against the built `index.html` modulepreload (maplibre absent) and the entry chunk (no bare `import "./vendor-maplibre"`). Entry chunk fell 331→218 KB (84.5→54 KB gz). Promoted to CLAUDE.md.
+- **The idle warmer keeps lazy invisible.** App defines a local `importSightingsMap = () => import('./components/SightingsMap')` and warms it (plus the lazy tabs) via `requestIdleCallback`, so a returning user opening a Named Birds row pays no perceptible delay. `NamedBirdRow` stays component-only (no exported thunk) to satisfy `react-refresh/only-export-components`; the warmer and the lazy load resolve to the same chunk.
+- **The Pi "npm vulnerabilities" notice is a reporting artifact, not exposure.** `npm ci` audits the full dev+prod tree and prints e.g. "2 vulnerabilities (1 low, 1 high)"; the advisories (vite dev-server, `@babel/core` via an eslint plugin) are dev-only and never ship. `npm audit fix` cleared them within existing ranges (production dependency tree byte-unchanged); `README.md` + `update.sh` document the scope so the notice isn't alarming. A production-scoped `npm audit --omit=dev` reports zero.
+- **Defaults-only tab change.** Same posture as v0.5.41 — `parseLayout` preserves saved custom layouts; only the first-run/reset order changed. Amends the v0.5.41 default-tab-order decision (Checklists position).
+
+**Implications:** Any new map surface must keep maplibre lazy from the entry (see the CLAUDE.md rule). Initial-load wins are primarily a web/self-hosted benefit (on Tauri desktop, modulepreload is local disk). The dependency lockfile now sits at the audit-clean versions.
+
+---
+
 ## Default tab order, List Comparer default mode, and Map Explorer mode order updated — 2026-06-17 (v0.5.41)
 
 **What:** The out-of-the-box ordering defaults were updated to match how the app is used day to day. New default tab order: Weather, Statistics, Species Detail, Map Explorer, Checklists, Multimedia, Breeding Codes, List Comparer, Named Birds — with Settings pinned last (`DEFAULT_TAB_ORDER` in `frontend/src/lib/tabLayout.ts`). The List Comparer opens on checklist comparison by default, with Checklists on the left of its mode selector (`frontend/src/components/ListComparer.tsx`). The Map Explorer mode buttons render Nearby Lifers before Media Targets (`frontend/src/lib/mapViewModes.ts` + `MapExplorer.tsx`).

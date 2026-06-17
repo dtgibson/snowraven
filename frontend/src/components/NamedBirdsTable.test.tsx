@@ -90,13 +90,15 @@ describe('NamedBirdsTable', () => {
     expect(screen.queryByRole('link', { name: /N\/A/ })).toBeNull()
   })
 
-  it('mounts the per-individual map (one SnowMap) only when expanded and only on the single-open tab', () => {
+  it('mounts the per-individual map (one SnowMap) only when expanded and only on the single-open tab', async () => {
     render(<NamedBirdsTable birds={birds} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
     // Collapsed: no map.
     expect(screen.queryByTestId('snowmap-stub')).toBeNull()
     fireEvent.click(screen.getByText('Pete').closest('button')!)
-    // Pete has a coordinate-bearing sighting → exactly one map mounts.
-    expect(screen.getAllByTestId('snowmap-stub')).toHaveLength(1)
+    // Pete has a coordinate-bearing sighting → exactly one map mounts. SightingsMap
+    // is lazy-loaded (0.5.42 maplibre defer), so the stub appears once its chunk
+    // resolves — findAllByTestId awaits that.
+    expect(await screen.findAllByTestId('snowmap-stub')).toHaveLength(1)
     expect(screen.getByText(/Where Pete has been seen/i)).toBeTruthy()
   })
 
@@ -106,7 +108,7 @@ describe('NamedBirdsTable', () => {
     expect(screen.queryByTestId('snowmap-stub')).toBeNull()
   })
 
-  it('single-open accordion: opening a second card collapses the first', () => {
+  it('single-open accordion: opening a second card collapses the first', async () => {
     render(<NamedBirdsTable birds={birds} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
     fireEvent.click(screen.getByText('Pete').closest('button')!)
     expect(screen.getByText('[name:Pete] still here')).toBeTruthy()
@@ -114,7 +116,8 @@ describe('NamedBirdsTable', () => {
     fireEvent.click(screen.getByText('Honk').closest('button')!)
     expect(screen.queryByText('[name:Pete] still here')).toBeNull()
     expect(screen.getByText('[name:Honk]')).toBeTruthy()
-    expect(screen.getAllByTestId('snowmap-stub')).toHaveLength(1)
+    // Lazy SightingsMap (0.5.42) → await the surviving single map stub.
+    expect(await screen.findAllByTestId('snowmap-stub')).toHaveLength(1)
   })
 
   it('multi-open accordion (no singleOpen): a second card opens without closing the first', () => {

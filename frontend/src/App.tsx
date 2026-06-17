@@ -15,11 +15,9 @@ import { applyTheme, hydrateStoredTheme } from './lib/theme'
 import { setDateFormatPref, asDateFormatPref } from './lib/formatDate'
 import type { DateFormatPref } from './lib/formatDate'
 import { formatObsDate } from './lib/compareChecklists'
-import { ListComparer } from './components/ListComparer'
 import { LifeList } from './components/LifeList'
 import { BreedingCodeList } from './components/BreedingCodeList'
 import { NamedBirds } from './components/NamedBirds'
-import { Checklists } from './components/Checklists'
 import { Settings } from './components/Settings'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
@@ -34,10 +32,20 @@ const importMapExplorer = () => import('./components/MapExplorer')
 const importSpeciesDetail = () => import('./components/SpeciesDetail')
 const importBirdingStats = () => import('./components/BirdingStats')
 const importHelpDocs = () => import('./components/HelpDocs')
+// List Comparer and Checklists are also lazy: they don't pull maplibre/recharts,
+// so this only trims their own code out of the entry chunk (smaller first paint).
+const importListComparer = () => import('./components/ListComparer')
+const importChecklists = () => import('./components/Checklists')
+// The per-row Named Birds map chunk (maplibre). The component is lazy-rendered
+// inside NamedBirdRow; this is just the idle prefetch (same module → same chunk),
+// so opening a row stays instant for returning users.
+const importSightingsMap = () => import('./components/SightingsMap')
 const MapExplorer = lazy(() => importMapExplorer().then(m => ({ default: m.MapExplorer })))
 const SpeciesDetail = lazy(() => importSpeciesDetail().then(m => ({ default: m.SpeciesDetail })))
 const BirdingStats = lazy(() => importBirdingStats().then(m => ({ default: m.BirdingStats })))
 const HelpDocs = lazy(() => importHelpDocs().then(m => ({ default: m.HelpDocs })))
+const ListComparer = lazy(() => importListComparer().then(m => ({ default: m.ListComparer })))
+const Checklists = lazy(() => importChecklists().then(m => ({ default: m.Checklists })))
 import {
   type ConfigurableTab,
   type Tab,
@@ -382,6 +390,10 @@ export default function App() {
       void importSpeciesDetail().catch(() => {})
       void importBirdingStats().catch(() => {})
       void importHelpDocs().catch(() => {})
+      void importListComparer().catch(() => {})
+      void importChecklists().catch(() => {})
+      // The per-row Named Birds map (maplibre) — warmed so opening a row is instant.
+      void importSightingsMap().catch(() => {})
     }
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback
     const cic = (window as unknown as { cancelIdleCallback?: (h: number) => void }).cancelIdleCallback
@@ -999,11 +1011,13 @@ export default function App() {
         }}
       >
         {mountedTabs.has('comparer') && (
-          <ListComparer
-            onOpenSpecies={navigateToSpeciesDetail}
-            keyStatus={keyStatus}
-            onGoToSettings={() => setActiveTab('settings')}
-          />
+          <Suspense fallback={<TabLoading label="Loading list comparer…" />}>
+            <ListComparer
+              onOpenSpecies={navigateToSpeciesDetail}
+              keyStatus={keyStatus}
+              onGoToSettings={() => setActiveTab('settings')}
+            />
+          </Suspense>
         )}
       </div>
 
@@ -1081,7 +1095,9 @@ export default function App() {
         }}
       >
         {mountedTabs.has('checklists') && (
-          <Checklists onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+          <Suspense fallback={<TabLoading label="Loading checklists…" />}>
+            <Checklists onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+          </Suspense>
         )}
       </div>
 

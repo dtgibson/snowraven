@@ -30,9 +30,9 @@ describe('DEFAULT_TAB_ORDER', () => {
       'birding-stats',
       'species-detail',
       'map-explorer',
-      'checklists',
       'life-list',
       'breeding-codes',
+      'checklists',
       'comparer',
       'named-birds',
     ])

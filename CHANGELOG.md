@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.42] - 2026-06-17
+
+### Changed
+- **Checklists now sits between Breeding Codes and List Comparer in the default tab order.** New installs and reset tab layouts get the updated order; existing custom tab layouts stay as they are.
+- **Lighter initial load.** The map library behind the in-app maps is no longer downloaded until you actually open a map, so the app starts faster — most noticeably in the browser / self-hosted version. The maps themselves are unchanged; they just load on demand. (The List Comparer and Checklists tabs also load on demand now.)
+- **Clearer self-hosted security notice and refreshed build tooling.** Updating on a Raspberry Pi or Linux box could print an `npm` "N vulnerabilities" summary that looked alarming; those advisories were always in build-only tooling that never ships in the app. The dependency lockfile has been refreshed so a fresh install reports zero, and the README and `update.sh` now explain the scope.
+
 ## [0.5.41] - 2026-06-16
 
 ### Changed

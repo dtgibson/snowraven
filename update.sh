@@ -7,6 +7,9 @@ echo "→ Pulling latest changes..."
 git pull
 
 echo "→ Rebuilding frontend..."
+# Note: `npm ci` audits the full dependency tree and may print an "N vulnerabilities"
+# summary. Those advisories are in dev/build tooling only (never shipped in the built
+# app); a production-scoped `npm audit --omit=dev` reports zero. Not a runtime concern.
 (cd frontend && npm ci && npm run build)
 
 echo "→ Updating backend dependencies..."

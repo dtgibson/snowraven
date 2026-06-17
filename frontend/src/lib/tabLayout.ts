@@ -14,9 +14,9 @@ export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'birding-stats',
   'species-detail',
   'map-explorer',
-  'checklists',
   'life-list',
   'breeding-codes',
+  'checklists',
   'comparer',
   'named-birds',
 ]

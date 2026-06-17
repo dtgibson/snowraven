@@ -60,6 +60,8 @@ It handles everything — system packages, Node.js, the build, the Python enviro
 
 **Updating:** desktop apps update from **Check For Updates** in the footer; self-hosted installs run `./update.sh`.
 
+> **About the `npm` security notice during a Pi/Linux update.** When `./update.sh` reinstalls the frontend with `npm ci`, npm audits the full dependency tree and may print a summary like "N vulnerabilities (… moderate, … high)." Those advisories are in build-only tooling (the dev server, a lint plugin) that is never part of the app that ships — a production-scoped `npm audit --omit=dev` reports zero. The app that ships is unaffected.
+
 ## Build from source
 
 For development or building your own bundle: clone the repo, then `cd frontend && npm install && npm run dev` (with `cd backend && uvicorn main:app --reload --port 1620` for the server), or `npm run desktop:dev` for the Tauri desktop app. Requires Node.js, Python 3.10+, and (for the desktop build) [Rust](https://rustup.rs/).

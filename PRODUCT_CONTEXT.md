@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Initial-load optimization, Checklists tab-order tweak, and a clearer self-host audit notice (complete — June 2026, v0.5.42)
+
+A bundled Improve run. The default tab order now places Checklists between Breeding Codes and List Comparer (`DEFAULT_TAB_ORDER`, `lib/tabLayout.ts`; defaults-only, saved layouts preserved). Initial load is lighter: the maplibre map library (~273 KB gzip) no longer loads on first paint — `NamedBirdRow`'s per-row `SightingsMap` is now `React.lazy` + `Suspense` (it was the sole static edge pulling maplibre into the entry chunk), and the List Comparer and Checklists tabs are lazy too, all warmed via App's `requestIdleCallback` warmer; the entry chunk dropped 331→218 KB (84.5→54 KB gz) and `vite`'s `chunkSizeWarningLimit` was raised to 1100. No behavior change to any map or tab. Separately, `npm audit fix` cleared two dev-only advisories (production dependency tree unchanged) and `README.md`/`update.sh` now explain that the install-time `npm` audit counts dev/build tooling that never ships.
+
 ### Updated default order for tabs, the List Comparer, and the Map Explorer modes (complete — June 2026, v0.5.41)
 
 The out-of-the-box ordering defaults were refreshed to match day-to-day use. Default tab order is now Weather, Statistics, Species Detail, Map Explorer, Checklists, Multimedia, Breeding Codes, List Comparer, Named Birds, with Settings pinned last (`DEFAULT_TAB_ORDER`, `lib/tabLayout.ts`). The List Comparer opens on checklist comparison by default (Checklists on the left of its mode selector, `components/ListComparer.tsx`). The Map Explorer mode buttons show Nearby Lifers before Media Targets (`lib/mapViewModes.ts` + `MapExplorer.tsx`). Defaults/normalization only — persistence is unchanged (the `storage` seam), saved custom layouts are preserved, and `parseLayout` still appends any missing default tab to an existing layout. Frontend-only; no new capability.

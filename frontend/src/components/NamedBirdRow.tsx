@@ -8,14 +8,20 @@
 // the individual has usable coordinates (FR-23); on the single-open Named Birds
 // tab at most one map (one WebGL context) is ever mounted.
 
-import { useMemo } from 'react'
+import { useMemo, lazy, Suspense } from 'react'
 import { ChevronRight, ChevronDown, Map as MapIcon } from 'lucide-react'
 import { formatDate } from '../lib/formatDate'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
-import { SightingsMap } from './SightingsMap'
 import { ChecklistLink } from './ChecklistLink'
 import { HotspotLink } from './HotspotLink'
 import type { NamedBird } from '../lib/namedBirds'
+
+// SightingsMap (and the ~1 MB maplibre-gl it pulls) is lazy-loaded so it stays
+// out of the app's entry chunk and off first paint — this static import was the
+// sole eager path that dragged maplibre into the entry bundle. The per-row map
+// only renders when a row is expanded, and App idle-warms the same chunk so
+// opening a row stays instant. See the 0.5.42 load-optimization change.
+const SightingsMap = lazy(() => import('./SightingsMap').then(m => ({ default: m.SightingsMap })))
 
 export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies, isHotspot }: {
   bird: NamedBird
@@ -125,7 +131,9 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
                 Where {bird.name} has been seen
               </div>
               <div className="sr-named-map" style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
-                <SightingsMap markers={cardMarkers} switcher={false} />
+                <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
+                  <SightingsMap markers={cardMarkers} switcher={false} />
+                </Suspense>
               </div>
             </div>
           )}
