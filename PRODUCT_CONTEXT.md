@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Updated default order for tabs, the List Comparer, and the Map Explorer modes (complete — June 2026, v0.5.41)
+
+The out-of-the-box ordering defaults were refreshed to match day-to-day use. Default tab order is now Weather, Statistics, Species Detail, Map Explorer, Checklists, Multimedia, Breeding Codes, List Comparer, Named Birds, with Settings pinned last (`DEFAULT_TAB_ORDER`, `lib/tabLayout.ts`). The List Comparer opens on checklist comparison by default (Checklists on the left of its mode selector, `components/ListComparer.tsx`). The Map Explorer mode buttons show Nearby Lifers before Media Targets (`lib/mapViewModes.ts` + `MapExplorer.tsx`). Defaults/normalization only — persistence is unchanged (the `storage` seam), saved custom layouts are preserved, and `parseLayout` still appends any missing default tab to an existing layout. Frontend-only; no new capability.
+
 ### Public-hotspot links — a location name links to eBird when (and only when) it is a public hotspot (complete — June 2026, v0.5.40)
 
 A location NAME becomes a link to `ebird.org/hotspot/{locId}` only when the location is a PUBLIC eBird hotspot; personal locations stay plain text. Applied app-wide wherever a location name appears: Species Detail (top locations + comments), Statistics (geo top-locations, notable-outings, biggest-counts, first/most-recent cards), Checklists (the list + both comment-search boxes), Named Birds reports, and Frivolous Rainbow first-sightings. Built on eBird data the app already uses; no new providers; privacy unchanged. Also fixes a latent bug where a few spots linked personal locations to dead (404) eBird hotspot pages (id-format-only gating).

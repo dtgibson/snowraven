@@ -4,6 +4,17 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Default tab order, List Comparer default mode, and Map Explorer mode order updated — 2026-06-17 (v0.5.41)
+
+**What:** The out-of-the-box ordering defaults were updated to match how the app is used day to day. New default tab order: Weather, Statistics, Species Detail, Map Explorer, Checklists, Multimedia, Breeding Codes, List Comparer, Named Birds — with Settings pinned last (`DEFAULT_TAB_ORDER` in `frontend/src/lib/tabLayout.ts`). The List Comparer opens on checklist comparison by default, with Checklists on the left of its mode selector (`frontend/src/components/ListComparer.tsx`). The Map Explorer mode buttons render Nearby Lifers before Media Targets (`frontend/src/lib/mapViewModes.ts` + `MapExplorer.tsx`).
+
+**Decisions worth keeping:**
+
+- **Defaults and normalization only — the tab-layout persistence decision is untouched.** Preferences still flow through the `storage` seam (see the desktop tab-layout post-mortem, 2026-05-28); this changes only the default order, the reset-to-default layout, and how `parseLayout` slots a missing default tab into an existing saved layout. A user's already-saved custom layout is preserved.
+- **No new capability** — this is an Improve-lane reorder, not a feature; nothing a user couldn't already see or do changed.
+
+---
+
 ## Public-hotspot links: classify a location by region-scoped Set membership, not by id format — 2026-06-16 (v0.5.40)
 
 **What:** A location NAME now links to its `ebird.org/hotspot/{locId}` page when — and only when — the location is a PUBLIC eBird hotspot, app-wide (Species Detail top-locations + comments, Statistics geo/notable-outings/biggest-counts/first-recent cards, Checklists list + comment search, Named Birds reports, Frivolous Rainbow first-sightings). Personal locations stay plain text. New shared `components/HotspotLink.tsx` + `lib/hotspotSet.ts` + the parameterless `useHotspotSet()` hook + a new backend route `GET /map/hotspot-region` (and its Tauri-service twin).
