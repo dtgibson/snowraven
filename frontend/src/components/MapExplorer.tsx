@@ -31,6 +31,7 @@ import {
   distanceMiles, recencyTier, tierColors, radiusToZoom,
   MEDIA_ICONS, TEARDROP_HTML, SELECT_STYLE,
 } from '../lib/mapExplorerFormat'
+import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
 import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch } from './map/MapSidebarUI'
 import { MapEffects, BoundsTracker, DetectedLocationPin } from './map/MapControls'
 import { SightingMarkers } from './map/SightingMarkers'
@@ -1626,46 +1627,52 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           narrow phone (or at a large in-app text size) instead of forcing the
           whole panel into horizontal overflow. */}
       <div role="group" aria-label="Map view mode" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--sr-border)', background: 'var(--sr-surface)', flexShrink: 0 }}>
-        {([
-          { mode: 'sightings' as ViewMode, label: 'My Sightings',  icon: <MapPin size={14} strokeWidth={2.5} /> },
-          { mode: 'hotspots' as ViewMode,  label: 'Hotspots',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg> },
-          { mode: 'targets' as ViewMode,   label: 'Media Targets', icon: <Camera size={14} strokeWidth={2.5} /> },
-          { mode: 'lifers' as ViewMode,    label: 'Nearby Lifers', icon: <Binoculars size={14} strokeWidth={2.5} /> },
-        ] as { mode: ViewMode; label: string; icon: React.ReactNode }[]).map(({ mode, label, icon }) => (
-          <button tabIndex={0}
-            key={mode}
-            aria-pressed={viewMode === mode}
-            onClick={() => {
-              setViewMode(mode)
-              if (mode === 'hotspots' || mode === 'targets' || mode === 'lifers') {
-                const latNum = parseFloat(lat)
-                const lngNum = parseFloat(lng)
-                if (!isNaN(latNum) && !isNaN(lngNum)) {
-                  setDefaultCenter({ lat: latNum, lng: lngNum, zoom: radiusToZoom(radius) })
-                  if (mode === 'hotspots' && !hotspotsLoading && hasEbirdKey !== false) {
-                    handleFindHotspots(latNum, lngNum)
-                  } else if (mode === 'targets' && !targetsFetchDisabled && phase.tag === 'ready') {
-                    handleFindSightings(latNum, lngNum)
-                  } else if (mode === 'lifers' && !lifersLoading && hasEbirdKey !== false && phase.tag === 'ready') {
-                    handleFindLifers(latNum, lngNum)
+        {MAP_VIEW_MODE_ORDER.map(({ mode, label }) => {
+          const icon =
+            mode === 'sightings'
+              ? <MapPin size={14} strokeWidth={2.5} />
+              : mode === 'hotspots'
+                ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="8" cy="12" r="4"/><circle cx="16" cy="12" r="4"/></svg>
+                : mode === 'lifers'
+                  ? <Binoculars size={14} strokeWidth={2.5} />
+                  : <Camera size={14} strokeWidth={2.5} />
+
+          return (
+            <button tabIndex={0}
+              key={mode}
+              aria-pressed={viewMode === mode}
+              onClick={() => {
+                setViewMode(mode)
+                if (mode === 'hotspots' || mode === 'targets' || mode === 'lifers') {
+                  const latNum = parseFloat(lat)
+                  const lngNum = parseFloat(lng)
+                  if (!isNaN(latNum) && !isNaN(lngNum)) {
+                    setDefaultCenter({ lat: latNum, lng: lngNum, zoom: radiusToZoom(radius) })
+                    if (mode === 'hotspots' && !hotspotsLoading && hasEbirdKey !== false) {
+                      handleFindHotspots(latNum, lngNum)
+                    } else if (mode === 'targets' && !targetsFetchDisabled && phase.tag === 'ready') {
+                      handleFindSightings(latNum, lngNum)
+                    } else if (mode === 'lifers' && !lifersLoading && hasEbirdKey !== false && phase.tag === 'ready') {
+                      handleFindLifers(latNum, lngNum)
+                    }
                   }
                 }
-              }
-            }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 20,
-              background: viewMode === mode ? 'var(--sr-accent-bg)' : 'var(--sr-surface-subtle)',
-              border: `1.5px solid ${viewMode === mode ? 'var(--sr-accent-border)' : 'transparent'}`,
-              color: viewMode === mode ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-              fontWeight: viewMode === mode ? 600 : 400,
-              fontSize: '0.8125rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
-            }}
-          >
-            {icon}
-            {label}
-          </button>
-        ))}
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 14px', borderRadius: 20,
+                background: viewMode === mode ? 'var(--sr-accent-bg)' : 'var(--sr-surface-subtle)',
+                border: `1.5px solid ${viewMode === mode ? 'var(--sr-accent-border)' : 'transparent'}`,
+                color: viewMode === mode ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+                fontWeight: viewMode === mode ? 600 : 400,
+                fontSize: '0.8125rem', fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >
+              {icon}
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Content: sidebar + map */}

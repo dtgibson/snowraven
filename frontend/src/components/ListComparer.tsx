@@ -30,7 +30,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
   // Whether List A is the user's own stored backup (⇒ those species have Species Detail entries).
   const [resultAIsMine, setResultAIsMine] = useState(false)
   // Two comparison modes: life lists (CSV backups) vs. individual eBird checklists.
-  const [mode, setMode] = useState<'lists' | 'checklists'>('lists')
+  const [mode, setMode] = useState<'lists' | 'checklists'>('checklists')
 
   useEffect(() => {
     storage.getFilesStatus()
@@ -148,7 +148,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
     }}>
       <div style={{ width: '100%', maxWidth: 880, marginBottom: 24, display: 'flex', justifyContent: 'center' }}>
         <div role="group" aria-label="Comparison mode" style={{ display: 'inline-flex', borderRadius: 8, border: '1.5px solid var(--sr-border)', overflow: 'hidden' }}>
-          {([['lists', 'Life Lists'], ['checklists', 'Checklists']] as const).map(([m, label], i) => (
+          {([['checklists', 'Checklists'], ['lists', 'Life Lists']] as const).map(([m, label], i) => (
             <button tabIndex={0} key={m} aria-pressed={mode === m}
               onClick={() => setMode(m)}
               style={{

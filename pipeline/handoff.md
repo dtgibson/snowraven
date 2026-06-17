@@ -1,55 +1,35 @@
-# Handoff — public-hotspot-links RELEASED; v0.5.40 live on both platforms
-
 ## What We Accomplished
 
-Released **v0.5.40**. The `public-hotspot-links` feature was built, verified, and
-Chronicled on the VM (commit `ee107a3`, tag `v0.5.40`, session 41) on top of the live
-0.5.39, then pushed. This Mac session (42) pulled, verified the build locally, confirmed
-Windows CI was green on the right commit, ran `./release.sh`, and verified the release
-live on both platforms.
+Scoped, implemented, QA-verified, and security-reviewed an Improve pass for SnowRaven's default navigation order, on top of the live 0.5.40 release. The app now defaults to Weather, Statistics, Species Detail, Map Explorer, Checklists, Multimedia, Breeding Codes, List Comparer, Named Birds, with Settings pinned last; List Comparer opens on Checklists first; Map Explorer shows Nearby Lifers before Media Targets.
 
-The change makes public-hotspot location names link to their eBird hotspot page
-app-wide (personal locations stay plain text), determined efficiently by a
-region-scoped hotspot-id `Set`, applied across all location-name surfaces — and fixes a
-latent 404 on personal locations along the way. New `HotspotLink` component +
-`hotspotSet`/`useHotspotSet` libs + a backend `/map` hotspot route. The VM run had a
-4-dimension adversarial review; 2 HIGH hotspot-set staleness findings were fixed via
-`invalidateHotspotSet` before ship (frontend 967 / backend 133 green, full CI mirror).
+## What Has Been Saved
 
-## How We Released
-
-1. Pulled `main` to `ee107a3`; confirmed tag `v0.5.40` points at it (HEAD == tag).
-2. Verified locally: both version files at `0.5.40`, `createUpdaterArtifacts: true`,
-   CHANGELOG 0.5.40 entry, website v0.5.40 (both pills), and `tsc -b && vite build`
-   clean (the 0.5.35-trap check on the release machine).
-3. Confirmed Windows CI run `27665462182` green with `headSha == ee107a3 ==` the tag
-   commit `==` `release.sh`'s most-recent-success selection (the tag-re-push guard).
-   Fresh single-push tag — no re-push hazard.
-4. Ran `./release.sh` via `zsh -lc` (login shell — Apple signing creds live only in the
-   login profile; a bare `./release.sh` fails preflight with
-   `APPLE_SIGNING_IDENTITY is not set`).
+- `pipeline/tab-and-map-default-order/change-brief.md`
+- `pipeline/tab-and-map-default-order/pr-description.md`
+- `pipeline/tab-and-map-default-order/how-to-see.md`
+- `frontend/src/lib/tabLayout.ts`
+- `frontend/src/components/ListComparer.tsx`
+- `frontend/src/components/MapExplorer.tsx`
+- `frontend/src/lib/mapViewModes.ts`
+- `frontend/src/lib/tabLayout.test.ts`
+- `frontend/src/components/ListComparer.test.tsx`
+- `frontend/src/lib/mapViewModes.test.ts`
+- `docs/HELP.md`
+- `CHANGELOG.md`
+- `frontend/package.json`
+- `src-tauri/tauri.conf.json`
+- `website/index.html`
+- `pipeline/tab-and-map-default-order/qa-report.md`
+- `pipeline/tab-and-map-default-order/security-report.md`
 
 ## Where We Are
 
-Released and verified live. `main` / `origin/main` / tag `v0.5.40` all at `ee107a3`.
-GitHub release `v0.5.40` is published, marked Latest (not draft/prerelease), target
-`main`, published 2026-06-17T04:54:12Z. All 6 assets return HTTP 200. macOS
-notarization Accepted (Apple submission `826496a0`) + stapled. `latest.json`: version
-0.5.40, `darwin-aarch64` + `darwin-x86_64` → the one universal updater bundle
-`SnowRaven-updater.app.tar.gz` (same sig), `windows-x86_64` →
-`SnowRaven_0.5.40_x64-setup.exe`. Pipeline idle.
-
-## Open / Optional
-
-- Optional: confirm the in-app updater picks up 0.5.40 by opening the app (latest.json
-  is correct, so detection is ready).
-- Known minor deferred: `computeLocationsSorted` (`speciesStats.ts`) groups by location
-  NAME keeping the first-seen `locId` — Set-gated, never a 404; align to `locId` (like
-  `computeGeo`) when next touched.
-- Not part of this release: origin has an unmerged `docs/snoa-3-accuracy-fixes` branch —
-  left untouched.
-- ROADMAP Up Next: mobile app (responsive groundwork done); Windows code signing.
+Stage 4 is complete. The Deployer is preparing the 0.5.41 release path: commit and push main here, push tag `v0.5.41` here to trigger Windows CI, then the Mac runs `zsh -lc './release.sh'`. After the Mac release is verified live, continue here through The Chronicler.
 
 ## Resume Prompt
 
-Run `/weft` to start the next thing. Load `pipeline/session-state.json` first.
+To resume this session: run `$weft` in this project. It reads saved state and picks up exactly here.
+
+---
+
+Resume SnowRaven's `tab-and-map-default-order` Improve run. Load `pipeline/session-state.json`, then continue at Stage 5 — The Deployer. The approved change brief is `pipeline/tab-and-map-default-order/change-brief.md`; implementation, QA, and security artifacts are listed above. Release plan: VM pushes main and tag `v0.5.41`; Mac runs `zsh -lc './release.sh'`; Chronicler runs back here after the release is live.

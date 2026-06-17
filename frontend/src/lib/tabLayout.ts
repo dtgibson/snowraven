@@ -11,14 +11,14 @@ export type ConfigurableTab =
 
 export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'weather',
-  'species-detail',
   'birding-stats',
+  'species-detail',
   'map-explorer',
+  'checklists',
   'life-list',
   'breeding-codes',
-  'named-birds',
-  'checklists',
   'comparer',
+  'named-birds',
 ]
 
 export const TAB_LABELS: Record<ConfigurableTab, string> = {

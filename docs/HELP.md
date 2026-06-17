@@ -216,7 +216,7 @@ These lists are built entirely from your loaded eBird data — nothing new to se
 
 ## Map Explorer
 
-The Map Explorer tab provides three views of your birding locations and nearby activity. An eBird API key is required for all three modes.
+The Map Explorer tab provides four views of your birding locations and nearby activity. An eBird API key is required for Hotspots, Nearby Lifers, and Media Targets.
 
 **Base maps and layers.** A control in the top-right of the map switches the base map between **Map** (a clean, light street map), **Satellite** (aerial imagery), and **Topo (US)** (USGS topographic, United States only), and toggles a **Trails** overlay that draws hiking paths on top of whichever base is active. Your selection is remembered between sessions. The same control appears on the Species Detail and Statistics maps.
 
@@ -240,15 +240,11 @@ A **Hotspots in view** list in the panel mirrors the teardrops currently on scre
 
 Below the legend, the panel lists the ten closest hotspots you have not visited, ranked by distance from your center point. Selecting a row opens that hotspot's details popup on the map and pans to it; a small ↗ link beside each row still opens that hotspot's page on eBird.
 
-**Atlas blocks overlay.** A **California atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid is drawn for the area you are looking at and appears once you zoom in; at very wide views a "Zoom in to see atlas blocks" hint appears instead, so the whole-state view stays uncluttered. Click any block to open a popup with its name, a link to its eBird California atlas page, and -- when shading is on -- your highest breeding code there plus how many of your breeding records fall inside it. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, and Media Targets panels (in My Sightings it sits at the bottom of the panel; in Media Targets, just above the nearest-targets list).
+**Atlas blocks overlay.** A **California atlas blocks** toggle overlays the official California Breeding Bird Atlas block boundaries on the map. The grid is drawn for the area you are looking at and appears once you zoom in; at very wide views a "Zoom in to see atlas blocks" hint appears instead, so the whole-state view stays uncluttered. Click any block to open a popup with its name, a link to its eBird California atlas page, and -- when shading is on -- your highest breeding code there plus how many of your breeding records fall inside it. The boundaries are generated from a compact bundled dataset, so the overlay works offline with no extra download, and outside California nothing is drawn. This overlay is available in the My Sightings, Hotspots, Nearby Lifers, and Media Targets panels.
 
 When the overlay is on, a **Shade by My Highest Breeding Code** toggle appears. It tints each block by the strongest breeding code *you* have personally entered there -- darkest for Confirmed, down through Probable to Possible. The shading reflects only your own records, never anyone else's, and requires your eBird backup to be loaded in Settings. When shading is on, any heatmap or pins automatically dim so the tier colors stay legible on top.
 
 With shading on, a **Use Textures** toggle (off by default) adds a distinct hatch per breeding level -- sparse dots for the lowest, dense cross-hatch for the highest -- so the levels are distinguishable without relying on color. Turn it on for colorblind-friendly reading; leave it off for the cleanest view of the map beneath.
-
-### Media Targets
-
-Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. A **Time Range** filter narrows the window to the last day, last week, or last 30 days. A **Targets in view** list in the sidebar mirrors the target pins currently on screen: each row shows the species, location, the most recent date, and (when you have a search center set) the distance, sorted nearest first. The list updates as you pan or zoom, so it always reflects what's visible; on very dense views it shows the closest first with a note to zoom in to narrow it. Selecting a row (via its keyboard-operable "show on map" button) opens that location's details popup on the map and pans to it. This is the keyboard path to the target chips, which are otherwise mouse-only.
 
 ### Nearby Lifers
 
@@ -257,6 +253,10 @@ Maps where species you have never recorded were reported recently near a chosen 
 Each spot is a labeled pin showing the lifer's name, or "{n} species" where several lifers were reported at one place. Pins are colored by how recently the bird was seen. Click a pin (or a row in the panel list) to see the lifers reported there, each with its date and a link to the eBird checklist. Lifer names appear with the eBird and Birds of the World icons but without a Species Detail link, since they are not in your recorded data.
 
 Data comes from eBird's recent observations API for your location and radius. This view replaces the old flat Nearby Lifers list that lived on the Statistics tab.
+
+### Media Targets
+
+Shows recent sightings of species you are missing at least one media type for, within a search radius. Pins are color-coded by recency: bright green for the past 7 days, lighter for 8 to 15 days, and lightest for 16 to 30 days. A **Time Range** filter narrows the window to the last day, last week, or last 30 days. A **Targets in view** list in the sidebar mirrors the target pins currently on screen: each row shows the species, location, the most recent date, and (when you have a search center set) the distance, sorted nearest first. The list updates as you pan or zoom, so it always reflects what's visible; on very dense views it shows the closest first with a note to zoom in to narrow it. Selecting a row (via its keyboard-operable "show on map" button) opens that location's details popup on the map and pans to it. This is the keyboard path to the target chips, which are otherwise mouse-only.
 
 ---
 
@@ -335,7 +335,7 @@ The Checklists tab is the home for your checklists as whole outings: search ever
 
 ## List Comparer
 
-The List Comparer tab compares two lists and shows which species appear in both and which are unique to each. A toggle at the top switches between two modes: **Life Lists** and **Checklists**.
+The List Comparer tab compares two lists and shows which species appear in both and which are unique to each. A toggle at the top switches between two modes: **Checklists** and **Life Lists**. Checklists opens first.
 
 ### Life Lists
 

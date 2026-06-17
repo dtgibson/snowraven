@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.41] - 2026-06-16
+
+### Changed
+- **Default navigation and comparison ordering now matches the most-used flow.** New installs and reset tab layouts now open in this order: Weather, Statistics, Species Detail, Map Explorer, Checklists, Multimedia, Breeding Codes, List Comparer, Named Birds, then Settings. Existing custom tab layouts stay as they are.
+- **Checklist comparison is now first in List Comparer.** The List Comparer opens on Checklists by default, with Checklists on the left side of the mode switch and Life Lists on the right.
+- **Nearby Lifers now comes before Media Targets in Map Explorer.** The Map Explorer mode buttons keep the same behavior, but the Nearby Lifers button now appears before Media Targets.
+
 ## [0.5.40] - 2026-06-16
 
 ### Added

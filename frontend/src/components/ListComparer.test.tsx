@@ -7,7 +7,7 @@
 // accessibility pass; the comparison logic is covered in lib/compare.test.ts.
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 
 // Seams used by ListComparer and its ChecklistComparer child.
 vi.mock('../lib/storage', () => ({
@@ -40,12 +40,19 @@ describe('ListComparer — comparison-mode switch a11y', () => {
     render(<ListComparer {...props} />)
     const lists = screen.getByRole('button', { name: 'Life Lists' })
     const checklists = screen.getByRole('button', { name: 'Checklists' })
-    expect(lists.getAttribute('aria-pressed')).toBe('true')   // default mode
-    expect(checklists.getAttribute('aria-pressed')).toBe('false')
+    expect(checklists.getAttribute('aria-pressed')).toBe('true')   // default mode
+    expect(lists.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('renders Checklists on the left side of the mode switch', () => {
+    render(<ListComparer {...props} />)
+    const buttons = screen.getAllByRole('button').map(button => button.textContent)
+    expect(buttons.slice(0, 2)).toEqual(['Checklists', 'Life Lists'])
   })
 
   it('exposes the List A source toggle as a pressed-state group (F008)', async () => {
     render(<ListComparer {...props} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Life Lists' }))
     // The source switch only shows when a stored backup is available.
     const myList = await screen.findByRole('button', { name: 'My List' })
     expect(screen.getByRole('group', { name: 'List A source' })).toBeTruthy()

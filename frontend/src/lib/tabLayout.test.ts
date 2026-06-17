@@ -23,6 +23,22 @@ describe('loadTabLayout — no stored value', () => {
   })
 })
 
+describe('DEFAULT_TAB_ORDER', () => {
+  it('matches the intended first-run navigation order', () => {
+    expect(DEFAULT_TAB_ORDER).toEqual([
+      'weather',
+      'birding-stats',
+      'species-detail',
+      'map-explorer',
+      'checklists',
+      'life-list',
+      'breeding-codes',
+      'comparer',
+      'named-birds',
+    ])
+  })
+})
+
 describe('loadTabLayout — valid stored value', () => {
   it('restores a custom order', () => {
     localStorageMock.setItem('sr-tab-layout', JSON.stringify({
@@ -87,14 +103,14 @@ describe('loadTabLayout — unknown or missing tab IDs (FR-13)', () => {
   })
 
   it('appends tabs that are missing from stored order', () => {
-    // Stored without 'comparer' — simulates a tab added after preferences were saved
+    // Stored without newer tabs — simulates tabs added after preferences were saved
     localStorageMock.setItem('sr-tab-layout', JSON.stringify({
       order: ['weather', 'species-detail', 'birding-stats', 'map-explorer', 'life-list', 'breeding-codes'],
       hidden: [],
     }))
     const state = loadTabLayout()
     expect(state.order).toContain('comparer')
-    expect(state.order[state.order.length - 1]).toBe('comparer')
+    expect(state.order.slice(-3)).toEqual(['checklists', 'comparer', 'named-birds'])
   })
 })
 
