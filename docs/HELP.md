@@ -199,10 +199,15 @@ Below all of that, ranked lists show your most-photographed, most-recorded, and 
 
 ### Frivolous Lists
 
-At the very bottom of the Statistics page is a section just for the fun of it — three self-completing collections that fill in from your own life list:
+At the very bottom of the Statistics page is a section just for the fun of it — eight self-completing collections that fill in from your own life list:
 
 - **Avian American** — every bird whose name starts with "American," from the American Avocet to the American Woodcock. Each one you've recorded gets a checkmark, with a running count and a badge once you've seen them all.
 - **California Dreamer** — the same idea for the "California" birds: Condor, Gnatcatcher, Gull, Quail, Scrub-Jay, Thrasher, and Towhee.
+- **Phoebe Phanatic** — the three phoebes: Eastern, Black, and Say's.
+- **Scrub Jay All Day** — the four scrub-jays: California, Woodhouse's, Florida, and Island.
+- **Crow Pro / Raven Maven** — the crows and ravens: American, Fish, Tamaulipas, and Sinaloa Crows, plus the Common and Chihuahuan Ravens.
+- **Heron is Carin' (and Egrets too)** — the true herons, egrets, night-herons, and bitterns, shown as those labeled sub-groups with a single badge for the whole set.
+- **Best of the Crest** — a big "crested and crowned" collection spanning many families (cardinals, jays, titmice, kinglets, quail, mergansers, kingfishers, and more, down to the Crested Auklet and Tufted Puffin), shown by sub-group.
 - **Rainbow Warrior** — the first bird of each rainbow color you ever logged: red, orange, yellow, green, blue, indigo, violet. Each filled color shows that bird with the date and place you first saw it and a link to the checklist. A color counts only when it appears as a whole word in a name, so "Red-tailed Hawk" fills red but "Reddish Egret" doesn't — and one bird can fill two colors (a Violet-green Swallow counts for both violet and green). Colors you haven't found yet wait with a blank, and a badge appears once all seven are filled.
 
 These lists are built entirely from your loaded eBird data — nothing new to set up.

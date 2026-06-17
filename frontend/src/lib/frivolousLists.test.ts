@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeFrivolousLists, AVIAN_AMERICAN, CALIFORNIA_DREAMER, RAINBOW_COLORS } from './frivolousLists'
+import { computeFrivolousLists, AVIAN_AMERICAN, CALIFORNIA_DREAMER, PHOEBE_PHANATIC, BEST_OF_THE_CREST, RAINBOW_COLORS } from './frivolousLists'
 import type { ObservationEntry } from '../types'
 
 let _sub = 1
@@ -63,6 +63,73 @@ describe('computeFrivolousLists — name lists (Avian American / California Drea
     expect(data.avianAmerican.recorded).toBe(0)
     expect(data.californiaDreamer.recorded).toBe(0)
     expect(data.avianAmerican.complete).toBe(false)
+  })
+})
+
+describe('computeFrivolousLists — new flat lists (v0.5.39)', () => {
+  it('checks off the three new flat lists', () => {
+    const data = computeFrivolousLists([
+      obs({ commonName: 'Black Phoebe', date: '2020-01-01' }),
+      obs({ commonName: 'Island Scrub-Jay', date: '2020-01-02' }),
+      obs({ commonName: 'Sinaloa Crow', date: '2020-01-03' }),
+    ])
+    expect(data.phoebePhanatic.total).toBe(3)
+    expect(data.phoebePhanatic.recorded).toBe(1)
+    expect(data.scrubJayAllDay.total).toBe(4)
+    expect(data.scrubJayAllDay.recorded).toBe(1)
+    expect(data.crowRaven.total).toBe(6)
+    expect(data.crowRaven.items.find(i => i.commonName === 'Sinaloa Crow')?.recorded).toBe(true)
+    expect(data.crowRaven.complete).toBe(false)
+  })
+
+  it('completes a flat list when every species is recorded', () => {
+    const all = [...PHOEBE_PHANATIC].map((n, i) => obs({ commonName: n, date: `2021-01-0${i + 1}` }))
+    const data = computeFrivolousLists(all)
+    expect(data.phoebePhanatic.recorded).toBe(3)
+    expect(data.phoebePhanatic.complete).toBe(true)
+  })
+})
+
+describe('computeFrivolousLists — grouped lists (v0.5.39)', () => {
+  it('aggregates recorded/total across all sub-groups, preserving group order', () => {
+    const data = computeFrivolousLists([
+      obs({ commonName: 'Great Blue Heron', date: '2020-01-01' }),       // True Herons
+      obs({ commonName: 'Western Cattle-Egret', date: '2020-01-02' }),   // Egrets (the corrected name)
+      obs({ commonName: 'American Bittern', date: '2020-01-03' }),       // Bitterns
+    ])
+    expect(data.heronIsCarin.total).toBe(12)
+    expect(data.heronIsCarin.recorded).toBe(3)
+    expect(data.heronIsCarin.complete).toBe(false)
+    expect(data.heronIsCarin.groups.map(g => g.groupName)).toEqual(['True Herons', 'Egrets', 'Night-Herons', 'Bitterns'])
+  })
+
+  it('matches the corrected current-eBird names within their sub-group', () => {
+    const data = computeFrivolousLists([
+      obs({ commonName: 'Black-crowned Night Heron', date: '2020-02-01' }),
+    ])
+    const night = data.heronIsCarin.groups.find(g => g.groupName === 'Night-Herons')!
+    expect(night.items.find(i => i.commonName === 'Black-crowned Night Heron')?.recorded).toBe(true)
+    expect(data.heronIsCarin.recorded).toBe(1)
+  })
+
+  it('Best of the Crest spans all 16 sub-groups with the expected total', () => {
+    const total = BEST_OF_THE_CREST.reduce((a, g) => a + g.species.length, 0)
+    const data = computeFrivolousLists([])
+    expect(data.bestOfTheCrest.total).toBe(total)
+    expect(data.bestOfTheCrest.total).toBe(38)
+    expect(data.bestOfTheCrest.groups.length).toBe(BEST_OF_THE_CREST.length)
+    expect(data.bestOfTheCrest.recorded).toBe(0)
+    expect(data.bestOfTheCrest.complete).toBe(false)
+  })
+
+  it('a species shared by two lists ticks in both', () => {
+    const data = computeFrivolousLists([obs({ commonName: 'Great Blue Heron', date: '2020-01-01' })])
+    const inHeron = data.heronIsCarin.groups.find(g => g.groupName === 'True Herons')!
+      .items.find(i => i.commonName === 'Great Blue Heron')?.recorded
+    const inCrest = data.bestOfTheCrest.groups.find(g => g.groupName === 'Herons')!
+      .items.find(i => i.commonName === 'Great Blue Heron')?.recorded
+    expect(inHeron).toBe(true)
+    expect(inCrest).toBe(true)
   })
 })
 

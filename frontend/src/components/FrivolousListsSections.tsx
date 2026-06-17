@@ -1,6 +1,7 @@
-// The Frivolous Lists section — three playful, self-completing collections at the
-// bottom of the Statistics page (Avian American, California Dreamer, Rainbow
-// Warrior). Pure presentation over computeFrivolousLists; species names render
+// The Frivolous Lists section — eight playful, self-completing collections at the
+// bottom of the Statistics page (Avian American, California Dreamer, Phoebe Phanatic,
+// Scrub Jay All Day, Crow Pro / Raven Maven, the grouped Heron is Carin' and Best of
+// the Crest, and Rainbow Warrior). Pure presentation over computeFrivolousLists; species names render
 // through BirdName, the Rainbow first-sighting dates through ChecklistLink. Kept
 // out of BirdingStats.tsx to keep that file manageable (the MediaStatsSections
 // pattern). No charts here, so no recharts test caveat applies.
@@ -13,7 +14,7 @@ import { ChecklistLink } from './ChecklistLink'
 import { SubLabel, Divider } from './statsPrimitives'
 import { formatDate } from '../lib/formatDate'
 import { computeFrivolousLists } from '../lib/frivolousLists'
-import type { NameListResult, RainbowEntry } from '../lib/frivolousLists'
+import type { NameListResult, GroupedListResult, RainbowEntry, SpeciesTick } from '../lib/frivolousLists'
 import type { ObservationEntry } from '../types'
 
 interface Props {
@@ -40,6 +41,7 @@ const CHECK_CIRCLE: CSSProperties = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
 }
 const CHECK_SPACER: CSSProperties = { width: 14, height: 14, flexShrink: 0 }
+const GROUP_LABEL: CSSProperties = { fontSize: '0.6875rem', fontWeight: 700, color: 'var(--sr-text-muted)', margin: '10px 0 2px', paddingLeft: 2 }
 const RAINBOW_LIST: CSSProperties = { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }
 const COLOR_NAME: CSSProperties = { width: 64, flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, textTransform: 'capitalize', color: 'var(--sr-text-muted)' }
 const LOC: CSSProperties = { fontSize: '0.71875rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', minWidth: 0, maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis' }
@@ -53,29 +55,64 @@ function CompletionBadge() {
   )
 }
 
+// The check-off grid of species, shared by the flat NameList and each sub-group of
+// a GroupedNameList.
+function NameItems({ items, codeFor, hasEntryFor, onOpenSpecies }: {
+  items: SpeciesTick[]
+} & Pick<Props, 'codeFor' | 'hasEntryFor' | 'onOpenSpecies'>) {
+  return (
+    <ul role="list" style={NAME_GRID}>
+      {items.map(item => (
+        <li key={item.commonName} style={NAME_ROW}>
+          {item.recorded
+            ? <span style={CHECK_CIRCLE} aria-hidden="true"><Check size={9} strokeWidth={3.5} /></span>
+            : <span style={CHECK_SPACER} aria-hidden="true" />}
+          <span className="sr-only">{item.recorded ? 'Recorded.' : 'Not yet recorded.'}</span>
+          <BirdName commonName={item.commonName} taxonCode={codeFor(item.commonName)} hasEntry={hasEntryFor(item.commonName)} onOpenSpecies={onOpenSpecies} size="sm" />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+// Title + recorded/total + completion badge, shared by NameList and GroupedNameList.
+function ListHead({ title, recorded, total, complete }: { title: string; recorded: number; total: number; complete: boolean }) {
+  return (
+    <div style={HEAD_ROW}>
+      <SubLabel>{title}</SubLabel>
+      <span style={PROGRESS} aria-label={`${recorded} of ${total} recorded`}>
+        {recorded} / {total}
+      </span>
+      {complete && <CompletionBadge />}
+    </div>
+  )
+}
+
 function NameList({ title, list, codeFor, hasEntryFor, onOpenSpecies }: {
   title: string; list: NameListResult
 } & Pick<Props, 'codeFor' | 'hasEntryFor' | 'onOpenSpecies'>) {
   return (
     <div>
-      <div style={HEAD_ROW}>
-        <SubLabel>{title}</SubLabel>
-        <span style={PROGRESS} aria-label={`${list.recorded} of ${list.total} recorded`}>
-          {list.recorded} / {list.total}
-        </span>
-        {list.complete && <CompletionBadge />}
-      </div>
-      <ul role="list" style={NAME_GRID}>
-        {list.items.map(item => (
-          <li key={item.commonName} style={NAME_ROW}>
-            {item.recorded
-              ? <span style={CHECK_CIRCLE} aria-hidden="true"><Check size={9} strokeWidth={3.5} /></span>
-              : <span style={CHECK_SPACER} aria-hidden="true" />}
-            <span className="sr-only">{item.recorded ? 'Recorded.' : 'Not yet recorded.'}</span>
-            <BirdName commonName={item.commonName} taxonCode={codeFor(item.commonName)} hasEntry={hasEntryFor(item.commonName)} onOpenSpecies={onOpenSpecies} size="sm" />
-          </li>
-        ))}
-      </ul>
+      <ListHead title={title} recorded={list.recorded} total={list.total} complete={list.complete} />
+      <NameItems items={list.items} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+    </div>
+  )
+}
+
+// A themed list shown as labeled sub-groups (the user's sub-categories). One whole-list
+// count + badge in the header; each group is just a label over its own check-off grid.
+function GroupedNameList({ title, list, codeFor, hasEntryFor, onOpenSpecies }: {
+  title: string; list: GroupedListResult
+} & Pick<Props, 'codeFor' | 'hasEntryFor' | 'onOpenSpecies'>) {
+  return (
+    <div>
+      <ListHead title={title} recorded={list.recorded} total={list.total} complete={list.complete} />
+      {list.groups.map(g => (
+        <div key={g.groupName}>
+          <p style={GROUP_LABEL}>{g.groupName}</p>
+          <NameItems items={g.items} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+        </div>
+      ))}
     </div>
   )
 }
@@ -142,6 +179,16 @@ export function FrivolousListsSections({ observations, codeFor, hasEntryFor, onO
       <NameList title="Avian American" list={data.avianAmerican} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
       <Divider />
       <NameList title="California Dreamer" list={data.californiaDreamer} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+      <Divider />
+      <NameList title="Phoebe Phanatic" list={data.phoebePhanatic} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+      <Divider />
+      <NameList title="Scrub Jay All Day" list={data.scrubJayAllDay} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+      <Divider />
+      <NameList title="Crow Pro / Raven Maven" list={data.crowRaven} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+      <Divider />
+      <GroupedNameList title="Heron is Carin' (and Egrets too)" list={data.heronIsCarin} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
+      <Divider />
+      <GroupedNameList title="Best of the Crest" list={data.bestOfTheCrest} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
       <Divider />
       <RainbowList rows={data.rainbowWarrior.rows} complete={data.rainbowWarrior.complete} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
     </>

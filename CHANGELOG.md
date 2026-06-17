@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.39] - 2026-06-16
+
+### Added
+- **Five new Frivolous Lists on the Statistics page.** Joining Avian American and California Dreamer at the bottom of Statistics: **Phoebe Phanatic** (the three phoebes), **Scrub Jay All Day** (the four scrub-jays), **Crow Pro / Raven Maven** (the crows and ravens), **Heron is Carin' (and Egrets too)** (true herons, egrets, night-herons, and bitterns), and **Best of the Crest** — a big "crested and crowned" collection spanning many families, from cardinals, jays, titmice, and quail down to the Crested Auklet and Tufted Puffin. Each checks off from your own life list with a running count and a "Complete!" badge; the last two show your sub-categories as labeled groups. Built entirely from the eBird data the app already has — no new providers, privacy unchanged.
+
 ## [0.5.38] - 2026-06-16
 
 ### Added

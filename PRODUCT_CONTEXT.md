@@ -5,6 +5,14 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Five more Frivolous Lists, incl. grouped (sub-category) collections (complete — June 2026, v0.5.39)
+
+Five new self-completing collections at the bottom of the Statistics tab, extending v0.5.36: three flat — **Phoebe Phanatic** (3), **Scrub Jay All Day** (4), **Crow Pro / Raven Maven** (6) — checked off like Avian American, and two **grouped** lists that show the user's sub-categories as labeled sub-groups within the card: **Heron is Carin' (and Egrets too)** (12 species across True Herons / Egrets / Night-Herons / Bitterns) and **Best of the Crest** (38 species across 16 "crested & crowned" sub-groups). Frontend-only; no new providers; privacy unchanged.
+
+- **`lib/frivolousLists.ts`:** new flat arrays + `ListGroup[]` grouped consts (`HERON_IS_CARIN`, `BEST_OF_THE_CREST`); new `GroupedListResult` + `groupedList()` (whole-list recorded/total/complete aggregated across the sub-groups). Names are current canonical eBird, verified via the live `/taxonomy/codes`; 3 renames applied (Western Cattle-Egret; Black-crowned / Yellow-crowned Night Heron).
+- **`components/FrivolousListsSections.tsx`:** shared `NameItems` + `ListHead`; new `GroupedNameList` (a sub-group label over each check-off grid, one whole-list badge). **`BirdingStats.tsx`** taxonomy-codes batch extended (flat + grouped flattened) so unseen rows get favicons.
+- 6 new unit tests (flat + grouped compute, the corrected names, the shared-species case).
+
 ### Statistics media-card behavior links + corrected coverage count (complete — June 2026, v0.5.38)
 
 On the Statistics → Media card, each behavior in the "Behaviors documented" list now links to the Macaulay Library catalog filtered to that behavior across the user's own media (`media.ebird.org/catalog?userId=<id>&tag=<slug>`), and each breeding behavior (feeding young, carrying food, nest building, courtship/display, song) is listed and linked on its own below the breeding tier tiles. The tab's most-photographed / most-recorded / most-filmed links were consolidated onto the same `media.ebird.org/catalog` host. Frontend-only; no new providers; privacy unchanged.

@@ -27,6 +27,54 @@ export const CALIFORNIA_DREAMER: readonly string[] = [
   'California Scrub-Jay', 'California Thrasher', 'California Towhee',
 ]
 
+// Three more flat collections (v0.5.39) — checked off exactly like Avian American.
+export const PHOEBE_PHANATIC: readonly string[] = [
+  'Eastern Phoebe', 'Black Phoebe', "Say's Phoebe",
+]
+
+export const SCRUB_JAY_ALL_DAY: readonly string[] = [
+  'California Scrub-Jay', "Woodhouse's Scrub-Jay", 'Florida Scrub-Jay', 'Island Scrub-Jay',
+]
+
+export const CROW_RAVEN: readonly string[] = [
+  'American Crow', 'Fish Crow', 'Tamaulipas Crow', 'Sinaloa Crow', 'Common Raven', 'Chihuahuan Raven',
+]
+
+// Grouped collections: a theme split into labeled sub-categories shown within the
+// card, with ONE whole-list count + badge. Species names are current canonical eBird
+// (e.g. Western Cattle-Egret, Black-crowned Night Heron — verified against the live
+// taxonomy); the sub-group `group` labels are cosmetic and need not match eBird.
+export interface ListGroup {
+  group: string
+  species: readonly string[]
+}
+
+export const HERON_IS_CARIN: readonly ListGroup[] = [
+  { group: 'True Herons', species: ['Great Blue Heron', 'Green Heron', 'Little Blue Heron', 'Tricolored Heron'] },
+  { group: 'Egrets', species: ['Great Egret', 'Snowy Egret', 'Western Cattle-Egret', 'Reddish Egret'] },
+  { group: 'Night-Herons', species: ['Black-crowned Night Heron', 'Yellow-crowned Night Heron'] },
+  { group: 'Bitterns', species: ['American Bittern', 'Least Bittern'] },
+]
+
+export const BEST_OF_THE_CREST: readonly ListGroup[] = [
+  { group: 'Cardinals & Allies', species: ['Northern Cardinal', 'Pyrrhuloxia'] },
+  { group: 'Jays', species: ['Blue Jay', "Steller's Jay"] },
+  { group: 'Titmice', species: ['Tufted Titmouse', 'Black-crested Titmouse', 'Oak Titmouse', 'Juniper Titmouse', 'Bridled Titmouse'] },
+  { group: 'Kinglets', species: ['Ruby-crowned Kinglet', 'Golden-crowned Kinglet'] },
+  { group: 'Waxwings', species: ['Cedar Waxwing', 'Bohemian Waxwing'] },
+  { group: 'Silky-Flycatchers', species: ['Phainopepla'] },
+  { group: 'Flycatchers', species: ['Great Crested Flycatcher', 'Vermilion Flycatcher'] },
+  { group: 'Woodpeckers', species: ['Pileated Woodpecker'] },
+  { group: 'Kingfishers', species: ['Belted Kingfisher', 'Ringed Kingfisher', 'Green Kingfisher'] },
+  { group: 'Quail', species: ['California Quail', "Gambel's Quail", 'Mountain Quail', 'Scaled Quail'] },
+  { group: 'Ducks & Waterfowl', species: ['Wood Duck', 'Hooded Merganser', 'Red-breasted Merganser', 'Common Merganser', 'Bufflehead'] },
+  { group: 'Herons', species: ['Great Blue Heron', 'Snowy Egret', 'Black-crowned Night Heron', 'Yellow-crowned Night Heron'] },
+  { group: 'Cormorants', species: ['Double-crested Cormorant'] },
+  { group: 'Raptors', species: ['Crested Caracara'] },
+  { group: 'Cuckoos', species: ['Greater Roadrunner'] },
+  { group: 'Seabirds', species: ['Crested Auklet', 'Tufted Puffin'] },
+]
+
 export const RAINBOW_COLORS = ['red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet'] as const
 export type RainbowColor = typeof RAINBOW_COLORS[number]
 
@@ -64,9 +112,23 @@ export interface NameListResult {
   complete: boolean
 }
 
+/** A flat list split into labeled sub-groups; recorded/total/complete are aggregated
+ *  across ALL groups (the badge is per whole list, not per sub-group). */
+export interface GroupedListResult {
+  groups: { groupName: string; items: SpeciesTick[] }[]
+  recorded: number
+  total: number
+  complete: boolean
+}
+
 export interface FrivolousListsData {
   avianAmerican: NameListResult
   californiaDreamer: NameListResult
+  phoebePhanatic: NameListResult
+  scrubJayAllDay: NameListResult
+  crowRaven: NameListResult
+  heronIsCarin: GroupedListResult
+  bestOfTheCrest: GroupedListResult
   rainbowWarrior: { rows: RainbowEntry[]; filled: number; total: number; complete: boolean }
 }
 
@@ -107,6 +169,16 @@ export function computeFrivolousLists(observations: ObservationEntry[]): Frivolo
     const items = names.map(n => ({ commonName: n, recorded: recorded.has(normalizeSpeciesName(n)) }))
     const n = items.reduce((acc, i) => acc + (i.recorded ? 1 : 0), 0)
     return { items, recorded: n, total: names.length, complete: n === names.length && names.length > 0 }
+  }
+
+  const groupedList = (groups: readonly ListGroup[]): GroupedListResult => {
+    const out = groups.map(g => ({
+      groupName: g.group,
+      items: g.species.map(n => ({ commonName: n, recorded: recorded.has(normalizeSpeciesName(n)) })),
+    }))
+    let rec = 0, total = 0
+    for (const g of out) for (const it of g.items) { total++; if (it.recorded) rec++ }
+    return { groups: out, recorded: rec, total, complete: rec === total && total > 0 }
   }
 
   // Rainbow: assign each color a bird whose name contains it as a whole word,
@@ -194,6 +266,11 @@ export function computeFrivolousLists(observations: ObservationEntry[]): Frivolo
   return {
     avianAmerican: nameList(AVIAN_AMERICAN),
     californiaDreamer: nameList(CALIFORNIA_DREAMER),
+    phoebePhanatic: nameList(PHOEBE_PHANATIC),
+    scrubJayAllDay: nameList(SCRUB_JAY_ALL_DAY),
+    crowRaven: nameList(CROW_RAVEN),
+    heronIsCarin: groupedList(HERON_IS_CARIN),
+    bestOfTheCrest: groupedList(BEST_OF_THE_CREST),
     rainbowWarrior: { rows, filled, total: RAINBOW_COLORS.length, complete: filled === RAINBOW_COLORS.length },
   }
 }

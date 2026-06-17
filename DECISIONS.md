@@ -4,6 +4,20 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Frivolous Lists expansion: grouped (sub-category) lists + verify hardcoded names against the live taxonomy — 2026-06-16 (v0.5.39)
+
+**What:** Five new self-completing collections on the Statistics Frivolous Lists card — three flat (Phoebe Phanatic, Scrub Jay All Day, Crow Pro / Raven Maven) and two grouped with labeled sub-categories shown in the card (Heron is Carin', Best of the Crest). Frontend-only; no new providers; privacy unchanged. Extends the v0.5.36 Frivolous Lists.
+
+**Decisions worth keeping:**
+
+- **Grouped lists are a first-class shape now: `GroupedListResult` + a `groupedList()` helper (`lib/frivolousLists.ts`) + a `GroupedNameList` renderer (`FrivolousListsSections.tsx`).** A grouped list is a theme split into labeled sub-groups, with ONE whole-list count + completion badge (sub-groups are visual labels, not separate badges). The flat-list rendering was refactored into shared `NameItems` + `ListHead` so flat and grouped lists share the check-off grid and header. Counts are per list; a species may appear in more than one list.
+- **Hardcoded bird-name lists are verified against the LIVE eBird taxonomy before shipping — not eyeballed.** Matching is exact-by-normalized-common-name against the user's data, so a stale or renamed name silently never ticks, and unit tests don't cover all ~50 names. Every name was POSTed to the backend `/taxonomy/codes` endpoint (the same live eBird taxonomy the app uses); 56/59 resolved and 3 were renames that would have silently failed — caught what eyeballing would have missed.
+- **Three current-eBird renames applied (the silent-fail traps):** `Cattle Egret` → `Western Cattle-Egret` (the bare name was split out of eBird); `Black-crowned Night-Heron` → `Black-crowned Night Heron` and `Yellow-crowned Night-Heron` → `Yellow-crowned Night Heron` (eBird dropped the Night/Heron hyphen). The sub-group HEADER labels (e.g. "Night-Herons") are cosmetic and were left as written — only the matched species names must be canonical.
+
+**Implications:** New hardcoded life-list collections use current canonical eBird names, verified against `/taxonomy/codes` (or the live catalog) before shipping. New grouped collections reuse `GroupedListResult` / `GroupedNameList`. The verify-names rule is promoted to CLAUDE.md.
+
+---
+
 ## Statistics media-card behavior links + a countable-life-list coverage fix — 2026-06-16 (v0.5.38)
 
 **What:** On the Statistics → Media card, each behavior count now links to the Macaulay Library catalog filtered to that behavior for the user, each breeding behavior is listed and linked on its own, the tab's catalog links were consolidated onto one host, and the media documentation-coverage denominator was corrected to stop counting non-countable forms. Frontend-only; no new providers; privacy unchanged.
