@@ -1,15 +1,15 @@
 {
   "activeFeature": null,
-  "sessionNumber": 39,
+  "sessionNumber": 40,
   "sessionType": null,
   "currentStage": null,
   "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
-  "releasedVersion": "0.5.38",
-  "lastFeature": "0.5.39 frivolous-lists-expansion — built, verified, Chronicled, and PUSHED from the VM (main + tag v0.5.39, session 39) on top of the Mac's 0.5.38 release (38d44be). Five new Statistics Frivolous Lists: 3 flat (Phoebe Phanatic, Scrub Jay All Day, Crow Pro / Raven Maven) + 2 grouped with sub-category headers (Heron is Carin' 12sp, Best of the Crest 38sp); new GroupedListResult/groupedList/GroupedNameList; names verified vs the live /taxonomy/codes (3 renames applied: Western Cattle-Egret, Black-crowned/Yellow-crowned Night Heron). Versions 0.5.39 (both files), CHANGELOG + HELP + website (v0.5.39) + DECISIONS/PRODUCT_CONTEXT/ROADMAP(74)/CLAUDE updated. Full CI mirror green (lint, typecheck, 947 tests, build). AWAITING the Mac to run `zsh -lc './release.sh'` once Windows CI is green — then releasedVersion → 0.5.39. STANDING RELEASE NOTES: run via `zsh -lc './release.sh'` (Apple creds login-only); verify selected Windows CI run headSha == `git rev-parse v0.5.39^{commit}`. Prior: 0.5.38 RELEASED both platforms (Mac session 38).",
-  "remainingBacklog": "AFTER the Mac runs release.sh for 0.5.39: confirm assets HTTP 200 + /releases/latest shows v0.5.39 Latest, then mark releasedVersion 0.5.39. ROADMAP Up Next: mobile app (responsive groundwork done); Windows code signing. NOT-FOR-RELEASE: origin has an unmerged docs/snoa-3-accuracy-fixes branch — leave untouched.",
-  "createdAt": "2026-06-16T22:52:00Z",
-  "updatedAt": "2026-06-17T01:15:00Z"
+  "releasedVersion": "0.5.39",
+  "lastFeature": "0.5.39 frivolous-lists-expansion RELEASED (live, both platforms). Built, verified, Chronicled, and PUSHED from the VM (main + tag v0.5.39, session 39) on top of the Mac's 0.5.38 release. This Mac session (40) pulled to da85292, confirmed HEAD == tag commit, ran the release readiness checks (both version files 0.5.39, createUpdaterArtifacts true, CHANGELOG 0.5.39 entry, website v0.5.39 both pills, local `tsc -b && vite build` clean — the 0.5.35-trap check) and confirmed Windows CI run 27659828267 green with headSha == da85292 == tag commit == release.sh's most-recent-success selection (the tag-re-push guard; fresh single-push tag, no hazard) BEFORE releasing. Ran `zsh -lc './release.sh'` (login shell — the documented invocation). macOS universal DMG signed (Developer ID Application: DAVID THOMAS GIBSON, 8QKC3L2FKP), notarized (Apple submission 42786efe-f8b7-421e-84a3-a86a085f7bc8, Accepted) + stapled, bundle-version guard 0.5.39; Windows installer fetched from CI run 27659828267 + signed locally; latest.json all three keys (darwin-aarch64 + darwin-x86_64 -> the one universal updater bundle SnowRaven-updater.app.tar.gz/same sig, windows-x86_64 -> SnowRaven_0.5.39_x64-setup.exe). All 6 release assets HTTP 200; GitHub /releases/latest confirms v0.5.39 is Latest (not draft/prerelease), target main, published 2026-06-17T01:57:54Z. The change: five new Statistics Frivolous Lists — 3 flat (Phoebe Phanatic, Scrub Jay All Day, Crow Pro / Raven Maven) + 2 grouped with sub-category headers (Heron is Carin' 12sp, Best of the Crest 38sp); new GroupedListResult/groupedList/GroupedNameList; 3 eBird renames applied. Frontend-only; no providers/privacy change. Prior: 0.5.38 RELEASED both platforms.",
+  "remainingBacklog": "ROADMAP Up Next: mobile app (responsive groundwork done); Windows code signing. Optional: Dave to confirm the in-app updater picks up 0.5.39 by opening the app (latest.json is correct, so detection is ready). STANDING RELEASE NOTE: always run the release via `zsh -lc './release.sh'` — the Apple signing creds are exported only in the LOGIN profile, so a bare ./release.sh spawns a non-login shell and fails preflight with `APPLE_SIGNING_IDENTITY is not set`. NOT-FOR-RELEASE: origin has an unmerged docs/snoa-3-accuracy-fixes branch — left untouched.",
+  "createdAt": "2026-06-17T02:07:15Z",
+  "updatedAt": "2026-06-17T02:07:15Z"
 }
