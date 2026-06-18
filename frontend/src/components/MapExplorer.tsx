@@ -33,7 +33,7 @@ import {
 } from '../lib/mapExplorerFormat'
 import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
 import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch } from './map/MapSidebarUI'
-import { MapEffects, BoundsTracker, DetectedLocationPin } from './map/MapControls'
+import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
 import { SightingMarkers } from './map/SightingMarkers'
 import { HotspotMarkers } from './map/HotspotMarkers'
 import { TargetMarkers } from './map/TargetMarkers'
@@ -805,6 +805,22 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
   }, [lat, lng, viewMode, handleFindHotspots, handleFindSightings, handleFindLifers, setPanTarget, setDetectedLocation])
 
+  // Set the shared search center from a dropped/dragged map pin (right-click or
+  // long-press), then re-run the active view's search — the "drop a pin to see
+  // what's there" path. Session-only: it updates the in-session center, never the
+  // saved default (map-defaults), exactly like "Use my location".
+  const applyCenter = useCallback((latNum: number, lngNum: number) => {
+    setLat(latNum.toFixed(5))
+    setLng(lngNum.toFixed(5))
+    if (viewMode === 'hotspots') {
+      if (!hotspotsLoading && hasEbirdKey !== false) handleFindHotspots(latNum, lngNum)
+    } else if (viewMode === 'targets') {
+      if (!targetsLoading && hasEbirdKey !== false && phase.tag === 'ready') handleFindSightings(latNum, lngNum)
+    } else if (viewMode === 'lifers') {
+      if (!lifersLoading && hasEbirdKey !== false && phase.tag === 'ready') handleFindLifers(latNum, lngNum)
+    }
+  }, [viewMode, hotspotsLoading, targetsLoading, lifersLoading, hasEbirdKey, phase, handleFindHotspots, handleFindSightings, handleFindLifers])
+
   // ── Render ────────────────────────────────────────────────────────────────────
 
   if (phase.tag === 'loading-saved') {
@@ -846,6 +862,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0 }} />
         <input type="number" placeholder="Longitude" aria-label="Longitude" value={lng} onChange={e => { setLng(e.target.value); setDetectedLocation(null) }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0 }} />
+      </div>
+      <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+        Tip: right-click the map (or long-press on touch) to drop the center here, then drag the pin to fine-tune.
       </div>
     </div>
   )
@@ -1619,6 +1638,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     </div>
   )
 
+  // Center pin (the three search views only): a draggable marker at the current
+  // center, set by right-click / long-press and dragged to fine-tune. It replaces
+  // the detected-location dot while shown so the two never overlap.
+  const isCenterView = viewMode === 'hotspots' || viewMode === 'targets' || viewMode === 'lifers'
+  const centerLatNum = parseFloat(lat)
+  const centerLngNum = parseFloat(lng)
+  const hasValidCenter = !Number.isNaN(centerLatNum) && !Number.isNaN(centerLngNum)
+  const centerPinShown = isCenterView && hasValidCenter
+
   // ── Layout ────────────────────────────────────────────────────────────────────
 
   return (
@@ -1788,7 +1816,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   useTextures={useTextures}
                 />
               )}
-              {detectedLocation && <DetectedLocationPin position={detectedLocation} />}
+              {detectedLocation && !centerPinShown && <DetectedLocationPin position={detectedLocation} />}
+              {isCenterView && (
+                <>
+                  <CenterPinDropper onDrop={applyCenter} />
+                  {centerPinShown && <CenterPin lat={centerLatNum} lng={centerLngNum} onMove={applyCenter} />}
+                </>
+              )}
               {viewMode === 'sightings' && !isSetupRequired && (
                 <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} atlasShading={atlasEnabled && shadeByBreeding} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />
               )}

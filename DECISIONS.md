@@ -4,6 +4,49 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Map center pin — drop a pin to set the Map Explorer search center — 2026-06-18 (v0.5.43)
+
+**What:** The Map Explorer's Hotspots, Nearby Lifers, and Media Targets views gained a
+draggable center pin: right-click (desktop) or long-press (touch) drops a center pin,
+dragging fine-tunes, and each placement re-runs the active view's search. New
+`CenterPinDropper` + `CenterPin` in `components/map/MapControls.tsx`; an `applyCenter`
+helper in `MapExplorer.tsx`.
+
+**Decisions worth keeping:**
+
+- **A deliberate map-point gesture uses `contextmenu` / long-press, NOT left-click.** The
+  Map Explorer maps already consume left-click/tap for pin/popup selection (sighting/hotspot
+  GL layers + atlas fill via `map.on('click')` + `queryRenderedFeatures`). Reusing
+  left-click-to-place (as the Predict tab does, where its map has no other clickable content)
+  would ambiguate "open this pin" vs "set the center." Right-click and a hand-rolled touch
+  long-press are distinct event types, so they compose with the existing selection without
+  collision. This is the pattern for any future "set a point on the map" gesture.
+- **The long-press is a hand-rolled timer cancelled on any pan/zoom signal, and never
+  `preventDefault`s before it fires** (so a normal pan is untouched): cancel on
+  `movestart`/`zoomstart`/`dragstart`, `touchmove` past a ~10px slop, a 2nd touch (pinch),
+  and `touchend`/`touchcancel`. Some touch platforms synthesize a `contextmenu` AFTER a
+  long-press, so a short dedup window (`lastTouchFire`, 800 ms) on the contextmenu handler
+  prevents a double drop/fetch.
+- **The center pin is a DOM `<Marker>` (one draggable instance), not a GL layer** — per the
+  DOM-vs-GL rule; it sidesteps the base-switch / source-id GL pitfalls and gives a real drag
+  affordance. It supersedes the detected-location blue dot while shown (the `!centerPinShown`
+  guard) so the two never overlap; keyboard users set the center via the existing lat/lng inputs.
+- **Session-only.** A dropped pin updates the in-session center and re-runs the search, but
+  never writes the saved default (`map-defaults`) — exactly like "Use my location." The saved
+  Default Location stays a deliberate Settings choice.
+- **Improve-lane boundary call:** this is a NEW user interaction, which by the branch rules is
+  New-Feature territory — but it reuses the Predict pin pattern and the existing shared center
+  model, adds no new data, schema, or design-system work, so it was deliberately re-scoped to
+  the Improve track (lean build, no strategy/PRD/design stages). The precedent: a small
+  interaction that reuses an established pattern can stay on Improve.
+
+**Implications:** Future map gestures that must not collide with the existing left-click
+selection should use `contextmenu` + a long-press timer via a map child (the `CenterPinDropper`
+pattern), render their result as a DOM marker, and dedup the synthesized-contextmenu-after-
+long-press. Promoted to CLAUDE.md.
+
+---
+
 ## Initial-load optimization + Checklists tab-order tweak + dev-audit clarity — 2026-06-17 (v0.5.42)
 
 **What:** A bundled Improve run with three independent threads. (1) The default tab order moved Checklists to sit between Breeding Codes and List Comparer (`DEFAULT_TAB_ORDER`, `frontend/src/lib/tabLayout.ts`). (2) The maplibre map library (~273 KB gzip) was taken off the app's first-paint path: `NamedBirdRow`'s static import of the per-row `SightingsMap` was the sole eager edge dragging maplibre into the entry chunk, and is now `React.lazy` + `<Suspense>`; the List Comparer and Checklists tabs are also `React.lazy` now; all are warmed via App's existing `requestIdleCallback` warmer; `vite` `chunkSizeWarningLimit` was raised to 1100. (3) `npm audit fix` cleared two dev-only advisories and the Pi `update.sh`/README now explain the install-time audit scope.

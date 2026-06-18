@@ -5,6 +5,20 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Drop a pin on the map to set the search center (complete — June 2026, v0.5.43)
+
+The Map Explorer's Hotspots, Nearby Lifers, and Media Targets views gained a draggable
+center pin. Right-click (desktop) or long-press (touch) anywhere on the map drops a center
+pin there and re-runs that view's search for the spot; dragging the pin fine-tunes (re-running
+on release). It works alongside the existing place-name search, "Use my location", and
+coordinate entry — all drive the same shared center — and is session-only (it doesn't change
+the saved Default Location). New `CenterPinDropper` (binds `map.on('contextmenu')` + a
+hand-rolled touch long-press timer, cancelled on any pan/zoom and deduped against a
+synthesized post-long-press `contextmenu`) and `CenterPin` (a draggable DOM `<Marker>` that
+replaces the detected-location dot while shown) in `components/map/MapControls.tsx`; an
+`applyCenter` helper in `MapExplorer.tsx`. The gestures are distinct from left-click, so
+opening a result pin's popup is unchanged. 8 new `CenterPinDropper` tests.
+
 ### Initial-load optimization, Checklists tab-order tweak, and a clearer self-host audit notice (complete — June 2026, v0.5.42)
 
 A bundled Improve run. The default tab order now places Checklists between Breeding Codes and List Comparer (`DEFAULT_TAB_ORDER`, `lib/tabLayout.ts`; defaults-only, saved layouts preserved). Initial load is lighter: the maplibre map library (~273 KB gzip) no longer loads on first paint — `NamedBirdRow`'s per-row `SightingsMap` is now `React.lazy` + `Suspense` (it was the sole static edge pulling maplibre into the entry chunk), and the List Comparer and Checklists tabs are lazy too, all warmed via App's `requestIdleCallback` warmer; the entry chunk dropped 331→218 KB (84.5→54 KB gz) and `vite`'s `chunkSizeWarningLimit` was raised to 1100. No behavior change to any map or tab. Separately, `npm audit fix` cleared two dev-only advisories (production dependency tree unchanged) and `README.md`/`update.sh` now explain that the install-time `npm` audit counts dev/build tooling that never ships.

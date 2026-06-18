@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.43] - 2026-06-17
+
+### Added
+- **Drop a pin on the map to set the search center.** On the Map Explorer's Hotspots, Nearby Lifers, and Media Targets views, you can now right-click (or long-press on a touch screen) anywhere on the map to drop a center pin there, then drag the pin to fine-tune — and the view re-runs its search for that spot automatically. It works alongside the existing place-name search, "Use my location", and coordinate entry, and sets the center for the session only, without touching your saved Default Location.
+
 ## [0.5.42] - 2026-06-17
 
 ### Changed

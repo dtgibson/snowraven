@@ -224,6 +224,8 @@ A **fullscreen button** sits at the bottom-right of the map. Click it to expand 
 
 Click **Use my location** in the map controls to center the map on your current position and place a blue pin at the detected location. The desktop app uses your operating system's native location service (macOS and Windows both supported). If location is off or denied, restore it in System Settings → Privacy & Security → Location Services on macOS, or Settings → Privacy & security → Location on Windows; in web/Pi mode, use your browser's site permissions.
 
+**Drop a pin to set the center.** On the Hotspots, Nearby Lifers, and Media Targets views you can set the search center right on the map: **right-click** (desktop) or **long-press** (touch) anywhere to drop a center pin there, then **drag the pin** to fine-tune. Each placement re-runs that view's search for the new spot. This sets the center for the current session only -- it doesn't change your saved Default Location (set that in Settings). The place-name search, **Use my location**, and typed coordinates all still work and drive the same center.
+
 ### My Sightings
 
 Shows all your personal observations on a map. Narrow what's shown with the panel filters: Species (a specific species), Breeding Code, Date Range, County (when your backup contains county data), and Media. The Radius control sets the map's starting zoom and the distance within which your saved personal locations appear.
