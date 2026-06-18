@@ -301,27 +301,34 @@
   --sr-map-pin-target:    #7C3AED;
   --sr-map-pin-stroke:    #3F3F46;
 
-  /* Firsts & Milestones chips — same light-tinted values as :root by design */
-  --sr-milestone-1-bg: linear-gradient(160deg,#F2FAF5,#E8F5EE);
-  --sr-milestone-1-border: rgba(45,134,83,0.28);
-  --sr-milestone-1-num: #2D8653;
-  --sr-milestone-1-date: #43755C;
-  --sr-milestone-1-check: #2D8653;
-  --sr-milestone-2-bg: linear-gradient(160deg,#E5F3EC,#D8EDE4);
-  --sr-milestone-2-border: rgba(28,100,60,0.32);
-  --sr-milestone-2-num: #1C6443;
-  --sr-milestone-2-date: #386E4E;
-  --sr-milestone-2-check: #2D8653;
-  --sr-milestone-3-bg: linear-gradient(160deg,#D6EAE0,#C6E2D5);
-  --sr-milestone-3-border: rgba(18,74,44,0.38);
-  --sr-milestone-3-num: #14502E;
-  --sr-milestone-3-date: #2D6644;
-  --sr-milestone-3-check: #2D8653;
-  --sr-milestone-4-bg: linear-gradient(160deg,#FEFAEC,#FEF3C7);
-  --sr-milestone-4-border: rgba(146,64,14,0.32);
-  --sr-milestone-4-num: #92400E;
-  --sr-milestone-4-date: #B45309;
-  --sr-milestone-4-check: #B45309;
+  /* Firsts & Milestones chips — dark-tinted tiles for dark mode. The :root values
+     are intentionally near-white; reusing them here made the badges glare as white
+     tiles on the dark page, and the species name (which inherits --sr-text) went
+     near-white-on-near-white = invisible. These dark tiles + re-tuned text all clear
+     WCAG 2.1 AA against BOTH gradient stops (verified in milestoneContrast.test.ts):
+     name (--sr-text) >=10:1, num (large) >=6.5:1, date (small) >=5.6:1, link-hover
+     (--sr-accent) >=5.7:1, white check on -check >=3.39:1, -check vs tile/card >=3.2:1.
+     Tiers stay distinct (green 1-3, amber 4). Light mode is untouched in :root. */
+  --sr-milestone-1-bg: linear-gradient(160deg,#16331F,#102617);
+  --sr-milestone-1-border: rgba(74,222,128,0.35);
+  --sr-milestone-1-num: #4ADE80;
+  --sr-milestone-1-date: #8FD3A8;
+  --sr-milestone-1-check: #2F9E63;
+  --sr-milestone-2-bg: linear-gradient(160deg,#163A20,#0F2C18);
+  --sr-milestone-2-border: rgba(52,211,153,0.40);
+  --sr-milestone-2-num: #34D399;
+  --sr-milestone-2-date: #7FCB9D;
+  --sr-milestone-2-check: #2F9E63;
+  --sr-milestone-3-bg: linear-gradient(160deg,#17451F,#123317);
+  --sr-milestone-3-border: rgba(110,231,183,0.40);
+  --sr-milestone-3-num: #6EE7B7;
+  --sr-milestone-3-date: #79CB9A;
+  --sr-milestone-3-check: #2F9E63;
+  --sr-milestone-4-bg: linear-gradient(160deg,#3E2B0A,#2C1E05);
+  --sr-milestone-4-border: rgba(251,191,36,0.38);
+  --sr-milestone-4-num: #FBBF24;
+  --sr-milestone-4-date: #E8B05A;
+  --sr-milestone-4-check: #C76A12;
 
   /* Statistics map rank pins — same values as :root by design (light basemap) */
   --sr-rank-pin-circle: #277448;

@@ -1,25 +1,27 @@
 ## What We Accomplished
 
-Shipped SnowRaven 0.5.43 — a draggable center pin on the Map Explorer's Hotspots, Nearby
-Lifers, and Media Targets maps. Right-click (desktop) or long-press (touch) drops a center
-pin and re-runs that view's search for the spot; dragging fine-tunes. It reuses the Predict
-tab's pin pattern and the existing shared center, is session-only, and the gestures are
-distinct from left-click so existing pin selection is unchanged. Built, verified, recorded,
-and committed on the VM; the release finished from the Mac and is now live on both platforms.
+Fixed a dark-mode bug on the Statistics tab: the "Firsts & Milestones" badges (and the matching
+Frivolous Lists "Complete!" badges) rendered as bright white tiles with the bird's name nearly
+invisible. They now use dark green / amber tiles in dark mode with the threshold number, name,
+date, and check mark all re-tuned to WCAG AA. Light mode is unchanged. It's a pure CSS-token
+change, plus a contrast regression test that parses the real tokens so the bug can't silently
+return.
+
+## What Has Been Saved
+
+- frontend/src/globals.css (dark-theme `--sr-milestone-*` tokens re-tinted)
+- frontend/src/lib/milestoneContrast.test.ts (new AA-contrast regression test)
+- frontend/package.json, src-tauri/tauri.conf.json, frontend/package-lock.json (0.5.44)
+- CHANGELOG.md, DECISIONS.md, CLAUDE.md, ROADMAP.md
+- pipeline/milestone-badge-dark-contrast/ (bug-brief, pr-description, how-to-see, qa-report, security-report)
 
 ## Where We Are
 
-Done. 0.5.43 is published and verified live:
-
-- macOS universal DMG signed + notarized (Apple submission `64c4dfe7-a0cd-4ffc-b08c-13c12b89e69c`, Accepted) + stapled.
-- Windows installer fetched from the green `v0.5.43` CI run (`27740887216`, headSha == tag commit) and signed locally.
-- `latest.json` carries all three platform keys (`darwin-aarch64` + `darwin-x86_64` → the one universal updater bundle, `windows-x86_64` → `SnowRaven_0.5.43_x64-setup.exe`), each with its signature.
-- All 6 release assets return HTTP 200; GitHub `/releases/latest` confirms `v0.5.43` is Latest, target `main`.
-
-The pipeline is idle. The only optional follow-up: open the desktop app to confirm the
-in-app updater detects 0.5.43 (the `latest.json` is correct, so detection is ready).
+Fix complete, recorded, committed, and pushed — `main` plus tag `v0.5.44` (which starts the
+Windows CI build). The release publishes when `release.sh` runs on the Mac.
 
 ## Resume Prompt
 
-To resume: run `/weft` in this project. The pipeline is idle — start a new improvement,
-feature, or fix whenever you're ready.
+To resume: run `/weft` in this project. The pipeline is idle. The remaining step is the Mac
+release — `zsh -lc ./release.sh` — after the `v0.5.44` Windows CI run goes green (confirm its
+headSha equals the tag commit before releasing).

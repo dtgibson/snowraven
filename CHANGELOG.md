@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.44] - 2026-06-18
+
+### Fixed
+- **Milestone badges are now readable in dark mode.** On the Statistics tab, the "Firsts & Milestones" badges (and the matching "Complete!" badges in the Frivolous Lists) showed as bright white tiles in dark mode, with the bird's name washed out to nearly invisible. They now use dark tiles in dark mode, with the number, name, date, and check mark all re-tuned for legibility at WCAG AA contrast. Light mode is unchanged.
+
 ## [0.5.43] - 2026-06-17
 
 ### Added

@@ -4,6 +4,41 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Milestone badges illegible in dark mode — 2026-06-18 (v0.5.44)
+
+**What:** On the Statistics tab, the "Firsts & Milestones" badges rendered as bright near-white
+tiles in dark mode with the bird's species name invisible. Fixed by re-tinting the
+`[data-theme="dark"]` `--sr-milestone-*` tokens to dark tiles with every element re-tuned to
+WCAG AA. Pure token change in `globals.css`; no component code. The same tokens drive the
+Frivolous Lists `CompletionBadge`, so it was fixed in the same change.
+
+**Cause:** The dark-theme `--sr-milestone-*` block was a verbatim copy of the near-white `:root`
+tiles ("same light-tinted values as :root by design"). On the dark page the tiles glared white,
+and the species name — the only badge element NOT bound to a milestone token — inherited the
+global `--sr-text` (`#0F1117` light, `#F4F4F5` dark) via `<BirdName>`'s `.sr-birdname-*` rules,
+giving near-white-on-near-white (~1:1). The number/date/check stayed legible because they use
+milestone tokens that happen to be dark-on-light in both themes.
+
+**Decisions worth keeping:**
+
+- **Scope B over the minimal fix (user choice):** rather than just darkening the name, give dark
+  mode real dark tiles (deep green tiers 1–3, deep amber tier 4) and re-tune every element. This
+  reverses the "milestone tiles are intentionally light in both themes" decision for dark mode
+  only; light mode (`:root`) is untouched.
+- **An intentionally-light-in-both-themes surface must not host theme-following text/tokens.**
+  Promoted to CLAUDE.md. The trap was a light tile silently hosting `--sr-text`, which flips per
+  theme. Dark mode needs its own tile + text tokens.
+- **Guard token contrast with a parse-the-tokens test.** `frontend/src/lib/milestoneContrast.test.ts`
+  reads the real `[data-theme="dark"]` tokens out of `globals.css` and asserts AA on both gradient
+  stops, so a future re-copy of light tiles fails CI (reads the file via a file-scoped
+  `/// <reference types="node" />` + `fs` because vitest stubs CSS `?raw`).
+
+**Implications:** Any future "same as :root by design" token block that also carries text must be
+re-verified for AA in dark mode. The contrast-test pattern is reusable for other tinted-surface
+token families (map-target chips, rank pins, tier fills).
+
+---
+
 ## Map center pin — drop a pin to set the Map Explorer search center — 2026-06-18 (v0.5.43)
 
 **What:** The Map Explorer's Hotspots, Nearby Lifers, and Media Targets views gained a
