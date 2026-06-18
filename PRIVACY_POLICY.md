@@ -1,6 +1,6 @@
 # Privacy Policy — SnowRaven
 
-**Effective date:** June 13, 2026
+**Effective date:** June 18, 2026
 
 ## Overview
 
@@ -28,9 +28,9 @@ SnowRaven collects nothing about you.
 
 SnowRaven's job is to fetch birding and weather information for you, so the app does make requests to a few outside services — using your own API keys, and only to get the data you ask for. These requests go directly from your device (or your own self-hosted server) to the provider. There is no SnowRaven server in the middle, and nothing is logged or retained by the developer.
 
-- **eBird** — to look up checklist details, hotspots, and recent nearby sightings. Uses your own eBird API key. See [eBird's terms](https://www.birds.cornell.edu/home/ebird-api-terms-of-use/).
+- **eBird** — to look up checklist details, hotspots, recent nearby sightings, region info, and species taxonomy. Uses your own eBird API key. See [eBird's terms](https://www.birds.cornell.edu/home/ebird-api-terms-of-use/).
 - **OpenWeather** — to fetch weather: the historical weather for a checklist, or the current and forecast weather for a location and time you choose. Uses your own OpenWeather API key. See [OpenWeather's privacy policy](https://openweather.co.uk/privacy-policy).
-- **Nominatim (OpenStreetMap)** — to turn a place name you type into map coordinates. See the [OSM privacy policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy).
+- **Nominatim (OpenStreetMap)** — to turn a place name you type into map coordinates, and to look up the county for a set of coordinates. See the [OSM privacy policy](https://wiki.osmfoundation.org/wiki/Privacy_Policy).
 - **NOAA Tides & Currents (CO-OPS)** — to fetch the tide for a checklist's location and time, or the current or predicted tide for a location and time you choose. No key or account; a U.S. government service. See [NOAA's privacy policy](https://www.noaa.gov/protecting-your-privacy).
 
 What you send to these services (a checklist ID, a location, a search term) is governed by each provider's own privacy policy. SnowRaven only relays the request you initiated; it does not add tracking and does not keep a copy.
@@ -56,6 +56,10 @@ A few things in the app load directly from the Cornell Lab of Ornithology's webs
 - **Site icons next to bird names** — the small link icons shown beside bird names throughout the app load from **ebird.org** and **birdsoftheworld.org**.
 
 No key or account is used for these loads, no SnowRaven server is involved, and the developer adds no tracking and keeps no copy. These are Cornell Lab of Ornithology services; see [Cornell's privacy statement](https://privacy.cornell.edu/).
+
+## Software Updates
+
+SnowRaven checks whether a newer version is available by requesting the latest release information from GitHub (`api.github.com`). In the desktop apps, choosing **Check For Updates** then downloads the new version directly from GitHub's release assets and installs it in place. As with any request to a website, GitHub receives your IP address when these checks and downloads happen. No API key or account is used, no SnowRaven server is involved, and the developer adds no tracking and keeps no copy. Downloaded updates are cryptographically verified before they are installed. See [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
 
 ## Children
 

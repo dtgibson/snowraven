@@ -291,7 +291,7 @@ When you have media comments, a short note at the top of the tab tells you how m
 
 ## Breeding Codes
 
-The Breeding Codes tab shows every species you have recorded a breeding code for, displayed as a matrix across all 23 eBird breeding codes.
+The Breeding Codes tab shows every species you have recorded a breeding code for, displayed as a matrix with a column for each breeding code you have recorded (out of the 23 the app tracks).
 
 The tab loads automatically from your eBird backup saved in Settings.
 

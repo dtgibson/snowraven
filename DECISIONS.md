@@ -4,6 +4,36 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Documentation & website accuracy audit — 2026-06-18 (docs-only, no release)
+
+**What:** A verified, comprehensive accuracy review of README.md, docs/HELP.md, the website,
+ACCESSIBILITY.md, and PRIVACY_POLICY.md against the shipped app (0.5.44), and the corrections it
+surfaced. Shipped as a docs-only commit — no version bump, tag, or release (the only app-bundle
+change is a one-line HELP.md wording tweak, which rides with the next release).
+
+**Decisions worth keeping:**
+
+- **PRIVACY_POLICY.md was missing the in-app updater's GitHub connection.** The version check
+  (`api.github.com`) and the desktop bundle download (GitHub release assets) expose the user's IP
+  to GitHub — undisclosed until now. Added a "Software Updates" section. Reinforces the standing
+  rule that any outbound connection must be in the privacy policy; the updater was an existing,
+  overlooked one.
+- **The CenterPin search-center marker is presentational by design — not an a11y gap.**
+  `neutralizeMarkerWrapper` sets `role="presentation"` and strips `aria-label`; the center is set
+  via the labeled coordinate inputs (plus place search / "Use my location"), so the pointer-only
+  pin-drop is an enhancement, not the only path. ACCESSIBILITY.md now states this; no code change
+  (an aria-label would be stripped at runtime).
+- **Docs brought current to 0.5.44:** README/website gained Frivolous Lists, drop-a-pin,
+  Settings/appearance, the desktop-vs-self-hosted updater split, broadened eBird-key scope, and
+  corrected breeding-codes wording; the website feature count went "Seven" → "Nine".
+
+**Implications:** A docs-accuracy pass can ship as a docs-only commit (the website redeploys via
+Pages) without a release when there is no meaningful app-bundle change. The verified multi-agent
+audit pattern (ground-truth → per-doc audit → adversarial verify) is reusable for future
+doc/website currency checks.
+
+---
+
 ## Milestone badges illegible in dark mode — 2026-06-18 (v0.5.44)
 
 **What:** On the Statistics tab, the "Firsts & Milestones" badges rendered as bright near-white
