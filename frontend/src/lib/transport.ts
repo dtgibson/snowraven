@@ -1,9 +1,24 @@
 import { isTauri } from './platform';
 import { cachedGet, networkCacheKey } from './networkCache';
+import { isOfflineError } from './offlineDetect';
+import * as replayStore from './replayStore';
+
+// A GET that may fall back to a last-loaded ("replayed") copy when the device is
+// offline. `replayedAt` is null for a fresh/live result and the entry's loadedAt
+// (ms epoch) when the value came from the replay store (FR-31/FR-37 staleness
+// channel — Promise<T> alone carries no provenance).
+export interface ReplayableResult<T> {
+  data: T;
+  replayedAt: number | null;
+}
 
 export interface TransportAdapter {
   get<T>(path: string, params?: Record<string, string>): Promise<T>;
   post<T>(path: string, body: unknown): Promise<T>;
+  // Opt-in replay (FR-38: per call-site, never a transparent path-only gate).
+  // Only consumers that want offline replay call this; plain get()/post() are
+  // unchanged, so the Checklist Comparer and every other caller stay no-replay.
+  getReplayable<T>(path: string, params?: Record<string, string>): Promise<ReplayableResult<T>>;
 }
 
 export class TransportError extends Error {
@@ -44,6 +59,13 @@ class WebTransport implements TransportAdapter {
       throw new TransportError(`Transport error: ${res.status}`, res.status, detail);
     }
     return res.json() as Promise<T>;
+  }
+
+  // The replay decoration lives in CachedTransport (the one chokepoint covering
+  // BOTH runtimes). A bare WebTransport — only reachable when not wrapped — has
+  // no store, so it returns the live result as always-fresh.
+  async getReplayable<T>(path: string, params?: Record<string, string>): Promise<ReplayableResult<T>> {
+    return { data: await this.get<T>(path, params), replayedAt: null };
   }
 }
 
@@ -137,6 +159,12 @@ class TauriTransport implements TransportAdapter {
 
     return this.web.post<T>(path, body);
   }
+
+  // See WebTransport.getReplayable — replay is owned by CachedTransport; a bare
+  // TauriTransport returns the live result as always-fresh.
+  async getReplayable<T>(path: string, params?: Record<string, string>): Promise<ReplayableResult<T>> {
+    return { data: await this.get<T>(path, params), replayedAt: null };
+  }
 }
 
 // Live eBird data fetched on explicit user actions; repeat requests with the
@@ -158,6 +186,27 @@ class CachedTransport implements TransportAdapter {
       return cachedGet(networkCacheKey(path, params), () => this.inner.get<T>(path, params));
     }
     return this.inner.get<T>(path, params);
+  }
+
+  // Opt-in replay (1c). On a successful live GET, persist the result to the
+  // replay store and return it as fresh (replayedAt null). On FAILURE, only an
+  // OFFLINE (connection-level) error with a prior replay hit returns the stale
+  // copy (replayedAt = its loadedAt); an HTTP error — or an offline error with
+  // no hit — rethrows. NEVER put on failure (FR-34/QA-25): a failed live fetch
+  // never overwrites or clears the prior entry, so errors are never cached.
+  async getReplayable<T>(path: string, params?: Record<string, string>): Promise<ReplayableResult<T>> {
+    const key = replayStore.replayKey(path, params);
+    try {
+      const data = await this.get<T>(path, params);
+      void replayStore.put(key, data); // best-effort, off the blocking path
+      return { data, replayedAt: null };
+    } catch (err) {
+      if (isOfflineError(err)) {
+        const hit = await replayStore.get(key);
+        if (hit) return { data: hit.data as T, replayedAt: hit.loadedAt };
+      }
+      throw err;
+    }
   }
 
   post<T>(path: string, body: unknown): Promise<T> {

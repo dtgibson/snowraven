@@ -7,6 +7,8 @@
 import { useState, useCallback, useRef, useEffect, lazy, Suspense } from 'react'
 import { Navigation, Search, Loader2, ClipboardCopy, Check, AlertCircle } from 'lucide-react'
 import { transport } from '../lib/transport'
+import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from '../lib/offlineMessage'
+import { OfflineMessage, StalenessCue } from './OfflineMessage'
 import { copyText } from '../lib/clipboard'
 import { getCurrentLocation, describeLocationError, type LocationError } from '../lib/location'
 import { buildCombined } from '../lib/tideFormatter'
@@ -146,8 +148,14 @@ interface ResultData {
   tideDt: string
   weather: WeatherAtResponse | null
   weatherErr: boolean
+  weatherErrKind: LiveErrorKind | null
+  // ms epoch when weather/tide came from the offline replay store (FR-28/29/31),
+  // else null for a fresh/live reading.
+  weatherReplayedAt: number | null
   tide: TideAtResponse | null
   tideErr: boolean
+  tideErrKind: LiveErrorKind | null
+  tideReplayedAt: number | null
 }
 
 type Phase =
@@ -207,9 +215,16 @@ export function WeatherForecastPanel() {
     if (weatherDt) wParams.dt = weatherDt
     const tParams: Record<string, string> = { lat: String(c.lat), lng: String(c.lng) }
     if (tideDt) tParams.dt = tideDt
+    // getReplayable: a /weather/at or /tide/at result loaded online once re-shows
+    // offline (FR-28/29) with a staleness cue, preferred over an offline error
+    // (FR-37). On a genuine failure, classify three ways (FR-35).
     const [wRes, tRes] = await Promise.all([
-      transport.get<WeatherAtResponse>('/weather/at', wParams).then(r => ({ ok: true as const, r })).catch(() => ({ ok: false as const })),
-      transport.get<TideAtResponse>('/tide/at', tParams).then(r => ({ ok: true as const, r })).catch(() => ({ ok: false as const })),
+      transport.getReplayable<WeatherAtResponse>('/weather/at', wParams)
+        .then(({ data, replayedAt }) => ({ ok: true as const, r: data, replayedAt }))
+        .catch((err: unknown) => ({ ok: false as const, kind: classifyLiveError(err).kind })),
+      transport.getReplayable<TideAtResponse>('/tide/at', tParams)
+        .then(({ data, replayedAt }) => ({ ok: true as const, r: data, replayedAt }))
+        .catch((err: unknown) => ({ ok: false as const, kind: classifyLiveError(err).kind })),
     ])
     // For Current (no whenRaw passed) the label is "now" in the LOCATION's tz the
     // weather response carries; falls back to the device clock if tz is missing.
@@ -220,7 +235,9 @@ export function WeatherForecastPanel() {
       data: {
         source, place: placeLabel, whenRaw: whenRawFinal, coord: c, tideDt: tideDt ?? whenRawFinal,
         weather: wRes.ok ? wRes.r : null, weatherErr: !wRes.ok,
+        weatherErrKind: wRes.ok ? null : wRes.kind, weatherReplayedAt: wRes.ok ? wRes.replayedAt : null,
         tide: tRes.ok ? tRes.r : null, tideErr: !tRes.ok,
+        tideErrKind: tRes.ok ? null : tRes.kind, tideReplayedAt: tRes.ok ? tRes.replayedAt : null,
       },
     })
     setAnnounce(`Weather and tide ready for ${placeLabel}.`)
@@ -261,8 +278,9 @@ export function WeatherForecastPanel() {
       const lat = parseFloat(r.lat), lng = parseFloat(r.lon)
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) { setSearchErr('That place didn’t return usable coordinates. Try another.'); return }
       setCoord({ lat, lng })
-    } catch {
-      setSearchErr('Location search is unavailable right now.')
+    } catch (err) {
+      // Offline geocode must read "you're offline", NOT "no matches" (FR-38).
+      setSearchErr(classifyLiveError(err, { errorMessage: 'Location search is unavailable right now.' }).message)
     } finally {
       setSearching(false)
     }
@@ -288,9 +306,11 @@ export function WeatherForecastPanel() {
     // overwrite the tide of a result the user has since replaced with a new lookup.
     const apply = (patch: Partial<ResultData>) =>
       setPhase(p => (p.kind === 'result' && p.data.coord === c ? { kind: 'result', data: { ...p.data, ...patch } } : p))
+    // A forced override is a fresh live read (force:'1'), so it bypasses replay —
+    // a replayed reading is never "forced". On failure, classify three ways.
     transport.get<TideAtResponse>('/tide/at', { lat: String(c.lat), lng: String(c.lng), dt: tideDt, force: '1' })
-      .then(t => apply({ tide: t, tideErr: false }))
-      .catch(() => apply({ tideErr: true }))
+      .then(t => apply({ tide: t, tideErr: false, tideErrKind: null, tideReplayedAt: null }))
+      .catch((err: unknown) => apply({ tideErr: true, tideErrKind: classifyLiveError(err).kind }))
       .finally(() => setOverriding(false))
   }, [])
 
@@ -430,6 +450,13 @@ export function WeatherForecastPanel() {
               {formatDate(d.whenRaw, { withTime: true })} · {d.coord.lat.toFixed(3)}, {d.coord.lng.toFixed(3)}
             </div>
 
+            {/* Replay staleness cue (FR-31): one cue when either reading was
+                re-shown from the offline store. Prefer the (earlier) weather load
+                time when both are replayed. */}
+            {(d.weatherReplayedAt !== null || d.tideReplayedAt !== null) && (
+              <StalenessCue replayedAt={d.weatherReplayedAt ?? d.tideReplayedAt!} />
+            )}
+
             {wx && wx.resolution !== 'out-of-range' && wx.summary
               ? <WeatherSummaryView s={wx.summary} />
               : wx && wx.resolution === 'out-of-range'
@@ -440,7 +467,9 @@ export function WeatherForecastPanel() {
                   </div>
                 )
                 : d.weatherErr
-                  ? <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Weather is unavailable right now.</div>
+                  ? (d.weatherErrKind === 'offline' || d.weatherErrKind === 'no-key'
+                      ? <OfflineMessage kind={d.weatherErrKind} message={d.weatherErrKind === 'offline' ? OFFLINE_MESSAGE : NO_KEY_MESSAGE} />
+                      : <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Weather is unavailable right now.</div>)
                   : null}
 
             {d.tide && d.tide.status === 'ok' && d.tide.reading
@@ -460,9 +489,15 @@ export function WeatherForecastPanel() {
                     </div>
                   </div>
                 )
-                : (d.tideErr || (d.tide && d.tide.status === 'unavailable'))
-                  ? <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--sr-border)', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide is unavailable for this spot.</div>
-                  : null}
+                : (d.tideErr && (d.tideErrKind === 'offline' || d.tideErrKind === 'no-key'))
+                  ? (
+                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--sr-border)' }}>
+                      <OfflineMessage kind={d.tideErrKind} message={d.tideErrKind === 'offline' ? OFFLINE_MESSAGE : NO_KEY_MESSAGE} />
+                    </div>
+                  )
+                  : (d.tideErr || (d.tide && d.tide.status === 'unavailable'))
+                    ? <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px dashed var(--sr-border)', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide is unavailable for this spot.</div>
+                    : null}
 
             {copyTextValue && (
               <details style={{ marginTop: 14 }}>

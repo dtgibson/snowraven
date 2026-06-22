@@ -7,7 +7,28 @@ vi.mock('./PredictMap', () => ({ PredictMap: () => <div data-testid="predict-map
 vi.mock('../lib/clipboard', () => ({ copyText: vi.fn().mockResolvedValue(true) }))
 
 const getMock = vi.fn()
-vi.mock('../lib/transport', () => ({ transport: { get: (path: string, params?: Record<string, string>) => getMock(path, params) } }))
+vi.mock('../lib/transport', () => ({
+  // getReplayable wraps the same getMock and reports a fresh (non-replayed)
+  // result by default; a test can override getReplayableMock for a replay case.
+  transport: {
+    get: (path: string, params?: Record<string, string>) => getMock(path, params),
+    getReplayable: (path: string, params?: Record<string, string>) =>
+      getReplayableMock(path, params),
+  },
+  // Re-export TransportError for callers that import it from the module.
+  TransportError: class TransportError extends Error {
+    status: number
+    detail?: string
+    constructor(message: string, status: number, detail?: string) {
+      super(message); this.name = 'TransportError'; this.status = status; this.detail = detail
+    }
+  },
+}))
+
+// Default replay wrapper: live result, replayedAt null. Tests that exercise the
+// staleness cue override this to return a timestamp.
+const getReplayableMock = vi.fn((path: string, params?: Record<string, string>) =>
+  getMock(path, params).then((data: unknown) => ({ data, replayedAt: null })))
 
 const getCurrentLocationMock = vi.fn()
 vi.mock('../lib/location', () => ({
@@ -42,7 +63,14 @@ const TIDE_OK = {
   },
 }
 
-beforeEach(() => { getMock.mockReset(); getCurrentLocationMock.mockReset() })
+beforeEach(() => {
+  getMock.mockReset()
+  getCurrentLocationMock.mockReset()
+  // Restore the default replay wrapper (live result, replayedAt null) — a prior
+  // test may have overridden it to simulate a replayed read.
+  getReplayableMock.mockImplementation((path: string, params?: Record<string, string>) =>
+    getMock(path, params).then((data: unknown) => ({ data, replayedAt: null })))
+})
 afterEach(cleanup)
 
 describe('WeatherForecastPanel', () => {
@@ -92,5 +120,25 @@ describe('WeatherForecastPanel', () => {
     await waitFor(() => expect(screen.getByText(/beyond the ~8-day window/i)).toBeTruthy())
     expect(screen.getByText('TIDE ONLY')).toBeTruthy()
     expect(screen.getByText(/Rising/)).toBeTruthy()
+  })
+
+  // FR-31/FR-37 (QA-21/QA-27): a replayed (offline) result re-shows with the
+  // "showing the last loaded result" staleness cue rather than only an error.
+  it('Current replayed offline: renders the staleness cue with the loaded time', async () => {
+    getCurrentLocationMock.mockResolvedValue({ lat: 37.87, lng: -122.30 })
+    const loadedAt = new Date(2026, 5, 19, 8, 45).getTime()
+    // getReplayable reports the weather as replayed (replayedAt set); tide live.
+    getReplayableMock.mockImplementation((p: string) =>
+      p === '/weather/at' ? Promise.resolve({ data: WEATHER_CURRENT, replayedAt: loadedAt })
+        : p === '/tide/at' ? Promise.resolve({ data: TIDE_OK, replayedAt: null })
+          : Promise.reject(new Error('unexpected ' + p)))
+
+    render(<WeatherForecastPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /current weather and tide/i }))
+
+    await waitFor(() => expect(screen.getByText('61°F')).toBeTruthy())
+    const cue = screen.getByText(/showing the last loaded result/i)
+    expect(cue).toBeTruthy()
+    expect(cue.textContent).toContain('2026')
   })
 })

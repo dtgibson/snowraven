@@ -1,6 +1,9 @@
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, createContext, useContext } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList, WifiOff } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
+import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from './lib/offlineMessage'
+import { isOfflineError } from './lib/offlineDetect'
+import { OfflineMessage, StalenessCue } from './components/OfflineMessage'
 import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
 import { copyText } from './lib/clipboard'
@@ -67,18 +70,21 @@ const TAB_LAYOUT_SETTING = 'tabLayout'
 type AppState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string }
-  | { status: 'error'; message: string }
+  // replayedAt: ms epoch when this result came from the offline replay store
+  // (FR-28/FR-31), else null for a fresh/live result.
+  | { status: 'success'; formatted: string; checklistId: string; locName: string; obsDt: string; replayedAt: number | null }
+  // errorKind distinguishes the three states (FR-35): offline / no-key / server error.
+  | { status: 'error'; message: string; errorKind: LiveErrorKind }
 
 // The tide box's own independent state — a tide failure never touches weather.
 type TideState =
   | { status: 'idle' }
   | { status: 'loading' }
-  | { status: 'ok'; formatted: string; body: string }
+  | { status: 'ok'; formatted: string; body: string; replayedAt: number | null }
   | { status: 'too-far'; station: string; distanceMi: number }
   | { status: 'outside-us'; station: string; distanceMi: number }
   | { status: 'unavailable' }
-  | { status: 'error' }
+  | { status: 'error'; errorKind: LiveErrorKind }
 
 type UpdateStatus =
   | { kind: 'idle' }
@@ -87,6 +93,10 @@ type UpdateStatus =
   | { kind: 'available'; latest: string }
   | { kind: 'downloading'; progress: number | null }
   | { kind: 'ready-to-restart' }
+  // 'offline' is distinct from 'error' (FR-39): a connection-level failure says
+  // "couldn't reach the update server — you're offline"; a reachable server
+  // error (the backend's 502) shows the generic update-check error.
+  | { kind: 'offline' }
   | { kind: 'error' }
 
 
@@ -441,40 +451,46 @@ export default function App() {
   }, [activeTabLabel])
 
   // Returns the tide block { formatted, body } when a reading resolved, else null.
+  // Uses getReplayable so a tide reading loaded online once re-shows offline
+  // (FR-29) with a staleness cue; an offline error with no replay falls through
+  // to the three-state classification (offline / no-key / server error, FR-35).
   const loadTide = useCallback(async (id: string, force: boolean): Promise<{ formatted: string; body: string } | null> => {
     setTideState({ status: 'loading' })
     try {
-      const t = await transport.get<TideResponse>(
+      const { data: t, replayedAt } = await transport.getReplayable<TideResponse>(
         `/tide/${encodeURIComponent(id)}`,
         force ? { force: '1' } : undefined,
       )
       if (t.status === 'ok' && t.formatted && t.body) {
-        setTideState({ status: 'ok', formatted: t.formatted, body: t.body })
+        setTideState({ status: 'ok', formatted: t.formatted, body: t.body, replayedAt })
         return { formatted: t.formatted, body: t.body }
       } else if ((t.status === 'too-far' || t.status === 'outside-us') && t.station) {
         setTideState({ status: t.status, station: t.station.name, distanceMi: t.distanceMi ?? 0 })
       } else {
         setTideState({ status: 'unavailable' })
       }
-    } catch {
-      setTideState({ status: 'error' })
+    } catch (err) {
+      setTideState({ status: 'error', errorKind: classifyLiveError(err).kind })
     }
     return null
   }, [])
 
   // Returns the formatted weather string on success, else null. Does NOT
   // auto-copy — handleLookup decides what to copy (weather alone, or combined).
+  // getReplayable re-shows a previously-loaded reading offline (FR-28), preferred
+  // over an offline error (FR-37); other failures classify three ways (FR-35).
   const loadWeather = useCallback(async (id: string): Promise<string | null> => {
     setState({ status: 'loading' })
     try {
-      const data = await transport.get<{ formatted: string; checklist_id: string; loc_name: string; obs_dt: string }>(
+      const { data, replayedAt } = await transport.getReplayable<{ formatted: string; checklist_id: string; loc_name: string; obs_dt: string }>(
         `/weather/${encodeURIComponent(id)}`
       )
-      setState({ status: 'success', formatted: data.formatted, checklistId: data.checklist_id, locName: data.loc_name, obsDt: data.obs_dt })
+      setState({ status: 'success', formatted: data.formatted, checklistId: data.checklist_id, locName: data.loc_name, obsDt: data.obs_dt, replayedAt })
       return data.formatted
     } catch (err) {
       const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
-      setState({ status: 'error', message: detail ?? 'Something went wrong. Please try again.' })
+      const { kind, message } = classifyLiveError(err, { errorDetail: detail })
+      setState({ status: 'error', message, errorKind: kind })
       return null
     }
   }, [])
@@ -482,7 +498,7 @@ export default function App() {
   const handleLookup = useCallback(async () => {
     const id = extractChecklistId(input)
     if (!isValidChecklistId(id)) {
-      setState({ status: 'error', message: "That doesn't look like a valid eBird checklist ID." })
+      setState({ status: 'error', message: "That doesn't look like a valid eBird checklist ID.", errorKind: 'error' })
       setTideState({ status: 'idle' })
       return
     }
@@ -539,10 +555,15 @@ export default function App() {
           setUpdateStatus({ kind: 'up-to-date', current: result.current })
         } else if (result.status === 'available') {
           setUpdateStatus({ kind: 'available', latest: result.latest })
+        } else if (result.status === 'offline') {
+          setUpdateStatus({ kind: 'offline' })
         } else {
           setUpdateStatus({ kind: 'error' })
         }
       } else {
+        // The backend distinguishes 503 (offline/connection-level) from 502
+        // (reachable but errored) from 200 (FR-39). A 404/no-release is a 502 on
+        // the backend now, so it never reports "up to date".
         const data = await transport.get<{ current: string; latest: string; up_to_date: boolean }>('/version/check')
         if (data.up_to_date) {
           setUpdateStatus({ kind: 'up-to-date', current: data.current })
@@ -550,8 +571,12 @@ export default function App() {
           setUpdateStatus({ kind: 'available', latest: data.latest })
         }
       }
-    } catch {
-      setUpdateStatus({ kind: 'error' })
+    } catch (err) {
+      // 503 (the backend's connection-level marker) OR a bare connection-level
+      // rejection → offline; a 502/other HTTP error → the generic error (FR-39).
+      const status = err instanceof TransportError ? err.status : (err as { status?: unknown }).status
+      const offline = status === 503 || isOfflineError(err)
+      setUpdateStatus({ kind: offline ? 'offline' : 'error' })
     }
   }, [updateStatus.kind])
 
@@ -806,30 +831,20 @@ export default function App() {
             Weather information is automatically copied to the clipboard on a successful lookup. Tidal information will also be shown below if available.
           </p>
 
-          {hasError && (
-            <div
-              id="checklist-error"
-              role="alert"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                marginTop: 10,
-                padding: '9px 13px',
-                background: 'var(--sr-error-bg)',
-                borderRadius: 6,
-                fontSize: '0.8125rem',
-                color: 'var(--sr-error)',
-              }}
-            >
-              <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-              {state.message}
+          {hasError && state.status === 'error' && (
+            <div id="checklist-error" style={{ marginTop: 10 }}>
+              <OfflineMessage kind={state.errorKind} message={state.message} />
             </div>
           )}
 
           {hasResult && (
             <>
               <hr style={{ border: 'none', borderTop: '1px solid var(--sr-border)', margin: '24px 0' }} />
+              {/* Replay staleness cue (FR-31): this weather was loaded earlier and
+                  re-shown offline, not a fresh reading. */}
+              {state.status === 'success' && state.replayedAt !== null && (
+                <StalenessCue replayedAt={state.replayedAt} />
+              )}
               {/* Edit link on its own line above the checklist info so neither
                   truncates the other. */}
               {state.status === 'success' && (
@@ -934,7 +949,14 @@ export default function App() {
                 <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
               )}
               {tideState.status === 'error' && (
-                <div style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+                <OfflineMessage
+                  kind={tideState.errorKind}
+                  message={
+                    tideState.errorKind === 'offline' ? OFFLINE_MESSAGE
+                      : tideState.errorKind === 'no-key' ? NO_KEY_MESSAGE
+                      : 'Tide data unavailable right now.'
+                  }
+                />
               )}
               {(tideState.status === 'too-far' || tideState.status === 'outside-us') && (
                 <div className="sr-action-row sr-action-row-stack" style={{ background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 8, padding: '13px 15px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
@@ -953,6 +975,9 @@ export default function App() {
               )}
               {tideState.status === 'ok' && (
                 <>
+                  {tideState.replayedAt !== null && (
+                    <StalenessCue replayedAt={tideState.replayedAt} />
+                  )}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                     <span style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' as const, color: 'var(--sr-text-muted)' }}>
                       Tide output
@@ -1244,6 +1269,7 @@ export default function App() {
         {(updateStatus.kind === 'idle'
           || updateStatus.kind === 'up-to-date'
           || updateStatus.kind === 'available'
+          || updateStatus.kind === 'offline'
           || updateStatus.kind === 'error') && (
           <>
             <button tabIndex={0}
@@ -1294,6 +1320,7 @@ export default function App() {
               updateStatus.kind === 'up-to-date' || updateStatus.kind === 'ready-to-restart' ? 'var(--sr-accent)'
               : updateStatus.kind === 'available' ? 'var(--sr-warning)'
               : updateStatus.kind === 'error' ? 'var(--sr-error)'
+              : updateStatus.kind === 'offline' ? 'var(--sr-text-muted)'
               : 'var(--sr-text-muted)',
           }}
         >
@@ -1312,6 +1339,14 @@ export default function App() {
           )}
           {updateStatus.kind === 'available' && isTauri() && `v${updateStatus.latest} available`}
           {updateStatus.kind === 'ready-to-restart' && 'Update installed — restarting…'}
+          {/* Offline: distinct from the generic error and conveyed by an icon +
+              text, not color alone (FR-39/NFR-09). */}
+          {updateStatus.kind === 'offline' && (
+            <>
+              <WifiOff size={11} strokeWidth={2.5} aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
+              Couldn't reach the update server — you're offline
+            </>
+          )}
           {updateStatus.kind === 'error' && 'Could not check for updates'}
         </span>
         {/* Download progress: a real progressbar AT can query as a value, plus the

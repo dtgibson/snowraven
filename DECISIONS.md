@@ -4,6 +4,26 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Offline support — 2026-06-21 (v0.5.45)
+
+**Decision:** Make SnowRaven usable offline across two tiers, with the heavy assets generated at release time on the Mac.
+
+- **Basemap mechanism = self-hosted PMTiles + a custom `srpm://` MapLibre protocol (OQ-01/OQ-09).** The pmtiles lib's own `Protocol` hard-codes a `pmtiles://` regex, so local region files need a distinct scheme with its own loadFn, backed by a `pmtiles` custom `Source` doing TRUE range reads (`open`+`seek`+`read` via tauri-plugin-fs) — NOT `readFile` (whole-file, would break NFR-03/04) and NOT `convertFileSrc`/asset-protocol (Linux webkit2gtk Range reliability + a CSP change). Region tiles bake from the Protomaps planet (ODbL, bulk-download-licensed), county-primary + whole-state coarser, z14, polygon-clipped (a raw bbox on Alaska = 20 GB), hosted on a dedicated `regions-<ver>` GitHub Releases tag.
+- **Region downloads are desktop-only (FR-20)** — the web/Pi seam can't durably persist GB-scale blobs; the web UI states this honestly and offers no download. **Off by default (FR-11a):** no tile byte is fetched until the user enables it.
+- **Replay is opt-in per call-site, not a transparent path gate (FR-38).** `/checklists/{id}` is shared by the replay surface AND the Comparer, which is intentionally no-replay; a path-only gate can't tell them apart, so consumers call `transport.getReplayable` explicitly. The replay store is separate from the 90s in-memory `networkCache` (which keeps its live-coalescing role), keyed by the same `networkCacheKey` derivation with `force` stripped.
+- **Bundled eBird taxonomy snapshot is a committed dependency (FR-21), not optional** — it's the only mechanism that satisfies the first-ever-cold-start guarantee on both runtimes. It ships twice (frontend `src/assets/`, backend `staticdata/`) and its version key must advance in lockstep with the desktop IndexedDB `CACHE_KEY` (recorded in CLAUDE.md).
+- **Release-time assets are Mac-side and code-complete behind flags.** Glyph/sprite capture + `BUNDLED_MAP_ASSETS` flip and the county/state PMTiles bakes need network + large data the build VM can't produce; the code is written and flag-gated, so Tier-B rendering and offline labels are verified at release. The exact ordered steps live in `pipeline/offline-support/release-runbook.md`.
+
+**Bug fixed during the build (post-mortem):** `rewriteStyleAssetUrls` built the glyph URL with `new URL('…/{fontstack}/{range}.pbf', base)`, which percent-encodes the braces to `%7Bfontstack%7D` — MapLibre can't substitute those per-tile, so every offline glyph would have 404'd. Dormant only because `BUNDLED_MAP_ASSETS=false` gates the rewrite; it would have bitten at release. Fixed by resolving only the brace-free prefix through `new URL()` and appending the literal template as a string; locked with `mapStyleRewrite.test.ts`.
+
+**Convention:** bundled data that is IMPORTED (taxonomy, atlas, tide stations, the regions catalog) lives in `frontend/src/assets/`; only URL-served static assets (the glyphs/sprite) go in `frontend/public/`. A `public/` JSON import trips a Vite warning — the regions catalog was moved to `src/assets/` to fix it and match the existing pattern.
+
+**Rationale:** field birders lose signal exactly where they bird; the app should degrade to "your data still works + honest messaging," and a planned-ahead download gives a real offline base. Self-hosting the only bulk-downloadable tiles honors every provider's ToS.
+
+**Implications:** the privacy policy now enumerates every tile/style/glyph/sprite host (incl. the GitHub Releases regions host) and discloses the opt-in region-download egress. Future map-asset work follows the `src/assets` (imported) vs `public/` (URL-served) split. The release of any version that bakes regions follows the release-runbook (and the standing tag-re-push guard).
+
+---
+
 ## Documentation & website accuracy audit — 2026-06-18 (docs-only, no release)
 
 **What:** A verified, comprehensive accuracy review of README.md, docs/HELP.md, the website,

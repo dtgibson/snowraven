@@ -78,7 +78,10 @@ def test_version_check_missing_package_json(tmp_path, monkeypatch):
     assert response.status_code == 500
 
 
-def test_version_check_no_releases(tmp_path, monkeypatch):
+def test_version_check_no_releases_not_up_to_date(tmp_path, monkeypatch):
+    """FR-39 / QA-28: a GitHub 404 (no release found) must NOT report
+    up_to_date — it is a reachable-but-error outcome, distinct from offline (503)
+    and from genuinely up to date (200)."""
     pkg = tmp_path / "package.json"
     pkg.write_text('{"version": "0.0.5"}')
     monkeypatch.setattr("routers.version._PACKAGE_JSON", pkg)
@@ -86,10 +89,21 @@ def test_version_check_no_releases(tmp_path, monkeypatch):
     with _patch_github("", status_code=404):
         response = client.get("/version/check")
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["up_to_date"] is True
-    assert data["current"] == "0.0.5"
+    # Reachable error -> 502 (generic update-check error), never up_to_date=true.
+    assert response.status_code == 502
+    assert "up_to_date" not in response.text
+
+
+def test_version_check_server_error_is_generic_not_offline(tmp_path, monkeypatch):
+    """A reachable 5xx reports the generic error (502), distinct from offline (503)."""
+    pkg = tmp_path / "package.json"
+    pkg.write_text('{"version": "0.0.5"}')
+    monkeypatch.setattr("routers.version._PACKAGE_JSON", pkg)
+
+    with _patch_github("", status_code=500):
+        response = client.get("/version/check")
+
+    assert response.status_code == 502
 
 
 def test_version_check_github_unreachable(tmp_path, monkeypatch):

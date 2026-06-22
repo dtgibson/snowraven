@@ -1,15 +1,24 @@
 {
   "activeFeature": null,
-  "sessionNumber": 51,
+  "sessionNumber": 52,
   "sessionType": null,
   "currentStage": null,
-  "lastCompletedStage": 6,
+  "lastCompletedStage": 9,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
+  "confirmedArtifacts": [
+    "pipeline/offline-support/strategic-brief.md",
+    "pipeline/offline-support/prd.md",
+    "pipeline/offline-support/schema.md",
+    "pipeline/offline-support/design-spec.md",
+    "pipeline/offline-support/design.html",
+    "pipeline/offline-support/qa-report.md",
+    "pipeline/offline-support/security-report.md",
+    "pipeline/offline-support/release-runbook.md"
+  ],
   "releasedVersion": "0.5.44",
-  "lastFeature": "Documentation & website accuracy audit (Improve) -- COMMITTED docs-only on the VM (session 51), pushed main. No version bump, no tag, no release; the website redeploys via GitHub Pages. A verified multi-agent audit (ground-truth -> per-doc audit -> adversarial verify) of README.md, docs/HELP.md, the website, ACCESSIBILITY.md, and PRIVACY_POLICY.md vs the shipped 0.5.44 app. Fixes: PRIVACY_POLICY.md gained a Software Updates section (the in-app updater's GitHub connection was undisclosed) + Nominatim reverse-geocode + eBird taxonomy/region uses + effective date June 18; README gained Frivolous Lists, drop-a-pin, Settings/appearance, the desktop-vs-self-hosted updater split, broadened eBird-key scope, eight-days wording, in-app Help/welcome, corrected breeding-matrix wording; website 'Seven'->'Nine' tools + broadened eBird-key blurb; docs/HELP.md breeding-codes matrix wording; ACCESSIBILITY.md added the Nearby-lifers in-view list + clarified the presentational search-center pin. NO app code change (the CenterPin aria-label was intentionally NOT added: neutralizeMarkerWrapper sets role=presentation and strips aria-label; the pin is presentational by design). The only app-bundle change is the one-line HELP.md tweak, which rides with the next release. CI mirror green (lint + typecheck + 1006 vitest + build); security review clean; DECISIONS.md entry added. releasedVersion stays 0.5.44 (latest live release). Prior: 0.5.44 milestone-badge-dark-contrast RELEASED (live, both platforms).",
-  "remainingBacklog": "STANDING RELEASE NOTE: always run a release via `zsh -lc ./release.sh` on the Mac (Apple signing creds are exported only in the Mac LOGIN profile; a bare ./release.sh fails preflight with APPLE_SIGNING_IDENTITY is not set). STANDING tag-re-push guard before release.sh after any tag re-push: confirm the most-recent successful windows-build.yml run headSha == tag commit. Pending for the NEXT release (not urgent): the v0.5.44->next bundle will pick up the committed docs/HELP.md breeding-codes wording tweak automatically; no separate action. Known minor deferred: computeLocationsSorted (speciesStats.ts) groups by location NAME keeping first-seen locId -- Set-gated, never a 404; align to locId (like computeGeo) when next touched. ROADMAP Up Next: mobile app (responsive groundwork done); Windows code signing. NOT-FOR-RELEASE: origin has an unmerged docs/snoa-3-accuracy-fixes branch -- left untouched.",
-  "createdAt": "2026-06-18T16:57:08Z",
-  "updatedAt": "2026-06-18T18:27:37Z"
+  "lastFeature": "Offline support (Feature lane, v0.5.45) -- COMPLETE through all 9 Weft stages and COMMITTED to main on the VM (NOT yet released). Made SnowRaven usable offline: Tier A (tuned vector style persisted via the storage seam + seeded before any network fetch so maps mount offline and draw the user's data layers); opt-in desktop-only region downloads (PMTiles served to MapLibre via a custom srpm:// protocol over true range reads); weather/tide replay (opt-in per call-site, separate from the 90s networkCache); a bundled eBird taxonomy snapshot as the offline floor in BOTH runtimes; three-state offline/no-key/server-error messaging incl. the web/Pi backend-down distinction (FR-39a) and the update-check 404 fix; and a generic /settings/{key} store. Found+fixed a latent rewriteStyleAssetUrls glyph-token percent-encoding bug. 1094 frontend + 157 backend tests green; security review clean (no Critical/High). Release.sh + the release-time map assets are Mac-only -- see remainingBacklog + pipeline/offline-support/release-runbook.md.",
+  "remainingBacklog": "OFFLINE-SUPPORT RELEASE (Mac-only; v0.5.45 is committed to main but NOT released): follow pipeline/offline-support/release-runbook.md. Decide full-feature (capture+bundle glyphs/sprite under frontend/public/mapassets; bake county/state PMTiles via tools/build-regions -> upload to a regions-2026.06 GitHub Releases tag; populate frontend/src/assets/regions-catalog.json via gen-catalog.mjs; flip BUNDLED_MAP_ASSETS=true in frontend/src/lib/mapStyle.ts) vs resilience-only (ship as-is now, regions/labels in a later version). Then commit any asset changes -> push the v0.5.45 tag (starts Windows CI) -> wait for CI -> `zsh -lc ./release.sh`. STANDING RELEASE NOTE: release.sh runs only on the Mac (Apple signing creds are exported only in the Mac LOGIN profile; a bare ./release.sh fails preflight with APPLE_SIGNING_IDENTITY is not set). STANDING tag-re-push guard after any tag re-push: confirm the most-recent successful windows-build.yml run headSha == tag commit. The bundled eBird taxonomy snapshot is already generated + committed (frontend/src/assets/ebird-taxonomy.json + backend/staticdata/ebird_taxonomy.json); its version key and the desktop IndexedDB CACHE_KEY advance in lockstep. Known minor deferred: computeLocationsSorted (speciesStats.ts) groups by location NAME keeping first-seen locId; region-manifest reads are intentionally uncoalesced (a small file mutated mid-session, where fresh reads are correct). ROADMAP Up Next: mobile app; Windows code signing. NOT-FOR-RELEASE: origin has an unmerged docs/snoa-3-accuracy-fixes branch -- left untouched.",
+  "createdAt": "2026-06-20T07:53:02Z",
+  "updatedAt": "2026-06-22T02:19:18Z"
 }

@@ -402,9 +402,43 @@ Reorder and show or hide individual tabs. Drag rows to reorder, or use the **Mov
 
 On narrow screens and mobile browsers the tab bar automatically collapses into a compact dropdown that follows the same order and visibility choices, so every tab stays reachable without horizontal scrolling.
 
+### Offline maps (desktop app)
+
+In the Mac and Windows desktop apps, the Settings tab includes an **Offline maps** section for downloading map regions so the Map Explorer keeps full street detail when you have no connection. It is **off by default** -- nothing downloads until you turn it on -- and it does not appear in the web/Pi version, where this section instead explains that downloadable regions are a desktop-app feature.
+
+To download a region:
+
+1. Turn on **Enable offline maps**.
+2. Pick a region and choose **Download**. The counties you bird are suggested automatically from your eBird backup; pick one of those, or download a whole state.
+3. While a region downloads, you'll see its progress and a **Cancel** button.
+4. Once it finishes, open the Map Explorer offline anywhere inside that region to pan and zoom with full street detail.
+
+The manager lists each downloaded region with its size and a running total of the space in use. A region flagged **Out of date** can be updated to the latest tiles, and any region can be removed to reclaim space.
+
+Note that only the **Map** (vector) base works offline; **Satellite**, **Topo**, and **Trails** need a connection and are disabled while you're offline.
+
 ### Troubleshooting (desktop app)
 
 In the Mac and Windows desktop apps, the Settings tab includes a Troubleshooting section with a **Rebuild caches & restart** button. If the map or species lookups stop working, rebuilding the app's local caches usually fixes it; the app clears its cached taxonomy data and restarts. This section does not appear in the web/Pi version.
+
+---
+
+## Using SnowRaven offline
+
+SnowRaven keeps working without a connection. Every analytical tab and every map **opens offline** once it has loaded online at least once, working entirely from your already-loaded, locally-stored data. Here's what's available offline, and what still needs a connection.
+
+**What works offline:**
+
+- **All your tabs and maps open.** Each analytical tab and map opens offline once you've visited it online at least once. The maps draw your sightings, the heatmap, and the atlas blocks, plus the base map's place labels.
+- **Bird names stay complete from a cold start.** Even on a first-ever launch with no connection, bird names sort in taxonomic order and show their eBird and Birds of the World icons.
+- **Previously-loaded weather and tide re-show.** A checklist's weather or tide reading you loaded online once re-appears when you reopen that checklist offline, marked as the last loaded result with the time it was loaded.
+- **Honest messages when a live feature can't run.** When something needs the network and can't reach it, SnowRaven tells you plainly whether you're offline, missing an API key, or hit a server error -- rather than failing silently.
+
+**What still needs a connection:**
+
+- **Full street detail on the map** comes from the network unless you've downloaded that region (see **Offline maps** under Settings, desktop app only). Without a downloaded region, an offline map still shows your data and the base map's labels, but the full street detail needs a downloaded region. Only the **Map** (vector) base works offline; Satellite, Topo, and Trails are disabled while you're offline.
+- **Live weather and tide lookups** are online-only, but a reading you've loaded before re-shows offline (above).
+- **These features are online-only with no offline fallback** -- they show a clear "you're offline" message: place and address search, the Checklist Comparer, live nearby-bird overlays, and downloading an app update.
 
 ---
 

@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Offline Maps (design mockup)</title>
+<!--
+  SnowRaven · Offline-maps offline-support UI mockup.
+  Self-contained: all CSS + JS inline, all icons inline SVG (Lucide), no external requests.
+
+  Tokens below are the REAL --sr-* values copied verbatim from frontend/src/globals.css
+  (:root light + [data-theme="dark"]). The app default theme is light, so light is shown
+  first — flip with the button top-right; both themes are faithful.
+
+  Fidelity anchors (read from source while building this):
+    · ToggleSwitch  — ui/ToggleSwitch.tsx  (30px pill, 28×16 track, white knob, role=switch)
+    · Section/card  — Settings.tsx          (SectionHeader eyebrow + bordered card; descriptive
+                                              copy is a muted <p> BELOW the card, never inside a row)
+    · Row + tile    — Settings.tsx FileRow   (38×38 tile; trailing action cluster;
+                                              destructive action is a LABELED text button, not an icon)
+    · Base switcher — SnowMap.tsx + .sr-map-layers (globals.css)  ("Map" / "Satellite" / "Topo (US)"
+                                              seg buttons with aria-pressed; Trails is a separate checkbox)
+-->
+<style>
+  :root {
+    --sr-text-scale: 1;
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-footer: #6B7280;
+    --sr-text-gray: #6B7280;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+    --sr-border-input: #8A8A91;
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-accent-border-strong: rgba(39,116,72,0.7);
+    --sr-accent-surface: #fafffd;
+    --sr-on-accent: #FFFFFF;
+    --sr-error: #D31F1F;
+    --sr-error-bg: #FEF2F2;
+    --sr-error-border: #FECACA;
+    --sr-warning: #92400E;
+    --sr-warning-bg: #FFFBEB;
+    --sr-warning-subtle: #FDE68A;
+    --sr-gray-300: #D1D5DB;
+    --sr-gray-400: #8E8E96;
+    --sr-chart-blue-dark: #1D4ED8;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-footer: #8A8A92;
+    --sr-text-gray: #8A8A92;
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+    --sr-border-input: #707078;
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-bg-hover: #064E3B;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-accent-border-strong: rgba(52,211,153,0.5);
+    --sr-accent-surface: #021a0f;
+    --sr-on-accent: #052E16;
+    --sr-error: #F87171;
+    --sr-error-bg: #1C0505;
+    --sr-error-border: #7F1D1D;
+    --sr-warning: #FDE68A;
+    --sr-warning-bg: #1C1002;
+    --sr-warning-subtle: #78350F;
+    --sr-gray-300: #3F3F46;
+    --sr-gray-400: #6E6E78;
+    --sr-chart-blue-dark: #3B82F6;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  }
+
+  * { box-sizing: border-box; }
+  html { background: var(--sr-bg); font-size: calc(100% * var(--sr-text-scale, 1)); }
+  body {
+    margin: 0;
+    font-family: var(--sr-font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Page scaffold (mock chrome only — not part of the spec). */
+  .page { width: 100%; max-width: 760px; margin: 0 auto; padding: 28px 20px 80px; }
+  .mock-bar {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 20px;
+    background: var(--sr-surface);
+    border-bottom: 1px solid var(--sr-border);
+  }
+  .mock-bar h1 { margin: 0; font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.01em; }
+  .mock-bar .sub { font-size: 0.75rem; color: var(--sr-text-muted); }
+  .mock-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mock-btn {
+    height: 30px; padding: 0 12px; border-radius: 6px; cursor: pointer;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+    color: var(--sr-text); font: 500 0.75rem var(--sr-font-sans);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .mock-btn[aria-pressed="true"] {
+    background: var(--sr-accent-bg); border-color: var(--sr-accent-border); color: var(--sr-accent);
+  }
+
+  /* Settings centered column (matches Settings.tsx layout). */
+  .settings-col { width: 100%; max-width: 680px; margin: 0 auto; }
+
+  /* SectionHeader eyebrow (Settings.tsx line 683). */
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .section-header .label {
+    font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--sr-text-muted); white-space: nowrap;
+  }
+  .section-header .rule { flex: 1; height: 1px; background: var(--sr-border); }
+
+  /* Bordered section card (Settings.tsx: 1px border, radius 10, surface, overflow hidden). */
+  .card {
+    border: 1px solid var(--sr-border);
+    border-radius: 10px;
+    background: var(--sr-surface);
+    overflow: hidden;
+  }
+  .card-row { padding: 14px 16px; }
+  .row-sep { border-top: 1px solid var(--sr-border-subtle); }
+
+  /* Muted explanatory paragraph BELOW a card (Settings.tsx API-Keys / Default-Files pattern). */
+  .card-note { font-size: 0.75rem; color: var(--sr-text-muted); margin: 10px 0 24px; line-height: 1.5; }
+  .card-note strong { color: var(--sr-text); font-weight: 600; }
+
+  /* ── ToggleSwitch — EXACT reproduction of ui/ToggleSwitch.tsx ──────────────── */
+  .toggle {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 30px; padding: 0 10px 0 8px; border-radius: 6px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+    cursor: pointer; font-family: inherit; font-size: 0.75rem; font-weight: 500;
+    color: var(--sr-text-muted); white-space: nowrap;
+  }
+  .toggle:disabled { cursor: not-allowed; }
+  .toggle .track {
+    width: 28px; height: 16px; border-radius: 8px; flex-shrink: 0; position: relative;
+    background: var(--sr-gray-400); transition: background 0.15s;
+  }
+  .toggle[aria-checked="true"] .track { background: var(--sr-accent); }
+  .toggle .knob {
+    width: 12px; height: 12px; border-radius: 50%; background: white;
+    position: absolute; top: 2px; left: 2px; transition: left 0.15s;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25); /* faithful: literal knob shadow in ToggleSwitch.tsx */
+  }
+  .toggle[aria-checked="true"] .knob { left: 14px; }
+  /* Disabled web toggle: dim only the TRACK, keep the LABEL legible (critique 6). */
+  .toggle:disabled .track { opacity: 0.55; }
+
+  /* Region-row icon tile (38×38, FileRow line 279). */
+  .row-tile {
+    width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--sr-surface-subtle); color: var(--sr-text-disabled);
+  }
+  .row-tile.present { background: var(--sr-accent-bg); color: var(--sr-accent); }
+
+  /* Type roles (three working grades). */
+  .t-title { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); }   /* names + card titles */
+  .t-sub   { font-size: 0.8125rem; color: var(--sr-text-muted); margin-top: 2px; line-height: 1.5; } /* sublabels */
+  .t-note  { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; } /* captions */
+  .t-meta  { font-size: 0.75rem; color: var(--sr-text-gray); }                     /* metadata-grade */
+
+  .grow { flex: 1; min-width: 0; }
+  .row-lead { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
+
+  /* Buttons — grades faithful to Settings.tsx (FileRow Upload / Clear, lead CTA). */
+  .btn {
+    height: 32px; padding: 0 12px; border-radius: 6px; cursor: pointer;
+    font: 500 0.75rem var(--sr-font-sans); white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--sr-accent); color: var(--sr-on-accent); border: none; }
+  .btn-secondary { background: var(--sr-surface); color: var(--sr-text); border: 1.5px solid var(--sr-border); }
+  /* Destructive = FileRow's "Clear" treatment: 1.5px error border + error text, LABELED text. */
+  .btn-destructive { background: var(--sr-surface); color: var(--sr-error); border: 1.5px solid var(--sr-error-border); }
+
+  /* Status chip / inline size pill (FileRow "No file saved" shape, line 309). */
+  .chip {
+    display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+    background: var(--sr-surface-subtle); border-radius: 12px;
+    font-size: 0.6875rem; font-weight: 500; color: var(--sr-text-muted); white-space: nowrap;
+  }
+
+  /* "Out of date" badge — WARNING vocabulary (semantically "attention, not error";
+     both themes pre-tuned in globals.css). Deliberately NOT the milestone/achievement
+     tokens — those live on a light achievement surface; staleness is a status. */
+  .badge-stale {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 22px; padding: 0 8px; border-radius: 11px;
+    background: var(--sr-warning-bg);
+    border: 1px solid var(--sr-warning-subtle);
+    color: var(--sr-warning);
+    font-size: 0.6875rem; font-weight: 600; white-space: nowrap;
+  }
+
+  /* Determinate progress bar (token-built; % text is the non-color state cue). */
+  .progress-cluster { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .progress-track {
+    height: 8px; border-radius: 4px; background: var(--sr-surface-subtle);
+    border: 1px solid var(--sr-border-input); overflow: hidden; flex: 1; min-width: 0;
+  }
+  .progress-fill { height: 100%; background: var(--sr-accent); transition: width 0.25s; }
+  .progress-pct { font-size: 0.75rem; color: var(--sr-text-muted); min-width: 38px; text-align: right; flex-shrink: 0; }
+
+  /* In-progress sub-row: a responsive row that stacks Cancel below the bar ≤480. */
+  .progress-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+
+  /* Info / offline-cue panels (WeatherTidePanel info-panel shape). */
+  .panel {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 11px 13px; border-radius: 8px;
+    font-size: 0.8125rem; line-height: 1.5;
+  }
+  .panel svg { flex-shrink: 0; margin-top: 1px; }
+  .panel-accent { background: var(--sr-accent-bg); border: 1px solid var(--sr-accent-border); color: var(--sr-text-muted); }
+  .panel-accent svg { color: var(--sr-text-muted); }
+  .panel-warning { background: var(--sr-warning-bg); border: 1px solid var(--sr-warning-subtle); color: var(--sr-warning); }
+  .panel-warning svg { color: var(--sr-warning); }
+  .panel-error { background: var(--sr-error-bg); border: 1px solid var(--sr-error-border); color: var(--sr-error); }
+  .panel-error svg { color: var(--sr-error); }
+  /* Faint accent-washed hint panel (matches AppearanceRow consent note: accent-surface + accent-border, radius 8). */
+  .panel-hint {
+    background: var(--sr-accent-surface); border: 1px solid var(--sr-accent-border);
+    color: var(--sr-text-muted); font-size: 0.75rem;
+  }
+  .panel strong { color: var(--sr-text); font-weight: 600; }
+  .panel-warning strong { color: var(--sr-warning); }
+  .panel-error strong { color: var(--sr-error); }
+
+  /* Manager body container (visually nested rows in the SAME card as the toggle). */
+  .manager-disabled { background: var(--sr-surface-subtle); }
+
+  /* "whole state instead" expander inner panel. */
+  .state-panel { background: var(--sr-surface-faint); padding: 12px 16px; }
+
+  /* Surfaces demo (separate cards). */
+  .surface-card {
+    border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface);
+    overflow: hidden; margin-bottom: 24px; box-shadow: var(--sr-card-shadow);
+  }
+  .surface-head {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+    border-bottom: 1px solid var(--sr-border-subtle);
+  }
+  .surface-head .tile {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+  }
+  .surface-head h2 { margin: 0; font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.01em; }
+  .surface-head .desc { font-size: 0.75rem; color: var(--sr-text-muted); }
+
+  /* Map base-switcher mock (.sr-map-layers reproduced from globals.css). */
+  .map-frame {
+    position: relative; height: 220px; border-radius: 10px; overflow: hidden;
+    margin: 14px 16px 16px;
+    background: var(--sr-surface-faint);       /* flat placeholder — not a new visual language */
+    border: 1px solid var(--sr-border);
+  }
+  .map-grid {
+    position: absolute; inset: 0; opacity: 0.5;
+    background-image:
+      linear-gradient(var(--sr-border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--sr-border) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+  .sr-map-layers {
+    position: absolute; top: 8px; right: 8px;
+    display: flex; flex-direction: column; gap: 7px; padding: 7px;
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.15); /* faithful: literal in globals.css */
+  }
+  .sr-map-layers-seg { display: inline-flex; gap: 2px; background: var(--sr-surface-subtle); border-radius: 7px; padding: 2px; }
+  .sr-map-layers-seg button {
+    padding: 4px 10px; border: none; border-radius: 5px; font: 500 0.75rem var(--sr-font-sans);
+    cursor: pointer; color: var(--sr-text-muted); background: transparent;
+  }
+  .sr-map-layers-seg button.is-active {
+    background: var(--sr-surface); color: var(--sr-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  }
+  .sr-map-layers-seg button.is-disabled {
+    color: var(--sr-text-disabled); cursor: not-allowed;
+  }
+  .sr-map-layers-trails {
+    display: flex; align-items: center; gap: 6px; padding: 0 2px;
+    font-size: 0.75rem; color: var(--sr-text); cursor: pointer;
+  }
+  .sr-map-layers-trails.is-disabled { color: var(--sr-text-disabled); cursor: not-allowed; }
+  .sr-map-layers-trails input { accent-color: var(--sr-accent); }
+  .layers-offline-hint {
+    display: flex; align-items: center; gap: 5px; padding: 0 2px;
+    font-size: 0.6875rem; color: var(--sr-text-muted);
+  }
+  .map-pin {
+    position: absolute; width: 14px; height: 14px; border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg); background: var(--sr-accent); border: 1.5px solid var(--sr-surface);
+  }
+
+  /* Replayed mono block (weather/tide). */
+  .mono-block {
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    font-size: 0.75rem; color: var(--sr-text); line-height: 1.6;
+    background: var(--sr-surface-faint); border: 1px solid var(--sr-border-subtle);
+    border-radius: 6px; padding: 10px 12px; margin: 10px 16px 16px; white-space: pre-wrap;
+  }
+
+  .total-line { font-size: 0.75rem; color: var(--sr-text-muted); }
+
+  .section-note { font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; }
+
+  .group-label {
+    font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--sr-text-muted); padding: 12px 16px 0;
+  }
+  .group-sub { font-size: 0.75rem; color: var(--sr-text-muted); padding: 4px 16px 4px; line-height: 1.5; }
+
+  .saved-confirm { font-size: 0.75rem; color: var(--sr-accent); font-weight: 500; }
+
+  /* sr-only */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+  }
+
+  /* Focus ring (global, matches globals.css verbatim — note: the literal accent RGB
+     triplet 45,134,83 is copied as-is from the shipped stylesheet). */
+  button:focus-visible, a:focus-visible, [role="switch"]:focus-visible,
+  label:focus-within, [tabindex]:focus-visible {
+    outline: 3px solid var(--sr-accent); outline-offset: 3px;
+    box-shadow: 0 0 0 6px rgba(45,134,83,0.12);
+  }
+
+  .subhead {
+    font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--sr-text-gray); margin: 32px 0 14px;
+  }
+
+  /* sr-action-row vocabulary (responsive — lifted to classes so media queries reach them). */
+  .sr-action-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+  .sr-min0 { min-width: 0; }
+  .action-cluster { display: flex; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: wrap; }
+
+  @media (max-width: 480px) {
+    .sr-action-row-stack { flex-direction: column; align-items: stretch; }
+    .sr-action-row-stack > * { width: 100%; }
+    .sr-action-row-stack .action-cluster { justify-content: flex-start; }
+    /* Progress sub-row stacks: Cancel drops below the bar so it never competes for width. */
+    .progress-row { flex-direction: column; align-items: stretch; }
+    .progress-row .btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-bar">
+  <div>
+    <h1>SnowRaven — Offline maps</h1>
+    <div class="sub">design mockup · all surfaces &amp; states</div>
+  </div>
+  <div class="mock-controls" role="group" aria-label="Mockup controls">
+    <button class="mock-btn" id="themeBtn" aria-pressed="false" onclick="toggleTheme()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      <span id="themeLabel">Dark theme</span>
+    </button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       1 · SETTINGS → "Offline maps" — toggle OFF (default)
+       Matches the Settings section shape: SectionHeader eyebrow → bordered card
+       whose FIRST row is the standalone ToggleSwitch (label only) → explanatory
+       copy as a muted <p> BELOW the card.
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div class="subhead">1 · Settings → Offline maps — toggle OFF (default)</div>
+  <div class="settings-col">
+
+    <div class="section-header">
+      <span class="label">Offline maps</span>
+      <div class="rule"></div>
+    </div>
+
+    <div class="card">
+      <!-- Row 1: the standalone ToggleSwitch. DEFAULT OFF (gray-400 track). -->
+      <div class="card-row">
+        <button class="toggle" role="switch" aria-checked="false" id="toggleOff">
+          <span class="track"><span class="knob"></span></span>
+          Enable offline maps
+        </button>
+      </div>
+
+      <!-- Manager body, disabled, with a pointer back up to the toggle. -->
+      <div class="card-row row-sep manager-disabled">
+        <div class="panel panel-hint" role="note">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+          <span>Turn on <strong>Enable offline maps</strong> above to download regions. Until then, nothing is downloaded and no map tiles are stored on this device.</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="card-note">
+      Download map regions so the map works without a connection. Nothing downloads until you turn this on.
+    </p>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       2 · SETTINGS → "Offline maps" — toggle ON (desktop region manager)
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div class="subhead">2 · Settings → Offline maps — toggle ON (region manager, desktop)</div>
+  <div class="settings-col">
+
+    <div class="section-header">
+      <span class="label">Offline maps</span>
+      <div class="rule"></div>
+    </div>
+
+    <div class="card">
+      <!-- Row 1: ToggleSwitch ON (accent track). -->
+      <div class="card-row">
+        <button class="toggle" role="switch" aria-checked="true">
+          <span class="track"><span class="knob"></span></span>
+          Enable offline maps
+        </button>
+      </div>
+
+      <!-- ── "Counties you bird" group ── -->
+      <div class="group-label row-sep">Counties you bird</div>
+      <div class="group-sub">Taken from the counties in your eBird backup — the places you actually go.</div>
+
+      <!-- Marin County — not yet downloaded → Download CTA + size chip. -->
+      <div class="card-row sr-action-row sr-action-row-stack row-sep">
+        <div class="row-lead sr-min0">
+          <div class="row-tile" aria-hidden="true">
+            <!-- Lucide map-pinned -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8c0 3.613-3.869 7.429-5.393 8.795a1 1 0 0 1-1.214 0C9.87 15.429 6 11.613 6 8a6 6 0 0 1 12 0Z"/><circle cx="12" cy="8" r="2"/><path d="M8.835 14H5a1 1 0 0 0-.9.7l-2 6c-.1.4.1.7.5.8h18.8c.4-.1.6-.4.5-.8l-2-6a1 1 0 0 0-.9-.7h-3.835"/></svg>
+          </div>
+          <div class="grow">
+            <div class="t-title">Marin County <span class="t-meta">· CA</span></div>
+            <div class="t-sub">Roads, terrain &amp; labels at zoom 5–14 · not downloaded</div>
+          </div>
+        </div>
+        <div class="action-cluster">
+          <span class="chip">~24 MB</span>
+          <button class="btn btn-primary" tabindex="0" title="Download Marin County, CA for offline use">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Download
+          </button>
+        </div>
+      </div>
+
+      <!-- San Mateo County — DOWNLOAD IN PROGRESS row (live progressbar + % + Cancel). -->
+      <div class="card-row row-sep">
+        <div class="row-lead">
+          <div class="row-tile present" aria-hidden="true">
+            <!-- Lucide download-cloud -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 13v8"/><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="m8 17 4 4 4-4"/></svg>
+          </div>
+          <div class="grow">
+            <div class="t-title">San Mateo County <span class="t-meta">· CA</span></div>
+            <!-- Live status: announced to AT as it updates. -->
+            <div class="t-sub" id="dlStatus" aria-live="polite">Downloading… 18 MB of 31 MB</div>
+          </div>
+        </div>
+        <div class="progress-row sr-action-row-stack">
+          <div class="progress-cluster">
+            <div class="progress-track"
+                 role="progressbar" aria-valuenow="58" aria-valuemin="0" aria-valuemax="100"
+                 aria-label="Downloading San Mateo County, CA" aria-describedby="dlStatus">
+              <div class="progress-fill" style="width:58%;"></div>
+            </div>
+            <span class="progress-pct" id="dlPct">58%</span>
+          </div>
+          <button class="btn btn-secondary" tabindex="0" title="Cancel the San Mateo County download">Cancel</button>
+        </div>
+      </div>
+
+      <!-- "Download a whole state instead" — secondary expander + revealed inner panel. -->
+      <div class="card-row row-sep">
+        <button class="btn btn-secondary" tabindex="0" aria-expanded="true" aria-controls="statePanel"
+                style="height:30px; width:100%; justify-content:space-between;">
+          <span>Download a whole state instead</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+        </button>
+      </div>
+      <div class="state-panel row-sep" id="statePanel">
+        <div class="sr-action-row sr-action-row-stack">
+          <div class="grow">
+            <div class="t-title">California <span class="t-meta">· whole state</span></div>
+            <div class="t-sub">Coarser detail (zoom 5–11) — covers anywhere in the state, larger file.</div>
+          </div>
+          <div class="action-cluster">
+            <span class="chip">~310 MB</span>
+            <button class="btn btn-secondary" tabindex="0" title="Download all of California (coarse detail) for offline use">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              Download state
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── "Downloaded regions" group ── -->
+      <div class="group-label row-sep">Downloaded regions</div>
+
+      <!-- Santa Clara — current, fresh. -->
+      <div class="card-row sr-action-row sr-action-row-stack row-sep">
+        <div class="row-lead sr-min0">
+          <div class="row-tile present" aria-hidden="true">
+            <!-- Lucide check-circle -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg>
+          </div>
+          <div class="grow">
+            <div class="t-title">Santa Clara County <span class="t-meta">· CA</span></div>
+            <div class="t-sub">41 MB on disk · updated Jun 18</div>
+          </div>
+        </div>
+        <div class="action-cluster">
+          <span class="saved-confirm">✓ Up to date</span>
+          <button class="btn btn-destructive" tabindex="0" title="Remove the Santa Clara County offline region">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <!-- Alameda — current, fresh (the 3rd downloaded region, so the total reconciles). -->
+      <div class="card-row sr-action-row sr-action-row-stack row-sep">
+        <div class="row-lead sr-min0">
+          <div class="row-tile present" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg>
+          </div>
+          <div class="grow">
+            <div class="t-title">Alameda County <span class="t-meta">· CA</span></div>
+            <div class="t-sub">40 MB on disk · updated Jun 15</div>
+          </div>
+        </div>
+        <div class="action-cluster">
+          <span class="saved-confirm">✓ Up to date</span>
+          <button class="btn btn-destructive" tabindex="0" title="Remove the Alameda County offline region">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <!-- Sonoma — OUT OF DATE badge (warning vocabulary) + Update + Remove. -->
+      <div class="card-row sr-action-row sr-action-row-stack row-sep">
+        <div class="row-lead sr-min0">
+          <div class="row-tile present" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.801 10A10 10 0 1 1 17 3.335"/><path d="m9 11 3 3L22 4"/></svg>
+          </div>
+          <div class="grow">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span class="t-title">Sonoma County <span class="t-meta">· CA</span></span>
+              <span class="badge-stale">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                Out of date
+              </span>
+            </div>
+            <div class="t-sub">35 MB on disk · downloaded Feb 2 · newer tiles available</div>
+          </div>
+        </div>
+        <div class="action-cluster">
+          <button class="btn btn-secondary" tabindex="0" title="Re-download Sonoma County with the latest tiles">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            Update
+          </button>
+          <button class="btn btn-destructive" tabindex="0" title="Remove the Sonoma County offline region">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+            Remove
+          </button>
+        </div>
+      </div>
+
+      <!-- Total used line. (41 + 40 + 35 = 116 MB across the 3 downloaded regions.) -->
+      <div class="card-row total-line row-sep">Using 116 MB across 3 regions.</div>
+    </div>
+
+    <p class="card-note">
+      Downloaded regions stay on this device and are used automatically when you're offline.
+      Tiles refresh occasionally; an <strong>Out of date</strong> badge means a newer version is available.
+    </p>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       2a · SETTINGS → "Offline maps" — toggle ON, NO regions yet (empty state)
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div class="subhead">2a · Settings → Offline maps — toggle ON, nothing downloaded yet (empty state)</div>
+  <div class="settings-col">
+
+    <div class="section-header">
+      <span class="label">Offline maps</span>
+      <div class="rule"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <button class="toggle" role="switch" aria-checked="true">
+          <span class="track"><span class="knob"></span></span>
+          Enable offline maps
+        </button>
+      </div>
+
+      <div class="group-label row-sep">Counties you bird</div>
+      <div class="group-sub">Taken from the counties in your eBird backup — the places you actually go.</div>
+
+      <!-- Honest empty state: enabled, but nothing downloaded yet. -->
+      <div class="card-row row-sep" style="display:flex; flex-direction:column; align-items:center; text-align:center; gap:8px; padding:26px 16px;">
+        <div class="row-tile" aria-hidden="true" style="width:42px; height:42px; border-radius:10px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+        </div>
+        <div class="t-title">No regions downloaded yet</div>
+        <div class="t-note" style="max-width:34ch;">Pick a county below to download it for offline use. Nothing is stored until you do.</div>
+      </div>
+
+      <!-- One county to download (so the empty state has its "below" target). -->
+      <div class="card-row sr-action-row sr-action-row-stack row-sep">
+        <div class="row-lead sr-min0">
+          <div class="row-tile" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8c0 3.613-3.869 7.429-5.393 8.795a1 1 0 0 1-1.214 0C9.87 15.429 6 11.613 6 8a6 6 0 0 1 12 0Z"/><circle cx="12" cy="8" r="2"/><path d="M8.835 14H5a1 1 0 0 0-.9.7l-2 6c-.1.4.1.7.5.8h18.8c.4-.1.6-.4.5-.8l-2-6a1 1 0 0 0-.9-.7h-3.835"/></svg>
+          </div>
+          <div class="grow">
+            <div class="t-title">Alameda County <span class="t-meta">· CA</span></div>
+            <div class="t-sub">Roads, terrain &amp; labels at zoom 5–14 · not downloaded</div>
+          </div>
+        </div>
+        <div class="action-cluster">
+          <span class="chip">~38 MB</span>
+          <button class="btn btn-primary" tabindex="0" title="Download Alameda County, CA for offline use">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+            Download
+          </button>
+        </div>
+      </div>
+
+      <div class="card-row total-line row-sep">Using 0 MB — no regions downloaded.</div>
+    </div>
+
+    <p class="card-note">
+      Downloaded regions stay on this device and are used automatically when you're offline.
+    </p>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       2c · SETTINGS → "Offline maps" — a download that just failed (role=alert)
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div class="subhead">2c · Settings → Offline maps — a download that just failed (role=alert)</div>
+  <div class="settings-col">
+
+    <div class="section-header">
+      <span class="label">Offline maps</span>
+      <div class="rule"></div>
+    </div>
+
+    <div class="card">
+      <!-- Napa — the row reflects the failure directly (sublabel agrees with the alert). -->
+      <div class="card-row sr-action-row sr-action-row-stack">
+        <div class="row-lead sr-min0">
+          <div class="row-tile" aria-hidden="true">
+            <!-- Lucide alert-circle -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color:var(--sr-error);"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+          </div>
+          <div class="grow">
+            <div class="t-title">Napa County <span class="t-meta">· CA</span></div>
+            <div class="t-sub">Download failed · nothing saved</div>
+          </div>
+        </div>
+        <div class="action-cluster">
+          <span class="chip">~22 MB</span>
+          <button class="btn btn-primary" tabindex="0" title="Try downloading Napa County, CA again">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            Retry
+          </button>
+        </div>
+      </div>
+      <!-- The failure is announced once, as an alert. -->
+      <div role="alert" class="panel panel-error" style="margin: 0 16px 14px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+        <span style="font-size:0.75rem;"><strong>Download failed</strong> — the connection dropped at 42%. Nothing was saved. Reconnect and retry.</span>
+      </div>
+    </div>
+
+    <p class="card-note">
+      A failed download leaves nothing behind — your existing offline regions are untouched.
+    </p>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       2d · SETTINGS → "Offline maps" — web / self-hosted build (!isTauri())
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div class="subhead">2d · Settings → Offline maps — web / self-hosted build (desktop-only note)</div>
+  <div class="settings-col">
+
+    <div class="section-header">
+      <span class="label">Offline maps</span>
+      <div class="rule"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-row">
+        <!-- Disabled toggle: native `disabled` (so it's NOT a tab stop) + aria-disabled;
+             only the TRACK is dimmed so the label stays legible. -->
+        <button class="toggle" role="switch" aria-checked="false" disabled aria-disabled="true">
+          <span class="track"><span class="knob"></span></span>
+          Enable offline maps
+        </button>
+      </div>
+      <div class="card-row row-sep manager-disabled">
+        <div class="panel panel-hint" role="note">
+          <!-- Lucide monitor -->
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+          <span>Region downloads are available in the desktop app. Nothing is stored either way until you download a region there.</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="card-note">
+      Download map regions so the map works without a connection — available in the SnowRaven desktop app.
+    </p>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       3 · OFFLINE / STALENESS CUES on existing surfaces.
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div class="subhead">3a · Weather / Tide panel — offline replay cue (role=status)</div>
+  <div class="surface-card">
+    <div class="surface-head">
+      <div class="tile" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+      </div>
+      <div>
+        <h2>Weather &amp; Tide</h2>
+        <div class="desc">Conditions for this checklist</div>
+      </div>
+    </div>
+    <!-- Offline replay info panel, directly above the replayed block. -->
+    <div class="panel panel-accent" role="status" style="margin:14px 16px 0;">
+      <!-- Lucide wifi-off -->
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>
+      <span><strong>Offline</strong> — showing the last loaded result (loaded 2:14 PM).</span>
+    </div>
+    <div class="mono-block">🌤️ 14°C · feels 13°C · NW 11 km/h · humidity 72%
+🌊 High 5.1 ft at 1:42 PM · Low 0.8 ft at 7:58 PM
+🌅 Sunrise 5:48 AM · Sunset 8:31 PM</div>
+  </div>
+
+
+  <div class="subhead">3b · Live-only feature — "You're offline" state (role=status)</div>
+  <div class="surface-card">
+    <div class="surface-head">
+      <div class="tile" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <div>
+        <h2>Location search</h2>
+        <div class="desc">Find a place to center the map</div>
+      </div>
+    </div>
+    <div style="padding:14px 16px 16px;">
+      <!-- Disabled search input + the distinct offline message. -->
+      <div style="display:flex; align-items:center; gap:8px; height:36px; padding:0 12px; border:1px solid var(--sr-border); border-radius:6px; background:var(--sr-surface-subtle); color:var(--sr-text-disabled);">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <span style="font-size:0.8125rem;">Search a city, park, or address…</span>
+      </div>
+      <div class="panel panel-warning" role="status" style="margin-top:12px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>
+        <span><strong>You're offline.</strong> Location search needs a connection — it'll come back automatically when you reconnect.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="subhead">3c · Map base switcher — raster bases disabled while offline</div>
+  <div class="surface-card">
+    <div class="surface-head">
+      <div class="tile" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg>
+      </div>
+      <div>
+        <h2>Map Explorer</h2>
+        <div class="desc">Vector base stays available offline; satellite &amp; topo need a connection</div>
+      </div>
+    </div>
+
+    <div class="map-frame">
+      <div class="map-grid"></div>
+      <div class="map-pin" style="left:38%; top:46%;"></div>
+      <div class="map-pin" style="left:55%; top:62%; background:var(--sr-accent-strong);"></div>
+
+      <!-- .sr-map-layers panel: vector "Map" active+enabled; raster bases + Trails disabled.
+           Disabled controls are NOT tab stops (no tabindex on a disabled element), carry
+           aria-disabled, drop aria-pressed, and name the REASON programmatically via
+           aria-describedby → the visible "Online only" hint (not a title-only tooltip). -->
+      <div class="sr-map-layers" role="group" aria-label="Map base layer">
+        <div class="sr-map-layers-seg" role="group" aria-label="Base map">
+          <button class="is-active" type="button" tabindex="0" aria-pressed="true">Map</button>
+          <button class="is-disabled" type="button" disabled aria-disabled="true"
+                  aria-label="Satellite" aria-describedby="layersOfflineHint">Satellite</button>
+          <button class="is-disabled" type="button" disabled aria-disabled="true"
+                  aria-label="Topo (US)" aria-describedby="layersOfflineHint">Topo (US)</button>
+        </div>
+        <label class="sr-map-layers-trails is-disabled">
+          <input type="checkbox" disabled aria-disabled="true" aria-describedby="layersOfflineHint" />
+          Trails
+        </label>
+        <div class="layers-offline-hint" id="layersOfflineHint">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg>
+          <span>Online only — connect to use these</span>
+        </div>
+      </div>
+    </div>
+    <p class="section-note" style="margin:0 16px 16px;">
+      The vector base is served from your downloaded regions, so panning and zooming keep working without a connection.
+      Satellite, Topo, and Trails stream live tiles and are paused until you reconnect.
+    </p>
+  </div>
+
+</div>
+
+<script>
+  // Theme toggle — flips data-theme on <html> exactly like applyTheme() in lib/theme.ts.
+  function toggleTheme() {
+    var html = document.documentElement;
+    var btn = document.getElementById('themeBtn');
+    var lbl = document.getElementById('themeLabel');
+    var dark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', dark ? 'light' : 'dark');
+    btn.setAttribute('aria-pressed', String(!dark));
+    lbl.textContent = dark ? 'Dark theme' : 'Light theme';
+  }
+
+  // The OFF toggle is interactive so the OFF→ON knob/track animation is visible.
+  var t = document.getElementById('toggleOff');
+  t.addEventListener('click', function () {
+    var on = t.getAttribute('aria-checked') === 'true';
+    t.setAttribute('aria-checked', String(!on));
+  });
+
+  // Faux progress animation on the in-progress row (illustrative only).
+  var fill = document.querySelector('.progress-fill');
+  var bar = document.querySelector('[role="progressbar"]');
+  var status = document.getElementById('dlStatus');
+  var pctText = document.getElementById('dlPct');
+  var pct = 58;
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    setInterval(function () {
+      pct += 1; if (pct > 96) pct = 40;
+      fill.style.width = pct + '%';
+      bar.setAttribute('aria-valuenow', String(pct));
+      if (pctText) pctText.textContent = pct + '%';
+      if (status) status.textContent = 'Downloading… ' + Math.round(pct / 100 * 31) + ' MB of 31 MB';
+    }, 700);
+  }
+</script>
+</body>
+</html>

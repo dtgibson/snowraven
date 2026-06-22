@@ -9,6 +9,7 @@
 import { useState, useCallback } from 'react'
 import { CloudSun, Loader2 } from 'lucide-react'
 import { transport, TransportError } from '../lib/transport'
+import { classifyLiveError } from '../lib/offlineMessage'
 import type { ChecklistMeta } from '../lib/compareChecklists'
 import type { TideResponse } from '../lib/tide'
 import type { KeyStatus } from '../lib/keyStatus'
@@ -32,11 +33,14 @@ type WeatherResponse = { formatted: string; checklist_id: string; loc_name: stri
 async function loadSideWeather(id: string, set: (s: SideWeatherState) => void): Promise<void> {
   set({ status: 'loading' })
   try {
+    // The Comparer is a NO-replay surface (FR-38): plain get(), never
+    // getReplayable — offline always shows the honest offline message here.
     const data = await transport.get<WeatherResponse>(`/weather/${encodeURIComponent(id)}`)
     set({ status: 'success', formatted: data.formatted })
   } catch (err) {
     const detail = err instanceof TransportError ? (err.detail ?? err.message) : undefined
-    set({ status: 'error', message: detail ?? 'Something went wrong. Please try again.' })
+    const { kind, message } = classifyLiveError(err, { errorDetail: detail })
+    set({ status: 'error', message, errorKind: kind })
   }
 }
 
@@ -56,8 +60,8 @@ async function loadSideTide(id: string, force: boolean, set: (s: SideTideState) 
     } else {
       set({ status: 'unavailable' })
     }
-  } catch {
-    set({ status: 'error' })
+  } catch (err) {
+    set({ status: 'error', errorKind: classifyLiveError(err).kind })
   }
 }
 

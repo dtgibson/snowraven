@@ -11,6 +11,7 @@ from routers.map import router as map_router
 from routers.mapdefaults import router as mapdefaults_router
 from routers.nominatim import router as nominatim_router
 from routers.settings import router as settings_router
+from routers.settingskv import router as settingskv_router
 from routers.taxonomy import router as taxonomy_router
 from routers.tide import router as tide_router
 from routers.version import router as version_router
@@ -37,6 +38,12 @@ app.include_router(version_router)
 app.include_router(nominatim_router)
 app.include_router(taxonomy_router)
 app.include_router(settings_router)
+# Generic /settings/{key} store — MUST be the FINAL include_router. A {key}
+# match registered before the specific /settings/keys|files|map-defaults routes
+# (first-match-wins, registration order) would silently shadow them. Kept ahead
+# of the StaticFiles mount so an unmatched key reaches a real handler, not the
+# SPA fallback.
+app.include_router(settingskv_router)
 
 
 @app.get("/health")

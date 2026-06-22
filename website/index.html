@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 0.5.44">v0.5.44</span>
+        <span class="version-pill" aria-label="Version 0.5.45">v0.5.45</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -131,6 +131,10 @@
             draws from: eBird and OpenWeather with your own keys, plus keyless sources —
             OpenStreetMap, map tiles, NOAA tides, and the Cornell Lab sites that embedded
             Macaulay media and bird-link icons load from. There is no SnowRaven server in the middle.
+            If you opt in to downloading an offline map region on the desktop app, that region's
+            tiles are fetched from GitHub at download time (your IP and the region you chose are
+            visible to GitHub then) and afterward stored on your device and served with no further
+            network. It's off by default.
           </p>
         </div>
         <ul class="privacy-points">
@@ -159,8 +163,8 @@
       <div class="container">
         <header class="section-head">
           <p class="eyebrow"><span class="dot"></span>What's inside</p>
-          <h2>Nine tools, one quiet workspace</h2>
-          <p class="section-sub">Everything reads from the eBird and Macaulay Library exports you already have. No data entry, no busywork.</p>
+          <h2>Nine tools, one quiet workspace — and they work offline</h2>
+          <p class="section-sub">Everything reads from the eBird and Macaulay Library exports you already have. No data entry, no busywork. Once your data has loaded, the tools keep working without a connection.</p>
         </header>
 
         <!-- 1. Weather & Tide -->
@@ -379,6 +383,50 @@
             </div>
           </figure>
         </article>
+
+        <!-- 10. Offline support (text-forward, mock) -->
+        <article class="feature-row reverse">
+          <div class="feature-text">
+            <span class="feature-icon">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18a4 4 0 0 1-.5-7.97A6 6 0 0 1 16 9a4.5 4.5 0 0 1 1.5 8.72"/><path d="M8 16v4M12 18v3M16 16v4"/></svg>
+            </span>
+            <h3>Offline support</h3>
+            <p>
+              Out in the field with no signal, SnowRaven keeps working from the data
+              already loaded on your device. The maps and every analytical tab open
+              offline once they've loaded online once — your sightings, heatmap, atlas,
+              labels, and taxonomically sorted names with their icons all draw, even on a
+              first cold start of the day. A checklist's weather and tide you looked up
+              earlier re-show, marked as the last loaded result.
+            </p>
+            <p>
+              On the desktop app you can opt in to downloading offline map regions: while
+              you have a connection, save the counties you bird (or whole states), then pan
+              and zoom them later with full street detail. A manager shows each region's
+              size, a running total, flags ones that are out of date, and lets you remove
+              them. It's off by default.
+            </p>
+            <p>
+              SnowRaven is honest about the edges. Live lookups — current weather and tide,
+              place search, the Checklist Comparer, nearby-bird overlays, and app updates —
+              still need a connection; offline you see the last loaded result where one
+              exists, or a plain note that you're offline. Only the vector street basemap
+              works offline; satellite, topo, and trails need a connection.
+            </p>
+          </div>
+          <figure class="feature-media feature-mock" aria-hidden="true">
+            <div class="named">
+              <div class="ck-search">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.8 2.8M16.2 16.2 19 19M19 5l-2.8 2.8M7.8 16.2 5 19"/></svg>
+                Downloaded map regions
+              </div>
+              <div class="named-row"><span class="named-tag">Saved</span><span class="named-sp">Marin County, CA</span><span class="named-seen">86 MB</span></div>
+              <div class="named-row"><span class="named-tag">Saved</span><span class="named-sp">Sonoma County, CA</span><span class="named-seen">112 MB</span></div>
+              <div class="named-row"><span class="named-tag">Saved</span><span class="named-sp">San Mateo County, CA</span><span class="named-seen">74 MB</span></div>
+              <div class="ck-count">3 regions · 272 MB on device</div>
+            </div>
+          </figure>
+        </article>
       </div>
     </section>
 
@@ -513,7 +561,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v0.5.44 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v0.5.45 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

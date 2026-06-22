@@ -16,6 +16,7 @@ import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
 import { invalidateHotspotSet } from '../lib/hotspotSet'
 import { OutboundLink } from './OutboundLink'
+import { OfflineMapsSection } from './OfflineMapsSection'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -1425,6 +1426,11 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
           </div>
         </div>
       </div>
+
+      <div style={{ marginTop: 24 }}>
+        <SectionHeader label="Offline maps" />
+      </div>
+      <OfflineMapsSection />
 
       <div style={{ marginTop: 24 }}>
         <TabLayoutSection

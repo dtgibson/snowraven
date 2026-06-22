@@ -1,10 +1,23 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
+import routers.taxonomy as taxonomy_module
 from main import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def isolate_taxonomy_disk(tmp_path, monkeypatch):
+    """Resolving a checklist normalizes sub-forms via the taxonomy router, whose
+    online refresh now persists a disk twin. Redirect that twin (and the bundled
+    snapshot) into a temp dir so these tests never write into the real repo
+    data/ dir."""
+    monkeypatch.setattr(taxonomy_module, "DATA_DIR", tmp_path / "data")
+    monkeypatch.setattr(taxonomy_module, "_DISK", tmp_path / "data" / "taxonomy.json")
+    monkeypatch.setattr(taxonomy_module, "_STATIC", tmp_path / "staticdata" / "ebird_taxonomy.json")
 
 _FAKE_TAXONOMY = [
     {"speciesCode": "amerob", "comName": "American Robin", "sciName": "Turdus migratorius", "taxonOrder": 27616, "category": "species"},

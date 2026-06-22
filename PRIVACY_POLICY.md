@@ -43,10 +43,15 @@ When you tap "Use my location" — on the map, when setting a default location i
 
 The maps in SnowRaven are drawn using map tiles served by third-party providers. As you pan and zoom, your device requests the tiles for the area you are viewing directly from these providers — so, like any website that displays a map, they receive your IP address and which part of the map you are looking at. No SnowRaven server is involved, no API key or account is used, and the developer adds no tracking and keeps no copy. You choose which base map is active with the layer switcher, and only the active layers' tiles are requested. Tiles come from:
 
-- **OpenFreeMap** — the default "Map" base map, served as vector tiles. A free, keyless, community-run service; see [openfreemap.org](https://openfreemap.org/).
-- **Esri** — the "Satellite" base map. See [Esri's privacy statement](https://www.esri.com/en-us/privacy/overview).
-- **USGS — The National Map** — the "Topo (US)" base map (United States only); a U.S. government service.
-- **Waymarked Trails** — the optional "Trails" overlay. See [waymarkedtrails.org](https://hiking.waymarkedtrails.org/).
+- **OpenFreeMap** (`tiles.openfreemap.org`) — the default "Map" base map, served as vector tiles. The map's style, label fonts (glyphs), and icon sheet (sprite) are also fetched from OpenFreeMap. A free, keyless, community-run service; see [openfreemap.org](https://openfreemap.org/).
+- **Esri** (`server.arcgisonline.com`) — the "Satellite" base map. See [Esri's privacy statement](https://www.esri.com/en-us/privacy/overview).
+- **USGS — The National Map** (`basemap.nationalmap.gov`) — the "Topo (US)" base map (United States only); a U.S. government service.
+- **Waymarked Trails** (`tile.waymarkedtrails.org`) — the optional "Trails" overlay. See [waymarkedtrails.org](https://hiking.waymarkedtrails.org/).
+- **GitHub** (`github.com`) — when, and only when, you turn on offline maps and choose to download a map region (desktop app), that region's map data is fetched from SnowRaven's release files hosted on GitHub. See [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+
+### Offline maps
+
+Offline map regions are entirely opt-in and off by default. Nothing about them touches the network until you turn on "Enable offline maps" in Settings and pick a region to download. When you download a region, your device fetches that region's map data from GitHub (above), so GitHub receives your IP address and which region you downloaded at that moment. Once a region is downloaded, it is stored on your device and drawn with no further network request — you can pan and zoom it fully offline. Downloaded regions stay on your device, are never sent anywhere, and can be removed at any time in Settings. Region downloads are a desktop-app feature.
 
 ## Embedded Bird Media and Link Icons
 

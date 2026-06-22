@@ -1,9 +1,14 @@
 import { check } from '@tauri-apps/plugin-updater';
 import { getVersion } from '@tauri-apps/api/app';
+import { isOfflineError } from '../offlineDetect';
 
 export type UpdateCheckResult =
   | { status: 'up-to-date'; current: string }
   | { status: 'available'; current: string; latest: string; body: string | null }
+  // 'offline' is a connection-level failure of the updater check (FR-39),
+  // distinct from a reachable error — the caller shows the "you're offline"
+  // update message instead of the generic one.
+  | { status: 'offline' }
   | { status: 'error'; message: string };
 
 export type DownloadProgress = { downloaded: number; total: number | null };
@@ -22,6 +27,9 @@ export async function checkForUpdate(): Promise<UpdateCheckResult> {
       body: update.body ?? null,
     };
   } catch (err) {
+    // A network/connection failure of the Tauri updater check → offline (FR-39);
+    // anything else (a reachable error, a malformed manifest) → generic error.
+    if (isOfflineError(err)) return { status: 'offline' };
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
   }
 }

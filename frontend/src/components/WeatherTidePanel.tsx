@@ -14,6 +14,8 @@ import { copyText } from '../lib/clipboard'
 import { buildCombined } from '../lib/tideFormatter'
 import { tideTooFarNotice, tideOverrideLabel } from '../lib/tideNotice'
 import { ChecklistLink } from './ChecklistLink'
+import { OfflineMessage } from './OfflineMessage'
+import { OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from '../lib/offlineMessage'
 
 // ── Per-side state (owned by WeatherTideSection; the panel is a view over it) ──
 
@@ -21,7 +23,9 @@ export type SideWeatherState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; formatted: string }   // /weather → data.formatted (ends with ATTRIBUTION)
-  | { status: 'error'; message: string }        // TransportError.detail-aware
+  // errorKind distinguishes offline / no-key / server error (FR-35); the Comparer
+  // is a NO-replay surface (FR-38), so offline always shows the offline message.
+  | { status: 'error'; message: string; errorKind: LiveErrorKind }
 
 export type SideTideState =
   | { status: 'idle' }
@@ -30,7 +34,7 @@ export type SideTideState =
   | { status: 'too-far'; station: string; distanceMi: number }
   | { status: 'outside-us'; station: string; distanceMi: number }
   | { status: 'unavailable' }
-  | { status: 'error' }
+  | { status: 'error'; errorKind: LiveErrorKind }
 
 const MONO_FONT = 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace'
 
@@ -178,14 +182,7 @@ export function WeatherTidePanel({ badge, id, meta, weather, tide, hasEmbeddedWe
             )}
             {weather.status === 'success' && <MonoBlock text={weather.formatted} />}
             {weather.status === 'error' && (
-              <div role="alert" style={{
-                display: 'flex', alignItems: 'flex-start', gap: 8, padding: '9px 13px',
-                background: 'var(--sr-error-bg)', border: '1px solid var(--sr-error-border)', borderRadius: 6,
-                fontSize: '0.8125rem', color: 'var(--sr-error)',
-              }}>
-                <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
-                <span>{weather.message}</span>
-              </div>
+              <OfflineMessage kind={weather.errorKind} message={weather.message} />
             )}
           </div>
 
@@ -228,7 +225,14 @@ export function WeatherTidePanel({ badge, id, meta, weather, tide, hasEmbeddedWe
               <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>No tide reading available.</div>
             )}
             {tide.status === 'error' && (
-              <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+              tide.errorKind === 'offline' || tide.errorKind === 'no-key' ? (
+                <OfflineMessage
+                  kind={tide.errorKind}
+                  message={tide.errorKind === 'offline' ? OFFLINE_MESSAGE : NO_KEY_MESSAGE}
+                />
+              ) : (
+                <div role="status" style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Tide data unavailable right now.</div>
+              )
             )}
           </div>
 

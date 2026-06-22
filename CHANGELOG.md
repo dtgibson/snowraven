@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.45] - 2026-06-21
+
+### Added
+- **Offline support.** SnowRaven now works far better with a weak connection or none at all — built for birding in the field.
+  - **Maps open offline.** Once a map has loaded online at least once, it opens again offline: your sightings, heatmap, and atlas all draw, and every analytical tab works without a connection.
+  - **Downloadable offline map regions (desktop).** Turn on "Enable offline maps" in Settings, then download the counties you bird while you have wifi. In the field with no signal, pan and zoom those regions with full street and label detail. The manager shows each region's size and a running total, flags regions that are out of date, and lets you remove ones you no longer need. It's off by default and nothing downloads until you turn it on; region downloads are a desktop-app feature.
+  - **Weather and tide re-show offline.** A checklist's weather or tide reading that you loaded online once re-appears when you reopen it offline, clearly marked as the last loaded result with the time it was loaded.
+  - **Bird names sort right offline.** Taxonomic order and the small site icons next to bird names now work on a first-ever cold start with no connection, instead of falling back to a plain A–Z list.
+  - **Honest "you're offline" messages.** When a live feature can't run, SnowRaven tells you clearly whether you're offline, missing an API key, or hit a server error — three distinct, honest messages instead of one confusing failure. The update check no longer reports "up to date" when it actually couldn't reach the update server.
+
 ## [0.5.44] - 2026-06-18
 
 ### Fixed

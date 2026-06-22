@@ -21,6 +21,20 @@ interface TaxonomyCache {
   loadedAt: number;
 }
 
+// Shape of the bundled snapshot (frontend/src/assets/ebird-taxonomy.json) — the five
+// pre-derived maps already match the TaxonomyCache fields one-to-one (byOrder ints).
+interface TaxonomySnapshot {
+  version: number | string;
+  generated: string;
+  bySci: Record<string, string>;
+  byCom: Record<string, string>;
+  byOrder: Record<string, number>;
+  byCode: Record<string, string>;
+  reportAs: Record<string, string>;
+}
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
 const DB_NAME = 'snowraven-taxonomy';
 const STORE_NAME = 'cache';
 const CACHE_KEY = 'taxonomy-v2027';   // bumped: full taxonomy + reportAs (sub-form normalization)
@@ -78,13 +92,33 @@ async function ensureTaxonomy(): Promise<TaxonomyCache> {
   return _loading;
 }
 
-async function loadTaxonomy(): Promise<TaxonomyCache> {
-  const cached = await readCache();
-  // Cache valid for 7 days
-  if (cached && Date.now() - cached.loadedAt < 7 * 24 * 60 * 60 * 1000) {
-    return cached;
-  }
+/**
+ * The offline floor (FR-22): load the bundled snapshot as a TaxonomyCache with
+ * `loadedAt: 0` — a sentinel "infinitely stale" so any later online fetch supersedes it
+ * (FR-25). DYNAMIC import (never static) so Vite code-splits the ~1.7 MB JSON off the
+ * entry chunk (NFR-16). The asset's five maps already match TaxonomyCache exactly.
+ */
+async function loadFromBundle(): Promise<TaxonomyCache> {
+  // resolveJsonModule (implied by moduleResolution:"bundler") yields a module whose
+  // `.default` is the parsed object; handle both the default-export and namespace shapes.
+  const mod = await import('../../assets/ebird-taxonomy.json');
+  const snap = ((mod as { default?: TaxonomySnapshot }).default ?? mod) as unknown as TaxonomySnapshot;
+  return {
+    bySci: snap.bySci,
+    byCom: snap.byCom,
+    byOrder: snap.byOrder,
+    byCode: snap.byCode,
+    reportAs: snap.reportAs,
+    loadedAt: 0, // sentinel: infinitely stale — a real online fetch always wins
+  };
+}
 
+/**
+ * Live eBird taxonomy fetch + derivation (the SAME derivation as the build script /
+ * backend twin — keep in lockstep). Throws on any failure so callers can fall back to
+ * the bundled floor (cold path) or simply swallow it (fire-and-forget supersede).
+ */
+async function fetchTaxonomyOnline(): Promise<TaxonomyCache> {
   const ebirdKey = await storage.getApiKey('ebird');
   const headers: Record<string, string> = ebirdKey ? { 'x-ebirdapitoken': ebirdKey } : {};
 
@@ -132,7 +166,42 @@ async function loadTaxonomy(): Promise<TaxonomyCache> {
     }
   }
 
-  const fresh: TaxonomyCache = { bySci, byCom, byOrder, byCode, reportAs, loadedAt: Date.now() };
+  return { bySci, byCom, byOrder, byCode, reportAs, loadedAt: Date.now() };
+}
+
+/**
+ * Fire-and-forget online supersede (FR-25). Runs only when the load returned the bundled
+ * floor or an expired cache; on success it writes the fresh result (real loadedAt) so the
+ * NEXT session reads the fresher copy from the IndexedDB-fresh path. Offline → swallowed.
+ */
+function refreshTaxonomyOnline(): void {
+  void fetchTaxonomyOnline()
+    .then(fresh => writeCache(fresh))
+    .catch(() => { /* offline / no key — keep serving the floor */ });
+}
+
+async function loadTaxonomy(): Promise<TaxonomyCache> {
+  // 1. IndexedDB fresh (≤ 7 days) — return unchanged, no network.
+  const cached = await readCache();
+  if (cached && Date.now() - cached.loadedAt < SEVEN_DAYS_MS) {
+    return cached;
+  }
+
+  // 2. Offline floor — IndexedDB empty/expired: serve the bundled snapshot immediately
+  //    (favicons / taxonomic sort / reportAs work with no network, FR-22), then kick off
+  //    a background online supersede (FR-25). Return without awaiting the refresh.
+  try {
+    const floor = await loadFromBundle();
+    refreshTaxonomyOnline();
+    return floor;
+  } catch {
+    // FR-26 degrade: the bundled import itself failed (e.g. asset stripped). Fall through
+    // to a blocking online fetch; if THAT fails too, loadTaxonomy rejects as before →
+    // callers' try/catch → plain names.
+  }
+
+  // 3. No floor available — last resort: a blocking live fetch (writes cache on success).
+  const fresh = await fetchTaxonomyOnline();
   writeCache(fresh); // fire-and-forget; ensureTaxonomy sets the in-memory cache
   return fresh;
 }

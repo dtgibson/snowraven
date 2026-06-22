@@ -5,7 +5,7 @@
 // switcher (Map / Satellite / Topo + Trails), zoom controls, and auto-resize.
 
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useState, type ReactNode } from 'react'
 import MapGL, { NavigationControl, AttributionControl, Source, Layer } from 'react-map-gl/maplibre'
 import type { StyleSpecification, Map as MaplibreMap } from 'maplibre-gl'
 import { storage } from '../lib/storage'
@@ -14,6 +14,7 @@ import {
   DEFAULT_BASE, BASE_SETTING, TRAILS_SETTING, TRAILS_TILES, TRAILS_ATTRIB,
   type VectorVariant, type BaseKey,
 } from '../lib/mapStyle'
+import { readPersistedStyle, persistStyle, revalidateStyleOnce } from '../lib/persistedStyle'
 
 interface SnowMapProps {
   initialViewState?: { longitude: number; latitude: number; zoom: number }
@@ -51,16 +52,48 @@ const vis = (on: boolean) => ({ visibility: (on ? 'visible' : 'none') as 'visibl
 export function SnowMap({ initialViewState, style, children, onLoad, switcher, scrollZoom }: SnowMapProps) {
   const [base, setBase] = useState<BaseKey>(DEFAULT_BASE)
   const [trails, setTrails] = useState(false)
+  // Advisory offline hint for the raster base controls ONLY (FR-07/FR-36). The
+  // raster bases (Satellite/Topo/Trails) have no durable tile cache, so an
+  // offline switch would paint blank tiles — disable them while offline with an
+  // honest cue, keeping the vector base active and the map mounted. navigator.onLine
+  // is a UI hint, never a hard gate on a real request. The vector base persists,
+  // so 'positron' stays selectable offline.
+  const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false)
+  // Stable id so the disabled raster-base controls can point aria-describedby at
+  // the visible offline cue (FR-07/NFR-09 — the reason is exposed to AT, not a
+  // title-only tooltip invisible to keyboard/touch).
+  const offlineCueId = useId()
   const [mapStyle, setMapStyle] = useState<StyleSpecification | null>(cache.get('positron') ?? null)
   const [loadError, setLoadError] = useState(false)
   const [attempt, setAttempt] = useState(0)
 
+  // Seed-before-fetch (FR-02, the QA-01 ordering artifact): await the persisted
+  // style FIRST so the map mounts offline; only on a miss do we touch the network
+  // path. Sequential, never parallel — a parallel fetch would defeat offline.
   useEffect(() => {
     if (mapStyle) return
     let cancelled = false
-    getVectorStyle('positron')
-      .then(s => { if (!cancelled) setMapStyle(s) })
-      .catch(() => { if (!cancelled) setLoadError(true) })
+    const variant: VectorVariant = 'positron'
+    void (async () => {
+      const persisted = await readPersistedStyle(variant)
+      if (cancelled) return
+      if (persisted) {
+        // Mount from the offline copy immediately…
+        setMapStyle(persisted.style as StyleSpecification)
+        // …then refresh the persisted blob for NEXT launch — non-blocking,
+        // does NOT setMapStyle (no mid-session flicker), at most once/session.
+        revalidateStyleOnce(variant, () => getVectorStyle(variant))
+        return
+      }
+      // No persisted copy → the existing network path.
+      getVectorStyle(variant)
+        .then(s => {
+          if (cancelled) return
+          setMapStyle(s)
+          void persistStyle(variant, s) // persist for next launch
+        })
+        .catch(() => { if (!cancelled) setLoadError(true) })
+    })()
     return () => { cancelled = true }
   }, [mapStyle, attempt])
 
@@ -74,6 +107,20 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
     storage.getSetting<BaseKey>(BASE_SETTING).then(v => { if (!cancelled && v && v in BASE_LABEL) setBase(v) }).catch(() => {})
     storage.getSetting<boolean>(TRAILS_SETTING).then(v => { if (!cancelled && typeof v === 'boolean') setTrails(v) }).catch(() => {})
     return () => { cancelled = true }
+  }, [switcher])
+
+  // Track connectivity for the raster-base advisory cue only (FR-07). Re-enable
+  // the raster controls when back online; clean up the listeners on unmount.
+  useEffect(() => {
+    if (!switcher) return
+    const onOnline = () => setOffline(false)
+    const onOffline = () => setOffline(true)
+    window.addEventListener('online', onOnline)
+    window.addEventListener('offline', onOffline)
+    return () => {
+      window.removeEventListener('online', onOnline)
+      window.removeEventListener('offline', onOffline)
+    }
   }, [switcher])
 
   // Place raster bases under the vector labels so labels stay readable on top.
@@ -160,16 +207,58 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
       {switcher && (
         <div className="sr-map-layers" style={{ position: 'absolute', top: 8, right: 8, zIndex: 1, maxWidth: 'calc(100vw - 16px)' }}>
           <div className="sr-map-layers-seg" role="group" aria-label="Base map">
-            {(['positron', 'satellite', 'topo'] as BaseKey[]).map(k => (
-              <button key={k} type="button" tabIndex={0} className={base === k ? 'is-active' : ''} aria-pressed={base === k} onClick={() => selectBase(k)}>
-                {BASE_LABEL[k]}
-              </button>
-            ))}
+            {(['positron', 'satellite', 'topo'] as BaseKey[]).map(k => {
+              // The vector base (positron) stays usable offline; raster bases have
+              // no durable tile cache, so they're disabled offline (FR-07).
+              const rasterOffline = offline && k !== 'positron'
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  tabIndex={rasterOffline ? -1 : 0}
+                  className={base === k ? 'is-active' : ''}
+                  // A disabled raster base is neither a toggle nor a tab stop, so it
+                  // drops aria-pressed; the offline reason is exposed via the visible
+                  // cue (aria-describedby), not a title-only tooltip (FR-07/NFR-09).
+                  aria-pressed={rasterOffline ? undefined : base === k}
+                  disabled={rasterOffline}
+                  aria-disabled={rasterOffline || undefined}
+                  aria-describedby={rasterOffline ? offlineCueId : undefined}
+                  title={rasterOffline ? `${BASE_LABEL[k]} is unavailable offline` : undefined}
+                  aria-label={rasterOffline ? `${BASE_LABEL[k]} — unavailable offline` : undefined}
+                  onClick={() => { if (!rasterOffline) selectBase(k) }}
+                  style={rasterOffline ? { opacity: 0.5, cursor: 'not-allowed', color: 'var(--sr-text-disabled)' } : undefined}
+                >
+                  {BASE_LABEL[k]}
+                </button>
+              )
+            })}
           </div>
-          <label className="sr-map-layers-trails">
-            <input type="checkbox" checked={trails} onChange={toggleTrails} tabIndex={0} />
+          <label
+            className="sr-map-layers-trails"
+            title={offline ? 'Trails are unavailable offline' : undefined}
+            style={offline ? { opacity: 0.5, cursor: 'not-allowed', color: 'var(--sr-text-disabled)' } : undefined}
+          >
+            <input
+              type="checkbox"
+              checked={trails && !offline}
+              onChange={toggleTrails}
+              disabled={offline}
+              aria-disabled={offline || undefined}
+              aria-describedby={offline ? offlineCueId : undefined}
+              aria-label={offline ? 'Trails — unavailable offline' : 'Trails'}
+              tabIndex={offline ? -1 : 0}
+            />
             Trails
           </label>
+          {/* Honest cue, conveyed by text (not color alone) — present only while
+              offline so the raster controls' disabled state is explained (NFR-09).
+              Referenced by aria-describedby from each disabled raster control. */}
+          {offline && (
+            <span id={offlineCueId} role="status" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', lineHeight: 1.4, maxWidth: 180 }}>
+              You're offline — Satellite, Topo, and Trails need a connection.
+            </span>
+          )}
         </div>
       )}
 

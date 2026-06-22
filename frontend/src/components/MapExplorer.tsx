@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { Binoculars, Camera, ChevronDown, Crosshair, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -10,11 +10,14 @@ import type { MediaFilter } from '../lib/observationMedia'
 import type { ObservationEntry } from '../types'
 import { BREEDING_CODES } from '../lib/breedingCodes'
 import { transport, TransportError } from '../lib/transport'
+import { classifyLiveError, OFFLINE_MESSAGE_SHORT, type LiveErrorKind } from '../lib/offlineMessage'
+import { OfflineMessage } from './OfflineMessage'
 import { storage } from '../lib/storage'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { SnowMap } from './SnowMap'
 import { AtlasLayer } from './AtlasLayer'
+import { RegionBaseSource } from './map/RegionBaseSource'
 import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { HEAT_INTENSITY_DEFAULT } from '../lib/heat'
@@ -72,6 +75,36 @@ const WINDOW_DAYS: Record<TimeWindow, number> = { day: 1, week: 7, all: 30 }
 // not during render (calling Date.now() inside a memo trips react-hooks/purity).
 const SESSION_NOW_MS = Date.now()
 
+// A classified overlay error — the kind drives the OfflineMessage icon + token
+// palette + role so offline / no-key / server-error get three distinct, more-
+// than-color treatments (FR-35/NFR-09); a plain validation error is kind 'error'.
+type OverlayError = { kind: LiveErrorKind; message: string }
+
+// Classify a live nearby-overlay (hotspots / sightings / lifers) fetch failure
+// into one of the three distinct treatments (FR-35/FR-38):
+//   • offline (connection-level)        → the honest "you're offline" line
+//   • no-key (eBird 401 / message text) → "eBird API key not configured…"
+//   • other HTTP/server error           → the surface's detail or generic fallback
+// These overlays have NO replay path (FR-38), so offline always shows the
+// offline message. Mirrors the existing inline status/detail extraction.
+function classifyOverlayError(err: unknown, fallback: string): OverlayError {
+  // Offline first — a connection-level rejection carries no HTTP status. (On web/
+  // Pi + online this surfaces the backend-down copy via classifyLiveError, FR-39a.)
+  const classified = classifyLiveError(err, { offlineMessage: OFFLINE_MESSAGE_SHORT, errorMessage: fallback })
+  if (classified.kind === 'offline') return classified
+  const e = err as { status?: number; detail?: string }
+  const status = err instanceof TransportError ? err.status : e.status
+  const detail = err instanceof TransportError ? err.detail : (e.detail ?? (err instanceof Error ? err.message : undefined))
+  // The overlays hit eBird directly, so a 401 is specifically a missing eBird key.
+  if (status === 401) return { kind: 'no-key', message: 'eBird API key not configured. Add it in Settings.' }
+  return { kind: 'error', message: detail ?? fallback }
+}
+
+// A plain validation message (bad lat/lng, nothing selected) is an alert-level error.
+function validationError(message: string): OverlayError {
+  return { kind: 'error', message }
+}
+
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => void }) {
@@ -88,8 +121,10 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
       if (data.length === 0) { setError('No location found. Try a different search term.'); return }
       onLocate(parseFloat(data[0].lat), parseFloat(data[0].lon))
       setQuery('')
-    } catch {
-      setError('Location search failed. Try again or enter coordinates manually.')
+    } catch (err) {
+      // Offline geocode must read "you're offline", NOT a "no matches"/"failed"
+      // message that conflates the two distinct states (FR-38).
+      setError(classifyLiveError(err, { errorMessage: 'Location search failed. Try again or enter coordinates manually.' }).message)
     } finally {
       setLoading(false)
     }
@@ -158,7 +193,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Hotspot state
   const [hotspotPins, setHotspotPins]         = useState<HotspotPin[] | null>(null)
   const [hotspotsLoading, setHotspotsLoading] = useState(false)
-  const [hotspotsError, setHotspotsError]     = useState('')
+  const [hotspotsError, setHotspotsError]     = useState<OverlayError | null>(null)
   const [legendVisible, setLegendVisible]     = useState(false)
   const [hiddenKinds, setHiddenKinds]         = useState<Set<HotspotPin['kind']>>(new Set())
 
@@ -172,7 +207,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Target state
   const [targetPins, setTargetPins]           = useState<TargetPin[] | null>(null)
   const [targetsLoading, setTargetsLoading]   = useState(false)
-  const [targetsError, setTargetsError]       = useState('')
+  const [targetsError, setTargetsError]       = useState<OverlayError | null>(null)
   const [manualTargets, setManualTargets]     = useState<Set<string>>(new Set())
   const [targetSearch, setTargetSearch]       = useState('')
   const [targetViewMode, setTargetViewMode]   = useState<TimeWindow>('all')
@@ -186,7 +221,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // user's life list, grouped by location. Shares the center/radius controls.
   const [liferPins, setLiferPins]           = useState<NearbyLiferLocation[] | null>(null)
   const [lifersLoading, setLifersLoading]   = useState(false)
-  const [lifersError, setLifersError]       = useState('')
+  const [lifersError, setLifersError]       = useState<OverlayError | null>(null)
   const [liferWindow, setLiferWindow]       = useState<TimeWindow>('all')
   const [selectedLiferLocId, setSelectedLiferLocId] = useState<string | null>(null)
 
@@ -662,8 +697,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const handleFindHotspots = useCallback(async (overrideLat?: number, overrideLng?: number) => {
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
-    if (isNaN(latNum) || isNaN(lngNum)) { setHotspotsError('Enter a valid latitude and longitude.'); return }
-    setHotspotsLoading(true); setHotspotsError('')
+    if (isNaN(latNum) || isNaN(lngNum)) { setHotspotsError(validationError('Enter a valid latitude and longitude.')); return }
+    setHotspotsLoading(true); setHotspotsError(null)
     try {
       const distKm = Math.round(radius * 1.60934)
       const data = await transport.get<{ locId: string; locName: string; lat: number; lng: number }[]>('/map/hotspots', {
@@ -690,12 +725,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       setHiddenKinds(new Set())
       setHotspotPins(pins); setLegendVisible(true)
     } catch (err) {
-      const e = err as { status?: number; detail?: string }
-      const errStatus = err instanceof TransportError ? err.status : e.status
-      const errDetail = err instanceof TransportError ? err.detail : (e.detail ?? (err instanceof Error ? err.message : undefined))
-      setHotspotsError(errStatus === 401
-        ? 'eBird API key not configured. Add it in Settings.'
-        : (errDetail ?? 'Failed to fetch hotspots.'))
+      setHotspotsError(classifyOverlayError(err, 'Failed to fetch hotspots.'))
     } finally {
       setHotspotsLoading(false)
     }
@@ -705,11 +735,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     setTargetTypeFilter(new Set())
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
-    if (isNaN(latNum) || isNaN(lngNum)) { setTargetsError('Enter a valid latitude and longitude.'); return }
+    if (isNaN(latNum) || isNaN(lngNum)) { setTargetsError(validationError('Enter a valid latitude and longitude.')); return }
 
     const useManual = phase.tag === 'ready' && !phase.hasML
     const names = useManual ? [...manualTargets] : targetSpecies.map(t => t.commonName)
-    if (names.length === 0) { setTargetsError('No target species to search for.'); return }
+    if (names.length === 0) { setTargetsError(validationError('No target species to search for.')); return }
 
     let codes = names.map(n => speciesCodeMap[n]).filter(Boolean).join(',')
     if (!codes) {
@@ -723,13 +753,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         setSpeciesCodeMap(prev => ({ ...prev, ...d.codes }))
         codes = names.map(n => d.codes[n]).filter(Boolean).join(',')
       } catch (err) {
-        setTargetsError(err instanceof Error ? err.message : 'Could not load eBird taxonomy.')
+        setTargetsError(classifyOverlayError(err, 'Could not load eBird taxonomy.'))
         return
       }
     }
-    if (!codes) { setTargetsError('No eBird species codes found for the selected species.'); return }
+    if (!codes) { setTargetsError(validationError('No eBird species codes found for the selected species.')); return }
 
-    setTargetsLoading(true); setTargetsError('')
+    setTargetsLoading(true); setTargetsError(null)
     try {
       const distKm = Math.round(radius * 1.60934)
       const pins = await transport.get<TargetPin[]>('/map/recent-obs', {
@@ -737,12 +767,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       })
       setTargetPins(pins)
     } catch (err) {
-      const e = err as { status?: number; detail?: string }
-      const errStatus = err instanceof TransportError ? err.status : e.status
-      const errDetail = err instanceof TransportError ? err.detail : (e.detail ?? (err instanceof Error ? err.message : undefined))
-      setTargetsError(errStatus === 401
-        ? 'eBird API key not configured. Add it in Settings.'
-        : (errDetail ?? 'Failed to fetch recent sightings.'))
+      setTargetsError(classifyOverlayError(err, 'Failed to fetch recent sightings.'))
     } finally {
       setTargetsLoading(false)
     }
@@ -751,9 +776,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const handleFindLifers = useCallback(async (overrideLat?: number, overrideLng?: number) => {
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
-    if (isNaN(latNum) || isNaN(lngNum)) { setLifersError('Enter a valid latitude and longitude.'); return }
-    if (phase.tag !== 'ready') { setLifersError('Load your eBird backup in Settings to find nearby lifers.'); return }
-    setLifersLoading(true); setLifersError('')
+    if (isNaN(latNum) || isNaN(lngNum)) { setLifersError(validationError('Enter a valid latitude and longitude.')); return }
+    if (phase.tag !== 'ready') { setLifersError(validationError('Load your eBird backup in Settings to find nearby lifers.')); return }
+    setLifersLoading(true); setLifersError(null)
     try {
       const distKm = Math.round(radius * 1.60934)
       // No `codes` param ⇒ the route returns all species in the radius; we then
@@ -772,12 +797,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         })
       }
     } catch (err) {
-      const e = err as { status?: number; detail?: string }
-      const errStatus = err instanceof TransportError ? err.status : e.status
-      const errDetail = err instanceof TransportError ? err.detail : (e.detail ?? (err instanceof Error ? err.message : undefined))
-      setLifersError(errStatus === 401
-        ? 'eBird API key not configured. Add it in Settings.'
-        : (errDetail ?? 'Failed to fetch nearby lifers.'))
+      setLifersError(classifyOverlayError(err, 'Failed to fetch nearby lifers.'))
     } finally {
       setLifersLoading(false)
     }
@@ -1187,10 +1207,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           : 'Find Hotspots'}
       </button>
       {hotspotsError && (
-        <div role="alert" style={{ display: 'flex', gap: 6, fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 10 }}>
-          <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-          {hotspotsError}
-        </div>
+        <OfflineMessage kind={hotspotsError.kind} message={hotspotsError.message} compact style={{ marginBottom: 10 }} />
       )}
 
       {/* Legend — visible after first successful fetch */}
@@ -1409,10 +1426,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           : 'Find Recent Sightings'}
       </button>
       {targetsError && (
-        <div style={{ display: 'flex', gap: 6, fontSize: '0.75rem', color: 'var(--sr-error)' }}>
-          <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-          {targetsError}
-        </div>
+        <OfflineMessage kind={targetsError.kind} message={targetsError.message} compact />
       )}
 
       {/* Recency toggle + nearest-10 — shown once pins are loaded */}
@@ -1593,10 +1607,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         </div>
       )}
       {lifersError && (
-        <div role="alert" style={{ display: 'flex', gap: 6, fontSize: '0.75rem', color: 'var(--sr-error)', marginBottom: 10 }}>
-          <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
-          {lifersError}
-        </div>
+        <OfflineMessage kind={lifersError.kind} message={lifersError.message} compact style={{ marginBottom: 10 }} />
       )}
 
       {liferPins !== null && (
@@ -1808,6 +1819,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 onDefaultDone={handleDefaultCenterDone}
               />
               <BoundsTracker onBounds={handleBounds} />
+              {/* Offline region rendering (FR-17): serves a downloaded region's
+                  local tiles when offline + in coverage. Self-gates to a no-op
+                  unless offline-maps is enabled AND a region is downloaded. */}
+              <RegionBaseSource />
               {atlasEnabled && (
                 <AtlasLayer
                   data={atlasData}

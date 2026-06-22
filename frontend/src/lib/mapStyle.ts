@@ -62,6 +62,49 @@ export function firstSymbolLayerId(style: StyleSpecification): string | undefine
   return style.layers.find(l => l.type === 'symbol')?.id
 }
 
+// ── Offline-support: bundled glyphs + sprite (FR-10, schema slice 2b) ──────────
+//
+// FLAG: the bundled glyph/sprite assets are a release-time capture-and-bundle and
+// are NOT in frontend/public/mapassets/ yet (only an empty regions-catalog.json
+// is). Applying the URL rewrite NOW would 404 the ONLINE map's labels/symbols
+// (the bundled .pbf/sprite files don't exist), so the rewrite is GATED behind
+// this constant and stays OFF until the assets are bundled.
+//
+// Flipping this to `true` REQUIRES, at release time:
+//   - frontend/public/mapassets/glyphs/{fontstack}/{range}.pbf   (Noto Sans, 3 stacks)
+//   - frontend/public/mapassets/sprite/ofm.{json,png,@2x.png}    (the OpenFreeMap sprite)
+// captured per schema 2b/2e (a real transformRequest capture over the US/CA
+// region). Until then, offline base LABELS degrade to none — but the map still
+// MOUNTS offline and the local data layers (pins/heat/atlas) still draw (the core
+// Tier-A win is independent of the bundled labels).
+export const BUNDLED_MAP_ASSETS = false
+
+/**
+ * Rewrite a style's `glyphs` and `sprite` to ABSOLUTE URLs pointing at the
+ * bundled, same-origin local assets (FR-10). ABSOLUTE is mandatory: maplibre's
+ * `normalizeSpriteURL` hard-throws (`Invalid sprite URL … must be absolute`) on
+ * a relative sprite, before any fetch. The glyph template keeps the literal
+ * `{fontstack}`/`{range}` tokens un-encoded (maplibre substitutes them per-tile).
+ *
+ * Mutates and returns `style`. Capture the document origin at call time (this
+ * runs inside `fetchTunedBaseStyle` — an effect/handler path, never render).
+ */
+export function rewriteStyleAssetUrls(style: StyleSpecification): StyleSpecification {
+  const base = import.meta.env.BASE_URL
+  // Build from the document origin — an inline (URL-less) style has no style base
+  // for maplibre to resolve against, so a relative sprite would throw.
+  //
+  // CRITICAL: resolve only the brace-FREE prefix through `new URL()`, then append
+  // the literal `{fontstack}/{range}` template as a plain string. Passing the
+  // braces through `new URL()` percent-encodes them to `%7Bfontstack%7D`, which
+  // maplibre cannot substitute per-tile — the glyphs would 404 and labels would
+  // vanish offline (the exact failure this function exists to prevent).
+  const glyphPrefix = new URL(base + 'mapassets/glyphs/', document.baseURI).href
+  style.glyphs = glyphPrefix + '{fontstack}/{range}.pbf'
+  style.sprite = new URL(base + 'mapassets/sprite/ofm', document.baseURI).href
+  return style
+}
+
 type AnyLayer = {
   id: string
   type?: string
@@ -145,5 +188,11 @@ export async function fetchTunedBaseStyle(
     } as AnyLayer
     style.layers.splice(woodIdx >= 0 ? woodIdx + 1 : 1, 0, grass)
   }
-  return style as unknown as StyleSpecification
+  const tuned = style as unknown as StyleSpecification
+  // Point glyphs/sprite at the bundled same-origin assets so the persisted blob
+  // is already offline-correct — but ONLY once those assets are actually bundled
+  // (BUNDLED_MAP_ASSETS). With the flag false the style keeps its OpenFreeMap
+  // glyph/sprite URLs, so the online map's labels are unchanged.
+  if (BUNDLED_MAP_ASSETS) rewriteStyleAssetUrls(tuned)
+  return tuned
 }

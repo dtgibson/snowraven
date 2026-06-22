@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { clearNetworkCache } from './networkCache';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   clearNetworkCache();
 });
 
@@ -92,6 +93,72 @@ describe('short-TTL network cache (transport seam)', () => {
     await transport.get('/version/check');
     await transport.get('/version/check');
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('CachedTransport.getReplayable (opt-in replay)', () => {
+  // Isolate the transport contract from the real replay store / classifier by
+  // mocking both seams. Each test resets the doubles.
+  const put = vi.fn();
+  const get = vi.fn();
+  const replayKey = vi.fn((path: string, params?: Record<string, string>) =>
+    `${path}|${JSON.stringify(params ?? {})}`);
+  const offline = vi.fn();
+
+  beforeEach(() => {
+    vi.resetModules();
+    put.mockReset();
+    get.mockReset().mockResolvedValue(null);
+    replayKey.mockClear();
+    offline.mockReset().mockReturnValue(false);
+    vi.doMock('./replayStore', () => ({ put, get, replayKey }));
+    vi.doMock('./offlineDetect', () => ({ isOfflineError: offline, isNoKeyError: () => false }));
+  });
+
+  afterEach(() => {
+    vi.doUnmock('./replayStore');
+    vi.doUnmock('./offlineDetect');
+  });
+
+  it('success → puts the result and returns replayedAt:null (fresh)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, json: () => Promise.resolve({ formatted: 'sunny' }),
+    }));
+    const { transport } = await import('./transport');
+    const res = await transport.getReplayable<{ formatted: string }>('/weather/S1');
+    expect(res).toEqual({ data: { formatted: 'sunny' }, replayedAt: null });
+    expect(put).toHaveBeenCalledWith('/weather/S1|{}', { formatted: 'sunny' });
+  });
+
+  it('offline error WITH a prior hit → returns the hit + its loadedAt, no put', async () => {
+    offline.mockReturnValue(true);
+    get.mockResolvedValue({ data: { formatted: 'cached' }, loadedAt: 1718000000000, bytes: 30 });
+    // A bare TypeError (no status) — the web network-failure shape.
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    const { transport } = await import('./transport');
+    const res = await transport.getReplayable<{ formatted: string }>('/weather/S1');
+    expect(res).toEqual({ data: { formatted: 'cached' }, replayedAt: 1718000000000 });
+    expect(put).not.toHaveBeenCalled(); // NEVER put on failure (FR-34)
+  });
+
+  it('offline error with NO hit → rethrows', async () => {
+    offline.mockReturnValue(true);
+    get.mockResolvedValue(null);
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    const { transport } = await import('./transport');
+    await expect(transport.getReplayable('/weather/S1')).rejects.toThrow('Failed to fetch');
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it('a NON-offline (HTTP) error rethrows and does NOT overwrite the prior entry (QA-25)', async () => {
+    offline.mockReturnValue(false); // HTTP error → not offline
+    // Even if a hit existed, it must NOT be consulted on a non-offline error.
+    get.mockResolvedValue({ data: { formatted: 'cached' }, loadedAt: 1, bytes: 1 });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502 }));
+    const { transport } = await import('./transport');
+    await expect(transport.getReplayable('/weather/S1')).rejects.toThrow('Transport error: 502');
+    expect(put).not.toHaveBeenCalled(); // no overwrite/clear on failure
+    expect(get).not.toHaveBeenCalled(); // HTTP error never reaches the replay lookup
   });
 });
 

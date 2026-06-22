@@ -54,6 +54,18 @@ Where focus matters, SnowRaven manages it deliberately. Opening the Map Explorer
 
 ---
 
+## Offline Maps and Offline States
+
+The offline-support features added in v0.5.45 follow the same WCAG 2.1 AA bar as the rest of the app, in both the light and dark themes.
+
+The Settings **Offline maps** section is turned on or off with an **Enable offline maps** switch that announces as a switch with its current on/off state to assistive technology. The region manager below it gives each region row an accessible name; while a region downloads, its progress bar carries the progressbar role with the matching ARIA value attributes and an announced "X MB of Y MB" status, alongside a visible percentage — progress is never conveyed by color or animation alone — and the **Download**, **Cancel**, **Remove**, and **Update** controls each have an explicit accessible name.
+
+Offline and error states are conveyed by an icon paired with text, never by color alone. The three offline messages — you're offline, no API key, and server error — and the "last loaded result" staleness cue announce themselves through an appropriate live role: a status role for informational states and an alert role for genuine errors. When you are offline, the Satellite, Topo, and Trails base-map controls are disabled with a visible text reason that is also exposed to assistive technology — the disabled control is removed from the tab order, and its reason is referenced from the control, so the unavailable state is not signalled by color alone.
+
+This new interface is responsive from roughly 320-pixel phones up to large desktops and holds at 200% text scale without leaking horizontal page-scroll.
+
+---
+
 ## Known Exceptions
 
 The cross-cutting items previously tracked here are now addressed: the "open checklist on eBird" links are unified under one shared component with a single consistent accessible name (v0.5.31–v0.5.32), every external link announces that it opens in a new tab (v0.5.32), and the weather block names the correct moon phase for Southern-Hemisphere checklists (shipped v0.5.28). The Map Explorer's drop-a-pin gesture for setting the search center is pointer-only (right-click or long-press), but the search center is fully settable by keyboard through the place-name search, "Use my location", and the coordinate inputs — so it is an enhancement, not the only path. The placed pin is a presentational marker that visually echoes the search center, whose value is shown in the labeled coordinate inputs. No cross-cutting accessibility exceptions are outstanding at this time.
