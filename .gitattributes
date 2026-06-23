@@ -1,0 +1,7 @@
+# Offline base-map label assets (v0.5.45): glyph protobufs + sprite PNGs are
+# binary. Mark them so no machine (notably Windows CI, where core.autocrlf
+# defaults to true) ever EOL-normalizes them — a CRLF injection into a .pbf
+# (every glyph pbf begins with byte 0x0a / LF) corrupts it and silently blanks
+# offline labels. The sprite *.json files are genuine JSON and stay text.
+frontend/public/mapassets/**/*.pbf binary
+frontend/public/mapassets/**/*.png binary

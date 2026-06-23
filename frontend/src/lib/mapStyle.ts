@@ -64,20 +64,24 @@ export function firstSymbolLayerId(style: StyleSpecification): string | undefine
 
 // ── Offline-support: bundled glyphs + sprite (FR-10, schema slice 2b) ──────────
 //
-// FLAG: the bundled glyph/sprite assets are a release-time capture-and-bundle and
-// are NOT in frontend/public/mapassets/ yet (only an empty regions-catalog.json
-// is). Applying the URL rewrite NOW would 404 the ONLINE map's labels/symbols
-// (the bundled .pbf/sprite files don't exist), so the rewrite is GATED behind
-// this constant and stays OFF until the assets are bundled.
-//
-// Flipping this to `true` REQUIRES, at release time:
+// The bundled glyph/sprite assets ARE now captured into frontend/public/mapassets/
+// (v0.5.45), so the rewrite is ON: online AND offline both serve labels/symbols
+// from the same-origin bundle — glyph/sprite fetches to tiles.openfreemap.org drop
+// to zero (QA-02). The bundled files:
 //   - frontend/public/mapassets/glyphs/{fontstack}/{range}.pbf   (Noto Sans, 3 stacks)
-//   - frontend/public/mapassets/sprite/ofm.{json,png,@2x.png}    (the OpenFreeMap sprite)
-// captured per schema 2b/2e (a real transformRequest capture over the US/CA
-// region). Until then, offline base LABELS degrade to none — but the map still
-// MOUNTS offline and the local data layers (pins/heat/atlas) still draw (the core
-// Tier-A win is independent of the bundled labels).
-export const BUNDLED_MAP_ASSETS = false
+//   - frontend/public/mapassets/sprite/ofm.{json,png,@2x.json,@2x.png}
+//
+// Coverage (schema 2b/2e capture-and-bundle): a real openmaptiles vector-tile
+// capture over US/CA areas — major Chinatowns, LA Koreatown/Little Tokyo, Little
+// Saigon, Brighton Beach, Nunavut/Nunavik — drove the exact {fontstack}/{range}
+// set requested. We bundle the "Band 1" small-script subset (~3.5 MB: 3 Noto Sans
+// stacks Regular/Bold/Italic × 17 BMP ranges): Latin + accents, Cyrillic, Inuktitut
+// syllabics, Vietnamese, Japanese Kana, Khmer, punctuation/symbols. CJK + Hangul
+// are deliberately NOT bundled (they ran ~30–40 MB and are dense-urban business
+// names, not birding labels) — those codepoints degrade to `.notdef`, never a
+// network fetch (by design). Re-verify this set on any Positron base-style /
+// fontstack change (the data-dependent-coverage risk, schema open-risk #3).
+export const BUNDLED_MAP_ASSETS = true
 
 /**
  * Rewrite a style's `glyphs` and `sprite` to ABSOLUTE URLs pointing at the

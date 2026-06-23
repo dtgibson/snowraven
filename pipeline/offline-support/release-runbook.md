@@ -1,34 +1,46 @@
-# Offline Support — Release Runbook (Mac-side)
+# Offline Support — Release Runbook
 
-This is the **release-time** checklist for shipping the offline-support feature
-(v0.5.45). The code, tests, docs, and version bump are all committed from the
-build VM and green; what remains can only run on the **Mac** (Apple signing
-credentials live only in the Mac login profile, and the map-asset generation
-needs network + large data). Run these steps on the Mac.
+This is the checklist for shipping the offline-support feature (v0.5.45). All dev
+work — feature code, tests, docs, the version bump, **and the bundled base-map
+label assets** — is committed from the build **VM** and green. The only genuinely
+**Mac-only** step that remains is the binary release itself (`release.sh`): Apple
+signing/notarization credentials live only in the Mac login profile.
+
+**Machine-role correction:** everything except `release.sh` is dev work and belongs
+on the **VM**, not the Mac. The earlier "(Mac-side)" title and the "map-asset
+generation needs network + large data" note were wrong for the glyph/sprite label
+bundle — it is ~4 MB of small OpenFreeMap fetches, plain dev work, done on the VM
+(see `glyph-bundle-handoff.md`). That caveat only ever applied to the heavy
+multi-hundred-GB PMTiles **region** bake (Step 2), which is **deferred** out of
+0.5.45.
 
 The build VM has already done: all feature code + tests, docs + privacy policy,
 the version bump (`0.5.45` in both `frontend/package.json` and
-`src-tauri/tauri.conf.json`), the CHANGELOG entry, and the **bundled eBird
-taxonomy snapshot** (`frontend/src/assets/ebird-taxonomy.json` +
-`backend/staticdata/ebird_taxonomy.json` — already generated and committed).
+`src-tauri/tauri.conf.json`), the CHANGELOG entry, the **bundled eBird taxonomy
+snapshot** (`frontend/src/assets/ebird-taxonomy.json` +
+`backend/staticdata/ebird_taxonomy.json`), and the **bundled glyph/sprite label
+assets** under `frontend/public/mapassets/` with `BUNDLED_MAP_ASSETS` flipped on
+(Steps 1 + 3) — all committed.
 
 ---
 
-## Decide first: what does 0.5.45 ship?
+## Scope of 0.5.45 (settled with Dave)
 
-The offline-**resilience** half ships either way (maps open offline with your
-data, weather/tide replay, offline taxonomy/sort, honest offline messaging, and
-the region-manager UI). The two **Tier-B** pieces below are optional for this
-release:
+Ship the offline-**resilience** half (maps open offline with your data,
+weather/tide replay, offline taxonomy/sort, honest offline messaging, the region-
+manager UI) **plus offline base LABELS** (bundled glyphs + sprite). **Defer** the
+downloadable PMTiles **regions** to a later version.
 
-- **Path A — complete feature:** do Steps 1–2 (bundle glyphs/sprite, bake
-  regions) so 0.5.45 ships offline base **labels** and **downloadable regions**.
-- **Path B — resilience-only now:** skip Steps 1–2 and ship the resilience half;
-  with no regions baked the manager simply shows "no regions downloaded yet," and
-  the offline base shows your data + the persisted base without offline labels.
-  Regions/labels then ship in a later version via this same runbook.
+- **Offline base labels (Step 1, glyphs/sprite) — DONE on the VM.** They ship in
+  0.5.45; `BUNDLED_MAP_ASSETS` is flipped on (Step 3, done). Band-1 small-script
+  coverage: 3 Noto Sans stacks × 17 BMP ranges + the sprite, ~3.9 MB. Full detail
+  in `glyph-bundle-handoff.md`.
+- **Downloadable regions (Step 2, PMTiles bake) — DEFERRED.** The only genuinely
+  resource-special step; ships later via this same runbook. With no regions baked,
+  the manager simply shows "no regions downloaded yet."
 
-Steps 3–7 are required for **both** paths.
+Of Steps 3–7: Steps 3–4 are done on the VM, the VM also does the commit + push +
+tag (Steps 5–6), and the Mac runs only Step 7 (`release.sh`).
 
 ---
 
@@ -47,7 +59,14 @@ notarization creds exported (a bare `./release.sh` fails preflight with
 
 ---
 
-## Step 1 — Bundle glyphs + sprite  *(Path A only; FR-10)*
+## Step 1 — Bundle glyphs + sprite  *(VM/dev work; FR-10)* — DONE
+
+> **DONE on the VM (0.5.45).** The Band-1 set is bundled: 3 Noto Sans stacks
+> (Regular/Bold/Italic) × 17 BMP ranges = 51 glyph `.pbf` files + 4 sprite files,
+> ~3.9 MB, under `frontend/public/mapassets/`. CJK + Hangul are deliberately
+> excluded (they ran ~30–40 MB; codepoints degrade to `.notdef`). The exact ranges,
+> the derivation, and verify steps are in `glyph-bundle-handoff.md`. The reference
+> below is retained for re-bundling on a future Positron/fontstack change.
 
 Captures the vector base's label fonts and icon sheet so offline labels/symbols
 render with no network. They go under `frontend/public/mapassets/` (URL-served
@@ -90,30 +109,35 @@ polygon clip never `--bbox`, z14, the dateline-split AK trap, size ceilings):
    → regenerates `frontend/src/assets/regions-catalog.json` (note: **`src/assets/`**,
    not `public/`).
 
-## Step 3 — Flip the assets flag  *(Path A only)*
+## Step 3 — Flip the assets flag  *(VM/dev work)* — DONE
 
-In `frontend/src/lib/mapStyle.ts`, set `export const BUNDLED_MAP_ASSETS = true`.
+In `frontend/src/lib/mapStyle.ts`, `export const BUNDLED_MAP_ASSETS = true` (done).
 This makes `fetchTunedBaseStyle` rewrite the persisted style's glyph/sprite URLs
-to the bundled local assets from Step 1. (Leave it `false` for Path B.)
+to the bundled local assets from Step 1, so online and offline both serve
+labels/symbols from the same-origin bundle.
 
-## Step 4 — Re-verify the build
+## Step 4 — Re-verify the build  *(VM)* — DONE
 
 ```
 cd frontend && npm run lint && npm run typecheck && npm run test && npm run build
 cd ../backend && .venv/bin/python -m pytest tests/ -q
 ```
 
-For Path A also confirm the QA-37 chunk invariant still holds (a fresh build's
-`dist/index.html` has no `vendor-maplibre`/`pmtiles` in its modulepreload), and
-spot-check that an offline map now renders labels.
+Done on the VM with the assets bundled: lint + typecheck clean, 1094 vitest green,
+build clean, backend 157 green. The QA-37 chunk invariant holds (a fresh
+`dist/index.html` has no `vendor-maplibre`/`pmtiles` in its modulepreload — maplibre
+appears only inside the lazy-chunk dependency manifest, never a static import), and
+`dist/mapassets/` is populated (4 sprite + 51 glyph files). The `%20`-encoded
+fontstack glyph paths (`Noto%20Sans%20Regular/...pbf`) and all four sprite files
+resolve over a static serve; an unbundled CJK range correctly 404s.
 
-## Step 5 — Commit + push main
+## Step 5 — Commit + push main  *(VM)*
 
-The build-VM session leaves `main` committed and pushed up to the feature + the
-Chronicler's record updates. On the Mac, commit any Path-A asset changes
-(glyphs/sprite, catalog, the `BUNDLED_MAP_ASSETS` flip) and push `main`.
+The build **VM** commits the feature, the bundled glyph/sprite label assets, the
+`BUNDLED_MAP_ASSETS` flip, and the doc updates, and pushes `main`. No Path-A asset
+work remains for the Mac — the region catalog stays as-is (regions deferred).
 
-## Step 6 — Tag + Windows CI
+## Step 6 — Tag + Windows CI  *(VM)*
 
 ```
 git tag v0.5.45 && git push origin v0.5.45    # starts the Windows CI build

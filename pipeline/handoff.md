@@ -32,23 +32,31 @@ actual binary release and the release-time map assets are the Mac's steps.
 
 ## Where We Are
 
-Feature complete — all 9 stages approved, committed and pushed to `main` at `cef31b1`. **Not yet
-released.** Scope was settled with Dave during a Mac shipping session: **ship offline base LABELS
-(bundled glyphs + sprite, "Band 1" ~3.5 MB) together with the resilience half as 0.5.45** — NOT the
-downloadable PMTiles regions (Path A stays deferred).
+Feature complete, and the **offline base-label bundle is now DONE on the VM** (v0.5.45). Scope settled
+with Dave: ship offline base **labels** (bundled glyphs + sprite, "Band 1") with the resilience half;
+the downloadable PMTiles **regions** stay **deferred**. This VM session:
 
-**One BUILD task remains before release, and it's DEV work → do it on the VM, not the Mac.** The Mac
-session that started it (glyph capture/bundling + flipping `BUNDLED_MAP_ASSETS`) hit a broken dev
-environment, reverted cleanly, and handed it back. The Mac is only for `release.sh`. Full, settled,
-step-by-step spec — every decision already made, exact glyph ranges, the verbatim code edits, verify
-steps, and the ship sequence — is in **`pipeline/offline-support/glyph-bundle-handoff.md`**. (The
-`release-runbook.md` "Mac-side glyphs" framing is corrected there.)
+- Captured the Band-1 assets under `frontend/public/mapassets/` — 51 glyph `.pbf` files (3 Noto Sans
+  stacks × 17 BMP ranges) + 4 sprite files, ~3.9 MB.
+- Flipped `BUNDLED_MAP_ASSETS = true` (+ doc comment) and added the `jsdom` docblock to
+  `mapStyle.test.ts`.
+- Updated `CHANGELOG.md` (labels now ship), `release-runbook.md` (corrected the "Mac-side" framing),
+  and these records.
+- Ran the full gate green on the VM: lint, typecheck, **1094 vitest**, build, the QA-37 chunk
+  invariant (maplibre/pmtiles off the entry path), and a `%20`-fontstack glyph-path static-serve
+  smoke; backend **157** pytest.
+- Committed + pushed `main` and pushed tag **`v0.5.45`** (starts Windows CI).
+
+**What remains is Mac-only** (`release.sh` — Apple signing). See the Resume Prompt. Full spec:
+`pipeline/offline-support/glyph-bundle-handoff.md`; the corrected `release-runbook.md`.
 
 ## Resume Prompt
 
-To resume **on the VM**: follow `pipeline/offline-support/glyph-bundle-handoff.md` end to end — fetch
-the Band-1 glyphs + sprite into `frontend/public/mapassets/`, flip `BUNDLED_MAP_ASSETS=true` (+ doc
-comment), add the `jsdom` docblock to `mapStyle.test.ts`, run the full build gate, update CHANGELOG +
-runbook, commit + push `main`, then push tag `v0.5.45` (starts Windows CI). Then on the **Mac**:
-`cd frontend && npm ci` in a normal Terminal (restore deps incl. new `pmtiles`), pull, wait for green
-Windows CI, `zsh -lc ./release.sh`.
+The VM build + ship work is done and `main` + tag `v0.5.45` are pushed. **What remains is Mac-only:**
+on the Mac, in a normal Terminal, `cd frontend && npm ci` (restore deps incl. the new `pmtiles@4.4.0`
+— the Mac's `node_modules` was wiped), `git pull`, then wait for the `windows-build.yml` run **for the
+tag commit** to go green — tag-re-push guard: confirm its `headSha` equals `git rev-parse
+v0.5.45^{commit}` (a first, un-moved tag has no hazard, but verify CI points at the tag) — then
+`zsh -lc ./release.sh`. After it finishes, confirm the GitHub release has the macOS DMG + updater
+bundle + the Windows `-setup.exe` + `latest.json`. The pipeline is otherwise idle — run `/weft` for
+new work.

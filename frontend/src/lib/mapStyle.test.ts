@@ -1,3 +1,7 @@
+// @vitest-environment jsdom
+// With BUNDLED_MAP_ASSETS=true, fetchTunedBaseStyle now calls rewriteStyleAssetUrls,
+// which resolves the bundled glyph/sprite URLs against document.baseURI — so this
+// (otherwise node-env) file needs a DOM, like mapStyleRewrite.test.ts.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import type { StyleSpecification } from 'maplibre-gl'
 import {
