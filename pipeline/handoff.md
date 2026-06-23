@@ -45,18 +45,45 @@ the downloadable PMTiles **regions** stay **deferred**. This VM session:
 - Ran the full gate green on the VM: lint, typecheck, **1094 vitest**, build, the QA-37 chunk
   invariant (maplibre/pmtiles off the entry path), and a `%20`-fontstack glyph-path static-serve
   smoke; backend **157** pytest.
-- Committed + pushed `main` and pushed tag **`v0.5.45`** (starts Windows CI).
+- Committed + pushed `main` and pushed tag **`v0.5.45`**; **Windows CI is GREEN** at the tag commit
+  (`windows-build.yml` run `27993478562`, success, headSha == ac2ba49 — the only v0.5.45 run).
 
 **What remains is Mac-only** (`release.sh` — Apple signing). See the Resume Prompt. Full spec:
 `pipeline/offline-support/glyph-bundle-handoff.md`; the corrected `release-runbook.md`.
 
 ## Resume Prompt
 
-The VM build + ship work is done and `main` + tag `v0.5.45` are pushed. **What remains is Mac-only:**
-on the Mac, in a normal Terminal, `cd frontend && npm ci` (restore deps incl. the new `pmtiles@4.4.0`
-— the Mac's `node_modules` was wiped), `git pull`, then wait for the `windows-build.yml` run **for the
-tag commit** to go green — tag-re-push guard: confirm its `headSha` equals `git rev-parse
-v0.5.45^{commit}` (a first, un-moved tag has no hazard, but verify CI points at the tag) — then
-`zsh -lc ./release.sh`. After it finishes, confirm the GitHub release has the macOS DMG + updater
-bundle + the Windows `-setup.exe` + `latest.json`. The pipeline is otherwise idle — run `/weft` for
+The VM build + ship work is **done**: `main` and the annotated tag `v0.5.45` are pushed at commit
+**ac2ba49**, and **Windows CI is GREEN at the tag commit** — `windows-build.yml` run **27993478562**
+(conclusion success, headSha == `ac2ba499df0c6cedeb9e8bb3b3c99c7796fa924c` == the tag commit) is the
+only v0.5.45 run, so the tag-re-push hazard is inert. No GitHub release exists for v0.5.45 yet —
+`release.sh` will create it. **What remains is Mac-only** (Apple signing + the multi-platform assemble):
+
+1. **In a NORMAL Terminal** (not a Claude tool call — Node networking is blocked in the tool sandbox):
+   `cd frontend && npm ci`. This restores deps including the new **pmtiles@4.4.0** — the Mac's
+   `node_modules` was wiped; `package-lock.json` is committed so the install is deterministic.
+2. `cd ..` then `git fetch origin && git checkout main && git pull --ff-only origin main`. **Build
+   `main` HEAD** — it equals the tag commit ac2ba49 (plus at most one app-identical records-only
+   commit); release.sh's version guards key off `tauri.conf.json`/`Info.plist` (both 0.5.45), not the
+   git ref. (A detached `git checkout v0.5.45` is equally correct but unnecessary.)
+3. **Re-run the tag-re-push guard** (cheap; confirms no late run landed): `gh run list --repo
+   dtgibson/snowraven --workflow windows-build.yml --status success --limit 1 --json
+   databaseId,headSha` and `git rev-parse v0.5.45^{commit}`. **Expect** run `27993478562`, headSha
+   `ac2ba49…924c` == the tag commit. **CI is already green — no waiting needed.** If the selected
+   run's headSha != the tag commit, **STOP and investigate** (do not release; release.sh's
+   filename-version guard cannot distinguish two same-version runs).
+4. `zsh -lc ./release.sh` — **not** a bare `./release.sh`. `zsh -lc` sources the Mac LOGIN profile
+   where `APPLE_SIGNING_IDENTITY` / `APPLE_API_KEY_PATH` / `APPLE_API_KEY_ID` / `APPLE_API_ISSUER_ID`
+   live (a bare run aborts at preflight with "APPLE_SIGNING_IDENTITY is not set"). This builds the
+   universal macOS DMG + updater bundle, downloads + re-signs the CI Windows `-setup.exe` with the
+   real key, writes `latest.json`, and creates the v0.5.45 release. Do **not** use `gh release create`
+   directly. `SKIP_WINDOWS=1` is the emergency macOS-only escape hatch only — not needed (Windows is
+   green).
+5. **Verify** with `gh release view v0.5.45`: the release must carry the macOS DMG
+   (`SnowRaven_0.5.45_universal.dmg`), the macOS updater bundle (`.app.tar.gz` + `.sig`), the Windows
+   `-setup.exe` (+ `.sig`), and `latest.json` with `darwin-aarch64`, `darwin-x86_64`, and
+   `windows-x86_64` entries. The in-app updater will not detect 0.5.45 without `latest.json` present.
+
+After release: the offline-support feature (v0.5.45) is fully shipped. DEFERRED to a later version:
+downloadable PMTiles regions (Path A region bake). The pipeline is otherwise idle — run `/weft` for
 new work.
