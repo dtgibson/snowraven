@@ -32,14 +32,23 @@ actual binary release and the release-time map assets are the Mac's steps.
 
 ## Where We Are
 
-Feature complete — all 9 stages approved, committed and pushed to `main`. **Not yet released.** The
-binary release runs on the Mac and is documented step-by-step in
-`pipeline/offline-support/release-runbook.md`: decide full-feature (bake glyphs/sprite + county/state
-PMTiles, populate the catalog, flip `BUNDLED_MAP_ASSETS`) vs resilience-only, then commit any asset
-changes → push the `v0.5.45` tag → wait for Windows CI → `zsh -lc ./release.sh`.
+Feature complete — all 9 stages approved, committed and pushed to `main` at `cef31b1`. **Not yet
+released.** Scope was settled with Dave during a Mac shipping session: **ship offline base LABELS
+(bundled glyphs + sprite, "Band 1" ~3.5 MB) together with the resilience half as 0.5.45** — NOT the
+downloadable PMTiles regions (Path A stays deferred).
+
+**One BUILD task remains before release, and it's DEV work → do it on the VM, not the Mac.** The Mac
+session that started it (glyph capture/bundling + flipping `BUNDLED_MAP_ASSETS`) hit a broken dev
+environment, reverted cleanly, and handed it back. The Mac is only for `release.sh`. Full, settled,
+step-by-step spec — every decision already made, exact glyph ranges, the verbatim code edits, verify
+steps, and the ship sequence — is in **`pipeline/offline-support/glyph-bundle-handoff.md`**. (The
+`release-runbook.md` "Mac-side glyphs" framing is corrected there.)
 
 ## Resume Prompt
 
-To resume: run `/weft` in this project. The pipeline is idle — start a new feature, fix, or
-improvement whenever you're ready. The offline-support release-time tasks (Mac-only) are tracked in
-`session-state.json` `remainingBacklog` and in `pipeline/offline-support/release-runbook.md`.
+To resume **on the VM**: follow `pipeline/offline-support/glyph-bundle-handoff.md` end to end — fetch
+the Band-1 glyphs + sprite into `frontend/public/mapassets/`, flip `BUNDLED_MAP_ASSETS=true` (+ doc
+comment), add the `jsdom` docblock to `mapStyle.test.ts`, run the full build gate, update CHANGELOG +
+runbook, commit + push `main`, then push tag `v0.5.45` (starts Windows CI). Then on the **Mac**:
+`cd frontend && npm ci` in a normal Terminal (restore deps incl. new `pmtiles`), pull, wait for green
+Windows CI, `zsh -lc ./release.sh`.
