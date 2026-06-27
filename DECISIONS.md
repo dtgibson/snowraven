@@ -4,6 +4,20 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Mac release blocked by Node 25 (`npm ci` crash) — 2026-06-27 (release tooling; no version bump)
+
+**What broke:** The v0.5.45 macOS binary release never shipped — `release.sh` on the Mac failed repeatedly because `npm ci` crashed with npm's internal `Exit handler never called!` error. The build VM (Node 24) and Windows CI (Node 20) ran the identical lockfile clean.
+
+**Root cause:** The Mac had drifted to **Node v25.9.0** — a bleeding-edge, non-LTS release whose bundled npm hits the known crash (npm/cli#8766). Nothing in the repo pinned a Node version, so the release machine silently ran an unsupported one. A second, latent bug sat behind it: the release instructions installed only `frontend` deps, omitting the **root** `npm ci` that provides the `tauri` CLI `release.sh` resolves from root `node_modules/.bin`.
+
+**Decision / fix:** Pin Node in-repo (`.nvmrc` = 24, `engines.node >= 20.19`) and make `release.sh` self-healing — it installs both root and frontend deps itself and preflights the required tools, the pinned Node, network reachability, `gh auth`, and a clean working tree before the build, each failure naming its remedy. Added `CHECK_ONLY=1` (+ `SKIP_NPM_INSTALL` / `ALLOW_*` knobs) so the portable half is dry-runnable off-Mac. Corrected `release-runbook.md` + `glyph-bundle-handoff.md` to the one-command flow. Release tooling only — the 0.5.45 app is unchanged, the `v0.5.45` tag stayed at its commit, no version bump.
+
+**Rationale:** A release must not depend on a release machine's undocumented, drifting toolchain. Pinning Node and folding the dependency restore into one self-healing command turns a cryptic multi-day npm crash into "wrong Node — here's the one-liner," and removes the forgettable manual `npm ci` (which also silently skipped the root install).
+
+**Implications:** The Mac's whole release job is now `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`, then `zsh -lc ./release.sh`. Future release-machine setup must match `.nvmrc`; bump it as a logged decision on any toolchain move (recorded as a standing convention in CLAUDE.md's release section). The 0.5.45 binary release itself still runs in the Mac's own Weft session against this hardened script.
+
+---
+
 ## Offline support — 2026-06-21 (v0.5.45)
 
 **Decision:** Make SnowRaven usable offline across two tiers, with the heavy assets generated at release time on the Mac.

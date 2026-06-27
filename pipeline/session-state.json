@@ -2,8 +2,8 @@
   "activeFeature": "mac-release-build-blocked",
   "sessionNumber": 53,
   "sessionType": "fix",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
+  "currentStage": 6,
+  "lastCompletedStage": 5,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [
@@ -13,7 +13,7 @@
   ],
   "releasedVersion": "0.5.44",
   "lastFeature": "Offline support (Feature lane, v0.5.45) -- COMPLETE through all 9 Weft stages and COMMITTED to main on the VM, but the binary release is BLOCKED on the Mac release step. That blocker is the subject of the active fix lane (mac-release-build-blocked).",
-  "remainingBacklog": "OFFLINE-SUPPORT RELEASE (v0.5.45) BLOCKED on the Mac release step (active fix: mac-release-build-blocked, at Stage 5 Deployer). ROOT CAUSE: Mac runs Node v25.9.0 (non-LTS); npm crashes on `npm ci` with 'Exit handler never called!' (npm/cli#8766). FIX IMPLEMENTED + QA-GREEN + SECURITY-CLEAN (passed with notes, no Critical/High): release.sh self-healing (npm ci root+frontend, loud preflights incl Node-vs-.nvmrc/tools/network/clean-tree guards, CHECK_ONLY/SKIP_NPM_INSTALL/ALLOW_* knobs); added .nvmrc(24) + engines.node>=20.19; corrected release-runbook.md + glyph-bundle-handoff.md. VM verification all green (lint/typecheck/1094 vitest/build + 157 pytest; release.sh guards fire; build/sign tail byte-identical). DEPLOY = commit+push the fix from VM, then on the Mac: `nvm install 24 && nvm use 24` then `zsh -lc ./release.sh` (self-installs deps, builds+notarizes, fetches+signs Windows installer, publishes release + latest.json). main app + tag v0.5.45 @ ac2ba49; windows-build.yml run 27993478562 green at the tag (NOT moving the tag -- the release.sh fix is an app-identical tooling commit atop it). No version bump (release tooling). DEFERRED: downloadable PMTiles regions.",
+  "remainingBacklog": "OFFLINE-SUPPORT RELEASE (v0.5.45) BLOCKED on the Mac release step (active fix: mac-release-build-blocked, at Stage 6 Chronicler). ROOT CAUSE: Mac runs Node v25.9.0 (non-LTS); npm crashes on `npm ci` with 'Exit handler never called!' (npm/cli#8766). FIX SHIPPED to main @ bcd27c0 (VM side): release.sh self-healing (npm ci root+frontend, loud preflights incl Node-vs-.nvmrc/tools/network/clean-tree guards, CHECK_ONLY/SKIP_NPM_INSTALL/ALLOW_* knobs); .nvmrc(24) + engines.node>=20.19; corrected release-runbook.md + glyph-bundle-handoff.md. QA-green + security-clean. NEXT: the Mac runs its own Weft session to do the release -- `nvm install 24 && nvm use 24` then `zsh -lc ./release.sh` (the docs now say this). main app + tag v0.5.45 @ ac2ba49 unchanged; windows-build.yml run 27993478562 green at the tag (tag NOT moved; the fix is an app-identical tooling commit). No version bump. DEFERRED: downloadable PMTiles regions.",
   "createdAt": "2026-06-27T02:35:53Z",
-  "updatedAt": "2026-06-27T04:23:53Z"
+  "updatedAt": "2026-06-27T04:37:59Z"
 }
