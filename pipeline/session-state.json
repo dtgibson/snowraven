@@ -1,9 +1,9 @@
 {
-  "activeFeature": "mac-release-build-blocked",
+  "activeFeature": null,
   "sessionNumber": 53,
-  "sessionType": "fix",
-  "currentStage": 6,
-  "lastCompletedStage": 5,
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [
@@ -12,8 +12,8 @@
     "pipeline/mac-release-build-blocked/security-report.md"
   ],
   "releasedVersion": "0.5.44",
-  "lastFeature": "Offline support (Feature lane, v0.5.45) -- COMPLETE through all 9 Weft stages and COMMITTED to main on the VM, but the binary release is BLOCKED on the Mac release step. That blocker is the subject of the active fix lane (mac-release-build-blocked).",
-  "remainingBacklog": "OFFLINE-SUPPORT RELEASE (v0.5.45) BLOCKED on the Mac release step (active fix: mac-release-build-blocked, at Stage 6 Chronicler). ROOT CAUSE: Mac runs Node v25.9.0 (non-LTS); npm crashes on `npm ci` with 'Exit handler never called!' (npm/cli#8766). FIX SHIPPED to main @ bcd27c0 (VM side): release.sh self-healing (npm ci root+frontend, loud preflights incl Node-vs-.nvmrc/tools/network/clean-tree guards, CHECK_ONLY/SKIP_NPM_INSTALL/ALLOW_* knobs); .nvmrc(24) + engines.node>=20.19; corrected release-runbook.md + glyph-bundle-handoff.md. QA-green + security-clean. NEXT: the Mac runs its own Weft session to do the release -- `nvm install 24 && nvm use 24` then `zsh -lc ./release.sh` (the docs now say this). main app + tag v0.5.45 @ ac2ba49 unchanged; windows-build.yml run 27993478562 green at the tag (tag NOT moved; the fix is an app-identical tooling commit). No version bump. DEFERRED: downloadable PMTiles regions.",
+  "lastFeature": "mac-release-build-blocked (Fix lane) -- COMPLETE through all 6 Weft stages and SHIPPED to main (VM side) @ 92ce173. Made release.sh self-healing + pinned Node (.nvmrc=24) to unblock the v0.5.45 macOS release, which was failing because the Mac had drifted to Node 25 (npm `Exit handler never called!` crash, npm/cli#8766). The v0.5.45 BINARY release is the Mac's next step in its own session.",
+  "remainingBacklog": "v0.5.45 MACOS/WINDOWS BINARY RELEASE is the Mac's next step -- now UNBLOCKED. On the Mac: `git checkout main && git pull --ff-only` (gets the hardened release.sh @ 92ce173 + corrected runbook), then `nvm install 24 && nvm use 24` (the repo now pins Node via .nvmrc; a non-LTS Node like 25 crashes npm ci), then `zsh -lc ./release.sh`. The hardened release.sh self-installs root+frontend deps, preflights tools/Node/network/clean-tree, builds+notarizes the universal DMG, fetches+signs the Windows installer (CI run 27993478562 @ tag ac2ba49), and publishes the v0.5.45 GitHub release + latest.json (darwin-aarch64, darwin-x86_64, windows-x86_64). Verify: `gh release view v0.5.45`. tag v0.5.45 @ ac2ba49 unchanged (the fix is an app-identical tooling commit atop it; do NOT move the tag). DEFERRED to a later version: downloadable PMTiles regions. ROADMAP Up Next: mobile app; Windows code signing.",
   "createdAt": "2026-06-27T02:35:53Z",
-  "updatedAt": "2026-06-27T04:37:59Z"
+  "updatedAt": "2026-06-27T04:46:29Z"
 }
