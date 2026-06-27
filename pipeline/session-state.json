@@ -1,24 +1,19 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 52,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 9,
+  "activeFeature": "mac-release-build-blocked",
+  "sessionNumber": 53,
+  "sessionType": "fix",
+  "currentStage": 5,
+  "lastCompletedStage": 4,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [
-    "pipeline/offline-support/strategic-brief.md",
-    "pipeline/offline-support/prd.md",
-    "pipeline/offline-support/schema.md",
-    "pipeline/offline-support/design-spec.md",
-    "pipeline/offline-support/design.html",
-    "pipeline/offline-support/qa-report.md",
-    "pipeline/offline-support/security-report.md",
-    "pipeline/offline-support/release-runbook.md"
+    "pipeline/mac-release-build-blocked/bug-brief.md",
+    "pipeline/mac-release-build-blocked/qa-report.md",
+    "pipeline/mac-release-build-blocked/security-report.md"
   ],
   "releasedVersion": "0.5.44",
-  "lastFeature": "Offline support (Feature lane, v0.5.45) -- COMPLETE through all 9 Weft stages and COMMITTED to main on the VM (NOT yet released). Made SnowRaven usable offline: Tier A (tuned vector style persisted via the storage seam + seeded before any network fetch so maps mount offline and draw the user's data layers); opt-in desktop-only region downloads (PMTiles served to MapLibre via a custom srpm:// protocol over true range reads); weather/tide replay (opt-in per call-site, separate from the 90s networkCache); a bundled eBird taxonomy snapshot as the offline floor in BOTH runtimes; three-state offline/no-key/server-error messaging incl. the web/Pi backend-down distinction (FR-39a) and the update-check 404 fix; and a generic /settings/{key} store. Found+fixed a latent rewriteStyleAssetUrls glyph-token percent-encoding bug. 1094 frontend + 157 backend tests green; security review clean (no Critical/High). Release.sh + the release-time map assets are Mac-only -- see remainingBacklog + pipeline/offline-support/release-runbook.md.",
-  "remainingBacklog": "OFFLINE-SUPPORT RELEASE (v0.5.45): VM build+ship DONE and CI is GREEN. main + annotated tag v0.5.45 pushed at ac2ba49; windows-build.yml run 27993478562 is success at headSha==ac2ba49 (the only v0.5.45 run, no tag-re-push hazard); no GitHub release exists yet so release.sh will create it. Offline base-label bundle committed intact at the tag: 51 glyph .pbf (3 Noto Sans stacks x 17 BMP ranges) + 4 sprite files (~3.9MB) under frontend/public/mapassets/, BUNDLED_MAP_ASSETS=true, .gitattributes marks pbf/png binary; versions 0.5.45 lockstep in package.json + tauri.conf.json; pmtiles@4.4.0 in package-lock. REMAINING = Mac-only: (1) in a NORMAL Terminal `cd frontend && npm ci` (Mac node_modules wiped; deterministic via committed lockfile); (2) git fetch + checkout main + pull --ff-only, build main HEAD (== tag commit, app-identical to any records-only commit); (3) re-run the tag-re-push guard `gh run list --repo dtgibson/snowraven --workflow windows-build.yml --status success --limit 1 --json databaseId,headSha` and confirm headSha==`git rev-parse v0.5.45^{commit}` (expect 27993478562 / ac2ba49 -- already green, no waiting); (4) `zsh -lc ./release.sh` (Apple creds only in the Mac LOGIN profile; a bare run fails preflight); (5) verify `gh release view v0.5.45` has macOS DMG + updater .app.tar.gz+.sig + Windows -setup.exe+.sig + latest.json (darwin-aarch64, darwin-x86_64, windows-x86_64). DEFERRED to a later version: downloadable PMTiles regions (Path A region bake -- tools/build-regions + regions-catalog; independent of BUNDLED_MAP_ASSETS). ROADMAP Up Next: mobile app; Windows code signing. NOT-FOR-RELEASE: origin has an unmerged docs/snoa-3-accuracy-fixes branch -- left untouched.",
-  "createdAt": "2026-06-20T07:53:02Z",
-  "updatedAt": "2026-06-23T02:29:21Z"
+  "lastFeature": "Offline support (Feature lane, v0.5.45) -- COMPLETE through all 9 Weft stages and COMMITTED to main on the VM, but the binary release is BLOCKED on the Mac release step. That blocker is the subject of the active fix lane (mac-release-build-blocked).",
+  "remainingBacklog": "OFFLINE-SUPPORT RELEASE (v0.5.45) BLOCKED on the Mac release step (active fix: mac-release-build-blocked, at Stage 5 Deployer). ROOT CAUSE: Mac runs Node v25.9.0 (non-LTS); npm crashes on `npm ci` with 'Exit handler never called!' (npm/cli#8766). FIX IMPLEMENTED + QA-GREEN + SECURITY-CLEAN (passed with notes, no Critical/High): release.sh self-healing (npm ci root+frontend, loud preflights incl Node-vs-.nvmrc/tools/network/clean-tree guards, CHECK_ONLY/SKIP_NPM_INSTALL/ALLOW_* knobs); added .nvmrc(24) + engines.node>=20.19; corrected release-runbook.md + glyph-bundle-handoff.md. VM verification all green (lint/typecheck/1094 vitest/build + 157 pytest; release.sh guards fire; build/sign tail byte-identical). DEPLOY = commit+push the fix from VM, then on the Mac: `nvm install 24 && nvm use 24` then `zsh -lc ./release.sh` (self-installs deps, builds+notarizes, fetches+signs Windows installer, publishes release + latest.json). main app + tag v0.5.45 @ ac2ba49; windows-build.yml run 27993478562 green at the tag (NOT moving the tag -- the release.sh fix is an app-identical tooling commit atop it). No version bump (release tooling). DEFERRED: downloadable PMTiles regions.",
+  "createdAt": "2026-06-27T02:35:53Z",
+  "updatedAt": "2026-06-27T04:23:53Z"
 }

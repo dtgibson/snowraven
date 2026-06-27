@@ -12,7 +12,8 @@ bake (Path A) is NOT part of this; it stays deferred.
 
 ## Why the VM (machine-role correction)
 
-The Mac is **only** for `release.sh` (Apple signing/notarization). Everything else —
+The Mac is **only** for `release.sh` (the macOS build + signing/notarization — all
+macOS-only). Everything else —
 asset capture/bundling, the flag flip, source/test edits, `npm`, and the build
 verification — is dev work and belongs on the VM. The `release-runbook.md` labeled
 the glyph/sprite bundling "Mac-side" ("needs network + large data"); that's only true
@@ -166,10 +167,13 @@ All green on the Mac before revert: lint, typecheck, 1094 vitest. Also:
 2. Push tag `v0.5.45` (starts Windows CI) — only once it points at the final commit.
 3. Wait for the `windows-build.yml` run to go green; confirm its `headSha` == the tag
    commit (standing tag-re-push guard).
-4. **On the Mac:** `cd frontend && npm ci` (restore deps in a normal Terminal — the
-   Mac's `node_modules` was wiped and the new `pmtiles@4.4.0` dep must install;
-   Node networking is blocked inside the Claude tool sandbox, so it can't be done
-   from a tool call), pull, then `zsh -lc ./release.sh`.
+4. **On the Mac:** make sure Node matches `.nvmrc` (`nvm install $(cat .nvmrc) &&
+   nvm use $(cat .nvmrc)` — a bleeding-edge/non-LTS Node like 25 crashes `npm ci`
+   with npm's "Exit handler never called!" bug, npm/cli#8766), `git pull`, then
+   `zsh -lc ./release.sh`. `release.sh` is self-healing now — it installs BOTH the
+   root and frontend deps itself (the old standalone `cd frontend && npm ci` was
+   incomplete: it skipped the root install that provides the `tauri` CLI) and
+   preflights tools/Node/network before the build.
 
 ## Notes / gotchas observed
 

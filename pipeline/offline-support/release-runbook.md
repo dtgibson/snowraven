@@ -53,9 +53,13 @@ tag (Steps 5–6), and the Mac runs only Step 7 (`release.sh`).
 - County/state boundary GeoJSON (US Census TIGER + Canadian census divisions),
   dateline-split for Alaska.
 
-Always required (Steps 3–7): the Mac login shell with the Apple API key +
-notarization creds exported (a bare `./release.sh` fails preflight with
-`APPLE_SIGNING_IDENTITY is not set` — run it as `zsh -lc ./release.sh`).
+Always required (Steps 3–7): the Mac on the pinned Node (`nvm install $(cat .nvmrc)
+&& nvm use $(cat .nvmrc)` — a bleeding-edge/non-LTS Node like 25 crashes `npm ci`
+with npm's "Exit handler never called!" bug, npm/cli#8766), and the Mac login shell
+with the Apple API key + notarization creds exported (run it as `zsh -lc
+./release.sh`; a bare `./release.sh` fails preflight with `APPLE_SIGNING_IDENTITY is
+not set`). `release.sh` is self-healing — it installs both root and frontend deps
+itself and preflights tools/Node/network before the build.
 
 ---
 
@@ -157,16 +161,19 @@ gh run list --workflow windows-build.yml --status success --limit 1 --json datab
 git rev-parse v0.5.45^{commit}
 ```
 
-Wait for that CI run to go green, then:
+Wait for that CI run to go green. Then, on the Mac, make sure Node matches the pin
+(`nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`) and run:
 
 ```
 zsh -lc ./release.sh
 ```
 
-`release.sh` builds + notarizes the universal macOS bundle, downloads + re-signs
-the CI Windows installer, and writes one `latest.json` with both
-`darwin-aarch64` and `windows-x86_64` entries (the in-app updater depends on it).
-Do **not** use `gh release create` for the app release.
+`release.sh` is self-healing: it preflights tools/Node/network, installs **both**
+the root and frontend deps itself (no separate `npm ci` step), then builds +
+notarizes the universal macOS bundle, downloads + re-signs the CI Windows
+installer, and writes one `latest.json` with both `darwin-aarch64` and
+`windows-x86_64` entries (the in-app updater depends on it). Do **not** use
+`gh release create` for the app release.
 
 ## Step 8 — Post-release
 

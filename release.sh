@@ -4,7 +4,15 @@
 # Run this after pushing a version bump and CHANGELOG update.
 # Credentials stay local — nothing is stored in GitHub.
 #
-# Required env vars (set in your shell before running):
+# The Mac is the macOS BUILD machine, not "signing only": a notarized macOS app
+# can only be compiled, codesigned, and notarized on macOS (xcrun/notarytool are
+# macOS-only). This script is self-healing — it installs BOTH the root and
+# frontend dependencies itself and preflights tools/Node/network before the slow
+# build — so the Mac's whole job is, once on the pinned Node (see .nvmrc):
+#     zsh -lc ./release.sh
+#
+# Required env vars (live in the Mac login profile, which is why it's run as
+# `zsh -lc ./release.sh` so they're sourced):
 #   APPLE_SIGNING_IDENTITY  your Developer ID Application cert name, e.g.:
 #                           "Developer ID Application: Dave Gibson (TEAMID)"
 #                           Find it: security find-identity -v -p codesigning | grep "Developer ID Application"
@@ -12,14 +20,33 @@
 #   APPLE_API_KEY_ID        10-character Key ID from App Store Connect
 #   APPLE_API_ISSUER_ID     Issuer ID UUID from App Store Connect
 #
+# Optional env toggles:
+#   CHECK_ONLY=1                  run preflight + dependency install, then STOP before
+#                                 the macOS build (dry-run the portable half on the VM/CI).
+#   SKIP_NPM_INSTALL=1            reuse the existing node_modules (fast re-runs).
+#   ALLOW_DIRTY=1                 permit a dirty working tree.
+#   ALLOW_NODE_MISMATCH=1         permit a Node version other than .nvmrc's.
+#   ALLOW_NPM_INSTALL_FALLBACK=1  if `npm ci` fails, fall back to `npm install` (last resort; can drift from the lockfile).
+#   SKIP_WINDOWS=1                publish a macOS-only release (Windows users will NOT get this update — emergencies only).
+#
 # Example:
 #   export APPLE_SIGNING_IDENTITY="Developer ID Application: Dave Gibson (XXXXXXXXXX)"
 #   export APPLE_API_KEY_PATH=~/AuthKey_XXXXXXXXXX.p8
 #   export APPLE_API_KEY_ID=XXXXXXXXXX
 #   export APPLE_API_ISSUER_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-#   ./release.sh
+#   zsh -lc ./release.sh
 
 set -euo pipefail
+
+# ── Helpers + run modes ─────────────────────────────────────────────────────────
+CHECK_ONLY="${CHECK_ONLY:-0}"
+
+die()  { echo "ERROR: $*" >&2; exit 1; }
+warn() { echo "warning: $*" >&2; }
+need() { command -v "$1" >/dev/null 2>&1 || die "required tool '$1' not found on PATH — $2"; }
+
+# `node` is needed immediately below to read the version out of tauri.conf.json.
+need node "install Node and select the pinned version: 'nvm install \$(cat .nvmrc) && nvm use \$(cat .nvmrc)'."
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -46,36 +73,110 @@ APP_TAR="$BUNDLE_DIR/macos/SnowRaven.app.tar.gz"
 APP_SIG="${APP_TAR}.sig"
 
 # ── Preflight checks ──────────────────────────────────────────────────────────
+# Fast, loud, and BEFORE the slow build: every failure names the exact remedy.
 
-for var in APPLE_SIGNING_IDENTITY APPLE_API_KEY_PATH APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
-  if [[ -z "${!var:-}" ]]; then
-    echo "Error: $var is not set. See the usage comment at the top of this script."
-    exit 1
+# Required tooling (portable — needed on every platform).
+need npm  "comes with Node; reinstall Node if missing."
+need npx  "comes with npm; reinstall Node if missing."
+need git  "install git."
+need curl "install curl (used for the network reachability checks)."
+need gh   "install the GitHub CLI: https://cli.github.com"
+
+# Node must match the version this project is pinned to (.nvmrc). A bleeding-edge /
+# non-LTS Node (e.g. 25) crashes `npm ci` with npm's 'Exit handler never called!'
+# bug (npm/cli#8766) — the reason a release can fail on the Mac while the build VM
+# (Node 24) and Windows CI (Node 20) succeed on the identical lockfile.
+if [[ -f .nvmrc ]]; then
+  WANT_NODE_MAJOR=$(tr -dc '0-9.' < .nvmrc | cut -d. -f1)
+  HAVE_NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
+  if [[ -n "$WANT_NODE_MAJOR" && "$HAVE_NODE_MAJOR" != "$WANT_NODE_MAJOR" && "${ALLOW_NODE_MISMATCH:-0}" != "1" ]]; then
+    die "Node $(node -v) is not the pinned version (.nvmrc = $WANT_NODE_MAJOR). Run: nvm install $WANT_NODE_MAJOR && nvm use $WANT_NODE_MAJOR  (or set ALLOW_NODE_MISMATCH=1 to override)."
   fi
-done
-
-if [[ ! -f "$APPLE_API_KEY_PATH" ]]; then
-  echo "Error: APPLE_API_KEY_PATH ($APPLE_API_KEY_PATH) does not exist."
-  exit 1
 fi
 
-if [[ ! -f "$SIGNING_KEY" ]]; then
-  echo "Error: Tauri signing key not found at $SIGNING_KEY"
-  exit 1
+# GitHub auth — needed to fetch the Windows artifact and publish the release.
+if [[ "$CHECK_ONLY" != "1" ]]; then
+  gh auth status >/dev/null 2>&1 || die "GitHub CLI is not authenticated — run: gh auth login"
 fi
 
-# The universal macOS build cross-compiles both arches, so both Rust targets
-# must be installed locally (the Apple Silicon machine has aarch64 by default,
-# but x86_64 is added explicitly).
-for tgt in aarch64-apple-darwin x86_64-apple-darwin; do
-  if ! rustup target list --installed 2>/dev/null | grep -qx "$tgt"; then
-    echo "Error: Rust target '$tgt' is not installed (required for the universal build)."
-    echo "Install it with: rustup target add $tgt"
-    exit 1
-  fi
-done
+# Working tree must be clean (the build keys off the checked-out commit).
+DIRTY=$(git status --porcelain 2>/dev/null || true)
+if [[ -n "$DIRTY" && "${ALLOW_DIRTY:-0}" != "1" ]]; then
+  echo "$DIRTY" >&2
+  die "working tree is not clean (files above). Commit/stash them, or re-run with ALLOW_DIRTY=1."
+fi
+
+# Informational: where HEAD sits relative to the tag (the real version gate is the
+# CFBundleShortVersionString check after the build, not the git ref).
+if git rev-parse -q --verify "$TAG^{commit}" >/dev/null 2>&1; then
+  echo "==> Releasing $TAG: tag=$(git rev-parse --short "$TAG^{commit}") HEAD=$(git rev-parse --short HEAD)"
+else
+  warn "tag $TAG not found locally — the version is taken from tauri.conf.json, not the tag."
+fi
+
+# Apple signing / notarization credentials + macOS build toolchain. These live
+# only on the Mac, so they're skipped under CHECK_ONLY to let the portable half be
+# dry-run on the VM/CI.
+if [[ "$CHECK_ONLY" == "1" ]]; then
+  warn "CHECK_ONLY=1 — skipping Apple-cred / signing-key / Rust-target checks (macOS-only)."
+else
+  for var in APPLE_SIGNING_IDENTITY APPLE_API_KEY_PATH APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
+    [[ -n "${!var:-}" ]] || die "$var is not set. Run via 'zsh -lc ./release.sh' so the login profile is sourced. See the usage comment at the top."
+  done
+
+  [[ -f "$APPLE_API_KEY_PATH" ]] || die "APPLE_API_KEY_PATH ($APPLE_API_KEY_PATH) does not exist."
+  [[ -f "$SIGNING_KEY" ]] || die "Tauri signing key not found at $SIGNING_KEY"
+
+  need rustup "install Rust: https://rustup.rs"
+  need cargo  "install Rust: https://rustup.rs"
+  need xcrun  "install the Xcode command-line tools: xcode-select --install"
+
+  # The universal macOS build cross-compiles both arches, so both Rust targets
+  # must be installed locally (the Apple Silicon machine has aarch64 by default,
+  # but x86_64 is added explicitly).
+  for tgt in aarch64-apple-darwin x86_64-apple-darwin; do
+    rustup target list --installed 2>/dev/null | grep -qx "$tgt" \
+      || die "Rust target '$tgt' is not installed (required for the universal build). Install it with: rustup target add $tgt"
+  done
+fi
 
 echo "==> SnowRaven $TAG (universal macOS: aarch64 + x86_64)"
+
+# ── Dependency restore (self-healing) ───────────────────────────────────────────
+# This script installs BOTH the root and frontend node_modules itself, from the
+# committed lockfiles — no separate manual `npm ci` step to forget. The ROOT
+# install provides the `tauri` CLI that `npm run desktop:build` resolves from root
+# node_modules/.bin; the FRONTEND install provides the Vite/React toolchain.
+if [[ "${SKIP_NPM_INSTALL:-0}" == "1" ]]; then
+  echo "==> SKIP_NPM_INSTALL=1 — reusing the existing node_modules."
+else
+  echo "==> Checking network reachability..."
+  curl -fsS --max-time 15 -o /dev/null https://registry.npmjs.org/ \
+    || die "cannot reach the npm registry (registry.npmjs.org) — check network/VPN/proxy; npm ci needs it to restore node_modules."
+  if [[ "$CHECK_ONLY" != "1" ]]; then
+    curl -fsS --max-time 15 -o /dev/null https://api.github.com \
+      || die "cannot reach GitHub (api.github.com) — needed to fetch the Windows installer and publish the release."
+  fi
+
+  install_deps() {
+    local where="$1"; shift
+    echo "==> Installing $where dependencies (npm ci)..."
+    if npm "$@" ci; then return 0; fi
+    if [[ "${ALLOW_NPM_INSTALL_FALLBACK:-0}" == "1" ]]; then
+      warn "npm ci failed for $where — falling back to 'npm install' (ALLOW_NPM_INSTALL_FALLBACK=1); this can drift from the committed lockfile."
+      npm "$@" install || die "npm install also failed for $where."
+    else
+      die "npm ci failed for $where. On a bleeding-edge Node this is often npm's 'Exit handler never called!' crash — use the pinned Node (.nvmrc). If the lockfile is genuinely out of sync, fix it deliberately, or set ALLOW_NPM_INSTALL_FALLBACK=1 to force an install."
+    fi
+  }
+  install_deps "root"
+  install_deps "frontend" --prefix frontend
+fi
+
+if [[ "$CHECK_ONLY" == "1" ]]; then
+  echo "==> CHECK_ONLY=1 — preflight + dependency install validated; stopping before the macOS build."
+  exit 0
+fi
 
 # ── Build ─────────────────────────────────────────────────────────────────────
 # Two things are required for Tauri to generate the .app.tar.gz updater bundle:
