@@ -1,19 +1,26 @@
 {
   "activeFeature": null,
-  "sessionNumber": 53,
+  "sessionNumber": 54,
   "sessionType": null,
   "currentStage": null,
-  "lastCompletedStage": 6,
+  "lastCompletedStage": 9,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [
-    "pipeline/mac-release-build-blocked/bug-brief.md",
-    "pipeline/mac-release-build-blocked/qa-report.md",
-    "pipeline/mac-release-build-blocked/security-report.md"
+    "pipeline/county-lines-shading/strategic-brief.md",
+    "pipeline/county-lines-shading/prd.md",
+    "pipeline/county-lines-shading/schema.md",
+    "pipeline/county-lines-shading/design-spec.md",
+    "pipeline/county-lines-shading/design.html",
+    "pipeline/county-lines-shading/decisions.md",
+    "pipeline/county-lines-shading/pr-description.md",
+    "pipeline/county-lines-shading/how-to-see.md",
+    "pipeline/county-lines-shading/qa-report.md",
+    "pipeline/county-lines-shading/security-report.md"
   ],
   "releasedVersion": "0.5.44",
-  "lastFeature": "mac-release-build-blocked (Fix lane) -- COMPLETE through all 6 Weft stages and SHIPPED to main (VM side) @ 92ce173. Made release.sh self-healing + pinned Node (.nvmrc=24) to unblock the v0.5.45 macOS release, which was failing because the Mac had drifted to Node 25 (npm `Exit handler never called!` crash, npm/cli#8766). The v0.5.45 BINARY release is the Mac's next step in its own session.",
-  "remainingBacklog": "v0.5.45 MACOS/WINDOWS BINARY RELEASE is the Mac's next step -- now UNBLOCKED. On the Mac: `git checkout main && git pull --ff-only` (gets the hardened release.sh @ 92ce173 + corrected runbook), then `nvm install 24 && nvm use 24` (the repo now pins Node via .nvmrc; a non-LTS Node like 25 crashes npm ci), then `zsh -lc ./release.sh`. The hardened release.sh self-installs root+frontend deps, preflights tools/Node/network/clean-tree, builds+notarizes the universal DMG, fetches+signs the Windows installer (CI run 27993478562 @ tag ac2ba49), and publishes the v0.5.45 GitHub release + latest.json (darwin-aarch64, darwin-x86_64, windows-x86_64). Verify: `gh release view v0.5.45`. tag v0.5.45 @ ac2ba49 unchanged (the fix is an app-identical tooling commit atop it; do NOT move the tag). DEFERRED to a later version: downloadable PMTiles regions. ROADMAP Up Next: mobile app; Windows code signing.",
-  "createdAt": "2026-06-27T02:35:53Z",
-  "updatedAt": "2026-06-27T04:46:29Z"
+  "lastFeature": "county-lines-shading (Feature lane) -- COMPLETE through all 9 Weft stages. v0.5.46 committed + pushed to main @ be251b0 and tag v0.5.46 pushed (Windows CI triggered). Studio Style run (participate: designer). US county boundary overlay on the Map Explorer with optional green choropleth shading by species/records per county; bundled public-domain Census geometry (~300 KB gz, off entry chunk), client-side join, fully offline, US-only v1. 1140 frontend tests green; security clean.",
+  "remainingBacklog": "BINARY RELEASE PENDING ON THE MAC: v0.5.46. On the Mac: git checkout main && git pull --ff-only, then `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`, then `zsh -lc ./release.sh` -- builds/notarizes the universal macOS DMG, fetches+signs the Windows installer from the v0.5.46 CI run, publishes the GitHub release + latest.json (darwin-aarch64, darwin-x86_64, windows-x86_64). Verify: `gh release view v0.5.46`. NOTE: v0.5.46 SUPERSEDES the still-unreleased v0.5.45 (it includes the offline-support work) -- releasing 0.5.46 is sufficient; no need to separately release 0.5.45. ROADMAP Up Next: mobile app; Windows code signing. DEFERRED: downloadable PMTiles regions; county overlay on Species Detail/Statistics maps; non-US counties; per-species county choropleth.",
+  "createdAt": "2026-06-28T15:50:58Z",
+  "updatedAt": "2026-06-28T20:04:31Z"
 }

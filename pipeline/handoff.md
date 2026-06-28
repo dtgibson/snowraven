@@ -1,50 +1,49 @@
 ## What We Accomplished
 
-Fixed the blocker that kept **v0.5.45 from releasing**. The macOS release had failed
-repeatedly on the Mac because the Mac had drifted to a bleeding-edge Node (v25.9.0),
-whose npm crashes on `npm ci` with the internal error "Exit handler never called!"
-(npm/cli#8766). The build VM (Node 24) and Windows CI (Node 20) ran the identical
-lockfile fine — the problem was the Mac's environment, not the project.
+Built and shipped **County Lines & Shading** as **v0.5.46** — a new Map Explorer
+overlay. A "County lines" toggle draws US county boundaries (redrawn as you pan and
+zoom), and "Shade by species seen" tints each county by how many species (or
+checklists) you've recorded there, drawn entirely from your own loaded eBird data. A
+quantile legend, a click-for-details popup (counts + your top species/locations + an
+eBird county link), and a keyboard "Counties in view" list. The green shading is kept
+distinct from the purple California atlas so both overlays can run at once. Boundaries
+are a compact bundled public-domain US Census dataset, so it works fully offline with
+no new network calls. US-only for this version. Along the way it fixed a latent bug
+where same-named counties in different states were merged in your statistics.
 
-`release.sh` is now **one self-healing command**: it installs both the root and
-frontend dependencies itself (the old instructions only installed `frontend`,
-omitting the root install that provides the `tauri` CLI), and it preflights the
-required tools, the pinned Node version, network reachability, GitHub auth, and a
-clean working tree before the slow build — each failure naming its exact remedy.
-The repo now pins Node (`.nvmrc` = 24) so the release machine can't drift again.
-Release tooling only — the v0.5.45 app is unchanged and the tag stayed put.
+The run went through all nine Weft stages in Studio Style (you reviewed the design;
+the rest ran hands-off). 1140 frontend tests pass, the security review was clean, and
+the overlay was smoke-tested in the running app against synthetic demo data.
 
 ## What Has Been Saved
 
-- **`release.sh`** — self-healing rewrite (root + frontend `npm ci`, loud preflights,
-  `CHECK_ONLY`/`SKIP_NPM_INSTALL`/`ALLOW_*` knobs); build/sign/notarize tail unchanged.
-- **`.nvmrc`** (24) and **`frontend/package.json`** (`engines.node >= 20.19`).
-- **`pipeline/offline-support/release-runbook.md`** + **`glyph-bundle-handoff.md`** —
-  corrected to the one-command flow (drop the standalone `cd frontend && npm ci`).
-- **`CLAUDE.md`** (release convention) + **`DECISIONS.md`** (post-mortem entry).
-- **`pipeline/mac-release-build-blocked/`** — bug-brief, qa-report, security-report.
-- Commits: `bcd27c0` (the fix) + `92ce173` (records), both pushed to `main`.
+- Release commit `be251b0` on `main`, tagged `v0.5.46` (both pushed; Windows CI building).
+  - New: `frontend/src/components/map/CountyLayer.tsx`, `frontend/src/lib/countyBoundaries.ts`,
+    `countyShading.ts` (+ tests), `countyContrast.test.ts`, `entryChunk.test.ts`,
+    `frontend/src/assets/us-counties.json`, `scripts/build-county-boundaries.mjs`.
+  - Changed: `MapExplorer.tsx`, `birdingStats.ts` (+test), `BirdingStats.tsx`, `globals.css`
+    (`--sr-county-1..4`), version files, `CHANGELOG.md`, `README.md`, `website/index.html`,
+    `docs/HELP.md`, and the records (`PRODUCT_CONTEXT.md`, `CLAUDE.md`, `DECISIONS.md`,
+    `ROADMAP.md`, `pipeline/design-system.md`).
+  - Feature artifacts in `pipeline/county-lines-shading/` (brief, PRD, schema, design, QA,
+    security, decisions, PR description, how-to-see, smoke-shot.png).
 
 ## Where We Are
 
-Fix complete and pushed to `main`. VM verification all green (lint, typecheck, 1094
-vitest, build, 157 pytest; release.sh guards fire; security passed with notes, no
-Critical/High). **The v0.5.45 binary release itself has NOT run yet — that's the
-Mac's next step.**
+Feature complete — all nine stages approved/closed. Source is pushed and tagged; the
+**binary release is the Mac's step.**
 
 ## Resume Prompt
 
-**Next action (the Mac): release v0.5.45.** It's now unblocked. On the Mac:
+**Next action (the Mac): release v0.5.46.**
+1. `git checkout main && git pull --ff-only origin main`
+2. `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`
+3. `zsh -lc ./release.sh`  (builds + notarizes the universal macOS DMG, fetches + signs
+   the Windows installer from the v0.5.46 CI run, publishes the GitHub release +
+   `latest.json` with darwin-aarch64, darwin-x86_64, windows-x86_64)
+4. Verify: `gh release view v0.5.46`
 
-1. `git checkout main && git pull --ff-only origin main`  (gets release.sh @ `92ce173`)
-2. `nvm install 24 && nvm use 24`  (the repo pins Node via `.nvmrc`; a non-LTS Node
-   like 25 crashes `npm ci`)
-3. `zsh -lc ./release.sh`  (self-installs deps, preflights, builds + notarizes the
-   universal DMG, fetches + re-signs the Windows installer from CI run 27993478562 @
-   tag `ac2ba49`, and publishes the v0.5.45 GitHub release + `latest.json`)
-4. Verify: `gh release view v0.5.45` carries the DMG, the macOS updater bundle
-   (`.app.tar.gz` + `.sig`), the Windows `-setup.exe` (+ `.sig`), and `latest.json`
-   with `darwin-aarch64`, `darwin-x86_64`, `windows-x86_64`.
+**v0.5.46 supersedes the still-unreleased v0.5.45** (it includes the offline-support
+work), so releasing 0.5.46 is sufficient — no need to separately release 0.5.45.
 
-The `v0.5.45` tag stays at `ac2ba49` (do not move it). To start unrelated new work,
-run `/weft` — it picks up from the current (idle) state.
+To start the next feature, run **/weft** — it picks up from the current (idle) state.
