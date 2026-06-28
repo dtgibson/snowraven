@@ -39,7 +39,7 @@ const loc: LocationGroup = {
   count: 4, species: new Set(['Snow Goose']), lastDate: '2026-06-01',
 }
 const baseProps = {
-  locations: [loc], heatIntensity: 5, atlasShading: false,
+  locations: [loc], heatIntensity: 5,
   sel: null, onSelect: () => {},
 }
 

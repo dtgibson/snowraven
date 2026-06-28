@@ -29,11 +29,15 @@ function useCssToken(name: string, fallback: string): string {
   return value
 }
 
-export function SightingMarkers({ locations, displayMode, heatIntensity, atlasShading, sel, onSelect }: {
+export function SightingMarkers({ locations, displayMode, heatIntensity, shadingFillId, sel, onSelect }: {
   locations: LocationGroup[]
   displayMode: DisplayMode
   heatIntensity: number
-  atlasShading: boolean
+  // Id of the active shading fill ('sr-atlas-fill' | 'sr-county-fill'), or undefined
+  // when no ramp is shaded. When set, the heatmap sits UNDER that fill (beforeId) and
+  // dims, and pins dim, so the tier colors read on top. Mutual exclusion guarantees
+  // at most one ramp is active at a time.
+  shadingFillId?: string
   // Selection is lifted to the parent so the keyboard-accessible sidebar list
   // and the pin click share ONE owner: clicking a pin OR a sidebar row opens
   // the same <Popup>. (closeOnClick stays off, so there's still a single owner.)
@@ -140,16 +144,16 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, atlasSh
             the instance — react-map-gl asserts ("source id changed") and crashes the
             app. Distinct keys force unmount/remount on a mode toggle. */}
         <Source key="sr-heat" id="sr-heat" type="geojson" data={heatFc}>
-          {/* When atlas breeding shading is on, sit the heatmap UNDER the atlas fill
-              (beforeId) and dim it, so the tier colors read on top. */}
+          {/* When a shading ramp (atlas or county) is on, sit the heatmap UNDER
+              that fill (beforeId) and dim it, so the tier colors read on top. */}
           <Layer id="sr-heat" type="heatmap"
-            beforeId={atlasShading ? 'sr-atlas-fill' : undefined}
+            beforeId={shadingFillId}
             paint={{
             // min(count / divisor, 1) — matches lib/heat.ts heatWeight, as an expression.
             'heatmap-weight': ['min', ['/', ['get', 'count'], divisor], 1],
             'heatmap-intensity': heatIntensityFactor(heatIntensity),
             'heatmap-radius': heatRadiusPx(heatIntensity),
-            'heatmap-opacity': atlasShading ? 0.45 : 0.85,
+            'heatmap-opacity': shadingFillId ? 0.45 : 0.85,
           } as HeatmapLayerSpecification['paint']} />
         </Source>
         {sightPopup}
@@ -157,7 +161,7 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, atlasSh
     )
   }
 
-  const dim = atlasShading ? ATLAS_DIM_FACTOR : 1
+  const dim = shadingFillId ? ATLAS_DIM_FACTOR : 1
   const circlePaint: CircleLayerSpecification['paint'] = {
     'circle-radius': pinFillRadiusExpr(),
     'circle-color': pinColor,

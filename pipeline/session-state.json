@@ -1,26 +1,17 @@
 {
   "activeFeature": null,
-  "sessionNumber": 54,
+  "sessionNumber": 55,
   "sessionType": null,
   "currentStage": null,
-  "lastCompletedStage": 9,
+  "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "pipeline/county-lines-shading/strategic-brief.md",
-    "pipeline/county-lines-shading/prd.md",
-    "pipeline/county-lines-shading/schema.md",
-    "pipeline/county-lines-shading/design-spec.md",
-    "pipeline/county-lines-shading/design.html",
-    "pipeline/county-lines-shading/decisions.md",
-    "pipeline/county-lines-shading/pr-description.md",
-    "pipeline/county-lines-shading/how-to-see.md",
-    "pipeline/county-lines-shading/qa-report.md",
-    "pipeline/county-lines-shading/security-report.md"
-  ],
+  "autonomyMode": "studio-style",
+  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. Last run (map-explorer-shading-polish, Improve lane) closed out. Project release rhythm: the Chronicler runs BEFORE the push; this VM commits + pushes main + the version tag as the final deploy step (the one destructive gate), and the Mac runs release.sh.",
+  "confirmedArtifacts": [],
   "releasedVersion": "0.5.44",
-  "lastFeature": "county-lines-shading (Feature lane) -- COMPLETE through all 9 Weft stages. v0.5.46 committed + pushed to main @ be251b0 and tag v0.5.46 pushed (Windows CI triggered). Studio Style run (participate: designer). US county boundary overlay on the Map Explorer with optional green choropleth shading by species/records per county; bundled public-domain Census geometry (~300 KB gz, off entry chunk), client-side join, fully offline, US-only v1. 1140 frontend tests green; security clean.",
-  "remainingBacklog": "BINARY RELEASE PENDING ON THE MAC: v0.5.46. On the Mac: git checkout main && git pull --ff-only, then `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`, then `zsh -lc ./release.sh` -- builds/notarizes the universal macOS DMG, fetches+signs the Windows installer from the v0.5.46 CI run, publishes the GitHub release + latest.json (darwin-aarch64, darwin-x86_64, windows-x86_64). Verify: `gh release view v0.5.46`. NOTE: v0.5.46 SUPERSEDES the still-unreleased v0.5.45 (it includes the offline-support work) -- releasing 0.5.46 is sufficient; no need to separately release 0.5.45. ROADMAP Up Next: mobile app; Windows code signing. DEFERRED: downloadable PMTiles regions; county overlay on Species Detail/Statistics maps; non-US counties; per-species county choropleth.",
-  "createdAt": "2026-06-28T15:50:58Z",
-  "updatedAt": "2026-06-28T20:04:31Z"
+  "lastFeature": "map-explorer-shading-polish (Improve/maintain lane) -- COMPLETE through all 6 Weft stages. Three Map Explorer shading refinements (bottom-anchored in-view list; mutually exclusive county/atlas shading; basemap mutes to grey while a ramp is active). v0.5.47 committed + pushed to main and tag v0.5.47 pushed (Windows CI triggered). 1158 tests green; security clean; frontend-only.",
+  "remainingBacklog": "BINARY RELEASE STILL PENDING ON THE MAC: v0.5.47 (supersedes the unreleased v0.5.45 and v0.5.46). On the Mac: git checkout main && git pull --ff-only, then `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`, then `zsh -lc ./release.sh`; verify `gh release view v0.5.47`. ROADMAP Up Next: mobile app; Windows code signing.",
+  "createdAt": "2026-06-28T21:39:09Z",
+  "updatedAt": "2026-06-28T22:51:00Z"
 }

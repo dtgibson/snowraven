@@ -26,14 +26,47 @@ export const BASE_LABEL: Record<BaseKey, string> = { positron: 'Map', satellite:
 // (#2D8653 ≈ hsl(147,49%,35%)) — clover-family greens, lighter/calmer, with
 // three distinct values so vegetation reads apart: forest deepest → park mid →
 // meadow palest. Developed = a quiet warm-neutral. Visibility via the ramps below.
-const TINT_PARK = 'hsl(142, 34%, 79%)'    // managed green, mid tone
-const TINT_WOOD = 'hsl(146, 30%, 68%)'    // forest, deepest (closest to brand)
-const TINT_GRASS = 'hsl(138, 38%, 89%)'   // meadow/grass, palest
-const TINT_DEVELOPED = 'hsl(40, 14%, 88%)'
+export const TINT_PARK = 'hsl(142, 34%, 79%)'    // managed green, mid tone
+export const TINT_WOOD = 'hsl(146, 30%, 68%)'    // forest, deepest (closest to brand)
+export const TINT_GRASS = 'hsl(138, 38%, 89%)'   // meadow/grass, palest
+export const TINT_DEVELOPED = 'hsl(40, 14%, 88%)'
 // Fade land cover in from ~zoom 5 (was ~zoom 8) so terrain shows when more
 // zoomed out. [zoom, opacity] stops.
 const WOOD_OPACITY: unknown = ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 0.55, 10, 0.8]
 const GRASS_OPACITY: unknown = ['interpolate', ['linear'], ['zoom'], 4, 0, 6, 0.5, 10, 0.72]
+
+// ── Basemap muting (Map Explorer county/atlas "shade" overlays) ────────────────
+//
+// When a shading ramp is active the Map Explorer greys the basemap's tinted LAND
+// fills so the ramp pops (the green county ramp otherwise blends into the green
+// Positron land). Water, roads, and labels keep their color, and the Trails
+// overlay is left untouched. Raster bases (satellite/topo) get a saturation cut
+// instead. Driven by components/map/BasemapDesaturation.tsx. The TINT_* greys are
+// the documented hardcoded-HSL basemap exception (GL paint can't read --sr-*
+// tokens; the base is always-light), NOT a token violation.
+
+/** The Positron land-cover fill layers and the tint each carries (see
+ *  fetchTunedBaseStyle). BasemapDesaturation greys these while shading is active. */
+export const TINTED_LAND_LAYERS: ReadonlyArray<{ id: string; tint: string }> = [
+  { id: 'park', tint: TINT_PARK },
+  { id: 'landcover_wood', tint: TINT_WOOD },
+  { id: 'landcover_grass', tint: TINT_GRASS },
+  { id: 'landuse_residential', tint: TINT_DEVELOPED },
+]
+
+/** Raster base layers desaturated while shading is active (NOT 'sr-trails'). */
+export const RASTER_BASE_LAYER_IDS = ['sr-satellite', 'sr-topo'] as const
+
+/** MapLibre raster-saturation (-1..1) for raster bases while shading is active.
+ *  A strong mute short of full grayscale, matching the "muted land" look. */
+export const BASEMAP_MUTE_RASTER_SATURATION = -0.85
+
+/** Desaturate an `hsl(H, S%, L%)` string to neutral grey (S=0), keeping lightness.
+ *  Returns the input unchanged if it is not a parseable hsl() triple. */
+export function desaturateHsl(hsl: string): string {
+  const m = /^hsl\(\s*[\d.]+\s*,\s*[\d.]+%\s*,\s*([\d.]+)%\s*\)$/i.exec(hsl.trim())
+  return m ? `hsl(0, 0%, ${m[1]}%)` : hsl
+}
 
 /** Backdrop tone (area beyond tiles) per active base — carried from the raster era. */
 export const VOID_COLOR: Record<BaseKey, string> = {

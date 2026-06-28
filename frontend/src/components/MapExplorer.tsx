@@ -23,6 +23,7 @@ import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { CountyLayer } from './map/CountyLayer'
 import type { CountyFC } from '../lib/countyBoundaries'
 import { buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_METRIC_META, type CountyMetric } from '../lib/countyShading'
+import { nextShadingState } from '../lib/shadingExclusion'
 import { computeChecklists, filterObservations } from '../lib/birdingStats'
 import { useHotspotSet } from '../lib/useHotspotSet'
 import { HEAT_INTENSITY_DEFAULT } from '../lib/heat'
@@ -43,6 +44,7 @@ import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
 import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch } from './map/MapSidebarUI'
 import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
 import { SightingMarkers } from './map/SightingMarkers'
+import { BasemapDesaturation } from './map/BasemapDesaturation'
 import { HotspotMarkers } from './map/HotspotMarkers'
 import { TargetMarkers } from './map/TargetMarkers'
 import { NearbyLiferMarkers } from './map/NearbyLiferMarkers'
@@ -727,6 +729,22 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
   }, [countyLinesEnabled, countyData, countyLoading])
 
+  // Mutual exclusion for the two shade overlays: turning one shade ON clears the
+  // other (their ramps fight; rule lives in lib/shadingExclusion.ts so it's unit-
+  // testable). Boundary lines stay independent. React batches the paired setters,
+  // so there is no intermediate double-render.
+  const handleShadeBreeding = useCallback(() => {
+    const next = nextShadingState('breeding', { shadeByBreeding, shadeByCounty })
+    setShadeByBreeding(next.shadeByBreeding)
+    setShadeByCounty(next.shadeByCounty)
+  }, [shadeByBreeding, shadeByCounty])
+
+  const handleShadeCounty = useCallback(() => {
+    const next = nextShadingState('county', { shadeByBreeding, shadeByCounty })
+    setShadeByBreeding(next.shadeByBreeding)
+    setShadeByCounty(next.shadeByCounty)
+  }, [shadeByBreeding, shadeByCounty])
+
   // Per-county aggregates (species/records totals + popup top-3), built from the
   // parse-once observations/checklists (NFR-01, no re-parse, memoized). spuh/slash/
   // hybrid are excluded so "distinct species per county" reads as a countable life
@@ -1000,9 +1018,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 role="switch"
                 aria-checked={shadeByBreeding}
                 aria-label="Shade atlas blocks by my highest breeding code"
+                title="Only one shading shows at a time — turning this on switches off county shading."
                 disabled={!backupReady}
                 tabIndex={0}
-                onClick={() => backupReady && setShadeByBreeding(v => !v)}
+                onClick={() => backupReady && handleShadeBreeding()}
                 style={{
                   width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
                   background: shadeByBreeding ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
@@ -1019,6 +1038,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {backupReady
                 ? "Based only on breeding codes you've personally entered."
                 : 'Load your eBird backup in Settings to use this.'}
+              {backupReady && shadeByCounty && ' Turning this on switches off county shading.'}
             </div>
             {shadeByBreeding && backupReady && (
               <>
@@ -1113,10 +1133,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   role="switch"
                   aria-checked={shadeByCounty}
                   aria-label="Shade counties by species you've recorded"
+                  title="Only one shading shows at a time — turning this on switches off atlas shading."
                   aria-disabled={!backupReady}
                   disabled={!backupReady}
                   tabIndex={0}
-                  onClick={() => backupReady && setShadeByCounty(v => !v)}
+                  onClick={() => backupReady && handleShadeCounty()}
                   style={{
                     width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
                     background: shadeByCounty ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
@@ -1133,6 +1154,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 {backupReady
                   ? 'Tints each county by your own count there — drawn only from your loaded backup.'
                   : 'Load your eBird backup in Settings to use this.'}
+                {backupReady && shadeByBreeding && ' Turning this on switches off atlas shading.'}
               </div>
 
               {shadeByCounty && backupReady && (
@@ -1306,8 +1328,17 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             </div>
           )}
         </div>
-        {/* In-view sightings — keyboard-accessible path to the GL sighting pins.
-            Each row opens the same popup a pin click shows and pans the map. */}
+        {/* Map overlay controls (atlas + county) — above the long in-view list so
+            the controls stay near the Map View control, matching the hotspots and
+            lifers sidebars. */}
+        <div style={{ padding: '0 16px 14px' }}>
+          {atlasOverlayControls}
+        </div>
+
+        {/* In-view sightings — the longest section, so it sits LAST in the scroll
+            area, just above the pinned stats bar. Keyboard-accessible path to the
+            GL sighting pins; each row opens the same popup a pin click shows and
+            pans the map. */}
         <div style={{ padding: '0 16px 14px' }}>
           <InViewMarkerList
             heading="Sightings in view"
@@ -1322,11 +1353,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             getDotColor={() => 'var(--sr-map-visited)'}
             onActivate={openSightingFromList}
           />
-        </div>
-
-        {/* Atlas overlay controls — bottom of the My Sightings panel */}
-        <div style={{ padding: '0 16px 14px' }}>
-          {atlasOverlayControls}
         </div>
       </div>
 
@@ -1420,27 +1446,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
       {atlasOverlayControls}
 
-      {/* In-view hotspots — keyboard-accessible path to the GL teardrops. Each
-          row opens the same popup a teardrop click shows and pans the map. */}
-      {hotspotPins && hotspotPins.length > 0 && (
-        <InViewMarkerList
-          heading="Hotspots in view"
-          instructions="Select a hotspot to open its details on the map. Updates as you pan or zoom."
-          items={hotspotsInView.visible}
-          total={hotspotsInView.total}
-          overCap={hotspotsInView.overCap}
-          selectedId={selectedHotspotLocId}
-          getId={p => p.locId}
-          getPrimary={p => p.locName}
-          getSecondary={p => p.kind === 'visited' ? `Visited · ${p.speciesCount} species`
-            : p.kind === 'personal' ? `Personal location · ${p.obsCount} observation${p.obsCount !== 1 ? 's' : ''}`
-            : 'Unvisited hotspot'}
-          getDotColor={p => `var(--sr-map-${p.kind})`}
-          getDotLabel={p => p.kind === 'visited' ? 'Visited' : p.kind === 'personal' ? 'Personal location' : 'Unvisited'}
-          onActivate={openHotspotFromList}
-        />
-      )}
-
       {nearestUnvisited.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
           <SidebarLabel>Nearest Unvisited Hotspots</SidebarLabel>
@@ -1487,6 +1492,29 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             </div>
           ))}
         </div>
+      )}
+
+      {/* In-view hotspots — the longest section, so it sits LAST in the panel
+          (below Nearest Unvisited), matching the other view sidebars. Keyboard-
+          accessible path to the GL teardrops; each row opens the same popup a
+          teardrop click shows and pans the map. */}
+      {hotspotPins && hotspotPins.length > 0 && (
+        <InViewMarkerList
+          heading="Hotspots in view"
+          instructions="Select a hotspot to open its details on the map. Updates as you pan or zoom."
+          items={hotspotsInView.visible}
+          total={hotspotsInView.total}
+          overCap={hotspotsInView.overCap}
+          selectedId={selectedHotspotLocId}
+          getId={p => p.locId}
+          getPrimary={p => p.locName}
+          getSecondary={p => p.kind === 'visited' ? `Visited · ${p.speciesCount} species`
+            : p.kind === 'personal' ? `Personal location · ${p.obsCount} observation${p.obsCount !== 1 ? 's' : ''}`
+            : 'Unvisited hotspot'}
+          getDotColor={p => `var(--sr-map-${p.kind})`}
+          getDotLabel={p => p.kind === 'visited' ? 'Visited' : p.kind === 'personal' ? 'Personal location' : 'Unvisited'}
+          onActivate={openHotspotFromList}
+        />
       )}
     </div>
   )
@@ -1989,6 +2017,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   local tiles when offline + in coverage. Self-gates to a no-op
                   unless offline-maps is enabled AND a region is downloaded. */}
               <RegionBaseSource />
+              {/* Mute the basemap (grey the land fills / desaturate raster bases)
+                  while a county or atlas shading ramp is active, so the ramp pops. */}
+              <BasemapDesaturation active={shadeByCounty || shadeByBreeding} />
               {atlasEnabled && (
                 <AtlasLayer
                   data={atlasData}
@@ -2018,7 +2049,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 </>
               )}
               {viewMode === 'sightings' && !isSetupRequired && (
-                <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} atlasShading={atlasEnabled && shadeByBreeding} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />
+                <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} shadingFillId={atlasEnabled && shadeByBreeding ? 'sr-atlas-fill' : countyLinesEnabled && shadeByCounty ? 'sr-county-fill' : undefined} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />
               )}
               {viewMode === 'hotspots' && hotspotPins && (
                 <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} />

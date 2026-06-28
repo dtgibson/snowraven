@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.47] - 2026-06-28
+
+### Changed
+- **Map Explorer shading polish.** Three refinements to the v0.5.46 county and atlas shading:
+  - **The "… in view" list now sits at the bottom of every Map Explorer panel.** This list (Sightings, Hotspots, Targets, or Counties in view) can get long and was pushing the overlay controls down on the My Sightings and Hotspots views; it is now the last section in all four panels, so the map controls stay put near the top.
+  - **The two shadings are now mutually exclusive.** Turning on county shading (green) switches off atlas breeding shading (purple), and vice-versa — their color ramps competed for the same map, so only one is ever active at a time. The boundary *lines* can still both be shown; a tooltip on each shade toggle and a caption note make the switch discoverable.
+  - **The basemap mutes while a shading ramp is active.** When either shading is on, the basemap's green land fills turn grey (water, roads, and labels keep their color, and satellite/topo imagery desaturates) so the active ramp stands out; the colors restore when shading is off. In heatmap mode, the heatmap now also dims and sits under the county ramp the way it already did for the atlas ramp, keeping the tier colors readable. No new controls, no new network calls — the muting reuses the tiles already loaded.
+
 ## [0.5.46] - 2026-06-28
 
 ### Added
