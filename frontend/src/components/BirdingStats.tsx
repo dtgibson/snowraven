@@ -876,7 +876,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               <div>
                 <SubLabel>Counties by checklists</SubLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {(showAllCounties ? geo.topCounties : geo.topCounties.slice(0, 8)).map((c, i) => {
+                  {(showAllCounties ? geo.topCounties : geo.topCounties.slice(0, 8)).map((c) => {
                     const sp = c.stateProvince
                     const validSp = sp && sp.includes('-')
                     const label = validSp ? (
@@ -890,7 +890,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       </OutboundLink>
                     ) : c.name
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                      <div key={`${c.stateProvince ?? ''}-${c.name}`} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
                         <span title={c.name} style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {label}
                         </span>
@@ -906,7 +906,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               <div>
                 <SubLabel>Counties by species</SubLabel>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {geo.topCountiesBySpecies.slice(0, 8).map((c, i) => {
+                  {geo.topCountiesBySpecies.slice(0, 8).map((c) => {
                     const sp = c.stateProvince
                     const validSp = sp && sp.includes('-')
                     const label = validSp ? (
@@ -920,7 +920,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       </OutboundLink>
                     ) : c.name
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
+                      <div key={`${c.stateProvince ?? ''}-${c.name}`} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
                         <span title={c.name} style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {label}
                         </span>

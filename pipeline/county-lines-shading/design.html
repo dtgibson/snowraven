@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>County Lines &amp; Shading — design direction · SnowRaven</title>
+<style>
+/* ─────────────────────────────────────────────────────────────────────────
+   SnowRaven tokens — pulled verbatim from frontend/src/globals.css
+   (:root light + [data-theme="dark"] dark). Only the subset this mockup uses.
+   ───────────────────────────────────────────────────────────────────────── */
+:root{
+  --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+  --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA; --sr-text-gray:#6B7280;
+  --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE; --sr-border-input:#8A8A91;
+  --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE; --sr-accent-bg-hover:#F0FAF4;
+  --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-border-strong:rgba(39,116,72,0.7); --sr-on-accent:#FFFFFF;
+  --sr-warning:#92400E; --sr-warning-bg:#FFFBEB; --sr-warning-subtle:#FDE68A;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+
+  /* Breeding-atlas tiers (PURPLE) — the existing --sr-tier ramp. Shown only in
+     the ramp comparison as "Option A". */
+  --sr-tier-4:#3B0764; --sr-tier-3:#6B21A8; --sr-tier-2:#9333EA; --sr-tier-1:#C084FC;
+
+  /* ── PROPOSED new token family: county choropleth ramp ──────────────────────
+     A dedicated single-hue GREEN sequential ramp (light → dark), distinct from
+     the purple breeding ramp. Map-anchored to the always-light Positron basemap,
+     so identical values in both themes (same posture as --sr-map-pin-*). Legend
+     label text uses --sr-text/--sr-text-muted (AA in both themes). */
+  --sr-county-1:#C3E8D1; --sr-county-2:#7FCB9E; --sr-county-3:#3E9C66; --sr-county-4:#1A5C38;
+  --sr-county-1-rgb:195,232,209; --sr-county-2-rgb:127,203,158;
+  --sr-county-3-rgb:62,156,102; --sr-county-4-rgb:26,92,56;
+
+  /* Always-light basemap surrogate (Positron-ish) — same in both themes. */
+  --map-land:#EEECE4; --map-water:#D9E3E9; --map-line:rgba(71,85,105,0.85);
+}
+[data-theme="dark"]{
+  --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+  --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-disabled:#52525B; --sr-text-gray:#8A8A92;
+  --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46; --sr-border-input:#707078;
+  --sr-accent:#34D399; --sr-accent-strong:#34D399; --sr-accent-bg:#052E16; --sr-accent-bg-hover:#064E3B;
+  --sr-accent-border:rgba(52,211,153,0.2); --sr-accent-border-strong:rgba(52,211,153,0.5); --sr-on-accent:#052E16;
+  --sr-warning:#FDE68A; --sr-warning-bg:#1C1002; --sr-warning-subtle:#78350F;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-tier-4:#6B21A8; --sr-tier-3:#7C3AED; --sr-tier-2:#A855F7; --sr-tier-1:#C084FC;
+  /* county ramp + basemap are basemap-anchored → identical to :root by design */
+  --sr-county-1:#C3E8D1; --sr-county-2:#7FCB9E; --sr-county-3:#3E9C66; --sr-county-4:#1A5C38;
+  --map-land:#EEECE4; --map-water:#D9E3E9; --map-line:rgba(71,85,105,0.85);
+}
+
+/* ── Mockup chrome (editorial layer — three typographic roles) ─────────────── */
+*{box-sizing:border-box}
+html{font-size:100%}
+body{
+  margin:0; background:var(--sr-bg); color:var(--sr-text);
+  font-family:'Inter',system-ui,'Segoe UI',Roboto,sans-serif; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.kicker{ /* role 3: label/caption */
+  font-size:0.75rem; font-weight:600; letter-spacing:0.14em; text-transform:uppercase;
+  color:var(--sr-accent); margin:0 0 8px;
+}
+h1{ /* role 1: display */ font-size:1.875rem; line-height:1.15; font-weight:700; letter-spacing:-0.025em; margin:0 0 10px; }
+h2{ font-size:1.375rem; line-height:1.2; font-weight:700; letter-spacing:-0.02em; margin:0 0 6px; }
+.lead{ /* role 2: body */ font-size:0.9375rem; line-height:1.65; color:var(--sr-text-muted); margin:0; max-width:62ch; }
+.wrap{max-width:1180px; margin:0 auto; padding:0 24px 80px;}
+
+.topbar{
+  position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.2) blur(6px);
+  background:color-mix(in srgb, var(--sr-bg) 86%, transparent);
+  border-bottom:1px solid var(--sr-border);
+}
+.topbar-in{max-width:1180px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
+.brand{display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:-0.01em;}
+.brand .dot{width:22px; height:22px; border-radius:7px; background:var(--sr-accent); display:grid; place-items:center; color:var(--sr-on-accent);}
+.brand small{font-weight:500; color:var(--sr-text-muted); letter-spacing:0;}
+.spacer{flex:1}
+.theme-toggle{display:inline-flex; background:var(--sr-surface-subtle); border:1px solid var(--sr-border); border-radius:9px; padding:3px;}
+.theme-toggle button{
+  border:0; background:transparent; color:var(--sr-text-muted); font:inherit; font-size:0.8125rem; font-weight:600;
+  padding:5px 12px; border-radius:6px; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+}
+.theme-toggle button.on{background:var(--sr-surface); color:var(--sr-text); box-shadow:0 1px 2px rgba(0,0,0,0.10);}
+
+section{padding-top:54px;}
+.section-head{margin-bottom:22px;}
+
+/* generic mock card */
+.card{
+  background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:14px;
+  box-shadow:var(--sr-card-shadow);
+}
+.note{
+  display:flex; gap:9px; align-items:flex-start; font-size:0.8125rem; line-height:1.55; color:var(--sr-text-muted);
+}
+.note svg{flex:none; margin-top:2px; color:var(--sr-accent);}
+.pill{display:inline-flex; align-items:center; gap:6px; font-size:0.6875rem; font-weight:600; letter-spacing:0.02em;
+  padding:3px 9px; border-radius:999px; border:1px solid var(--sr-border-medium); color:var(--sr-text-muted); background:var(--sr-surface-faint);}
+.pill.rec{color:var(--sr-accent); border-color:var(--sr-accent-border-strong); background:var(--sr-accent-bg);}
+
+/* ── In-context Map Explorer frame ─────────────────────────────────────────── */
+.explorer{
+  display:grid; grid-template-columns:286px 1fr; gap:0; overflow:hidden;
+  border-radius:16px; border:1px solid var(--sr-border); box-shadow:var(--sr-card-shadow);
+  background:var(--sr-surface);
+}
+.ex-sidebar{
+  background:var(--sr-surface); border-right:1px solid var(--sr-border);
+  padding:16px 16px 20px; min-width:0; max-height:620px; overflow:auto;
+}
+.ex-map{position:relative; min-height:560px; background:var(--map-land);}
+.ex-map svg.basemap{position:absolute; inset:0; width:100%; height:100%; display:block;}
+
+/* sidebar primitives — faithful to MapSidebarUI / MapExplorer */
+.sb-label{font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--sr-text-muted); margin-bottom:6px;}
+.sb-block{margin-top:14px; padding-top:14px; border-top:1px solid var(--sr-border);}
+.sb-block:first-child{margin-top:0; padding-top:0; border-top:0;}
+.sb-row{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.sb-name{font-size:0.8125rem; font-weight:500; color:var(--sr-text);}
+.sb-sub{font-size:0.6875rem; color:var(--sr-text-muted); margin-top:6px; line-height:1.4;}
+
+/* the switch — 44×24, knob 20, exactly the atlas toggle */
+.sw{width:44px; height:24px; border-radius:12px; border:0; flex:none; position:relative; cursor:pointer;
+  background:var(--sr-border-medium); transition:background .15s;}
+.sw .knob{position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .15s;
+  box-shadow:0 1px 2px rgba(0,0,0,0.25);}
+.sw[aria-checked="true"]{background:var(--sr-accent);}
+.sw[aria-checked="true"] .knob{left:22px;}
+.sw[aria-disabled="true"]{cursor:not-allowed;}
+.sb-row.disabled{opacity:.55;}
+
+/* SegControl — metric toggle */
+.seg{display:flex; background:var(--sr-surface-subtle); border-radius:6px; padding:2px; margin-top:10px;}
+.seg button{flex:1; height:28px; padding:0 6px; border-radius:5px; border:1px solid transparent; background:transparent;
+  font:inherit; font-size:0.71875rem; font-weight:400; color:var(--sr-text-muted); cursor:pointer; white-space:nowrap;}
+.seg button[aria-pressed="true"]{background:var(--sr-surface); border-color:var(--sr-border); font-weight:600; color:var(--sr-text);}
+
+/* legend */
+.legend{margin-top:12px;}
+.legend-title{font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--sr-text-muted); margin-bottom:8px;}
+.legend-row{display:flex; align-items:center; gap:9px; margin-bottom:6px;}
+.swatch{width:26px; height:15px; border-radius:3px; flex:none; border:1px solid var(--sr-border-medium); display:block;}
+.legend-range{font-size:0.75rem; color:var(--sr-text);}
+.legend-unit{color:var(--sr-text-muted);}
+.legend-zero .swatch{background:transparent; border:1px dashed var(--sr-border-medium);}
+.legend-foot{font-size:0.6875rem; color:var(--sr-text-muted); margin-top:6px; line-height:1.45;}
+
+/* map: choropleth polygons */
+.county{stroke:var(--map-line); stroke-width:1.3; stroke-linejoin:round; transition:fill .25s, fill-opacity .25s; cursor:pointer;}
+.county.sel{stroke:#0F1117; stroke-width:2.2;}
+
+/* county popup — faithful to maplibre popup + AtlasLayer */
+.popup{
+  position:absolute; z-index:6; width:222px; transform:translate(-50%, -100%);
+  background:var(--sr-surface); color:var(--sr-text); border:1px solid var(--sr-border);
+  border-radius:10px; box-shadow:var(--sr-card-shadow); padding:12px 14px; font-size:0.8125rem;
+}
+.popup::after{content:""; position:absolute; left:50%; bottom:-8px; transform:translateX(-50%);
+  border:8px solid transparent; border-top-color:var(--sr-surface); border-bottom:0; filter:drop-shadow(0 1px 0 var(--sr-border));}
+.popup .pname{font-weight:600; font-size:0.8125rem; color:var(--sr-accent); text-decoration:none; display:inline-flex; align-items:center; gap:4px;}
+.popup .psub{font-size:0.6875rem; color:var(--sr-text-muted); margin-top:2px;}
+.popup .pstats{display:flex; gap:16px; margin-top:9px;}
+.popup .pstat .n{font-size:1.0625rem; font-weight:700; line-height:1; letter-spacing:-0.01em;}
+.popup .pstat .l{font-size:0.625rem; color:var(--sr-text-muted); margin-top:3px; text-transform:uppercase; letter-spacing:0.04em;}
+.popup .pstat.active .n{color:var(--sr-accent);}
+.popup .close{position:absolute; top:6px; right:8px; color:var(--sr-text-muted); font-size:1rem; line-height:1; background:none; border:0; cursor:pointer;}
+/* contextual top-3 — swaps with the active metric (species → top species, records → top locations) */
+.popup .ptop{margin-top:10px; padding-top:9px; border-top:1px solid var(--sr-border);}
+.popup .ptop-title{font-size:0.625rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--sr-text-muted); margin-bottom:6px;}
+.popup ol.ptop-list{list-style:none; margin:0; padding:0;}
+.popup .ptop-list li{display:flex; align-items:baseline; gap:8px; margin-bottom:4px;}
+.popup .ptop-list li:last-child{margin-bottom:0;}
+.popup .ptop-rank{flex:none; width:11px; font-size:0.625rem; font-weight:700; color:var(--sr-text-disabled); font-variant-numeric:tabular-nums;}
+.popup .ptop-name{flex:1; min-width:0; font-size:0.75rem; color:var(--sr-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.popup .ptop-n{flex:none; font-size:0.6875rem; font-weight:600; color:var(--sr-text-muted); font-variant-numeric:tabular-nums;}
+.popup .ptop-empty{font-size:0.6875rem; color:var(--sr-text-muted); line-height:1.45;}
+
+/* counties-in-view panel — faithful to atlas blocklist */
+.inview{
+  position:absolute; left:12px; bottom:12px; z-index:5; width:min(232px,62%);
+  background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:8px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.15); overflow:hidden; display:flex; flex-direction:column; max-height:62%;
+}
+.inview .disc{display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;
+  padding:8px 10px; background:transparent; border:0; border-bottom:1px solid var(--sr-border);
+  font:inherit; font-size:0.71875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em;
+  color:var(--sr-text-muted); cursor:pointer; text-align:left;}
+.inview .disc .chev{transition:transform .15s;}
+.inview[data-open="false"] .disc{border-bottom:0;}
+.inview[data-open="false"] .disc .chev{transform:rotate(0);}
+.inview[data-open="true"] .disc .chev{transform:rotate(90deg);}
+.inview .rows{overflow:auto; padding:6px;}
+.inview[data-open="false"] .rows{display:none;}
+.iv-row{display:flex; align-items:center; gap:9px; width:100%; padding:7px 8px; margin-bottom:2px; border-radius:6px;
+  border:1px solid transparent; background:transparent; text-align:left; font:inherit; cursor:pointer;}
+.iv-row:hover{background:var(--sr-surface-subtle);}
+.iv-row[aria-pressed="true"]{background:var(--sr-accent-bg); border-color:var(--sr-accent-border);}
+.iv-dot{width:11px; height:11px; border-radius:3px; flex:none; border:1px solid var(--sr-border-medium);}
+.iv-name{flex:1; min-width:0; font-size:0.78125rem; color:var(--sr-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.iv-count{font-size:0.78125rem; font-weight:700; color:var(--sr-text); font-variant-numeric:tabular-nums;}
+.iv-count.zero{color:var(--sr-text-disabled); font-weight:600;}
+.iv-foot{font-size:0.625rem; color:var(--sr-text-muted); padding:2px 4px 0; line-height:1.4;}
+
+/* over-cap / loading chips */
+.map-chip{
+  display:inline-flex; align-items:center; gap:6px; padding:4px 10px; background:var(--sr-surface);
+  color:var(--sr-text-muted); border:1px solid var(--sr-border); border-radius:6px; font-size:0.71875rem;
+  box-shadow:0 1px 4px rgba(0,0,0,0.15);
+}
+
+/* generic grids */
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+.grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:18px;}
+.pad{padding:18px;}
+.muted{color:var(--sr-text-muted);}
+.small{font-size:0.8125rem; line-height:1.55;}
+
+/* ramp comparison */
+.ramp-card{padding:18px; position:relative;}
+.ramp-card.reco{border-color:var(--sr-accent-border-strong);}
+.ramp-card.reco::before{content:"Recommended"; position:absolute; top:-10px; left:18px;
+  font-size:0.625rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
+  color:var(--sr-on-accent); background:var(--sr-accent); padding:3px 9px; border-radius:999px;}
+.ramp-strip{display:flex; height:34px; border-radius:7px; overflow:hidden; border:1px solid var(--sr-border-medium); margin:12px 0 10px;}
+.ramp-strip span{flex:1;}
+.ramp-name{font-size:0.9375rem; font-weight:700; letter-spacing:-0.01em;}
+.ramp-tok{font-size:0.6875rem; color:var(--sr-text-muted); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;}
+.collide{display:flex; gap:10px; align-items:center; margin-top:12px;}
+.collide .mini{width:54px; height:40px; border-radius:6px; border:1px solid var(--sr-border-medium); overflow:hidden; position:relative; flex:none;}
+.collide .mini svg{position:absolute; inset:0; width:100%; height:100%;}
+
+/* popup gallery cells */
+.pg-cell{padding:18px; display:flex; flex-direction:column; gap:12px;}
+.pg-stage{position:relative; height:150px; border-radius:10px; background:var(--map-land); overflow:hidden; border:1px solid var(--sr-border);}
+.pg-stage .popup{position:absolute; left:50%; top:60%;}
+.pg-cap{font-size:0.75rem; color:var(--sr-text-muted); line-height:1.5;}
+.pg-cap b{color:var(--sr-text); font-weight:600;}
+
+/* edge-state cards */
+.edge{padding:16px;}
+.edge h3{font-size:0.9375rem; margin:0 0 4px; font-weight:700;}
+.edge p{font-size:0.8125rem; color:var(--sr-text-muted); margin:0 0 12px; line-height:1.5;}
+.mini-sidebar{background:var(--sr-surface-faint); border:1px solid var(--sr-border); border-radius:10px; padding:13px;}
+
+footer{margin-top:60px; padding-top:24px; border-top:1px solid var(--sr-border); color:var(--sr-text-muted); font-size:0.8125rem; line-height:1.65;}
+footer b{color:var(--sr-text);}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:0.85em; background:var(--sr-surface-subtle); padding:1px 5px; border-radius:4px;}
+
+@media (max-width:860px){
+  .explorer{grid-template-columns:1fr;}
+  .ex-sidebar{max-height:none; border-right:0; border-bottom:1px solid var(--sr-border);}
+  .grid-2,.grid-3{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <span class="dot" aria-hidden="true">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 9 3 15 6 23 3 23 18 15 21 9 18 1 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></svg>
+      </span>
+      SnowRaven <small>· design direction</small>
+    </div>
+    <div class="spacer"></div>
+    <div class="theme-toggle" role="group" aria-label="Preview theme">
+      <button id="btn-light" class="on" onclick="setTheme('light')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        Light
+      </button>
+      <button id="btn-dark" onclick="setTheme('dark')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        Dark
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section style="padding-top:40px;">
+    <p class="kicker">County Lines &amp; Shading · first direction</p>
+    <h1>Your county footprint, on the same map you already explore.</h1>
+    <p class="lead">A Map&nbsp;Explorer overlay that draws US county boundaries over the current view and, optionally,
+    shades each county by how many species you've recorded there — a "county life list" choropleth built entirely from your
+    own loaded eBird data. It's the structural twin of the shipped Breeding&nbsp;Atlas overlay, so it reuses the same toggle group,
+    popup, "in&nbsp;view" panel, and theme handling you already know. Flip the theme above — every surface below tracks both.</p>
+  </section>
+
+  <!-- ───────────────────────── 1. In context ───────────────────────── -->
+  <section>
+    <div class="section-head">
+      <p class="kicker">In context</p>
+      <h2>The Map Explorer, overlay on</h2>
+      <p class="lead">County lines on, shading on, species metric selected. The map chrome stays light in both
+      themes (it's anchored to the always-light Positron basemap, exactly like the existing pins); the sidebar, popup,
+      and panels follow your theme.</p>
+    </div>
+
+    <div class="explorer">
+      <!-- sidebar -->
+      <aside class="ex-sidebar">
+        <div class="sb-block">
+          <div class="sb-label">Map Overlays</div>
+
+          <!-- county lines -->
+          <div class="sb-row">
+            <span class="sb-name">County lines</span>
+            <button class="sw" id="sw-lines" role="switch" aria-checked="true" aria-label="Show US county lines" onclick="toggleLines()"><span class="knob"></span></button>
+          </div>
+          <div class="sb-sub">US county boundaries, shown for the current map area.</div>
+
+          <!-- shade sub-toggle -->
+          <div id="shade-group" style="margin-top:12px;">
+            <div class="sb-row">
+              <span class="sb-name">Shade by species seen</span>
+              <button class="sw" id="sw-shade" role="switch" aria-checked="true" aria-label="Shade counties by species you've recorded" onclick="toggleShade()"><span class="knob"></span></button>
+            </div>
+            <div class="sb-sub">Tints each county by your own count there — drawn only from your loaded backup.</div>
+
+            <!-- metric toggle -->
+            <div id="metric-wrap">
+              <div class="seg" role="group" aria-label="Choropleth metric" style="margin-top:12px;">
+                <button id="m-species" aria-pressed="true" onclick="setMetric('species')">Species</button>
+                <button id="m-records" aria-pressed="false" onclick="setMetric('records')">Records</button>
+              </div>
+
+              <!-- legend -->
+              <div class="legend" aria-live="polite">
+                <div class="legend-title" id="leg-title">Distinct species per county</div>
+                <div id="legend-rows"></div>
+                <div class="legend-zero legend-row" style="margin-top:8px;">
+                  <span class="swatch" aria-hidden="true"></span>
+                  <span class="legend-range">No records <span class="legend-unit">— outline only</span></span>
+                </div>
+                <div class="legend-foot">Ranges are quantiles of <em>your</em> non-zero counties, so the breaks
+                shift with your data.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- map -->
+      <div class="ex-map">
+        <svg class="basemap" viewBox="0 0 640 470" preserveAspectRatio="xMidYMid slice" aria-label="County choropleth preview">
+          <rect x="0" y="0" width="640" height="470" fill="var(--map-land)"/>
+          <!-- a hint of coastline water at the far left for cartographic grounding -->
+          <path d="M0,150 C40,170 30,260 60,300 C40,360 70,430 30,470 L0,470 Z" fill="var(--map-water)" opacity="0.9"/>
+          <g id="counties">
+            <polygon class="county" data-c="Sonoma"      data-sp="198" data-cl="742"  points="20,34 178,26 170,168 16,180"/>
+            <polygon class="county" data-c="Napa"        data-sp="142" data-cl="388"  points="178,26 332,38 340,182 170,168"/>
+            <polygon class="county" data-c="Yolo"        data-sp="73"  data-cl="196"  points="332,38 486,28 478,170 340,182"/>
+            <polygon class="county" data-c="Sacramento"  data-sp="31"  data-cl="142"  points="486,28 620,36 624,178 478,170"/>
+            <polygon class="county" data-c="Alameda"     data-sp="287" data-cl="1402" points="16,180 170,168 182,330 22,318"/>
+            <polygon class="county sel" data-c="Monterey" data-sp="264" data-cl="1148" points="170,168 340,182 326,316 182,330"/>
+            <polygon class="county" data-c="San Joaquin" data-sp="0"   data-cl="0"    points="340,182 478,170 490,328 326,316"/>
+            <polygon class="county" data-c="Stanislaus"  data-sp="22"  data-cl="73"   points="478,170 624,178 618,322 490,328"/>
+            <polygon class="county" data-c="San Mateo"   data-sp="223" data-cl="1063" points="22,318 182,330 176,448 18,442"/>
+            <polygon class="county" data-c="Santa Cruz"  data-sp="168" data-cl="690"  points="182,330 326,316 336,438 176,448"/>
+            <polygon class="county" data-c="Mendocino"   data-sp="84"  data-cl="214"  points="326,316 490,328 484,446 336,438"/>
+            <polygon class="county" data-c="Merced"      data-sp="14"  data-cl="41"   points="490,328 618,322 622,440 484,446"/>
+          </g>
+        </svg>
+
+        <!-- popup over Monterey centroid -->
+        <div class="popup" id="hero-popup" style="left:38.5%; top:54%;">
+          <button class="close" aria-label="Close" onclick="this.parentElement.style.display='none'">×</button>
+          <a class="pname" href="https://ebird.org/region/US-CA-053" target="_blank" rel="noreferrer"
+             aria-label="Open Monterey County on eBird (opens in a new tab)">
+            Monterey County
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+          <div class="psub">California</div>
+          <div class="pstats">
+            <div class="pstat active" id="pop-sp"><div class="n">264</div><div class="l">species</div></div>
+            <div class="pstat" id="pop-cl"><div class="n">1,148</div><div class="l">checklists</div></div>
+          </div>
+          <div class="ptop" id="pop-top"></div>
+        </div>
+
+        <!-- counties in view panel -->
+        <div class="inview" id="inview" data-open="true">
+          <button class="disc" aria-expanded="true" onclick="toggleInview()">
+            <span>Counties in view (12)</span>
+            <svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <div class="rows" id="inview-rows"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:14px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span>The metric toggle is live — flip it to <b>Records</b> and the fills re-tier, the legend relabels, the
+      "in view" counts swap, and the popup's bottom list swaps from the county's <b>top species</b> to its <b>top
+      locations</b> — while the popup keeps showing <em>both</em> headline numbers. Turn <b>County lines</b> off and the
+      whole group (shading, legend, popup, panel) collapses with it — exactly the atlas's two-level behavior. No on-map
+      name labels in v1 by design; names live in the popup and the panel.</span>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── 2. The key decision ───────────────────────── -->
+  <section>
+    <div class="section-head">
+      <p class="kicker">The one real choice</p>
+      <h2>Which color ramp shades the counties?</h2>
+      <p class="lead">A magnitude choropleth ("how many species here?") wants a single-hue sequential ramp. The plan as
+      written says reuse the existing <code>--sr-tier</code> ramp — but that ramp is <b>purple</b>, because it's the
+      Breeding&nbsp;Atlas ramp. My recommendation is a dedicated <b>green</b> ramp instead. Here's the tradeoff, side by side.</p>
+    </div>
+
+    <div class="grid-2">
+      <!-- Option A -->
+      <div class="card ramp-card">
+        <div class="ramp-name">Option A — reuse the atlas ramp</div>
+        <div class="ramp-tok">--sr-tier-1 … --sr-tier-4 · purple</div>
+        <div class="ramp-strip">
+          <span style="background:var(--sr-tier-1)"></span><span style="background:var(--sr-tier-2)"></span>
+          <span style="background:var(--sr-tier-3)"></span><span style="background:var(--sr-tier-4)"></span>
+        </div>
+        <div class="legend-row"><span class="swatch" style="background:var(--sr-tier-1)"></span><span class="legend-range">1–57 <span class="legend-unit">species</span></span></div>
+        <div class="legend-row"><span class="swatch" style="background:var(--sr-tier-2)"></span><span class="legend-range">58–119</span></div>
+        <div class="legend-row"><span class="swatch" style="background:var(--sr-tier-3)"></span><span class="legend-range">120–223</span></div>
+        <div class="legend-row"><span class="swatch" style="background:var(--sr-tier-4)"></span><span class="legend-range">224+</span></div>
+        <p class="small muted" style="margin:12px 0 0;">Zero new tokens — literally what the PRD/schema specify. But purple
+        is <b>already the breeding ramp</b>. A purple county choropleth reads as "breeding," and when both overlays are on
+        the two purple polygon layers collide:</p>
+        <div class="collide">
+          <div class="mini">
+            <svg viewBox="0 0 54 40"><rect width="54" height="40" fill="var(--map-land)"/>
+              <rect x="2" y="2" width="24" height="36" fill="var(--sr-tier-3)" opacity="0.5"/>
+              <rect x="28" y="2" width="24" height="36" fill="var(--sr-tier-2)" opacity="0.5"/>
+              <path d="M2 12h50M2 22h50M2 32h50M14 2v36M40 2v36" stroke="var(--sr-tier-4)" stroke-width="0.8" opacity="0.7"/>
+            </svg>
+          </div>
+          <span class="small muted">Atlas blocks (purple grid) + county shading (purple fill) — hard to tell apart.</span>
+        </div>
+      </div>
+
+      <!-- Option B -->
+      <div class="card ramp-card reco">
+        <div class="ramp-name">Option B — a dedicated green ramp</div>
+        <div class="ramp-tok">--sr-county-1 … --sr-county-4 · green (new)</div>
+        <div class="ramp-strip">
+          <span style="background:var(--sr-county-1)"></span><span style="background:var(--sr-county-2)"></span>
+          <span style="background:var(--sr-county-3)"></span><span style="background:var(--sr-county-4)"></span>
+        </div>
+        <div class="legend-row"><span class="swatch" style="background:var(--sr-county-1)"></span><span class="legend-range">1–57 <span class="legend-unit">species</span></span></div>
+        <div class="legend-row"><span class="swatch" style="background:var(--sr-county-2)"></span><span class="legend-range">58–119</span></div>
+        <div class="legend-row"><span class="swatch" style="background:var(--sr-county-3)"></span><span class="legend-range">120–223</span></div>
+        <div class="legend-row"><span class="swatch" style="background:var(--sr-county-4)"></span><span class="legend-range">224+</span></div>
+        <p class="small muted" style="margin:12px 0 0;">One new AA-checked token family (logged in <code>decisions.md</code>).
+        Green is SnowRaven's signature — "deep county lists" reads as a positive, active thing — it's the
+        cartographically standard single-hue sequential ramp, and it stays instantly distinct from the purple atlas, so
+        both overlays can be on at once and still read cleanly:</p>
+        <div class="collide">
+          <div class="mini">
+            <svg viewBox="0 0 54 40"><rect width="54" height="40" fill="var(--map-land)"/>
+              <rect x="2" y="2" width="24" height="36" fill="var(--sr-county-3)" opacity="0.85"/>
+              <rect x="28" y="2" width="24" height="36" fill="var(--sr-county-2)" opacity="0.85"/>
+              <path d="M2 12h50M2 22h50M2 32h50M14 2v36M40 2v36" stroke="var(--sr-tier-4)" stroke-width="0.8" opacity="0.7"/>
+            </svg>
+          </div>
+          <span class="small muted">Atlas blocks (purple grid) + county shading (green fill) — clearly two things.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:16px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      <span><b>My recommendation: Option B (green).</b> It's better cartography, more on-brand, and it future-proofs the
+      day you want county shading and the atlas visible together. The cost is one new token family — a deliberate, logged
+      extension, not silent drift. If you'd rather hold strictly to the written plan (zero new tokens), Option A is a
+      one-line swap to <code>--sr-tier</code>. The whole mockup above is rendered in the green ramp so you can live with it.</span>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── 3. The popup, both themes ───────────────────────── -->
+  <section>
+    <div class="section-head">
+      <p class="kicker">Detail · both themes</p>
+      <h2>The county popup</h2>
+      <p class="lead">Same structure and spacing as the atlas block popup. It always shows both counts (so the metric
+      toggle never hides a number), and the name links to the county's eBird region page only when a valid code can be
+      derived — the same shape-guard posture as the hotspot links.</p>
+    </div>
+
+    <div class="grid-3">
+      <!-- recorded -->
+      <div class="card pg-cell">
+        <div class="pg-stage">
+          <div class="popup" style="position:absolute; transform:translate(-50%,-50%);">
+            <a class="pname" href="#" onclick="return false;">Monterey County
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+            <div class="psub">California</div>
+            <div class="pstats">
+              <div class="pstat active"><div class="n">264</div><div class="l">species</div></div>
+              <div class="pstat"><div class="n">1,148</div><div class="l">checklists</div></div>
+            </div>
+            <div class="ptop">
+              <div class="ptop-title">Most recorded here</div>
+              <ol class="ptop-list">
+                <li><span class="ptop-rank">1</span><span class="ptop-name">California Scrub-Jay</span><span class="ptop-n">941</span></li>
+                <li><span class="ptop-rank">2</span><span class="ptop-name">Anna's Hummingbird</span><span class="ptop-n">907</span></li>
+                <li><span class="ptop-rank">3</span><span class="ptop-name">Spotted Towhee</span><span class="ptop-n">833</span></li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        <div class="pg-cap"><b>Recorded county.</b> Name is an eBird region link (<code>US-CA-053</code>, derived from FIPS
+        <code>06053</code>). Active metric's number is accented; the bottom list swaps to <b>top locations</b> in Records mode.</div>
+      </div>
+
+      <!-- unrecorded US -->
+      <div class="card pg-cell">
+        <div class="pg-stage">
+          <div class="popup" style="position:absolute; transform:translate(-50%,-50%);">
+            <a class="pname" href="#" onclick="return false;">Alpine County
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+            <div class="psub">California</div>
+            <div class="pstats">
+              <div class="pstat active"><div class="n" style="color:var(--sr-text-disabled)">0</div><div class="l">species</div></div>
+              <div class="pstat"><div class="n" style="color:var(--sr-text-disabled)">0</div><div class="l">checklists</div></div>
+            </div>
+            <div class="ptop"><div class="ptop-empty">No species recorded here yet.</div></div>
+          </div>
+        </div>
+        <div class="pg-cap"><b>Unrecorded county.</b> Its transparent fill is still clickable; the popup opens honestly at
+        zero. A real US county still gets its region link.</div>
+      </div>
+
+      <!-- no region code -->
+      <div class="card pg-cell">
+        <div class="pg-stage">
+          <div class="popup" style="position:absolute; transform:translate(-50%,-50%);">
+            <div style="font-weight:600; font-size:0.8125rem; color:var(--sr-text);">Division No. 6</div>
+            <div class="psub">Alberta, Canada</div>
+            <div class="pstats">
+              <div class="pstat active"><div class="n">47</div><div class="l">species</div></div>
+              <div class="pstat"><div class="n">112</div><div class="l">checklists</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="pg-cap"><b>No derivable region code.</b> Non-US / malformed code → the name is plain text, never a
+        styled link to a 404. (Counts shown for illustration; v1 draws US counties only.)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── 4. Metric toggle ───────────────────────── -->
+  <section>
+    <div class="section-head">
+      <p class="kicker">Behavior</p>
+      <h2>Switching the metric re-tiers everything</h2>
+      <p class="lead">Distinct species (default) and total checklists are both already computed per county, so the toggle
+      is nearly free. Each metric gets its own quantile breaks — the same map looks quite different under each.</p>
+    </div>
+    <div class="grid-2">
+      <div class="card pad">
+        <div class="seg" style="max-width:240px; margin-top:0;">
+          <button aria-pressed="true" style="pointer-events:none;">Species</button>
+          <button aria-pressed="false" style="pointer-events:none;">Records</button>
+        </div>
+        <div class="legend" style="margin-top:14px;">
+          <div class="legend-title">Distinct species per county</div>
+          <div class="legend-row"><span class="swatch" style="background:var(--sr-county-1)"></span><span class="legend-range">1–57 <span class="legend-unit">species</span></span></div>
+          <div class="legend-row"><span class="swatch" style="background:var(--sr-county-2)"></span><span class="legend-range">58–119</span></div>
+          <div class="legend-row"><span class="swatch" style="background:var(--sr-county-3)"></span><span class="legend-range">120–223</span></div>
+          <div class="legend-row"><span class="swatch" style="background:var(--sr-county-4)"></span><span class="legend-range">224+</span></div>
+        </div>
+      </div>
+      <div class="card pad">
+        <div class="seg" style="max-width:240px; margin-top:0;">
+          <button aria-pressed="false" style="pointer-events:none;">Species</button>
+          <button aria-pressed="true" style="pointer-events:none;">Records</button>
+        </div>
+        <div class="legend" style="margin-top:14px;">
+          <div class="legend-title">Total checklists per county</div>
+          <div class="legend-row"><span class="swatch" style="background:var(--sr-county-1)"></span><span class="legend-range">1–120 <span class="legend-unit">checklists</span></span></div>
+          <div class="legend-row"><span class="swatch" style="background:var(--sr-county-2)"></span><span class="legend-range">121–430</span></div>
+          <div class="legend-row"><span class="swatch" style="background:var(--sr-county-3)"></span><span class="legend-range">431–985</span></div>
+          <div class="legend-row"><span class="swatch" style="background:var(--sr-county-4)"></span><span class="legend-range">986+</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── 5. Edge & empty states ───────────────────────── -->
+  <section>
+    <div class="section-head">
+      <p class="kicker">Honest states</p>
+      <h2>The edges, designed</h2>
+      <p class="lead">Lines never need your data; shading does. Every degraded case says exactly what's true and what to do.</p>
+    </div>
+
+    <div class="grid-2">
+      <!-- no backup -->
+      <div class="card edge">
+        <h3>No eBird backup loaded</h3>
+        <p>Lines still draw — they only need geometry. The shade toggle is disabled with a clear next step.</p>
+        <div class="mini-sidebar">
+          <div class="sb-label">Map Overlays</div>
+          <div class="sb-row"><span class="sb-name">County lines</span>
+            <button class="sw" role="switch" aria-checked="true" aria-label="County lines on" style="pointer-events:none;"><span class="knob"></span></button></div>
+          <div class="sb-sub">US county boundaries, shown for the current map area.</div>
+          <div class="sb-row disabled" style="margin-top:12px;"><span class="sb-name">Shade by species seen</span>
+            <button class="sw" role="switch" aria-checked="false" aria-disabled="true" aria-label="Shading unavailable" style="pointer-events:none;"><span class="knob"></span></button></div>
+          <div class="sb-sub">Load your eBird backup in Settings to use this.</div>
+        </div>
+      </div>
+
+      <!-- zero non-zero -->
+      <div class="card edge">
+        <h3>Backup loaded, but nothing to shade yet</h3>
+        <p>Shading is on, but you have no county-tagged records for this metric. No misleading uniform tint — an honest note, and lines still draw.</p>
+        <div class="mini-sidebar">
+          <div class="sb-label">Map Overlays</div>
+          <div class="sb-row"><span class="sb-name">County lines</span>
+            <button class="sw" role="switch" aria-checked="true" aria-label="County lines on" style="pointer-events:none;"><span class="knob"></span></button></div>
+          <div class="sb-row" style="margin-top:12px;"><span class="sb-name">Shade by species seen</span>
+            <button class="sw" role="switch" aria-checked="true" aria-label="Shading on" style="pointer-events:none;"><span class="knob"></span></button></div>
+          <div class="legend" style="margin-top:12px;">
+            <div class="note" style="font-size:0.75rem; align-items:flex-start;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>No recorded counties to shade. Add records or load a backup with county data to see the choropleth.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- over cap -->
+      <div class="card edge">
+        <h3>Zoomed too far out</h3>
+        <p>Above the cap the grid is unreadable, so nothing draws and a non-blocking chip invites a zoom-in — mirroring the atlas's "zoom in" hint.</p>
+        <div class="pg-stage" style="height:120px;">
+          <div style="position:absolute; left:12px; bottom:12px;"><span class="map-chip">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+            Zoom in to see counties</span></div>
+        </div>
+      </div>
+
+      <!-- loading -->
+      <div class="card edge">
+        <h3>First enable — geometry loading</h3>
+        <p>The boundary geometry is an on-demand chunk (off the entry bundle). On first enable, the control shows a loading line, then clears.</p>
+        <div class="mini-sidebar">
+          <div class="sb-label">Map Overlays</div>
+          <div class="sb-row"><span class="sb-name">County lines</span>
+            <button class="sw" role="switch" aria-checked="true" aria-label="County lines on" style="pointer-events:none;"><span class="knob"></span></button></div>
+          <div class="sb-sub" style="display:flex; align-items:center; gap:7px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="animation:spin .7s linear infinite;"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Loading county boundaries…
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+  </section>
+
+  <footer>
+    <p><b>Designed within SnowRaven's existing design system.</b> Every value here comes from
+    <code>frontend/src/globals.css</code> (<code>:root</code> + <code>[data-theme="dark"]</code>) and every component mirrors a shipped
+    pattern — the 44×24 toggle switch, the <code>SegControl</code> metric pill, the maplibre popup chrome, and the atlas
+    "blocks in view" panel. <code>pipeline/design-system.md</code> exists; this feature extends it, it doesn't reinvent it.</p>
+    <p>The single proposed addition is the <b><code>--sr-county-1…4</code> green ramp</b> (Option&nbsp;B) — a deliberate,
+    AA-checked extension that would be logged in this feature's <code>decisions.md</code>. No new libraries, no new patterns.</p>
+    <p style="margin-top:14px; color:var(--sr-text);"><b>What I'd love your read on:</b> &nbsp;1) Green ramp (recommended)
+    vs. reusing the purple atlas ramp.&nbsp; 2) Should the popup also list a few top species for the county, or stay lean
+    (just the two counts + region link)?</p>
+  </footer>
+
+</div>
+
+<script>
+/* ── theme toggle ─────────────────────────────────────────────────────────── */
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('btn-light').classList.toggle('on', t==='light');
+  document.getElementById('btn-dark').classList.toggle('on', t==='dark');
+}
+
+/* ── data + ramp model (mirrors computeCountyTiers / metric switch) ──────────── */
+const BREAKS = { species:[57,119,223], records:[120,430,985] };
+const LEGEND = {
+  species:{ title:'Distinct species per county', unit:'species',
+            ranges:['1–57','58–119','120–223','224+'] },
+  records:{ title:'Total checklists per county', unit:'checklists',
+            ranges:['1–120','121–430','431–985','986+'] }
+};
+let metric = 'species';
+
+/* Per-county top-3, keyed to the active metric. Both lists are derivable from the
+   already-loaded backup (rows carry county, species, and location name), so the
+   popup adds zero network calls. Only the open county (Monterey) is populated here. */
+const TOP = {
+  Monterey: {
+    species:   [['California Scrub-Jay', 941], ["Anna's Hummingbird", 907], ['Spotted Towhee', 833]],
+    locations: [['Point Pinos', 412], ['Carmel River State Beach', 286], ['Andrew Molera SP', 213]]
+  }
+};
+
+function tierFor(v, breaks){ if(v<=0) return 0; if(v<=breaks[0]) return 1; if(v<=breaks[1]) return 2; if(v<=breaks[2]) return 3; return 4; }
+function fillFor(tier){ return tier===0 ? 'transparent' : `var(--sr-county-${tier})`; }
+
+/* in-view rows are read from the same polygons so map + panel never disagree */
+function counties(){ return Array.from(document.querySelectorAll('#counties .county')).map(p=>({
+  name:p.dataset.c, sp:+p.dataset.sp, cl:+p.dataset.cl, el:p
+})); }
+
+function paintMap(){
+  const breaks = BREAKS[metric];
+  counties().forEach(c=>{
+    const v = metric==='species'? c.sp : c.cl;
+    const t = tierFor(v, breaks);
+    c.el.setAttribute('fill', fillFor(t));
+    c.el.style.fillOpacity = t===0 ? 0 : 0.85;
+  });
+}
+
+function renderLegend(){
+  const L = LEGEND[metric];
+  document.getElementById('leg-title').textContent = L.title;
+  const rows = L.ranges.map((r,i)=>`
+    <div class="legend-row">
+      <span class="swatch" style="background:var(--sr-county-${i+1})"></span>
+      <span class="legend-range">${r}${i===0?` <span class="legend-unit">${L.unit}</span>`:''}</span>
+    </div>`).join('');
+  document.getElementById('legend-rows').innerHTML = rows;
+}
+
+function renderInview(){
+  const L = LEGEND[metric], breaks = BREAKS[metric];
+  const list = counties().map(c=>({ ...c, v: metric==='species'? c.sp : c.cl }))
+                         .sort((a,b)=> b.v - a.v);
+  const rows = list.map(c=>{
+    const t = tierFor(c.v, breaks);
+    const sel = c.name==='Monterey';
+    const dot = t===0
+      ? `<span class="iv-dot" style="background:transparent; border-style:dashed;"></span>`
+      : `<span class="iv-dot" style="background:var(--sr-county-${t})"></span>`;
+    const cnt = c.v===0 ? `<span class="iv-count zero">0</span>` : `<span class="iv-count">${c.v.toLocaleString()}</span>`;
+    return `<button class="iv-row" aria-pressed="${sel}" onclick="selectCounty('${c.name}')">
+      ${dot}<span class="iv-name">${c.name}</span>${cnt}</button>`;
+  }).join('');
+  document.getElementById('inview-rows').innerHTML = rows;
+}
+
+function syncPopup(){
+  const sp = document.querySelector('#hero-popup #pop-sp'), cl = document.querySelector('#hero-popup #pop-cl');
+  if(!sp) return;
+  sp.classList.toggle('active', metric==='species');
+  cl.classList.toggle('active', metric==='records');
+}
+
+/* The popup's bottom section swaps with the metric: species → top species, records → top locations. */
+function renderPopupTop(){
+  const el = document.getElementById('pop-top'); if(!el) return;
+  const d = TOP['Monterey'];
+  const isSp = metric==='species';
+  const title = isSp ? 'Most recorded here' : 'Top locations';
+  const items = isSp ? d.species : d.locations;
+  el.innerHTML = `<div class="ptop-title">${title}</div><ol class="ptop-list">` +
+    items.map((it,i)=>`<li><span class="ptop-rank">${i+1}</span><span class="ptop-name">${it[0]}</span><span class="ptop-n">${it[1].toLocaleString()}</span></li>`).join('') +
+    `</ol>`;
+}
+
+function setMetric(m){
+  metric = m;
+  document.getElementById('m-species').setAttribute('aria-pressed', m==='species');
+  document.getElementById('m-records').setAttribute('aria-pressed', m==='records');
+  paintMap(); renderLegend(); renderInview(); syncPopup(); renderPopupTop();
+}
+
+/* ── toggles ──────────────────────────────────────────────────────────────── */
+function toggleLines(){
+  const sw = document.getElementById('sw-lines');
+  const on = sw.getAttribute('aria-checked')!=='true';
+  sw.setAttribute('aria-checked', on);
+  document.getElementById('shade-group').style.display = on ? '' : 'none';
+  document.getElementById('counties').style.display = on ? '' : 'none';
+  document.getElementById('hero-popup').style.display = on ? '' : 'none';
+  document.getElementById('inview').style.display = on ? '' : 'none';
+}
+function toggleShade(){
+  const sw = document.getElementById('sw-shade');
+  const on = sw.getAttribute('aria-checked')!=='true';
+  sw.setAttribute('aria-checked', on);
+  document.getElementById('metric-wrap').style.display = on ? '' : 'none';
+  if(on){ paintMap(); }
+  else { counties().forEach(c=>{ c.el.setAttribute('fill','transparent'); c.el.style.fillOpacity=0; }); }
+  renderInview();
+}
+function toggleInview(){
+  const p = document.getElementById('inview');
+  const open = p.getAttribute('data-open')!=='true';
+  p.setAttribute('data-open', open);
+  p.querySelector('.disc').setAttribute('aria-expanded', open);
+}
+function selectCounty(name){
+  document.querySelectorAll('#inview-rows .iv-row').forEach(b=>{
+    b.setAttribute('aria-pressed', b.querySelector('.iv-name').textContent===name);
+  });
+  document.querySelectorAll('#counties .county').forEach(p=> p.classList.toggle('sel', p.dataset.c===name));
+}
+
+/* init */
+paintMap(); renderLegend(); renderInview(); syncPopup(); renderPopupTop();
+</script>
+</body>
+</html>

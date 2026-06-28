@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.46] - 2026-06-28
+
+### Added
+- **County lines and shading on the Map Explorer.** A new **County lines** toggle draws US county boundaries over whatever part of the map you're looking at, redrawn as you pan and zoom (with a "Zoom in to see counties" hint at very wide views where the whole country would be too dense). With it on, a **Shade by species seen** toggle tints each county by how many species you've recorded there — a county-by-county read of your own coverage, built entirely from your loaded eBird backup, with a legend whose ranges are quantiles of your own county totals (so the breaks shift to fit your data). A **Species / Records** switch flips the shading between distinct species per county and total checklists per county; the legend and shading move together. Counties you've never recorded stay as plain outlines, clearly set apart from the shaded ones. Click any county for a popup with its name, state, your species and checklist counts there, a link to its eBird county page, and — depending on the metric — your most-recorded species or your top locations in that county. A keyboard-accessible **Counties in view** panel (bottom-left) lists the in-view counties so every popup is reachable without a mouse, and both themes render the lines, fills, and legend legibly. The green county shading is deliberately distinct from the purple California atlas shading, so you can have both overlays on at once. The boundaries are a compact bundled dataset (US Census, public domain), so the overlay works fully offline with no extra download and makes no network calls — nothing about your data leaves your device. Outside the US, nothing is drawn. The overlay is available across all four Map Explorer views.
+
 ## [0.5.45] - 2026-06-21
 
 ### Added

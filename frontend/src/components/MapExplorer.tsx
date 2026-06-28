@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Binoculars, Camera, ChevronDown, Crosshair, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -20,6 +20,11 @@ import { AtlasLayer } from './AtlasLayer'
 import { RegionBaseSource } from './map/RegionBaseSource'
 import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
+import { CountyLayer } from './map/CountyLayer'
+import type { CountyFC } from '../lib/countyBoundaries'
+import { buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_METRIC_META, type CountyMetric } from '../lib/countyShading'
+import { computeChecklists, filterObservations } from '../lib/birdingStats'
+import { useHotspotSet } from '../lib/useHotspotSet'
 import { HEAT_INTENSITY_DEFAULT } from '../lib/heat'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { markersInView, MARKER_LIST_CAP, type MarkerBounds } from '../lib/markersInView'
@@ -203,6 +208,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [atlasLoading, setAtlasLoading]       = useState(false)
   const [shadeByBreeding, setShadeByBreeding] = useState(false)
   const [useTextures, setUseTextures]         = useState(false)
+
+  // County overlay state (County Lines & Shading) — mirrors the atlas state:
+  // session-scoped, shared across view modes, NOT persisted across relaunch.
+  const [countyLinesEnabled, setCountyLinesEnabled] = useState(false)
+  const [countyData, setCountyData]                 = useState<CountyFC | null>(null)
+  const [countyLoading, setCountyLoading]           = useState(false)
+  const [shadeByCounty, setShadeByCounty]           = useState(false)
+  const [countyMetric, setCountyMetric]             = useState<CountyMetric>('species')
 
   // Target state
   const [targetPins, setTargetPins]           = useState<TargetPin[] | null>(null)
@@ -487,6 +500,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   )
   const hasEntryFor = useCallback((name: string) => recordedNames.has(normalizeSpeciesName(name)), [recordedNames])
 
+  // Public-hotspot classification for the county popup's top-locations list.
+  const { isHotspot } = useHotspotSet()
+
   const allCounties = useMemo((): string[] => {
     if (phase.tag !== 'ready') return []
     return [...new Set(phase.observations.map(o => o.county).filter((c): c is string => c !== null))].sort()
@@ -690,6 +706,43 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const breedingByBlock = useMemo(
     () => (atlasData && phase.tag === 'ready' ? buildBreedingByBlock(atlasData, phase.observations) : null),
     [atlasData, phase],
+  )
+
+  // County overlay toggle — lazy-loads the boundary geometry on first enable so it
+  // stays OFF the entry chunk (NFR-03); subsequent toggles just show/hide the layer.
+  const handleToggleCounty = useCallback(async () => {
+    const next = !countyLinesEnabled
+    setCountyLinesEnabled(next)
+    if (!next) setShadeByCounty(false) // shading is meaningless without the overlay
+    if (next && !countyData && !countyLoading) {
+      setCountyLoading(true)
+      try {
+        const mod = await import('../assets/us-counties.json')
+        setCountyData(((mod as { default?: unknown }).default ?? mod) as unknown as CountyFC)
+      } catch {
+        // Asset failed to load — leave data null; the overlay simply won't draw.
+      } finally {
+        setCountyLoading(false)
+      }
+    }
+  }, [countyLinesEnabled, countyData, countyLoading])
+
+  // Per-county aggregates (species/records totals + popup top-3), built from the
+  // parse-once observations/checklists (NFR-01, no re-parse, memoized). spuh/slash/
+  // hybrid are excluded so "distinct species per county" reads as a countable life
+  // list; the records metric is the checklist count, matching the Statistics tables.
+  const countyAggregates = useMemo(() => {
+    if (phase.tag !== 'ready') return null
+    const obs = filterObservations(phase.observations, false)
+    const checklists = computeChecklists(obs)
+    return buildCountyAggregates(obs, checklists)
+  }, [phase])
+
+  // Quantile tiers over the active metric's non-zero county values; empty when
+  // there are none (drives the honest "nothing to shade" note).
+  const countyTiers = useMemo(
+    () => computeCountyTiers(countyAggregates ? nonZeroMetricValues(countyAggregates, countyMetric) : [], 4),
+    [countyAggregates, countyMetric],
   )
 
   // ── Actions ───────────────────────────────────────────────────────────────────
@@ -1019,6 +1072,119 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           </div>
         )
       })()}
+
+      {/* ── County Lines & Shading ─────────────────────────────────────────── */}
+      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>County lines</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={countyLinesEnabled}
+            aria-label="Show US county lines"
+            tabIndex={0}
+            onClick={handleToggleCounty}
+            style={{
+              width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
+              background: countyLinesEnabled ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
+              position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: 2, left: countyLinesEnabled ? 22 : 2, width: 20, height: 20,
+              borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+            }} />
+          </button>
+        </div>
+        <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4, display: 'flex', alignItems: 'center', gap: 7 }}>
+          {countyLoading && <Loader2 size={13} className="spin" aria-hidden="true" />}
+          {countyLoading ? 'Loading county boundaries…' : 'US county boundaries, shown for the current map area.'}
+        </div>
+
+        {countyLinesEnabled && (() => {
+          const backupReady = phase.tag === 'ready'
+          return (
+            <div style={{ marginTop: 12 }}>
+              {/* Shade by species seen — disabled without a loaded backup (FR-04) */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: backupReady ? 1 : 0.55 }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Shade by species seen</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={shadeByCounty}
+                  aria-label="Shade counties by species you've recorded"
+                  aria-disabled={!backupReady}
+                  disabled={!backupReady}
+                  tabIndex={0}
+                  onClick={() => backupReady && setShadeByCounty(v => !v)}
+                  style={{
+                    width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
+                    background: shadeByCounty ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
+                    position: 'relative', cursor: backupReady ? 'pointer' : 'not-allowed', transition: 'background 0.15s',
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute', top: 2, left: shadeByCounty ? 22 : 2, width: 20, height: 20,
+                    borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+                  }} />
+                </button>
+              </div>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+                {backupReady
+                  ? 'Tints each county by your own count there — drawn only from your loaded backup.'
+                  : 'Load your eBird backup in Settings to use this.'}
+              </div>
+
+              {shadeByCounty && backupReady && (
+                <>
+                  <div style={{ marginTop: 10 }}>
+                    <SegControl
+                      ariaLabel="Choropleth metric"
+                      options={[{ value: 'species', label: 'Species' }, { value: 'records', label: 'Records' }]}
+                      value={countyMetric}
+                      onChange={v => setCountyMetric(v as CountyMetric)}
+                    />
+                  </div>
+
+                  {countyTiers.legend.length === 0 ? (
+                    <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', marginTop: 12, fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
+                      <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
+                      <span>No recorded counties to shade. Add records or load a backup with county data to see the choropleth.</span>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 12 }} aria-live="polite">
+                      <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
+                        {COUNTY_METRIC_META[countyMetric].title}
+                      </div>
+                      {countyTiers.legend.map((row, i) => {
+                        const isLast = i === countyTiers.legend.length - 1
+                        const range = isLast ? `${row.min.toLocaleString()}+` : row.min === row.max ? `${row.min.toLocaleString()}` : `${row.min.toLocaleString()}–${row.max.toLocaleString()}`
+                        return (
+                          <div key={row.tier} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+                            <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 3, flexShrink: 0, border: '1px solid var(--sr-border-medium)', background: `var(--sr-county-${row.tier})` }} />
+                            <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>
+                              {range}{i === 0 && <span style={{ color: 'var(--sr-text-muted)' }}> {COUNTY_METRIC_META[countyMetric].unit}</span>}
+                            </span>
+                          </div>
+                        )
+                      })}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 8, marginBottom: 6 }}>
+                        <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 3, flexShrink: 0, border: '1px dashed var(--sr-border-medium)', background: 'transparent' }} />
+                        <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>
+                          No records <span style={{ color: 'var(--sr-text-muted)' }}>— outline only</span>
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.45 }}>
+                        Ranges are quantiles of <em>your</em> non-zero counties, so the breaks shift with your data.
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })()}
+      </div>
     </div>
   )
 
@@ -1829,6 +1995,19 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   shade={shadeByBreeding}
                   breedingByBlock={breedingByBlock}
                   useTextures={useTextures}
+                />
+              )}
+              {countyLinesEnabled && (
+                <CountyLayer
+                  data={countyData}
+                  shade={shadeByCounty}
+                  aggregates={countyAggregates}
+                  tiers={countyTiers}
+                  metric={countyMetric}
+                  onOpenSpecies={onOpenSpecies}
+                  hasEntryFor={hasEntryFor}
+                  taxonCodeFor={name => speciesCodeMap[name]}
+                  isPublicHotspot={isHotspot}
                 />
               )}
               {detectedLocation && !centerPinShown && <DetectedLocationPin position={detectedLocation} />}

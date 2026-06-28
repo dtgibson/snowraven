@@ -3,7 +3,7 @@ import type { ObservationEntry } from '../types'
 import {
   filterObservations, computeChecklists, computeLifeList, computeTopSpecies,
   computeTotals, computeEffort, computeBreedingStats, computeTemporal, computeFunStats,
-  computeQuality, KM_TO_MI, HA_TO_ACRE,
+  computeQuality, computeGeo, KM_TO_MI, HA_TO_ACRE,
 } from './birdingStats'
 
 // Concise fixture builder — fills required ObservationEntry fields with sensible
@@ -47,6 +47,36 @@ describe('computeChecklists', () => {
     expect(s2.duration).toBe(60) // from the first row of the submission
     const s1 = cks.find(c => c.submissionId === 'S1')!
     expect(s1.individualCount).toBe(0) // X / null
+  })
+})
+
+describe('computeGeo — (state, county) keying', () => {
+  // Two "Washington" counties in different states must stay distinct rows, not
+  // merge into one (the latent name-only-keying collision the County overlay
+  // requires fixed). Doubles as QA-10 coverage.
+  const rows = [
+    obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01', locationId: 'L1', county: 'Washington', stateProvince: 'US-CA' }),
+    obs({ submissionId: 'S1', commonName: 'Mallard', date: '2024-01-01', locationId: 'L1', county: 'Washington', stateProvince: 'US-CA' }),
+    obs({ submissionId: 'S2', commonName: 'American Robin', date: '2024-02-01', locationId: 'L2', county: 'Washington', stateProvince: 'US-CA' }),
+    obs({ submissionId: 'S3', commonName: 'Blue Jay', date: '2024-03-01', locationId: 'L3', county: 'Washington', stateProvince: 'US-UT' }),
+  ]
+
+  it('emits two distinct rows for same-named counties in different states', () => {
+    const geo = computeGeo(computeChecklists(rows), rows)
+    const washingtons = geo.topCounties.filter(c => c.name === 'Washington')
+    expect(washingtons).toHaveLength(2)
+    const ca = washingtons.find(c => c.stateProvince === 'US-CA')!
+    const ut = washingtons.find(c => c.stateProvince === 'US-UT')!
+    expect(ca.count).toBe(2)   // 2 checklists (S1, S2), NOT merged with UT
+    expect(ca.species).toBe(2) // American Robin + Mallard
+    expect(ut.count).toBe(1)   // 1 checklist (S3)
+    expect(ut.species).toBe(1) // Blue Jay
+  })
+
+  it('preserves the { name, count, stateProvince, species } row shape', () => {
+    const geo = computeGeo(computeChecklists(rows), rows)
+    const row = geo.topCounties[0]
+    expect(Object.keys(row).sort()).toEqual(['count', 'name', 'species', 'stateProvince'])
   })
 })
 

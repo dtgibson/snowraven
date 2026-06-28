@@ -277,8 +277,15 @@ export function computeTemporal(checklists: ChecklistEntry[], filteredObs: Obser
 /** Top locations / counties / states by checklist count and by species count. */
 export function computeGeo(checklists: ChecklistEntry[], filteredObs: ObservationEntry[]) {
   const locationMap = new Map<string, { locationId: string; name: string; count: number; species: Set<string>; lat: number | null; lng: number | null }>()
+  // Key county aggregation by a raw (state, county) composite — NOT county name
+  // alone — so same-named counties in different states ("Washington" in US-CA vs
+  // US-UT, the many "Jefferson"s) stay distinct rows. Name-alone keying was a
+  // latent collision that merged them into one wrong row; the County Lines &
+  // Shading overlay needs the split, and the Statistics county tables are more
+  // correct for it. The composite is NUL-joined and lossless — normalization
+  // happens only at the join boundary (lib/countyBoundaries.countyKey), never here.
   const countyMap = new Map<string, number>()
-  const countyStateMap = new Map<string, string | null>()
+  const countyMeta = new Map<string, { name: string; stateProvince: string | null }>()
   const countySpecies = new Map<string, Set<string>>()
   const stateMap = new Map<string, number>()
   const stateSpecies = new Map<string, Set<string>>()
@@ -295,9 +302,10 @@ export function computeGeo(checklists: ChecklistEntry[], filteredObs: Observatio
     }
 
     if (c.county) {
-      countyMap.set(c.county, (countyMap.get(c.county) ?? 0) + 1)
-      if (!countyStateMap.has(c.county)) countyStateMap.set(c.county, c.stateProvince)
-      if (!countySpecies.has(c.county)) countySpecies.set(c.county, new Set())
+      const k = `${c.stateProvince ?? ''} ${c.county}`
+      countyMap.set(k, (countyMap.get(k) ?? 0) + 1)
+      if (!countyMeta.has(k)) countyMeta.set(k, { name: c.county, stateProvince: c.stateProvince })
+      if (!countySpecies.has(k)) countySpecies.set(k, new Set())
     }
     if (c.stateProvince) {
       stateMap.set(c.stateProvince, (stateMap.get(c.stateProvince) ?? 0) + 1)
@@ -308,7 +316,7 @@ export function computeGeo(checklists: ChecklistEntry[], filteredObs: Observatio
   for (const o of filteredObs) {
     const norm = normalizeSpeciesName(o.commonName)
     locationMap.get(o.locationId)?.species.add(norm)
-    if (o.county) countySpecies.get(o.county)?.add(norm)
+    if (o.county) countySpecies.get(`${o.stateProvince ?? ''} ${o.county}`)?.add(norm)
     if (o.stateProvince) stateSpecies.get(o.stateProvince)?.add(norm)
   }
 
@@ -318,11 +326,19 @@ export function computeGeo(checklists: ChecklistEntry[], filteredObs: Observatio
   const topLocations = [...allLocations].sort((a, b) => b.checklists - a.checklists).slice(0, 10)
   const topLocationsBySpecies = [...allLocations].sort((a, b) => b.species - a.species).slice(0, 10)
 
-  const allCountyData = [...countyMap.entries()].map(([name, count]) => ({
-    name, count,
-    stateProvince: countyStateMap.get(name) ?? null,
-    species: countySpecies.get(name)?.size ?? 0,
-  }))
+  // Output rows keep the same shape — { name, count, stateProvince, species } —
+  // but two same-named counties in different states now emit TWO rows instead of
+  // one merged row (the correctness fix). `name` is the display county; the
+  // internal composite key is dropped here.
+  const allCountyData = [...countyMap.entries()].map(([k, count]) => {
+    const meta = countyMeta.get(k)!
+    return {
+      name: meta.name,
+      count,
+      stateProvince: meta.stateProvince,
+      species: countySpecies.get(k)?.size ?? 0,
+    }
+  })
   const topCounties = [...allCountyData].sort((a, b) => b.count - a.count)
   const topCountiesBySpecies = [...allCountyData].sort((a, b) => b.species - a.species)
 

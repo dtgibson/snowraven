@@ -79,6 +79,21 @@
   --sr-tier-2-rgb: 147,51,234;
   --sr-tier-1-rgb: 192,132,252;
 
+  /* County choropleth ramp (County Lines & Shading). A single-hue GREEN sequential
+     ramp — deliberately distinct from the PURPLE --sr-tier breeding ramp so the two
+     overlays can be on at once without confusion (decisions.md D-01). Map-anchored to
+     the always-light Positron basemap, so declared IDENTICALLY in both themes (same
+     posture as --sr-map-pin-*). On-map fills use the solid color at fill-opacity ~0.85;
+     tier 0 (unrecorded) is fill-opacity 0. No on-fill map text → no on-fill text pair. */
+  --sr-county-1: #C3E8D1;   /* thinnest county list (lightest) */
+  --sr-county-2: #7FCB9E;
+  --sr-county-3: #3E9C66;
+  --sr-county-4: #1A5C38;   /* deepest list (darkest; = --sr-accent-strong light) */
+  --sr-county-1-rgb: 195,232,209;
+  --sr-county-2-rgb: 127,203,158;
+  --sr-county-3-rgb: 62,156,102;
+  --sr-county-4-rgb: 26,92,56;
+
   /* Grays */
   --sr-gray-300: #D1D5DB;
   --sr-gray-400: #8E8E96;      /* toggle off-track — darkened from #D4D4D8 for ≥3:1 non-text vs surface AND the white knob (3.25) */
@@ -249,6 +264,19 @@
   --sr-tier-3-rgb: 124,58,237;
   --sr-tier-2-rgb: 168,85,247;
   --sr-tier-1-rgb: 192,132,252;
+
+  /* County choropleth ramp — IDENTICAL to :root by design (basemap-anchored; the
+     map canvas is the always-light Positron basemap in both themes, so the fills
+     must read against a light surface regardless of app theme — see decisions.md
+     D-01). Unlike --sr-tier, this ramp is NOT theme-flipped. */
+  --sr-county-1: #C3E8D1;
+  --sr-county-2: #7FCB9E;
+  --sr-county-3: #3E9C66;
+  --sr-county-4: #1A5C38;
+  --sr-county-1-rgb: 195,232,209;
+  --sr-county-2-rgb: 127,203,158;
+  --sr-county-3-rgb: 62,156,102;
+  --sr-county-4-rgb: 26,92,56;
 
   /* Grays */
   --sr-gray-300: #3F3F46;
