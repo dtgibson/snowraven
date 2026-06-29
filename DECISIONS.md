@@ -4,6 +4,14 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Dev Dependency Cleanup: patch the dev-only `undici` audit finding, no version bump — 2026-06-29 (dev tooling; no version bump)
+
+**Decision:** Cleared the high-severity `undici` advisory `npm audit` reported in `frontend` by running the non-breaking `npm audit fix` (no `--force`), bumping the transitively-pulled `undici` 7.27.1 → 7.28.0. `undici` is a dev/test-only dependency (pulled by `jsdom`, the vitest jsdom environment); the production-only audit (`npm audit --omit=dev`) was and remains clean, so it never shipped in the app. The change is `frontend/package-lock.json` only — `package.json` and `jsdom@^29.1.1` are untouched; `npm audit fix` also synced the lockfile's stale root metadata (`version` 0.5.44 → 0.5.47, the `engines` block) to match `package.json`. **No version bump, no changelog entry, no tag, no release.**
+
+**Rationale:** A dev-only dependency patch produces a byte-identical app bundle, so a version bump would mislabel an unchanged binary and needlessly trip the in-app updater. It also protects the still-pending **v0.5.47** macOS/Windows binary release (the v0.5.47 tag sits at the prior HEAD): a 0.5.48 tag would supersede it and re-trigger CI for zero app change. The lock-file fix commits one commit ahead of the v0.5.47 tag on `main`; `release.sh` builds `main` (with the harmless dev-dep fix folded in, version still 0.5.47), the already-built Windows v0.5.47 artifact is unaffected, and no tag was moved (so the stale-CI-run hazard doesn't apply). Full CI mirror green (lint, typecheck, 1158 tests, build); security review clean.
+
+**Implications:** Establishes the carve-out now in CLAUDE.md → Versioning: a dev-only/toolchain change that doesn't affect the shipped bundle skips the version bump / changelog / tag / release and commits straight to `main`. Mirrors the earlier Node-25 release-tooling entry ("no version bump"). When the Mac next pulls `main` to run the pending v0.5.47 release, this fix rides along harmlessly.
+
 ## Map Explorer Shading Polish: single-active-shading (reverses the atlas/county coexistence contract) + auto-muted basemap — 2026-06-28 (v0.5.47)
 
 **Decision:** Three refinements to the v0.5.46 county/atlas shading. (1) The "… in view" list is now the last section in every Map Explorer panel (it was a Sightings/Hotspots outlier rendering before the overlay controls). (2) The county (green) and atlas (purple) SHADE fills are now MUTUALLY EXCLUSIVE — turning one on clears the other; boundary lines may still coexist. (3) While either shading ramp is active the basemap's Positron land fills mute to grey (raster bases desaturate) so the ramp pops, restoring when shading is off, and the heatmap's under-fill/dim treatment was generalized from atlas-only to whichever ramp is active.
