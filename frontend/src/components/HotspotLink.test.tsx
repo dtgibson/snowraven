@@ -35,4 +35,23 @@ describe('HotspotLink', () => {
     // The visible text omits the name in compact mode (icon-only).
     expect(link.textContent?.trim()).not.toContain('Pier 7')
   })
+
+  it('clamps a truncating hotspot LINK to its parent width so a long name cannot overflow', () => {
+    // The shaded county popup's top-3 renders public-hotspot place names through
+    // the LINK branch with truncate. Without maxWidth:100% the inline-flex link
+    // shrink-to-fits to max-content and ran off the popup's right edge (the latent
+    // bug the v0.5.48 county-name wrap did not cover). Parity with the plain branch.
+    render(<HotspotLink locId="L42" name="A Very Long Hotspot Name That Would Overflow" isHotspot truncate />)
+    const link = screen.getByRole('link', { name: hotspotLinkAriaLabel('A Very Long Hotspot Name That Would Overflow') })
+    expect(link.style.maxWidth).toBe('100%')
+    expect(link.style.minWidth).toBe('0px')
+    // The inner span carries the ellipsis mechanism.
+    expect(link.querySelector('.sr-truncate')).toBeTruthy()
+  })
+
+  it('does not force maxWidth on a non-truncating hotspot link (parity with the plain branch)', () => {
+    render(<HotspotLink locId="L43" name="Short Spot" isHotspot />)
+    const link = screen.getByRole('link', { name: hotspotLinkAriaLabel('Short Spot') })
+    expect(link.style.maxWidth).toBe('')
+  })
 })

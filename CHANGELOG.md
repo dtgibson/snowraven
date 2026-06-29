@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.49] - 2026-06-29
+
+### Changed
+- **Map Explorer county lines are now accurate at every zoom level.** The county boundaries in the overlay are drawn straight from the map's own tiles, so up close they trace the real county edge crisply instead of the blocky, simplified shape they used to — they match the boundary the basemap shows underneath. The shading, the per-county popups, and the zoomed-out / offline view still use the bundled US Census geometry. This adds no new download and no new data source (the lines come from tiles the map already loads), and the county overlay still makes no network calls of its own.
+
+### Fixed
+- **Long location names no longer overflow the county popup.** On the shaded county map, a long place name in the popup's "Top locations" list now ellipsizes neatly inside the popup instead of running off the right edge. (The same fix applies anywhere a hotspot link is shown in a tight, truncating space, such as the Species Detail named-birds list.)
+
 ## [0.5.48] - 2026-06-29
 
 ### Changed

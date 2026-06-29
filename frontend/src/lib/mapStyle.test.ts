@@ -44,7 +44,7 @@ function fixtureStyle() {
       { id: 'landcover_wood', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover', paint: { 'fill-color': '#eeeeee' } },
       { id: 'landuse_residential', type: 'fill', source: 'openmaptiles', 'source-layer': 'landuse', paint: { 'fill-color': '#eeeeee' } },
       { id: 'boundary_2', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary', paint: { 'line-color': '#cccccc', 'line-opacity': 0.4 } },
-      { id: 'boundary_3', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary', minzoom: 8, paint: { 'line-color': '#dddddd' } },
+      { id: 'boundary_3', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary', minzoom: 8, filter: ['all', ['>=', ['get', 'admin_level'], 3], ['<=', ['get', 'admin_level'], 6]], paint: { 'line-color': '#dddddd' } },
       { id: 'place_label', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place', layout: { 'text-size': 12 } },
     ],
   }
@@ -105,6 +105,22 @@ describe('fetchTunedBaseStyle (positron)', () => {
     expect(b3?.minzoom).toBe(4)
     expect(b3?.paint?.['line-color']).toBe('hsl(0,0%,60%)')
     expect(b3?.paint?.['line-dasharray']).toEqual([2, 2])
+  })
+
+  it('narrows boundary_3 to states/provinces only (admin_level ≤ 4) so counties stay off the always-on basemap', async () => {
+    // Positron ships boundary_3 as admin_level 3..6, which draws US counties
+    // always-on and double-draws under the Map Explorer county overlay's dedicated
+    // accurate county line. Narrowing to ≤ 4 makes counties overlay-only.
+    stubFetch(true, fixtureStyle())
+    const style = await fetchTunedBaseStyle('positron')
+    const b3 = find(style, 'boundary_3')
+    expect(b3?.filter).toEqual(['all',
+      ['>=', ['get', 'admin_level'], 3],
+      ['<=', ['get', 'admin_level'], 4],
+      ['!=', ['get', 'maritime'], 1],
+      ['!=', ['get', 'disputed'], 1],
+      ['!', ['has', 'claimed_by']],
+    ])
   })
 
   it('tints park, wood, and residential land cover', async () => {

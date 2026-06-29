@@ -1,52 +1,56 @@
 ## What We Accomplished
 
-Shipped **Map Explorer fixes** as **v0.5.48** — five refinements to the county overlay:
+Shipped **county-overlay-precision** as **v0.5.49** (source) — two fixes to the Map
+Explorer county overlay:
 
-1. **Sharper county lines.** Regenerated the bundled US Census boundary geometry at
-   10%-keep (from 2.5%), so the lines trace coastlines and edges crisply instead of
-   looking blocky. The on-demand county chunk grows ~310 KB → ~751 KB gz (off first
-   paint, fetched only when the overlay is first opened, then cached).
-2. **A finer 10-step shading scale.** The "Shade by species seen" choropleth widened
-   from 4 to 10 data-driven quantile steps so well-birded counties stand apart.
-3. **Clearer popup counts.** The county popup count is now plainly your *checklists*
-   (not individual birds) — caption, tooltips, and a "Records" → "Checklists" relabel.
-4. **No more popup overflow.** Long county names wrap inside the popup.
-5. **Collapsible "… in view" lists.** A chevron collapses the Sightings/Hotspots/
-   Targets/Nearby-Lifers in-view lists; the count stays visible when collapsed.
+1. **Accurate county lines at every zoom.** The overlay's boundary *lines* now come
+   straight from the basemap's own vector tiles (OpenFreeMap's `openmaptiles`
+   `boundary` source-layer, `admin_level == 6`, z9+), so they trace the true county
+   edge crisply up close instead of the blocky bundled geometry — they *are* the
+   line the basemap already shows underneath. The bundled `us-counties.json` is kept
+   for the shade fills, the popups, the (state,county) join, and the below-z9 /
+   offline line fallback (the bundled line is maxzoom-capped at 9). `boundary_3` was
+   narrowed to `admin_level ≤ 4` so counties are overlay-only and don't double-draw.
+   **No new download, no new provider, no privacy-policy change** — the lines ride
+   tiles the map already fetches.
+2. **Popup overflow fix.** The shared `HotspotLink` public-hotspot link branch was
+   missing `max-width:100%`, so a long place name in the shaded county popup's
+   "top locations" list ran off the right edge. Added it (gated on `truncate`),
+   which also fixes every other truncating hotspot-link spot.
 
-Frontend-only; no new providers, no new network calls; privacy unchanged. All six
-Improve-lane stages passed in Studio Style: 1163 tests green, security clean, full CI
-mirror (lint, typecheck, test, build) green.
+Chosen approach was **A-minimal** (user pick over A-plus / D after a tradeoff
+review). Accepted residuals: a hair-thin shaded-fill sliver when shading is on and
+zoomed past z9, and no county lines when fully offline with no region downloaded
+above z9.
 
 ## What Has Been Saved
 
-- Release commit on `main`, tagged `v0.5.48` (both pushed; Windows CI building).
-  - Changed: `frontend/src/components/map/CountyLayer.tsx`,
-    `frontend/src/components/map/MapSidebarUI.tsx`, `frontend/src/components/MapExplorer.tsx`,
-    `frontend/src/lib/countyShading.ts`, `frontend/src/globals.css`,
-    `frontend/src/assets/us-counties.json` (regenerated), `scripts/build-county-boundaries.mjs`,
-    the version files, `CHANGELOG.md`, `docs/HELP.md`, `website/index.html`, and the records
-    (`CLAUDE.md`, `DECISIONS.md`, `ROADMAP.md`).
-  - New/extended tests: `countyShading.test.ts` (10-class), `countyContrast.test.ts`
-    (tiers 1..10), `MapExplorerInViewList.test.tsx` (collapse disclosure).
-  - Feature artifacts in `pipeline/map-explorer-fixes/` (change-brief, pr-description,
+- Release commit on `main`, tagged **`v0.5.49`** (both pushed; Windows CI building).
+  - Code: `frontend/src/components/HotspotLink.tsx`,
+    `frontend/src/components/map/CountyLayer.tsx`, `frontend/src/lib/mapStyle.ts`.
+  - Tests: `frontend/src/components/map/CountyLayer.test.tsx` (new),
+    `frontend/src/components/HotspotLink.test.tsx`, `frontend/src/lib/mapStyle.test.ts`.
+  - Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.49;
+    `CHANGELOG.md`, `docs/HELP.md`, `README.md`, `website/index.html`.
+  - Records: `CLAUDE.md`, `DECISIONS.md`, `ROADMAP.md`.
+  - Feature artifacts in `pipeline/county-overlay-precision/` (change-brief,
     qa-report, security-report).
+- Full CI mirror green (lint, typecheck, **1168 tests**, build); security clean.
 
 ## Where We Are
 
 Improvement complete — all six Improve-lane stages approved/closed. Source is pushed
 and tagged. The **binary release is the Mac's step.**
 
-**Next action (the Mac): release v0.5.48.**
+**Next action (the Mac): release v0.5.49.**
 1. `git checkout main && git pull --ff-only origin main`
-2. `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`
-3. `zsh -lc ./release.sh`
-4. Verify: `gh release view v0.5.48`
+2. `zsh -lc ./release.sh`  (Homebrew node; `nvm` not needed)
+3. Verify: `gh release view v0.5.49`
 
-**v0.5.48 supersedes the still-unreleased v0.5.45, v0.5.46, and v0.5.47** — its source
-rolls up all of them, so releasing 0.5.48 alone is sufficient (one consolidated binary).
 After the tag push, confirm the selected `windows-build.yml` run's `headSha` equals
-`git rev-parse v0.5.48^{commit}` before running `release.sh`.
+`git rev-parse v0.5.49^{commit}` before running `release.sh`. Recommended in-app spot
+check: at z10–12 over a US area, the accurate county line renders and hands off from
+the bundled line at ~z9 with no visible pop.
 
 ## Resume Prompt
 

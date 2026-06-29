@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { FeatureCollection } from 'geojson'
-import type { FillLayerSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent } from 'maplibre-gl'
+import type { FillLayerSpecification, FilterSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent } from 'maplibre-gl'
 import { ExternalLink } from 'lucide-react'
 import {
   countiesInBounds, countyListRows, padBounds, countyKey, deriveCountyRegionCode, stateNameFor,
@@ -54,6 +54,24 @@ const COUNTY_CAP = 800
 const COUNTY_MINZOOM = 4
 const BOUNDS_PAD = 0.15
 
+// Above this zoom the overlay's boundary LINE comes from the basemap's OWN
+// admin_level-6 boundary tiles (accurate at every zoom), and the bundled,
+// simplified line is capped off — it only draws far out (where its blockiness is
+// invisible) and as the below-z9 / offline fallback. z9 is where OpenMapTiles
+// starts emitting county (admin_level 6) boundaries in the vector tiles.
+const COUNTY_LINE_HANDOFF_ZOOM = 9
+
+// Accurate county lines come from the shared `openmaptiles` vector source's
+// `boundary` source-layer (the same tiles the basemap already fetches — no new
+// network, no new provider). admin_level 6 = US counties; exclude maritime/disputed
+// to match the basemap's boundary-line family.
+const ACCURATE_COUNTY_FILTER: FilterSpecification = [
+  'all',
+  ['==', ['get', 'admin_level'], 6],
+  ['!=', ['get', 'maritime'], 1],
+  ['!=', ['get', 'disputed'], 1],
+]
+
 // Marker layers that paint above the county fill; a click on one of these must
 // not also open the county popup (parity with the atlas marker arbitration).
 const MARKER_LAYERS = ['sr-sight-circle', 'sr-hotspot']
@@ -90,6 +108,19 @@ export function CountyLayer({
   // Insert the county layers UNDER any marker layers present at mount, so pins
   // stay on top when the overlay is toggled on later (mirrors AtlasLayer).
   const [insertBelow] = useState(() => MARKER_LAYERS.find(id => !!map?.getLayer(id)))
+
+  // The accurate county line rides the base style's `openmaptiles` vector source;
+  // render it only once that source is present (it always is online / inside a
+  // downloaded region, and is absent on a bare offline map). Refresh on styledata
+  // so a base switch that re-adds the source re-adds the line.
+  const [vectorReady, setVectorReady] = useState(() => !!map?.getSource('openmaptiles'))
+  useEffect(() => {
+    if (!map) return
+    const check = () => setVectorReady(!!map.getSource('openmaptiles'))
+    check()
+    map.on('styledata', check)
+    return () => { map.off('styledata', check) }
+  }, [map])
 
   const [bounds, setBounds] = useState<Bounds | null>(null)
   useEffect(() => {
@@ -201,7 +232,7 @@ export function CountyLayer({
     <>
       <Source id="sr-county" type="geojson" data={fc}>
         <Layer id="sr-county-fill" type="fill" minzoom={COUNTY_MINZOOM} paint={fillPaint} beforeId={insertBelow} />
-        <Layer id="sr-county-line" type="line" minzoom={COUNTY_MINZOOM} paint={linePaint} layout={lineLayout} beforeId={insertBelow} />
+        <Layer id="sr-county-line" type="line" minzoom={COUNTY_MINZOOM} maxzoom={COUNTY_LINE_HANDOFF_ZOOM} paint={linePaint} layout={lineLayout} beforeId={insertBelow} />
         {sel && (
           <Popup longitude={sel.lng} latitude={sel.lat} anchor="bottom" offset={10} closeOnClick={false} onClose={() => setSel(null)} maxWidth="248px">
             <div style={{ minWidth: 188, maxWidth: 220, fontSize: '0.8125rem' }}>
@@ -236,6 +267,24 @@ export function CountyLayer({
           </Popup>
         )}
       </Source>
+
+      {/* Accurate county boundary lines from the basemap's own vector tiles
+          (admin_level 6, z9+). The bundled line (capped at z9 above) hands off to
+          this so the overlay traces the true county edge up close instead of the
+          blocky simplified geometry — at zero new network/provider/bundle cost. */}
+      {vectorReady && (
+        <Layer
+          id="sr-county-line-hi"
+          type="line"
+          source="openmaptiles"
+          source-layer="boundary"
+          filter={ACCURATE_COUNTY_FILTER}
+          minzoom={COUNTY_LINE_HANDOFF_ZOOM}
+          paint={linePaint}
+          layout={lineLayout}
+          beforeId={insertBelow}
+        />
+      )}
 
       {tooMany && (
         <div

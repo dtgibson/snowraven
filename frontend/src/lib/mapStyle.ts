@@ -200,6 +200,19 @@ export async function fetchTunedBaseStyle(
         'line-opacity': ['interpolate', ['linear'], ['zoom'], 4, 0.45, 7, 0.7],
         'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.5, 8, 1, 11, 1.6],
       }
+      // Positron's boundary_3 pulls admin_level 3..6, which lumps US COUNTIES
+      // (admin_level 6) in with the state line and draws them always-on. Counties
+      // are an opt-in Map Explorer overlay (which now draws its OWN accurate
+      // admin_level-6 line from this same source), so narrow this to states/
+      // provinces only (<= 4): no always-on county dashes, and no faint dashed
+      // line double-drawing under the overlay's dedicated county line.
+      layer.filter = ['all',
+        ['>=', ['get', 'admin_level'], 3],
+        ['<=', ['get', 'admin_level'], 4],
+        ['!=', ['get', 'maritime'], 1],
+        ['!=', ['get', 'disputed'], 1],
+        ['!', ['has', 'claimed_by']],
+      ]
     }
     // Tint land cover so natural vs. developed reads at a glance, while keeping
     // Positron's calm look: parks/woods → soft green, residential → warm tan.

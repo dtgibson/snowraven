@@ -73,6 +73,12 @@ export function HotspotLink({ locId, name, isHotspot, size = 'sm', compact = fal
         alignItems: 'center',
         gap: compact ? 0 : 3,
         minWidth: 0,
+        // Mirror the plain (personal-location) truncate branch: an inline-flex box
+        // shrink-to-fits to its own max-content and overflows a block parent, so a
+        // long linked name ran off the popup's right edge. maxWidth:100% imposes the
+        // parent's width so the inner sr-truncate span can ellipsize. (max-width, not
+        // a px/rem width — no text-scale concern; only when truncating, for parity.)
+        ...(truncate ? { maxWidth: '100%' } : null),
         textDecoration: 'none',
         ...style,
         // A link is always the accent color — a caller's plain-text color (e.g. muted
