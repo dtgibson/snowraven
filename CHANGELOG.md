@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.50] - 2026-06-29
+
+### Changed
+- **Crisper county shading at high zoom.** When you shade the Map Explorer by county and zoom in close, the shaded fill now tracks the county boundary more tightly, so the thin sliver of color that used to peek out past the county line is gone. The bundled county geometry was sharpened a notch; it still downloads only when you first turn the county overlay on, then stays cached.
+
 ## [0.5.49] - 2026-06-29
 
 ### Changed

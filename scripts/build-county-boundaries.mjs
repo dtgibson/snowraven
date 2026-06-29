@@ -40,12 +40,16 @@ const REPO = join(HERE, '..')
 const VINTAGE = '2023' // pinned for reproducible re-runs
 const SOURCE_URL = `https://www2.census.gov/geo/tiger/GENZ${VINTAGE}/shp/cb_${VINTAGE}_us_county_500k.zip`
 const MAPSHAPER = 'mapshaper@0.6.102' // pinned via npx; not a project dependency (release-time only)
-// Visvalingam keep-shapes simplification %. Raised from 2.5% to 10% (v0.5.48) for
-// sharp, precise boundaries at the overlay's zoom levels — the 2.5% asset rendered
-// as visibly blocky polygons (~12 vertices/county). At 10% the asset is roughly
-// ~4.2 MB raw / ~0.95 MB gzipped: still an on-demand chunk, off first paint and
-// fetched only when the county overlay is first enabled (NFR-02 budget raised below).
-const SIMPLIFY_PCT = '10%'
+// Visvalingam keep-shapes simplification %. History: 2.5% (blocky, ~12 verts/county)
+// → 10% (v0.5.48/49) → 15% (v0.5.50). v0.5.50 raised it a notch to sharpen the county
+// FILL edge so the hair-thin shaded sliver under the crisp basemap-tile county line
+// (CountyLayer's z9+ `boundary` line) shrinks below visibility at high zoom when county
+// shading is on — the bundled file drives both the fill and the below-z9/offline line
+// fallback, so one bump sharpens both (the deferred "option D" in a single move). At
+// 15% the asset is ~3.7 MB raw / ~0.95 MB gzipped (~54 verts/county, up from ~39):
+// still an on-demand chunk, off first paint, fetched only when the county overlay is
+// first enabled, and within the 1.3 MB gz guard with comfortable margin.
+const SIMPLIFY_PCT = '15%'
 const COORD_DP = 4 // ~11 m — ample at these zooms; a big size win
 const BBOX_DP = 4 // bbox carried per feature for O(1) viewport windowing
 
