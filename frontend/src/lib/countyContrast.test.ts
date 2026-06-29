@@ -43,7 +43,7 @@ const contrast = (a: string, b: string): number => {
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
 }
 
-const TIERS = [1, 2, 3, 4] as const
+const TIERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const
 
 describe('--sr-county green ramp (D-01)', () => {
   it('is declared identically in both themes (basemap-anchored)', () => {

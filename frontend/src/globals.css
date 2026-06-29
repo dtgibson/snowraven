@@ -85,14 +85,26 @@
      the always-light Positron basemap, so declared IDENTICALLY in both themes (same
      posture as --sr-map-pin-*). On-map fills use the solid color at fill-opacity ~0.85;
      tier 0 (unrecorded) is fill-opacity 0. No on-fill map text → no on-fill text pair. */
-  --sr-county-1: #C3E8D1;   /* thinnest county list (lightest) */
-  --sr-county-2: #7FCB9E;
-  --sr-county-3: #3E9C66;
-  --sr-county-4: #1A5C38;   /* deepest list (darkest; = --sr-accent-strong light) */
+  --sr-county-1: #C3E8D1;   /* fewest counts (lightest) */
+  --sr-county-2: #A8D5BA;
+  --sr-county-3: #8EC4A3;
+  --sr-county-4: #71B58D;
+  --sr-county-5: #5FA47B;
+  --sr-county-6: #4D956A;
+  --sr-county-7: #358758;
+  --sr-county-8: #2D784D;
+  --sr-county-9: #256A43;
+  --sr-county-10: #1A5C38;  /* most counts (darkest; = --sr-accent-strong light) */
   --sr-county-1-rgb: 195,232,209;
-  --sr-county-2-rgb: 127,203,158;
-  --sr-county-3-rgb: 62,156,102;
-  --sr-county-4-rgb: 26,92,56;
+  --sr-county-2-rgb: 168,213,186;
+  --sr-county-3-rgb: 142,196,163;
+  --sr-county-4-rgb: 113,181,141;
+  --sr-county-5-rgb: 95,164,123;
+  --sr-county-6-rgb: 77,149,106;
+  --sr-county-7-rgb: 53,135,88;
+  --sr-county-8-rgb: 45,120,77;
+  --sr-county-9-rgb: 37,106,67;
+  --sr-county-10-rgb: 26,92,56;
 
   /* Grays */
   --sr-gray-300: #D1D5DB;
@@ -270,13 +282,25 @@
      must read against a light surface regardless of app theme — see decisions.md
      D-01). Unlike --sr-tier, this ramp is NOT theme-flipped. */
   --sr-county-1: #C3E8D1;
-  --sr-county-2: #7FCB9E;
-  --sr-county-3: #3E9C66;
-  --sr-county-4: #1A5C38;
+  --sr-county-2: #A8D5BA;
+  --sr-county-3: #8EC4A3;
+  --sr-county-4: #71B58D;
+  --sr-county-5: #5FA47B;
+  --sr-county-6: #4D956A;
+  --sr-county-7: #358758;
+  --sr-county-8: #2D784D;
+  --sr-county-9: #256A43;
+  --sr-county-10: #1A5C38;
   --sr-county-1-rgb: 195,232,209;
-  --sr-county-2-rgb: 127,203,158;
-  --sr-county-3-rgb: 62,156,102;
-  --sr-county-4-rgb: 26,92,56;
+  --sr-county-2-rgb: 168,213,186;
+  --sr-county-3-rgb: 142,196,163;
+  --sr-county-4-rgb: 113,181,141;
+  --sr-county-5-rgb: 95,164,123;
+  --sr-county-6-rgb: 77,149,106;
+  --sr-county-7-rgb: 53,135,88;
+  --sr-county-8-rgb: 45,120,77;
+  --sr-county-9-rgb: 37,106,67;
+  --sr-county-10-rgb: 26,92,56;
 
   /* Grays */
   --sr-gray-300: #3F3F46;

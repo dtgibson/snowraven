@@ -40,11 +40,12 @@ const REPO = join(HERE, '..')
 const VINTAGE = '2023' // pinned for reproducible re-runs
 const SOURCE_URL = `https://www2.census.gov/geo/tiger/GENZ${VINTAGE}/shp/cb_${VINTAGE}_us_county_500k.zip`
 const MAPSHAPER = 'mapshaper@0.6.102' // pinned via npx; not a project dependency (release-time only)
-// Visvalingam keep-shapes simplification %. Tuned to hit the ≤400 KB gzipped
-// budget (NFR-02) with the per-feature bbox stored, while keeping boundaries
-// recognizable at the zoom levels the overlay shows (minzoom ~4). At 2.5% the
-// asset is ~1.46 MB raw / ~382 KB gzipped.
-const SIMPLIFY_PCT = '2.5%'
+// Visvalingam keep-shapes simplification %. Raised from 2.5% to 10% (v0.5.48) for
+// sharp, precise boundaries at the overlay's zoom levels — the 2.5% asset rendered
+// as visibly blocky polygons (~12 vertices/county). At 10% the asset is roughly
+// ~4.2 MB raw / ~0.95 MB gzipped: still an on-demand chunk, off first paint and
+// fetched only when the county overlay is first enabled (NFR-02 budget raised below).
+const SIMPLIFY_PCT = '10%'
 const COORD_DP = 4 // ~11 m — ample at these zooms; a big size win
 const BBOX_DP = 4 // bbox carried per feature for O(1) viewport windowing
 
@@ -52,8 +53,8 @@ const OUT = join(REPO, 'frontend/src/assets/us-counties.json')
 
 // ── Guards (hard-fail, mirrors the taxonomy build) ────────────────────────────
 const MIN_FEATURES = 3000 // catches a truncated fetch / over-filter (50 states + DC ≈ 3,144)
-const RAW_CEILING = 1.5 * 1024 * 1024 // stretch ceiling for the raw asset
-const GZ_BUDGET = 400 * 1024 // the hard on-demand-chunk budget (NFR-02)
+const RAW_CEILING = 5.5 * 1024 * 1024 // stretch ceiling for the raw asset (raised for the 10% geometry)
+const GZ_BUDGET = 1.3 * 1024 * 1024 // hard on-demand-chunk budget (NFR-02, raised to ~1.3 MB for sharp county lines)
 
 // State allow-list: 50 states + DC. STATEFP 01–56 (with the usual gaps) are the
 // states + DC; 60/66/69/72/78 are territories (PR/VI/GU/AS/MP) whose TIGER county

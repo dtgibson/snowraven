@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { ObservationEntry } from '../types'
 import {
-  buildCountyAggregates, computeCountyTiers, countyMetricValue, nonZeroMetricValues,
+  buildCountyAggregates, computeCountyTiers, countyMetricValue, nonZeroMetricValues, COUNTY_CLASS_COUNT,
 } from './countyShading'
 import { computeChecklists, computeGeo } from './birdingStats'
 import { countyKey } from './countyBoundaries'
@@ -129,6 +129,17 @@ describe('computeCountyTiers', () => {
     expect(t.tierFor(0)).toBe(0)
     expect(t.tierFor(5)).toBe(1)
     expect(t.tierFor(10)).toBe(2)
+  })
+
+  it('defaults to up to 10 quantile classes (COUNTY_CLASS_COUNT)', () => {
+    expect(COUNTY_CLASS_COUNT).toBe(10)
+    const vals = Array.from({ length: 30 }, (_, i) => (i + 1) * 5) // 5..150, 30 distinct
+    const t = computeCountyTiers(vals) // no maxClasses arg → default 10
+    expect(t.breaks).toHaveLength(COUNTY_CLASS_COUNT)
+    expect(t.legend).toHaveLength(COUNTY_CLASS_COUNT)
+    expect(t.tierFor(5)).toBe(1)
+    expect(t.tierFor(150)).toBe(10)
+    for (let i = 1; i < t.breaks.length; i++) expect(t.breaks[i]).toBeGreaterThan(t.breaks[i - 1])
   })
 })
 

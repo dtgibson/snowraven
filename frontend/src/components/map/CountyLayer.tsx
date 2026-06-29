@@ -30,12 +30,19 @@ import { HotspotLink } from '../HotspotLink'
 import { updateMapCursor } from '../../lib/mapPins'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 
-// Fallback ramp (index = tier 1..4) when the --sr-county-N tokens can't be read.
-// These are the D-01 values; the live values come from the tokens (theme-aware,
-// though this ramp is identical in both themes — basemap-anchored).
-const COUNTY_FALLBACK: Record<1 | 2 | 3 | 4, string> = { 1: '#C3E8D1', 2: '#7FCB9E', 3: '#3E9C66', 4: '#1A5C38' }
+// Tier 1..10 — the green --sr-county-N ramp (10 data-driven quantile classes so
+// well-birded counties separate instead of clumping in one coarse top class).
+type CountyTier = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
 
-function countyColor(tier: 1 | 2 | 3 | 4): string {
+// Fallback ramp (index = tier 1..10) when the --sr-county-N tokens can't be read.
+// These mirror globals.css; the live values come from the tokens (theme-aware,
+// though this ramp is identical in both themes — basemap-anchored).
+const COUNTY_FALLBACK: Record<CountyTier, string> = {
+  1: '#C3E8D1', 2: '#A8D5BA', 3: '#8EC4A3', 4: '#71B58D', 5: '#5FA47B',
+  6: '#4D956A', 7: '#358758', 8: '#2D784D', 9: '#256A43', 10: '#1A5C38',
+}
+
+function countyColor(tier: CountyTier): string {
   if (typeof document === 'undefined') return COUNTY_FALLBACK[tier]
   const v = getComputedStyle(document.documentElement).getPropertyValue(`--sr-county-${tier}`).trim()
   return v || COUNTY_FALLBACK[tier]
@@ -172,7 +179,10 @@ export function CountyLayer({
   void themeRev
 
   const fillPaint: FillLayerSpecification['paint'] = {
-    'fill-color': ['match', ['get', 'tier'], 1, countyColor(1), 2, countyColor(2), 3, countyColor(3), 4, countyColor(4), '#000000'],
+    'fill-color': ['match', ['get', 'tier'],
+      1, countyColor(1), 2, countyColor(2), 3, countyColor(3), 4, countyColor(4), 5, countyColor(5),
+      6, countyColor(6), 7, countyColor(7), 8, countyColor(8), 9, countyColor(9), 10, countyColor(10),
+      '#000000'],
     'fill-opacity': ['case', ['>', ['get', 'tier'], 0], 0.85, 0],
   }
   const linePaint: LineLayerSpecification['paint'] = {
@@ -194,24 +204,24 @@ export function CountyLayer({
         <Layer id="sr-county-line" type="line" minzoom={COUNTY_MINZOOM} paint={linePaint} layout={lineLayout} beforeId={insertBelow} />
         {sel && (
           <Popup longitude={sel.lng} latitude={sel.lat} anchor="bottom" offset={10} closeOnClick={false} onClose={() => setSel(null)} maxWidth="248px">
-            <div style={{ minWidth: 188, fontSize: '0.8125rem' }}>
+            <div style={{ minWidth: 188, maxWidth: 220, fontSize: '0.8125rem' }}>
               {selRegion ? (
                 <OutboundLink
                   href={`${REGION_URL}${encodeURIComponent(selRegion)}`}
                   aria-label={`Open ${sel.name} on eBird (opens in a new tab)`}
-                  style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--sr-accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--sr-accent)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, minWidth: 0, maxWidth: '100%' }}
                 >
-                  {sel.name}
+                  <span className="sr-wrap-anywhere" style={{ minWidth: 0 }}>{sel.name}</span>
                   <ExternalLink size={11} strokeWidth={2.5} aria-hidden="true" style={{ flexShrink: 0 }} />
                 </OutboundLink>
               ) : (
-                <div style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--sr-text)' }}>{sel.name}</div>
+                <div className="sr-wrap-anywhere" style={{ fontWeight: 600, fontSize: '0.8125rem', color: 'var(--sr-text)' }}>{sel.name}</div>
               )}
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{stateNameFor(sel.stusps)}</div>
 
               <div style={{ display: 'flex', gap: 18, marginTop: 9 }}>
-                <CountStat n={selSpecies} label="species" active={metric === 'species'} />
-                <CountStat n={selRecords} label="checklists" active={metric === 'records'} />
+                <CountStat n={selSpecies} label="species" active={metric === 'species'} title="Distinct species you've recorded in this county" />
+                <CountStat n={selRecords} label="checklists" active={metric === 'records'} title="Your checklists in this county — not individual birds counted" />
               </div>
 
               <CountyPopupTop
@@ -298,7 +308,7 @@ export function CountyLayer({
                           width: 11, height: 11, borderRadius: 3, flexShrink: 0,
                           border: '1px solid var(--sr-border-medium)',
                           borderStyle: tier > 0 ? 'solid' : 'dashed',
-                          background: tier > 0 ? countyColor(tier as 1 | 2 | 3 | 4) : 'transparent',
+                          background: tier > 0 ? countyColor(tier as CountyTier) : 'transparent',
                         }} />
                         <span style={{ flex: 1, minWidth: 0, fontSize: '0.78125rem', color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {row.name}
@@ -326,10 +336,10 @@ export function CountyLayer({
   )
 }
 
-function CountStat({ n, label, active }: { n: number; label: string; active: boolean }) {
+function CountStat({ n, label, active, title }: { n: number; label: string; active: boolean; title?: string }) {
   const zero = n === 0
   return (
-    <div>
+    <div title={title}>
       <div style={{
         fontSize: '1.0625rem', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.01em',
         color: zero ? 'var(--sr-text-disabled)' : active ? 'var(--sr-accent)' : 'var(--sr-text)',
@@ -355,7 +365,8 @@ function CountyPopupTop({ agg, metric, onOpenSpecies, hasEntryFor, taxonCodeFor,
   isPublicHotspot?: (locId: string) => boolean
 }) {
   const wrap = { marginTop: 10, paddingTop: 9, borderTop: '1px solid var(--sr-border)' } as const
-  const title = { fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--sr-text-muted)', marginBottom: 6 } as const
+  const title = { fontSize: '0.625rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--sr-text-muted)', marginBottom: 2 } as const
+  const caption = { fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginBottom: 6 } as const
   const rank = { flex: 'none', width: 11, fontSize: '0.625rem', fontWeight: 700, color: 'var(--sr-text-disabled)', fontVariantNumeric: 'tabular-nums' } as const
   const count = { flex: 'none', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' } as const
   const li = { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 } as const
@@ -374,7 +385,8 @@ function CountyPopupTop({ agg, metric, onOpenSpecies, hasEntryFor, taxonCodeFor,
 
   return (
     <div style={wrap}>
-      <div style={title}>{species ? 'Most recorded here' : 'Top locations'}</div>
+      <div style={title}>{species ? 'Most-reported species' : 'Top locations'}</div>
+      <div style={caption}>by your checklist count</div>
       <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {species
           ? (agg!.topSpecies).map((s, i) => (
@@ -389,7 +401,7 @@ function CountyPopupTop({ agg, metric, onOpenSpecies, hasEntryFor, taxonCodeFor,
                   size="sm"
                 />
               </span>
-              <span style={count}>{s.count.toLocaleString()}</span>
+              <span style={count} title={`On ${s.count.toLocaleString()} of your checklists`}>{s.count.toLocaleString()}</span>
             </li>
           ))
           : (agg!.topLocations).map((l, i) => (
@@ -404,7 +416,7 @@ function CountyPopupTop({ agg, metric, onOpenSpecies, hasEntryFor, taxonCodeFor,
                   style={{ fontSize: '0.75rem' }}
                 />
               </span>
-              <span style={count}>{l.count.toLocaleString()}</span>
+              <span style={count} title={`${l.count.toLocaleString()} of your checklists`}>{l.count.toLocaleString()}</span>
             </li>
           ))}
       </ol>

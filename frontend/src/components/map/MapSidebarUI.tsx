@@ -1,7 +1,7 @@
 // Presentational sidebar primitives for the Map Explorer (extracted from
 // MapExplorer.tsx in a behavior-preserving split). No map/state closures.
 
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, ChevronDown } from 'lucide-react'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 
 export function SegControl({ options, value, onChange, ariaLabel }: {
@@ -54,7 +54,7 @@ export function SidebarLabel({ children }: { children: React.ReactNode }) {
 // and pans the map. role="list"/"listitem" + an explicit aria-label make the
 // purpose clear to a screen-reader user. Capped, with an over-cap "zoom in" hint
 // mirroring the atlas overlay.
-export function InViewMarkerList<T>({ heading, instructions, items, total, overCap, selectedId, getId, getPrimary, getSecondary, getDotColor, getDotLabel, onActivate }: {
+export function InViewMarkerList<T>({ heading, instructions, items, total, overCap, selectedId, getId, getPrimary, getSecondary, getDotColor, getDotLabel, onActivate, collapsed = false, onToggleCollapsed, panelId }: {
   heading: string
   instructions: string
   items: T[]
@@ -68,10 +68,26 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
   getDotColor?: (item: T) => string
   getDotLabel?: (item: T) => string
   onActivate: (item: T) => void
+  /** When onToggleCollapsed is set, the heading becomes a collapse disclosure
+   *  (chevron + aria-expanded) and the body collapses via grid-rows + inert,
+   *  mirroring the Filters panel / Counties-in-view disclosures. */
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
+  panelId?: string
 }) {
   return (
     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
-      <SidebarLabel>{heading}</SidebarLabel>
+      {onToggleCollapsed ? (
+        <button type="button" tabIndex={0} onClick={onToggleCollapsed} aria-expanded={!collapsed} aria-controls={panelId}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: 0, marginBottom: collapsed ? 0 : 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+          <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)' }}>{heading} ({total.toLocaleString()})</span>
+          <ChevronDown size={14} style={{ color: 'var(--sr-text-muted)', transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
+        </button>
+      ) : (
+        <SidebarLabel>{heading}</SidebarLabel>
+      )}
+      <div id={panelId} style={{ display: 'grid', gridTemplateRows: collapsed ? '0fr' : '1fr', transition: 'grid-template-rows 0.2s ease' }}>
+        <div inert={collapsed} style={{ overflow: 'hidden', minHeight: 0 }}>
       <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
         {instructions}
       </div>
@@ -131,6 +147,8 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
           )}
         </>
       )}
+        </div>
+      </div>
     </div>
   )
 }

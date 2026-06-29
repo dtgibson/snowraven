@@ -143,7 +143,7 @@ export function nonZeroMetricValues(aggregates: Map<string, CountyAggregate>, me
 }
 
 export interface CountyTiers {
-  /** Upper bound of each class, strictly ascending; length = class count (0–4). */
+  /** Upper bound of each class, strictly ascending; length = class count (0–10). */
   breaks: number[]
   /** value → tier 1..N (0 if the county has no record for the metric). */
   tierFor(value: number): number
@@ -151,15 +151,20 @@ export interface CountyTiers {
   legend: { tier: number; min: number; max: number }[]
 }
 
+/** Number of classes in the county choropleth — the green --sr-county-1..N ramp.
+ *  Quantile (equal-count) breaks over the user's own counts, so adjacent
+ *  well-birded counties separate instead of all landing in one coarse top class. */
+export const COUNTY_CLASS_COUNT = 10
+
 /**
  * Data-driven quantile tiers over the user's own non-zero county values for the
- * active metric, mapped onto up to `maxClasses` classes (the green ramp has 4).
+ * active metric, mapped onto up to `maxClasses` classes (the green ramp has 10).
  * Ties / small datasets collapse to FEWER classes — never empty or duplicate
  * ranges (FR-11). Zero non-zero counties → empty breaks/legend and a tierFor that
  * always returns 0 (FR-14: the layer draws no fills, the control shows the honest
  * "nothing to shade" note).
  */
-export function computeCountyTiers(nonZeroValues: number[], maxClasses = 4): CountyTiers {
+export function computeCountyTiers(nonZeroValues: number[], maxClasses = COUNTY_CLASS_COUNT): CountyTiers {
   const positive = nonZeroValues.filter(v => v > 0).sort((a, b) => a - b)
   if (positive.length === 0) {
     return { breaks: [], tierFor: () => 0, legend: [] }
@@ -198,5 +203,5 @@ export function computeCountyTiers(nonZeroValues: number[], maxClasses = 4): Cou
 /** Legend title + unit per metric (used by the sidebar legend). */
 export const COUNTY_METRIC_META: Record<CountyMetric, { title: string; unit: string; label: string }> = {
   species: { title: 'Distinct species per county', unit: 'species', label: 'Species' },
-  records: { title: 'Total checklists per county', unit: 'checklists', label: 'Records' },
+  records: { title: 'Total checklists per county', unit: 'checklists', label: 'Checklists' },
 }

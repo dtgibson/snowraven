@@ -1,37 +1,54 @@
 ## What We Accomplished
 
-Cleared the high-severity `undici` advisory that `npm audit` flagged in the
-frontend. `undici` is a dev/test-only dependency (pulled by `jsdom`, the vitest
-jsdom test environment), so it never shipped in the app — the production-only
-audit was, and remains, clean. A non-breaking `npm audit fix` bumped it
-(7.27.1 → 7.28.0) and the audit is now clean with no high/critical findings.
-**No version bump:** a dev-only change leaves the app bundle byte-identical, and
-skipping the bump keeps the still-pending v0.5.47 binary release untouched.
+Shipped **Map Explorer fixes** as **v0.5.48** — five refinements to the county overlay:
+
+1. **Sharper county lines.** Regenerated the bundled US Census boundary geometry at
+   10%-keep (from 2.5%), so the lines trace coastlines and edges crisply instead of
+   looking blocky. The on-demand county chunk grows ~310 KB → ~751 KB gz (off first
+   paint, fetched only when the overlay is first opened, then cached).
+2. **A finer 10-step shading scale.** The "Shade by species seen" choropleth widened
+   from 4 to 10 data-driven quantile steps so well-birded counties stand apart.
+3. **Clearer popup counts.** The county popup count is now plainly your *checklists*
+   (not individual birds) — caption, tooltips, and a "Records" → "Checklists" relabel.
+4. **No more popup overflow.** Long county names wrap inside the popup.
+5. **Collapsible "… in view" lists.** A chevron collapses the Sightings/Hotspots/
+   Targets/Nearby-Lifers in-view lists; the count stays visible when collapsed.
+
+Frontend-only; no new providers, no new network calls; privacy unchanged. All six
+Improve-lane stages passed in Studio Style: 1163 tests green, security clean, full CI
+mirror (lint, typecheck, test, build) green.
 
 ## What Has Been Saved
 
-- `frontend/package-lock.json` — `undici` 7.28.0; the lockfile's stale root
-  metadata (`version` 0.5.44 → 0.5.47, the `engines` block) synced to
-  `package.json`. App source untouched.
-- `DECISIONS.md` — the cleanup and the explicit no-version-bump decision.
-- `CLAUDE.md` — a Versioning carve-out: dev-only/toolchain changes that don't
-  affect the bundle skip the version bump / changelog / tag / release.
-- `pipeline/dev-dependency-cleanup/` — change-brief, pr-description, qa-report,
-  security-report, decisions.
-- Committed to `main` and pushed. No tag, no release (dev-only).
+- Release commit on `main`, tagged `v0.5.48` (both pushed; Windows CI building).
+  - Changed: `frontend/src/components/map/CountyLayer.tsx`,
+    `frontend/src/components/map/MapSidebarUI.tsx`, `frontend/src/components/MapExplorer.tsx`,
+    `frontend/src/lib/countyShading.ts`, `frontend/src/globals.css`,
+    `frontend/src/assets/us-counties.json` (regenerated), `scripts/build-county-boundaries.mjs`,
+    the version files, `CHANGELOG.md`, `docs/HELP.md`, `website/index.html`, and the records
+    (`CLAUDE.md`, `DECISIONS.md`, `ROADMAP.md`).
+  - New/extended tests: `countyShading.test.ts` (10-class), `countyContrast.test.ts`
+    (tiers 1..10), `MapExplorerInViewList.test.tsx` (collapse disclosure).
+  - Feature artifacts in `pipeline/map-explorer-fixes/` (change-brief, pr-description,
+    qa-report, security-report).
 
 ## Where We Are
 
-Improvement complete — all six Improve-lane stages done. Source is on `main`.
-No binary release for this change (dev-only, byte-identical bundle).
+Improvement complete — all six Improve-lane stages approved/closed. Source is pushed
+and tagged. The **binary release is the Mac's step.**
 
-**Still pending on the Mac (unchanged by this run): the v0.5.47 binary release.**
-On the Mac: `git checkout main && git pull --ff-only origin main`, then
-`nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`, then `zsh -lc ./release.sh`;
-verify `gh release view v0.5.47`. This dev-dep fix rides along on `main`
-harmlessly (version stays 0.5.47).
+**Next action (the Mac): release v0.5.48.**
+1. `git checkout main && git pull --ff-only origin main`
+2. `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`
+3. `zsh -lc ./release.sh`
+4. Verify: `gh release view v0.5.48`
+
+**v0.5.48 supersedes the still-unreleased v0.5.45, v0.5.46, and v0.5.47** — its source
+rolls up all of them, so releasing 0.5.48 alone is sufficient (one consolidated binary).
+After the tag push, confirm the selected `windows-build.yml` run's `headSha` equals
+`git rev-parse v0.5.48^{commit}` before running `release.sh`.
 
 ## Resume Prompt
 
-To resume work, run `/weft` in a Claude Code session in this project — it reads
-saved state and picks up from the current (idle) state.
+To resume work, run `/weft` in a Claude Code session in this project — it reads saved
+state and picks up from the current (idle) state.

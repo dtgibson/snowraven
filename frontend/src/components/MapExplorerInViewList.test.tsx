@@ -106,6 +106,67 @@ describe('Map Explorer in-view sightings list', () => {
   })
 })
 
+// The "… in view" lists can be collapsed via a chevron disclosure (aria-expanded
+// + inert body), mirroring the Filters panel / Counties-in-view pattern. The
+// disclosure only appears when the caller wires onToggleCollapsed; otherwise the
+// list keeps its plain (non-collapsible) heading.
+describe('InViewMarkerList collapse disclosure', () => {
+  function renderCollapsible(collapsed: boolean, onToggle: () => void) {
+    const result = markersInView([...LOCS].sort((a, b) => b.count - a.count), BOUNDS)
+    return render(
+      <InViewMarkerList
+        heading="Sightings in view"
+        instructions="Select a location."
+        items={result.visible}
+        total={result.total}
+        overCap={result.overCap}
+        selectedId={null}
+        getId={l => l.locId}
+        getPrimary={l => l.locName}
+        getSecondary={l => `${l.count} obs`}
+        onActivate={vi.fn()}
+        collapsed={collapsed}
+        onToggleCollapsed={onToggle}
+        panelId="sr-inview-test"
+      />,
+    )
+  }
+
+  it('renders the heading as a disclosure button carrying the in-view count', () => {
+    renderCollapsible(false, vi.fn())
+    const header = screen.getByRole('button', { name: /Sightings in view \(2\)/ })
+    expect(header.getAttribute('aria-expanded')).toBe('true')
+    expect(header.getAttribute('aria-controls')).toBe('sr-inview-test')
+  })
+
+  it('toggling the disclosure calls onToggleCollapsed', () => {
+    const onToggle = vi.fn()
+    renderCollapsible(false, onToggle)
+    fireEvent.click(screen.getByRole('button', { name: /Sightings in view/ }))
+    expect(onToggle).toHaveBeenCalledTimes(1)
+  })
+
+  it('collapses the body (aria-expanded false + inert) but keeps the count visible', () => {
+    const { container } = renderCollapsible(true, vi.fn())
+    expect(screen.getByRole('button', { name: /Sightings in view/ }).getAttribute('aria-expanded')).toBe('false')
+    // The body is inert when collapsed, so its row buttons leave the tab order.
+    expect(container.querySelector('#sr-inview-test [inert]')).toBeTruthy()
+    // The count stays in the collapsed header so the section is still informative.
+    expect(screen.getByRole('button', { name: /Sightings in view \(2\)/ })).toBeTruthy()
+  })
+
+  it('without onToggleCollapsed it keeps a plain (non-collapsible) heading', () => {
+    const result = markersInView([...LOCS], BOUNDS)
+    render(
+      <InViewMarkerList heading="Hotspots in view" instructions="x" items={result.visible}
+        total={result.total} overCap={result.overCap} selectedId={null}
+        getId={l => l.locId} getPrimary={l => l.locName} getSecondary={() => ''} onActivate={vi.fn()} />,
+    )
+    // No header button → the heading is a plain label, not a disclosure.
+    expect(screen.queryByRole('button', { name: /Hotspots in view/ })).toBeNull()
+  })
+})
+
 // SegControl is the shared segmented control behind the Map Explorer radius,
 // breeding filter, Pins/Heatmap, and All/Week toggles. Its active option must be
 // exposed via aria-pressed (style-only state is invisible to a screen reader),

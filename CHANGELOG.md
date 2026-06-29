@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.48] - 2026-06-29
+
+### Changed
+- **Map Explorer county overlay — five fixes and refinements.**
+  - **Sharper county lines.** The county boundaries now come from a higher-resolution version of the bundled US Census geometry, so they trace real coastlines and county edges crisply instead of looking blocky. (The county boundary data still downloads only when you first turn the overlay on, then stays cached.)
+  - **A finer shading scale.** *Shade by species seen* now uses ten data-driven steps instead of four, so your well-birded counties stand apart from one another instead of all landing in the same darkest shade. The steps are still quantiles of your own county totals, so the breaks fit your data.
+  - **Clearer county popup counts.** The popup now makes plain that its counts are your **checklists** — how many of your checklists reported a species in that county — not a tally of individual birds. There's a "by your checklist count" caption, hover tooltips on the numbers, and the metric switch is relabeled **Species / Checklists**.
+  - **Long county names no longer overflow.** A county with a long name (e.g. an Alaska census area) now wraps neatly inside its popup instead of running off the edge.
+  - **Collapsible "… in view" lists.** Each Map Explorer panel's "… in view" list (Sightings, Hotspots, Targets, Nearby Lifers) now has a chevron in its header to collapse or expand it; the count stays visible when collapsed, so you can tuck a long list away and keep the map controls in reach.
+
 ## [0.5.47] - 2026-06-28
 
 ### Changed

@@ -22,7 +22,7 @@ import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { CountyLayer } from './map/CountyLayer'
 import type { CountyFC } from '../lib/countyBoundaries'
-import { buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_METRIC_META, type CountyMetric } from '../lib/countyShading'
+import { buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_METRIC_META, COUNTY_CLASS_COUNT, type CountyMetric } from '../lib/countyShading'
 import { nextShadingState } from '../lib/shadingExclusion'
 import { computeChecklists, filterObservations } from '../lib/birdingStats'
 import { useHotspotSet } from '../lib/useHotspotSet'
@@ -183,6 +183,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // My Sightings filters
   const [filterOpen, setFilterOpen]         = useState(true)
+  // Per-panel collapsed state for the "… in view" lists (session-only, like
+  // filterOpen and the Counties-in-view disclosure). Absent key = expanded.
+  const [inviewCollapsed, setInviewCollapsed] = useState<Record<string, boolean>>({})
+  const toggleInview = (key: string) => setInviewCollapsed(m => ({ ...m, [key]: !m[key] }))
   const [speciesFilter, setSpeciesFilter]   = useState('')
   const [dateFrom, setDateFrom]             = useState('')
   const [dateTo, setDateTo]                 = useState('')
@@ -759,7 +763,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Quantile tiers over the active metric's non-zero county values; empty when
   // there are none (drives the honest "nothing to shade" note).
   const countyTiers = useMemo(
-    () => computeCountyTiers(countyAggregates ? nonZeroMetricValues(countyAggregates, countyMetric) : [], 4),
+    () => computeCountyTiers(countyAggregates ? nonZeroMetricValues(countyAggregates, countyMetric) : [], COUNTY_CLASS_COUNT),
     [countyAggregates, countyMetric],
   )
 
@@ -1162,7 +1166,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   <div style={{ marginTop: 10 }}>
                     <SegControl
                       ariaLabel="Choropleth metric"
-                      options={[{ value: 'species', label: 'Species' }, { value: 'records', label: 'Records' }]}
+                      options={[{ value: 'species', label: 'Species' }, { value: 'records', label: 'Checklists' }]}
                       value={countyMetric}
                       onChange={v => setCountyMetric(v as CountyMetric)}
                     />
@@ -1352,6 +1356,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             getSecondary={l => `${l.count.toLocaleString()} observation${l.count !== 1 ? 's' : ''} · ${l.species.size} species`}
             getDotColor={() => 'var(--sr-map-visited)'}
             onActivate={openSightingFromList}
+            collapsed={!!inviewCollapsed['sightings']}
+            onToggleCollapsed={() => toggleInview('sightings')}
+            panelId="sr-inview-sightings"
           />
         </div>
       </div>
@@ -1514,6 +1521,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           getDotColor={p => `var(--sr-map-${p.kind})`}
           getDotLabel={p => p.kind === 'visited' ? 'Visited' : p.kind === 'personal' ? 'Personal location' : 'Unvisited'}
           onActivate={openHotspotFromList}
+          collapsed={!!inviewCollapsed['hotspots']}
+          onToggleCollapsed={() => toggleInview('hotspots')}
+          panelId="sr-inview-hotspots"
         />
       )}
     </div>
@@ -1683,7 +1693,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {atlasOverlayControls}
           {displayedTargetPins.length > 0 && (
             <div>
-              <SidebarLabel>Targets in View</SidebarLabel>
+              <button type="button" tabIndex={0} onClick={() => toggleInview('targets')} aria-expanded={!inviewCollapsed['targets']} aria-controls="sr-inview-targets"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%', padding: 0, marginBottom: inviewCollapsed['targets'] ? 0 : 6, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' }}>
+                <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--sr-text-muted)' }}>Targets in View ({targetsInView.total.toLocaleString()})</span>
+                <ChevronDown size={14} style={{ color: 'var(--sr-text-muted)', transform: inviewCollapsed['targets'] ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />
+              </button>
+              <div id="sr-inview-targets" style={{ display: 'grid', gridTemplateRows: inviewCollapsed['targets'] ? '0fr' : '1fr', transition: 'grid-template-rows 0.2s ease' }}>
+                <div inert={!!inviewCollapsed['targets']} style={{ overflow: 'hidden', minHeight: 0 }}>
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.4 }}>
                 Select a target to open its details on the map. Updates as you pan or zoom.
               </div>
@@ -1757,6 +1773,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   Showing the first {MARKER_LIST_CAP} of {targetsInView.total.toLocaleString()} in view — zoom in to narrow the list.
                 </div>
               )}
+                </div>
+              </div>
             </div>
           )}
           {displayedTargetPins.length === 0 && (
@@ -1832,6 +1850,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               getDotColor={l => tierColors(l.tier).bg}
               getDotLabel={l => l.tier === 'fresh' ? 'Seen in last 7 days' : l.tier === 'mid' ? 'Seen 8–14 days ago' : 'Seen 15–30 days ago'}
               onActivate={openLiferFromList}
+              collapsed={!!inviewCollapsed['lifers']}
+              onToggleCollapsed={() => toggleInview('lifers')}
+              panelId="sr-inview-lifers"
             />
           ) : (
             <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>

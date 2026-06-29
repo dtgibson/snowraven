@@ -1,18 +1,18 @@
 {
   "activeFeature": null,
-  "sessionNumber": 56,
+  "sessionNumber": 57,
   "sessionType": null,
   "currentStage": null,
   "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "autonomyMode": "studio-style",
-  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. Last run (dev-dependency-cleanup, Improve lane) closed out. Project release rhythm: the Chronicler runs BEFORE the push; this VM commits + pushes main (and a version tag when there IS a release) as the final deploy step; the Mac runs release.sh.",
+  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. Last run (map-explorer-fixes, Improve lane) closed out and shipped as v0.5.48. Project release rhythm: the Chronicler runs BEFORE the push; this VM commits + pushes main + the version tag as the final deploy step; the Mac runs release.sh.",
   "ideaId": null,
   "confirmedArtifacts": [],
   "releasedVersion": "0.5.44",
-  "lastFeature": "dev-dependency-cleanup (Improve/maintain lane) -- COMPLETE through all 6 Weft stages. Patched the dev-only undici npm audit finding (7.27.1 -> 7.28.0 via a non-breaking npm audit fix; pulled transitively by the jsdom test dep). Lockfile-only, no version bump/tag/release (dev-only, byte-identical bundle). Committed + pushed to main. Full CI mirror green (1158 tests); security clean.",
-  "remainingBacklog": "BINARY RELEASE STILL PENDING ON THE MAC: v0.5.47 (supersedes the unreleased v0.5.45 and v0.5.46). On the Mac: git checkout main && git pull --ff-only, then `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`, then `zsh -lc ./release.sh`; verify `gh release view v0.5.47`. The dev-dependency-cleanup fix is on main one commit ahead of the v0.5.47 tag and rides along harmlessly (version still 0.5.47). ROADMAP Up Next: mobile app; Windows code signing.",
-  "createdAt": "2026-06-29T03:50:23Z",
-  "updatedAt": "2026-06-29T04:01:00Z"
+  "lastFeature": "map-explorer-fixes (Improve/maintain lane) -- COMPLETE through all 6 Weft stages, shipped as v0.5.48. Five Map Explorer county-overlay refinements: popup name wrap, sharper county geometry (10%-keep, ~751 KB gz), checklist-count clarity (+ Species/Checklists relabel), 10-step quantile shading ramp, and collapsible in-view lists. 1163 tests green; security clean. v0.5.48 committed + pushed to main and tag v0.5.48 pushed (Windows CI triggered).",
+  "remainingBacklog": "BINARY RELEASE PENDING ON THE MAC: v0.5.48 (supersedes the unreleased v0.5.45, v0.5.46, AND v0.5.47 -- its source rolls up all of them, so releasing 0.5.48 alone is sufficient). On the Mac: git checkout main && git pull --ff-only, then `nvm install $(cat .nvmrc) && nvm use $(cat .nvmrc)`, then `zsh -lc ./release.sh`; verify `gh release view v0.5.48`. Standing check after the tag push: confirm the selected windows-build.yml run's headSha == git rev-parse v0.5.48^{commit}. ROADMAP Up Next: mobile app; Windows code signing.",
+  "createdAt": "2026-06-29T04:26:59Z",
+  "updatedAt": "2026-06-29T04:55:00Z"
 }
