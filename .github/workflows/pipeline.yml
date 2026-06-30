@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# Cancel a superseded in-flight run of the SAME ref (a quick re-push to main, or
+# new commits on a PR) — main and PRs get distinct groups so they never cancel
+# each other. (pages.yml deliberately keeps cancel-in-progress:false for publishes.)
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     name: Frontend — lint, test, build

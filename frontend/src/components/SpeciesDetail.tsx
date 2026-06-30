@@ -295,6 +295,17 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     })
   }, [phase, selectedSpecies, mergeSubspecies, countyFilter, dateRange, hasLocationFilter])
 
+  // Full-backup count for the selected species — the "of N" denominator in the
+  // location-filter strip. It does NOT depend on the date/county filter, so
+  // memoize it once per species/merge change instead of rescanning the whole
+  // backup on every date-filter keystroke.
+  const baseCount = useMemo(() => {
+    if (phase.tag !== 'ready' || !selectedSpecies) return 0
+    return mergeSubspecies
+      ? phase.observations.filter(o => normalizeSpeciesName(o.commonName) === selectedSpecies).length
+      : phase.observations.filter(o => o.commonName === selectedSpecies).length
+  }, [phase, selectedSpecies, mergeSubspecies])
+
   // Sightings stats
   const sightingsStats = useMemo(() => computeSightingsStats(speciesObs), [speciesObs])
 
@@ -724,9 +735,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
             if (dateRange.from && dateRange.to) parts.push(`${formatDate(dateRange.from)} – ${formatDate(dateRange.to)}`)
             else if (dateRange.from) parts.push(`From ${formatDate(dateRange.from)}`)
             else if (dateRange.to) parts.push(`Through ${formatDate(dateRange.to)}`)
-            const baseCount = mergeSubspecies
-              ? observations.filter((o: ObservationEntry) => normalizeSpeciesName(o.commonName) === selectedSpecies).length
-              : observations.filter((o: ObservationEntry) => o.commonName === selectedSpecies).length
             parts.push(`Showing ${speciesObs.length} of ${baseCount} checklists`)
             return (
               <div className="sr-action-row" style={{

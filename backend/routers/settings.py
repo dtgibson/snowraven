@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 
 router = APIRouter()
 
@@ -40,12 +41,14 @@ async def _upload(upload: UploadFile, target: Path, slot: str) -> dict:
         raise HTTPException(status_code=413, detail="File exceeds the 50 MB limit.")
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(content)
+    # Offload the (up to 50 MB) write off the event loop so a slow disk can't
+    # block other requests; the on-disk result is identical.
+    await run_in_threadpool(target.write_bytes, content)
 
     uploaded_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     meta = _read_meta()
     meta[slot] = {"filename": filename, "uploadedAt": uploaded_at}
-    _write_meta(meta)
+    await run_in_threadpool(_write_meta, meta)
 
     return {"filename": filename, "uploadedAt": uploaded_at}
 

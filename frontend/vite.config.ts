@@ -33,10 +33,12 @@ export default defineConfig({
     },
   },
   build: {
-    // After the maplibre defer (0.5.42), the only chunk over the default 500 kB
-    // limit is vendor-maplibre (~1 MB) — now off the first-paint path and loaded
-    // only by the lazy map surfaces. Raise the limit so the build stops warning
-    // about a chunk that is intentionally isolated and no longer eagerly loaded.
+    // The chunks over the default 500 kB limit are now the bundled data assets
+    // (us-counties ~3.8 MB, ebird-taxonomy ~1.7 MB) plus vendor-maplibre
+    // (~1.03 MB) — all isolated, off the first-paint path, and loaded only by
+    // lazy / dynamic-import surfaces. The limit is raised so maplibre stops
+    // warning; the two large data chunks still exceed 1100 and trip the warning
+    // by design (they are intentionally big and never on first paint).
     chunkSizeWarningLimit: 1100,
     rollupOptions: {
       output: {

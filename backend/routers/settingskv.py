@@ -21,6 +21,7 @@ import re
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 
 router = APIRouter()
 
@@ -76,7 +77,9 @@ async def save_setting(key: str, request: Request):
         raise HTTPException(status_code=422, detail="Body must be valid JSON.")
 
     SETTINGS_DIR.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value), encoding="utf-8")
+    # Offload the write off the event loop (payloads up to ~16 MB); identical
+    # on-disk result. run_in_threadpool forwards the encoding kwarg.
+    await run_in_threadpool(path.write_text, json.dumps(value), encoding="utf-8")
     return {"ok": True}
 
 

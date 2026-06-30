@@ -144,6 +144,11 @@ export function computeTotals(checklists: ChecklistEntry[], lifeList: string[]) 
   const years = new Set<string>()
   const states = new Set<string>()
   const countries = new Set<string>()
+  // Earliest/latest date tracked in this pass. Dates are fixed-width YYYY-MM-DD,
+  // so lexicographic `<`/`>` matches calendar order — no need to allocate and
+  // sort a separate dates array just to read the min and max.
+  let firstDate: string | null = null
+  let lastDate: string | null = null
   for (const c of checklists) {
     locations.add(c.locationId)
     years.add(c.date.substring(0, 4))
@@ -152,8 +157,9 @@ export function computeTotals(checklists: ChecklistEntry[], lifeList: string[]) 
       const country = c.stateProvince.split('-')[0]
       if (country) countries.add(country)
     }
+    if (firstDate === null || c.date < firstDate) firstDate = c.date
+    if (lastDate === null || c.date > lastDate) lastDate = c.date
   }
-  const dates = checklists.map(c => c.date).sort()
   return {
     speciesCount: lifeList.length,
     checklistCount: checklists.length,
@@ -161,8 +167,8 @@ export function computeTotals(checklists: ChecklistEntry[], lifeList: string[]) 
     yearCount: years.size,
     stateCount: states.size,
     countryCount: countries.size,
-    firstDate: dates[0] ?? null,
-    lastDate: dates[dates.length - 1] ?? null,
+    firstDate,
+    lastDate,
   }
 }
 

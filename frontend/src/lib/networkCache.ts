@@ -1,5 +1,5 @@
 // Short-TTL in-memory cache for live eBird network data (hotspots, recent
-// observations, nemesis, region info). Repeat requests with the same params —
+// observations, region info). Repeat requests with the same params —
 // re-clicking Find, bouncing between view tabs, re-running the same address
 // search — hit the cache instead of eBird for the TTL window.
 //

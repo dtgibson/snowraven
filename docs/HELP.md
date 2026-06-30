@@ -433,7 +433,7 @@ SnowRaven keeps working without a connection. Every analytical tab and every map
 
 **What works offline:**
 
-- **All your tabs and maps open.** Each analytical tab and map opens offline once you've visited it online at least once. The maps draw your sightings, the heatmap, and the atlas blocks, plus the base map's place labels.
+- **All your tabs and maps open.** Each analytical tab and map opens offline once you've visited it online at least once. The maps draw your sightings, the heatmap, the atlas blocks, and the county lines & shading, plus the base map's place labels.
 - **Bird names stay complete from a cold start.** Even on a first-ever launch with no connection, bird names sort in taxonomic order and show their eBird and Birds of the World icons.
 - **Previously-loaded weather and tide re-show.** A checklist's weather or tide reading you loaded online once re-appears when you reopen that checklist offline, marked as the last loaded result with the time it was loaded.
 - **Honest messages when a live feature can't run.** When something needs the network and can't reach it, SnowRaven tells you plainly whether you're offline, missing an API key, or hit a server error -- rather than failing silently.

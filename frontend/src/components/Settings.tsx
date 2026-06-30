@@ -1100,7 +1100,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
     try {
       await storage.setApiKey(slot, input.trim())
       // A new eBird key must invalidate live eBird responses cached under the
-      // old one (hotspots / recent-obs / nemesis / region-info), or they'd
+      // old one (hotspots / recent-obs / region-info), or they'd
       // linger up to the 90s TTL. It also rebuilds the public-hotspot Set — a Set
       // built empty before the key was set would otherwise stay empty all session.
       if (slot === 'ebird') { clearNetworkCache(); invalidateHotspotSet() }

@@ -418,18 +418,20 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
         const status = await storage.getFilesStatus()
         if (cancelled) return
         if (!status.ebird) { setPhase({ tag: 'setup-required' }); return }
-        const ebird = await loadEbirdObservations()
+        // Load the eBird backup and the optional ML export concurrently (matches
+        // BirdingStats/MapExplorer/SpeciesDetail). The ML export is optional:
+        // without it, per-type media filters hide and "has media" falls back to
+        // the backup's catalog numbers (FR-22). loadMLExport catches parse errors
+        // but not file-read IO, so guard it with .catch to degrade gracefully.
+        const [ebird, ml] = await Promise.all([
+          loadEbirdObservations(),
+          loadMLExport().catch(() => null),
+        ])
         if (!ebird || cancelled) {
           setPhase({ tag: 'error', message: "Couldn't load your eBird backup from Settings. Try re-uploading it." })
           return
         }
-        // The ML export is optional: without it, per-type media filters hide
-        // and "has media" falls back to the backup's catalog numbers (FR-22).
-        let mediaMap: Record<string, string> | null = null
-        try {
-          const ml = await loadMLExport()
-          mediaMap = ml?.mediaMap ?? null
-        } catch { /* no export — degrade gracefully */ }
+        const mediaMap: Record<string, string> | null = ml?.mediaMap ?? null
         if (cancelled) return
         setPhase({ tag: 'ready', observations: ebird.observations, mediaMap })
       } catch {

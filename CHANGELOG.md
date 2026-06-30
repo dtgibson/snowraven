@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.52] - 2026-06-30
+
+### Changed
+- **Faster tide readings on the web and Raspberry-Pi build.** A checklist's tide lookup now fetches its three NOAA data series at the same time instead of one after another, so a reading loads in roughly a third of the round-trips — matching how the desktop app already did it. The readings themselves are unchanged.
+- **Under-the-hood tidying (no visible change).** A handful of internal performance and housekeeping cleanups that don't change how anything looks or works: a couple of Statistics and Species Detail calculations do less repeat work, file saves on the self-hosted server no longer briefly block other requests, and some unused scaffolding left over from early development was removed.
+- **Documentation caught up to the county overlay.** The README, in-app Help, and accessibility statement now mention the county lines & shading overlay in their "works offline" and keyboard-navigation sections, and the build-from-source notes were clarified.
+
 ## [0.5.51] - 2026-06-29
 
 ### Added
