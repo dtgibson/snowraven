@@ -1,22 +1,26 @@
 {
-  "activeFeature": null,
-  "sessionNumber": 59,
-  "sessionType": null,
-  "currentStage": null,
-  "lastCompletedStage": 6,
-  "lastCheckpointStatus": "approved",
-  "awaitingHuman": null,
+  "activeFeature": "colorblind-county-shading",
+  "sessionNumber": 60,
+  "sessionType": "feature",
+  "currentStage": 8,
+  "lastCompletedStage": 7,
+  "lastCheckpointStatus": "in-progress",
+  "awaitingHuman": { "gateId": "stage-8-deploy", "stage": 8, "openedAt": "2026-06-30T00:37:40Z" },
   "autonomyMode": "studio-style",
-  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. v0.5.50 (county-fill-sharpen, Improve lane) is FULLY SHIPPED -- source + binaries. The Mac pulled v0.5.50, ran release.sh, and published the binary release: macOS universal DMG notarized (Apple status Accepted, submission df5f88b7) + stapled, Windows installer signed locally, GitHub release marked Latest with latest.json carrying darwin-aarch64/darwin-x86_64/windows-x86_64; windows-build.yml run 28397907891 headSha verified == v0.5.50 commit (db722c7) before release. No pending releases. Release rhythm: VM commits + pushes main + the version tag; the Mac runs release.sh (zsh -lc ./release.sh; Homebrew node, nvm not needed) then records the binary release as shipped here.",
+  "autonomyNote": "Active feature run: colorblind-county-shading (Feature lane). Studio Style: participate=[designer]. Stages 1-7 DONE + Chronicler records written (DECISIONS/PRODUCT_CONTEXT/CLAUDE/ROADMAP) ready in the working tree. AWAITING the DEPLOY GATE decision (destructive). On 'Ship it': single commit of code+version(0.5.51)+docs+records+pipeline artifacts, push main, tag v0.5.51, push tag (triggers Windows CI). Then fire stage_completed(8)+(9)+completed, branded close, write closeout session-state + final handoff. The BINARY release (release.sh) runs on the Mac afterward -- do NOT run it here. STANDING CHECK after tag push: windows-build.yml selected-run headSha == git rev-parse v0.5.51^{commit}. If Dave instead asks for a live look first, start the app (web dev path) before pushing.",
   "ideaId": null,
   "confirmedArtifacts": [
-    "pipeline/county-fill-sharpen/change-brief.md",
-    "pipeline/county-fill-sharpen/qa-report.md",
-    "pipeline/county-fill-sharpen/security-report.md"
+    "pipeline/colorblind-county-shading/strategic-brief.md",
+    "pipeline/colorblind-county-shading/prd.md",
+    "pipeline/colorblind-county-shading/schema.md",
+    "pipeline/colorblind-county-shading/design-spec.md",
+    "pipeline/colorblind-county-shading/design.html",
+    "pipeline/colorblind-county-shading/qa-report.md",
+    "pipeline/colorblind-county-shading/security-report.md"
   ],
   "releasedVersion": "0.5.50",
-  "lastFeature": "county-fill-sharpen (Improve/maintain lane) -- COMPLETE through all 6 Weft stages, shipped as v0.5.50 SOURCE. Raised the bundled county geometry's simplify fidelity 10% -> 15% in build-county-boundaries.mjs and regenerated us-counties.json (~54 verts/county, 969KB raw-json gz / ~1.04MB built-chunk gz, within the 1.3MB gz guard) so the county FILL edge hugs the true boundary and the hair-thin shaded sliver under the crisp basemap-tile county line vanishes at high zoom when shading is on -- the deferred v0.5.49 'option D', done by sharpening the one file that drives both fill and the below-z9/offline line. No code/runtime/network/provider/privacy change. 1168 tests green; security clean; full CI mirror green. v0.5.50 committed + pushed to main, tagged, AND the binary release is now LIVE (macOS universal DMG notarized + stapled, Windows installer signed, GitHub release + latest.json published with darwin-aarch64/darwin-x86_64/windows-x86_64 entries; marked Latest).",
-  "remainingBacklog": "No pending releases -- v0.5.50 is fully shipped (source + binaries) and supersedes v0.5.49. The deferred high-zoom county-fill sliver follow-up was resolved by v0.5.50 (the idea-inbox item is done). ROADMAP Up Next: mobile app; Windows code signing.",
-  "createdAt": "2026-06-29T19:08:12Z",
-  "updatedAt": "2026-06-29T21:00:59Z"
+  "lastFeature": "county-fill-sharpen (Improve/maintain lane) -- shipped as v0.5.50 (source + binaries). Sharpened the bundled county geometry (10% -> 15% simplify) so the shaded county fill hugs the boundary and the high-zoom sliver under the crisp basemap county line is gone. Binary release LIVE.",
+  "remainingBacklog": "ROADMAP Up Next: mobile app; Windows code signing. On the Horizon: county shading on the Species Detail and Statistics maps; non-US county support; per-species county choropleth.",
+  "createdAt": "2026-06-29T22:15:21Z",
+  "updatedAt": "2026-06-30T00:37:40Z"
 }

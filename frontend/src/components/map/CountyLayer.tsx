@@ -15,7 +15,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { FeatureCollection } from 'geojson'
-import type { FillLayerSpecification, FilterSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent } from 'maplibre-gl'
+import type { FillLayerSpecification, FilterSpecification, LineLayerSpecification, MapGeoJSONFeature, MapLayerMouseEvent, MapStyleImageMissingEvent } from 'maplibre-gl'
 import { ExternalLink } from 'lucide-react'
 import {
   countiesInBounds, countyListRows, padBounds, countyKey, deriveCountyRegionCode, stateNameFor,
@@ -27,8 +27,10 @@ import {
 import { OutboundLink } from '../OutboundLink'
 import { BirdName } from '../BirdName'
 import { HotspotLink } from '../HotspotLink'
+import { CountyDensitySwatch } from './MapSidebarUI'
 import { updateMapCursor } from '../../lib/mapPins'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
+import { countyHatchImageData, countyHatchPixelRatio, countyHatchTierForImage, COUNTY_HATCH_IMAGE_ID, COUNTY_TIERS } from '../../lib/countyTextures'
 
 // Tier 1..10 — the green --sr-county-N ramp (10 data-driven quantile classes so
 // well-birded counties separate instead of clumping in one coarse top class).
@@ -90,6 +92,9 @@ interface Props {
   hasEntryFor?: (name: string) => boolean
   taxonCodeFor?: (commonName: string) => string | undefined
   isPublicHotspot?: (locId: string) => boolean
+  /** When true (and shading is on), shaded counties render as a per-tier
+   *  crosshatch density instead of flat color (colorblind-accessible mode). */
+  useTextures?: boolean
 }
 
 type Selected = { lng: number; lat: number; geoid: string; name: string; stusps: string }
@@ -98,7 +103,7 @@ const EMPTY_FC: FeatureCollection = { type: 'FeatureCollection', features: [] }
 
 export function CountyLayer({
   data, shade = false, aggregates = null, tiers, metric,
-  onOpenSpecies, hasEntryFor, taxonCodeFor, isPublicHotspot,
+  onOpenSpecies, hasEntryFor, taxonCodeFor, isPublicHotspot, useTextures = false,
 }: Props) {
   const map = useMap().current
   const [sel, setSel] = useState<Selected | null>(null)
@@ -190,14 +195,42 @@ export function CountyLayer({
     }
   }, [map])
 
-  // Re-resolve tier fill colors on a light/dark theme change (FR-27 parity —
-  // harmless here since the county ramp is theme-identical, but kept for the
-  // contract). MutationObserver on <html data-theme>.
+  // Register the county hatch sprites (for the "Use Textures" fill-pattern) at
+  // effect time, AND re-resolve the tier fill colors / regenerate the sprites on a
+  // light/dark theme change. One MutationObserver does both (the sprite tint reads
+  // --sr-county-N-rgb at generation). addImage needs only a style OBJECT, not a
+  // "loaded" style — do NOT gate this on isStyleLoaded() (false during ANY
+  // tile/source churn) with a once('load') fallback: `load` fires once per map
+  // LIFETIME, so a listener armed later never fires and the fill-pattern silently
+  // renders nothing (the documented post-mortem). The styleimagemissing safety net
+  // bakes only OUR ids on demand; foreign ids are ignored.
   useEffect(() => {
-    const obs = new MutationObserver(() => setThemeRev(n => n + 1))
+    if (!map) return
+    let cancelled = false
+    const addAll = () => {
+      if (cancelled) return
+      const dpr = countyHatchPixelRatio()
+      for (const tier of COUNTY_TIERS) {
+        const id = COUNTY_HATCH_IMAGE_ID[tier]
+        const img = countyHatchImageData(tier, dpr)
+        if (map.hasImage(id)) map.updateImage(id, img)
+        else map.addImage(id, img, { pixelRatio: dpr })
+      }
+    }
+    addAll()
+    const onMissing = (e: MapStyleImageMissingEvent) => {
+      if (cancelled) return
+      const tier = countyHatchTierForImage(e.id)
+      if (tier === null || map.hasImage(e.id)) return
+      const dpr = countyHatchPixelRatio()
+      map.addImage(e.id, countyHatchImageData(tier, dpr), { pixelRatio: dpr })
+    }
+    map.on('styleimagemissing', onMissing)
+    const onTheme = () => { addAll(); setThemeRev(n => n + 1) }
+    const obs = new MutationObserver(onTheme)
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
-    return () => obs.disconnect()
-  }, [])
+    return () => { cancelled = true; obs.disconnect(); map.off('styleimagemissing', onMissing) }
+  }, [map])
 
   const openCountyFromList = (row: CountyListRow) => {
     setSel({ lng: row.center[0], lat: row.center[1], geoid: row.geoid, name: row.name, stusps: row.stusps })
@@ -209,13 +242,28 @@ export function CountyLayer({
   // themeRev re-renders so the token reads below pick up a theme change.
   void themeRev
 
-  const fillPaint: FillLayerSpecification['paint'] = {
-    'fill-color': ['match', ['get', 'tier'],
-      1, countyColor(1), 2, countyColor(2), 3, countyColor(3), 4, countyColor(4), 5, countyColor(5),
-      6, countyColor(6), 7, countyColor(7), 8, countyColor(8), 9, countyColor(9), 10, countyColor(10),
-      '#000000'],
-    'fill-opacity': ['case', ['>', ['get', 'tier'], 0], 0.85, 0],
-  }
+  // When "Use Textures" is on AND shading is active, paint a per-tier crosshatch
+  // density (the colorblind-accessible read) instead of flat color. The layer id
+  // stays `sr-county-fill` in BOTH branches — load-bearing for the heatmap z-order
+  // and basemap-desaturation wiring (do-not-touch list). Tier 0 maps to a valid
+  // image hidden by fill-opacity 0.
+  const useHatch = useTextures && shadeOn
+  const fillPaint: FillLayerSpecification['paint'] = useHatch
+    ? {
+        'fill-pattern': ['match', ['get', 'tier'],
+          1, COUNTY_HATCH_IMAGE_ID[1], 2, COUNTY_HATCH_IMAGE_ID[2], 3, COUNTY_HATCH_IMAGE_ID[3],
+          4, COUNTY_HATCH_IMAGE_ID[4], 5, COUNTY_HATCH_IMAGE_ID[5], 6, COUNTY_HATCH_IMAGE_ID[6],
+          7, COUNTY_HATCH_IMAGE_ID[7], 8, COUNTY_HATCH_IMAGE_ID[8], 9, COUNTY_HATCH_IMAGE_ID[9],
+          10, COUNTY_HATCH_IMAGE_ID[10], COUNTY_HATCH_IMAGE_ID[1]],
+        'fill-opacity': ['case', ['>', ['get', 'tier'], 0], 1, 0],
+      }
+    : {
+        'fill-color': ['match', ['get', 'tier'],
+          1, countyColor(1), 2, countyColor(2), 3, countyColor(3), 4, countyColor(4), 5, countyColor(5),
+          6, countyColor(6), 7, countyColor(7), 8, countyColor(8), 9, countyColor(9), 10, countyColor(10),
+          '#000000'],
+        'fill-opacity': ['case', ['>', ['get', 'tier'], 0], 0.85, 0],
+      }
   const linePaint: LineLayerSpecification['paint'] = {
     'line-color': 'rgba(71,85,105,0.85)',
     'line-width': 1.3,
@@ -353,12 +401,16 @@ export function CountyLayer({
                           border: `1px solid ${isSelected ? 'var(--sr-accent-border)' : 'transparent'}`,
                         }}
                       >
-                        <span aria-hidden="true" style={{
-                          width: 11, height: 11, borderRadius: 3, flexShrink: 0,
-                          border: '1px solid var(--sr-border-medium)',
-                          borderStyle: tier > 0 ? 'solid' : 'dashed',
-                          background: tier > 0 ? countyColor(tier as CountyTier) : 'transparent',
-                        }} />
+                        {useTextures && tier > 0 ? (
+                          <CountyDensitySwatch tier={tier as CountyTier} size={11} />
+                        ) : (
+                          <span aria-hidden="true" style={{
+                            width: 11, height: 11, borderRadius: 3, flexShrink: 0,
+                            border: '1px solid var(--sr-border-medium)',
+                            borderStyle: tier > 0 ? 'solid' : 'dashed',
+                            background: tier > 0 ? countyColor(tier as CountyTier) : 'transparent',
+                          }} />
+                        )}
                         <span style={{ flex: 1, minWidth: 0, fontSize: '0.78125rem', color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {row.name}
                         </span>

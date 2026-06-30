@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>County shading — Use Textures · Design preview</title>
+<style>
+  :root {
+    --bg: #f5f7f4;
+    --card: #ffffff;
+    --inset: #f0f3ef;
+    --text: #19201b;
+    --muted: #5c675e;
+    --faint: #8a948b;
+    --border: #e3e7e2;
+    --border-med: #cdd4cd;
+    --accent: #2d8653;
+    --shadow: 0 1px 2px rgba(20,40,28,.06), 0 1px 8px rgba(20,40,28,.04);
+    /* basemap grey is the always-light Positron base — identical in both app themes */
+    --basemap: #dfe3dd;
+    --basemap-line: rgba(71,85,105,.85);
+    --basemap-label: #41504a;
+  }
+  [data-theme="dark"] {
+    --bg: #0a0a0a;
+    --card: #161a17;
+    --inset: #11150f;
+    --text: #e9ede9;
+    --muted: #9aa39c;
+    --faint: #6f7a72;
+    --border: #272d28;
+    --border-med: #39413a;
+    --accent: #34d399;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 1px 10px rgba(0,0,0,.3);
+    /* basemap stays light — the county ramp is basemap-anchored */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    transition: background .2s ease, color .2s ease;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* type roles */
+  .eyebrow {
+    font-size: .6875rem; font-weight: 700; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 10px;
+  }
+  h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -.02em; margin: 0 0 10px; line-height: 1.15; }
+  .lede { font-size: .95rem; color: var(--muted); margin: 0; max-width: 60ch; }
+  .section-label {
+    font-size: .71875rem; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--faint); margin: 0 0 4px;
+  }
+  .section-sub { font-size: .8125rem; color: var(--muted); margin: 0 0 18px; max-width: 64ch; }
+  section { margin-top: 52px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: var(--shadow); padding: 22px 24px;
+  }
+
+  /* top bar */
+  .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+  .theme-toggle {
+    display: inline-flex; align-items: center; gap: 9px; flex-shrink: 0;
+    background: var(--inset); border: 1px solid var(--border); border-radius: 999px;
+    padding: 7px 12px; font-size: .78rem; color: var(--muted); cursor: pointer;
+    font-family: inherit;
+  }
+  .theme-toggle:hover { border-color: var(--border-med); }
+  .theme-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); }
+
+  /* OQ chips */
+  .oq-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+  .oq {
+    flex: 1 1 240px; background: var(--inset); border: 1px solid var(--border);
+    border-radius: 10px; padding: 13px 15px;
+  }
+  .oq .oq-k { font-size: .6875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+  .oq .oq-v { font-size: .82rem; color: var(--text); margin-top: 3px; font-weight: 600; }
+  .oq .oq-d { font-size: .78rem; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+
+  /* ramp */
+  .ramp-row {
+    display: grid; grid-template-columns: 30px 128px 1fr auto; align-items: center;
+    gap: 16px; padding: 11px 0; border-top: 1px solid var(--border);
+  }
+  .ramp-row:first-child { border-top: 0; }
+  .tier-badge {
+    width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+    font-size: .8rem; font-weight: 700; color: var(--text);
+    background: var(--inset); border: 1px solid var(--border);
+  }
+  .range-cell .range-n { font-size: .82rem; font-weight: 600; }
+  .range-cell .range-u { font-size: .7rem; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; }
+  canvas.swatch { display: block; border: 1px solid var(--border-med); border-radius: 4px; background: transparent; }
+  canvas.swatch.lg { border-radius: 6px; }
+  .small-label { font-size: .68rem; color: var(--faint); text-align: center; margin-top: 5px; letter-spacing: .04em; }
+  .swatch-pair { display: flex; align-items: center; gap: 22px; }
+  .swatch-col { display: flex; flex-direction: column; align-items: center; }
+
+  /* in-context map */
+  .map-frame {
+    position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .map-frame canvas { display: block; width: 100%; height: auto; }
+  .map-chip {
+    position: absolute; left: 12px; bottom: 12px; background: rgba(255,255,255,.92);
+    border: 1px solid rgba(71,85,105,.25); border-radius: 7px; padding: 5px 10px;
+    font-size: .7rem; color: #41504a; letter-spacing: .02em;
+  }
+
+  /* compare */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .compare-col h3 { font-size: .82rem; font-weight: 700; margin: 0 0 3px; }
+  .compare-col .ch-sub { font-size: .74rem; color: var(--muted); margin: 0 0 14px; }
+  .stack { display: flex; flex-direction: column; gap: 6px; }
+  .stack-row { display: flex; align-items: center; gap: 11px; }
+  .stack-row .lbl { font-size: .72rem; color: var(--faint); width: 22px; text-align: right; }
+  .stack-canvas { flex: 1; }
+  .stack-canvas canvas { display: block; width: 100%; height: 22px; border-radius: 3px; border: 1px solid var(--border-med); }
+  .gray { filter: grayscale(1); }
+  .compare-note { font-size: .78rem; color: var(--muted); margin: 16px 0 0; }
+  .grayscale-tag {
+    display: inline-block; font-size: .64rem; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--faint); background: var(--inset);
+    border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; margin: 18px 0 9px;
+  }
+
+  /* legend mock */
+  .legend-card {
+    max-width: 320px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; box-shadow: var(--shadow); padding: 16px 16px 14px;
+  }
+  .legend-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .legend-title { font-size: .82rem; font-weight: 700; }
+  .seg { display: inline-flex; background: var(--inset); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+  .seg span { font-size: .7rem; padding: 3px 9px; border-radius: 6px; color: var(--muted); }
+  .seg span.on { background: var(--accent); color: #fff; font-weight: 600; }
+  [data-theme="dark"] .seg span.on { color: #06281a; }
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 13px 0; padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .switch-row .sw-text .sw-t { font-size: .78rem; font-weight: 600; }
+  .switch-row .sw-text .sw-d { font-size: .71rem; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+  .pill { width: 40px; height: 22px; border-radius: 999px; background: var(--accent); position: relative; flex-shrink: 0; }
+  .pill::after { content:""; position:absolute; top:2px; right:2px; width:18px; height:18px; border-radius:50%; background:#fff; }
+  .legend-rows { margin-top: 4px; }
+  .legend-row { display: flex; align-items: center; gap: 10px; padding: 3px 0; }
+  .legend-row .lr-range { font-size: .74rem; color: var(--text); }
+  .legend-row.zero .lr-range { color: var(--muted); }
+  .legend-foot { font-size: .69rem; color: var(--faint); margin-top: 9px; letter-spacing: .02em; }
+  .outline-swatch { width: 26px; height: 15px; border: 1px dashed var(--border-med); border-radius: 3px; flex-shrink: 0; }
+
+  .caption { font-size: .78rem; color: var(--muted); line-height: 1.55; }
+  .caption strong { color: var(--text); font-weight: 600; }
+  .two-up { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+
+  @media (max-width: 720px) {
+    .compare-grid, .two-up { grid-template-columns: 1fr; }
+    .ramp-row { grid-template-columns: 28px 1fr; row-gap: 10px; }
+    .ramp-row .swatch-pair { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="root">
+
+  <div class="topbar">
+    <div>
+      <p class="eyebrow">Map Explorer · County shading</p>
+      <h1>Use Textures — a color-free read of the county ramp</h1>
+      <p class="lede">An optional mode that encodes each county's count tier as crosshatch <em>density</em>
+      instead of hue, so the choropleth ranks the same way for colorblind and low-vision birders. It mirrors
+      the atlas overlay's existing Use&nbsp;Textures toggle and stays off by default.</p>
+    </div>
+    <button class="theme-toggle" id="themeBtn" type="button">
+      <span class="theme-dot"></span><span id="themeLabel">Switch to dark</span>
+    </button>
+  </div>
+
+  <div class="oq-row">
+    <div class="oq">
+      <div class="oq-k">OQ-01 · Legend</div>
+      <div class="oq-v">Density swatches replace color</div>
+      <div class="oq-d">While textures are on, the legend speaks density, not hue — same language as the map. Metric label stays.</div>
+    </div>
+    <div class="oq">
+      <div class="oq-k">OQ-02 · Tint</div>
+      <div class="oq-v">Keep a faint green tint (0.12)</div>
+      <div class="oq-d">Ties the mode to the color ramp and the greyed basemap. Density alone still carries the tier — proven in grayscale below.</div>
+    </div>
+    <div class="oq">
+      <div class="oq-k">OQ-03 · Tier-1 floor</div>
+      <div class="oq-v">Sparse but clearly present (~10% ink)</div>
+      <div class="oq-d">An open lattice, unmistakably a fill — distinct from a tier-0 outline and from no shading, with nine denser steps above.</div>
+    </div>
+  </div>
+
+  <!-- ============ DENSITY RAMP ============ -->
+  <section>
+    <p class="section-label">The density ramp</p>
+    <p class="section-sub">All ten quantile tiers, sparse (tier 1) to tightest (tier 10). Left swatch is a
+    realistic county-fill scale; right swatch is enlarged for inspection. Ranges shown for the Species metric.</p>
+    <div class="card" id="rampHost"></div>
+  </section>
+
+  <!-- ============ IN CONTEXT ============ -->
+  <section>
+    <p class="section-label">In context</p>
+    <p class="section-sub">Textured counties over the muted grey basemap the app shows while a ramp is active.
+    Boundary lines and labels are untouched; the no-records county (Yolo) stays a plain outline.</p>
+    <div class="map-frame">
+      <canvas id="mapCanvas"></canvas>
+      <div class="map-chip">Desaturated basemap · textures on · Species</div>
+    </div>
+  </section>
+
+  <!-- ============ SIDE BY SIDE + GRAYSCALE ============ -->
+  <section>
+    <p class="section-label">Color ramp vs. density ramp</p>
+    <p class="section-sub">The same ten tiers, today's plain color ramp beside the new density ramp. The grayscale
+    copies below strip hue and luminance — the point of the whole feature.</p>
+    <div class="card">
+      <div class="compare-grid">
+        <div class="compare-col">
+          <h3>Today — color quantile ramp</h3>
+          <p class="ch-sub">Single-hue green, light to deep.</p>
+          <div class="stack" id="colorStack"></div>
+        </div>
+        <div class="compare-col">
+          <h3>New — density ramp</h3>
+          <p class="ch-sub">One crosshatch motif, sparse to tight.</p>
+          <div class="stack" id="densityStack"></div>
+        </div>
+      </div>
+
+      <div class="grayscale-tag">Color discrimination removed — grayscale(1)</div>
+      <div class="compare-grid">
+        <div class="compare-col">
+          <div class="stack gray" id="colorStackGray"></div>
+          <p class="compare-note">The mid-tiers collapse into near-identical greys. This is exactly where a colorblind reader loses the ranking.</p>
+        </div>
+        <div class="compare-col">
+          <div class="stack gray" id="densityStackGray"></div>
+          <p class="compare-note">Density survives. Every step still reads from sparse to tight — no hue required.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LEGEND TREATMENT ============ -->
+  <section>
+    <p class="section-label">Legend treatment</p>
+    <p class="section-sub">How the sidebar legend reads with textures on (OQ-01): density swatches in tier order,
+    the active-metric label intact, the toggle above. The "Counties in view" disclosure carries the same swatch
+    at 11px next to each numeric value.</p>
+    <div class="two-up">
+      <div class="legend-card" id="legendCard"></div>
+      <div>
+        <p class="caption" style="margin-top:0">
+          <strong>Why replace, not show both.</strong> With textures on, the user has opted into the color-free read.
+          Keeping color swatches as well re-introduces the cue the mode exists to remove and crowds a ten-row legend.
+          Density leads; the green tint still carries through faintly so the switch isn't jarring.
+        </p>
+        <p class="caption" style="margin-top:14px">
+          <strong>Light and dark.</strong> The map fills and the swatches use the same green in both themes — the
+          county ramp is basemap-anchored, since the Positron base stays light under both app themes. So density,
+          not theme, does the work; only the surrounding app chrome flips. Use the toggle up top to confirm.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <p class="caption" style="margin-top:46px; border-top:1px solid var(--border); padding-top:20px">
+    A starting point, not the final word. The two knobs are line spacing and line weight; spacing carries tiers&nbsp;1–6
+    and weight takes over at 7–10 so the top tiers stay separable without going solid. React to anything —
+    the tier-1 floor, how dense tier&nbsp;10 should get, whether the top three pull apart enough.
+  </p>
+
+</div>
+
+<script>
+(function () {
+  var DPR = Math.min(2, window.devicePixelRatio || 1);
+
+  // Tier tint colors — the real --sr-county-N-rgb tokens (identical light/dark).
+  var COUNTY_RGB = [
+    "195,232,209", "168,213,186", "142,196,163", "113,181,141", "95,164,123",
+    "77,149,106", "53,135,88", "45,120,77", "37,106,67", "26,92,56"
+  ];
+
+  // The density curve. tile = gap (corner-to-corner diagonals tile seamlessly);
+  // effective line spacing = gap / sqrt(2). lineWidth is the secondary axis at the dense end.
+  var HATCH = {
+    1:  { gap: 20, lw: 0.75 },
+    2:  { gap: 17, lw: 0.80 },
+    3:  { gap: 14, lw: 0.80 },
+    4:  { gap: 12, lw: 0.85 },
+    5:  { gap: 10, lw: 0.90 },
+    6:  { gap: 9,  lw: 1.00 },
+    7:  { gap: 8,  lw: 1.10 },
+    8:  { gap: 7,  lw: 1.15 },
+    9:  { gap: 6,  lw: 1.25 },
+    10: { gap: 5,  lw: 1.30 }
+  };
+
+  var TINT = 0.12;        // faint tier underlay (OQ-02)
+  var STROKE = 0.80;      // crosshatch strokes — the load-bearing density cue
+  var LEGEND_TINT = 0.16; // legend/in-view swatch reads a touch stronger at small size
+  var LEGEND_STROKE = 0.85;
+
+  // Plausible Species quantile bands for a US birder's per-county totals.
+  var RANGE = {
+    1: "1–22", 2: "23–41", 3: "42–63", 4: "64–88", 5: "89–116",
+    6: "117–148", 7: "149–185", 8: "186–228", 9: "229–281", 10: "282–347"
+  };
+
+  function patternFor(ctx, gap, lw, rgb, tint, stroke) {
+    var g = Math.max(2, Math.round(gap * DPR));
+    var t = document.createElement("canvas");
+    t.width = g; t.height = g;
+    var c = t.getContext("2d");
+    c.fillStyle = "rgba(" + rgb + "," + tint + ")";
+    c.fillRect(0, 0, g, g);
+    c.strokeStyle = "rgba(" + rgb + "," + stroke + ")";
+    c.lineWidth = lw * DPR;
+    c.lineCap = "butt";
+    c.beginPath();
+    c.moveTo(0, g); c.lineTo(g, 0);   // 45deg (anti-diagonal)
+    c.moveTo(0, 0); c.lineTo(g, g);   // 135deg (main diagonal)
+    c.stroke();
+    return ctx.createPattern(t, "repeat");
+  }
+
+  // Density swatch <canvas> at a given CSS size. tier 0 = empty (outline only).
+  function swatch(tier, w, h, opts) {
+    opts = opts || {};
+    var cv = document.createElement("canvas");
+    cv.className = "swatch" + (opts.lg ? " lg" : "");
+    cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
+    cv.style.width = w + "px"; cv.style.height = h + "px";
+    var ctx = cv.getContext("2d");
+    if (tier >= 1) {
+      var s = HATCH[tier];
+      var p = patternFor(ctx, s.gap, s.lw, COUNTY_RGB[tier - 1],
+                         opts.tint != null ? opts.tint : TINT,
+                         opts.stroke != null ? opts.stroke : STROKE);
+      ctx.fillStyle = p;
+      ctx.fillRect(0, 0, cv.width, cv.height);
+    }
+    return cv;
+  }
+
+  // Solid color swatch (today's ramp), on-map fill-opacity 0.85.
+  function colorSwatch(tier, w, h) {
+    var cv = document.createElement("canvas");
+    cv.width = Math.round(w * DPR); cv.height = Math.round(h * DPR);
+    cv.style.width = "100%"; cv.style.height = h + "px";
+    var ctx = cv.getContext("2d");
+    ctx.fillStyle = "rgba(" + COUNTY_RGB[tier - 1] + ",0.85)";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    return cv;
+  }
+
+  function densityBar(tier, w, h) {
+    var cv = swatch(tier, w, h);
+    cv.style.width = "100%";
+    return cv;
+  }
+
+  // ---- ramp ----
+  var rampHost = document.getElementById("rampHost");
+  for (var i = 1; i <= 10; i++) {
+    (function (tier) {
+      var row = document.createElement("div");
+      row.className = "ramp-row";
+
+      var badge = document.createElement("div");
+      badge.className = "tier-badge";
+      badge.textContent = tier;
+
+      var range = document.createElement("div");
+      range.className = "range-cell";
+      range.innerHTML = '<div class="range-n">' + RANGE[tier] + '</div><div class="range-u">species</div>';
+
+      var pair = document.createElement("div");
+      pair.className = "swatch-pair";
+      var c1 = document.createElement("div"); c1.className = "swatch-col";
+      c1.appendChild(swatch(tier, 64, 36));
+      var l1 = document.createElement("div"); l1.className = "small-label"; l1.textContent = "county scale";
+      c1.appendChild(l1);
+      var c2 = document.createElement("div"); c2.className = "swatch-col";
+      c2.appendChild(swatch(tier, 96, 96, { lg: true }));
+      var l2 = document.createElement("div"); l2.className = "small-label"; l2.textContent = "inspect";
+      c2.appendChild(l2);
+      pair.appendChild(c1); pair.appendChild(c2);
+
+      var spacer = document.createElement("div");
+
+      row.appendChild(badge); row.appendChild(range); row.appendChild(spacer); row.appendChild(pair);
+      rampHost.appendChild(row);
+    })(i);
+  }
+
+  // ---- in-context map ----
+  var counties = [
+    { name: "Sonoma",  tier: 6,  count: 134, pts: [[20,18],[252,30],[244,168],[28,150]] },
+    { name: "Marin",   tier: 9,  count: 251, pts: [[252,30],[472,24],[482,158],[244,168]] },
+    { name: "Lake",    tier: 3,  count: 58,  pts: [[472,24],[704,34],[694,182],[482,158]] },
+    { name: "Alameda", tier: 10, count: 312, pts: [[28,150],[244,168],[232,342],[36,330]] },
+    { name: "Yolo",    tier: 0,  count: null, pts: [[244,168],[482,158],[470,346],[232,342]] },
+    { name: "Napa",    tier: 4,  count: 79,  pts: [[482,158],[694,182],[704,346],[470,346]] }
+  ];
+  function drawMap() {
+    var LW = 724, LH = 366;
+    var cv = document.getElementById("mapCanvas");
+    cv.width = Math.round(LW * DPR); cv.height = Math.round(LH * DPR);
+    cv.style.width = "100%";
+    var ctx = cv.getContext("2d");
+    // basemap (always-light)
+    ctx.fillStyle = "#dfe3dd";
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    counties.forEach(function (co) {
+      ctx.save();
+      ctx.beginPath();
+      co.pts.forEach(function (p, idx) {
+        var x = p[0] * DPR, y = p[1] * DPR;
+        if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      if (co.tier >= 1) {
+        var s = HATCH[co.tier];
+        ctx.fillStyle = patternFor(ctx, s.gap, s.lw, COUNTY_RGB[co.tier - 1], TINT, STROKE);
+        ctx.fill();
+      }
+      ctx.lineWidth = 1.2 * DPR;
+      ctx.strokeStyle = "rgba(71,85,105,.85)";
+      ctx.stroke();
+      ctx.restore();
+      // centroid label
+      var cx = 0, cy = 0;
+      co.pts.forEach(function (p) { cx += p[0]; cy += p[1]; });
+      cx = (cx / co.pts.length) * DPR; cy = (cy / co.pts.length) * DPR;
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#2f3b35";
+      ctx.font = "700 " + (12.5 * DPR) + "px Inter, system-ui, sans-serif";
+      ctx.fillText(co.name, cx, cy - 3 * DPR);
+      ctx.fillStyle = "#5c675e";
+      ctx.font = "" + (11 * DPR) + "px Inter, system-ui, sans-serif";
+      ctx.fillText(co.tier === 0 ? "no records" : co.count + " species", cx, cy + 13 * DPR);
+    });
+  }
+  drawMap();
+
+  // ---- compare stacks ----
+  function buildStack(host, kind) {
+    for (var t = 1; t <= 10; t++) {
+      (function (tier) {
+        var row = document.createElement("div"); row.className = "stack-row";
+        var lbl = document.createElement("div"); lbl.className = "lbl"; lbl.textContent = tier;
+        var wrap = document.createElement("div"); wrap.className = "stack-canvas";
+        wrap.appendChild(kind === "color" ? colorSwatch(tier, 360, 22) : densityBar(tier, 360, 22));
+        row.appendChild(lbl); row.appendChild(wrap);
+        host.appendChild(row);
+      })(t);
+    }
+  }
+  buildStack(document.getElementById("colorStack"), "color");
+  buildStack(document.getElementById("densityStack"), "density");
+  buildStack(document.getElementById("colorStackGray"), "color");
+  buildStack(document.getElementById("densityStackGray"), "density");
+
+  // ---- legend mock ----
+  var legend = document.getElementById("legendCard");
+  legend.innerHTML =
+    '<div class="legend-head"><span class="legend-title">County coverage</span>' +
+    '<span class="seg"><span class="on">Species</span><span>Checklists</span></span></div>' +
+    '<div class="switch-row"><div class="sw-text"><div class="sw-t">Use Textures</div>' +
+    '<div class="sw-d">A distinct hatch density per level, so counties read without color.</div></div>' +
+    '<div class="pill" role="switch" aria-checked="true" aria-label="Use textures on shaded counties"></div></div>' +
+    '<div class="legend-rows" id="legendRows"></div>' +
+    '<div class="legend-foot">Quantile bins · 10 levels · more recorded = tighter</div>';
+  var rows = document.getElementById("legendRows");
+  for (var t = 10; t >= 1; t--) {
+    (function (tier) {
+      var r = document.createElement("div"); r.className = "legend-row";
+      r.appendChild(swatch(tier, 26, 15, { tint: LEGEND_TINT, stroke: LEGEND_STROKE }));
+      var rng = document.createElement("span"); rng.className = "lr-range";
+      rng.textContent = RANGE[tier] + " species";
+      r.appendChild(rng);
+      rows.appendChild(r);
+    })(t);
+  }
+  var zero = document.createElement("div"); zero.className = "legend-row zero";
+  zero.innerHTML = '<span class="outline-swatch"></span><span class="lr-range">No records — outline only</span>';
+  rows.appendChild(zero);
+
+  // ---- theme toggle (CSS surfaces only; canvases are theme-independent) ----
+  var root = document.documentElement;
+  var btn = document.getElementById("themeBtn");
+  var lab = document.getElementById("themeLabel");
+  btn.addEventListener("click", function () {
+    var dark = root.getAttribute("data-theme") === "dark";
+    if (dark) { root.removeAttribute("data-theme"); lab.textContent = "Switch to dark"; }
+    else { root.setAttribute("data-theme", "dark"); lab.textContent = "Switch to light"; }
+  });
+})();
+</script>
+</body>
+</html>

@@ -8,12 +8,26 @@
 // offline map) the accurate line is omitted and the bundled line stands alone.
 // Plain React stubs for react-map-gl — no maplibre-gl, no WebGL.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest'
 import { render } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { CountyLayer } from './CountyLayer'
 import type { CountyFC } from '../../lib/countyBoundaries'
 import type { CountyTiers } from '../../lib/countyShading'
+
+// jsdom has no real 2D canvas context (it returns null + logs "Not implemented"),
+// so the texture-sprite effect's countyHatchImageData would throw on mount. Stub
+// a minimal context whose drawing calls no-op — the baked ImageData is unused here
+// because addImage is a no-op; this just lets the real sprite path run.
+let getContextSpy: ReturnType<typeof vi.spyOn>
+beforeAll(() => {
+  const fakeCtx = {
+    scale: () => {}, clearRect: () => {}, fillRect: () => {}, beginPath: () => {},
+    moveTo: () => {}, lineTo: () => {}, stroke: () => {}, getImageData: () => ({}),
+  } as unknown as CanvasRenderingContext2D
+  getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(fakeCtx)
+})
+afterAll(() => { getContextSpy.mockRestore() })
 
 const h = vi.hoisted(() => {
   const ctrl = { hasVector: true }
@@ -23,6 +37,11 @@ const h = vi.hoisted(() => {
     getSource: (id: string) => (id === 'openmaptiles' && ctrl.hasVector ? {} : undefined),
     getBounds: () => ({ getWest: () => -123, getSouth: () => 37, getEast: () => -121, getNorth: () => 39 }),
     getCanvas: () => ({ style: {} as Record<string, string> }),
+    // The "Use Textures" sprite effect bakes hatch images on mount; no-op the
+    // image API so the real registration path runs without a GL map.
+    hasImage: () => false,
+    addImage: () => {},
+    updateImage: () => {},
     on: () => {},
     off: () => {},
     flyTo: () => {},

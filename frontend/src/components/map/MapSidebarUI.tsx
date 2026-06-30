@@ -3,6 +3,7 @@
 
 import { AlertCircle, ChevronDown } from 'lucide-react'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
+import { countyHatchSpec, type CountyTier } from '../../lib/countyTextures'
 
 export function SegControl({ options, value, onChange, ariaLabel }: {
   options: { value: string; label: string }[]
@@ -199,6 +200,35 @@ export function TierHatchSwatch({ tier }: { tier: 1 | 2 | 3 | 4 }) {
         ? [5, 12, 19].flatMap(cx => [4.5, 10].map(cy => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={1.1} style={dotStyle} />))
         : offsets.map(x => <line key={`a${x}`} x1={x} y1={14} x2={x + 14} y2={0} style={lineStyle} />)}
       {tier >= 3 && offsets.map(x => <line key={`b${x}`} x1={x} y1={0} x2={x + 14} y2={14} style={lineStyle} />)}
+    </svg>
+  )
+}
+
+// Legend / in-view swatch previewing a COUNTY tier's crosshatch density (when the
+// county "Use Textures" mode is on). One consistent crosshatch motif whose spacing
+// + weight come from the SAME `HATCH` curve the on-map sprite uses
+// (lib/countyTextures.ts), so the legend can never drift from the map. Drawn
+// directly (no <pattern> ids) and tinted from the --sr-county-N-rgb tokens so it
+// tracks light/dark. Default box 26×15 (legend); pass `size` for the 11px square
+// "counties in view" mini-swatch.
+export function CountyDensitySwatch({ tier, size }: { tier: CountyTier; size?: number }) {
+  const { gapPx, lineWidthPx } = countyHatchSpec(tier)
+  const w = size ?? 26
+  const h = size ?? 15
+  const rgb = `var(--sr-county-${tier}-rgb)`
+  const fillStyle = { fill: `rgba(${rgb}, 0.16)` }
+  const lineStyle = { stroke: `rgba(${rgb}, 0.85)`, strokeWidth: lineWidthPx }
+  // Same gapPx spacing as the on-map tile so density reads at the same visual rate
+  // as the map; offsets run -h..w so the diagonals fill the whole box (the offset
+  // pattern TierHatchSwatch uses).
+  const offsets: number[] = []
+  for (let x = -h; x < w; x += gapPx) offsets.push(x)
+  return (
+    <svg width={w} height={h} aria-hidden
+      style={{ flexShrink: 0, border: '1px solid var(--sr-border-medium)', borderRadius: 3, display: 'block', overflow: 'hidden' }}>
+      <rect x={0} y={0} width={w} height={h} style={fillStyle} />
+      {offsets.map(x => <line key={`a${x}`} x1={x} y1={h} x2={x + h} y2={0} style={lineStyle} />)}
+      {offsets.map(x => <line key={`b${x}`} x1={x} y1={0} x2={x + h} y2={h} style={lineStyle} />)}
     </svg>
   )
 }

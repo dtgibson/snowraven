@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.51] - 2026-06-29
+
+### Added
+- **Colorblind-friendly county shading — a "Use Textures" option.** When you shade the Map Explorer by county, a new **Use Textures** toggle (under the Species / Checklists switch) paints each county as a crosshatch whose density rises with your count — an open lattice for your lightest counties through a tight crosshatch for your most-recorded ones — instead of relying on the green color ramp alone. It brings the county overlay to parity with the atlas overlay's existing Use Textures mode, so you can rank counties without depending on hue or brightness. The legend and the keyboard "Counties in view" list show the same density steps, the patterns follow light/dark themes, and they keep working when you switch between the Species and Checklists metric. It's off by default — your normal color view is unchanged until you opt in — and the choice is per-session (it resets on relaunch). Like the rest of the county overlay, it adds no network calls and no new data.
+
 ## [0.5.50] - 2026-06-29
 
 ### Changed

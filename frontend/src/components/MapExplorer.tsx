@@ -23,6 +23,7 @@ import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { CountyLayer } from './map/CountyLayer'
 import type { CountyFC } from '../lib/countyBoundaries'
 import { buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_METRIC_META, COUNTY_CLASS_COUNT, type CountyMetric } from '../lib/countyShading'
+import type { CountyTier } from '../lib/countyTextures'
 import { nextShadingState } from '../lib/shadingExclusion'
 import { computeChecklists, filterObservations } from '../lib/birdingStats'
 import { useHotspotSet } from '../lib/useHotspotSet'
@@ -41,7 +42,7 @@ import {
   MEDIA_ICONS, TEARDROP_HTML, SELECT_STYLE,
 } from '../lib/mapExplorerFormat'
 import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
-import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch } from './map/MapSidebarUI'
+import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch } from './map/MapSidebarUI'
 import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
 import { SightingMarkers } from './map/SightingMarkers'
 import { BasemapDesaturation } from './map/BasemapDesaturation'
@@ -222,6 +223,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [countyLoading, setCountyLoading]           = useState(false)
   const [shadeByCounty, setShadeByCounty]           = useState(false)
   const [countyMetric, setCountyMetric]             = useState<CountyMetric>('species')
+  // Colorblind-accessible county shading: paint shaded counties as a per-tier
+  // crosshatch density instead of color. Session-scoped, off by default, NO
+  // storage seam / persistence (NFR-06 / QA-24); independent of the atlas
+  // `useTextures` above (separate overlay, separate control).
+  const [useCountyTextures, setUseCountyTextures]   = useState(false)
 
   // Target state
   const [targetPins, setTargetPins]           = useState<TargetPin[] | null>(null)
@@ -1172,6 +1178,32 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     />
                   </div>
 
+                  {/* Use Textures — per-tier crosshatch density; off by default (colorblind aid) */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Use Textures</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={useCountyTextures}
+                      aria-label="Use textures on shaded counties"
+                      tabIndex={0}
+                      onClick={() => setUseCountyTextures(v => !v)}
+                      style={{
+                        width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
+                        background: useCountyTextures ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
+                        position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute', top: 2, left: useCountyTextures ? 22 : 2, width: 20, height: 20,
+                        borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+                      }} />
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+                    Adds a distinct hatch density per level so counties are distinguishable without color.
+                  </div>
+
                   {countyTiers.legend.length === 0 ? (
                     <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', marginTop: 12, fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
                       <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
@@ -1187,7 +1219,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                         const range = isLast ? `${row.min.toLocaleString()}+` : row.min === row.max ? `${row.min.toLocaleString()}` : `${row.min.toLocaleString()}–${row.max.toLocaleString()}`
                         return (
                           <div key={row.tier} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
-                            <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 3, flexShrink: 0, border: '1px solid var(--sr-border-medium)', background: `var(--sr-county-${row.tier})` }} />
+                            {useCountyTextures
+                              ? <CountyDensitySwatch tier={row.tier as CountyTier} />
+                              : <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 3, flexShrink: 0, border: '1px solid var(--sr-border-medium)', background: `var(--sr-county-${row.tier})` }} />}
                             <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>
                               {range}{i === 0 && <span style={{ color: 'var(--sr-text-muted)' }}> {COUNTY_METRIC_META[countyMetric].unit}</span>}
                             </span>
@@ -2056,6 +2090,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   aggregates={countyAggregates}
                   tiers={countyTiers}
                   metric={countyMetric}
+                  useTextures={useCountyTextures}
                   onOpenSpecies={onOpenSpecies}
                   hasEntryFor={hasEntryFor}
                   taxonCodeFor={name => speciesCodeMap[name]}
