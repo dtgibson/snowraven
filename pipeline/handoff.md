@@ -1,51 +1,52 @@
 ## What We Accomplished
 
-Shipped **county-fill-sharpen** as **v0.5.50** (source) — the deferred "A-plus"
-polish from v0.5.49. Raised the bundled US county geometry's simplification fidelity
-a notch (`SIMPLIFY_PCT` 10% → 15% in `scripts/build-county-boundaries.mjs`) and
-regenerated `frontend/src/assets/us-counties.json`, so the county **fill** edge now
-hugs the true boundary closely enough that the hair-thin shaded sliver that used to
-peek out from under the crisp basemap-tile county line at high zoom (county shading
-on) is no longer perceptible. One bundled file drives both the fill and the
-below-z9 / offline line fallback, so this is effectively the v0.5.49 "option D" done
-by sharpening the single existing file.
+Shipped **colorblind-accessible county shading** as **v0.5.51** (source) — an
+optional **"Use Textures"** mode on the Map Explorer county overlay. When county
+shading is on, a toggle paints each county's count tier as a crosshatch whose
+**density** rises with the tier (sparse tier 1 → tight tier 10) instead of the
+single-hue green ramp, so the choropleth reads for colorblind and low-vision
+birders. It's the color-free parity for the county ramp that the atlas overlay's
+"Use Textures" toggle already gave the breeding overlay. Off by default,
+session-scoped, frontend-only — no new network, providers, or privacy surface.
 
-A live sweep picked **15%** as the sharpest round notch within budget: ~54
-vertices/county (up from ~39), 969 KB raw-json gz against the 1.3 MB script guard
-(~27% margin), built on-demand chunk ~1.04 MB-gz (up from ~751 KB), still off first
-paint. 20% was available (sharper) but near the budget edge — deferred.
+The Designer's call on the hard part (ten distinguishable density steps in a
+small county fill): line **spacing** carries tiers 1–6, line **weight** takes
+over for 7–10, tier 10 caps at ~60% ink so it never goes solid.
 
 ## What Has Been Saved
 
-- Release commit on `main`, tagged **`v0.5.50`** (both pushed; Windows CI building).
-  - Data/script: `frontend/src/assets/us-counties.json` (regenerated),
-    `scripts/build-county-boundaries.mjs` (`SIMPLIFY_PCT` 15% + comment).
-  - Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.50;
-    `CHANGELOG.md`, `website/index.html` (version pill + footer).
-  - Records: `CLAUDE.md` (county-geometry figures → 15% / ~1.04 MB-gz),
-    `DECISIONS.md` (new v0.5.50 entry), `ROADMAP.md` (shipped).
-  - Feature artifacts in `pipeline/county-fill-sharpen/` (change-brief, qa-report,
-    security-report).
-- Full CI mirror green (lint, typecheck, **1168 tests**, build); security clean.
-- No HELP/README change (no user-facing behavior changed); no PRIVACY_POLICY change
-  (no new network/provider).
+- Release commit **`b728bf7`** on `main`, tagged **`v0.5.51`** (both pushed).
+  Windows CI run **28415773682** building, `headSha == v0.5.51^{commit}`.
+  - Code: `frontend/src/lib/countyTextures.ts` (+ `countyTextures.test.ts`),
+    `frontend/src/components/map/CountyLayer.tsx`,
+    `frontend/src/components/map/MapSidebarUI.tsx` (`CountyDensitySwatch`),
+    `frontend/src/components/MapExplorer.tsx`, `CountyLayer.test.tsx` (harness).
+  - Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.51;
+    `CHANGELOG.md`, `docs/HELP.md`, `README.md`, `website/index.html`.
+  - Records: `DECISIONS.md`, `PRODUCT_CONTEXT.md`, `CLAUDE.md`, `ROADMAP.md`.
+  - Feature artifacts in `pipeline/colorblind-county-shading/` (strategic-brief,
+    prd, schema, design-spec, design.html, qa-report, security-report).
+- Full CI mirror green (lint, typecheck, **1173 tests**, build; entry-chunk guard
+  intact). QA passed all 24 criteria; security a clean pass.
+- No `PRIVACY_POLICY.md` change (no new network/provider).
 
 ## Where We Are
 
-Improvement complete — all six Improve-lane stages approved/closed. Source is pushed
-and tagged. The **binary release is the Mac's step.**
-
-**Next action (the Mac): release v0.5.50.**
-1. `git checkout main && git pull --ff-only origin main`
-2. `zsh -lc ./release.sh`  (Homebrew node; `nvm` not needed)
-3. Verify: `gh release view v0.5.50`
-
-After the tag push, confirm the selected `windows-build.yml` run's `headSha` equals
-`git rev-parse v0.5.50^{commit}` before running `release.sh`. Recommended in-app spot
-check: at z10–12 over a US area with county shading ON, the shaded fill now tracks
-the crisp county line with no visible sliver.
+Feature complete — all nine stages done and approved. Source is pushed and
+tagged. The **binary release is the Mac's step.**
 
 ## Resume Prompt
 
-To resume work, run `/weft` in a Claude Code session in this project — it reads saved
-state and picks up from the current (idle) state.
+**Next action (the Mac): release v0.5.51.**
+1. `git checkout main && git pull --ff-only origin main`
+2. `zsh -lc ./release.sh`  (Homebrew node; `nvm` not needed)
+3. Verify: `gh release view v0.5.51`
+
+Before `release.sh`, confirm the selected `windows-build.yml` run's `headSha`
+equals `git rev-parse v0.5.51^{commit}` (already `b728bf7`, run 28415773682) and
+that it is green. Recommended in-app spot check: enable county shading + Use
+Textures over a US area and confirm tiers 1–10 read by density (especially dark
+mode and the 8/9/10 separation), and that toggling textures off restores the
+exact color ramp.
+
+To start the next feature, run `/weft` in a Claude Code session in this project.
