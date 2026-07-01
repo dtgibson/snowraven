@@ -225,6 +225,35 @@ if [[ "$BUNDLE_VERSION" != "$VERSION" ]]; then
 fi
 echo "==> Bundle version verified: $BUNDLE_VERSION"
 
+# ── Style the DMG (headless) — inject the committed Finder layout ─────────────
+# The build runs under CI=true so Tauri's bundle_dmg.sh skips its GUI-only Finder
+# AppleScript (that step arranges the install window but needs a logged-in desktop
+# session, which an automated release from a background process doesn't have — see
+# the CI=true note in CLAUDE.md). That yields a functional but UNSTYLED DMG (no
+# .DS_Store window layout). We restore the install-window styling by injecting a
+# committed .DS_Store (icon positions + window bounds, captured from a prior styled
+# release) with hdiutil — a CLI tool, no GUI/Finder needed. Runs BEFORE notarization
+# so the ticket staples the final styled image. The .app + Applications symlink are
+# already inside the DMG (Tauri built them); the .DS_Store only positions them.
+DMG_LAYOUT="src-tauri/dmg/dmg-DS_Store"
+if [[ -f "$DMG_LAYOUT" ]]; then
+  echo "==> Styling DMG (injecting Finder layout)..."
+  RW_DMG="/tmp/snowraven-dmg-rw.dmg"; MNT="/tmp/snowraven-dmg-mnt"
+  rm -f "$RW_DMG"; rm -rf "$MNT"; mkdir -p "$MNT"
+  hdiutil convert "$DMG" -format UDRW -o "$RW_DMG" >/dev/null
+  hdiutil resize -size 200m "$RW_DMG" >/dev/null   # headroom so the .DS_Store write fits
+  hdiutil attach "$RW_DMG" -readwrite -noverify -noautoopen -nobrowse -mountpoint "$MNT" >/dev/null
+  cp "$DMG_LAYOUT" "$MNT/.DS_Store"
+  sync
+  hdiutil detach "$MNT" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$MNT" -force >/dev/null; }
+  rm -f "$DMG"
+  hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG" >/dev/null
+  rm -f "$RW_DMG"; rm -rf "$MNT"
+  echo "==> DMG styled (Finder layout injected)."
+else
+  warn "DMG layout template ($DMG_LAYOUT) missing — shipping an unstyled DMG."
+fi
+
 # ── Notarize ─────────────────────────────────────────────────────────────────
 
 echo "==> Notarizing (this takes a minute)..."
