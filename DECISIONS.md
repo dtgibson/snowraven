@@ -4,6 +4,28 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Map Explorer Point Size control: the automatic pin-fade made user-controllable — 2026-07-01 (v0.5.53)
+
+**Decision:** A session-only **Point Size** control (Normal / Small / Off, a `SegControl`) on the Map Explorer's My Sightings map, shown under the Pins/Heatmap toggle in Pins mode only. It governs the `sr-sight-circle` GL layer: **Small** shrinks the sighting points, **Off** hides them AND their click/popup target so a shaded breeding-block or county choropleth reads through cleanly; the heatmap is untouched. This is an **EXTENSION of the v0.5.47 shade auto-dim, NOT a reversal** — it composes with it (Small + an active shade multiplies the point opacity by the dim factor; radius factor and opacity dim are independent axes). Default **Normal** is zero change for existing users. Session-only (plain `useState`, no `storage` seam), matching displayMode / shade state.
+
+**Rationale / lane call:** The v0.5.47 auto-dim helps but isn't user-controllable and can't fully hide points; the user asked specifically for an *option* to make points "very small or hide them altogether" when examining shaded blocks/counties. Kept on the Improve side of the v0.5.47 "don't expose a Desaturate-basemap toggle (that's New-Feature territory)" line: this is a visibility refinement of an existing surface (points already fade), reusing the shipped `SegControl` / `SidebarLabel` / `aria-pressed` sidebar patterns — no new data, schema, page, network call, or design/brand judgment.
+
+**Mechanism:** `PointSize` union in `lib/mapExplorerTypes.ts`; `lib/mapPins.ts` gained `POINT_SIZE_RADIUS_FACTOR` (normal:1, small:0.5) + a `factor` arg threaded through `pinRadiusExpr`/`pinFillRadiusExpr` with a factor-1 short-circuit (so **Normal is byte-identical** to pre-0.5.53), parity-locked by `mapPins.test.ts`; `SightingMarkers.tsx` gained a `pointSize` prop (Off returns null, gating the click/hover handlers); `MapExplorer.tsx` adds the SegControl + session `useState`. Full CI mirror green; QA PASSED; security review CLEAN (no new network/provider/data). Source shipped as v0.5.53 from Hephaestus; the binary release runs on the same machine.
+
+**Implications:** A standing pattern — a magnitude/opacity auto-treatment (like the shade auto-dim) can be lifted to an explicit user control that *composes* with the automatic behavior rather than replacing it, provided the axes are independent. Point sizing is single-sourced in `lib/mapPins.ts` (`POINT_SIZE_RADIUS_FACTOR` + the `factor` arg); promoted to CLAUDE.md.
+
+---
+
+## `CI=true` for a headless `release.sh` run (non-GUI / automation context) — 2026-07-01 (v0.5.53; release tooling)
+
+**Decision:** When `release.sh` is run from a non-GUI / automation process (e.g. an agent, an SSH session, a CI-like context) rather than an interactive logged-in desktop, set **`CI=true`** so Tauri passes `--skip-jenkins` and builds the macOS DMG headless.
+
+**Root cause:** Tauri's `bundle_dmg.sh` uses Finder AppleScript (`osascript`) to style the disk-image window, which needs a logged-in GUI session; without one the DMG step dies (`failed to run bundle_dmg.sh`). `CI=true` skips only the cosmetic AppleScript window-styling, producing a plain DMG that is otherwise identical to the interactive one. **codesign + notarize work cross-session** — only the DMG *styling* needed the GUI — so signing/notarization/`latest.json` are unaffected.
+
+**Implications:** The seamless headless command is `CI=true SKIP_NPM_INSTALL=1 zsh -lc ./release.sh` (drop `SKIP_NPM_INSTALL=1` for a cold checkout). Recorded in CLAUDE.md's release section. Complements the existing `.nvmrc`/self-healing-`release.sh` release-tooling decisions; no app-bundle change, no version bump on its own (it rode along with the v0.5.53 feature release).
+
+---
+
 ## Efficiency & docs maintenance sweep: a no-behavior-change audit shipped as v0.5.52 — 2026-06-30 (v0.5.52)
 
 **Decision:** A user-requested comprehensive audit asked two things — can the app be made more efficient, and are the README/docs/website current. A multi-agent audit (efficiency finders + doc-currency checkers, each finding adversarially verified as real AND behavior-preserving) returned 28 verified findings, ALL low-severity. The honest read, recorded deliberately: the app is already efficient (the v0.5.16 / v0.5.42 / v0.5.31 sweeps did the heavy lifting; no real bottleneck), so no performance project was manufactured. Shipped the full sweep as ONE patch v0.5.52: (a) doc-currency catch-up — README/HELP/ACCESSIBILITY caught up to the county overlay (offline lists + the "Counties in view" keyboard route), the README desktop-build root-install clarification, and three stale comments (the CLAUDE.md website-version note, the vite chunk-size rationale, a phantom `nemesis` cache path); (b) five output-identical code tidies — `backend/services/noaa.py` tide fetch parallelized with `asyncio.gather` (the one real, modest latency win; web/Pi only, matching the desktop TS twin), a SpeciesDetail filter-strip `useMemo`, `computeTotals` min/max tracked in the existing loop (no sort), `Checklists` eBird+ML `Promise.all`, and backend file writes via `run_in_threadpool`; (c) dev/CI hygiene — `typecheck` fixed from a no-op `tsc --noEmit` to `tsc -b`, dead `frontend/src/lib/utils.ts` + `clsx`/`tailwind-merge`/`class-variance-authority` removed, three dead Vite-template assets deleted, pipeline concurrency-cancel + a windows-build npm cache.

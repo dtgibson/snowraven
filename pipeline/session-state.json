@@ -1,22 +1,22 @@
 {
-  "activeFeature": "sighting-point-visibility",
+  "activeFeature": null,
   "sessionNumber": 63,
-  "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "autonomyMode": "studio-style",
-  "autonomyNote": "Improve lane, Studio Style -> HANDS-OFF. Stages 1-4 green; user VERIFIED live ('Looks great'). Stage 5 Deployer: user CONFIRMED ship at the destructive gate. Now executing the release: commit -> push main -> tag v0.5.53 -> wait Windows CI (verify headSha==tag) -> zsh -lc ./release.sh (build/notarize/sign/publish) -> gh release view. After live: fire stage_completed(5), advance to Stage 6 Chronicler (DECISIONS/CLAUDE/ROADMAP + closeout), then branded close. Records + closeout land in a post-release commit.",
+  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. v0.5.53 (sighting-point-visibility, Improve lane) is FULLY SHIPPED -- source + binaries. Map Explorer 'Point Size' control (Normal/Small/Off) to shrink/hide sighting points over shaded breeding-block/county choropleths; extends the v0.5.47 shade auto-dim (composes, points only, session-only, default Normal byte-identical). All 6 Improve stages done: Evaluator (Improve confirmed), Engineer, Tester (1183 FE green), Auditor (clean), Deployer (SHIPPED), Chronicler (records). FIRST agent-driven END-TO-END release from Hephaestus, HEADLESS. KEY release-tooling fix: run release.sh from a non-GUI/automation context with CI=true so Tauri passes --skip-jenkins and builds the DMG headless (bundle_dmg.sh's Finder AppleScript otherwise needs a GUI); codesign/notarize work cross-session. Release: commit 284f9b6, tag v0.5.53; GitHub release Latest with notarized universal DMG + updater bundle + signed Windows installer + latest.json (darwin-aarch64/darwin-x86_64/windows-x86_64). No pending releases.",
   "ideaId": null,
   "confirmedArtifacts": [
     "pipeline/sighting-point-visibility/change-brief.md",
     "pipeline/sighting-point-visibility/qa-report.md",
     "pipeline/sighting-point-visibility/security-report.md"
   ],
-  "releasedVersion": "0.5.52",
-  "lastFeature": "efficiency-and-docs-audit (Improve) shipped as v0.5.52 (source + binaries).",
-  "remainingBacklog": "ROADMAP Up Next: mobile app; Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; non-US county support; per-species county choropleth; pooled httpx client; recent-obs cache-by-codes; dead geolocation-plugin removal.",
+  "releasedVersion": "0.5.53",
+  "lastFeature": "sighting-point-visibility (Improve lane) -- COMPLETE through all 6 Weft stages, shipped as v0.5.53 SOURCE + BINARIES. A user-requested Map Explorer 'Point Size' SegControl (Normal/Small/Off), Pins-mode-only, session-only, that shrinks or hides sighting POINTS (and their click/popup target) so shaded breeding-block / county choropleths read through. Extends the v0.5.47 shade auto-dim (composes with it; radius factor via lib/mapPins.ts POINT_SIZE_RADIUS_FACTOR, parity-locked; Normal byte-identical). Heatmap untouched. Full FE suite 1183 green; security clean; no PRIVACY_POLICY change. First release run END-TO-END from Hephaestus by the agent, headless via the CI=true --skip-jenkins DMG fix.",
+  "remainingBacklog": "No pending releases -- v0.5.53 fully shipped and supersedes v0.5.52. ROADMAP Up Next: mobile app; Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; non-US county support; per-species county choropleth; pooled httpx client; recent-obs cache-by-codes; dead geolocation-plugin removal; + dev papercut: tauri.conf.json has no beforeDevCommand so npm run desktop:dev doesn't auto-start Vite.",
   "createdAt": "2026-07-01T16:36:09Z",
-  "updatedAt": "2026-07-01T17:16:36Z"
+  "updatedAt": "2026-07-01T18:04:23Z"
 }
