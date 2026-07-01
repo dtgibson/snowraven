@@ -78,21 +78,49 @@ export function pinOpacity(count: number): number {
 /** White outline width (px) around each sighting circle. */
 export const PIN_STROKE_WIDTH = 2
 
-/** The radius curve as a MapLibre step expression over the `count` property. */
-export function pinRadiusExpr(): ExpressionSpecification {
-  return ['step', ['get', 'count'], PIN_RADIUS_BASE, ...PIN_RADIUS_STOPS.flat()] as ExpressionSpecification
+/** Radius scale per user-chosen Point Size (Pins mode). 'normal' is 1 so the
+ *  default rendering is byte-identical to before the control existed; 'small'
+ *  shrinks the circle so a shaded breeding/county choropleth reads through.
+ *  ('off' hides the layer entirely — no radius, handled by the caller.) */
+export const POINT_SIZE_RADIUS_FACTOR: Record<'normal' | 'small', number> = {
+  normal: 1,
+  small: 0.5,
+}
+
+// Round to 4 dp so an occasional float artifact (e.g. 13 * 0.5) can't drift the
+// step-expression away from its function twin — the same tidy pinOpacityExpr uses.
+function scaleRadius(value: number, factor: number): number {
+  return factor === 1 ? value : Number((value * factor).toFixed(4))
+}
+
+/** The OUTER radius (px) for a location's observation count, scaled by `factor`
+ *  (pass a POINT_SIZE_RADIUS_FACTOR value; default 1 = unchanged). */
+export function pinRadiusScaled(count: number, factor = 1): number {
+  return scaleRadius(pinRadius(count), factor)
+}
+
+/** The radius curve as a MapLibre step expression over the `count` property,
+ *  scaled by `factor` (default 1 = the original curve). */
+export function pinRadiusExpr(factor = 1): ExpressionSpecification {
+  return [
+    'step', ['get', 'count'], scaleRadius(PIN_RADIUS_BASE, factor),
+    ...PIN_RADIUS_STOPS.flatMap(([threshold, value]) => [threshold, scaleRadius(value, factor)]),
+  ] as ExpressionSpecification
 }
 
 /**
- * The `circle-radius` expression for the sighting layer. pinRadius() is the
- * OUTER radius (the DOM pins were border-box divs, border included), but a GL
- * circle-stroke draws OUTSIDE circle-radius — so the fill radius is the outer
- * radius minus the stroke width, keeping the rendered footprint identical.
+ * The `circle-radius` expression for the sighting layer, scaled by `factor`
+ * (default 1 = unchanged). pinRadius() is the OUTER radius (the DOM pins were
+ * border-box divs, border included), but a GL circle-stroke draws OUTSIDE
+ * circle-radius — so the fill radius is the outer radius minus the stroke
+ * width, keeping the rendered footprint identical. The size factor scales the
+ * fill radius only; the stroke width is unchanged so a small point keeps a
+ * legible outline against the basemap.
  */
-export function pinFillRadiusExpr(): ExpressionSpecification {
+export function pinFillRadiusExpr(factor = 1): ExpressionSpecification {
   return [
-    'step', ['get', 'count'], PIN_RADIUS_BASE - PIN_STROKE_WIDTH,
-    ...PIN_RADIUS_STOPS.flatMap(([threshold, value]) => [threshold, value - PIN_STROKE_WIDTH]),
+    'step', ['get', 'count'], scaleRadius(PIN_RADIUS_BASE - PIN_STROKE_WIDTH, factor),
+    ...PIN_RADIUS_STOPS.flatMap(([threshold, value]) => [threshold, scaleRadius(value - PIN_STROKE_WIDTH, factor)]),
   ] as ExpressionSpecification
 }
 

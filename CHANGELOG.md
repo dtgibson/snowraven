@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.53] - 2026-07-01
+
+### Added
+- **A "Point Size" control for the My Sightings map.** In the Map Explorer's Pins view you can now set your sighting points to **Normal**, **Small**, or **Off** — a new control just under the Pins / Heatmap switch. It's there for when you're studying a shaded breeding-code or county map and the points get in the way: shrink them, or hide them altogether, so the shading reads cleanly underneath. Turning points Off also removes their click target and popup, so a hidden point can't be clicked. It builds on the automatic fade the map already applies while shading is on — "Small" plus an active shade dims and shrinks. The default is **Normal**, so nothing changes unless you reach for it, and the choice is per-session (it resets on relaunch). Heatmap view is unaffected. No new data and no network calls.
+
 ## [0.5.52] - 2026-06-30
 
 ### Changed

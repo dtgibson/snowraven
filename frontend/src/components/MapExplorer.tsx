@@ -34,7 +34,7 @@ import { formatDate } from '../lib/formatDate'
 import { BirdName } from './BirdName'
 import { HotspotLink } from './HotspotLink'
 import type {
-  ViewMode, DisplayMode, MapPhase, BreedingFilter,
+  ViewMode, DisplayMode, PointSize, MapPhase, BreedingFilter,
   HotspotPin, TargetPin, DisplayTargetPin, LocationGroup, NearbyLiferLocation,
 } from '../lib/mapExplorerTypes'
 import {
@@ -177,6 +177,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [phase, setPhase] = useState<MapPhase>({ tag: 'loading-saved' })
   const [viewMode, setViewMode] = useState<ViewMode>('sightings')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('pins')
+  // Session-only Pins-mode point sizing (Normal / Small / Off) — mirrors
+  // displayMode: plain useState, NOT the storage seam, so it resets on relaunch.
+  const [pointSize, setPointSize] = useState<PointSize>('normal')
   const [heatIntensity, setHeatIntensity] = useState(HEAT_INTENSITY_DEFAULT)
 
   const sidebarRef = useRef<HTMLDivElement>(null)
@@ -1343,6 +1346,25 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             value={displayMode}
             onChange={v => setDisplayMode(v as DisplayMode)}
           />
+          {/* Point Size — shrink or hide the sighting points so a shaded
+              breeding/county choropleth reads through. Pins mode only (there are
+              no points to size in Heatmap). Session-only, composes with the
+              shade auto-dim. */}
+          {displayMode === 'pins' && (
+            <div style={{ marginTop: 12 }}>
+              <SidebarLabel>Point Size</SidebarLabel>
+              <SegControl
+                ariaLabel="Point size"
+                options={[
+                  { value: 'normal', label: 'Normal' },
+                  { value: 'small', label: 'Small' },
+                  { value: 'off', label: 'Off' },
+                ]}
+                value={pointSize}
+                onChange={v => setPointSize(v as PointSize)}
+              />
+            </div>
+          )}
           {displayMode === 'heatmap' && (
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -2105,7 +2127,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 </>
               )}
               {viewMode === 'sightings' && !isSetupRequired && (
-                <SightingMarkers locations={filteredLocations} displayMode={displayMode} heatIntensity={heatIntensity} shadingFillId={atlasEnabled && shadeByBreeding ? 'sr-atlas-fill' : countyLinesEnabled && shadeByCounty ? 'sr-county-fill' : undefined} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />
+                <SightingMarkers locations={filteredLocations} displayMode={displayMode} pointSize={pointSize} heatIntensity={heatIntensity} shadingFillId={atlasEnabled && shadeByBreeding ? 'sr-atlas-fill' : countyLinesEnabled && shadeByCounty ? 'sr-county-fill' : undefined} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />
               )}
               {viewMode === 'hotspots' && hotspotPins && (
                 <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} />

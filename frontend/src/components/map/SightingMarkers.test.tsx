@@ -60,3 +60,31 @@ describe('SightingMarkers source identity across mode toggles', () => {
     ])
   })
 })
+
+describe('SightingMarkers Point Size', () => {
+  it('defaults to a rendered points Source (Normal)', () => {
+    render(<SightingMarkers {...baseProps} displayMode="pins" />)
+    expect(sourceLog).toEqual(['mount:sr-sight'])
+  })
+
+  it('renders the points Source in Small', () => {
+    render(<SightingMarkers {...baseProps} displayMode="pins" pointSize="small" />)
+    expect(sourceLog).toEqual(['mount:sr-sight'])
+  })
+
+  it('renders NO points Source in Off (no layer, so no click/popup target)', () => {
+    render(<SightingMarkers {...baseProps} displayMode="pins" pointSize="off" />)
+    expect(sourceLog).toEqual([])
+  })
+
+  it('unmounts the points Source when switching Normal → Off, and remounts on Off → Small', () => {
+    const { rerender } = render(<SightingMarkers {...baseProps} displayMode="pins" pointSize="normal" />)
+    expect(sourceLog).toEqual(['mount:sr-sight'])
+
+    rerender(<SightingMarkers {...baseProps} displayMode="pins" pointSize="off" />)
+    expect(sourceLog).toEqual(['mount:sr-sight', 'unmount:sr-sight'])
+
+    rerender(<SightingMarkers {...baseProps} displayMode="pins" pointSize="small" />)
+    expect(sourceLog).toEqual(['mount:sr-sight', 'unmount:sr-sight', 'mount:sr-sight'])
+  })
+})

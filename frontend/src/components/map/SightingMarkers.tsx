@@ -7,9 +7,9 @@ import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
 import type { CircleLayerSpecification, HeatmapLayerSpecification, MapMouseEvent } from 'maplibre-gl'
 import type { FeatureCollection, Point } from 'geojson'
 import { heatWeightDivisor, heatRadiusPx, heatIntensityFactor } from '../../lib/heat'
-import { pinFillRadiusExpr, pinOpacityExpr, ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH, updateMapCursor } from '../../lib/mapPins'
+import { pinFillRadiusExpr, pinOpacityExpr, ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH, POINT_SIZE_RADIUS_FACTOR, updateMapCursor } from '../../lib/mapPins'
 import { formatDate } from '../../lib/formatDate'
-import type { LocationGroup, DisplayMode } from '../../lib/mapExplorerTypes'
+import type { LocationGroup, DisplayMode, PointSize } from '../../lib/mapExplorerTypes'
 
 // Resolved value of a --sr-* token, refreshed on a light/dark theme change. GL
 // paint properties can't reference CSS vars, so layers that need token colors
@@ -29,9 +29,13 @@ function useCssToken(name: string, fallback: string): string {
   return value
 }
 
-export function SightingMarkers({ locations, displayMode, heatIntensity, shadingFillId, sel, onSelect }: {
+export function SightingMarkers({ locations, displayMode, pointSize = 'normal', heatIntensity, shadingFillId, sel, onSelect }: {
   locations: LocationGroup[]
   displayMode: DisplayMode
+  // Pins-mode point sizing (session-only). 'normal' is unchanged, 'small'
+  // shrinks the circles, 'off' hides the sr-sight-circle layer AND its
+  // popup/click target so a shaded choropleth reads cleanly. Heatmap ignores it.
+  pointSize?: PointSize
   heatIntensity: number
   // Id of the active shading fill ('sr-atlas-fill' | 'sr-county-fill'), or undefined
   // when no ramp is shaded. When set, the heatmap sits UNDER that fill (beforeId) and
@@ -88,11 +92,15 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, shading
   const pinColor = useCssToken('--sr-map-pin-visited', '#2D8653')
   const pinStroke = useCssToken('--sr-map-pin-stroke', '#3F3F46')
 
+  // A hidden points layer (Point Size = Off) must not still be clickable, so
+  // the click/hover wiring is gated on the layer being rendered.
+  const pointsShown = displayMode === 'pins' && pointSize !== 'off'
+
   // Click selects the top circle's location; a click on empty map closes the
   // popup. Selection has ONE owner (the Popup's own closeOnClick is off), so
   // there is no event-ordering race between closing and re-selecting.
   useEffect(() => {
-    if (!map || displayMode !== 'pins') return
+    if (!map || !pointsShown) return
     const onClick = (e: MapMouseEvent) => {
       if (!map.getLayer('sr-sight-circle')) return
       const f = map.queryRenderedFeatures(e.point, { layers: ['sr-sight-circle'] })[0]
@@ -111,7 +119,7 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, shading
       map.off('mouseleave', 'sr-sight-circle', hover)
       map.getCanvas().style.cursor = ''
     }
-  }, [map, displayMode, onSelect])
+  }, [map, pointsShown, onSelect])
 
   // Selection + its popup are computed once and rendered in BOTH pins and heatmap
   // modes, so the keyboard "Sightings in view" list opens the details popup either way.
@@ -161,9 +169,17 @@ export function SightingMarkers({ locations, displayMode, heatIntensity, shading
     )
   }
 
+  // Point Size = Off: render no circle layer/source at all (and no popup — its
+  // only anchor is the pin), so a shaded choropleth reads cleanly and a hidden
+  // point can't be clicked. The click/hover wiring is already disabled above.
+  if (pointSize === 'off') return null
+
+  // The user-chosen size scales the fill radius (via the shared factor in
+  // lib/mapPins); the shade auto-dim still multiplies opacity on top, so
+  // "Small" + an active shade applies BOTH.
   const dim = shadingFillId ? ATLAS_DIM_FACTOR : 1
   const circlePaint: CircleLayerSpecification['paint'] = {
-    'circle-radius': pinFillRadiusExpr(),
+    'circle-radius': pinFillRadiusExpr(POINT_SIZE_RADIUS_FACTOR[pointSize]),
     'circle-color': pinColor,
     'circle-opacity': pinOpacityExpr(dim),
     'circle-stroke-color': pinStroke,

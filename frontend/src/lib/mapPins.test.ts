@@ -5,9 +5,9 @@
 
 import { describe, it, expect } from 'vitest'
 import {
-  pinRadius, pinOpacity, pinRadiusExpr, pinFillRadiusExpr, pinOpacityExpr,
+  pinRadius, pinRadiusScaled, pinOpacity, pinRadiusExpr, pinFillRadiusExpr, pinOpacityExpr,
   PIN_RADIUS_BASE, PIN_RADIUS_STOPS, PIN_OPACITY_BASE, PIN_OPACITY_STOPS,
-  ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH,
+  ATLAS_DIM_FACTOR, PIN_STROKE_WIDTH, POINT_SIZE_RADIUS_FACTOR,
   updateMapCursor, INTERACTIVE_MAP_LAYERS, neutralizeMarkerWrapper, type CursorMap,
 } from './mapPins'
 import type { Marker as MaplibreMarker } from 'maplibre-gl'
@@ -48,6 +48,58 @@ describe('pinRadius / pinRadiusExpr parity', () => {
     const expr = pinFillRadiusExpr() as unknown[]
     for (const c of COUNTS) {
       expect(evalStep(expr, c)).toBe(pinRadius(c) - PIN_STROKE_WIDTH)
+    }
+  })
+
+  it('default radius expressions are byte-identical to the unscaled table (factor 1 = Normal)', () => {
+    expect(POINT_SIZE_RADIUS_FACTOR.normal).toBe(1)
+    // pinRadiusExpr()/pinFillRadiusExpr() with no arg must equal the pre-Point-Size
+    // form so Normal renders exactly as before the control existed.
+    expect(pinRadiusExpr()).toEqual(['step', ['get', 'count'], PIN_RADIUS_BASE, ...PIN_RADIUS_STOPS.flat()])
+    expect(pinRadiusExpr(POINT_SIZE_RADIUS_FACTOR.normal)).toEqual(pinRadiusExpr())
+    expect(pinFillRadiusExpr(POINT_SIZE_RADIUS_FACTOR.normal)).toEqual(pinFillRadiusExpr())
+  })
+})
+
+describe('Point Size radius factor (pinRadius* scaled)', () => {
+  it('exposes a normal (1×) and small (<1×) factor, small strictly smaller', () => {
+    expect(POINT_SIZE_RADIUS_FACTOR.normal).toBe(1)
+    expect(POINT_SIZE_RADIUS_FACTOR.small).toBeGreaterThan(0)
+    expect(POINT_SIZE_RADIUS_FACTOR.small).toBeLessThan(1)
+  })
+
+  it('pinRadiusScaled applies the factor to the outer radius', () => {
+    for (const c of COUNTS) {
+      expect(pinRadiusScaled(c)).toBe(pinRadius(c)) // default factor 1
+      expect(pinRadiusScaled(c, POINT_SIZE_RADIUS_FACTOR.small))
+        .toBeCloseTo(pinRadius(c) * POINT_SIZE_RADIUS_FACTOR.small, 4)
+    }
+  })
+
+  it('scaled radius expression equals pinRadiusScaled for every count (function ↔ expression parity)', () => {
+    for (const factor of [POINT_SIZE_RADIUS_FACTOR.normal, POINT_SIZE_RADIUS_FACTOR.small]) {
+      const expr = pinRadiusExpr(factor) as unknown[]
+      for (const c of COUNTS) {
+        expect(evalStep(expr, c)).toBeCloseTo(pinRadiusScaled(c, factor), 4)
+      }
+    }
+  })
+
+  it('scaled fill-radius expression = (outer radius − stroke) × factor for every count', () => {
+    for (const factor of [POINT_SIZE_RADIUS_FACTOR.normal, POINT_SIZE_RADIUS_FACTOR.small]) {
+      const expr = pinFillRadiusExpr(factor) as unknown[]
+      for (const c of COUNTS) {
+        const expected = Number(((pinRadius(c) - PIN_STROKE_WIDTH) * factor).toFixed(4))
+        expect(evalStep(expr, c)).toBeCloseTo(expected, 4)
+      }
+    }
+  })
+
+  it('Small produces a strictly smaller footprint than Normal at every count', () => {
+    const small = pinFillRadiusExpr(POINT_SIZE_RADIUS_FACTOR.small) as unknown[]
+    const normal = pinFillRadiusExpr(POINT_SIZE_RADIUS_FACTOR.normal) as unknown[]
+    for (const c of COUNTS) {
+      expect(evalStep(small, c)).toBeLessThan(evalStep(normal, c))
     }
   })
 })

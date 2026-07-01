@@ -7,6 +7,12 @@ import type { ObservationEntry } from '../types'
 export type ViewMode = 'sightings' | 'hotspots' | 'targets' | 'lifers'
 export type DisplayMode = 'pins' | 'heatmap'
 
+// Session-only Pins-mode point sizing: 'normal' is byte-identical to the
+// original rendering, 'small' shrinks the sighting circles (via the shared
+// radius factor in lib/mapPins), and 'off' hides the sr-sight-circle layer
+// entirely (and its popup/click target) so a shaded choropleth reads cleanly.
+export type PointSize = 'normal' | 'small' | 'off'
+
 export type MapPhase =
   | { tag: 'loading-saved' }
   | { tag: 'setup-required' }
