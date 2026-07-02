@@ -1,13 +1,13 @@
 {
-  "activeFeature": "mobile-prep-sweep",
+  "activeFeature": null,
   "sessionNumber": 65,
-  "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "autonomyMode": "studio-style",
-  "autonomyNote": "Improve run, Studio Style. DEPLOY CONFIRMED by user at stage-5-deploy-confirm gate. Shipping v0.5.55: commit all -> push main -> tag v0.5.55 (Windows CI) -> verify CI headSha == tag -> CI=true SKIP_NPM_INSTALL=1 zsh -lc ./release.sh (headless notarized universal DMG + updater bundle + signed Windows installer + latest.json). Contents: 4 tidies + 66 responsive fixes. Gates green (vitest 1256/pytest 172/lint/build/cargo/entry-chunk); security 41 checks 0 findings. After release: Chronicler.",
+  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. v0.5.55 (mobile-prep-sweep, Improve lane) FULLY SHIPPED -- source + binaries + records. A pre-mobile hardening + responsive pass: 4 internal tidies (pooled httpx shared lazy-singleton client; codes-independent recent-obs cache both runtimes; test hardening -- taxonomy-collapse shared-fixture parity + useCountyCompleteness hook tests; removed dead tauri-plugin-geolocation) + a responsive/mobile audit (71 findings, adversarially verified) with 67 fixed (66 pipeline + #5 comparer A/B labels shipped by the user). 4 new shared globals.css classes: .sr-touch-target/.sr-map-popup-body/.sr-input-16/.sr-wrap-flex (+ .sr-sidecell-tag). All 6 Improve stages done. Release: tag v0.5.55 -> commit 081a2588 (user pushed #5 + moved tag mid-deploy; orchestrator ff-merged, re-verified gates 1257 green, confirmed CI headSha==tag, released headless). Records commit c4f1ca3. GitHub release Latest, all 6 assets, latest.json 3 platforms. 3 deferred-behavior audit findings tracked on ROADMAP Horizon (#26 breeding-code meanings hover-only, #27 badge/media title-only tooltips, #40 LifeListTable sticky-header scroll model). Recommended (non-blocking): manual 375px phone smoke of map popups + weather tab. No pending releases.",
   "ideaId": null,
   "confirmedArtifacts": [
     "pipeline/mobile-prep-sweep/change-brief.md",
@@ -16,7 +16,9 @@
     "pipeline/mobile-prep-sweep/qa-report.md",
     "pipeline/mobile-prep-sweep/security-report.md"
   ],
-  "releasedVersion": "0.5.54",
+  "releasedVersion": "0.5.55",
+  "lastFeature": "mobile-prep-sweep (Improve lane) -- COMPLETE through all 6 Weft stages, shipped as v0.5.55 SOURCE + BINARIES + RECORDS. A pre-mobile-launch hardening + responsive-friendliness pass: four internal tidies (pooled backend httpx client, shared recent-observations cache, dual-transport test hardening, dead geolocation-plugin removal) plus fixes for 67 of 71 adversarially-verified responsive/mobile audit findings across every surface (map popups scroll on phones, ~44px touch targets, no iOS input auto-zoom, wrapping control groups; 4 new shared globals.css classes). 3 findings that cross into new-content/scroll-model territory tracked as ROADMAP follow-ups. First run to involve a mid-deploy user tag-move (finding #5), handled by the ff-merge + headSha==tag re-verify.",
+  "remainingBacklog": "No pending releases -- v0.5.55 fully shipped, supersedes v0.5.54. ROADMAP Up Next: mobile app (responsive groundwork now complete); Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; non-US county support; per-species county choropleth; targets findability ranking; 3 deferred mobile a11y follow-ups (breeding-code meanings on touch, visible comparer badge/media counts on touch, scrollable Life List table on phones).",
   "createdAt": "2026-07-02T16:21:19Z",
-  "updatedAt": "2026-07-02T19:50:00Z"
+  "updatedAt": "2026-07-02T20:10:00Z"
 }
