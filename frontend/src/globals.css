@@ -692,6 +692,13 @@ h1, h2, h3, h4, h5, h6 {
 .sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sr-wrap-anywhere { overflow-wrap: anywhere; word-break: break-word; }
 
+/* ChecklistComparer "In Both" A/B tag — a small "A"/"B" prefix inside each
+   fixed-width side cell, revealed only on the ≤640 phone tier (reveal rule in the
+   media block below) where the two cells can wrap under the species name and lose
+   their alignment with the panel-header A/B. Hidden on desktop so the counts stay
+   column-aligned and the layout is untouched. */
+.sr-sidecell-tag { display: none; }
+
 /* ── Mobile-readiness shared vocabulary (mobile-readiness-fix-pass) ──────────
    Four recurring themes across the 71-finding phone audit. Each is a class the
    per-file fixes ADD (dropping the equivalent inline layout); colors/padding/
@@ -986,6 +993,10 @@ select:focus-visible {
   /* Icon-only buttons in dense map rows grow to a ~40px tap box on phones
      (both dimensions, rem). Keeps the glyph size and radius; desktop untouched. */
   .sr-map-icon-btn-touch { min-width: 2.5rem; min-height: 2.5rem; }
+
+  /* Reveal the ChecklistComparer A/B side-cell tags on phones, where the two
+     fixed-width cells can wrap under the species name (base rule hides them). */
+  .sr-sidecell-tag { display: inline; }
 
   /* iOS focus-zoom guard — 16px is the iOS threshold (an absolute px value), so
      a px font-size is correct here; scoped to the phone tier only. */

@@ -87,12 +87,20 @@ function MediaIcons({ media }: { media: MediaPresence | null }) {
 // media icons, then the count. The comment toggle sits HERE (on the A/B side) so it's
 // clear which checklist the note belongs to. Fixed width so counts line up; count
 // emphasized when it's higher.
-function SideCell({ count, emphasized, breeding, media, hasComment, open, onToggle }: {
+function SideCell({ count, emphasized, breeding, media, hasComment, open, onToggle, sideLabel }: {
   count: string | null; emphasized: boolean; breeding: string | null; media: MediaPresence | null
   hasComment?: boolean; open?: boolean; onToggle?: () => void
+  // "A"/"B" for the In Both panel — shown (via .sr-sidecell-tag) only ≤640, where the
+  // side cells can wrap under the name and lose their alignment with the panel header.
+  sideLabel?: string
 }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5, width: SIDE_CELL_WIDTH, flexShrink: 0, fontSize: '0.75rem' }}>
+      {sideLabel && (
+        <span className="sr-sidecell-tag" style={{ flexShrink: 0, fontSize: '0.625rem', fontWeight: 700, color: 'var(--sr-text-muted)' }}>
+          {sideLabel}
+        </span>
+      )}
       {hasComment && onToggle && (
         <button tabIndex={0} onClick={onToggle} aria-expanded={open}
           aria-label={open ? 'Hide comment' : 'Show comment'} title={open ? 'Hide comment' : 'Show comment'}
@@ -167,8 +175,8 @@ function SpeciesRow({ row, mode, hasEntry, onOpenSpecies }: {
           <BirdName commonName={row.commonName} taxonCode={row.speciesCode} hasEntry={hasEntry} onOpenSpecies={onOpenSpecies} size="sm" />
         </span>
         <span style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 8, flexShrink: 0, marginLeft: 'auto' }}>
-          {mode !== 'b' && <SideCell count={row.countA} emphasized={hi === 'a'} breeding={row.breedingA} media={row.mediaA} hasComment={cA} open={open} onToggle={toggle} />}
-          {(mode === 'both' || mode === 'b') && <SideCell count={row.countB} emphasized={hi === 'b'} breeding={row.breedingB} media={row.mediaB} hasComment={cB} open={open} onToggle={toggle} />}
+          {mode !== 'b' && <SideCell count={row.countA} emphasized={hi === 'a'} breeding={row.breedingA} media={row.mediaA} hasComment={cA} open={open} onToggle={toggle} sideLabel={mode === 'both' ? 'A' : undefined} />}
+          {(mode === 'both' || mode === 'b') && <SideCell count={row.countB} emphasized={hi === 'b'} breeding={row.breedingB} media={row.mediaB} hasComment={cB} open={open} onToggle={toggle} sideLabel={mode === 'both' ? 'B' : undefined} />}
         </span>
       </div>
       {open && hasAny && (

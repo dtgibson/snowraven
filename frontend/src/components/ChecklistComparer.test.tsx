@@ -3,9 +3,10 @@
 // Locks the accessibility shape of the Checklist Comparer's per-species cells
 // after a comparison renders: the breeding-code badge is announced (role="img"
 // + "<code> — <label>") and uses a per-tier text color that passes contrast
-// (F004), and the media-presence icons are announced with a pluralized name
-// matching the tooltip (F035). The comparison logic itself is covered in
-// lib/compareChecklists.test.ts.
+// (F004), the media-presence icons are announced with a pluralized name
+// matching the tooltip (F035), and each In Both side cell carries an A/B tag
+// (shown only ≤640 so wrapped cells stay labeled, F074). The comparison logic
+// itself is covered in lib/compareChecklists.test.ts.
 
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
@@ -55,13 +56,14 @@ beforeEach(() => {
 afterEach(cleanup)
 
 async function compare() {
-  render(<ChecklistComparer {...props} />)
+  const utils = render(<ChecklistComparer {...props} />)
   // Two inputs (A and B) share the same placeholder.
   const inputs = screen.getAllByPlaceholderText(/S12345678/)
   fireEvent.change(inputs[0], { target: { value: 'S111' } })
   fireEvent.change(inputs[1], { target: { value: 'S222' } })
   fireEvent.click(screen.getByRole('button', { name: /compare checklists/i }))
   await waitFor(() => expect(screen.getByText('In Both')).toBeTruthy())
+  return utils
 }
 
 describe('ChecklistComparer — per-species cell a11y', () => {
@@ -82,5 +84,14 @@ describe('ChecklistComparer — per-species cell a11y', () => {
     const audio = screen.getByRole('img', { name: '1 audio' })
     expect(audio).toBeTruthy()
     expect(audio.getAttribute('title')).toBe('1 audio')
+  })
+
+  it('tags each In Both side cell with an A/B label (shown only ≤640 via .sr-sidecell-tag)', async () => {
+    const { container } = await compare()
+    // One shared species → one A cell + one B cell, each carrying an identifying
+    // tag so the cluster stays labeled when the fixed-width cells wrap under the
+    // name on a phone / at 200% text scale (audit F074). Hidden ≥640 by the class.
+    const tags = Array.from(container.querySelectorAll('.sr-sidecell-tag'))
+    expect(tags.map(t => t.textContent)).toEqual(['A', 'B'])
   })
 })
