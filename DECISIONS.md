@@ -4,6 +4,19 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Touch-a11y follow-ups: two product scope calls (Life List sticky removed, not fixed; comparer breeding-label reveal declined) — 2026-07-02 (v0.5.56)
+
+**What:** An Improve run resolving the three deferred-behavior findings tracked on the ROADMAP Horizon after the v0.5.55 mobile audit — hover-only / touch-inert affordances surfaced for touch users using the existing responsive/accessibility conventions (breeding-code meanings as visible legend text; comparer media counts revealed on the ≤640 tier via a new base-hidden `.sr-media-count` class; the inert Life List sticky-header CSS removed). No new component, network call, provider, or convention. Shipped as v0.5.56.
+
+**Decisions worth keeping:**
+
+- **Finding #40 was reframed from "make the phone sticky header work" to "remove it" (user decision).** The Life List `<thead>`'s `position:sticky; top:0` was inert (no bounded vertical-scroll ancestor), so the header already scrolled away with the page. Rather than add a bounded-scroll model to engage the sticky on phones, the user decided a phone sticky header only wastes screen space and isn't wanted — so the finding is resolved as a cleanup: the ineffective sticky declaration is gated to `wideMode` only (its byte-identical prior behavior), and the default-mode header intentionally scrolls away. No behavior change on any surface.
+- **Finding #27's in-comparer breeding-LABEL reveal was declined as feature-territory.** The comparer's media counts were revealed on the phone tier, but the `BreedingBadge` full label was deliberately NOT inlined — there's no room in the 3–4px pill and an in-comparer label reveal would be new UI. The meaning is reachable instead via the #26 Breeding Codes legend (now visible text), so touch users lose nothing; adding a second reveal path in the comparer stays out of the Improve lane.
+
+**Implications:** No prior decision is reversed. Both calls follow the standing CLAUDE.md line between surfacing existing information for touch (in-lane) and adding new UI/behavior (feature-territory). `.sr-media-count` is one more instance of the documented base-hide/≤640-reveal idiom (alongside `.sr-sidecell-tag`) — no new convention promoted. Verified: vitest 1259, pytest 172, lint, `tsc -b`, build, entry-chunk guard all green; security review PASSED (24 checks, 0 findings — no new attack surface, trust boundary, or dependency; `PRIVACY_POLICY` unchanged). Frontend-only.
+
+---
+
 ## Mobile-prep sweep: responsive fix pass + two efficiency tidies + a logged geolocation-plugin reversal — 2026-07-02 (v0.5.55)
 
 **What:** A bundled Improve run ahead of the mobile launch — the mobile-readiness responsive/accessibility fix pass plus three of the four recorded deferrals now due. Shipped as v0.5.55 (headless `CI=true` release from Hephaestus; the standing tag-re-push commit==tag check held — see the reversal note below). No new user-facing feature; visual repair of existing screens + output-identical/dead-code internals.
