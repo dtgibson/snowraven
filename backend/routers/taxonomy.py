@@ -190,6 +190,30 @@ async def _ensure_loaded() -> None:
         _loaded = True
 
 
+async def collapse_to_species_list(codes: list[str]) -> list[dict]:
+    """The FR-09 species-comparability collapse for a region species list (the
+    /map/county-species denominator + targets pool; desktop twin:
+    taxonomyService.collapseToSpeciesList — keep in lockstep): each raw code (all
+    categories, eBird taxonomic order) collapses to its reportAs species parent;
+    only species-category codes survive (spuh/slash/hybrid have no species parent
+    and drop out); dedupe preserves first-seen (taxonomic) order.
+
+    Raises if the taxonomy cannot be loaded at all (no floor AND no network) —
+    the caller maps that to its own error shape rather than serving a Y that
+    silently counted nothing."""
+    await _ensure_loaded()
+    species_set = set(_by_sci.values())
+    seen: set[str] = set()
+    out: list[dict] = []
+    for c in codes:
+        parent = _report_as.get(c, c)
+        if parent not in species_set or parent in seen:
+            continue
+        seen.add(parent)
+        out.append({"speciesCode": parent, "commonName": _by_code.get(parent, parent)})
+    return out
+
+
 async def resolve_species(codes: list[str]) -> dict[str, dict]:
     """Raw observation code -> {speciesCode, commonName}, normalizing eBird sub-forms
     (domestic/issf/form) to their parent species via reportAs, so the same bird matches

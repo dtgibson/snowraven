@@ -45,6 +45,45 @@ export async function getHotspotRegion(regionCode: string): Promise<string[]> {
   return data.map(h => h.locId).filter((id): id is string => !!id);
 }
 
+// County subnational2 codes only ("US-CA-085") — stricter than hotspot-region,
+// matching deriveCountyRegionCode's COUNTY_REGION_RE (NFR-09 shape guard).
+const COUNTY_REGION_RE = /^US-[A-Z]{2}-\d{3}$/;
+
+export interface CountySpeciesPayload {
+  regionCode: string;
+  /** Y — species-level count after the FR-09 comparability collapse. */
+  speciesCount: number;
+  /** Species-level entries in eBird taxonomic order (the targets pool). */
+  species: { speciesCode: string; commonName: string }[];
+}
+
+/** All-time species list for a US county region, collapsed to species level.
+ *  Mirrors backend GET /map/county-species (dual-transport parity — keep both
+ *  in lockstep): eBird product/spplist/{region} → reportAs collapse → dedupe
+ *  preserving taxonomic order. Empty eBird list ⇒ { speciesCount: 0 } (FR-25). */
+export async function getCountySpecies(regionCode: string): Promise<CountySpeciesPayload> {
+  if (!COUNTY_REGION_RE.test(regionCode)) {
+    throw Object.assign(
+      new Error('Invalid county region code.'),
+      { status: 422, detail: 'Invalid county region code.' }
+    );
+  }
+  const headers = await ebirdHeaders();
+  const url = `${EBIRD_BASE}/product/spplist/${encodeURIComponent(regionCode)}`;
+  const res = await tauriFetch(url, { headers });
+  if (!res.ok) {
+    throw Object.assign(
+      new Error(`eBird API error: ${res.status}`),
+      { status: 502, detail: `eBird API error: ${res.status}` }
+    );
+  }
+  const raw = await res.json() as unknown;
+  const codes = Array.isArray(raw) ? raw.filter((c): c is string => typeof c === 'string') : [];
+  const { collapseToSpeciesList } = await import('./taxonomyService');
+  const species = await collapseToSpeciesList(codes);
+  return { regionCode, speciesCount: species.length, species };
+}
+
 export interface RecentObs {
   speciesCode: string;
   comName: string;

@@ -81,6 +81,13 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('assets/us-counties.json')).toBe(false)
   })
 
+  it('the county-completeness code is only reachable through the lazy Map Explorer (NFR-02)', () => {
+    expect(has('lib/countyCompleteness.ts')).toBe(false)
+    expect(has('lib/countyCompletenessCache.ts')).toBe(false)
+    expect(has('lib/useCountyCompleteness.ts')).toBe(false)
+    expect(has('components/map/CountyCompletenessPopup.tsx')).toBe(false)
+  })
+
   it('methodology sanity: the known-lazy AtlasLayer / ca-atlas-blocks are also absent', () => {
     // If these appeared, the resolver would be wrong (or someone broke the
     // map-lazy rule); the County checks above would then be meaningless.
@@ -104,8 +111,8 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
 const DIST_INDEX = resolve(SRC, '../dist/index.html')
 describe.skipIf(!existsSync(DIST_INDEX))('dist/index.html modulepreload (post-build)', () => {
   const html = existsSync(DIST_INDEX) ? readFileSync(DIST_INDEX, 'utf8') : ''
-  it('does not modulepreload the county geometry chunk or maplibre', () => {
+  it('does not modulepreload the county geometry chunk, completeness code, or maplibre', () => {
     const preloads = [...html.matchAll(/<link[^>]+rel="modulepreload"[^>]+href="([^"]+)"/g)].map(m => m[1])
-    expect(preloads.some(h => /us-counties|CountyLayer|vendor-maplibre/.test(h))).toBe(false)
+    expect(preloads.some(h => /us-counties|CountyLayer|countyCompleteness|vendor-maplibre/i.test(h))).toBe(false)
   })
 })

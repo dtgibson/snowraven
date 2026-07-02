@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 0.5.53">v0.5.53</span>
+        <span class="version-pill" aria-label="Version 0.5.54">v0.5.54</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -252,7 +252,14 @@
               the current view, kept crisp and accurate at every zoom because they come straight
               from the map's own tiles, and can shade each county by how many species (or checklists) you've
               recorded there, drawn from your own loaded backup, with a legend, a popup per county,
-              and a keyboard-accessible list of the counties in view. An optional colorblind-friendly
+              and a keyboard-accessible list of the counties in view. A third Completeness metric
+              shades each county by how complete your county list is — your countable species there
+              measured against everything ever reported to eBird for that county, on a fixed 0–100%
+              scale — with a per-county progress bar, your newest county species, and a short list of
+              targets you haven't recorded there yet. That one metric needs a connection and your own
+              eBird API key (the app says so right at the control); lookups stay bounded to the
+              counties you've birded in view and are cached on your device for 30 days, so fetched
+              counties keep shading offline. An optional colorblind-friendly
               Use Textures mode paints each county as a crosshatch whose density rises with your count,
               so you can rank counties without relying on color. Only one of the atlas or county
               shadings is active at a time, and while a shading ramp is on the basemap's land mutes to
@@ -570,7 +577,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v0.5.53 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v0.5.54 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

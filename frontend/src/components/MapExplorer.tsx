@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Info, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -22,7 +22,9 @@ import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { CountyLayer } from './map/CountyLayer'
 import type { CountyFC } from '../lib/countyBoundaries'
-import { buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_METRIC_META, COUNTY_CLASS_COUNT, type CountyMetric } from '../lib/countyShading'
+import { buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_METRIC_META, COUNTY_CLASS_COUNT } from '../lib/countyShading'
+import { buildCountyCompletenessLocal, type CountyShadeMetric } from '../lib/countyCompleteness'
+import { useCountyCompleteness, EBIRD_NO_KEY_MESSAGE } from '../lib/useCountyCompleteness'
 import type { CountyTier } from '../lib/countyTextures'
 import { nextShadingState } from '../lib/shadingExclusion'
 import { computeChecklists, filterObservations } from '../lib/birdingStats'
@@ -42,7 +44,7 @@ import {
   MEDIA_ICONS, TEARDROP_HTML, SELECT_STYLE,
 } from '../lib/mapExplorerFormat'
 import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
-import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch } from './map/MapSidebarUI'
+import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch, CountyCompletenessLegend } from './map/MapSidebarUI'
 import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
 import { SightingMarkers } from './map/SightingMarkers'
 import { BasemapDesaturation } from './map/BasemapDesaturation'
@@ -225,7 +227,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [countyData, setCountyData]                 = useState<CountyFC | null>(null)
   const [countyLoading, setCountyLoading]           = useState(false)
   const [shadeByCounty, setShadeByCounty]           = useState(false)
-  const [countyMetric, setCountyMetric]             = useState<CountyMetric>('species')
+  const [countyMetric, setCountyMetric]             = useState<CountyShadeMetric>('species')
   // Colorblind-accessible county shading: paint shaded counties as a per-tier
   // crosshatch density instead of color. Session-scoped, off by default, NO
   // storage seam / persistence (NFR-06 / QA-24); independent of the atlas
@@ -770,11 +772,32 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   }, [phase])
 
   // Quantile tiers over the active metric's non-zero county values; empty when
-  // there are none (drives the honest "nothing to shade" note).
+  // there are none (drives the honest "nothing to shade" note). Completeness is
+  // NOT a quantile metric — it carries its own fixed bands (FR-11), so the
+  // quantile computation is skipped entirely while it is selected.
   const countyTiers = useMemo(
-    () => computeCountyTiers(countyAggregates ? nonZeroMetricValues(countyAggregates, countyMetric) : [], COUNTY_CLASS_COUNT),
+    () => computeCountyTiers(
+      countyAggregates && countyMetric !== 'completeness' ? nonZeroMetricValues(countyAggregates, countyMetric) : [],
+      COUNTY_CLASS_COUNT,
+    ),
     [countyAggregates, countyMetric],
   )
+
+  // Local (backup-derived) per-county completeness: countable X + the recent
+  // new-in-county list. Works offline and with no eBird key (FR-21/FR-24).
+  const countyLocalCompleteness = useMemo(
+    () => (phase.tag === 'ready' ? buildCountyCompletenessLocal(phase.observations) : null),
+    [phase],
+  )
+
+  // The Completeness controller — persistent 30-day cache, bounded eager fetch,
+  // click-to-fetch, degraded states. Null (and fully inert — zero fetches)
+  // unless the Completeness metric is the active county shading.
+  const countyCompleteness = useCountyCompleteness({
+    active: countyLinesEnabled && shadeByCounty && countyMetric === 'completeness' && phase.tag === 'ready',
+    localByCounty: countyLocalCompleteness,
+    hasEbirdKey,
+  })
 
   // ── Actions ───────────────────────────────────────────────────────────────────
 
@@ -1138,14 +1161,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           const backupReady = phase.tag === 'ready'
           return (
             <div style={{ marginTop: 12 }}>
-              {/* Shade by species seen — disabled without a loaded backup (FR-04) */}
+              {/* Shade counties (D-401 rename — the toggle now governs three
+                  metrics) — disabled without a loaded backup (FR-04) */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, opacity: backupReady ? 1 : 0.55 }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Shade by species seen</span>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Shade counties</span>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={shadeByCounty}
-                  aria-label="Shade counties by species you've recorded"
+                  aria-label="Shade counties by the selected metric"
                   title="Only one shading shows at a time — turning this on switches off atlas shading."
                   aria-disabled={!backupReady}
                   disabled={!backupReady}
@@ -1165,7 +1189,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               </div>
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
                 {backupReady
-                  ? 'Tints each county by your own count there — drawn only from your loaded backup.'
+                  ? (countyMetric === 'completeness' && shadeByCounty
+                      ? 'Tints each county by how complete your county list is — your backup measured against everything reported on eBird.'
+                      : 'Tints each county by your own count there — drawn only from your loaded backup.')
                   : 'Load your eBird backup in Settings to use this.'}
                 {backupReady && shadeByBreeding && ' Turning this on switches off atlas shading.'}
               </div>
@@ -1175,11 +1201,31 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   <div style={{ marginTop: 10 }}>
                     <SegControl
                       ariaLabel="Choropleth metric"
-                      options={[{ value: 'species', label: 'Species' }, { value: 'records', label: 'Checklists' }]}
+                      options={[
+                        { value: 'species', label: 'Species' },
+                        { value: 'records', label: 'Checklists' },
+                        { value: 'completeness', label: 'Completeness' },
+                      ]}
                       value={countyMetric}
-                      onChange={v => setCountyMetric(v as CountyMetric)}
+                      onChange={v => setCountyMetric(v as CountyShadeMetric)}
                     />
                   </div>
+
+                  {/* Point-of-use disclosure (FR-34): only while Completeness is
+                      selected — this is the one county metric that needs network
+                      + the user's eBird key. */}
+                  {countyMetric === 'completeness' && (
+                    <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', marginTop: 10, fontSize: '0.6875rem', color: 'var(--sr-text-muted)', lineHeight: 1.45 }}>
+                      <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
+                      <span>
+                        Unlike Species and Checklists, Completeness needs a network connection and your
+                        eBird API key. Counties you've fetched are cached for 30 days.
+                      </span>
+                    </div>
+                  )}
+                  {countyMetric === 'completeness' && hasEbirdKey === false && (
+                    <OfflineMessage kind="no-key" message={EBIRD_NO_KEY_MESSAGE} compact style={{ marginTop: 10 }} />
+                  )}
 
                   {/* Use Textures — per-tier crosshatch density; off by default (colorblind aid) */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
@@ -1207,7 +1253,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     Adds a distinct hatch density per level so counties are distinguishable without color.
                   </div>
 
-                  {countyTiers.legend.length === 0 ? (
+                  {countyMetric === 'completeness' ? (
+                    // FR-27: fixed 0–100% band legend — the quantile legend below
+                    // is untouched for Species/Checklists (FR-06).
+                    <CountyCompletenessLegend useTextures={useCountyTextures} />
+                  ) : countyTiers.legend.length === 0 ? (
                     <div style={{ display: 'flex', gap: 7, alignItems: 'flex-start', marginTop: 12, fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5 }}>
                       <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
                       <span>No recorded counties to shade. Add records or load a backup with county data to see the choropleth.</span>
@@ -2112,6 +2162,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   aggregates={countyAggregates}
                   tiers={countyTiers}
                   metric={countyMetric}
+                  completeness={countyMetric === 'completeness' ? countyCompleteness : null}
                   useTextures={useCountyTextures}
                   onOpenSpecies={onOpenSpecies}
                   hasEntryFor={hasEntryFor}

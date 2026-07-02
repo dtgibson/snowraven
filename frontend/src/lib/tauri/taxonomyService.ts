@@ -227,6 +227,43 @@ export async function getTaxonomyCodes(
   return { codes, orders };
 }
 
+// Memoized species-category code set (the values of bySci — ~11.2k codes),
+// rebuilt only when the underlying cache object changes (an online supersede).
+// Used by the county-species comparability collapse; building it per call would
+// walk the full map on every county fetch.
+let _speciesSetSource: TaxonomyCache | null = null
+let _speciesSet: Set<string> | null = null
+
+function speciesSetFor(cache: TaxonomyCache): Set<string> {
+  if (_speciesSet && _speciesSetSource === cache) return _speciesSet
+  _speciesSetSource = cache
+  _speciesSet = new Set(Object.values(cache.bySci))
+  return _speciesSet
+}
+
+/**
+ * The FR-09 species-comparability collapse for a region species list (desktop
+ * twin of the backend's `collapse_to_species_list` — keep in lockstep): each raw
+ * code (all categories, eBird taxonomic order) collapses to its `reportAs`
+ * species parent; only species-category codes survive (spuh/slash/hybrid have no
+ * species parent and drop out); dedupe preserves first-seen (taxonomic) order.
+ */
+export async function collapseToSpeciesList(
+  codes: string[],
+): Promise<{ speciesCode: string; commonName: string }[]> {
+  const cache = await ensureTaxonomy()
+  const speciesSet = speciesSetFor(cache)
+  const seen = new Set<string>()
+  const out: { speciesCode: string; commonName: string }[] = []
+  for (const c of codes) {
+    const parent = cache.reportAs[c] ?? c
+    if (!speciesSet.has(parent) || seen.has(parent)) continue
+    seen.add(parent)
+    out.push({ speciesCode: parent, commonName: cache.byCode[parent] || parent })
+  }
+  return out
+}
+
 /**
  * Resolve raw observation codes → { speciesCode, commonName }, normalizing eBird
  * sub-forms (domestic/issf/form) to their parent species via reportAs — so the same

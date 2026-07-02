@@ -132,6 +132,14 @@ class TauriTransport implements TransportAdapter {
       return getHotspotRegion(params?.regionCode ?? '') as Promise<T>;
     }
 
+    // NOT in CACHED_GET_PATHS: the 30-day persistent completeness cache
+    // (countyCompletenessCache) owns caching for this path — a second 90 s
+    // layer would just shadow it (schema.md design decision).
+    if (path === '/map/county-species') {
+      const { getCountySpecies } = await import('./tauri/mapService');
+      return getCountySpecies(params?.regionCode ?? '') as Promise<T>;
+    }
+
     if (path === '/map/recent-obs') {
       const { getRecentObs } = await import('./tauri/mapService');
       const lat = parseFloat(params?.lat ?? '0');

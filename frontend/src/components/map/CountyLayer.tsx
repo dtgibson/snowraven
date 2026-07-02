@@ -19,11 +19,13 @@ import type { FillLayerSpecification, FilterSpecification, LineLayerSpecificatio
 import { ExternalLink } from 'lucide-react'
 import {
   countiesInBounds, countyListRows, padBounds, countyKey, deriveCountyRegionCode, stateNameFor,
-  type CountyFC, type Bounds, type CountyListRow,
+  type CountyFC, type CountyFeature, type Bounds, type CountyListRow,
 } from '../../lib/countyBoundaries'
 import {
   countyMetricValue, type CountyAggregate, type CountyMetric, type CountyTiers,
 } from '../../lib/countyShading'
+import type { CountyShadeMetric, CountyCompletenessView, CompletenessStatus } from '../../lib/countyCompleteness'
+import { CountyCompletenessPopup } from './CountyCompletenessPopup'
 import { OutboundLink } from '../OutboundLink'
 import { BirdName } from '../BirdName'
 import { HotspotLink } from '../HotspotLink'
@@ -80,14 +82,31 @@ const MARKER_LAYERS = ['sr-sight-circle', 'sr-hotspot']
 
 const REGION_URL = 'https://ebird.org/region/'
 
+// FR-28: honest per-county state labels for the "Counties in view" value column
+// while the Completeness metric is active and the value isn't known yet.
+const COMPLETENESS_LIST_LABEL: Record<CompletenessStatus, string> = {
+  ready: '',                    // never rendered — 'ready' shows the X/Y · Z% value
+  loading: 'loading…',
+  offline: 'offline',
+  'no-key': 'needs eBird key',
+  error: 'eBird error',
+  empty: 'none on eBird',
+  unfetched: 'not fetched',
+  'no-region': 'no eBird data',
+}
+
 interface Props {
   data: CountyFC | null
   shade?: boolean
   /** Per-county aggregates keyed by countyKey(stusps, name); null until ready. */
   aggregates?: Map<string, CountyAggregate> | null
-  /** Quantile tiers over the active metric's non-zero values. */
+  /** Quantile tiers over the active metric's non-zero values (count metrics only). */
   tiers: CountyTiers
-  metric: CountyMetric
+  metric: CountyShadeMetric
+  /** The Completeness controller — supplied only while metric === 'completeness'.
+   *  Drives the fixed-band tier, the popup's completeness content, the bounded
+   *  eager fetch, and click-to-fetch (the quantile path never consults it, FR-06). */
+  completeness?: CountyCompletenessView | null
   onOpenSpecies?: (commonName: string) => void
   hasEntryFor?: (name: string) => boolean
   taxonCodeFor?: (commonName: string) => string | undefined
@@ -102,7 +121,7 @@ type Selected = { lng: number; lat: number; geoid: string; name: string; stusps:
 const EMPTY_FC: FeatureCollection = { type: 'FeatureCollection', features: [] }
 
 export function CountyLayer({
-  data, shade = false, aggregates = null, tiers, metric,
+  data, shade = false, aggregates = null, tiers, metric, completeness = null,
   onOpenSpecies, hasEntryFor, taxonCodeFor, isPublicHotspot, useTextures = false,
 }: Props) {
   const map = useMap().current
@@ -141,34 +160,70 @@ export function CountyLayer({
 
   const shadeOn = shade && !!aggregates
 
-  // tier (1..4) for a county by its (stusps, name) join key; 0 when not shading
-  // or no record for the active metric.
+  // tier for a county by its (stusps, name) join key; 0 when not shading or no
+  // value for the active metric. Completeness supplies its own FIXED band
+  // (0..10) via the controller; the count metrics keep the quantile path
+  // byte-identical (FR-06). geoid rides along for the region-code derivation.
   const tierForCounty = useMemo(() => {
-    return (stusps: string, name: string): number => {
-      if (!shadeOn || !aggregates) return 0
+    return (stusps: string, name: string, geoid: string): number => {
+      if (!shadeOn) return 0
+      if (metric === 'completeness') {
+        return completeness ? completeness.summaryFor(stusps, name, geoid).band : 0
+      }
+      if (!aggregates) return 0
       const agg = aggregates.get(countyKey(stusps, name))
       if (!agg) return 0
       return tiers.tierFor(countyMetricValue(agg, metric))
     }
-  }, [shadeOn, aggregates, tiers, metric])
+  }, [shadeOn, aggregates, tiers, metric, completeness])
+
+  // Viewport windowing, split from the tier assignment so the eager-fetch row
+  // set is stable across tier-only updates (a progressive-shading re-render must
+  // not re-notify the controller).
+  const inView = useMemo(() => {
+    if (!data || !bounds) return { features: [] as CountyFeature[], tooMany: false }
+    return countiesInBounds(data, padBounds(bounds, BOUNDS_PAD), COUNTY_CAP)
+  }, [data, bounds])
+
+  // Deduped (by geoid) in-view county identities — the Completeness controller's
+  // eager-fetch input (it filters down to BIRDED + resolvable + non-fresh, FR-13).
+  const eagerRows = useMemo(() => {
+    const seen = new Set<string>()
+    const rows: { stusps: string; name: string; geoid: string }[] = []
+    for (const f of inView.features) {
+      const p = f.properties
+      if (seen.has(p.geoid)) continue
+      seen.add(p.geoid)
+      rows.push({ stusps: p.stusps, name: p.name, geoid: p.geoid })
+    }
+    return rows
+  }, [inView])
 
   const { fc, tooMany, list, listTotal, listOverCap } = useMemo(() => {
-    if (!data || !bounds) return { fc: EMPTY_FC, tooMany: false, list: [] as CountyListRow[], listTotal: 0, listOverCap: false }
-    const res = countiesInBounds(data, padBounds(bounds, BOUNDS_PAD), COUNTY_CAP)
-    if (res.tooMany) return { fc: EMPTY_FC, tooMany: true, list: [] as CountyListRow[], listTotal: 0, listOverCap: false }
-    const features = res.features.map(f => ({
+    if (inView.tooMany) return { fc: EMPTY_FC, tooMany: true, list: [] as CountyListRow[], listTotal: 0, listOverCap: false }
+    if (inView.features.length === 0) return { fc: EMPTY_FC, tooMany: false, list: [] as CountyListRow[], listTotal: 0, listOverCap: false }
+    const features = inView.features.map(f => ({
       type: 'Feature' as const,
       properties: {
         geoid: f.properties.geoid,
         name: f.properties.name,
         stusps: f.properties.stusps,
-        tier: tierForCounty(f.properties.stusps, f.properties.name),
+        tier: tierForCounty(f.properties.stusps, f.properties.name, f.properties.geoid),
       },
       geometry: f.geometry,
     }))
-    const { rows, total, overCap } = countyListRows(res.features, MARKER_LIST_CAP)
+    const { rows, total, overCap } = countyListRows(inView.features, MARKER_LIST_CAP)
     return { fc: { type: 'FeatureCollection' as const, features }, tooMany: false, list: rows, listTotal: total, listOverCap: overCap }
-  }, [data, bounds, tierForCounty])
+  }, [inView, tierForCounty])
+
+  // Bounded eager fetch (FR-13): only while the Completeness metric is selected
+  // AND shading is on, hand the controller the in-view county identities. The
+  // controller enforces every gate (birded-only, region code, cache freshness,
+  // key, in-flight dedupe, the pool of 4) and no-ops on repeats.
+  useEffect(() => {
+    if (metric !== 'completeness' || !shade || !completeness || eagerRows.length === 0) return
+    completeness.onViewportCounties(eagerRows)
+  }, [metric, shade, completeness, eagerRows])
 
   // Click a county → open its popup. Hover → pointer cursor. A click that lands
   // on a marker layer above the fill is the marker's (atlas arbitration parity).
@@ -231,6 +286,15 @@ export function CountyLayer({
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
     return () => { cancelled = true; obs.disconnect(); map.off('styleimagemissing', onMissing) }
   }, [map])
+
+  // Opening a BIRDED county's popup in Completeness mode auto-requests its data
+  // (pending → result, FR-33); un-birded counties stay behind the explicit
+  // "Load completeness" button (FR-14). The controller no-ops on fresh/in-flight
+  // counties, so refires on state updates are harmless.
+  useEffect(() => {
+    if (!sel || metric !== 'completeness' || !completeness) return
+    completeness.ensureCountyForPopup(sel.stusps, sel.name, sel.geoid)
+  }, [sel, metric, completeness])
 
   const openCountyFromList = (row: CountyListRow) => {
     setSel({ lng: row.center[0], lat: row.center[1], geoid: row.geoid, name: row.name, stusps: row.stusps })
@@ -298,19 +362,33 @@ export function CountyLayer({
               )}
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{stateNameFor(sel.stusps)}</div>
 
+              {/* D-402: the count row stays in Completeness mode too; neither
+                  number takes the accent-active state there (metric matches
+                  neither 'species' nor 'records'). */}
               <div style={{ display: 'flex', gap: 18, marginTop: 9 }}>
                 <CountStat n={selSpecies} label="species" active={metric === 'species'} title="Distinct species you've recorded in this county" />
                 <CountStat n={selRecords} label="checklists" active={metric === 'records'} title="Your checklists in this county — not individual birds counted" />
               </div>
 
-              <CountyPopupTop
-                agg={selAgg}
-                metric={metric}
-                onOpenSpecies={onOpenSpecies}
-                hasEntryFor={hasEntryFor}
-                taxonCodeFor={taxonCodeFor}
-                isPublicHotspot={isPublicHotspot}
-              />
+              {metric === 'completeness' && completeness ? (
+                <CountyCompletenessPopup
+                  countyName={sel.name}
+                  result={completeness.resultFor(sel.stusps, sel.name, sel.geoid)}
+                  onLoad={() => completeness.requestCounty(sel.stusps, sel.name, sel.geoid)}
+                  onOpenSpecies={onOpenSpecies}
+                  hasEntryFor={hasEntryFor}
+                  codeFor={completeness.codeFor}
+                />
+              ) : metric !== 'completeness' ? (
+                <CountyPopupTop
+                  agg={selAgg}
+                  metric={metric}
+                  onOpenSpecies={onOpenSpecies}
+                  hasEntryFor={hasEntryFor}
+                  taxonCodeFor={taxonCodeFor}
+                  isPublicHotspot={isPublicHotspot}
+                />
+              ) : null}
             </div>
           </Popup>
         )}
@@ -381,9 +459,9 @@ export function CountyLayer({
             <div style={{ overflowY: 'auto', padding: 6 }}>
               <ul role="list" aria-label="Counties in view" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
                 {list.map(row => {
-                  const tier = tierForCounty(row.stusps, row.name)
+                  const tier = tierForCounty(row.stusps, row.name, row.geoid)
                   const agg = aggregates?.get(countyKey(row.stusps, row.name)) ?? null
-                  const value = shadeOn && agg ? countyMetricValue(agg, metric) : 0
+                  const value = shadeOn && agg && metric !== 'completeness' ? countyMetricValue(agg, metric) : 0
                   const isSelected = sel?.geoid === row.geoid
                   return (
                     <li role="listitem" key={row.geoid}>
@@ -414,11 +492,24 @@ export function CountyLayer({
                         <span style={{ flex: 1, minWidth: 0, fontSize: '0.78125rem', color: 'var(--sr-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {row.name}
                         </span>
-                        {shadeOn && (
+                        {shadeOn && metric === 'completeness' && completeness ? (() => {
+                          // FR-28 keyboard parity: "X/Y · Z%" when known, else the
+                          // honest state — matching what the map/popup convey.
+                          const s = completeness.summaryFor(row.stusps, row.name, row.geoid)
+                          return s.status === 'ready' && s.y != null ? (
+                            <span style={{ fontSize: '0.71875rem', fontWeight: 600, color: 'var(--sr-text)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
+                              {s.x.toLocaleString()}/{s.y.toLocaleString()} · {s.percent}%
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 500, fontStyle: 'italic', color: 'var(--sr-text-muted)', flexShrink: 0 }}>
+                              {COMPLETENESS_LIST_LABEL[s.status]}
+                            </span>
+                          )
+                        })() : shadeOn && metric !== 'completeness' ? (
                           <span style={{ fontSize: '0.78125rem', fontWeight: value === 0 ? 600 : 700, color: value === 0 ? 'var(--sr-text-disabled)' : 'var(--sr-text)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
                             {value.toLocaleString()}
                           </span>
-                        )}
+                        ) : null}
                       </button>
                     </li>
                   )

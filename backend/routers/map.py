@@ -1,7 +1,10 @@
 import os
+from urllib.parse import quote
 
 import httpx
 from fastapi import APIRouter, HTTPException, Query
+
+from routers.taxonomy import collapse_to_species_list
 
 router = APIRouter()
 
@@ -64,6 +67,45 @@ async def get_hotspot_region(
         except httpx.RequestError:
             raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
     return [h["locId"] for h in resp.json() if h.get("locId")]
+
+
+@router.get("/map/county-species")
+async def get_county_species(
+    regionCode: str = Query(..., pattern=r"^US-[A-Z]{2}-[0-9]{3}$"),
+):
+    """All-time species list for a US county region (eBird product/spplist),
+    collapsed to SPECIES level for the Completeness metric's denominator +
+    targets pool (FR-08/FR-09): subspecies/forms fold into their reportAs
+    parent, spuh/slash/hybrid drop out, dedupe preserves eBird taxonomic order.
+    County subnational2 codes only (stricter than hotspot-region, matching
+    deriveCountyRegionCode). Desktop twin: mapService.getCountySpecies — keep
+    both in lockstep. Deliberately NOT in the frontend's CACHED_GET_PATHS: the
+    30-day persistent completeness cache owns caching for this route."""
+    key = _api_key()
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            resp = await client.get(
+                f"{_EBIRD_BASE}/product/spplist/{quote(regionCode, safe='')}",
+                headers={"X-eBirdApiToken": key},
+            )
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(
+                status_code=502,
+                detail=f"eBird API error: {exc.response.status_code}",
+            )
+        except httpx.RequestError:
+            raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
+
+    raw = resp.json()
+    codes = [c for c in raw if isinstance(c, str)] if isinstance(raw, list) else []
+    try:
+        species = await collapse_to_species_list(codes)
+    except Exception:
+        # Taxonomy unavailable (no bundled floor AND no network for a refresh) —
+        # an honest, retryable server error instead of a Y that counted nothing.
+        raise HTTPException(status_code=502, detail="Could not load the eBird taxonomy. Try again.")
+    return {"regionCode": regionCode, "speciesCount": len(species), "species": species}
 
 
 @router.get("/map/recent-obs")

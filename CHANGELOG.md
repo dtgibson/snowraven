@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.54] - 2026-07-02
+
+### Added
+- **County Completeness — a third county-shading metric on the Map Explorer.** Alongside Species and Checklists, a new **Completeness** option shades each US county by how complete your county list is: your countable species recorded there (spuhs, slashes, and hybrids don't count, and subspecies fold into their species) measured against everything ever reported to eBird for that county. Click a shaded county for a progress bar with "X of Y species (Z%)", your five newest county species (from your own backup — works offline), and a five-species chase list of birds on the county's eBird list that aren't on yours yet. Counties you've never birded stay plain outlines; click one and press "Load completeness" to scout it with a single eBird request. Unlike the other two metrics, Completeness needs a network connection and your eBird API key — the control says so right where you pick it, and each county's result is cached on your device for 30 days, so panning back over fetched counties makes no new eBird calls and previously fetched counties still shade when you're offline. Fetching is strictly bounded: only counties you've actually birded in the current view are looked up (a few at a time), never a bulk sweep. The legend switches to a fixed 0–100% scale (the same shade always means the same completeness), Use Textures and the keyboard "Counties in view" list work with it, and the Species/Checklists shading is unchanged. The county sub-toggle is now labeled "Shade counties" since it governs three metrics.
+
 ## [0.5.53] - 2026-07-01
 
 ### Added

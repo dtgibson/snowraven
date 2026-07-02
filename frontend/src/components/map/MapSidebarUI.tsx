@@ -4,6 +4,7 @@
 import { AlertCircle, ChevronDown } from 'lucide-react'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 import { countyHatchSpec, type CountyTier } from '../../lib/countyTextures'
+import { COMPLETENESS_BANDS } from '../../lib/countyCompleteness'
 
 export function SegControl({ options, value, onChange, ariaLabel }: {
   options: { value: string; label: string }[]
@@ -201,6 +202,38 @@ export function TierHatchSwatch({ tier }: { tier: 1 | 2 | 3 | 4 }) {
         : offsets.map(x => <line key={`a${x}`} x1={x} y1={14} x2={x + 14} y2={0} style={lineStyle} />)}
       {tier >= 3 && offsets.map(x => <line key={`b${x}`} x1={x} y1={0} x2={x + 14} y2={14} style={lineStyle} />)}
     </svg>
+  )
+}
+
+// The Completeness legend (FR-27 / OQ-06): ten FIXED equal percentage bands over
+// 0–100% — unlike the count metrics' data-driven quantile ranges — reusing the
+// same --sr-county-1..10 swatches (or the CountyDensitySwatch crosshatch when
+// Use Textures is on) so band N always paints identically on legend and map.
+// Switching back to Species/Checklists restores the quantile legend untouched.
+export function CountyCompletenessLegend({ useTextures }: { useTextures: boolean }) {
+  return (
+    <div style={{ marginTop: 12 }} aria-live="polite">
+      <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
+        Completeness — % of the county list
+      </div>
+      {COMPLETENESS_BANDS.map(b => (
+        <div key={b.band} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+          {useTextures
+            ? <CountyDensitySwatch tier={b.band as CountyTier} />
+            : <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 3, flexShrink: 0, border: '1px solid var(--sr-border-medium)', background: `var(--sr-county-${b.band})` }} />}
+          <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>{b.label}</span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 8, marginBottom: 6 }}>
+        <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 3, flexShrink: 0, border: '1px dashed var(--sr-border-medium)', background: 'transparent' }} />
+        <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>
+          Not birded / not fetched <span style={{ color: 'var(--sr-text-muted)' }}>— outline only</span>
+        </span>
+      </div>
+      <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.45 }}>
+        Fixed 0–100% bands — the same shade always means the same completeness, in every county.
+      </div>
+    </div>
   )
 }
 

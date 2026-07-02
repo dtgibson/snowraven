@@ -252,3 +252,130 @@ def test_hotspot_region_api_error_is_502(monkeypatch):
         MockClient.return_value = instance
         resp = client.get("/map/hotspot-region?regionCode=US-CA")
     assert resp.status_code == 502
+
+
+# ── /map/county-species (County Completeness — FR-08/FR-09/FR-25) ─────────────
+
+# A tiny taxonomy fixture for the species-comparability collapse. Species-set =
+# values of _by_sci; sub-forms fold via _report_as; spuh/slash/hybrid have no
+# species parent and must drop out.
+_TAX_BY_SCI = {
+    "anser albifrons": "gwfgoo",     # Greater White-fronted Goose
+    "branta canadensis": "cangoo",   # Canada Goose
+    "anas platyrhynchos": "mallar3", # Mallard
+}
+_TAX_BY_CODE = {
+    "gwfgoo": "Greater White-fronted Goose",
+    "cangoo": "Canada Goose",
+    "cangoo1": "Canada Goose (moffitti/maxima)",
+    "mallar3": "Mallard",
+    "mallar3x": "Mallard (Domestic type)",
+    "goose1": "goose sp.",
+    "y00478": "Greater/Lesser Scaup",
+    "x00776": "Mallard x American Black Duck (hybrid)",
+}
+_TAX_REPORT_AS = {
+    "cangoo1": "cangoo",    # issf → species
+    "mallar3x": "mallar3",  # domestic → species
+}
+
+
+def _seed_taxonomy(monkeypatch):
+    """Populate routers.taxonomy's module maps directly and mark it loaded, so
+    the collapse runs against a known fixture with no network."""
+    import routers.taxonomy as taxonomy
+
+    monkeypatch.setattr(taxonomy, "_loaded", True)
+    monkeypatch.setattr(taxonomy, "_by_sci", dict(_TAX_BY_SCI))
+    monkeypatch.setattr(taxonomy, "_by_code", dict(_TAX_BY_CODE))
+    monkeypatch.setattr(taxonomy, "_report_as", dict(_TAX_REPORT_AS))
+
+
+def test_county_species_missing_api_key(monkeypatch):
+    monkeypatch.delenv("EBIRD_API_KEY", raising=False)
+    resp = client.get("/map/county-species?regionCode=US-CA-085")
+    assert resp.status_code == 401
+    assert "key" in resp.json()["detail"].lower()
+
+
+def test_county_species_rejects_malformed_region():
+    # Only county subnational2 codes pass (stricter than hotspot-region) — a
+    # state code, junk, a lowercase code, or non-ASCII Unicode digits (pydantic's
+    # rust-regex `\d` is Unicode-aware; the pattern uses [0-9] so the backend
+    # matches the desktop twin's ASCII-only COUNTY_REGION_RE) all fail validation
+    # before any eBird call or key check.
+    for bad in ("US-CA", "not-a-region", "us-ca-085", "US-CA-08", "US-CA-0855", "CA-US-085", "US-CA-٠١٢"):
+        resp = client.get(f"/map/county-species?regionCode={bad}")
+        assert resp.status_code == 422, bad
+
+
+def test_county_species_collapses_to_species_level(monkeypatch):
+    # eBird returns ALL categories in taxonomic order: an issf (cangoo1) folds
+    # into its species and dedupes against the plain code; spuh/slash/hybrid
+    # never count (QA-08); order is first-seen taxonomic.
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    _seed_taxonomy(monkeypatch)
+    spplist = ["gwfgoo", "cangoo1", "cangoo", "goose1", "mallar3x", "y00478", "x00776"]
+    with patch("routers.map.httpx.AsyncClient") as MockClient:
+        MockClient.return_value = _mock_client(spplist)
+        resp = client.get("/map/county-species?regionCode=US-CA-085")
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["regionCode"] == "US-CA-085"
+    assert data["speciesCount"] == 3
+    assert data["species"] == [
+        {"speciesCode": "gwfgoo", "commonName": "Greater White-fronted Goose"},
+        {"speciesCode": "cangoo", "commonName": "Canada Goose"},
+        {"speciesCode": "mallar3", "commonName": "Mallard"},
+    ]
+
+
+def test_county_species_empty_list(monkeypatch):
+    # A valid region with nothing reported → speciesCount 0, empty pool (FR-25).
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    _seed_taxonomy(monkeypatch)
+    with patch("routers.map.httpx.AsyncClient") as MockClient:
+        MockClient.return_value = _mock_client([])
+        resp = client.get("/map/county-species?regionCode=US-MN-053")
+
+    assert resp.status_code == 200
+    assert resp.json() == {"regionCode": "US-MN-053", "speciesCount": 0, "species": []}
+
+
+def test_county_species_api_error_is_502(monkeypatch):
+    import httpx
+
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    _seed_taxonomy(monkeypatch)
+    request = httpx.Request("GET", "https://api.ebird.org/v2/product/spplist/US-CA-085")
+    response = httpx.Response(500, request=request)
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError("err", request=request, response=response)
+    )
+    instance = AsyncMock()
+    instance.get.return_value = mock_resp
+    instance.__aenter__ = AsyncMock(return_value=instance)
+    instance.__aexit__ = AsyncMock(return_value=False)
+    with patch("routers.map.httpx.AsyncClient") as MockClient:
+        MockClient.return_value = instance
+        resp = client.get("/map/county-species?regionCode=US-CA-085")
+    assert resp.status_code == 502
+    assert "ebird" in resp.json()["detail"].lower()
+
+
+def test_county_species_unreachable_is_502(monkeypatch):
+    import httpx
+
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    _seed_taxonomy(monkeypatch)
+    instance = AsyncMock()
+    instance.get.side_effect = httpx.ConnectError("no route")
+    instance.__aenter__ = AsyncMock(return_value=instance)
+    instance.__aexit__ = AsyncMock(return_value=False)
+    with patch("routers.map.httpx.AsyncClient") as MockClient:
+        MockClient.return_value = instance
+        resp = client.get("/map/county-species?regionCode=US-CA-085")
+    assert resp.status_code == 502
+    assert "reach" in resp.json()["detail"].lower()

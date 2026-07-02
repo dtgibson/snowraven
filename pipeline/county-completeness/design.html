@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — County Completeness (design mockup)</title>
+<style>
+  /* ─── Tokens — copied from frontend/src/globals.css (:root + [data-theme=dark]) ─── */
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-gray: #6B7280;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+    --sr-border-input: #8A8A91;
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-county-1: #C3E8D1; --sr-county-2: #A8D5BA; --sr-county-3: #8EC4A3;
+    --sr-county-4: #71B58D; --sr-county-5: #5FA47B; --sr-county-6: #4D956A;
+    --sr-county-7: #358758; --sr-county-8: #2D784D; --sr-county-9: #256A43;
+    --sr-county-10: #1A5C38;
+    --sr-county-1-rgb: 195,232,209; --sr-county-2-rgb: 168,213,186;
+    --sr-county-3-rgb: 142,196,163; --sr-county-4-rgb: 113,181,141;
+    --sr-county-5-rgb: 95,164,123;  --sr-county-6-rgb: 77,149,106;
+    --sr-county-7-rgb: 53,135,88;   --sr-county-8-rgb: 45,120,77;
+    --sr-county-9-rgb: 37,106,67;   --sr-county-10-rgb: 26,92,56;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-gray: #8A8A92;
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+    --sr-border-input: #707078;
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-bg-hover: #064E3B;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+    /* County ramp is identical in both themes by design — the map canvas is the
+       always-light basemap regardless of app theme. */
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 0.84375rem;
+    line-height: 1.55;
+    transition: background 0.2s, color 0.2s;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 28px 24px 64px; }
+
+  /* ─── Typographic roles ───
+     display  : 1.6rem / 700 / -0.02em (mockup page header)
+     headline : 1.125rem / 700 / -0.01em (section heads — design-system role)
+     body     : 0.84375rem / 1.55 (content), 0.8125rem (descriptions)
+     caption  : 0.6875–0.75rem, muted; 700 uppercase for control labels        */
+  .eyebrow { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--sr-accent); }
+  h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 4px 0 6px; }
+  .page-sub { font-size: 0.84375rem; color: var(--sr-text-muted); max-width: 60ch; margin: 0; }
+
+  header.page { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 26px; }
+
+  .ghost-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--sr-surface); color: var(--sr-text);
+    border: 1px solid var(--sr-border-medium); border-radius: 8px;
+    padding: 7px 13px; font: inherit; font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; flex-shrink: 0; transition: background 0.15s, border-color 0.15s;
+  }
+  .ghost-btn:hover { background: var(--sr-surface-subtle); }
+  .ghost-btn:focus-visible, button:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+  /* ─── SectionCard / SectionHead (design-system pattern) ─── */
+  .card {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; box-shadow: var(--sr-card-shadow);
+    margin-bottom: 28px; overflow: hidden;
+  }
+  .sect-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px 0; }
+  .sect-head .tile {
+    width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sect-head h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.25; }
+  .sect-head .sub { font-size: 0.75rem; color: var(--sr-text-muted); margin-top: 1px; }
+  .sect-body { padding: 18px 20px 20px; }
+
+  /* ─── Sidebar (Map Explorer fidelity) ─── */
+  .explorer { display: grid; grid-template-columns: 280px 1fr; min-height: 600px; }
+  @media (max-width: 900px) { .explorer { grid-template-columns: 1fr; } }
+  .sidebar { border-right: 1px solid var(--sr-border); padding: 14px 16px 18px; background: var(--sr-surface); }
+  @media (max-width: 900px) { .sidebar { border-right: none; border-bottom: 1px solid var(--sr-border); } }
+
+  .side-collapsed-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--sr-text-muted); border-bottom: 1px solid var(--sr-border);
+  }
+  .row-between { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .side-label { font-size: 0.8125rem; font-weight: 500; color: var(--sr-text); }
+  .side-caption { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 6px; line-height: 1.4; }
+  .side-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--sr-border); }
+
+  /* role=switch toggle — pixel match to the shipped control */
+  .toggle {
+    width: 44px; height: 24px; border-radius: 12px; border: none; flex-shrink: 0;
+    background: var(--sr-border-medium); position: relative; cursor: pointer; transition: background 0.15s;
+    padding: 0;
+  }
+  .toggle[aria-checked="true"] { background: var(--sr-accent); }
+  .toggle .knob {
+    position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+    border-radius: 50%; background: #fff; transition: left 0.15s;
+  }
+  .toggle[aria-checked="true"] .knob { left: 22px; }
+  .toggle[disabled] { cursor: not-allowed; }
+  .toggle:not([disabled]):hover { filter: brightness(0.96); }
+
+  /* SegControl — pixel match */
+  .seg { display: flex; background: var(--sr-surface-subtle); border-radius: 6px; padding: 2px; }
+  .seg button {
+    flex: 1; height: 28px; padding: 0 4px; background: transparent;
+    border: 1px solid transparent; border-radius: 5px;
+    font-size: 0.71875rem; font-weight: 400; color: var(--sr-text-muted);
+    cursor: pointer; font-family: inherit; white-space: nowrap; transition: color 0.1s;
+  }
+  .seg button:hover { color: var(--sr-text); }
+  .seg button[aria-pressed="true"] {
+    background: var(--sr-surface); border-color: var(--sr-border);
+    font-weight: 600; color: var(--sr-text);
+  }
+
+  /* Point-of-use disclosure (FR-34) */
+  .disclosure {
+    display: flex; gap: 7px; align-items: flex-start; margin-top: 10px;
+    font-size: 0.6875rem; color: var(--sr-text-muted); line-height: 1.45;
+  }
+  .disclosure svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* Legend */
+  .legend-title { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); margin-bottom: 8px; }
+  .legend-row { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; }
+  .legend-swatch { width: 26px; height: 15px; border-radius: 3px; flex-shrink: 0; border: 1px solid var(--sr-border-medium); }
+  .legend-row span.lab { font-size: 0.75rem; color: var(--sr-text); }
+  .legend-row span.lab .unit { color: var(--sr-text-muted); }
+  .legend-note { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 6px; line-height: 1.45; }
+
+  /* ─── Map panel — deliberately ALWAYS light: the basemap is light in both themes ─── */
+  .map-panel { position: relative; background: #E9EDEA; min-height: 600px; }
+  .map-panel svg.county-map { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+  .map-chip {
+    position: absolute; top: 12px; right: 12px; z-index: 2; pointer-events: none;
+    padding: 4px 10px; background: var(--sr-surface); color: var(--sr-text-muted);
+    border: 1px solid var(--sr-border); border-radius: 6px;
+    font-size: 0.71875rem; box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+  .county-shape { stroke: rgba(71,85,105,0.85); stroke-width: 1; cursor: pointer; transition: stroke-width 0.1s; }
+  .county-shape:hover { stroke-width: 2.25; }
+  .county-name { font-size: 11px; fill: #1F2937; paint-order: stroke; stroke: rgba(255,255,255,0.85); stroke-width: 3px; pointer-events: none; font-weight: 500; }
+  .water-name { font-size: 10px; fill: #6E8291; font-style: italic; pointer-events: none; }
+
+  /* Counties in view — app overlay chrome (themes with the app, floats on the light map) */
+  .inview {
+    position: absolute; bottom: 12px; left: 12px; z-index: 3;
+    width: min(238px, 62vw); max-height: 68%; display: flex; flex-direction: column;
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); overflow: hidden;
+  }
+  .inview-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; padding: 8px 10px; background: transparent; border: none;
+    border-bottom: 1px solid var(--sr-border);
+    font-family: inherit; font-size: 0.71875rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--sr-text-muted); cursor: pointer; text-align: left;
+  }
+  .inview-list { overflow-y: auto; padding: 6px; margin: 0; list-style: none; }
+  .inview-row {
+    display: flex; align-items: center; gap: 9px; width: 100%;
+    padding: 6px 8px; margin-bottom: 2px; border-radius: 6px; text-align: left;
+    font-family: inherit; cursor: pointer; background: transparent; border: 1px solid transparent;
+  }
+  .inview-row:hover { background: var(--sr-surface-subtle); }
+  .inview-row .dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; border: 1px solid var(--sr-border-medium); }
+  .inview-row .nm { flex: 1; min-width: 0; font-size: 0.78125rem; color: var(--sr-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .inview-row .val { font-size: 0.71875rem; font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .inview-row .val.muted { color: var(--sr-text-muted); font-weight: 500; font-style: italic; }
+
+  /* ─── Popup chrome (maplibre popup fidelity: surface-tinted content + tip) ─── */
+  .popup-grid { display: flex; gap: 32px; flex-wrap: wrap; align-items: flex-start; justify-content: center; padding: 6px 0 0; }
+  .popup-col { width: 268px; }
+  .popup-col > .variant-label {
+    font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--sr-text-muted); margin-bottom: 10px; text-align: center;
+  }
+  .popup {
+    position: relative; background: var(--sr-surface); border-radius: 8px;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.22); padding: 12px 13px 13px;
+    font-size: 0.8125rem;
+  }
+  .popup::after {
+    content: ""; position: absolute; left: 50%; bottom: -7px; width: 14px; height: 14px;
+    background: var(--sr-surface); transform: translateX(-50%) rotate(45deg);
+    box-shadow: 3px 3px 6px rgba(0,0,0,0.08);
+  }
+  .popup .county-link {
+    font-weight: 600; font-size: 0.8125rem; color: var(--sr-accent); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  }
+  .popup .county-link:hover { text-decoration: underline; }
+  .popup .state { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 2px; }
+
+  .stats { display: flex; gap: 18px; margin-top: 9px; }
+  .stat-n { font-size: 1.0625rem; font-weight: 700; line-height: 1; letter-spacing: -0.01em; color: var(--sr-text); }
+  .stat-n.zero { color: var(--sr-text-disabled); }
+  .stat-l { font-size: 0.625rem; color: var(--sr-text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  .pop-block { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--sr-border); }
+  .pop-title { font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sr-text-muted); margin-bottom: 2px; }
+  .pop-caption { font-size: 0.625rem; color: var(--sr-text-muted); margin-bottom: 6px; line-height: 1.4; }
+
+  .progress-track {
+    height: 8px; border-radius: 4px; background: var(--sr-surface-subtle);
+    border: 1px solid var(--sr-border); overflow: hidden; margin: 6px 0 7px;
+  }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .progress-line { font-size: 0.8125rem; color: var(--sr-text); }
+  .progress-line b { font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .pop-list { list-style: none; margin: 0; padding: 0; }
+  .pop-list li { display: flex; align-items: baseline; gap: 7px; margin-bottom: 4px; }
+  .pop-list .rank { flex: none; width: 11px; font-size: 0.625rem; font-weight: 700; color: var(--sr-text-disabled); font-variant-numeric: tabular-nums; }
+  .pop-list .bird { flex: 1; min-width: 0; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 5px; }
+  .pop-list .bird .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pop-list .bird .nm.linked { color: var(--sr-accent); font-weight: 500; cursor: pointer; }
+  .pop-list .bird .nm.linked:hover { text-decoration: underline; }
+  .pop-list .date { flex: none; font-size: 0.6875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; }
+
+  /* Favicon placeholders — stand-ins for the eBird / Birds of the World favicons */
+  .fav { display: inline-flex; gap: 3px; flex: none; }
+  .fav i {
+    width: 13px; height: 13px; border-radius: 3px; font-style: normal;
+    font-size: 6.5px; font-weight: 700; letter-spacing: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--sr-border-medium); color: var(--sr-text-muted);
+    background: var(--sr-surface-subtle);
+  }
+
+  .cache-line { display: flex; align-items: center; gap: 6px; margin-top: 9px; font-size: 0.625rem; color: var(--sr-text-muted); }
+
+  .btn-accent {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--sr-accent); color: #fff;
+    border: none; border-radius: 6px; padding: 8px 14px;
+    font: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+  }
+  [data-theme="dark"] .btn-accent { color: #052E16; }
+  .btn-accent:hover { background: var(--sr-accent-strong); filter: brightness(1.05); }
+
+  .replay { background: none; border: none; color: var(--sr-text-muted); font: inherit; font-size: 0.6875rem; cursor: pointer; text-decoration: underline; padding: 0; margin-top: 10px; }
+  .replay:hover { color: var(--sr-text); }
+  .variant-footnote { font-size: 0.6875rem; color: var(--sr-text-muted); line-height: 1.45; margin-top: 14px; text-align: center; }
+
+  .spinner { display: inline-block; animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--sr-accent-border); } 100% { box-shadow: 0 0 0 14px rgba(0,0,0,0); } }
+  .pulse .popup { animation: pulse 0.9s ease-out 2; }
+
+  /* ─── Degraded states strip ─── */
+  .degraded-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 820px) { .degraded-grid { grid-template-columns: 1fr; } }
+  .dg-card { border: 1px solid var(--sr-border); border-radius: 10px; padding: 16px; background: var(--sr-surface-faint); }
+  .dg-card .ic {
+    width: 28px; height: 28px; border-radius: 7px; margin-bottom: 10px;
+    background: var(--sr-surface-subtle); color: var(--sr-text-muted); border: 1px solid var(--sr-border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dg-card h3 { font-size: 0.8125rem; font-weight: 700; margin: 0 0 5px; }
+  .dg-card p { font-size: 0.75rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+  .dg-card .where { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sr-text-gray); }
+
+  footer.mock-note { font-size: 0.71875rem; color: var(--sr-text-muted); text-align: center; margin-top: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══ Page header ══ -->
+  <header class="page">
+    <div>
+      <div class="eyebrow">SnowRaven · Design mockup — Stage 4</div>
+      <h1>County Completeness</h1>
+      <p class="page-sub">A third county-shading metric for the Map Explorer: how complete is your list
+        in each county — and what should you chase next. Everything below extends the shipped county
+        overlay; nothing else moves.</p>
+    </div>
+    <button class="ghost-btn" id="themeToggle" aria-pressed="false" tabindex="0">
+      <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      <span id="themeLabel">Dark mode</span>
+    </button>
+  </header>
+
+  <!-- ══ Section 1 — Map Explorer: sidebar + illustrative map ══ -->
+  <section class="card">
+    <div class="sect-head">
+      <div class="tile">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.1 6 8 3 2 6v15l6-3 6 3 6-3V3l-3.9 2"/><path d="M8 3v15"/><path d="M16 6v15"/></svg>
+      </div>
+      <div>
+        <h2>Map Explorer — county shading</h2>
+        <div class="sub">The shipped sidebar, with Completeness added as a peer metric. Switch the metric to see the legend and map respond.</div>
+      </div>
+    </div>
+    <div class="sect-body" style="padding: 18px 0 0;">
+      <div class="explorer">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+          <div class="side-collapsed-row"><span>Filters</span><span aria-hidden="true">›</span></div>
+          <div class="side-collapsed-row"><span>Map layers</span><span aria-hidden="true">›</span></div>
+
+          <!-- Atlas context row — mutual exclusion cue -->
+          <div class="side-section" style="border-top: none; margin-top: 12px; padding-top: 0;">
+            <div class="row-between" style="opacity: 0.55;">
+              <span class="side-label">Atlas shading (breeding)</span>
+              <button class="toggle" role="switch" aria-checked="false" aria-label="Shade atlas blocks by breeding evidence" tabindex="0" disabled><span class="knob"></span></button>
+            </div>
+            <div class="side-caption">Off — only one shading shows at a time. Turning on county shading switched this off.</div>
+          </div>
+
+          <!-- County Lines & Shading -->
+          <div class="side-section">
+            <div class="row-between">
+              <span class="side-label">County lines</span>
+              <button class="toggle" role="switch" aria-checked="true" aria-label="Show US county lines" tabindex="0"><span class="knob"></span></button>
+            </div>
+            <div class="side-caption">US county boundaries, shown for the current map area.</div>
+
+            <div style="margin-top: 12px;">
+              <div class="row-between">
+                <span class="side-label">Shade counties</span>
+                <button class="toggle" role="switch" aria-checked="true" aria-label="Shade counties by the selected metric" tabindex="0"><span class="knob"></span></button>
+              </div>
+              <div class="side-caption" id="shadeCaption">Tints each county by how complete your county list is — your backup measured against everything reported on eBird.</div>
+
+              <div style="margin-top: 10px;">
+                <div class="seg" role="group" aria-label="Choropleth metric" id="metricSeg">
+                  <button aria-pressed="false" data-metric="species" tabindex="0">Species</button>
+                  <button aria-pressed="false" data-metric="records" tabindex="0">Checklists</button>
+                  <button aria-pressed="true" data-metric="completeness" tabindex="0">Completeness</button>
+                </div>
+              </div>
+
+              <!-- Point-of-use disclosure — FR-34: only when Completeness is selected -->
+              <div class="disclosure" id="disclosure">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                <span>Unlike Species and Checklists, Completeness needs a network connection and your
+                eBird API key. Counties you've fetched are cached for 30 days.</span>
+              </div>
+
+              <div class="row-between" style="margin-top: 12px;">
+                <span class="side-label">Use Textures</span>
+                <button class="toggle" id="texToggle" role="switch" aria-checked="false" aria-label="Use textures on shaded counties" tabindex="0"><span class="knob"></span></button>
+              </div>
+              <div class="side-caption">Adds a distinct hatch density per level so counties are distinguishable without color.</div>
+
+              <!-- Legend — rendered by script; swaps with the metric -->
+              <div style="margin-top: 12px;" aria-live="polite" id="legend"></div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Map -->
+        <main class="map-panel">
+          <div class="map-chip">Illustrative counties — not real boundaries</div>
+          <svg class="county-map" viewBox="0 0 760 560" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Stylized map of nine California counties shaded by completeness band, with San Benito un-birded as a plain outline">
+            <defs id="hatchDefs"></defs>
+            <!-- Land -->
+            <rect x="0" y="0" width="760" height="560" fill="#F4F2ED"/>
+            <!-- Ocean + bay (always-light basemap water) -->
+            <path d="M0,0 L92,0 C78,110 96,220 62,330 C42,415 66,490 44,560 L0,560 Z" fill="#D5E0E6"/>
+            <path d="M150,0 L188,0 C202,58 188,108 162,142 C144,120 140,58 150,0 Z" fill="#D5E0E6"/>
+            <text class="water-name" x="18" y="470" transform="rotate(-78 18 470)">Pacific Ocean</text>
+
+            <!-- Counties -->
+            <path class="county-shape" data-county="contra-costa" d="M188,2 L360,2 L370,70 L300,95 L215,90 L189,54 Z"><title>Contra Costa — 3% complete</title></path>
+            <path class="county-shape" data-county="san-joaquin" d="M360,2 L522,2 L540,85 L455,110 L370,70 Z"><title>San Joaquin — 74% complete</title></path>
+            <path class="county-shape" data-county="alameda" d="M215,90 L300,95 L370,70 L455,110 L435,175 L310,190 L224,155 L163,141 C176,126 184,110 188,92 Z"><title>Alameda — 64% complete</title></path>
+            <path class="county-shape" data-county="stanislaus" d="M455,110 L540,85 L622,140 L580,225 L470,205 L435,175 Z"><title>Stanislaus — 56% complete</title></path>
+            <path class="county-shape" data-county="san-mateo" d="M90,28 L148,24 C142,66 148,106 162,142 L140,190 L96,205 L79,120 Z"><title>San Mateo — 15% complete</title></path>
+            <path class="county-shape" data-county="santa-clara" d="M163,141 L224,155 L310,190 L435,175 L470,205 L446,286 L330,310 L226,290 L176,231 L140,190 Z"><title>Santa Clara — 41% complete</title></path>
+            <path class="county-shape" data-county="santa-cruz" d="M96,205 L140,190 L176,231 L226,290 L200,331 L122,321 L76,262 Z"><title>Santa Cruz — 92% complete</title></path>
+            <path class="county-shape" data-county="merced" d="M580,225 L622,140 L722,190 L702,300 L592,320 L556,266 Z"><title>Merced — 24% complete</title></path>
+            <path class="county-shape" data-county="san-benito" d="M330,310 L446,286 L492,320 L470,400 L372,421 L316,371 Z"><title>San Benito — never birded (plain outline, click to fetch)</title></path>
+            <path class="county-shape" data-county="monterey" d="M122,321 L200,331 L226,290 L316,371 L372,421 L346,502 L182,532 L96,432 L70,352 Z"><title>Monterey — 37% complete</title></path>
+
+            <!-- Labels -->
+            <text class="county-name" x="276" y="52" text-anchor="middle">Contra Costa</text>
+            <text class="county-name" x="448" y="52" text-anchor="middle">San Joaquin</text>
+            <text class="county-name" x="330" y="142" text-anchor="middle">Alameda</text>
+            <text class="county-name" x="522" y="165" text-anchor="middle">Stanislaus</text>
+            <text class="county-name" x="118" y="118" text-anchor="middle">San Mateo</text>
+            <text class="county-name" x="302" y="246" text-anchor="middle">Santa Clara</text>
+            <text class="county-name" x="152" y="272" text-anchor="middle">Santa Cruz</text>
+            <text class="county-name" x="642" y="242" text-anchor="middle">Merced</text>
+            <text class="county-name" x="398" y="358" text-anchor="middle">San Benito</text>
+            <text class="county-name" x="216" y="428" text-anchor="middle">Monterey</text>
+          </svg>
+
+          <!-- Counties in view — keyboard parity (FR-28) -->
+          <div class="inview">
+            <button class="inview-head" aria-expanded="true" tabindex="0">
+              <span>Counties in view (10)</span>
+              <span aria-hidden="true" style="transform: rotate(90deg);">›</span>
+            </button>
+            <ul class="inview-list" id="inviewList" aria-label="Counties in view"></ul>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ Section 2 — The county popup (hero) ══ -->
+  <section class="card">
+    <div class="sect-head">
+      <div class="tile">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      </div>
+      <div>
+        <h2>The county popup</h2>
+        <div class="sub">Click a shaded county → progress, your newest county birds, and a chase list. Click a plain county → fetch it on demand. Try “Load completeness” below.</div>
+      </div>
+    </div>
+    <div class="sect-body">
+      <div class="popup-grid">
+
+        <!-- Variant A: birded county -->
+        <div class="popup-col" id="popupColA">
+          <div class="variant-label">Birded county</div>
+          <div class="popup" role="group" aria-label="Santa Clara county popup, completeness metric">
+            <span class="county-link" title="Opens US-CA-085 on eBird — shape-guarded region link">
+              Santa Clara
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+            </span>
+            <div class="state">California</div>
+
+            <div class="stats">
+              <div title="Distinct species you've recorded in this county">
+                <div class="stat-n">130</div>
+                <div class="stat-l">species</div>
+              </div>
+              <div title="Your checklists in this county">
+                <div class="stat-n">486</div>
+                <div class="stat-l">checklists</div>
+              </div>
+            </div>
+
+            <!-- Completeness block -->
+            <div class="pop-block">
+              <div class="pop-title">Completeness</div>
+              <div class="progress-track" role="progressbar" aria-valuenow="41" aria-valuemin="0" aria-valuemax="100" aria-label="County list 41 percent complete">
+                <div class="progress-fill" style="width: 41%; background: var(--sr-county-5);"></div>
+              </div>
+              <div class="progress-line"><b>128</b> of <b>312</b> species · <b>41%</b></div>
+              <div class="pop-caption" style="margin-top: 3px;">Countable species — spuhs, slashes &amp; hybrids don't count.</div>
+            </div>
+
+            <!-- Recently added — local, works offline -->
+            <div class="pop-block">
+              <div class="pop-title">Recently added</div>
+              <div class="pop-caption">Your newest county species — from your backup, works offline.</div>
+              <ul class="pop-list">
+                <li><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm linked">Lawrence's Goldfinch</span></span><span class="date">Jun 14</span></li>
+                <li><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm linked">Yellow-breasted Chat</span></span><span class="date">May 31</span></li>
+                <li><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm linked">Ridgway's Rail</span></span><span class="date">May 9</span></li>
+                <li><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm linked">Mountain Quail</span></span><span class="date">Apr 25</span></li>
+                <li><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm linked">Hammond's Flycatcher</span></span><span class="date">Apr 18</span></li>
+              </ul>
+            </div>
+
+            <!-- Top targets — needs eBird -->
+            <div class="pop-block">
+              <div class="pop-title">Top targets</div>
+              <div class="pop-caption">On eBird's county list, not yet on yours · taxonomic order.</div>
+              <ul class="pop-list">
+                <li><span class="rank">1</span><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm linked">Tundra Swan</span></span></li>
+                <li><span class="rank">2</span><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm linked">Long-tailed Duck</span></span></li>
+                <li><span class="rank">3</span><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm">Red-necked Grebe</span></span></li>
+                <li><span class="rank">4</span><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm">Black Swift</span></span></li>
+                <li><span class="rank">5</span><span class="bird"><span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span><span class="nm">Mountain Plover</span></span></li>
+              </ul>
+              <div class="pop-caption" style="margin: 6px 0 0;">Green names are on your life list — they open Species Detail. Others render plain.</div>
+            </div>
+
+            <div class="cache-line">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              eBird data from 3 days ago — cached for 30 days
+            </div>
+          </div>
+        </div>
+
+        <!-- Variant B: never-birded county, click-to-fetch -->
+        <div class="popup-col" id="popupColB">
+          <div class="variant-label">Never-birded county · click-to-fetch</div>
+          <div class="popup" role="group" aria-label="San Benito county popup, completeness metric" id="popupB">
+            <span class="county-link" title="Opens US-CA-069 on eBird — shape-guarded region link">
+              San Benito
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+            </span>
+            <div class="state">California</div>
+
+            <div class="stats">
+              <div><div class="stat-n zero">0</div><div class="stat-l">species</div></div>
+              <div><div class="stat-n zero">0</div><div class="stat-l">checklists</div></div>
+            </div>
+
+            <div class="pop-block" id="popupBBody">
+              <!-- filled by script: idle → pending → loaded -->
+            </div>
+          </div>
+          <div style="text-align: center;"><button class="replay" id="replayB" style="display: none;" tabindex="0">Replay the fetch</button></div>
+          <div class="variant-footnote">v1 targets are the county's list in taxonomic order — that's why
+          waterfowl lead here. Findability ranking is a planned upgrade.</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ Section 3 — Honest degraded states ══ -->
+  <section class="card">
+    <div class="sect-head">
+      <div class="tile">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10Z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+      </div>
+      <div>
+        <h2>When eBird isn't reachable</h2>
+        <div class="sub">The three standard states, spoken in the app's usual voice. Your own data — the X count and “Recently added” — always still renders.</div>
+      </div>
+    </div>
+    <div class="sect-body">
+      <div class="degraded-grid">
+
+        <div class="dg-card">
+          <div class="ic">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 13.4a7 7 0 0 1 9.9-9.9l8.4 8.4-3.5 3.5-2.1-2.1-1.4 1.4-1.4-1.4-2.1 2.1a7 7 0 0 1-7.8-2Z" transform="rotate(45 12 12)"/><circle cx="7.5" cy="15.5" r="1.2"/></svg>
+          </div>
+          <h3>No eBird key</h3>
+          <p>“eBird API key not configured. Add it in Settings.” No fetches are attempted.
+          Counties you fetched before still shade from cache; everything else stays a plain outline.</p>
+          <div class="where">Shown: shade control · popup · counties in view</div>
+        </div>
+
+        <div class="dg-card">
+          <div class="ic">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 5.2-2.9"/><path d="M18.8 12.7a10 10 0 0 0-2.5-1.8"/><path d="M2 8.8a15 15 0 0 1 4.2-2.7"/><path d="M22 8.8a15 15 0 0 0-11.2-3.7"/><path d="m2 2 20 20"/></svg>
+          </div>
+          <h3>You're offline</h3>
+          <p>Cached counties keep their shading, and “Recently added” still works — it comes from
+          your own backup. Clicking an uncached county says so plainly: no spinner, no blank popup.</p>
+          <div class="where">Shown: popup · counties in view</div>
+        </div>
+
+        <div class="dg-card">
+          <div class="ic">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.5 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          </div>
+          <h3>eBird error</h3>
+          <p>“eBird didn't respond.” Already-shaded counties keep their shading; the failed county
+          stays plain. Click it again to retry — no reload needed, and errors are never cached.</p>
+          <div class="where">Shown: popup · counties in view</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <footer class="mock-note">
+    Design mockup — first direction, not final. Counties are stylized stand-ins; species, dates and
+    counts are realistic sample data, not your records. All colors are the app's real
+    <code>--sr-*</code> tokens; the county ramp is theme-identical because the basemap stays light.
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── County sample data ──
+     x = countable species (numerator) · y = eBird county species (denominator)
+     raw = the Species-metric count (can differ from x — hybrids)              */
+  var COUNTIES = {
+    'alameda':      { name: 'Alameda',      x: 214, y: 335, raw: 216, chk: 302, band: 7,  tierS: 9,  tierR: 9 },
+    'contra-costa': { name: 'Contra Costa', x: 9,   y: 301, raw: 9,   chk: 6,   band: 1,  tierS: 1,  tierR: 1 },
+    'merced':       { name: 'Merced',       x: 68,  y: 281, raw: 68,  chk: 24,  band: 3,  tierS: 4,  tierR: 3 },
+    'monterey':     { name: 'Monterey',     x: 149, y: 398, raw: 150, chk: 58,  band: 4,  tierS: 7,  tierR: 6 },
+    'san-benito':   { name: 'San Benito',   x: 0,   y: 287, raw: 0,   chk: 0,   band: 0,  tierS: 0,  tierR: 0, unfetched: true },
+    'san-joaquin':  { name: 'San Joaquin',  x: 219, y: 295, raw: 221, chk: 141, band: 8,  tierS: 9,  tierR: 8 },
+    'san-mateo':    { name: 'San Mateo',    x: 52,  y: 345, raw: 52,  chk: 31,  band: 2,  tierS: 3,  tierR: 4 },
+    'santa-clara':  { name: 'Santa Clara',  x: 128, y: 312, raw: 130, chk: 486, band: 5,  tierS: 6,  tierR: 10 },
+    'santa-cruz':   { name: 'Santa Cruz',   x: 292, y: 318, raw: 293, chk: 210, band: 10, tierS: 10, tierR: 9 },
+    'stanislaus':   { name: 'Stanislaus',   x: 162, y: 291, raw: 163, chk: 40,  band: 6,  tierS: 8,  tierR: 5 }
+  };
+
+  /* County ramp RGB — theme-identical by design (map canvas is always light) */
+  var RAMP = ['195,232,209','168,213,186','142,196,163','113,181,141','95,164,123',
+              '77,149,106','53,135,88','45,120,77','37,106,67','26,92,56'];
+
+  var LEGENDS = {
+    completeness: {
+      title: 'Completeness — % of the county list',
+      rows: [], // built below: '1–10%' … '91–100%'
+      unshaded: 'Not birded / not fetched',
+      note: 'Fixed 0–100% bands — the same shade always means the same completeness, in every county.'
+    },
+    species: {
+      title: 'Distinct species per county',
+      rows: ['1–9','10–52','53–68','69–128','129–149','150–165','166–214','215–221','222–292','293+'],
+      unit: 'species',
+      unshaded: 'No records',
+      note: 'Ranges are quantiles of your non-zero counties, so the breaks shift with your data.'
+    },
+    records: {
+      title: 'Total checklists per county',
+      rows: ['1–6','7–24','25–31','32–40','41–58','59–141','142–210','211–302','303–486','487+'],
+      unit: 'checklists',
+      unshaded: 'No records',
+      note: 'Ranges are quantiles of your non-zero counties, so the breaks shift with your data.'
+    }
+  };
+  for (var b = 1; b <= 10; b++) LEGENDS.completeness.rows.push(((b - 1) * 10 + 1) + '–' + (b * 10) + '%');
+
+  var SHADE_CAPTIONS = {
+    completeness: 'Tints each county by how complete your county list is — your backup measured against everything reported on eBird.',
+    species: 'Tints each county by your own count there — drawn only from your loaded backup.',
+    records: 'Tints each county by your own count there — drawn only from your loaded backup.'
+  };
+
+  /* FR-10 display percent */
+  function displayPct(x, y) {
+    if (x === 0) return 0;
+    if (y > 0 && x >= y) return 100;
+    var r = Math.round(x / y * 100);
+    if (r >= 100) return 99;
+    if (r <= 0) return 1;
+    return r;
+  }
+
+  var metric = 'completeness';
+  var textures = false;
+
+  /* ── Hatch patterns — density curve mirrors lib/countyTextures (gap 20→5, width 0.75→1.30) ── */
+  function hatchSpec(t) {
+    return { gap: 20 - (t - 1) * (15 / 9), lw: 0.75 + (t - 1) * (0.55 / 9) };
+  }
+  (function buildHatches() {
+    var defs = document.getElementById('hatchDefs');
+    var svgNS = 'http://www.w3.org/2000/svg';
+    for (var t = 1; t <= 10; t++) {
+      var s = hatchSpec(t), g = s.gap;
+      var p = document.createElementNS(svgNS, 'pattern');
+      p.setAttribute('id', 'hatch-' + t);
+      p.setAttribute('width', g); p.setAttribute('height', g);
+      p.setAttribute('patternUnits', 'userSpaceOnUse');
+      var r = document.createElementNS(svgNS, 'rect');
+      r.setAttribute('width', g); r.setAttribute('height', g);
+      r.setAttribute('fill', 'rgba(' + RAMP[t - 1] + ',0.12)');
+      p.appendChild(r);
+      [[0, 0, g, g], [0, g, g, 0]].forEach(function (c) {
+        var l = document.createElementNS(svgNS, 'line');
+        l.setAttribute('x1', c[0]); l.setAttribute('y1', c[1]);
+        l.setAttribute('x2', c[2]); l.setAttribute('y2', c[3]);
+        l.setAttribute('stroke', 'rgba(' + RAMP[t - 1] + ',0.8)');
+        l.setAttribute('stroke-width', s.lw);
+        p.appendChild(l);
+      });
+      defs.appendChild(p);
+    }
+  })();
+
+  function densitySwatchSVG(tier, w, h) {
+    var s = hatchSpec(tier), lines = '';
+    for (var x = -h; x < w; x += s.gap) {
+      lines += '<line x1="' + x + '" y1="' + h + '" x2="' + (x + h) + '" y2="0" stroke="rgba(' + RAMP[tier - 1] + ',0.85)" stroke-width="' + s.lw + '"/>';
+      lines += '<line x1="' + x + '" y1="0" x2="' + (x + h) + '" y2="' + h + '" stroke="rgba(' + RAMP[tier - 1] + ',0.85)" stroke-width="' + s.lw + '"/>';
+    }
+    return '<svg width="' + w + '" height="' + h + '" aria-hidden="true" style="flex-shrink:0;border:1px solid var(--sr-border-medium);border-radius:3px;display:block;overflow:hidden;">' +
+      '<rect width="' + w + '" height="' + h + '" fill="rgba(' + RAMP[tier - 1] + ',0.16)"/>' + lines + '</svg>';
+  }
+
+  function tierFor(c) {
+    return metric === 'completeness' ? c.band : (metric === 'species' ? c.tierS : c.tierR);
+  }
+
+  /* ── Map fills ── */
+  function paintMap() {
+    document.querySelectorAll('.county-shape').forEach(function (el) {
+      var c = COUNTIES[el.dataset.county];
+      var t = tierFor(c);
+      if (t === 0) { el.setAttribute('fill', 'transparent'); return; }
+      el.setAttribute('fill', textures ? 'url(#hatch-' + t + ')' : 'rgba(' + RAMP[t - 1] + ',0.85)');
+    });
+  }
+
+  /* ── Legend ── */
+  function renderLegend() {
+    var L = LEGENDS[metric];
+    var html = '<div class="legend-title">' + L.title + '</div>';
+    for (var i = 0; i < 10; i++) {
+      var tier = i + 1;
+      var sw = textures
+        ? densitySwatchSVG(tier, 26, 15)
+        : '<span class="legend-swatch" aria-hidden="true" style="background: var(--sr-county-' + tier + ');"></span>';
+      var unit = (metric !== 'completeness' && i === 0) ? ' <span class="unit">' + L.unit + '</span>' : '';
+      html += '<div class="legend-row">' + sw + '<span class="lab">' + L.rows[i] + unit + '</span></div>';
+    }
+    html += '<div class="legend-row" style="margin-top: 8px;">' +
+      '<span class="legend-swatch" aria-hidden="true" style="border-style: dashed; background: transparent;"></span>' +
+      '<span class="lab">' + L.unshaded + ' <span class="unit">— outline only</span></span></div>';
+    html += '<div class="legend-note">' + L.note + '</div>';
+    document.getElementById('legend').innerHTML = html;
+  }
+
+  /* ── Counties in view (FR-28 parity) ── */
+  function renderInView() {
+    var keys = Object.keys(COUNTIES); // already alphabetical
+    var html = '';
+    keys.forEach(function (k) {
+      var c = COUNTIES[k], t = tierFor(c);
+      var dot = t > 0
+        ? (textures
+            ? densitySwatchSVG(t, 11, 11)
+            : '<span class="dot" aria-hidden="true" style="background: var(--sr-county-' + t + ');"></span>')
+        : '<span class="dot" aria-hidden="true" style="border-style: dashed; background: transparent;"></span>';
+      var val;
+      if (metric === 'completeness') {
+        val = c.unfetched
+          ? '<span class="val muted">not fetched</span>'
+          : '<span class="val">' + c.x + '/' + c.y + ' · ' + displayPct(c.x, c.y) + '%</span>';
+      } else {
+        var n = metric === 'species' ? c.raw : c.chk;
+        val = '<span class="val' + (n === 0 ? ' muted' : '') + '">' + n.toLocaleString() + '</span>';
+      }
+      html += '<li><button class="inview-row" tabindex="0" data-county="' + k + '">' + dot +
+        '<span class="nm">' + c.name + '</span>' + val + '</button></li>';
+    });
+    document.getElementById('inviewList').innerHTML = html;
+  }
+
+  /* ── Metric switch ── */
+  var seg = document.getElementById('metricSeg');
+  seg.addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-metric]');
+    if (!btn) return;
+    metric = btn.dataset.metric;
+    seg.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+    document.getElementById('disclosure').style.display = metric === 'completeness' ? 'flex' : 'none';
+    document.getElementById('shadeCaption').textContent = SHADE_CAPTIONS[metric];
+    paintMap(); renderLegend(); renderInView();
+  });
+
+  /* ── Textures toggle ── */
+  var tex = document.getElementById('texToggle');
+  tex.addEventListener('click', function () {
+    textures = !textures;
+    tex.setAttribute('aria-checked', String(textures));
+    paintMap(); renderLegend(); renderInView();
+  });
+
+  /* ── Theme toggle ── */
+  var themeBtn = document.getElementById('themeToggle');
+  themeBtn.addEventListener('click', function () {
+    var el = document.documentElement;
+    var dark = el.dataset.theme !== 'dark';
+    el.dataset.theme = dark ? 'dark' : 'light';
+    themeBtn.setAttribute('aria-pressed', String(dark));
+    document.getElementById('themeLabel').textContent = dark ? 'Light mode' : 'Dark mode';
+    document.getElementById('themeIcon').innerHTML = dark
+      ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="m17.7 17.7 1.4 1.4"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.3 17.7-1.4 1.4"/><path d="m19.1 4.9-1.4 1.4"/>'
+      : '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
+  });
+
+  /* ── Popup B: click-to-fetch simulation (FR-14 / FR-33) ── */
+  var bBody = document.getElementById('popupBBody');
+  var replayBtn = document.getElementById('replayB');
+  var FAV = '<span class="fav" aria-hidden="true"><i>eB</i><i>BW</i></span>';
+
+  function bIdle() {
+    replayBtn.style.display = 'none';
+    bBody.innerHTML =
+      '<div style="font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5; margin-bottom: 10px;">' +
+      "You haven't birded San Benito yet — it stays a plain outline.</div>" +
+      '<button class="btn-accent" id="loadBtn" tabindex="0">' +
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6"/><path d="M21 3v6h-6"/></svg>' +
+      'Load completeness</button>' +
+      '<div class="pop-caption" style="margin: 8px 0 0;">One eBird request, for this county only · cached 30 days.</div>';
+    document.getElementById('loadBtn').addEventListener('click', bPending);
+  }
+
+  function bPending() {
+    bBody.innerHTML =
+      '<div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: var(--sr-text-muted); padding: 6px 0;" role="status">' +
+      '<svg class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg>' +
+      'Checking eBird for San Benito…</div>';
+    setTimeout(bLoaded, 1400);
+  }
+
+  function bLoaded() {
+    bBody.innerHTML =
+      '<div class="pop-title">Completeness</div>' +
+      '<div class="progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="County list 0 percent complete">' +
+      '<div class="progress-fill" style="width: 0%;"></div></div>' +
+      '<div class="progress-line"><b>0</b> of <b>287</b> species · <b>0%</b></div>' +
+      '<div class="pop-caption" style="margin-top: 3px;">0% — the county stays a plain outline on the map.</div>' +
+      '<div class="pop-block">' +
+      '<div class="pop-title">Top targets</div>' +
+      '<div class="pop-caption">On eBird’s county list, not yet on yours · taxonomic order.</div>' +
+      '<ul class="pop-list">' +
+      '<li><span class="rank">1</span><span class="bird">' + FAV + '<span class="nm linked">Greater White-fronted Goose</span></span></li>' +
+      '<li><span class="rank">2</span><span class="bird">' + FAV + '<span class="nm linked">Snow Goose</span></span></li>' +
+      '<li><span class="rank">3</span><span class="bird">' + FAV + '<span class="nm">Ross’s Goose</span></span></li>' +
+      '<li><span class="rank">4</span><span class="bird">' + FAV + '<span class="nm linked">Cackling Goose</span></span></li>' +
+      '<li><span class="rank">5</span><span class="bird">' + FAV + '<span class="nm linked">Canada Goose</span></span></li>' +
+      '</ul></div>' +
+      '<div class="cache-line">' +
+      '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+      'eBird data fetched just now — cached for 30 days</div>';
+    replayBtn.style.display = 'inline';
+  }
+  replayBtn.addEventListener('click', bIdle);
+
+  /* ── Clicking a map county pulses the matching popup card ── */
+  function pulse(colId) {
+    var col = document.getElementById(colId);
+    col.classList.remove('pulse');
+    void col.offsetWidth; // restart animation
+    col.classList.add('pulse');
+    col.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  document.querySelectorAll('.county-shape').forEach(function (el) {
+    el.addEventListener('click', function () {
+      pulse(el.dataset.county === 'san-benito' ? 'popupColB' : 'popupColA');
+    });
+  });
+  document.getElementById('inviewList').addEventListener('click', function (e) {
+    var row = e.target.closest('button[data-county]');
+    if (row) pulse(row.dataset.county === 'san-benito' ? 'popupColB' : 'popupColA');
+  });
+
+  /* Initial render */
+  paintMap(); renderLegend(); renderInView(); bIdle();
+})();
+</script>
+</body>
+</html>
