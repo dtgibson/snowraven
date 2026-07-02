@@ -1,55 +1,44 @@
 ## What We Accomplished
 
-Shipped **v0.5.55**, a pre-mobile-launch sweep with two halves. **Four
-behind-the-scenes tidies** with no visible change: the self-hosted backend now
-reuses one keep-alive HTTP connection for its outbound calls; Media Targets and
-Nearby Lifers share a single recent-observations fetch when centered on the same
-spot; a pair of tests now lock the desktop/web taxonomy twins together and the
-county-completeness fetch gating; and an unused geolocation plugin was removed
-from the desktop build. **A responsive/mobile-friendliness pass** driven by a
-comprehensive audit (71 findings, each adversarially verified): 67 fixed — map
-popups now scroll inside themselves on short phone screens, dense controls grow
-to a comfortable tap size, tapping a form field no longer makes iOS zoom, and
-control rows wrap instead of overflowing, all holding from a 320px phone up and
-at 200% text size, with desktop unchanged.
+Shipped **v0.5.56**, resolving the three touch-accessibility items the mobile
+audit had tracked but not fixed. Breeding-code meanings now show as visible text
+in both the Breeding Codes matrix legend and the filter-pill legend, so a touch
+user can read what a code means without hovering. The List Comparer's media
+counts (e.g. "2 photos") now appear beside the icon on phones instead of hiding
+in a hover tooltip. And the Life List's ineffective sticky-header CSS was
+removed — you decided a phone sticky header just wastes screen space, and the
+header already scrolled away, so this made the code match the behavior. No new
+capability; a small, focused accessibility polish.
 
 ## What Has Been Saved
 
-- **Release commit/tag `v0.5.55` → `081a2588`** (you pushed finding #5, the
-  comparer A/B cell labels, on top of the pipeline's release commit and moved the
-  tag; the release ff-merged to it, re-ran the suite green, and verified the CI
-  run's commit matched the tag before building). **Records commit `c4f1ca3`.**
-  Binaries **LIVE** as a GitHub release marked *Latest*: notarized + stapled
-  universal macOS DMG, updater bundle + signature, signed Windows installer +
-  signature, `latest.json` (`darwin-aarch64` / `darwin-x86_64` / `windows-x86_64`).
-  Windows CI run `28617130817` (headSha == tag) supplied the installer.
-- Code: `backend/http_client.py` (new shared client), `backend/routers/map.py` +
-  `frontend/src/lib/tauri/mapService.ts` (recent-obs cache), new test files
-  (`taxonomyCollapse.fixture.json` + parity readers, `useCountyCompleteness.test.ts`,
-  `mapService.recentObs.test.ts`), the geolocation removal (`src-tauri/*`,
-  `package.json`), and responsive fixes across ~28 component files + four new
-  shared classes in `frontend/src/globals.css`.
-- Version: `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.55;
-  `CHANGELOG.md` (also corrected — County Completeness moved to its own 0.5.54
-  block); `docs/HELP.md`, `website/index.html`. `PRIVACY_POLICY.md` unchanged.
-- Records: `DECISIONS.md` (geolocation reversal, the http_client + recent-obs
-  tidies, the two new responsive lenses + four classes, the out-of-band tag
-  handling), `CLAUDE.md` (the http_client rule + the four classes + the two
-  mobile checks), `ROADMAP.md` (shipped 90; four tidies removed from Horizon;
-  three deferred mobile-a11y follow-ups added).
-- Verification: vitest **1257**, pytest **172**, lint / build / cargo check /
-  entry-chunk guard all green; security review **41 checks, 0 findings**.
+- **Release commit `42c596e`, tag `v0.5.56`.** Binaries **LIVE** as a GitHub
+  release marked *Latest*: notarized + stapled universal macOS DMG, updater
+  bundle + signature, signed Windows installer + signature, `latest.json`
+  (`darwin-aarch64` / `darwin-x86_64` / `windows-x86_64`). Windows CI run
+  `28624314206` (headSha == tag) supplied the installer; the release ran headless.
+  A clean deploy — no mid-flight tag move, and the redundant background #5 session
+  was verified finished (stopped, no commits, clean worktree) before shipping.
+- **Records commit `3b2d856`:** `ROADMAP.md` (shipped 91; the three touch-a11y
+  follow-ups removed from the Horizon) and `DECISIONS.md` (the #40 remove-don't-add
+  call and the #27 declined in-comparer label reveal). `CLAUDE.md` and
+  `PRODUCT_CONTEXT.md` unchanged by the decision filter.
+- Code: `frontend/src/components/{BreedingCodeTable,BreedingCodeList,ChecklistComparer,LifeListTable}.tsx`,
+  `frontend/src/globals.css` (new `.sr-media-count`), the two updated test files.
+  Version `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.56;
+  `CHANGELOG.md`, `docs/HELP.md`, `website/index.html`. `PRIVACY_POLICY.md`
+  unchanged (no network change).
+- Verification: vitest **1259**, pytest **172**, lint / build / entry-chunk guard
+  green; security review **24 checks, 0 findings**.
 
 ## Where We Are
 
-Improvement complete — all six Improve-lane stages done and shipped (source,
-binaries, records). Pipeline is idle.
+Improvement complete — all six Improve-lane stages done and shipped. Pipeline is
+idle. The mobile app's groundwork (responsive sweep + these touch-accessibility
+fixes) is now complete on the roadmap.
 
-Three audit findings that cross into new rendered content or a scroll-model
-change were tracked on the roadmap rather than folded in: breeding-code meanings
-being hover-only on touch, the List Comparer's title-only badge/media counts, and
-the Life List table's inert sticky header. A manual phone-width smoke of the map
-popups and Weather tab is recommended but not blocking.
+A manual phone-width smoke of the Breeding Codes legend and the List Comparer
+media counts is worth a look but not blocking.
 
 ## Resume Prompt
 
