@@ -1,8 +1,9 @@
 import json
 from pathlib import Path
 
-import httpx
 from fastapi import APIRouter, HTTPException
+
+from http_client import get_client
 
 router = APIRouter()
 
@@ -18,12 +19,12 @@ async def check_version():
         raise HTTPException(status_code=500, detail="Could not read current version.")
 
     try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                _GITHUB_API,
-                headers={"Accept": "application/vnd.github.v3+json"},
-                timeout=5.0,
-            )
+        client = get_client()
+        resp = await client.get(
+            _GITHUB_API,
+            headers={"Accept": "application/vnd.github.v3+json"},
+            timeout=5.0,
+        )
     except Exception:
         # Connection-level failure (offline / DNS / timeout — no HTTP status).
         # The app reads 503 as "couldn't reach the update server — you're offline".

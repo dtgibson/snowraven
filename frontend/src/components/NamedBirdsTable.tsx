@@ -57,15 +57,20 @@ export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, s
           truncates and the group reflows to two rows on a phone. */}
       <div role="group" aria-label="Sort named birds" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', fontWeight: 600 }}>Sort</span>
-        <div style={{ display: 'inline-flex', flexWrap: 'wrap', border: '1.5px solid var(--sr-accent-border)', borderRadius: 8, overflow: 'hidden' }}>
-          {sortOptions.map((o, i) => (
+        {/* Self-bordered pills with a gap (not a shared shell + borderLeft
+            dividers): when the group wraps at large text scale, each pill keeps
+            its own rounded border instead of leaving stray divider lines and a
+            rounded shell that no longer encloses row 2. */}
+        <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '6px' }}>
+          {sortOptions.map((o) => (
             <button tabIndex={0}
+              className="sr-touch-target"
               key={o.key}
               aria-pressed={sort === o.key}
               onClick={() => setSort(o.key)}
               style={{
-                height: 30, padding: '0 13px', border: 'none',
-                borderLeft: i > 0 ? '1.5px solid var(--sr-accent-border)' : 'none',
+                height: 30, padding: '0 13px',
+                border: '1.5px solid var(--sr-accent-border)', borderRadius: 8,
                 background: sort === o.key ? 'var(--sr-accent-bg)' : 'transparent',
                 color: sort === o.key ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                 fontSize: '0.75rem', fontWeight: sort === o.key ? 600 : 500,

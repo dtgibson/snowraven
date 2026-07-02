@@ -104,7 +104,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
                 />
               </div>
               {s.comment && (
-                <div style={{
+                <div className="sr-wrap-anywhere" style={{
                   fontSize: '0.8125rem', color: 'var(--sr-text)', lineHeight: 1.55,
                   background: 'var(--sr-quote-bg)',
                   border: '1px solid var(--sr-quote-border)',

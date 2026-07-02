@@ -51,6 +51,11 @@ export function SightingsMap({ markers, switcher = true }: {
       style={{ height: '100%', width: '100%' }}
       switcher={switcher}
       scrollZoom={false}
+      // Page-embedded map (Species Detail's Sighting Locations + the Named Birds
+      // card): cooperative gestures so a one-finger drag scrolls the page instead
+      // of scroll-trapping the map. Desktop drag-pan is unaffected. Mirrors the
+      // already-present scrollZoom={false} wheel mitigation for touch.
+      cooperativeGestures
     >
       {markers.map(m => {
         const n = m.sightings.length

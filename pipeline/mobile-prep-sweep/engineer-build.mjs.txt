@@ -1,0 +1,1 @@
+Placeholder note: the Engineer build is orchestrated via the Workflow tool (script authored inline). This file is a marker so the pipeline folder records that Stage 2 used a parallel by-file build. See implementation-notes.md after the build.

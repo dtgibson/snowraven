@@ -27,7 +27,6 @@ tauri-plugin-http = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
-tauri-plugin-geolocation = "2"
 # Cross-platform: native clipboard write for desktop auto-copy (weather lookup).
 tauri-plugin-clipboard-manager = "2"
 serde = { version = "1", features = ["derive"] }

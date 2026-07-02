@@ -81,16 +81,16 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
                 to the wrapper's listener); the wrapper is demoted via ref. The
                 media-type SVGs inside labelHtml are aria-hidden, so the descriptive
                 aria-label carries the missing-media info. F014/F045. */}
-            <button type="button" aria-label={ariaLabel}
-              style={{ display: 'inline-flex', alignItems: 'center', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}
+            <button type="button" aria-label={ariaLabel} className="sr-touch-target"
+              style={{ background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}
               dangerouslySetInnerHTML={{ __html: labelHtml }}
             />
           </Marker>
         )
       })}
       {selGroup && selRep && (
-        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} maxWidth="280px">
-              <div style={{ minWidth: 200, maxWidth: 260 }}>
+        <Popup longitude={selRep.lng} latitude={selRep.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} maxWidth="min(280px, 80vw)">
+              <div className="sr-map-popup-body" style={{ minWidth: 200, maxWidth: 260 }}>
                 <div className="sr-wrap-anywhere" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selRep.locName}</div>
                 {selGroup.map((pin, j) => {
                   const pinTier = recencyTier(pin.recentDate)

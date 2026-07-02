@@ -1,10 +1,25 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 
+import routers.map as map_module
 from main import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def _clear_recent_obs_cache():
+    """The codes-independent recent-obs cache (TIDY #3) persists across calls in
+    the process, keyed (lat, lng, dist). Clear it before AND after each test so a
+    prior test's cached radius fetch can't satisfy the next test's request (which
+    would skip its mock and assert against stale data)."""
+    map_module._recent_obs_cache.clear()
+    map_module._recent_obs_inflight.clear()
+    yield
+    map_module._recent_obs_cache.clear()
+    map_module._recent_obs_inflight.clear()
 
 # Three species across two locations; one species (chickadee) appears twice
 # at the same location so grouping/checklistCount can be exercised.
@@ -78,8 +93,7 @@ def test_recent_obs_missing_api_key(monkeypatch):
 
 def test_recent_obs_omitted_codes_returns_all_species(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client(MOCK_EBIRD_RESPONSE)
+    with patch("routers.map.get_client", return_value=_mock_client(MOCK_EBIRD_RESPONSE)):
         resp = client.get("/map/recent-obs?lat=44.9&lng=-93.0&dist=25")
 
     assert resp.status_code == 200
@@ -93,8 +107,7 @@ def test_recent_obs_omitted_codes_returns_all_species(monkeypatch):
 
 def test_recent_obs_empty_codes_returns_all_species(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client(MOCK_EBIRD_RESPONSE)
+    with patch("routers.map.get_client", return_value=_mock_client(MOCK_EBIRD_RESPONSE)):
         resp = client.get("/map/recent-obs?lat=44.9&lng=-93.0&dist=25&codes=")
 
     assert resp.status_code == 200
@@ -106,8 +119,7 @@ def test_recent_obs_empty_codes_returns_all_species(monkeypatch):
 def test_recent_obs_whitespace_only_codes_returns_all_species(monkeypatch):
     # codes consisting only of commas/whitespace collapses to no filter
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client(MOCK_EBIRD_RESPONSE)
+    with patch("routers.map.get_client", return_value=_mock_client(MOCK_EBIRD_RESPONSE)):
         resp = client.get("/map/recent-obs?lat=44.9&lng=-93.0&dist=25&codes=%20,%20,")
 
     assert resp.status_code == 200
@@ -118,8 +130,7 @@ def test_recent_obs_whitespace_only_codes_returns_all_species(monkeypatch):
 
 def test_recent_obs_with_codes_filters_to_requested_species(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client(MOCK_EBIRD_RESPONSE)
+    with patch("routers.map.get_client", return_value=_mock_client(MOCK_EBIRD_RESPONSE)):
         resp = client.get(
             "/map/recent-obs?lat=44.9&lng=-93.0&dist=25&codes=amerob,norcar"
         )
@@ -134,8 +145,7 @@ def test_recent_obs_with_codes_filters_to_requested_species(monkeypatch):
 
 def test_recent_obs_with_single_code_filters(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client(MOCK_EBIRD_RESPONSE)
+    with patch("routers.map.get_client", return_value=_mock_client(MOCK_EBIRD_RESPONSE)):
         resp = client.get("/map/recent-obs?lat=44.9&lng=-93.0&dist=25&codes=bkcchi")
 
     assert resp.status_code == 200
@@ -148,8 +158,7 @@ def test_recent_obs_with_single_code_filters(monkeypatch):
 
 def test_recent_obs_groups_by_species_and_loc_keeps_most_recent(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client(MOCK_EBIRD_RESPONSE)
+    with patch("routers.map.get_client", return_value=_mock_client(MOCK_EBIRD_RESPONSE)):
         resp = client.get("/map/recent-obs?lat=44.9&lng=-93.0&dist=25")
 
     data = resp.json()
@@ -176,12 +185,66 @@ def test_recent_obs_groups_by_species_and_loc_keeps_most_recent(monkeypatch):
 
 def test_recent_obs_empty_ebird_response(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client([])
+    with patch("routers.map.get_client", return_value=_mock_client([])):
         resp = client.get("/map/recent-obs?lat=44.9&lng=-93.0&dist=25")
 
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+# ── Codes-independent caching (TIDY #3) ───────────────────────────────────────
+
+def test_recent_obs_same_center_hits_upstream_once(monkeypatch):
+    """Two same-center recent-obs calls — one WITHOUT codes (Nearby Lifers), one
+    WITH codes (Media Targets) — share ONE eBird fetch: the raw radius fetch is
+    cached on (lat, lng, dist) and the codes filter is applied after. The mock's
+    .get is invoked exactly once across both calls, and each still returns its
+    own correctly-filtered shape."""
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    instance = _mock_client(MOCK_EBIRD_RESPONSE)
+
+    with patch("routers.map.get_client", return_value=instance):
+        # 1) No codes → every species in the radius.
+        r_all = client.get("/map/recent-obs?lat=44.9&lng=-93.0&dist=25")
+        # 2) With codes → filtered, SAME center → served from the cached fetch.
+        r_codes = client.get(
+            "/map/recent-obs?lat=44.9&lng=-93.0&dist=25&codes=amerob,norcar"
+        )
+
+    assert r_all.status_code == 200
+    assert r_codes.status_code == 200
+    # The upstream eBird fetch happened exactly once for the two calls.
+    assert instance.get.call_count == 1
+    # Each response still carries its own correct filter.
+    assert {r["speciesCode"] for r in r_all.json()} == {"bkcchi", "amerob", "norcar"}
+    assert sorted(r["speciesCode"] for r in r_codes.json()) == ["amerob", "norcar"]
+
+
+def test_recent_obs_error_is_not_cached(monkeypatch):
+    """A failed fetch must NOT be cached (errors leave no entry): a first call
+    that 502s, then a second same-center call with a working mock, must re-fetch
+    and succeed — the transient failure doesn't stick for the TTL."""
+    import httpx
+
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+
+    # First call: the fetch raises a connection error → 502, nothing cached.
+    failing = AsyncMock()
+    failing.get.side_effect = httpx.ConnectError("no route")
+    failing.__aenter__ = AsyncMock(return_value=failing)
+    failing.__aexit__ = AsyncMock(return_value=False)
+    with patch("routers.map.get_client", return_value=failing):
+        r_fail = client.get("/map/recent-obs?lat=10.0&lng=20.0&dist=25")
+    assert r_fail.status_code == 502
+
+    # Second call at the SAME center with a working mock → must re-fetch, not
+    # serve a cached error.
+    ok = _mock_client(MOCK_EBIRD_RESPONSE)
+    with patch("routers.map.get_client", return_value=ok):
+        r_ok = client.get("/map/recent-obs?lat=10.0&lng=20.0&dist=25")
+    assert r_ok.status_code == 200
+    assert ok.get.call_count == 1
+    assert len(r_ok.json()) == 3
 
 
 # ── Coordinate / distance bounds (restored from the removed /stats/nemesis) ───
@@ -220,8 +283,7 @@ def test_hotspot_region_missing_api_key(monkeypatch):
 
 def test_hotspot_region_returns_locids_only(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client(MOCK_REGION_HOTSPOTS)
+    with patch("routers.map.get_client", return_value=_mock_client(MOCK_REGION_HOTSPOTS)):
         resp = client.get("/map/hotspot-region?regionCode=US-CA")
     assert resp.status_code == 200
     # Just the ids, and the id-less entry is dropped.
@@ -248,8 +310,7 @@ def test_hotspot_region_api_error_is_502(monkeypatch):
     instance.get.return_value = mock_resp
     instance.__aenter__ = AsyncMock(return_value=instance)
     instance.__aexit__ = AsyncMock(return_value=False)
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = instance
+    with patch("routers.map.get_client", return_value=instance):
         resp = client.get("/map/hotspot-region?regionCode=US-CA")
     assert resp.status_code == 502
 
@@ -316,8 +377,7 @@ def test_county_species_collapses_to_species_level(monkeypatch):
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
     _seed_taxonomy(monkeypatch)
     spplist = ["gwfgoo", "cangoo1", "cangoo", "goose1", "mallar3x", "y00478", "x00776"]
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client(spplist)
+    with patch("routers.map.get_client", return_value=_mock_client(spplist)):
         resp = client.get("/map/county-species?regionCode=US-CA-085")
 
     assert resp.status_code == 200
@@ -335,8 +395,7 @@ def test_county_species_empty_list(monkeypatch):
     # A valid region with nothing reported → speciesCount 0, empty pool (FR-25).
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
     _seed_taxonomy(monkeypatch)
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = _mock_client([])
+    with patch("routers.map.get_client", return_value=_mock_client([])):
         resp = client.get("/map/county-species?regionCode=US-MN-053")
 
     assert resp.status_code == 200
@@ -358,8 +417,7 @@ def test_county_species_api_error_is_502(monkeypatch):
     instance.get.return_value = mock_resp
     instance.__aenter__ = AsyncMock(return_value=instance)
     instance.__aexit__ = AsyncMock(return_value=False)
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = instance
+    with patch("routers.map.get_client", return_value=instance):
         resp = client.get("/map/county-species?regionCode=US-CA-085")
     assert resp.status_code == 502
     assert "ebird" in resp.json()["detail"].lower()
@@ -374,8 +432,7 @@ def test_county_species_unreachable_is_502(monkeypatch):
     instance.get.side_effect = httpx.ConnectError("no route")
     instance.__aenter__ = AsyncMock(return_value=instance)
     instance.__aexit__ = AsyncMock(return_value=False)
-    with patch("routers.map.httpx.AsyncClient") as MockClient:
-        MockClient.return_value = instance
+    with patch("routers.map.get_client", return_value=instance):
         resp = client.get("/map/county-species?regionCode=US-CA-085")
     assert resp.status_code == 502
     assert "reach" in resp.json()["detail"].lower()

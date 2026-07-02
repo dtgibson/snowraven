@@ -74,7 +74,8 @@ function Nudge({ text, onGoToSettings }: { text: string; onGoToSettings: () => v
       <span className="sr-min0">{text}</span>
       <button tabIndex={0} onClick={onGoToSettings}
         style={{
-          background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 600,
+          background: 'none', border: 'none', minHeight: 24, padding: '0 6px', margin: '0 -6px',
+          fontSize: '0.75rem', fontWeight: 600,
           color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
         }}>
         Go to Settings →

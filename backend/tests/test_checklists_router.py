@@ -69,9 +69,11 @@ def _reset_taxonomy_cache():
 
 
 def _combined_client():
-    """One AsyncClient routing by URL. services.ebird and routers.taxonomy both
-    `import httpx`, so they share httpx.AsyncClient — a single mock must serve the
-    checklist/view, region/info, AND taxonomy fetches."""
+    """One shared-client mock routing by URL. services.ebird (the checklist/view +
+    region/info fetches) and routers.taxonomy (the taxonomy refresh) each hold
+    their OWN `get_client` reference now (the pooled-client seam), so the two
+    patch targets below both point at this one instance — a single mock must serve
+    the checklist/view, region/info, AND taxonomy fetches."""
     async def fake_get(url, *args, **kwargs):
         if "/product/checklist/view/" in url:
             return _make_resp(_FAKE_CHECKLIST)
@@ -82,8 +84,6 @@ def _combined_client():
         return _make_resp({}, status=404)
 
     mc = AsyncMock()
-    mc.__aenter__ = AsyncMock(return_value=mc)
-    mc.__aexit__ = AsyncMock(return_value=False)
     mc.get = AsyncMock(side_effect=fake_get)
     return mc
 
@@ -91,7 +91,11 @@ def _combined_client():
 def test_checklist_resolves_location_and_normalizes_subform(monkeypatch):
     _reset_taxonomy_cache()
     monkeypatch.setenv("EBIRD_API_KEY", "test-key")
-    with patch("services.ebird.httpx.AsyncClient", return_value=_combined_client()):
+    # Both modules' get_client point at ONE shared mock instance (the pooled
+    # client is process-wide; the two bound names must be patched separately).
+    shared = _combined_client()
+    with patch("services.ebird.get_client", return_value=shared), \
+         patch("routers.taxonomy.get_client", return_value=shared):
         resp = client.get("/checklists/S12345678")
     assert resp.status_code == 200
     data = resp.json()

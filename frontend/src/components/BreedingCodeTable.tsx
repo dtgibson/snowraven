@@ -33,6 +33,18 @@ const TIER_TEXT_COLORS: Record<1 | 2 | 3 | 4, string> = {
   1: 'var(--sr-tier-1-text)',
 }
 
+// Sticky species-column width. Was a flat 220px, which on a 320-360px phone left
+// the scrollable code matrix a ~1-column peephole. This clamp resolves to 220px
+// on every viewport ≥550px (desktop/tablet unchanged) but NARROWS on phones (40vw
+// = 128px at 320px), and its rem floor grows the column with the in-app Text Size
+// control so it still holds at 200% text scale (the matrix then scrolls in its
+// overflow-x wrapper rather than the name column crushing). A viewport/rem
+// expression is intrinsically responsive with no media query, so it can live
+// inline without the "unreachable by a media query" pitfall the class convention
+// guards against. The value is single-sourced so the header cell, every row's
+// name cell, and the scrollPaddingLeft stay perfectly aligned.
+const NAME_COL_WIDTH = 'clamp(7.5rem, 40vw, 220px)'
+
 export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, taxonMap, taxonOrders, wideMode, onOpenSpecies }: Props) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
 
@@ -137,7 +149,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
           screen-reader spans to THIS scroll container, so they're clipped with
           the table instead of escaping to the page and forcing horizontal page
           scroll on phones (the wide matrix sits far right of the viewport). */}
-      <div style={wideMode ? {} : { overflowX: 'auto', scrollPaddingLeft: 220, minWidth: 0, position: 'relative' }}>
+      <div style={wideMode ? {} : { overflowX: 'auto', scrollPaddingLeft: NAME_COL_WIDTH, minWidth: 0, position: 'relative' }}>
         <table style={{
           width: '100%',
           minWidth: 'max-content',
@@ -154,8 +166,8 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   ...(wideMode ? {} : { left: 0, zIndex: 3, boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)' }),
                   textAlign: 'left',
                   padding: '10px 12px',
-                  width: 220,
-                  minWidth: 220,
+                  width: NAME_COL_WIDTH,
+                  minWidth: NAME_COL_WIDTH,
                 }}
               >
                 <button type="button" style={sortBtn(sort.column === 'name', 'flex-start')} onClick={() => handleHeaderClick('name')}>
@@ -218,9 +230,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     textAlign: 'left',
                     ...(wideMode ? {} : { position: 'sticky', left: 0, zIndex: 1, boxShadow: '1px 0 0 var(--sr-border)' }),
                     background: rowBg,
-                    width: 220,
-                    minWidth: 220,
-                    maxWidth: 220,
+                    width: NAME_COL_WIDTH,
+                    minWidth: NAME_COL_WIDTH,
+                    maxWidth: NAME_COL_WIDTH,
                     borderTop: '1px solid var(--sr-border-subtle)',
                     verticalAlign: 'middle',
                     fontWeight: 'normal',

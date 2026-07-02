@@ -255,7 +255,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
               <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
                 Species you've documented as a juvenile or immature — a filled dot marks each age class you've captured.
               </p>
-              <div style={{ display: 'flex', gap: 12, fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Adult} /> Adult</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Immature} /> Immature</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Juvenile} /> Juvenile</span>
@@ -275,7 +275,10 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
               {sortedYoung.length > 10 && (
                 <button tabIndex={0}
                   onClick={() => setShowAllAges(v => !v)}
-                  style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', fontFamily: 'inherit', padding: 0 }}
+                  // vertical padding enlarges the tap target toward ~40px on its
+                  // own line without shifting anything (a dense text button, so
+                  // inline padding rather than the centering .sr-touch-target).
+                  style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', fontFamily: 'inherit', padding: '8px 0' }}
                 >
                   {showAllAges ? 'Show fewer' : `Show all ${fmt(sortedYoung.length)}`}
                 </button>
@@ -303,7 +306,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
               const slug = behaviorTagSlug(b.label)
               const href = slug && userId ? mlBehaviorCatalogUrl(slug, userId) : undefined
               return (
-                <BarRow key={b.label} label={b.label} value={b.value} max={topBehaviors[0]?.value ?? 1} labelWidth={150}
+                <BarRow key={b.label} label={b.label} value={b.value} max={topBehaviors[0]?.value ?? 1} labelWidth={120}
                   href={href}
                   linkLabel={href ? `${fmt(b.value)} — Open your ${b.label} media in the Macaulay Library` : undefined} />
               )
@@ -328,7 +331,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
                       const slug = behaviorTagSlug(b.label)
                       const href = slug && userId ? mlBehaviorCatalogUrl(slug, userId) : undefined
                       return (
-                        <BarRow key={b.label} label={b.label} value={b.value} max={breedingBehaviors[0]?.value ?? 1} labelWidth={150}
+                        <BarRow key={b.label} label={b.label} value={b.value} max={breedingBehaviors[0]?.value ?? 1} labelWidth={120}
                           href={href}
                           linkLabel={href ? `${fmt(b.value)} — Open your ${b.label} media in the Macaulay Library` : undefined} />
                       )

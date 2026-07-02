@@ -1339,7 +1339,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {/* Date range */}
               <div style={{ marginBottom: 12 }}>
                 <SidebarLabel>Date Range</SidebarLabel>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className="sr-field-row">
                   <input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                     style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0, boxSizing: 'border-box' }} />
                   <input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)}
@@ -1599,6 +1599,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 isHotspot
                 compact
                 title="Open on eBird (opens in a new tab)"
+                className="sr-map-icon-btn-touch"
                 style={{ flexShrink: 0, width: 26, height: 26, justifyContent: 'center' }}
               />
               <span style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{dist.toFixed(1)} mi</span>
@@ -1860,6 +1861,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                             aria-pressed={isSelected}
                             title="Show on map"
                             aria-label={`Show ${pin.comName} on the map`}
+                            className="sr-map-icon-btn-touch"
                             style={{
                               flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                               width: 26, height: 26, borderRadius: 6, cursor: 'pointer',
@@ -2050,11 +2052,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         <div
           ref={sidebarRef}
           className={`sr-map-sidebar-overlay${sidebarOpen ? '' : ' sr-map-sidebar-hidden'}`}
-          /* width clamps so the 641–1024 tablet band gets a usable map instead
-             of a fixed 268px column eating the width; the ≤640 overlay class
-             still controls position/display (never put inline `display` here —
-             it would override the class's display toggle). */
-          style={{ width: 'clamp(240px, 28vw, 300px)', flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)' }}
+          /* Width lives in the .sr-map-sidebar-overlay class (globals.css), NOT
+             inline: an inline width (specificity 1,0,0) beats the ≤640 media
+             query, so the phone overlay's min(282px, 90vw) was dead CSS. The
+             base class rule carries the same clamp(240px, 28vw, 300px) for the
+             641–1024 tablet band; only the ≤640 tier overrides it. Keep just
+             flexShrink/border/background inline (non-layout). */
+          style={{ flexShrink: 0, borderRight: '1px solid var(--sr-border)', background: 'var(--sr-surface)' }}
         >
           {/* Mobile-only header with close button */}
           <div className="sr-map-sidebar-close">
@@ -2062,6 +2066,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             <button tabIndex={0}
               onClick={closeSidebar}
               aria-label="Close filters"
+              className="sr-map-icon-btn-touch"
               style={{
                 width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: 'var(--sr-surface-subtle)', border: 'none', borderRadius: '50%',

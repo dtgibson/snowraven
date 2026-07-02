@@ -41,7 +41,7 @@ def _patch_taxonomy(taxonomy=_FAKE_TAXONOMY):
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=mock_resp)
-    return patch("routers.taxonomy.httpx.AsyncClient", return_value=mock_client)
+    return patch("routers.taxonomy.get_client", return_value=mock_client)
 
 
 def _reset_cache():
@@ -130,7 +130,7 @@ def test_taxonomy_fetch_failure_returns_empty_maps():
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(side_effect=Exception("network error"))
-    with patch("routers.taxonomy.httpx.AsyncClient", return_value=mock_client):
+    with patch("routers.taxonomy.get_client", return_value=mock_client):
         resp = client.post("/taxonomy/codes", json={"species": [
             {"commonName": "American Robin", "scientificName": "Turdus migratorius"},
         ]})
@@ -166,7 +166,7 @@ def _patch_network_blocked():
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(side_effect=Exception("network blocked in test"))
-    return patch("routers.taxonomy.httpx.AsyncClient", return_value=mock_client)
+    return patch("routers.taxonomy.get_client", return_value=mock_client)
 
 
 def test_offline_floor_from_bundled_snapshot(tmp_path):

@@ -330,6 +330,7 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
         </div>
         <button tabIndex={0}
           ref={closeRef}
+          className="sr-touch-target"
           onClick={onClose}
           aria-label="Close documentation"
           style={{

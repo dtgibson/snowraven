@@ -131,7 +131,7 @@ function ghostBtn(active = false): React.CSSProperties {
 // (design-system categorical-filter pattern); accent when a facet is active.
 function facetSelectStyle(active: boolean): React.CSSProperties {
   return {
-    height: 26, paddingLeft: 10, paddingRight: 22, borderRadius: 5,
+    minHeight: '1.75rem', paddingLeft: 10, paddingRight: 22, borderRadius: 5,
     border: active ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
     background: active ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
     color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
@@ -573,7 +573,12 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
                 el.focus({ preventScroll: true })
               }
             }}
-            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
+            style={{
+              marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4,
+              fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0,
+              // ≥24px hit area (WCAG 2.2 target size) without growing the visual box.
+              minHeight: 24, paddingLeft: 6, paddingRight: 6, marginRight: -6,
+            }}
             onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
             onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
           >
@@ -634,6 +639,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           {/* Sex / Age media facets — native selects matching the County control */}
           <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
             <select
+              className="sr-input-16"
               aria-label="Sex"
               value={sexFilter ?? ''}
               onChange={e => setSexFilter((e.target.value || null) as Sex | null)}
@@ -647,6 +653,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           </div>
           <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
             <select
+              className="sr-input-16"
               aria-label="Age"
               value={ageFilter ?? ''}
               onChange={e => setAgeFilter((e.target.value || null) as AgeClass | null)}
@@ -715,11 +722,12 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
                 pointerEvents: 'none', flexShrink: 0,
               }} />
               <select
+                className="sr-input-16"
                 aria-label="County"
                 value={countyFilter ?? ''}
                 onChange={e => setCountyFilter(e.target.value || null)}
                 style={{
-                  height: 26, paddingLeft: 24, paddingRight: 22, borderRadius: 5,
+                  minHeight: '1.75rem', paddingLeft: 24, paddingRight: 22, borderRadius: 5,
                   border: countyFilter
                     ? '1.5px solid var(--sr-accent-border-strong)'
                     : '1.5px solid var(--sr-border)',
@@ -739,18 +747,23 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           {/* Date range — .sr-field-row stacks From/To full-width ≤480 where
               native date inputs can't shrink below their intrinsic min-width. */}
           <div className="sr-field-row" style={{ gap: 4 }}>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', minWidth: 0 }}>
               <Calendar size={11} strokeWidth={2} style={{
                 position: 'absolute', left: 7, color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                 pointerEvents: 'none',
               }} />
               <input
                 type="date"
+                className="sr-input-16"
                 aria-label="From date"
                 value={dateRange.from}
                 onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
                 style={{
-                  height: 26, paddingLeft: 24, paddingRight: 6, borderRadius: 5,
+                  // width:100% lets the From input fill its icon wrapper, so when
+                  // .sr-field-row stacks the wrapper full-width ≤480 the From field
+                  // matches the (direct-child) To field instead of staying intrinsic.
+                  width: '100%',
+                  minHeight: '1.75rem', paddingLeft: 24, paddingRight: 6, borderRadius: 5,
                   border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                   background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                   color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
@@ -761,11 +774,12 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>→</span>
             <input
               type="date"
+              className="sr-input-16"
               aria-label="To date"
               value={dateRange.to}
               onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
               style={{
-                height: 26, paddingLeft: 8, paddingRight: 6, borderRadius: 5,
+                minHeight: '1.75rem', paddingLeft: 8, paddingRight: 6, borderRadius: 5,
                 border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                 background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                 color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-muted)',

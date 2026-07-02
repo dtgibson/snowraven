@@ -125,7 +125,7 @@ export function SightingMarkers({ locations, displayMode, pointSize = 'normal', 
   // modes, so the keyboard "Sightings in view" list opens the details popup either way.
   const selLoc = sel ? locations.find(l => l.locId === sel) : null
   const sightPopup = selLoc && (
-    <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => onSelect(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
+    <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={10} onClose={() => onSelect(null)} closeButton={false} closeOnClick={false} maxWidth="min(260px, 80vw)">
       <div style={{ minWidth: 190 }}>
         <div className="sr-wrap-anywhere" style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 6 }}>{selLoc.locName}</div>
         <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>

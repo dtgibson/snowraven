@@ -25,7 +25,7 @@ def _patch_github(tag_name: str, status_code: int = 200):
     mock_client.__aenter__ = AsyncMock(return_value=mock_client)
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(return_value=mock_resp)
-    return patch("routers.version.httpx.AsyncClient", return_value=mock_client)
+    return patch("routers.version.get_client", return_value=mock_client)
 
 
 def test_version_check_up_to_date(tmp_path, monkeypatch):
@@ -116,7 +116,7 @@ def test_version_check_github_unreachable(tmp_path, monkeypatch):
     mock_client.__aexit__ = AsyncMock(return_value=False)
     mock_client.get = AsyncMock(side_effect=Exception("network error"))
 
-    with patch("routers.version.httpx.AsyncClient", return_value=mock_client):
+    with patch("routers.version.get_client", return_value=mock_client):
         response = client.get("/version/check")
 
     assert response.status_code == 503

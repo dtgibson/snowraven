@@ -184,6 +184,7 @@ function CommentSearchBox<T extends ChecklistCommentEntry>({
           </span>
           <input
             type="text"
+            className="sr-input-16"
             value={filter}
             onChange={e => { setFilter(e.target.value); setShowAll(false) }}
             placeholder={placeholder}
@@ -670,6 +671,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
               {protocols.length > 0 && (
                 <select
                   aria-label="Protocol"
+                  className="sr-input-16"
                   value={filters.protocol ?? ''}
                   onChange={e => setFilters(f => ({ ...f, protocol: e.target.value || null }))}
                   style={{ ...selectStyle, ...(filters.protocol ? { borderColor: 'var(--sr-accent-border)', color: 'var(--sr-accent)', fontWeight: 600 } : {}) }}
@@ -680,11 +682,12 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <div className="sr-field-row" style={{ gap: 6 }}>
               <span style={rowLabelStyle}>Where &amp; when</span>
               {counties.length > 0 && (
                 <select
                   aria-label="County"
+                  className="sr-input-16"
                   value={filters.county ?? ''}
                   onChange={e => setFilters(f => ({ ...f, county: e.target.value || null }))}
                   style={{ ...selectStyle, ...(filters.county ? { borderColor: 'var(--sr-accent-border)', color: 'var(--sr-accent)', fontWeight: 600 } : {}) }}
@@ -696,6 +699,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
               <input
                 type="date"
                 aria-label="From date"
+                className="sr-input-16"
                 value={filters.dateRange.from}
                 onChange={e => setFilters(f => ({ ...f, dateRange: { ...f.dateRange, from: e.target.value } }))}
                 style={selectStyle}
@@ -704,6 +708,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
               <input
                 type="date"
                 aria-label="To date"
+                className="sr-input-16"
                 value={filters.dateRange.to}
                 onChange={e => setFilters(f => ({ ...f, dateRange: { ...f.dateRange, to: e.target.value } }))}
                 style={selectStyle}

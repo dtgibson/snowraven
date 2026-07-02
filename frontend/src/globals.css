@@ -419,6 +419,10 @@
 }
 .sr-map-layers-seg {
   display: inline-flex;
+  /* flex-wrap so the Map / Satellite / Topo (US) row FOLDS to a second line
+     instead of overflowing and being clipped by .maplibregl-map{overflow:hidden}
+     at large in-app text scale on a narrow phone (F: globals.css:427). */
+  flex-wrap: wrap;
   gap: 2px;
   background: var(--sr-surface-subtle);
   border-radius: 7px;
@@ -688,6 +692,58 @@ h1, h2, h3, h4, h5, h6 {
 .sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sr-wrap-anywhere { overflow-wrap: anywhere; word-break: break-word; }
 
+/* ── Mobile-readiness shared vocabulary (mobile-readiness-fix-pass) ──────────
+   Four recurring themes across the 71-finding phone audit. Each is a class the
+   per-file fixes ADD (dropping the equivalent inline layout); colors/padding/
+   borders stay inline (tokens only). Phone-tier bumps live in the ≤640 media
+   block at the bottom of the file so desktop density is never touched. */
+
+/* Touch-target helper — raises a dense, fixed-height control toward the ~44px
+   comfortable tap size ON PHONES only (the ≤640 tier), so desktop keeps its
+   intentional compactness. Add to icon-only buttons, segmented pills, jump-nav
+   chips, reorder/eye buttons, copy buttons, and text-link actions that ship a
+   sub-44px hit area. It sets min-height (rem, so it holds at 200% text scale)
+   and centers the content; it does NOT change the visible glyph/label size, so
+   a control keeps its look and just gains hit area. Where a control's box must
+   not grow visually (dense inline text links), the per-file fix may instead add
+   padding + negative margin inline — this class is for buttons/pills that can
+   accept a taller box. Base rule is a no-op; the size lands only ≤640. */
+.sr-touch-target { display: inline-flex; align-items: center; justify-content: center; }
+
+/* Icon-button touch grow — for a small (e.g. 26px) icon-only button that sits
+   AMONG same-size siblings in a dense row, where a blanket .sr-touch-target
+   min-height would distort a lone sibling or turn a circular button into an
+   ellipse. Grows BOTH dimensions toward a comfortable ~40px tap box ON PHONES
+   only (≤640, rem so it holds at 200% text scale), keeping the icon glyph size
+   and the button's own border-radius. The visible box grows; desktop density is
+   untouched (base rule is a no-op). */
+.sr-map-icon-btn-touch { }
+
+/* Map-popup scroll body — cap tall popup content (county completeness, sighting
+   / target / lifer marker lists) so it never runs off a short phone viewport,
+   and scroll internally instead. Add to the popup's inner content div; it
+   composes inside .maplibregl-popup-content's padded box. dvh + rem so the cap
+   holds at 200% text scale. overscroll-behavior:contain stops a scroll at the
+   popup edge from chaining to the map/page. */
+.sr-map-popup-body { max-height: min(60dvh, 26rem); overflow-y: auto; overscroll-behavior: contain; }
+
+/* iOS focus-zoom guard — iOS Safari auto-zooms the whole page when a form
+   control with computed font-size < 16px is focused. Add to every <input> /
+   <select> / native date-time picker that carries a sub-16px inline fontSize.
+   Raises the font to 16px ONLY in the ≤640 phone tier (desktop sizing is
+   untouched), which suppresses the zoom without a maximum-scale that would kill
+   pinch-zoom. Uses 16px deliberately (the iOS threshold is an absolute px value,
+   not rem) — this is the one place a px font-size is correct. The whole rule
+   lives in the ≤640 media block below; there is no base (desktop) declaration. */
+
+/* Wrap-flex — inline flex that WRAPS instead of overflowing. For segmented
+   controls (SegControl, the sort-pill group), radio-group rows (Text Size /
+   Date Format), and label+value header rows that today use an inline
+   `display:flex` with no flex-wrap and so overflow or clip at large text scale
+   on a phone. Lift the inline display/flex-wrap here; keep gap/colors inline (or
+   set gap via the --sr-wrap-gap var). Children keep their own flex basis. */
+.sr-wrap-flex { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sr-wrap-gap, 8px); }
+
 /* Map Explorer — mobile overlay sidebar */
 .sr-map-content {
   position: relative;
@@ -697,6 +753,12 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Width lives here (not inline) so the ≤640 phone override below can win —
+     an inline width (specificity 1,0,0) permanently beats the media query, so
+     the mobile 282px was dead CSS until this moved out of MapExplorer.tsx. The
+     clamp keeps the 641–1024 tablet band's usable map (28vw) with a 240–300px
+     bound; the phone tier below overrides to min(282px, 90vw). */
+  width: clamp(240px, 28vw, 300px);
 }
 
 /* Loading chip shown over the map canvas while a hotspot/sightings search is in
@@ -779,7 +841,14 @@ h1, h2, h3, h4, h5, h6 {
   flex-shrink: 0;
 }
 
+/* Sidebar backdrop — dims the map behind the mobile Filters overlay. `sidebarOpen`
+   is JS state with no width awareness, but the sidebar is an OVERLAY only in the
+   ≤640 phone tier (above 640 it's in-flow). So gate the backdrop to the same tier:
+   display:none by default (incl. the 641–1024 tablet band and after a phone→landscape
+   rotation with Filters left open) so a stale `sidebarOpen` can't veil an in-flow
+   desktop/tablet map; it turns on only at ≤640 below, matching the overlay. */
 .sr-map-backdrop {
+  display: none;
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.42);
@@ -861,6 +930,17 @@ select:focus-visible {
   font-size: 1rem;
   padding: 2px 8px;
 }
+/* On touch devices, grow the sole in-map popup-dismiss affordance to a ~44px
+   comfortable target (the county/atlas popups set closeOnClick=false, so this
+   button is the only pointer dismissal). Coarse-pointer-scoped so desktop mouse
+   users keep the compact button; sized in rem so it holds at 200% text scale;
+   glyph size (font-size above) is untouched. (F: globals.css:859) */
+@media (pointer: coarse) {
+  .maplibregl-popup-close-button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}
 /* Attribution credits also inherit maplibre's fixed 12px — rem-size them */
 .maplibregl-ctrl-attrib { font-size: 0.6875rem; }
 .maplibregl-popup-anchor-top .maplibregl-popup-tip,
@@ -898,6 +978,18 @@ select:focus-visible {
   .sr-header { padding-top: 24px !important; }
   .sr-panel  { padding-top: 20px !important; padding-bottom: 16px !important; }
   .sr-card   { padding: 20px !important; }
+
+  /* Touch-target min-height lands only on phones (rem → holds at 200% text
+     scale). Desktop keeps the control's intentional compact height. */
+  .sr-touch-target { min-height: 2.75rem; }
+
+  /* Icon-only buttons in dense map rows grow to a ~40px tap box on phones
+     (both dimensions, rem). Keeps the glyph size and radius; desktop untouched. */
+  .sr-map-icon-btn-touch { min-width: 2.5rem; min-height: 2.5rem; }
+
+  /* iOS focus-zoom guard — 16px is the iOS threshold (an absolute px value), so
+     a px font-size is correct here; scoped to the phone tier only. */
+  .sr-input-16 { font-size: 16px; }
   .sr-two-col { grid-template-columns: 1fr; }
   .sr-compare-panels { grid-template-columns: 1fr; }
   .sr-map-container { height: 300px; }
@@ -928,6 +1020,11 @@ select:focus-visible {
 
   .sr-map-sidebar-overlay.sr-map-sidebar-hidden {
     display: none;
+  }
+
+  /* Backdrop shows only in the phone tier, matching the overlay above. */
+  .sr-map-backdrop {
+    display: block;
   }
 
   .sr-map-filters-btn {

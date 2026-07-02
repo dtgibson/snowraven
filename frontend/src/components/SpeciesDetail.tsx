@@ -631,8 +631,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               aria-label="County"
               value={countyFilter ?? ''}
               onChange={e => setCountyFilter(e.target.value || null)}
+              className="sr-input-16"
               style={{
-                height: 26, paddingLeft: 24, paddingRight: 22, borderRadius: 5,
+                minHeight: '1.625rem', paddingLeft: 24, paddingRight: 22, borderRadius: 5,
                 border: countyFilter ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                 background: countyFilter ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                 color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
@@ -658,8 +659,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 aria-label="From date"
                 value={dateRange.from}
                 onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                className="sr-input-16"
                 style={{
-                  height: 26, paddingLeft: 24, paddingRight: 6, borderRadius: 5,
+                  minHeight: '1.625rem', paddingLeft: 24, paddingRight: 6, borderRadius: 5, width: '100%',
                   border: dateRange.from ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                   background: dateRange.from ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                   color: dateRange.from ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
@@ -673,8 +675,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               aria-label="To date"
               value={dateRange.to}
               onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+              className="sr-input-16"
               style={{
-                height: 26, paddingLeft: 8, paddingRight: 6, borderRadius: 5,
+                minHeight: '1.625rem', paddingLeft: 8, paddingRight: 6, borderRadius: 5,
                 border: dateRange.to ? '1.5px solid var(--sr-accent-border-strong)' : '1.5px solid var(--sr-border)',
                 background: dateRange.to ? 'var(--sr-accent-bg)' : 'var(--sr-surface)',
                 color: dateRange.to ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
@@ -839,7 +842,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     : frequencyPct < 1 ? '<1%'
                     : `${Math.round(frequencyPct)}%`
                   return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '12px' }}>
                   <div>
                     <StatLabel>Checklists</StatLabel>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1, color: 'var(--sr-text)' }}>
@@ -1228,6 +1231,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                       key={mode}
                       aria-pressed={mapMode === mode}
                       onClick={() => setMapMode(mode)}
+                      className="sr-touch-target"
                       style={{
                         padding: '4px 10px', border: 'none', borderRadius: 4, fontSize: '0.6875rem',
                         fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', transition: 'all 0.15s',
@@ -1276,6 +1280,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     style={{ height: '100%', width: '100%' }}
                     switcher
                     scrollZoom={false}
+                    // Heatmap-mode branch of the same page-embedded Sighting
+                    // Locations map — parity with the pins-mode SightingsMap:
+                    // two-finger pan on touch so a thumb-scroll moves the page.
+                    cooperativeGestures
                   >
                     <HeatmapLayer points={heatPoints} intensity={heatIntensity} />
                     <MapBoundsFitter coordinates={uniqueCoords} />
@@ -1374,7 +1382,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}
                       />
                     </div>
-                    <div style={{ fontSize: '0.84375rem', color: 'var(--sr-text)', lineHeight: 1.55 }}>
+                    <div className="sr-wrap-anywhere" style={{ fontSize: '0.84375rem', color: 'var(--sr-text)', lineHeight: 1.55 }}>
                       {o.speciesComments}
                     </div>
                   </div>

@@ -345,9 +345,13 @@ export function CountyLayer({
       <Source id="sr-county" type="geojson" data={fc}>
         <Layer id="sr-county-fill" type="fill" minzoom={COUNTY_MINZOOM} paint={fillPaint} beforeId={insertBelow} />
         <Layer id="sr-county-line" type="line" minzoom={COUNTY_MINZOOM} maxzoom={COUNTY_LINE_HANDOFF_ZOOM} paint={linePaint} layout={lineLayout} beforeId={insertBelow} />
+        {/* No fixed anchor on the popup below — let MapLibre choose
+            top/bottom/left/right so a popup tapped near a phone viewport edge
+            stays on-screen instead of being clipped by the map's
+            overflow:hidden. All anchor variants are tip-colored in globals.css. */}
         {sel && (
-          <Popup longitude={sel.lng} latitude={sel.lat} anchor="bottom" offset={10} closeOnClick={false} onClose={() => setSel(null)} maxWidth="248px">
-            <div style={{ minWidth: 188, maxWidth: 220, fontSize: '0.8125rem' }}>
+          <Popup longitude={sel.lng} latitude={sel.lat} offset={10} closeOnClick={false} onClose={() => setSel(null)} maxWidth="248px">
+            <div className="sr-map-popup-body" style={{ minWidth: 188, maxWidth: 220, fontSize: '0.8125rem' }}>
               {selRegion ? (
                 <OutboundLink
                   href={`${REGION_URL}${encodeURIComponent(selRegion)}`}
@@ -431,9 +435,15 @@ export function CountyLayer({
       {list.length > 0 && (
         <div
           className="sr-county-inview"
+          /* Top-left under the NavigationControl (matching AtlasLayer's "blocks in
+             view" disclosure at top:78/left:10) so the panel clears BOTH reserved
+             corners — the bottom-left AttributionControl (F094) and the bottom-right
+             FAB cluster on narrow phones. Width in rem (14.5rem = 232px at 100%) so
+             it tracks the in-app Text Size control and the county-name column isn't
+             crushed at 200% scale; the 62vw cap keeps it off most of a phone. */
           style={{
-            position: 'absolute', bottom: 12, left: 12, zIndex: 1050,
-            width: 'min(232px, 62vw)', maxHeight: '62%', display: 'flex', flexDirection: 'column',
+            position: 'absolute', top: 78, left: 10, zIndex: 1050,
+            width: 'min(14.5rem, 62vw)', maxHeight: '62%', display: 'flex', flexDirection: 'column',
             background: 'var(--sr-surface)', border: '1px solid var(--sr-border)',
             borderRadius: 8, boxShadow: '0 1px 4px rgba(0,0,0,0.15)', overflow: 'hidden',
           }}
@@ -470,7 +480,7 @@ export function CountyLayer({
                         tabIndex={0}
                         onClick={() => openCountyFromList(row)}
                         aria-pressed={isSelected}
-                        className="sr-inview-row"
+                        className="sr-inview-row sr-touch-target"
                         style={{
                           display: 'flex', alignItems: 'center', gap: 9, width: '100%',
                           padding: '7px 8px', marginBottom: 2, borderRadius: 6, textAlign: 'left',

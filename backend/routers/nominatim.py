@@ -1,9 +1,10 @@
 import asyncio
 from typing import Optional
 
-import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+
+from http_client import get_client
 
 router = APIRouter()
 
@@ -46,15 +47,15 @@ async def _lookup(lat: float, lng: float) -> Optional[str]:
             return _cache[key]
         county = None
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    "https://nominatim.openstreetmap.org/reverse",
-                    params={"format": "json", "lat": lat, "lon": lng},
-                    headers={"User-Agent": "SnowRaven/1.0"},
-                    timeout=8.0,
-                )
-                if resp.status_code == 200:
-                    county = resp.json().get("address", {}).get("county")
+            client = get_client()
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/reverse",
+                params={"format": "json", "lat": lat, "lon": lng},
+                headers={"User-Agent": "SnowRaven/1.0"},
+                timeout=8.0,
+            )
+            if resp.status_code == 200:
+                county = resp.json().get("address", {}).get("county")
         except Exception:
             pass
         _cache[key] = county
@@ -68,17 +69,17 @@ async def forward_geocode(q: str):
         data: list = []
         error = False
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    "https://nominatim.openstreetmap.org/search",
-                    params={"q": q, "format": "json", "limit": 5},
-                    headers={"User-Agent": "SnowRaven/1.0"},
-                    timeout=8.0,
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                else:
-                    error = True
+            client = get_client()
+            resp = await client.get(
+                "https://nominatim.openstreetmap.org/search",
+                params={"q": q, "format": "json", "limit": 5},
+                headers={"User-Agent": "SnowRaven/1.0"},
+                timeout=8.0,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+            else:
+                error = True
         except Exception:
             error = True
         await asyncio.sleep(1.0)

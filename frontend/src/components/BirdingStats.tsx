@@ -396,6 +396,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         {navSections.map(t => (
           <a
             key={t}
+            className="sr-touch-target"
             href={`#${sectionSlug(t)}`}
             onClick={e => { e.preventDefault(); jumpTo(document.getElementById(sectionSlug(t))) }}
             style={{ fontSize: '0.71875rem', fontWeight: 500, color: 'var(--sr-text-muted)', textDecoration: 'none', padding: '4px 10px', borderRadius: 100, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', whiteSpace: 'nowrap' }}
@@ -483,6 +484,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                   <button
                     key={g}
+                    className="sr-touch-target"
                     onClick={() => setAccGranularity(g)}
                     aria-pressed={accGranularity === g}
                     style={{
@@ -563,7 +565,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
       {/* ── Top Species ────────────────────────────────────────────────────── */}
       <SectionCard title="Top Species" icon={<ListOrdered size={16} />}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(248px, 1fr))', gap: 'clamp(16px, 4vw, 28px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(248px, 100%), 1fr))', gap: 'clamp(16px, 4vw, 28px)' }}>
           <div>
             <SubLabel>Most individuals counted</SubLabel>
             {topSpecies.byIndividuals.length > 0 ? (
@@ -657,17 +659,22 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <>
             <SubLabel>Checklists by year</SubLabel>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
+              {/* rem column widths + a shrinkable, ellipsizing label (the BarRow
+                  pattern in statsPrimitives) so the row's boxes grow with the Text
+                  Size control instead of the rem-sized text overflowing fixed px
+                  boxes at 200% scale; the trailing best-day link is allowed to
+                  wrap within its box rather than nowrap-overflowing the card. */}
               {temporal.yearRows.map(r => (
-                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 36 }}>{r.label}</span>
-                  <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '2.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
+                  <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${maxYearChecklists > 0 ? (r.checklists / maxYearChecklists) * 100 : 0}%`, background: 'var(--sr-accent)', borderRadius: 4, transition: 'width 0.3s' }} />
                   </div>
-                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: 28, textAlign: 'right' }}>{fmt(r.checklists)}</span>
-                  <span style={{ fontSize: '0.6875rem', flexShrink: 0, width: 44, textAlign: 'right', color: 'var(--sr-accent)' }}>{fmt(r.species)} sp.</span>
-                  <span style={{ fontSize: '0.6875rem', flexShrink: 0, width: 72, textAlign: 'right' }}>
+                  <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: '1.75rem', textAlign: 'right' }}>{fmt(r.checklists)}</span>
+                  <span style={{ fontSize: '0.6875rem', flexShrink: 0, width: '2.75rem', textAlign: 'right', color: 'var(--sr-accent)' }}>{fmt(r.species)} sp.</span>
+                  <span style={{ fontSize: '0.6875rem', flexShrink: 0, width: '4.5rem', textAlign: 'right' }}>
                     {r.bestDay ? (
-                      <ChecklistLink submissionId={r.bestDay.submissionId} label={`${fmt(r.bestDay.species)} best`} style={{ whiteSpace: 'nowrap' }} />
+                      <ChecklistLink submissionId={r.bestDay.submissionId} label={`${fmt(r.bestDay.species)} best`} />
                     ) : null}
                   </span>
                 </div>
@@ -880,24 +887,24 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     const sp = c.stateProvince
                     const validSp = sp && sp.includes('-')
                     const label = validSp ? (
+                      // Persistent accent affordance (no hover-only underline) so
+                      // the link reads as a link on touch, where hover never fires.
                       <OutboundLink
                         href={`https://ebird.org/region/${sp}`}
-                        style={{ color: 'var(--sr-text)', textDecoration: 'none' }}
-                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                        style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
                       >
                         {c.name}
                       </OutboundLink>
                     ) : c.name
                     return (
-                      <div key={`${c.stateProvince ?? ''}-${c.name}`} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span title={c.name} style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div key={`${c.stateProvince ?? ''}-${c.name}`} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
+                        <span title={c.name} style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '6.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {label}
                         </span>
-                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${geo.topCounties[0]?.count ? (c.count / geo.topCounties[0].count) * 100 : 0}%`, background: 'var(--sr-accent)', borderRadius: 4, transition: 'width 0.3s' }} />
                         </div>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: 32, textAlign: 'right' }}>{fmt(c.count)}</span>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: '2rem', textAlign: 'right' }}>{fmt(c.count)}</span>
                       </div>
                     )
                   })}
@@ -912,22 +919,20 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     const label = validSp ? (
                       <OutboundLink
                         href={`https://ebird.org/region/${sp}`}
-                        style={{ color: 'var(--sr-text)', textDecoration: 'none' }}
-                        onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                        onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                        style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
                       >
                         {c.name}
                       </OutboundLink>
                     ) : c.name
                     return (
-                      <div key={`${c.stateProvince ?? ''}-${c.name}`} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span title={c.name} style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div key={`${c.stateProvince ?? ''}-${c.name}`} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
+                        <span title={c.name} style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '6.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {label}
                         </span>
-                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${geo.topCountiesBySpecies[0]?.species ? (c.species / geo.topCountiesBySpecies[0].species) * 100 : 0}%`, background: 'var(--sr-graph-photo)', borderRadius: 4, transition: 'width 0.3s' }} />
                         </div>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: 40, textAlign: 'right' }}>{fmt(c.species)} sp.</span>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: '2.5rem', textAlign: 'right' }}>{fmt(c.species)} sp.</span>
                       </div>
                     )
                   })}
@@ -943,7 +948,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 style={{
                   display: 'flex', alignItems: 'center', gap: 4,
                   background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: '0.75rem', color: 'var(--sr-accent)', padding: 0, fontFamily: 'inherit',
+                  // real vertical padding for a comfortable tap target — the
+                  // button sits alone on its line, so this shifts nothing.
+                  fontSize: '0.75rem', color: 'var(--sr-accent)', padding: '8px 0', fontFamily: 'inherit',
                 }}
               >
                 {showAllCounties
@@ -964,23 +971,21 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   {geo.topStates.map((s, i) => {
                     const validSp = s.name && s.name.includes('-')
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
                           {validSp ? (
                             <OutboundLink
                               href={`https://ebird.org/region/${s.name}`}
-                              style={{ color: 'var(--sr-text)', textDecoration: 'none' }}
-                              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                              style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
                             >
                               {regionName(s.name)}
                             </OutboundLink>
                           ) : regionName(s.name)}
                         </span>
-                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${geo.topStates[0]?.count ? (s.count / geo.topStates[0].count) * 100 : 0}%`, background: 'var(--sr-accent)', borderRadius: 4, transition: 'width 0.3s' }} />
                         </div>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: 32, textAlign: 'right' }}>{fmt(s.count)}</span>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: '2rem', textAlign: 'right' }}>{fmt(s.count)}</span>
                       </div>
                     )
                   })}
@@ -992,23 +997,21 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   {geo.topStatesBySpecies.map((s, i) => {
                     const validSp = s.name && s.name.includes('-')
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: '6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '6rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.name}>
                           {validSp ? (
                             <OutboundLink
                               href={`https://ebird.org/region/${s.name}`}
-                              style={{ color: 'var(--sr-text)', textDecoration: 'none' }}
-                              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
+                              style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}
                             >
                               {regionName(s.name)}
                             </OutboundLink>
                           ) : regionName(s.name)}
                         </span>
-                        <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                        <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                           <div style={{ height: '100%', width: `${geo.topStatesBySpecies[0]?.species ? (s.species / geo.topStatesBySpecies[0].species) * 100 : 0}%`, background: 'var(--sr-graph-photo)', borderRadius: 4, transition: 'width 0.3s' }} />
                         </div>
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: 40, textAlign: 'right' }}>{fmt(s.species)} sp.</span>
+                        <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: '2.5rem', textAlign: 'right' }}>{fmt(s.species)} sp.</span>
                       </div>
                     )
                   })}
@@ -1053,7 +1056,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           const incompletePct = 100 - completePct
           return (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+              <div className="sr-action-row" style={{ margin: '0 0 10px' }}>
                 <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Complete checklists</p>
                 <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{fmt(effort.completeCount)} of {fmt(effort.allObsCount)} complete</span>
               </div>
@@ -1085,7 +1088,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       const pct = Math.round((pc.complete / pc.total) * 100)
                       return (
                         <div key={name}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
+                          <div className="sr-action-row" style={{ marginBottom: 3 }}>
                             <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{name} <span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{pct}%</span></span>
                             <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{fmt(pc.complete)} of {fmt(pc.total)} complete</span>
                           </div>
@@ -1298,7 +1301,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           const total = quality.numericCount + quality.xCount
           return (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+              <div className="sr-action-row" style={{ margin: '0 0 10px' }}>
                 <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Count method</p>
                 <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}><span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{numPct}%</span> numeric · <span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{xPct}%</span> X / {fmt(total)} observations</span>
               </div>
@@ -1322,7 +1325,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   const pct = Math.round(quality.commentRatio * 100)
                   return (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                      <div className="sr-action-row" style={{ margin: '0 0 10px' }}>
                         <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Checklist comments</p>
                         <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}><span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{pct}%</span> · {fmt(quality.checksWithComments)} of {fmt(checklists.length)} checklists</span>
                       </div>
@@ -1344,7 +1347,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   const pct = Math.round(quality.speciesCommentRatio * 100)
                   return (
                     <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+                      <div className="sr-action-row" style={{ margin: '0 0 10px' }}>
                         <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Species notes</p>
                         <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}><span style={{ color: 'var(--sr-text)', fontWeight: 600 }}>{pct}%</span> · {fmt(quality.obsWithSpeciesComments)} of {fmt(filteredObs.length)} observations</span>
                       </div>
@@ -1367,7 +1370,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           <>
             <Divider />
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', margin: '0 0 10px' }}>
+              <div className="sr-action-row" style={{ margin: '0 0 10px' }}>
                 <p style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', margin: 0 }}>Weather &amp; tide blocks</p>
                 <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>of {fmt(quality.weatherTideTotal)} checklists</span>
               </div>
@@ -1563,6 +1566,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 ] as const).map(f => (
                   <button
                     key={f.key}
+                    className="sr-touch-target"
                     onClick={() => setBreedingFilter(f.key)}
                     aria-pressed={breedingFilter === f.key}
                     style={{
@@ -1594,12 +1598,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         const val = breedingFilter === 'confirmed' ? r.confirmed : breedingFilter === 'probable' ? r.probable : r.possible
                         const color = breedingFilter === 'confirmed' ? 'var(--sr-tier-4)' : breedingFilter === 'probable' ? 'var(--sr-tier-2)' : 'var(--sr-tier-1)'
                         return (
-                          <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 28 }}>{r.label}</span>
-                            <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
+                          <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
+                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '1.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
+                            <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                               <div style={{ height: '100%', width: `${maxVal > 0 ? (val / maxVal) * 100 : 0}%`, background: color, borderRadius: 4, transition: 'width 0.3s' }} />
                             </div>
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: 20, textAlign: 'right' }}>{val || ''}</span>
+                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: '1.5rem', textAlign: 'right' }}>{val || ''}</span>
                           </div>
                         )
                       }
@@ -1608,9 +1612,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       const probPct = r.total > 0 ? (r.probable / r.total) * totalPct : 0
                       const possPct = r.total > 0 ? (r.possible / r.total) * totalPct : 0
                       return (
-                        <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22 }}>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 0, width: 28 }}>{r.label}</span>
-                          <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden', display: 'flex' }}>
+                        <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '1.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
+                          <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden', display: 'flex' }}>
                             {/* 1px surface-colored separators so adjacent tier
                                 segments are distinguishable — the tier fills are
                                 <3:1 against each other (1.4.11 Non-text). F072. */}
@@ -1618,7 +1622,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                             <div style={{ height: '100%', width: `${probPct}%`, background: 'var(--sr-tier-2)', borderRight: probPct > 0 && possPct > 0 ? '1px solid var(--sr-surface)' : undefined, transition: 'width 0.3s' }} />
                             <div style={{ height: '100%', width: `${possPct}%`, background: 'var(--sr-tier-1)', transition: 'width 0.3s' }} />
                           </div>
-                          <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: 20, textAlign: 'right' }}>{r.total || ''}</span>
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: '1.5rem', textAlign: 'right' }}>{r.total || ''}</span>
                         </div>
                       )
                     })}
@@ -1656,6 +1660,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 {(['per-period', 'cumulative'] as const).map(m => (
                   <button
                     key={m}
+                    className="sr-touch-target"
                     onClick={() => setMediaViewMode(m)}
                     aria-pressed={mediaViewMode === m}
                     style={{
@@ -1676,6 +1681,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               {(['weekly', 'monthly', 'yearly', 'total'] as const).map(g => (
                 <button
                   key={g}
+                  className="sr-touch-target"
                   onClick={() => setMediaInterval(g)}
                   aria-pressed={mediaInterval === g}
                   style={{

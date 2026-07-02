@@ -88,7 +88,12 @@ export function BarRow({ label, value, max, color = 'var(--sr-accent)', labelWid
       </div>
       <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', flexShrink: 0, width: pctOf ? '4.25rem' : '2.5rem', textAlign: 'right' }}>
         {href
-          ? <OutboundLink href={href} aria-label={linkLabel} style={{ color: 'var(--sr-accent)', textDecoration: 'none' }}>{fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}</OutboundLink>
+          // inline-block + vertical padding and a compensating negative margin
+          // enlarge the tap target toward the ~44px touch guideline without
+          // shifting the row layout (the count column keeps its box); a dense
+          // inline text link can't use .sr-touch-target (it would center/grow
+          // the visible box) — this is the established hit-area-expansion pattern.
+          ? <OutboundLink href={href} aria-label={linkLabel} style={{ display: 'inline-block', padding: '11px 0 11px 10px', margin: '-11px 0 -11px -10px', color: 'var(--sr-accent)', textDecoration: 'none' }}>{fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}</OutboundLink>
           : <>{fmt(value)}{pctDisplay !== null ? ` (${pctDisplay}%)` : ''}</>}
       </span>
     </div>

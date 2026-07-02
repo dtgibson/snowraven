@@ -1,10 +1,12 @@
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from http_client import close_client
 from routers.apikeys import router as apikeys_router
 from routers.checklists import router as checklists_router
 from routers.map import router as map_router
@@ -19,7 +21,18 @@ from routers.weather import router as weather_router
 
 load_dotenv()
 
-app = FastAPI(title="SnowRaven")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: nothing — the shared httpx client is a LAZY singleton created on
+    # first use (get_client()), NOT here, so the module-level TestClient(app)
+    # tests (which never run lifespan startup) still work.
+    yield
+    # Shutdown: close the shared client if it was ever created.
+    await close_client()
+
+
+app = FastAPI(title="SnowRaven", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

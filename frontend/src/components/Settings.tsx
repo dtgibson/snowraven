@@ -61,7 +61,7 @@ function RadioGroup<T extends string | number>({
   }
 
   return (
-    <div role="radiogroup" aria-label={label} style={{ display: 'flex', gap: 6 }} onKeyDown={handleKeyDown}>
+    <div role="radiogroup" aria-label={label} className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '6px' }} onKeyDown={handleKeyDown}>
       {options.map(o => {
         const checked = o.key === value
         return (
@@ -852,6 +852,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
 
                 {/* Move up / down — keyboard reorder alternative to drag-and-drop */}
                 <button tabIndex={0}
+                  className="sr-touch-target"
                   ref={el => { moveBtnRefs.current[`${tab}--1`] = el }}
                   aria-label={`Move ${TAB_LABELS[tab]} tab up`}
                   disabled={idx === 0}
@@ -863,6 +864,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
                   <ChevronUp size={15} />
                 </button>
                 <button tabIndex={0}
+                  className="sr-touch-target"
                   ref={el => { moveBtnRefs.current[`${tab}-1`] = el }}
                   aria-label={`Move ${TAB_LABELS[tab]} tab down`}
                   disabled={idx === tabOrder.length - 1}
@@ -876,6 +878,7 @@ function TabLayoutSection({ tabOrder, tabHidden, onReorder, onToggleVisibility, 
 
                 {/* Eye toggle */}
                 <button tabIndex={0}
+                  className="sr-touch-target"
                   aria-label={(hidden ? 'Show ' : 'Hide ') + TAB_LABELS[tab] + ' tab'}
                   disabled={isLastVisible}
                   title={isLastVisible ? 'At least one tab must remain visible' : undefined}

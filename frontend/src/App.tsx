@@ -647,7 +647,7 @@ export default function App() {
       // the active pref from its module-var at render time.
       data-date-fmt-version={dateFormatVersion}
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         background: 'var(--sr-bg)',
         display: 'flex',
         flexDirection: 'column',
@@ -729,7 +729,8 @@ export default function App() {
                 <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
-                    background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 600,
+                    background: 'none', border: 'none', minHeight: 24, padding: '0 6px', margin: '0 -6px',
+                    fontSize: '0.75rem', fontWeight: 600,
                     color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
                   }}
                 >
@@ -747,7 +748,8 @@ export default function App() {
                 <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
-                    background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', fontWeight: 600,
+                    background: 'none', border: 'none', minHeight: 24, padding: '0 6px', margin: '0 -6px',
+                    fontSize: '0.75rem', fontWeight: 600,
                     color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', flexShrink: 0,
                   }}
                 >
@@ -774,7 +776,7 @@ export default function App() {
             eBird checklist ID or URL
           </label>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="sr-field-row">
             <input
               id="checklist-input"
               type="text"
@@ -785,6 +787,7 @@ export default function App() {
               aria-describedby={hasError ? 'checklist-error' : undefined}
               autoComplete="off"
               spellCheck={false}
+              className="sr-input-16"
               style={{
                 flex: 1,
                 height: 44,
@@ -893,6 +896,7 @@ export default function App() {
                 <button tabIndex={0}
                   onClick={handleCopy}
                   aria-label="Copy weather output to clipboard"
+                  className="sr-touch-target"
                   style={{
                     height: 30,
                     padding: '0 12px',
@@ -967,6 +971,7 @@ export default function App() {
                   <button tabIndex={0}
                     onClick={handleTideOverride}
                     aria-label="Show the nearest tide station anyway"
+                    className="sr-touch-target"
                     style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer', whiteSpace: 'nowrap' }}
                   >
                     {tideOverrideLabel(tideState.status)}
@@ -985,6 +990,7 @@ export default function App() {
                     <button tabIndex={0}
                       onClick={handleCopyTide}
                       aria-label="Copy tide output to clipboard"
+                      className="sr-touch-target"
                       style={{ height: 30, padding: '0 12px', background: tideCopied ? 'var(--sr-accent)' : 'var(--sr-accent-bg)', color: tideCopied ? 'var(--sr-on-accent)' : 'var(--sr-accent)', border: `1.5px solid ${tideCopied ? 'var(--sr-accent)' : 'var(--sr-accent-border)'}`, borderRadius: 6, fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}
                     >
                       {tideCopied ? <Check size={12} strokeWidth={2.5} /> : <ClipboardCopy size={12} strokeWidth={2.5} />}

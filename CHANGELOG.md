@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.55] - 2026-07-02
+
+### Changed
+- **A mobile-friendliness pass across the whole app.** SnowRaven already worked on a phone, but ahead of a future mobile build we swept every tab for the rough edges that show up on a small screen. Map popups — a shaded county's completeness card, a pin's sightings list, a target or nearby-lifer marker — now scroll inside themselves when they're taller than a short phone screen, instead of running off the bottom where you couldn't reach the content. Buttons, pills, and icon-only controls that were comfortable with a mouse now grow to a larger, easier-to-tap size on phones. Tapping into a search box, filter, or date picker no longer makes iOS zoom the whole page in on you. And rows, toggles, and control groups across Statistics, Life List, the Checklists comparer, Species Detail, the map sidebar, and Settings now wrap gracefully instead of overflowing or clipping — including at large in-app text sizes. Nothing was added or moved; this is purely making the existing screens hold up cleanly from a 320px phone on up. On desktop everything looks and behaves exactly as before.
+
+- **Behind-the-scenes tidying (no visible change).** A few internal cleanups that don't change how anything looks or works: the self-hosted (web / Raspberry-Pi) backend now reuses one keep-alive connection for its outbound eBird, weather, and tide requests instead of opening a fresh one each time, so lookups shave a little latency; the Map Explorer's Media Targets and Nearby Lifers now share a single recent-observations fetch when they're centered on the same spot rather than each asking eBird separately; and some unused code left over from earlier development was removed.
+
 ## [0.5.54] - 2026-07-02
 
 ### Added

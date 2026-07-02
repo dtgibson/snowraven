@@ -3,9 +3,10 @@ import json
 import os
 from pathlib import Path
 
-import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel
+
+from http_client import get_client
 
 router = APIRouter()
 
@@ -149,18 +150,18 @@ async def _ensure_loaded() -> None:
         # for a release before the snapshot asset is generated).
         try:
             api_key = os.getenv("EBIRD_API_KEY", "")
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(
-                    "https://api.ebird.org/v2/ref/taxonomy/ebird",
-                    # Full taxonomy (no cat filter) so sub-forms reported on
-                    # checklists — domestic/issf/form/etc., e.g. "rocpig1" —
-                    # resolve and map to a species.
-                    params={"fmt": "json"},
-                    headers={"x-ebirdapitoken": api_key},
-                    timeout=30.0,
-                )
-                resp.raise_for_status()
-                taxonomy = resp.json()
+            client = get_client()
+            resp = await client.get(
+                "https://api.ebird.org/v2/ref/taxonomy/ebird",
+                # Full taxonomy (no cat filter) so sub-forms reported on
+                # checklists — domestic/issf/form/etc., e.g. "rocpig1" —
+                # resolve and map to a species.
+                params={"fmt": "json"},
+                headers={"x-ebirdapitoken": api_key},
+                timeout=30.0,
+            )
+            resp.raise_for_status()
+            taxonomy = resp.json()
         except Exception:
             if had_floor:
                 # Online refresh failed but the floor is good — serve it (FR-24).

@@ -135,11 +135,16 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
                     <TypeIcon size={12} strokeWidth={2.4} style={{ color: tm.color }} />{row.format}
                   </span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{formatDate(row.date)}</span>
-                  {row.location && <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.location}>· {row.location}</span>}
+                  {row.location && <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', maxWidth: '12.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.location}>· {row.location}</span>}
                   <OutboundLink
                     href={mlAssetUrl(row.catalogId)}
                     title={`View asset ML${row.catalogId} on the Macaulay Library`}
-                    style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
+                    style={{
+                      marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 3,
+                      fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0,
+                      // ≥24px hit area (WCAG 2.2 target size) without growing the visual box.
+                      minHeight: 24, paddingLeft: 6, paddingRight: 6, marginRight: -6,
+                    }}
                     onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
                     onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
                   >
@@ -147,7 +152,7 @@ export function MediaCommentsSection({ rows, backboneNames, taxonMap, onOpenSpec
                   </OutboundLink>
                 </div>
                 {picked && (
-                  <div style={{ fontSize: '0.84375rem', color: 'var(--sr-text)', lineHeight: 1.55 }}>
+                  <div className="sr-wrap-anywhere" style={{ fontSize: '0.84375rem', color: 'var(--sr-text)', lineHeight: 1.55 }}>
                     <span style={{ fontSize: '0.625rem', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--sr-text-muted)', marginRight: 6 }}>
                       {MEDIA_COMMENT_LABEL[picked.field]}
                     </span>

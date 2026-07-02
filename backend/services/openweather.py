@@ -1,5 +1,6 @@
 import os
-import httpx
+
+from http_client import get_client
 
 
 async def fetch_historical(lat: float, lng: float, dt: int) -> dict:
@@ -7,12 +8,12 @@ async def fetch_historical(lat: float, lng: float, dt: int) -> dict:
     if not api_key:
         raise ValueError("OPENWEATHER_API_KEY not configured")
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "https://api.openweathermap.org/data/3.0/onecall/timemachine",
-            params={"lat": lat, "lon": lng, "dt": dt, "appid": api_key, "units": "imperial"},
-            timeout=10.0,
-        )
+    client = get_client()
+    resp = await client.get(
+        "https://api.openweathermap.org/data/3.0/onecall/timemachine",
+        params={"lat": lat, "lon": lng, "dt": dt, "appid": api_key, "units": "imperial"},
+        timeout=10.0,
+    )
 
     resp.raise_for_status()
     return resp.json()
@@ -26,15 +27,15 @@ async def fetch_forecast(lat: float, lng: float) -> dict:
     if not api_key:
         raise ValueError("OPENWEATHER_API_KEY not configured")
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            "https://api.openweathermap.org/data/3.0/onecall",
-            params={
-                "lat": lat, "lon": lng, "appid": api_key, "units": "imperial",
-                "exclude": "minutely,alerts",
-            },
-            timeout=10.0,
-        )
+    client = get_client()
+    resp = await client.get(
+        "https://api.openweathermap.org/data/3.0/onecall",
+        params={
+            "lat": lat, "lon": lng, "appid": api_key, "units": "imperial",
+            "exclude": "minutely,alerts",
+        },
+        timeout=10.0,
+    )
 
     resp.raise_for_status()
     return resp.json()

@@ -15,7 +15,7 @@ export function SegControl({ options, value, onChange, ariaLabel }: {
   ariaLabel?: string
 }) {
   return (
-    <div style={{ display: 'flex', background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2 }}
+    <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '2px', background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2 }}
       role={ariaLabel ? 'group' : undefined} aria-label={ariaLabel}>
       {options.map(opt => (
         <button tabIndex={0}
@@ -23,7 +23,7 @@ export function SegControl({ options, value, onChange, ariaLabel }: {
           onClick={() => onChange(opt.value)}
           aria-pressed={value === opt.value}
           style={{
-            flex: 1, height: 28, padding: '0 4px',
+            flex: '1 1 auto', padding: '0.35rem 4px',
             background: value === opt.value ? 'var(--sr-surface)' : 'transparent',
             border: `1px solid ${value === opt.value ? 'var(--sr-border)' : 'transparent'}`,
             borderRadius: 5, fontSize: '0.71875rem',
@@ -167,8 +167,12 @@ export function KeyNotice({ onGoToSettings }: { onGoToSettings: () => void }) {
         <AlertCircle size={13} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>eBird API key required. Add it in Settings to use this feature.</span>
       </div>
+      {/* .sr-touch-target grows the hit area to ~44px ON PHONES only (≤640);
+          the text-link look (no bg/border) is untouched, desktop keeps its
+          compact height. */}
       <button tabIndex={0}
         onClick={onGoToSettings}
+        className="sr-touch-target"
         style={{
           background: 'none', border: 'none', padding: 0, fontSize: '0.6875rem', fontWeight: 600,
           color: 'var(--sr-warning)', cursor: 'pointer', fontFamily: 'inherit',

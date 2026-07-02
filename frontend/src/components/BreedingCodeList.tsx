@@ -384,6 +384,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   aria-label="County"
                   value={countyFilter ?? ''}
                   onChange={e => setCountyFilter(e.target.value || null)}
+                  className="sr-input-16"
                   style={{
                     height: 26, paddingLeft: 24, paddingRight: 22, borderRadius: 5,
                     border: countyFilter
@@ -393,6 +394,11 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                     color: countyFilter ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
                     fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
                     cursor: 'pointer', appearance: 'none', WebkitAppearance: 'none',
+                    // Cap so a long county name (user data) at large text scale can't
+                    // push the select past the viewport and leak page horizontal scroll
+                    // — the selected option ellipsizes instead (min-width:0 lets the
+                    // flex item shrink below its longest-option min-content width).
+                    maxWidth: '100%', minWidth: 0, textOverflow: 'ellipsis',
                   }}
                 >
                   <option value="">All Counties</option>
@@ -418,6 +424,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                     aria-label="From date"
                     value={dateRange.from}
                     onChange={e => setDateRange(prev => ({ ...prev, from: e.target.value }))}
+                    className="sr-input-16"
                     style={{
                       height: 26, paddingLeft: 24, paddingRight: 6, borderRadius: 5,
                       border: dateRange.from
@@ -435,6 +442,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   aria-label="To date"
                   value={dateRange.to}
                   onChange={e => setDateRange(prev => ({ ...prev, to: e.target.value }))}
+                  className="sr-input-16"
                   style={{
                     height: 26, paddingLeft: 8, paddingRight: 6, borderRadius: 5,
                     border: dateRange.to

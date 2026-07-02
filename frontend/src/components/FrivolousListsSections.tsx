@@ -35,7 +35,10 @@ const BADGE: CSSProperties = {
 }
 const NAME_GRID: CSSProperties = {
   listStyle: 'none', margin: 0, padding: 0,
-  display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(230px, 1fr))', gap: '4px 18px',
+  // min(230px, 100%) guard (the .sr-grid-auto pattern) so the track can never
+  // exceed the container — a bare 230px floor overflows the smallest card box
+  // on sub-310px viewports or if card padding grows.
+  display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(230px, 100%), 1fr))', gap: '4px 18px',
 }
 const NAME_ROW: CSSProperties = { display: 'flex', alignItems: 'center', gap: 8, padding: '4px 2px', minHeight: 28 }
 const CHECK_CIRCLE: CSSProperties = {
@@ -45,7 +48,9 @@ const CHECK_CIRCLE: CSSProperties = {
 const CHECK_SPACER: CSSProperties = { width: 14, height: 14, flexShrink: 0 }
 const GROUP_LABEL: CSSProperties = { fontSize: '0.6875rem', fontWeight: 700, color: 'var(--sr-text-muted)', margin: '10px 0 2px', paddingLeft: 2 }
 const RAINBOW_LIST: CSSProperties = { listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }
-const COLOR_NAME: CSSProperties = { width: 64, flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, textTransform: 'capitalize', color: 'var(--sr-text-muted)' }
+// width in rem (not px) so the color-label column tracks the Text Size control
+// — a single-word color name at 200% scale overflows a fixed 64px box.
+const COLOR_NAME: CSSProperties = { width: '4rem', flexShrink: 0, fontSize: '0.75rem', fontWeight: 600, textTransform: 'capitalize', color: 'var(--sr-text-muted)' }
 const LOC: CSSProperties = { fontSize: '0.71875rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap', minWidth: 0, maxWidth: 190, overflow: 'hidden', textOverflow: 'ellipsis' }
 
 function CompletionBadge() {

@@ -90,9 +90,9 @@ const pillStyle = (kind: 'live' | 'fc' | 'daily'): React.CSSProperties => ({
 function WeatherSummaryView({ s }: { s: WeatherSummary }) {
   return (
     <div role="group" aria-label="Weather">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '14px' }}>
         <span style={{ fontSize: '2.5rem', lineHeight: 1 }} aria-hidden="true">{s.emoji}{s.moon}</span>
-        <div style={{ minWidth: 0 }}>
+        <div className="sr-min0">
           <div style={{ fontSize: '2.1rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.05 }}>
             {s.tempF}°F
             {s.isDaily && s.highF !== null && s.lowF !== null && (
@@ -387,7 +387,7 @@ export function WeatherForecastPanel() {
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void onSearch() } }}
               placeholder="Search a place, e.g. Pillar Point Harbor"
               aria-label="Search for a place"
-              autoComplete="off" style={textInput}
+              autoComplete="off" className="sr-input-16" style={textInput}
             />
             <button type="button" tabIndex={0} onClick={() => void onSearch()} disabled={searching} aria-label="Search for this place" style={{ ...outlineBtn, height: 40, flexShrink: 0, padding: '0 14px' }}>
               {searching ? <Loader2 size={15} className="spin" aria-hidden="true" /> : <Search size={15} strokeWidth={2.5} aria-hidden="true" />}
@@ -402,19 +402,19 @@ export function WeatherForecastPanel() {
           <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '12px', marginTop: 12 }}>
             <div>
               <label htmlFor="predict-lat" style={fieldLabel}>Latitude</label>
-              <input id="predict-lat" type="number" step="0.0001" min={-90} max={90} value={latStr} onChange={e => applyLat(e.target.value)} aria-label="Latitude (-90 to 90)" style={textInput} />
+              <input id="predict-lat" type="number" step="0.0001" min={-90} max={90} value={latStr} onChange={e => applyLat(e.target.value)} aria-label="Latitude (-90 to 90)" className="sr-input-16" style={textInput} />
             </div>
             <div>
               <label htmlFor="predict-lng" style={fieldLabel}>Longitude</label>
-              <input id="predict-lng" type="number" step="0.0001" min={-180} max={180} value={lngStr} onChange={e => applyLng(e.target.value)} aria-label="Longitude (-180 to 180)" style={textInput} />
+              <input id="predict-lng" type="number" step="0.0001" min={-180} max={180} value={lngStr} onChange={e => applyLng(e.target.value)} aria-label="Longitude (-180 to 180)" className="sr-input-16" style={textInput} />
             </div>
             <div>
               <label htmlFor="predict-date" style={fieldLabel}>Date</label>
-              <input id="predict-date" type="date" value={dateStr} min={toDateInput(new Date())} onChange={e => setDateStr(e.target.value)} aria-label="Forecast date" style={textInput} />
+              <input id="predict-date" type="date" value={dateStr} min={toDateInput(new Date())} onChange={e => setDateStr(e.target.value)} aria-label="Forecast date" className="sr-input-16" style={textInput} />
             </div>
             <div>
               <label htmlFor="predict-time" style={fieldLabel}>Time</label>
-              <input id="predict-time" type="time" value={timeStr} onChange={e => setTimeStr(e.target.value)} aria-label="Forecast time" style={textInput} />
+              <input id="predict-time" type="time" value={timeStr} onChange={e => setTimeStr(e.target.value)} aria-label="Forecast time" className="sr-input-16" style={textInput} />
             </div>
           </div>
 
@@ -482,7 +482,7 @@ export function WeatherForecastPanel() {
                         <AlertCircle size={15} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
                         {tideTooFarNotice(d.tide.station.name, d.tide.distanceMi ?? 0, d.tide.status)}
                       </span>
-                      <button type="button" tabIndex={0} onClick={() => overrideTide()} disabled={overriding} aria-label="Show the nearest tide station anyway" style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: overriding ? 'default' : 'pointer', whiteSpace: 'nowrap', opacity: overriding ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <button type="button" tabIndex={0} onClick={() => overrideTide()} disabled={overriding} aria-label="Show the nearest tide station anyway" className="sr-touch-target" style={{ flexShrink: 0, height: 30, padding: '0 12px', background: 'var(--sr-accent-bg)', color: 'var(--sr-accent)', border: '1.5px solid var(--sr-accent-border)', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit', cursor: overriding ? 'default' : 'pointer', whiteSpace: 'nowrap', opacity: overriding ? 0.7 : 1, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                         {overriding && <Loader2 size={12} className="spin" aria-hidden="true" />}
                         {tideOverrideLabel(d.tide.status)}
                       </button>
@@ -501,10 +501,10 @@ export function WeatherForecastPanel() {
 
             {copyTextValue && (
               <details style={{ marginTop: 14 }}>
-                <summary style={{ cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)' }}>Copy-ready block</summary>
+                <summary style={{ cursor: 'pointer', padding: '10px 0', fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)' }}>Copy-ready block</summary>
                 <div className="sr-action-row" style={{ margin: '12px 0 9px' }}>
                   <span className="sr-min0" style={{ fontSize: '0.6875rem', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--sr-text-muted)' }}>Weather &amp; tide output</span>
-                  <button type="button" tabIndex={0} onClick={() => void doCopy(copyTextValue)} aria-label="Copy weather and tide to clipboard" style={copyBtn(copied)}>
+                  <button type="button" tabIndex={0} onClick={() => void doCopy(copyTextValue)} aria-label="Copy weather and tide to clipboard" className="sr-touch-target" style={copyBtn(copied)}>
                     {copied ? <Check size={12} strokeWidth={2.5} aria-hidden="true" /> : <ClipboardCopy size={12} strokeWidth={2.5} aria-hidden="true" />}
                     {copied ? 'Copied!' : 'Copy'}
                   </button>

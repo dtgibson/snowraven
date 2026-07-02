@@ -26,6 +26,13 @@ interface SnowMapProps {
   /** Disable scroll-wheel zoom (for maps embedded in a scrollable page). Defaults
    *  to enabled; zoom buttons + pinch still work when off. */
   scrollZoom?: boolean
+  /** Enable MapLibre's cooperative-gestures mode: on touch the map pans only with
+   *  two fingers (one-finger drag scrolls the PAGE) and zooms only with ctrl+wheel,
+   *  so a page-embedded map can't scroll-trap a phone. Desktop click-drag pan is
+   *  unaffected. Set true on maps that sit mid-flow in a scrollable page (Species
+   *  Detail's Sighting Locations map); leave false on the full-screen Map Explorer
+   *  where the map IS the primary interaction. Pairs with scrollZoom={false}. */
+  cooperativeGestures?: boolean
 }
 
 // Cache the fetched+tuned vector style so every map reuses it.
@@ -49,7 +56,7 @@ function getVectorStyle(variant: VectorVariant): Promise<StyleSpecification> {
 
 const vis = (on: boolean) => ({ visibility: (on ? 'visible' : 'none') as 'visible' | 'none' })
 
-export function SnowMap({ initialViewState, style, children, onLoad, switcher, scrollZoom }: SnowMapProps) {
+export function SnowMap({ initialViewState, style, children, onLoad, switcher, scrollZoom, cooperativeGestures }: SnowMapProps) {
   const [base, setBase] = useState<BaseKey>(DEFAULT_BASE)
   const [trails, setTrails] = useState(false)
   // Advisory offline hint for the raster base controls ONLY (FR-07/FR-36). The
@@ -183,6 +190,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
       // attribution toggle below the 24×24 target-size minimum (F094).
       attributionControl={false}
       scrollZoom={scrollZoom}
+      cooperativeGestures={cooperativeGestures}
       dragRotate={false}
       touchPitch={false}
       pitchWithRotate={false}

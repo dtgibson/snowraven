@@ -408,7 +408,7 @@ Set a home location used by the Map Explorer. Click **Use my location** to fill 
 
 Reorder and show or hide individual tabs. Drag rows to reorder, or use the **Move up** / **Move down** buttons on each row for a keyboard-only alternative to dragging. Click the eye icon to toggle a tab's visibility. At least one tab must remain visible at all times. The Settings tab is always last and cannot be hidden.
 
-On narrow screens and mobile browsers the tab bar automatically collapses into a compact dropdown that follows the same order and visibility choices, so every tab stays reachable without horizontal scrolling.
+On narrow screens and mobile browsers the tab bar automatically collapses into a compact dropdown that follows the same order and visibility choices, so every tab stays reachable without horizontal scrolling. The rest of the interface is built to hold up on a phone too: controls and lists wrap rather than overflow, buttons and pills grow to a comfortable tap size, and a map popup that is taller than the screen -- a shaded county's completeness card, a pin's sightings list, a target or nearby-lifer marker -- scrolls inside itself so its content stays reachable.
 
 ### Offline maps (desktop app)
 

@@ -97,8 +97,12 @@ function SideCell({ count, emphasized, breeding, media, hasComment, open, onTogg
         <button tabIndex={0} onClick={onToggle} aria-expanded={open}
           aria-label={open ? 'Hide comment' : 'Show comment'} title={open ? 'Hide comment' : 'Show comment'}
           style={{
-            flexShrink: 0, display: 'inline-flex', alignItems: 'center', border: 'none',
-            background: 'transparent', cursor: 'pointer', padding: 0,
+            flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            // ≥24px hit area (WCAG 2.5.8) around the 12px icon without shifting the
+            // row layout — padding grows the target, the negative margin cancels
+            // the visual footprint (the Clear-filter pattern in BreedingCodeList).
+            minWidth: 24, minHeight: 24, padding: 6, margin: -6,
             color: open ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
           }}>
           <MessageSquare size={12} strokeWidth={2.25} />
@@ -461,8 +465,13 @@ function ChecklistTag({ badge, id, meta, badges }: { badge: 'A' | 'B'; id: strin
           <>
             <button tabIndex={0} onClick={() => setNotesOpen(o => !o)} aria-expanded={notesOpen}
               style={{
-                marginTop: 3, alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 3,
-                border: 'none', background: 'transparent', cursor: 'pointer', padding: 0,
+                alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 3,
+                border: 'none', background: 'transparent', cursor: 'pointer',
+                // ≥24px-tall hit area (WCAG 2.5.8) for the 11px chevron+label without
+                // shifting layout: padding grows the box, negative left/right/bottom
+                // margins cancel its footprint; the +3px top margin (spacing from the
+                // effort strip above) is preserved. Clear-filter hit-area pattern.
+                minHeight: 24, padding: '4px 6px', margin: '3px -6px -4px -6px',
                 fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'inherit', color: 'var(--sr-accent)',
               }}>
               {notesOpen ? <ChevronDown size={11} strokeWidth={2.5} /> : <ChevronRight size={11} strokeWidth={2.5} />}
@@ -549,12 +558,17 @@ function CommentsTable({ result, both, aOnly, bOnly, idA, idB, isRecorded, onOpe
   const hasChecklistNote = hasComment(result.metaA.comments) || hasComment(result.metaB.comments)
   if (speciesRows.length === 0 && !hasChecklistNote) return null
 
-  const COLS = 'minmax(120px, 1.2fr) 2fr 2fr'
+  // rem floors (not px) so the grid's minimum GROWS with the in-app Text Size
+  // control — at 200% each comment column keeps its designed character budget and
+  // the .sr-scroll-x wrapper engages sooner, instead of the columns wrapping to a
+  // few chars each (F074's rem convention, same as SIDE_CELL_WIDTH above).
+  // 7.5rem ≈ 120px, 27.5rem ≈ 440px at default scale.
+  const COLS = 'minmax(7.5rem, 1.2fr) 2fr 2fr'
   // Floor for one grid row so the three columns stay readable; below this the
   // .sr-scroll-x wrapper scrolls horizontally instead of the card (overflow:hidden)
   // clipping the comment columns on a phone (F074). minWidth on every row (same
   // value) keeps the columns aligned across rows within the shared scroll viewport.
-  const ROW_MIN_WIDTH = 440
+  const ROW_MIN_WIDTH = '27.5rem'
   // Distinguish an empty cell: the bird was on that checklist but had no note
   // ("no comment") vs. it wasn't on that checklist at all ("not reported").
   const empty = (label: string) => (

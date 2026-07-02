@@ -66,16 +66,16 @@ export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, o
                 bubbles to the wrapper's listener); the wrapper is demoted via
                 ref. The label names the lifer (or the species count), colored by
                 the location's recency tier — mirrors the Media Targets chips. */}
-            <button type="button" aria-label={ariaLabel}
-              style={{ display: 'inline-flex', alignItems: 'center', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button type="button" aria-label={ariaLabel} className="sr-touch-target"
+              style={{ background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}>
               {label}
             </button>
           </Marker>
         )
       })}
       {selLoc && (
-        <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} maxWidth="280px" closeOnClick={false}>
-          <div style={{ minWidth: 200, maxWidth: 260 }}>
+        <Popup longitude={selLoc.lng} latitude={selLoc.lat} anchor="bottom" offset={14} onClose={() => onSelect(null)} maxWidth="min(280px, 80vw)" closeOnClick={false}>
+          <div className="sr-map-popup-body" style={{ minWidth: 200, maxWidth: 260 }}>
             <div className="sr-wrap-anywhere" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>📍 {selLoc.locName}</div>
             {selLoc.lifers.map((lifer, j) => {
               const liferTier = recencyTier(lifer.recentDate)
