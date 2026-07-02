@@ -79,6 +79,14 @@ describe('BreedingCodeTable accessibility', () => {
     expect(badge.textContent).toContain('Confirmed')
   })
 
+  it('shows each present code\'s full meaning as visible text in the legend (#26)', () => {
+    // NB = Nest Building (tier 3), FL = Recently Fledged Young (tier 4) — both are
+    // now readable without the hover-only title tooltip.
+    renderTable({ codesPresent: ['NB', 'FL'] })
+    expect(screen.getByText('Nest Building')).toBeTruthy()
+    expect(screen.getByText('Recently Fledged Young')).toBeTruthy()
+  })
+
   it('shows a "no results" message when the filter empties the table (F080)', () => {
     // Filter requires a code no entry has → zero rows.
     renderTable({

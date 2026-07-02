@@ -305,6 +305,8 @@ The tab loads automatically from your eBird backup saved in Settings.
 
 Each cell shows how many times you recorded that code for that species. Cells are color-coded by eBird's four-tier system: darkest for the highest Confirmed codes, medium for lower Confirmed codes, lighter for Probable, and lightest for Possible. Empty cells are blank.
 
+A legend below the table spells out each code you've recorded with its full meaning (for example "NB Nest Building"), grouped by evidence tier, so you can read what a code stands for without hovering. The filter pills above the table show each code's meaning the same way.
+
 Click any column header to sort by that code's count. Click the species name column to sort alphabetically or by eBird taxonomic order using the A-Z / Taxonomic toggle.
 
 The filter row above the table includes:
@@ -365,7 +367,7 @@ For each species on each checklist, you see:
 
 - **Count** — the number recorded. Where one checklist recorded a higher number, that count is bolded with a ▲ marker. Presence-only entries (eBird's "X") show a dash and are never marked as higher.
 - **Breeding code** — if a breeding-evidence code was entered, it appears as a small colored pill, colored by evidence tier (the same scheme as the Breeding Codes tab). Hover for the full code name.
-- **Media icons** — small camera, microphone, and video icons indicate whether photos, audio, or video exist for that species on that checklist (across all observers). Hover for the counts.
+- **Media icons** — small camera, microphone, and video icons indicate whether photos, audio, or video exist for that species on that checklist (across all observers). Hover for the counts on desktop; on phones the count appears as a small number next to each icon.
 - **Comments** — when a species has an observation note, a 💬 icon appears on that checklist's side (A, B, or both); click it to read the note. Any links in comments are clickable.
 
 All comments are also gathered into a **Comments table** at the bottom, with each checklist's note side by side for easy comparison. There, an empty side reads "no comment" (the bird was on that checklist but had no note) or "not reported" (the bird wasn't on that checklist).

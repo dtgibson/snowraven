@@ -301,14 +301,24 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
         flexShrink: 0,
       }}>
         {([4, 3, 2, 1] as const).filter(tier => tierGroups.has(tier)).map(tier => (
-          <div key={tier} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div key={tier} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
             <div style={{
               width: 18, height: 18, borderRadius: '50%',
-              background: TIER_COLORS[tier], flexShrink: 0,
+              background: TIER_COLORS[tier], flexShrink: 0, marginTop: 1,
             }} />
-            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>
-              {TIER_LABELS[tier]}: {tierGroups.get(tier)!.join(' ')}
-            </span>
+            <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', minWidth: 0 }}>
+              <span style={{ fontWeight: 600 }}>{TIER_LABELS[tier]}</span>
+              {/* Each present code shows its full meaning as visible text (e.g.
+                  "NB Nest Building") so a touch user reads it without the hover-only
+                  title tooltip. The list wraps gracefully on a phone. */}
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', marginTop: 3 }}>
+                {tierGroups.get(tier)!.map(code => (
+                  <span key={code} style={{ whiteSpace: 'nowrap' }}>
+                    <span style={{ fontWeight: 700 }}>{code}</span> {BREEDING_CODE_MAP.get(code)!.label}
+                  </span>
+                ))}
+              </span>
+            </div>
           </div>
         ))}
       </div>

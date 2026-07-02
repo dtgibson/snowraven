@@ -699,6 +699,13 @@ h1, h2, h3, h4, h5, h6 {
    column-aligned and the layout is untouched. */
 .sr-sidecell-tag { display: none; }
 
+/* ChecklistComparer media count — the little number beside each media icon in a
+   SideCell. The count is otherwise only in the icon's hover-only title, so it is
+   revealed as visible text on the ≤640 phone tier (reveal rule in the media block
+   below) and hidden on desktop, where the tooltip/aria already convey it and the
+   inline number would crowd the fixed-width cell. */
+.sr-media-count { display: none; }
+
 /* ── Mobile-readiness shared vocabulary (mobile-readiness-fix-pass) ──────────
    Four recurring themes across the 71-finding phone audit. Each is a class the
    per-file fixes ADD (dropping the equivalent inline layout); colors/padding/
@@ -997,6 +1004,10 @@ select:focus-visible {
   /* Reveal the ChecklistComparer A/B side-cell tags on phones, where the two
      fixed-width cells can wrap under the species name (base rule hides them). */
   .sr-sidecell-tag { display: inline; }
+
+  /* Reveal the ChecklistComparer media counts on phones, where the icon's
+     hover-only title never fires (base rule hides them). */
+  .sr-media-count { display: inline; }
 
   /* iOS focus-zoom guard — 16px is the iOS threshold (an absolute px value), so
      a px font-size is correct here; scoped to the phone tier only. */

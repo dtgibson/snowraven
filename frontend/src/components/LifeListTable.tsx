@@ -208,9 +208,13 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
     }}>
       <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
         <thead>
+          {/* The header sticky was inert in the default (non-wideMode) path — that
+              wrapper only scrolls horizontally, so `position:sticky; top:0` never
+              pinned the header and it scrolled away with the page. Removed from the
+              default path (dead CSS, no behavior change); wideMode keeps its exact
+              declaration. The bg fill + bottom-border shadow stay in both modes. */}
           <tr style={{
-            position: 'sticky',
-            top: 0,
+            ...(wideMode ? { position: 'sticky', top: 0 } : {}),
             background: 'var(--sr-bg)',
             boxShadow: 'inset 0 -1px 0 var(--sr-border)',
           }}>

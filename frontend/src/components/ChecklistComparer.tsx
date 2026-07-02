@@ -74,8 +74,13 @@ function MediaIcons({ media }: { media: MediaPresence | null }) {
       {present.map(([label, n, icon]) => {
         const name = `${n} ${label.toLowerCase()}${n > 1 ? 's' : ''}`
         return (
-          <span key={label} role="img" title={name} aria-label={name} style={{ display: 'inline-flex' }}>
+          <span key={label} role="img" title={name} aria-label={name} style={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
             {icon}
+            {/* The count is otherwise conveyed only by the hover-only title, so a
+                touch user can't see it. Reveal it as visible text next to the icon
+                on the ≤640 phone tier (base-hidden via .sr-media-count). aria-hidden
+                because the wrapping span's aria-label already voices "2 photos". */}
+            <span className="sr-media-count" aria-hidden="true" style={{ fontSize: '0.625rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>{n}</span>
           </span>
         )
       })}

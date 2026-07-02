@@ -2,7 +2,10 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [0.5.55] - 2026-07-02
+## [0.5.56] - 2026-07-02
+
+### Changed
+- **A few touch-friendly readability fixes.** Three small spots that previously showed information only when you hovered a mouse are now readable by touch. On the **Breeding Codes** tab, the legend under the table (and the filter pills above it) now spell out what each code means — "NB Nest Building", "FL Recently Fledged Young" — instead of just the two-letter code, so you no longer have to hover to remember what a code stands for. In the **Checklists** comparer, the little photo/audio/video counts next to each species now appear as a visible number on phones, where the hover tooltip that used to carry them never fires. And a small tidy on the **Life List**: a bit of dead code that tried (and failed) to pin the table header in place has been removed — the header scrolls with the page exactly as it already did. On desktop everything looks and behaves as before.
 
 ### Changed
 - **A mobile-friendliness pass across the whole app.** SnowRaven already worked on a phone, but ahead of a future mobile build we swept every tab for the rough edges that show up on a small screen. Map popups — a shaded county's completeness card, a pin's sightings list, a target or nearby-lifer marker — now scroll inside themselves when they're taller than a short phone screen, instead of running off the bottom where you couldn't reach the content. Buttons, pills, and icon-only controls that were comfortable with a mouse now grow to a larger, easier-to-tap size on phones. Tapping into a search box, filter, or date picker no longer makes iOS zoom the whole page in on you. And rows, toggles, and control groups across Statistics, Life List, the Checklists comparer, Species Detail, the map sidebar, and Settings now wrap gracefully instead of overflowing or clipping — including at large in-app text sizes. Nothing was added or moved; this is purely making the existing screens hold up cleanly from a 320px phone on up. On desktop everything looks and behaves exactly as before.

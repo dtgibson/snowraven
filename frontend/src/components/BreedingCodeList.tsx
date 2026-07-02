@@ -326,15 +326,17 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   })
                 }}
                 title={def.label}
-                // The visible label is the terse code; the title only shows on mouse
-                // hover, so the aria-label carries the full meaning for SR/touch users.
+                // The code stays the primary label; the meaning is now shown as
+                // visible text beside it (mirroring the matrix legend) so a touch
+                // user reads it without the hover-only title. aria-label unchanged.
                 aria-label={`${def.label} (${code})`}
               >
                 <div style={{
                   width: 14, height: 14, borderRadius: '50%',
                   background: TIER_COLORS[def.tier], flexShrink: 0,
                 }} />
-                {code}
+                <span style={{ fontWeight: 700 }}>{code}</span>
+                <span style={{ fontWeight: 400, color: 'inherit' }}>{def.label}</span>
               </button>
             )
           })}

@@ -86,6 +86,16 @@ describe('ChecklistComparer — per-species cell a11y', () => {
     expect(audio.getAttribute('title')).toBe('1 audio')
   })
 
+  it('shows each media count as visible text next to its icon (#27, .sr-media-count, ≤640)', async () => {
+    const { container } = await compare()
+    // 2 photos + 1 audio on side A → the counts appear as visible text (revealed
+    // on the ≤640 phone tier where the hover-only title never fires). aria-hidden
+    // so the wrapping icon's "2 photos" label isn't doubled by the bare number.
+    const counts = Array.from(container.querySelectorAll('.sr-media-count'))
+    expect(counts.map(c => c.textContent)).toEqual(['2', '1'])
+    counts.forEach(c => expect(c.getAttribute('aria-hidden')).toBe('true'))
+  })
+
   it('tags each In Both side cell with an A/B label (shown only ≤640 via .sr-sidecell-tag)', async () => {
     const { container } = await compare()
     // One shared species → one A cell + one B cell, each carrying an identifying
