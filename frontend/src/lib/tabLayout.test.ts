@@ -28,6 +28,7 @@ describe('DEFAULT_TAB_ORDER', () => {
     expect(DEFAULT_TAB_ORDER).toEqual([
       'weather',
       'birding-stats',
+      'calendar',
       'species-detail',
       'map-explorer',
       'life-list',
@@ -173,12 +174,25 @@ describe('parseLayout (used by both the localStorage and storage-seam paths)', (
     expect(preChecklists.hidden.has('checklists')).toBe(false)
     expect(visibleTabs(preChecklists)).toContain('checklists')
   })
+
+  it('appends the Calendar tab, visible, to a layout saved before it existed (QA-02)', () => {
+    const preCalendar = parseLayout({
+      order: ['weather', 'species-detail', 'birding-stats', 'map-explorer', 'life-list', 'breeding-codes', 'checklists', 'named-birds', 'comparer'],
+      hidden: ['comparer'],
+    })
+    expect(preCalendar.order).toContain('calendar')
+    expect(preCalendar.hidden.has('calendar')).toBe(false)
+    expect(visibleTabs(preCalendar)).toContain('calendar')
+    // the rest of the saved order/hidden is otherwise unchanged
+    expect(preCalendar.order[0]).toBe('weather')
+    expect(preCalendar.hidden.has('comparer')).toBe(true)
+  })
 })
 
 describe('serializeLayout', () => {
   it('converts the hidden Set to an array and round-trips through parseLayout', () => {
     const original: TabLayoutState = {
-      order: ['birding-stats', 'weather', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'comparer'],
+      order: ['birding-stats', 'weather', 'calendar', 'species-detail', 'map-explorer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'comparer'],
       hidden: new Set(['comparer', 'life-list']),
     }
     const serialized = serializeLayout(original)

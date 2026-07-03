@@ -100,6 +100,35 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(maplibre).toEqual([])
   })
 
+  it('App.tsx does not statically import the Calendar tab (it is lazy) (OQ-09)', () => {
+    // Calendar is React.lazy(() => import('./components/Calendar')); its subtree
+    // (and the ChecklistLink etc. it uses) must not join App.tsx's static closure.
+    expect(has('components/Calendar.tsx')).toBe(false)
+  })
+
+  it('no calendar file statically imports maplibre / SnowMap / SightingsMap (FR-43)', () => {
+    // Walk the Calendar subtree independently and assert it is map-free.
+    const calFile = resolve(SRC, 'components/Calendar.tsx')
+    const seen = new Set<string>()
+    const calExternals = new Set<string>()
+    const stack = [calFile]
+    while (stack.length) {
+      const f = stack.pop()!
+      if (seen.has(f)) continue
+      seen.add(f)
+      if (!/\.tsx?$/.test(f)) continue
+      for (const spec of staticSpecifiers(readFileSync(f, 'utf8'))) {
+        const local = resolveLocal(spec, f)
+        if (local) { if (!seen.has(local)) stack.push(local) }
+        else if (!spec.startsWith('.') && !spec.startsWith('@/')) calExternals.add(spec)
+      }
+    }
+    const calFiles = [...seen].map(p => p.replace(/\\/g, '/'))
+    expect(calFiles.some(p => /components\/(SnowMap|SightingsMap)\.tsx$/.test(p))).toBe(false)
+    expect(calFiles.some(p => /components\/map\/CountyLayer\.tsx$/.test(p))).toBe(false)
+    expect([...calExternals].filter(s => s === 'maplibre-gl' || s.startsWith('react-map-gl'))).toEqual([])
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one

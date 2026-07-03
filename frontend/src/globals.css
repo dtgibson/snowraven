@@ -113,6 +113,18 @@
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
 
+  /* Calendar day-shade ramp — deep green, identical in both themes, sized so a
+     WHITE on-cell number clears 4.5:1 on EVERY tier (unlike --sr-county-N, whose
+     light top tiers carry no on-fill text). 5 classes so >=1.2:1 adjacency ALSO
+     holds (10 deep classes compress below that floor). Number color: --sr-cal-fg.
+     Guarded by lib/calendarContrast.test.ts. */
+  --sr-cal-1: #357E56;  --sr-cal-1-rgb: 53,126,86;
+  --sr-cal-2: #2A6847;  --sr-cal-2-rgb: 42,104,71;
+  --sr-cal-3: #205238;  --sr-cal-3-rgb: 32,82,56;
+  --sr-cal-4: #163D29;  --sr-cal-4-rgb: 22,61,41;
+  --sr-cal-5: #0C271A;  --sr-cal-5-rgb: 12,39,26;
+  --sr-cal-fg: #FFFFFF;   /* on-cell number, on any data tier, both themes */
+
   /* Graph line colors */
   --sr-graph-individuals: #2D8653;
   --sr-graph-photo: #3B82F6;
@@ -308,6 +320,16 @@
 
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+  /* Calendar day-shade ramp — identical to :root by design (deep green, theme-
+     identical). Deep enough that the single WHITE --sr-cal-fg number clears
+     4.5:1 on every tier in dark mode too; guarded by calendarContrast.test.ts. */
+  --sr-cal-1: #357E56;  --sr-cal-1-rgb: 53,126,86;
+  --sr-cal-2: #2A6847;  --sr-cal-2-rgb: 42,104,71;
+  --sr-cal-3: #205238;  --sr-cal-3-rgb: 32,82,56;
+  --sr-cal-4: #163D29;  --sr-cal-4-rgb: 22,61,41;
+  --sr-cal-5: #0C271A;  --sr-cal-5-rgb: 12,39,26;
+  --sr-cal-fg: #FFFFFF;
 
   /* Graph line colors */
   --sr-graph-individuals: #34D399;
@@ -658,6 +680,23 @@ h1, h2, h3, h4, h5, h6 {
    no breakpoint math. Best default for card/tile grids. */
 .sr-grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--sr-grid-min, 220px), 100%), 1fr)); gap: var(--sr-grid-gap, 14px); }
 
+/* Calendar tab — the twelve big month cards: self-collapsing (like sr-grid-auto)
+   at a 230px min, tiling 4–5 across on desktop and down to one column on a phone
+   with no breakpoint math. Lifted to a class so the container responds (an inline
+   display:grid can't be reached by a media query). */
+.sr-cal-months { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); }
+
+/* Calendar Year Overview — the 3×4 mini-month thumbnail grid. Explicit 3-up
+   desktop, collapsing 3 → 2 (≤1024) → 1 (phone) via the media blocks below (the
+   reflow is column-controlled, so it isn't a self-collapsing auto-fill). */
+.sr-cal-year { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Mini-month card: the "Open →" affordance fades in on hover/focus. */
+.sr-cal-mini-open { opacity: 0; transition: opacity .12s; }
+.sr-cal-minimonth:hover .sr-cal-mini-open,
+.sr-cal-minimonth:focus-visible .sr-cal-mini-open { opacity: 1; }
+.sr-cal-minimonth:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+
 /* Fixed N-up grids that collapse on smaller screens (see the media blocks). */
 .sr-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sr-grid-gap, 14px); }
 .sr-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sr-grid-gap, 14px); }
@@ -983,6 +1022,8 @@ select:focus-visible {
 @media (max-width: 1024px) {
   .sr-grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sr-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* Calendar Year Overview: 3-up → 2-up on the tablet band. */
+  .sr-cal-year { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* NB: .sr-compare-panels (ResultsView's three co-equal In Both / A / B panels)
      intentionally stays 3-up through the tablet band and collapses straight to
      1-up at 640 — a 2-up tier would leave a lone half-width orphan panel. */
@@ -1020,6 +1061,11 @@ select:focus-visible {
 
   /* New layout hooks collapse to a single column on phones. */
   .sr-grid-2, .sr-grid-3, .sr-grid-4 { grid-template-columns: 1fr; }
+  /* Calendar Year Overview: single column on a phone (3 → 2 → 1). */
+  .sr-cal-year { grid-template-columns: 1fr; }
+  /* Calendar big months: a slightly larger min so the day cells stay tappable
+     before collapsing to one column at the small-phone tier. */
+  .sr-cal-months { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
   .sr-grid-chart-aside { grid-template-columns: 1fr; }
   /* Component-local horizontal padding trim (reaches inline-padded containers
      via !important, same approach as .sr-card above). */
@@ -1067,4 +1113,6 @@ select:focus-visible {
   .sr-field-row { flex-direction: column; align-items: stretch; }
   .sr-field-row > * { width: 100%; }
   .sr-pad-x-trim { padding-left: 12px !important; padding-right: 12px !important; }
+  /* Calendar big months: one column on the small-phone tier. */
+  .sr-cal-months { grid-template-columns: 1fr; }
 }

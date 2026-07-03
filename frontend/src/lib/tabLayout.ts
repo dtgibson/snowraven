@@ -2,6 +2,7 @@ export type ConfigurableTab =
   | 'weather'
   | 'species-detail'
   | 'birding-stats'
+  | 'calendar'
   | 'map-explorer'
   | 'life-list'
   | 'breeding-codes'
@@ -12,6 +13,7 @@ export type ConfigurableTab =
 export const DEFAULT_TAB_ORDER: ConfigurableTab[] = [
   'weather',
   'birding-stats',
+  'calendar',
   'species-detail',
   'map-explorer',
   'life-list',
@@ -25,6 +27,7 @@ export const TAB_LABELS: Record<ConfigurableTab, string> = {
   'weather':        'Weather',
   'species-detail': 'Species Detail',
   'birding-stats':  'Statistics',
+  'calendar':       'Calendar',
   'map-explorer':   'Map Explorer',
   'life-list':      'Multimedia',
   'breeding-codes': 'Breeding Codes',

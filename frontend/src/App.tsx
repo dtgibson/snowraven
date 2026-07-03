@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, createContext, useContext } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList, WifiOff } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList, CalendarDays, WifiOff } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from './lib/offlineMessage'
 import { isOfflineError } from './lib/offlineDetect'
@@ -39,6 +39,7 @@ const importHelpDocs = () => import('./components/HelpDocs')
 // so this only trims their own code out of the entry chunk (smaller first paint).
 const importListComparer = () => import('./components/ListComparer')
 const importChecklists = () => import('./components/Checklists')
+const importCalendar = () => import('./components/Calendar')
 // The per-row Named Birds map chunk (maplibre). The component is lazy-rendered
 // inside NamedBirdRow; this is just the idle prefetch (same module → same chunk),
 // so opening a row stays instant for returning users.
@@ -49,6 +50,7 @@ const BirdingStats = lazy(() => importBirdingStats().then(m => ({ default: m.Bir
 const HelpDocs = lazy(() => importHelpDocs().then(m => ({ default: m.HelpDocs })))
 const ListComparer = lazy(() => importListComparer().then(m => ({ default: m.ListComparer })))
 const Checklists = lazy(() => importChecklists().then(m => ({ default: m.Checklists })))
+const Calendar = lazy(() => importCalendar().then(m => ({ default: m.Calendar })))
 import {
   type ConfigurableTab,
   type Tab,
@@ -120,6 +122,7 @@ const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
   'breeding-codes': <Dna size={14} strokeWidth={2.5} aria-hidden="true" />,
   'named-birds':    <Tag size={14} strokeWidth={2.5} aria-hidden="true" />,
   'checklists':     <ClipboardList size={14} strokeWidth={2.5} aria-hidden="true" />,
+  'calendar':       <CalendarDays size={14} strokeWidth={2.5} aria-hidden="true" />,
   'comparer': (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M21 6H3"/><path d="M10 12H3"/><path d="M10 18H3"/><polyline points="15 12 18 15 21 12"/><path d="M18 6v9"/>
@@ -133,7 +136,7 @@ const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
 // synchronous breeding-code parse, /taxonomy/codes POSTs, files-status reads) — until
 // the tab is first opened, instead of running it all on first paint.
 const DEFERRED_TABS: Tab[] = [
-  'map-explorer', 'species-detail', 'birding-stats',
+  'map-explorer', 'species-detail', 'birding-stats', 'calendar',
   'comparer', 'life-list', 'breeding-codes', 'named-birds', 'checklists', 'settings',
 ]
 
@@ -402,6 +405,7 @@ export default function App() {
       void importHelpDocs().catch(() => {})
       void importListComparer().catch(() => {})
       void importChecklists().catch(() => {})
+      void importCalendar().catch(() => {})
       // The per-row Named Birds map (maplibre) — warmed so opening a row is instant.
       void importSightingsMap().catch(() => {})
     }
@@ -1128,6 +1132,26 @@ export default function App() {
         {mountedTabs.has('checklists') && (
           <Suspense fallback={<TabLoading label="Loading checklists…" />}>
             <Checklists onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+          </Suspense>
+        )}
+      </div>
+
+      {/* Calendar tab content */}
+      <div
+        role="tabpanel"
+        id="panel-calendar"
+        aria-labelledby="tab-calendar"
+        aria-label="Calendar"
+        className="sr-panel"
+        style={{
+          display: activeTab === 'calendar' ? 'flex' : 'none',
+          flexDirection: 'column',
+          padding: '40px 24px 24px',
+        }}
+      >
+        {mountedTabs.has('calendar') && (
+          <Suspense fallback={<TabLoading label="Loading calendar…" />}>
+            <Calendar onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
           </Suspense>
         )}
       </div>

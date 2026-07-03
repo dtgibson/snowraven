@@ -214,6 +214,43 @@ These lists are built entirely from your loaded eBird data — nothing new to se
 
 ---
 
+## Calendar
+
+The Calendar tab lays out a full year of your birding as twelve month grids, like a wall calendar's twelve pages, with a number on each day. It loads automatically from your stored eBird backup and works entirely offline — no network, no API key.
+
+### Reading the calendar
+
+- **Each day carries a count.** By default it's the number of **species** you saw that day; the **Show** toggle switches every day to the number of **checklists** you submitted that day instead. Species tells you how *good* a day was; checklists, how *much* you went out.
+- **Days are shaded green** by their count relative to the year on screen — darker means busier. So the shape of your year reads at a glance: busy spring and fall migration darken, quiet mid-summer thins out, a big December count-day day goes near-black.
+- **Three kinds of day:** a shaded, numbered **data day** (a real `<button>` — click it); a faint outlined **no-birding day** (you logged nothing); and a light **"0"** day — you birded, but the only things you recorded that day were non-countable forms (a spuh, slash, or hybrid), so your countable species count is zero.
+- **The legend** on the right names the unit ("Species / day", "Checklists / day", …) and shows the green ramp with the low and high counts of the current view, plus the "no birding" and "birded · 0 countable" keys.
+
+### Moving through your data
+
+- **Year navigation** — the ‹ and › buttons move to the previous or next year that has data (gap years are skipped, and the buttons disable at the ends of your range).
+- **All years** — folds every year into one combined twelve-month grid, keyed by month-and-day. Here **species** is a *distinct-species union* across years ("how many different birds have I ever recorded on this date") and **checklists** is a *sum* across years; February always keeps its Feb 29 cell. The legend and the day popup label which is which so the two are never confused.
+
+### View density: Months or Year
+
+The **View** toggle switches between two layouts:
+
+- **Months** (default) — the twelve big month grids with a number on every day.
+- **Year** — all twelve months as small heatmap thumbnails in a 3×4 grid: the whole year at a glance, where the shading alone tells the story (there are no day numbers at this size). Click a mini-month to jump straight to its full month grid.
+
+### Textures (colorblind mode)
+
+The **Use Textures** switch turns each shade tier into a crosshatch whose density rises with the count, so you can read a day's level from ink-density rather than from color or brightness. The exact number is always available in the day popup too, so color is never the only carrier of information.
+
+### Counting spuh, slash & hybrids
+
+A low-emphasis switch at the bottom of the controls, **off by default**, optionally counts non-countable forms — a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), or a hybrid (`Mallard × American Black Duck`) — as species in the **Species** count. Turning it on raises some day counts and re-shades the grid, and a former "0" day becomes a real numbered day. It only affects the Species metric — checklists are unchanged — so it's dimmed and inactive whenever Checklists is the active metric.
+
+### The day popup
+
+Click any day to open a popup showing **both** that day's species and checklist counts (regardless of which metric the grid is on) and a list of that day's checklists, each linking straight to eBird. In All-years mode the popup labels the union-vs-sum distinction and tags each checklist with its year. Close it with Escape, the Close button, or by clicking the backdrop.
+
+---
+
 ## Map Explorer
 
 The Map Explorer tab provides four views of your birding locations and nearby activity. An eBird API key is required for Hotspots, Nearby Lifers, and Media Targets.

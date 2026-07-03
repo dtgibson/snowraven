@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.58] - 2026-07-03
+
+### Added
+- **A new Calendar tab — a year of your birding as twelve month grids.** SnowRaven now lays out a full year like a wall calendar's twelve pages, with a number on each day showing either the **species** you saw that day or the **checklists** you submitted that day (your choice, species by default). Every day is shaded green by how busy it was relative to the year on screen, so the shape of your birding year — the busy migration weeks, the quiet mid-summer stretches, a December CBC spike — reads at a glance. You can page back and forward through every year your backup covers (gap years are skipped, not dead ends) and fold **all years** into one combined grid keyed by month-and-day, where species become a distinct-species union ("how many different birds have I ever recorded on this date") and checklists a sum — February always keeps its Feb 29 cell. Click any day for a popup with that day's species and checklist counts and working links straight to its eBird checklists.
+  - **Year Overview.** A **Months | Year** view toggle switches between the big month grids and a 3×4 grid of small heatmap thumbnails — the whole year at a glance, where the shading alone tells the story. Click a mini-month to jump to its full grid.
+  - **Colorblind textures.** A **Use Textures** switch turns each shade tier into a crosshatch whose density rises with the count, so the level reads from ink-density rather than hue or brightness — and the exact number is always in the day popup, so color is never the only signal.
+  - **Count spuh, slash & hybrids.** A low-emphasis switch (off by default) optionally counts non-countable forms — spuh, slash, and hybrid names — toward the day's species number, re-shading the grid; it only affects the Species metric, so it's dimmed under Checklists.
+  - Reads cleanly in both light and dark themes, on a phone down to 320px and at 200% text scale, and is fully keyboard-operable. Like the rest of SnowRaven it is entirely offline — it reads only the eBird backup already loaded on your device and makes no new network calls.
+
 ## [0.5.57] - 2026-07-02
 
 ### Fixed

@@ -263,6 +263,19 @@ h1 .accent { color: var(--accent); }
 .cmp .win { color: var(--accent-strong); background: var(--accent-bg); border-radius: 6px; }
 .cmp-row.only .cmp-name { color: var(--text-muted); font-style: italic; }
 
+/* Calendar month mock — a single shaded month grid (the same deep-green ramp) */
+.cal-mock { width: 100%; }
+.cal-mock-name { font-size: .8rem; font-weight: 700; color: var(--text); margin: 0 2px 8px; letter-spacing: -0.01em; }
+.cal-mock-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-mock-grid > span { aspect-ratio: 1 / 1; border-radius: 5px; }
+.cal-mock-grid .cm-pad { background: transparent; }
+.cal-mock-grid .cm-nd { background: transparent; border: 1px solid var(--border); }
+.cal-mock-grid .cm-t1 { background: #357E56; }
+.cal-mock-grid .cm-t2 { background: #2A6847; }
+.cal-mock-grid .cm-t3 { background: #205238; }
+.cal-mock-grid .cm-t4 { background: #163D29; }
+.cal-mock-grid .cm-t5 { background: #0C271A; }
+
 /* Named Birds mock */
 .named { width: 100%; font-size: .9rem; display: flex; flex-direction: column; gap: 4px; }
 .named-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 9px 10px; border-radius: 8px; }
