@@ -1,13 +1,13 @@
 {
-  "activeFeature": "media-catalog-taxon-links",
+  "activeFeature": null,
   "sessionNumber": 67,
-  "sessionType": "fix",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "autonomyMode": "studio-style",
-  "autonomyNote": "Fix run, Studio Style. DEPLOY CONFIRMED by user at stage-5-deploy-confirm gate. Shipping v0.5.57: commit -> push main -> tag v0.5.57 (Windows CI) -> verify CI headSha == tag -> CI=true SKIP_NPM_INSTALL=1 zsh -lc ./release.sh headless. Fix: ML media links now emit taxonCode across all 4 builders (OFF species / ON form; Statistics always species), root cause = additive formCodes from /taxonomy/codes (backend+twin). Gates green (vitest 1282/pytest 178/lint/build/entry-chunk); security 28 checks 0 findings net-hardening. Deploy-smoke: eyeball media.ebird.org/catalog?taxonCode=scbmun2&userId=<you> for the (Scaled) form. After release: Chronicler.",
+  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. v0.5.57 (media-catalog-taxon-links, Fix lane) FULLY SHIPPED -- source + binaries + records. Fixed broken Macaulay Library media links for any bird recorded under a subspecies/form/domestic name (trailing parenthetical): root cause = /taxonomy/codes resolved only species names, so all 4 ML builders across 3 surfaces dropped the code (Species Detail, on the legacy host) or emitted a malformed taxaName (Multimedia, Statistics). Fixed once via an additive formCodes map from /taxonomy/codes (backend + Tauri twin; codes already bundled, just filtered out); all builders normalize the name and emit ?taxonCode= on media.ebird.org/catalog; link follows the Show-subspecies toggle (OFF=species e.g. nutman, ON=form e.g. scbmun2) on Species Detail + Multimedia, Statistics always species. Species lookup byte-identical (favicons/sort unchanged); net security hardening. All 6 Fix stages done. Release: commit e7afd06, tag v0.5.57, CI run 28643591030 headSha-verified, headless release, GitHub Latest, all 6 assets, latest.json 3 platforms. Records commit 7f97f0f (DECISIONS + CLAUDE consolidation note updated + PRODUCT_CONTEXT 4 spots; ROADMAP unchanged -- it's a fix). OPEN USER TODO: deploy-smoke a toggle-ON form link (media.ebird.org/catalog?taxonCode=scbmun2&userId=<you>) -- if the catalog is species-only, one-line degrade in mlCatalog.ts resolveMediaLinkTaxonCode. No pending releases.",
   "ideaId": null,
   "confirmedArtifacts": [
     "pipeline/media-catalog-taxon-links/bug-brief.md",
@@ -15,7 +15,9 @@
     "pipeline/media-catalog-taxon-links/qa-report.md",
     "pipeline/media-catalog-taxon-links/security-report.md"
   ],
-  "releasedVersion": "0.5.56",
+  "releasedVersion": "0.5.57",
+  "lastFeature": "media-catalog-taxon-links (Fix lane) -- COMPLETE through all 6 Weft stages, shipped as v0.5.57 SOURCE + BINARIES + RECORDS. Fixed Macaulay Library media links that were broken for any bird recorded under a subspecies/identifiable-form/domestic name (trailing parenthetical): the taxon-code lookup resolved only full-species names, so links dropped the code (showing ALL the user's media, on the legacy ML host) or emitted a malformed taxaName. Root-cause fix: /taxonomy/codes now returns an additive formCodes map; all four link builders normalize the name and emit ?taxonCode= on media.ebird.org/catalog, following the Show-subspecies toggle (off=species, on=form). Reported by the user (Scaly-breasted Munia (Scaled)); blast radius was app-wide. Species lookup byte-identical; net security hardening.",
+  "remainingBacklog": "No pending releases -- v0.5.57 fully shipped, supersedes v0.5.56. ROADMAP Up Next: mobile app (responsive + touch-a11y groundwork complete); Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; non-US county support; per-species county choropleth; targets findability ranking. OPEN: user deploy-smoke of a toggle-ON subspecies media link (one-line degrade seam if the eBird catalog is species-only).",
   "createdAt": "2026-07-03T06:02:28Z",
-  "updatedAt": "2026-07-03T07:10:00Z"
+  "updatedAt": "2026-07-03T07:30:00Z"
 }

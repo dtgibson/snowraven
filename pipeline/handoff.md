@@ -1,44 +1,51 @@
 ## What We Accomplished
 
-Shipped **v0.5.56**, resolving the three touch-accessibility items the mobile
-audit had tracked but not fixed. Breeding-code meanings now show as visible text
-in both the Breeding Codes matrix legend and the filter-pill legend, so a touch
-user can read what a code means without hovering. The List Comparer's media
-counts (e.g. "2 photos") now appear beside the icon on phones instead of hiding
-in a hover tooltip. And the Life List's ineffective sticky-header CSS was
-removed — you decided a phone sticky header just wastes screen space, and the
-header already scrolled away, so this made the code match the behavior. No new
-capability; a small, focused accessibility polish.
+Shipped **v0.5.57**, fixing the broken Macaulay Library media links you reported.
+Any bird recorded under a subspecies, identifiable-form, or domestic-type name (a
+trailing parenthetical, like "Scaly-breasted Munia (Scaled)") had bad "view my
+media" links everywhere: Species Detail dropped the taxon code and showed *all*
+your photos (on the old ML host), while Multimedia and Statistics built a broken
+`taxaName=…(Scaled)` link. It was one root cause hitting four link builders across
+three tabs, and it affected far more than one bird — every junco form, warbler
+form, flicker, domestic mallard, and so on.
+
+The fix resolves the code once, correctly, and every link now follows your **Show
+subspecies** toggle: off links to the whole species (all your media), on links to
+just that form. Statistics has no toggle, so it uses the species link. Everything
+consolidated onto the current catalog host, and your favicons and taxonomic sort
+are provably unchanged.
 
 ## What Has Been Saved
 
-- **Release commit `42c596e`, tag `v0.5.56`.** Binaries **LIVE** as a GitHub
-  release marked *Latest*: notarized + stapled universal macOS DMG, updater
-  bundle + signature, signed Windows installer + signature, `latest.json`
+- **Release commit `e7afd06`, tag `v0.5.57`.** Binaries **LIVE** as a GitHub
+  release marked *Latest*: notarized + stapled universal macOS DMG, updater bundle
+  + signature, signed Windows installer + signature, `latest.json`
   (`darwin-aarch64` / `darwin-x86_64` / `windows-x86_64`). Windows CI run
-  `28624314206` (headSha == tag) supplied the installer; the release ran headless.
-  A clean deploy — no mid-flight tag move, and the redundant background #5 session
-  was verified finished (stopped, no commits, clean worktree) before shipping.
-- **Records commit `3b2d856`:** `ROADMAP.md` (shipped 91; the three touch-a11y
-  follow-ups removed from the Horizon) and `DECISIONS.md` (the #40 remove-don't-add
-  call and the #27 declined in-comparer label reveal). `CLAUDE.md` and
-  `PRODUCT_CONTEXT.md` unchanged by the decision filter.
-- Code: `frontend/src/components/{BreedingCodeTable,BreedingCodeList,ChecklistComparer,LifeListTable}.tsx`,
-  `frontend/src/globals.css` (new `.sr-media-count`), the two updated test files.
-  Version `frontend/package.json` + `src-tauri/tauri.conf.json` → 0.5.56;
-  `CHANGELOG.md`, `docs/HELP.md`, `website/index.html`. `PRIVACY_POLICY.md`
-  unchanged (no network change).
-- Verification: vitest **1259**, pytest **172**, lint / build / entry-chunk guard
-  green; security review **24 checks, 0 findings**.
+  `28643591030` (headSha == tag) supplied the installer; release ran headless.
+- **Records commit `7f97f0f`:** `DECISIONS.md` (the host/`taxonCode` consolidation,
+  the additive `formCodes` map, the toggle-dependent link scope, the ON-case
+  degrade seam), `CLAUDE.md` (the ML-catalog convention updated — consolidation is
+  now done), `PRODUCT_CONTEXT.md` (four media-linking descriptions corrected).
+  `ROADMAP.md` unchanged (this is a fix).
+- Code: `frontend/src/lib/mlCatalog.ts` (+ `.test`), `lib/statsFormat.ts`,
+  `components/{LifeListTable,LifeList,SpeciesDetail,BirdingStats}.tsx`,
+  `backend/routers/taxonomy.py` + the Tauri twin `lib/tauri/taxonomyService.ts`
+  (the additive `formCodes` map, parity-tested). Version 0.5.57 both files;
+  `CHANGELOG.md`, `docs/HELP.md`. `PRIVACY_POLICY.md` unchanged.
+- Verification: vitest **1282**, pytest **178**, lint / build / entry-chunk green;
+  security review **28 checks, 0 findings** (a net hardening).
 
 ## Where We Are
 
-Improvement complete — all six Improve-lane stages done and shipped. Pipeline is
-idle. The mobile app's groundwork (responsive sweep + these touch-accessibility
-fixes) is now complete on the roadmap.
+Fix complete — all six Fix-lane stages done and shipped. Pipeline is idle.
 
-A manual phone-width smoke of the Breeding Codes legend and the List Comparer
-media counts is worth a look but not blocking.
+**One thing to eyeball on the live app:** open a Show-subspecies-*on* link, e.g.
+`https://media.ebird.org/catalog?taxonCode=scbmun2&userId=<you>`, and confirm it
+filters to just the "(Scaled)" form. It follows eBird's own form-linking pattern,
+so it should — but if the catalog turns out to filter at the species level only,
+the toggle-on case falls back with a one-line change in
+`frontend/src/lib/mlCatalog.ts` `resolveMediaLinkTaxonCode`. The toggle-off
+(species) links are fully verified.
 
 ## Resume Prompt
 
