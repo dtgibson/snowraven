@@ -521,7 +521,7 @@ the species list from eBird observations rather than ML catalog entries alone.
 - Strips the `ML` prefix from catalog numbers and deduplicates
 - Media types come from the `Format` column (Photo/Audio/Video) — client-side only, no network request
 - Renders a table with five columns: Entries, Photo, Audio, Video, Total; all count cells show a dash for zero
-- Non-zero counts are clickable links — open Macaulay Library catalog filtered by species (taxon code), media type, and personal userId in a new tab
+- Non-zero counts are clickable links — open the Macaulay Library catalog (`media.ebird.org/catalog`) filtered by taxon code, media type, and personal userId in a new tab; the code follows the "Show subspecies" (merge) toggle (merged → the species code, un-merged → the selected form's code; v0.5.57), so a subspecies/form entry links correctly instead of falling back to `taxaName`
 - `SpeciesLinks` favicon icons appear after each common name linking to eBird and Birds of the World species pages
 - User ID parsed from ML export filename (`ML__DATE_USERID.csv`) and appended to all catalog links; warning shown if filename was renamed and no ML data is loaded
 - Taxon codes and taxon order numbers fetched via `POST /taxonomy/codes` after file load; ML links use `taxonCode=acowoo` parameter for accurate personal filtering; taxon orders power the Taxonomic sort
@@ -701,7 +701,7 @@ A fifth data tab that shows a complete per-species view from the user's eBird ba
 - **Spuh/slash toggle** — second `ToggleSwitch` ("Show sp./slash") defaults to OFF (hidden). Hides entries where `name.endsWith(' sp.')` or `name.includes('/')`.
 - **Summary card:** species common name (large heading), scientific name (italic) with inline eBird + Birds of the World favicon links (via `SpeciesLinks`), three media indicator buttons (Photo/Audio/Video — filled when ML export is loaded and that type has catalog items, grey when absent, "unavailable" when no ML loaded), and a breeding category pill (Confirmed/Probable/Possible based on highest-tier code recorded — absent when no codes)
 - **Sightings section:** two totals — Checklists (count of eBird entries) and Individuals (sum of numeric counts; "—" when all counts are X/presence-only); first seen (link to checklist), last seen (link), personal best count (link); Sightings and Media cards sit in a `.sr-two-col` responsive grid (2-column on desktop, 1-column at ≤640px)
-- **Media statistics:** Photo/Audio/Video counts as links to Macaulay Library catalog filtered by species + media type + userId; "Load ML export in Settings" message when no ML loaded
+- **Media statistics:** Photo/Audio/Video counts as links to the Macaulay Library catalog (`media.ebird.org/catalog`) filtered by taxon code + media type + userId; the code follows the "Show subspecies" toggle (OFF → the species, ON → the selected form; v0.5.57), so a subspecies/form bird links correctly rather than falling back to all media; "Load ML export in Settings" message when no ML loaded
 - **Breeding codes:** each unique code recorded for the species, with tier-colored dot, abbreviation, full label, and count; sorted tier 4→1 then canonical order; "No breeding codes recorded" empty state
 - **Top locations:** ranked list (by observation count) of every unique location; top 10 shown by default with "Show all N locations" / "Show top 10" expand-collapse; locations with a valid `/^L\d+$/` ID link to `ebird.org/loc/{id}` (works for both public hotspots and personal locations); invalid or missing IDs render as plain text
 - **Sighting locations map:** interactive MapLibre GL map — the shared `SightingsMap` component (`components/SightingsMap.tsx`, also used by the Named Birds tab) rendered through the `SnowMap` wrapper; one teardrop marker per unique lat/lng pair among the selected species' observations (aggregated by `lib/sightingMarkers.ts`); bounds auto-fit on species change via `MapBoundsFitter` (single coordinate → `flyTo` zoom 12, multiple → `fitBounds` with 30px padding); clicking a marker opens the map's single state-driven Popup listing up to 6 dated checklist links ("+N more" overflow label); map hidden when no coordinates are available; 380px tall on desktop, 300px on ≤640px
@@ -744,7 +744,7 @@ A Statistics tab (between Map Explorer and Settings in the tab bar) that derives
 **Mobile layout:** `SectionCard` padding uses `clamp(14px, 4vw, 24px)`; two-column grids (Geographic counties/states, Temporal day-of-week/start-hour) use `repeat(auto-fit, minmax(..., 1fr))` to stack on narrow viewports; Effort metrics grid uses `repeat(auto-fill, minmax(80px, 1fr))`; Breeding filter and Media control rows have `flexWrap: 'wrap'`.
 
 **Key files:**
-- `frontend/src/components/BirdingStats.tsx` — full tab component; ~1,940 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant; `mlCatalogUrl()` helper builds Macaulay Library search URLs using taxonCode when available, taxaName as fallback; `ML_USER_RE` extracts userId from ML export filename; `mlTaxonMap` state populated via `POST /taxonomy/codes` (the `nemesisTaxonMap` state was removed in v0.5.35 along with the Nemesis Birds block — see the Nearby Lifers Map entry); geographic map renders through the shared `SnowMap` with DOM `<Marker>` pins (`RankIcon` circle/square sprites), one state-driven `<Popup>`, and a `fitToPins` bounds fit on map load
+- `frontend/src/components/BirdingStats.tsx` — full tab component; ~1,940 lines; all stat sections as `useMemo` hooks declared before any early return; `SESSION_NOW_MS` module-level constant; `mlCatalogUrl()` helper builds `media.ebird.org/catalog` URLs (shared `ML_CATALOG_BASE`) using the taxonCode resolved from the normalized name (species-level here — Statistics has no subspecies toggle); the `?taxaName=` fallback was retired in v0.5.57; `ML_USER_RE` extracts userId from ML export filename; `mlTaxonMap` state populated via `POST /taxonomy/codes` (the `nemesisTaxonMap` state was removed in v0.5.35 along with the Nemesis Birds block — see the Nearby Lifers Map entry); geographic map renders through the shared `SnowMap` with DOM `<Marker>` pins (`RankIcon` circle/square sprites), one state-driven `<Popup>`, and a `fitToPins` bounds fit on map load
 - `frontend/src/lib/parseEbirdObservations.ts` — extended with 9 optional checklist-level fields: `time`, `duration`, `distance`, `protocol`, `numObservers`, `allObsReported`, `checklistComments`, `stateProvince`
 - `backend/routers/stats.py` — originally hosted `GET /stats/nemesis?lat&lng&dist` (validated params; called eBird geo/recent; returned `{species: [{commonName, recentDate, subId}]}`). **Retired in v0.5.35** — the Nearby Lifers Map now uses the codes-optional `/map/recent-obs` in `backend/routers/map.py` instead.
 - `backend/tests/test_stats_router.py` — 13 tests
@@ -1534,13 +1534,23 @@ scientific name. These pass through `parseMLExport.ts` as first-class entries �
 Soundscape entries appear in the table with an empty scientific name cell and respond
 to the standard filter pills (e.g. "Has audio") like any other entry.
 
-**ML media links use taxon code + userId parameters for personal filtering**
-ML catalog links are formed as `search.macaulaylibrary.org/catalog?mediaType=photo&taxonCode=acowoo&userId=USER1234567`.
-The `taxonCode` parameter (not `taxaName`) is required for accurate per-species filtering.
-The `userId` is parsed from the ML export filename via regex `^ML__.*_([A-Za-z0-9]+)\.csv$` — the default
-ML filename format encodes the user's ID. If the filename was renamed, userId cannot be parsed and a
-warning banner is shown; links fall back to `taxaName` without userId. When a taxon code is not yet
-available (fetch pending), links also fall back to `taxaName`.
+**ML media links use taxon code + userId parameters for personal filtering (consolidated in v0.5.57)**
+ML catalog links are formed as `media.ebird.org/catalog?mediaType=photo&taxonCode=acowoo&userId=USER1234567`
+— one host (`media.ebird.org/catalog`, the shared `ML_CATALOG_BASE`) and one `taxonCode` pattern across every
+surface (Species Detail, Multimedia, Statistics). The legacy `search.macaulaylibrary.org` host and the
+`?taxaName=<name>` fallback are both retired: a link never emits `?taxaName=` and, for a resolvable species,
+never goes out bare (filter-less). The taxon code is resolved by **normalizing the name first**, so a bird
+recorded under a subspecies/form name (a trailing parenthetical, e.g. "Scaly-breasted Munia (Scaled)") still
+resolves its species code. On the two surfaces with a "Show subspecies" toggle (Species Detail + Multimedia)
+the link follows it — OFF → the species code (all the bird's media), ON → the form's own subspecies-group code
+(just that form) — via the shared `resolveMediaLinkTaxonCode` in `lib/mlCatalog.ts`; Statistics has no toggle
+so it is always the species code, which is also the universal fallback when a form code can't be resolved. The
+form codes come from `/taxonomy/codes`' additive `formCodes` map (all-category name→code, inverted from the
+bundled taxonomy snapshot's `byCode`); the species-only `codes`/`orders` maps (favicons + taxonomic sort) are
+byte-identical and unaffected. The `userId` is parsed from the ML export filename via regex
+`^ML__.*_([A-Za-z0-9]+)\.csv$` — the default ML filename format encodes the user's ID. If the filename was
+renamed, userId cannot be parsed and a warning banner is shown; links then omit userId (still a well-formed,
+taxonCode-filtered catalog link, never `taxaName`).
 
 **Taxon codes are fetched from eBird taxonomy API and cached in process memory**
 `POST /taxonomy/codes` accepts `[{commonName, scientificName}]` and returns `{codes: {commonName: speciesCode}}`.
