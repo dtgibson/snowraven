@@ -42,10 +42,17 @@ vi.mock('./storage', () => ({
 
 // Import AFTER the mocks are registered (vi.mock is hoisted, but keep this
 // explicit for clarity).
-import { collapseToSpeciesList } from './tauri/taxonomyService'
+import { collapseToSpeciesList, getTaxonomyCodes } from './tauri/taxonomyService'
 
 interface Case { inputCodes: string[]; expected: { speciesCode: string; commonName: string }[] }
 const CASE = fixture.cases as unknown as Case
+
+interface FormCodesCase {
+  input: { commonName: string; scientificName: string }[]
+  expectedFormCodes: Record<string, string>
+  expectedSpeciesOnlyCodes: Record<string, string>
+}
+const FORM_CASE = fixture.formCodesCases as unknown as FormCodesCase
 
 describe('collapseToSpeciesList — shared-fixture parity (TS twin)', () => {
   beforeEach(() => {
@@ -90,5 +97,17 @@ describe('collapseToSpeciesList — shared-fixture parity (TS twin)', () => {
   it('returns [] for an empty input', async () => {
     const out = await collapseToSpeciesList([])
     expect(out).toEqual([])
+  })
+})
+
+describe('getTaxonomyCodes.formCodes — shared-fixture parity (TS twin)', () => {
+  it('resolves form names to their own issf/domestic code (species names to species)', async () => {
+    const { formCodes } = await getTaxonomyCodes(FORM_CASE.input)
+    expect(formCodes).toEqual(FORM_CASE.expectedFormCodes)
+  })
+
+  it('keeps species-only `codes` byte-identical (form names miss)', async () => {
+    const { codes } = await getTaxonomyCodes(FORM_CASE.input)
+    expect(codes).toEqual(FORM_CASE.expectedSpeciesOnlyCodes)
   })
 })

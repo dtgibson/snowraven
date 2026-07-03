@@ -152,7 +152,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
           try {
             const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>('/taxonomy/codes', { species })
             if (!cancelled) { setMlTaxonMap(data.codes); setMlTaxonOrders(data.orders ?? {}) }
-          } catch { /* taxonomy unavailable — falls back to taxaName */ }
+          } catch { /* taxonomy unavailable — ML links omit the taxon filter, favicons omitted */ }
         }
 
         setPhase({ tag: 'ready', observations, mlRows, freshness: status.ebird.filename })
@@ -1757,7 +1757,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
                     </span>
                     <OutboundLink
-                      href={mlCatalogUrl(entry.name, 'Photo', mlUserId, mlTaxonMap[entry.name])}
+                      href={mlCatalogUrl(entry.name, 'Photo', mlUserId, codeFor(entry.name))}
                       style={{ fontSize: '0.6875rem', color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
                     >
                       {fmt(entry.count)} photos
@@ -1779,7 +1779,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
                     </span>
                     <OutboundLink
-                      href={mlCatalogUrl(entry.name, 'Audio', mlUserId, mlTaxonMap[entry.name])}
+                      href={mlCatalogUrl(entry.name, 'Audio', mlUserId, codeFor(entry.name))}
                       style={{ fontSize: '0.6875rem', color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
                     >
                       {fmt(entry.count)} recordings
@@ -1801,7 +1801,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       <BirdName commonName={entry.name} taxonCode={codeFor(entry.name)} hasEntry={hasEntryFor(entry.name)} onOpenSpecies={onOpenSpecies} />
                     </span>
                     <OutboundLink
-                      href={mlCatalogUrl(entry.name, 'Video', mlUserId, mlTaxonMap[entry.name])}
+                      href={mlCatalogUrl(entry.name, 'Video', mlUserId, codeFor(entry.name))}
                       style={{ fontSize: '0.6875rem', color: 'var(--sr-accent)', textDecoration: 'none', flexShrink: 0 }}
                     >
                       {fmt(entry.count)} videos

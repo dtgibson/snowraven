@@ -85,5 +85,30 @@
       { "speciesCode": "rocpig", "commonName": "Rock Pigeon" },
       { "speciesCode": "mallar3", "commonName": "Mallard" }
     ]
+  },
+
+  "formCodesCases": {
+    "_comment": "media-catalog-taxon-links parity: the /taxonomy/codes formCodes map (all-category name->code, from inverting byCode) resolves a FORM name to its OWN issf/domestic code (the ON media link) and a species name to the species code, while `codes` (species-only) still misses the form names. Both twins (getTaxonomyCodes / get_species_codes) assert THIS on the shared fixture.",
+
+    "input": [
+      { "commonName": "American Robin", "scientificName": "Turdus migratorius" },
+      { "commonName": "Yellow-rumped Warbler", "scientificName": "Setophaga coronata" },
+      { "commonName": "Yellow-rumped Warbler (Myrtle)", "scientificName": "Setophaga coronata coronata" },
+      { "commonName": "Rock Pigeon (Feral Pigeon)", "scientificName": "Columba livia (Feral Pigeon)" },
+      { "commonName": "Mallard (Domestic type)", "scientificName": "Anas platyrhynchos (Domestic type)" }
+    ],
+
+    "expectedFormCodes": {
+      "American Robin": "amerob",
+      "Yellow-rumped Warbler": "yerwar",
+      "Yellow-rumped Warbler (Myrtle)": "yerwar1",
+      "Rock Pigeon (Feral Pigeon)": "rocpig1",
+      "Mallard (Domestic type)": "maldom1"
+    },
+
+    "expectedSpeciesOnlyCodes": {
+      "American Robin": "amerob",
+      "Yellow-rumped Warbler": "yerwar"
+    }
   }
 }

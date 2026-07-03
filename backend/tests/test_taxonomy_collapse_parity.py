@@ -55,6 +55,7 @@ def loaded_from_fixture():
         "by_order": dict(taxonomy_module._by_order),
         "by_code": dict(taxonomy_module._by_code),
         "report_as": dict(taxonomy_module._report_as),
+        "by_com_all": dict(taxonomy_module._by_com_all),
         "version": taxonomy_module._version,
         "loaded": taxonomy_module._loaded,
     }
@@ -76,6 +77,8 @@ def loaded_from_fixture():
         taxonomy_module._by_code.update(saved["by_code"])
         taxonomy_module._report_as.clear()
         taxonomy_module._report_as.update(saved["report_as"])
+        taxonomy_module._by_com_all.clear()
+        taxonomy_module._by_com_all.update(saved["by_com_all"])
         taxonomy_module._version = saved["version"]
         taxonomy_module._loaded = saved["loaded"]
 
@@ -133,3 +136,27 @@ def test_snapshot_matches_derivation(loaded_from_fixture):
     snap = fx["snapshot"]
     for key in ("bySci", "byCom", "byOrder", "byCode", "reportAs"):
         assert derived[key] == snap[key], f"{key} drift between rawTaxonomy derivation and snapshot"
+
+
+def _codes(species):
+    req = taxonomy_module.CodesRequest(
+        species=[taxonomy_module.SpeciesItem(**s) for s in species]
+    )
+    return asyncio.run(taxonomy_module.get_species_codes(req))
+
+
+def test_form_codes_match_shared_fixture(loaded_from_fixture):
+    """media-catalog-taxon-links parity: get_species_codes.formCodes resolves the
+    fixture's form names to their own code (species names to species) — byte-for-byte
+    equal to what the TS getTaxonomyCodes twin asserts on the SAME fixture."""
+    case = loaded_from_fixture["formCodesCases"]
+    out = _codes(case["input"])
+    assert out["formCodes"] == case["expectedFormCodes"]
+
+
+def test_species_only_codes_miss_form_names(loaded_from_fixture):
+    """species-only `codes` stays byte-identical — the form names miss (favicons/sort
+    unchanged), only formCodes resolves them."""
+    case = loaded_from_fixture["formCodesCases"]
+    out = _codes(case["input"])
+    assert out["codes"] == case["expectedSpeciesOnlyCodes"]

@@ -32,6 +32,8 @@ function renderTable(over: Partial<React.ComponentProps<typeof LifeListTable>> =
       onSortChange={over.onSortChange ?? vi.fn()}
       userId={over.userId ?? null}
       taxonMap={over.taxonMap ?? {}}
+      formTaxonMap={over.formTaxonMap}
+      showSubspecies={over.showSubspecies}
       taxonOrders={over.taxonOrders ?? {}}
       wideMode={over.wideMode ?? false}
       onOpenSpecies={over.onOpenSpecies}
@@ -128,5 +130,69 @@ describe('LifeListTable accessibility', () => {
     const href = screen.getByRole('link', { name: /1 photo on Macaulay Library/ }).getAttribute('href') || ''
     expect(href).not.toContain('age=')
     expect(href).not.toContain('sex=')
+  })
+})
+
+// media-catalog-taxon-links: the ML link's taxonCode is toggle-aware and never
+// falls back to ?taxaName= for a form name.
+describe('LifeListTable ML link taxonCode (subspecies toggle)', () => {
+  const photoLink = () =>
+    (screen.getByRole('link', { name: /1 photo on Macaulay Library/ }).getAttribute('href') || '')
+
+  it('OFF (merged): a form entry links by the SPECIES code, never taxaName', () => {
+    // Merged view — the display name is the species; taxonMap carries the species code.
+    renderTable({
+      entries: [entry({ commonName: 'Scaly-breasted Munia', catalogIds: ['p1'] })],
+      mediaMap: { p1: 'Photo' },
+      taxonMap: { 'Scaly-breasted Munia': 'nutman' },
+      formTaxonMap: { 'Scaly-breasted Munia': 'nutman' },
+      showSubspecies: false,
+    })
+    const href = photoLink()
+    expect(href).toContain('taxonCode=nutman')
+    expect(href).not.toContain('taxaName')
+    expect(href.startsWith('https://media.ebird.org/catalog')).toBe(true)
+  })
+
+  it('ON (show subspecies): a form entry links by the FORM issf code', () => {
+    // Un-merged view — the display name is the form; formTaxonMap carries scbmun2.
+    renderTable({
+      entries: [entry({ commonName: 'Scaly-breasted Munia (Scaled)', catalogIds: ['p1'] })],
+      mediaMap: { p1: 'Photo' },
+      taxonMap: { 'Scaly-breasted Munia': 'nutman' },
+      formTaxonMap: { 'Scaly-breasted Munia (Scaled)': 'scbmun2' },
+      showSubspecies: true,
+    })
+    const href = photoLink()
+    expect(href).toContain('taxonCode=scbmun2')
+    expect(href).not.toContain('taxaName')
+  })
+
+  it('ON but form code unresolved: falls back to the SPECIES code (never taxaName)', () => {
+    renderTable({
+      entries: [entry({ commonName: 'Scaly-breasted Munia (Scaled)', catalogIds: ['p1'] })],
+      mediaMap: { p1: 'Photo' },
+      // taxonMap keyed by the normalized name so the fallback resolves the species.
+      taxonMap: { 'Scaly-breasted Munia': 'nutman' },
+      formTaxonMap: {}, // form code missing (offline gap)
+      showSubspecies: true,
+    })
+    const href = photoLink()
+    expect(href).toContain('taxonCode=nutman')
+    expect(href).not.toContain('taxaName')
+  })
+
+  it('no code at all: emits no taxon filter but stays on the media host (no taxaName, no bare-name)', () => {
+    renderTable({
+      entries: [entry({ commonName: 'Mystery Bird', catalogIds: ['p1'] })],
+      mediaMap: { p1: 'Photo' },
+      taxonMap: {},
+      formTaxonMap: {},
+      showSubspecies: false,
+    })
+    const href = photoLink()
+    expect(href).not.toContain('taxaName')
+    expect(href).not.toContain('taxonCode')
+    expect(href.startsWith('https://media.ebird.org/catalog?mediaType=photo')).toBe(true)
   })
 })

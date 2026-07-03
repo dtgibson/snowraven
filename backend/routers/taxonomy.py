@@ -21,6 +21,24 @@ _report_as: dict[str, str] = {} # sub-form code -> parent species code (eBird re
 _version: str = ""              # taxonomy version stamp (Clements year), provenance for refresh-gating
 _loaded = False
 
+# Additive reverse map (media-catalog-taxon-links fix): comName.lower() -> code for
+# ALL categories, derived by inverting _by_code. This is what lets a FORM name (e.g.
+# "Scaly-breasted Munia (Scaled)" -> "scbmun2") resolve to its own issf code — the
+# species-only _by_com misses it. It is NOT used for favicons/sort (those stay on the
+# species-only maps, byte-identical) — only the new `formCodes` response consumes it.
+# Names are unique across categories (zero byCode collisions), so the inversion is
+# lossless; last-wins would be the fallback, but there are no dupes to lose.
+_by_com_all: dict[str, str] = {}
+
+
+def _rebuild_by_com_all() -> None:
+    """(Re)derive the all-category name->code reverse map from _by_code. Cheap
+    (~18k entries) and only runs when the snapshot maps are (re)applied."""
+    _by_com_all.clear()
+    for code, name in _by_code.items():
+        if name:
+            _by_com_all[name.lower()] = code
+
 # Coalescing lock (FR-27): concurrent first-callers share one serial load instead
 # of each re-running it. Lazily bound to the running event loop on first acquire
 # (single uvicorn process / one loop — see start.sh; requires Python >= 3.10).
@@ -54,6 +72,8 @@ def _apply_snapshot(snap: dict) -> None:
     _report_as.clear()
     _report_as.update(snap.get("reportAs", {}))
     _version = str(snap.get("version", ""))
+    # Keep the additive all-category reverse map in sync with _by_code.
+    _rebuild_by_com_all()
 
 
 def _load_floor() -> bool:
@@ -247,10 +267,16 @@ async def get_species_codes(req: CodesRequest) -> dict:
         await _ensure_loaded()
     except Exception:
         # Taxonomy unavailable — return empty maps; frontend falls back gracefully.
-        return {"codes": {}, "orders": {}}
+        return {"codes": {}, "orders": {}, "formCodes": {}}
 
     codes: dict[str, str] = {}
     orders: dict[str, int] = {}
+    # `formCodes` is ADDITIVE (media-catalog-taxon-links fix): the code for the name
+    # EXACTLY as given, including a trailing subspecies/form parenthetical (issf /
+    # domestic / form). It lets the "Show subspecies"-ON media links filter to a
+    # form's own media (e.g. "Scaly-breasted Munia (Scaled)" -> "scbmun2"). `codes`
+    # / `orders` stay SPECIES-ONLY and byte-identical so favicons/sort don't shift.
+    form_codes: dict[str, str] = {}
     for item in req.species:
         com_lower = item.commonName.lower()
         code = _by_sci.get(item.scientificName.lower()) or _by_com.get(com_lower)
@@ -259,5 +285,11 @@ async def get_species_codes(req: CodesRequest) -> dict:
         order = _by_order.get(com_lower)
         if order is not None:
             orders[item.commonName] = order
+        # All-category exact-name code (may be an issf/form/domestic code). Prefer the
+        # all-category map; fall back to the species code so a plain species name still
+        # resolves here too.
+        form_code = _by_com_all.get(com_lower) or code
+        if form_code:
+            form_codes[item.commonName] = form_code
 
-    return {"codes": codes, "orders": orders}
+    return {"codes": codes, "orders": orders, "formCodes": form_codes}

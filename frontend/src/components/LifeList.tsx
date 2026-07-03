@@ -155,6 +155,10 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const [sort, setSort] = useState<SortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
   const [mlUserId, setMlUserId] = useState<string | null>(null)
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
+  // All-category name→code map (species + issf/domestic/form). Drives the ML link's
+  // taxonCode when "Show subspecies" is on, so a form entry filters to its own media
+  // (media-catalog-taxon-links). Species-only taxonMap is untouched (favicons/sort).
+  const [formTaxonMap, setFormTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [wideMode, setWideMode] = useState(false)
   const [rawRows, setRawRows] = useState<MLExportRow[]>([])
@@ -190,14 +194,16 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
   const fetchTaxonCodes = async (entries: LifeListEntry[]) => {
     try {
-      const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>(
+      const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number>; formCodes?: Record<string, string> }>(
         '/taxonomy/codes',
         { species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })) }
       )
       setTaxonMap(data.codes ?? {})
+      setFormTaxonMap(data.formCodes ?? {})
       setTaxonOrders(data.orders ?? {})
     } catch {
-      // silently fail — links fall back to taxaName, sort falls back to A–Z
+      // silently fail — links fall back to the species code (or a bare type link),
+      // sort falls back to A–Z
     }
   }
 
@@ -400,10 +406,17 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
 
         setPhase({ tag: 'ready', entries, mediaMap, hasEbirdBackbone })
 
-        const comprehensiveEntries = hasEbirdBackbone
-          ? buildComprehensiveEntries(ebirdObs, rows, true)
-          : entries
-        fetchTaxonCodes(comprehensiveEntries)
+        // Request codes for BOTH toggle states: the merged (normalized, species) names
+        // AND the un-merged (form) names. `codes` resolves the species names (favicons /
+        // OFF-state links); `formCodes` resolves the form names to their own issf codes
+        // (ON-state links). Deduped by common name so a name is requested once.
+        const merged = hasEbirdBackbone ? buildComprehensiveEntries(ebirdObs, rows, true) : entries
+        const unmerged = hasEbirdBackbone ? buildComprehensiveEntries(ebirdObs, rows, false) : []
+        const byName = new Map<string, LifeListEntry>()
+        for (const e of [...merged, ...unmerged]) {
+          if (!byName.has(e.commonName)) byName.set(e.commonName, e)
+        }
+        fetchTaxonCodes([...byName.values()])
         resolveMLCounties(rows, ebirdObs.length > 0 ? ebirdObs : undefined)
       } catch {
         if (!cancelled) setPhase({ tag: 'setup-required' })
@@ -831,6 +844,8 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         onSortChange={setSort}
         userId={mlUserId}
         taxonMap={taxonMap}
+        formTaxonMap={formTaxonMap}
+        showSubspecies={!mergeSubspecies}
         taxonOrders={taxonOrders}
         wideMode={wideMode}
         onOpenSpecies={onOpenSpecies}

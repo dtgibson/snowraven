@@ -42,16 +42,24 @@ export function formatSpanLength(days: number): string {
 // /catalog still resolves but is legacy; the Multimedia tab already builds on this
 // host, so the Statistics links use it too (consolidating the two link builders the
 // 0.5.33 work had deferred). It is also the host that accepts the `tag=` behavior
-// filters (see mlBehaviorCatalogUrl).
-const ML_CATALOG_BASE = 'https://media.ebird.org/catalog'
+// filters (see mlBehaviorCatalogUrl). Exported so mlCatalog.ts (Species Detail) and
+// LifeListTable (Multimedia) build on the ONE host with the ONE taxonCode pattern
+// (media-catalog-taxon-links consolidation).
+export const ML_CATALOG_BASE = 'https://media.ebird.org/catalog'
 
-export function mlCatalogUrl(name: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null, taxonCode?: string | null): string {
+// Build the user's Macaulay Library catalog link for a species/form, filtered by a
+// media type. `taxonCode` is REQUIRED for a correct filter — the caller resolves it by
+// normalizing the name before the code lookup (species code), or, when "Show
+// subspecies" is on, the form's own issf code. We NEVER fall back to `?taxaName=`: a
+// form name there (e.g. "Scaly-breasted Munia (Scaled)") is a malformed filter, and a
+// bare link shows ALL the user's media. When no code resolves at all (offline gap /
+// unmapped name) we emit no taxon filter rather than a broken one — the caller's
+// species code is the universal fallback, so this is the rare last resort.
+export function mlCatalogUrl(_name: string, type: 'Photo' | 'Audio' | 'Video', userId: string | null, taxonCode?: string | null): string {
   const mt = type.toLowerCase()
   const userSuffix = userId ? `&userId=${encodeURIComponent(userId)}` : ''
-  if (taxonCode) {
-    return `${ML_CATALOG_BASE}?mediaType=${mt}&taxonCode=${encodeURIComponent(taxonCode)}${userSuffix}`
-  }
-  return `${ML_CATALOG_BASE}?taxaName=${encodeURIComponent(name)}&mediaType=${mt}${userSuffix}`
+  const taxonPart = taxonCode ? `&taxonCode=${encodeURIComponent(taxonCode)}` : ''
+  return `${ML_CATALOG_BASE}?mediaType=${mt}${taxonPart}${userSuffix}`
 }
 
 // Deep link to the user's Macaulay Library media filtered by a single behavior (or

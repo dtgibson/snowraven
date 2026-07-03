@@ -33,7 +33,7 @@ import { smoothScrollIntoView } from '../lib/scroll'
 import { SnowMap } from './SnowMap'
 import { SightingsMap } from './SightingsMap'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
-import { extractUserId, mlCatalogLink } from '../lib/mlCatalog'
+import { extractUserId, mlCatalogLink, resolveMediaLinkTaxonCode } from '../lib/mlCatalog'
 import { SectionCard, SectionHead, StatLabel, StatValueLink } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
@@ -55,6 +55,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
+  // All-category name→code map (species + issf/domestic/form). Drives the ML link's
+  // taxonCode when "Show subspecies" is on, so a selected form filters to its own media
+  // (media-catalog-taxon-links). taxonMap stays species-only (favicons / selector).
+  const [formTaxonMap, setFormTaxonMap] = useState<Record<string, string>>({})
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
   const [selectorQuery, setSelectorQuery] = useState('')
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -137,17 +141,25 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     try {
       const seen = new Map<string, string>()
       for (const o of obs) {
+        // Request the raw name (form code lives in formCodes) AND the normalized
+        // species name (so `codes` carries the SPECIES code keyed by the merged name —
+        // the OFF-state ML link, even when the user only recorded a form). First
+        // scientificName wins; the normalized entry reuses the same one.
         if (!seen.has(o.commonName)) seen.set(o.commonName, o.scientificName)
+        const norm = normalizeSpeciesName(o.commonName)
+        if (!seen.has(norm)) seen.set(norm, o.scientificName)
       }
       const species = [...seen.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
-      const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>(
+      const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number>; formCodes?: Record<string, string> }>(
         '/taxonomy/codes',
         { species }
       )
       setTaxonOrders(data.orders ?? {})
       setTaxonMap(data.codes ?? {})
+      setFormTaxonMap(data.formCodes ?? {})
     } catch {
-      // silently fail — selector usable in A–Z; ML links omit taxonCode
+      // silently fail — selector usable in A–Z; ML links fall back to the species
+      // code or omit taxonCode
     }
   }
 
@@ -401,10 +413,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   // Named individuals of this species, parsed from [name:…] tags in comments.
   const namedIndividuals = useMemo(() => computeNamedBirds(speciesObs), [speciesObs])
 
-  // Taxon code for selected species (merge-mode aware)
+  // Species code for the header favicons (eBird / Birds of the World). This is the
+  // SPECIES code in BOTH toggle states — favicon behavior stays byte-identical to
+  // before the media-catalog-taxon-links fix. taxonMap now also carries the code keyed
+  // by the normalized name (requested above), so a form-only species resolves here too;
+  // the legacy scan is the belt-and-braces fallback for the merged case.
   const speciesTaxonCode = useMemo(() => {
     if (!selectedSpecies) return undefined
-    const direct = taxonMap[selectedSpecies]
+    const direct = taxonMap[selectedSpecies] ?? taxonMap[normalizeSpeciesName(selectedSpecies)]
     if (direct) return direct
     if (mergeSubspecies) {
       for (const [key, code] of Object.entries(taxonMap)) {
@@ -413,6 +429,17 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     }
     return undefined
   }, [selectedSpecies, taxonMap, mergeSubspecies])
+
+  // Taxon code for the ML MEDIA links, toggle-aware (media-catalog-taxon-links):
+  //  • "Show subspecies" ON (mergeSubspecies false): selectedSpecies is a FORM name —
+  //    use the form's OWN issf code (formTaxonMap) so the link filters to just that
+  //    form; fall back to the species code (offline gap / unmapped).
+  //  • OFF (merged): the species code above.
+  // Species code is the universal fallback — never a bare link for a resolvable species.
+  const mediaLinkTaxonCode = useMemo(() => {
+    if (!selectedSpecies) return undefined
+    return resolveMediaLinkTaxonCode(!mergeSubspecies, formTaxonMap[selectedSpecies], speciesTaxonCode)
+  }, [selectedSpecies, formTaxonMap, mergeSubspecies, speciesTaxonCode])
 
   // ── Selector input display value ─────────────────────────────────────
   const selectorDisplayValue = dropdownOpen
@@ -924,7 +951,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     {(['Photo', 'Audio', 'Video'] as MediaType[]).map(type => {
                       const Icon = type === 'Photo' ? Image : type === 'Audio' ? Mic : Video
                       const count = mediaCounts[type]
-                      const link = mlCatalogLink(type, speciesTaxonCode, userId)
+                      const link = mlCatalogLink(type, mediaLinkTaxonCode, userId)
                       return (
                         <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{

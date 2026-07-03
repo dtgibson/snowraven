@@ -118,7 +118,7 @@ The tab shows the following sections for each species:
 
 - Summary: common name, scientific name, media coverage indicators (Photo, Audio, Video -- filled when data is available from your ML export), and your highest breeding evidence category.
 - Sightings: total checklist count, total individual count, personal best single-count observation, and first and last seen dates. Each date links to the original eBird checklist.
-- Media: photo, audio, and video catalog counts, each linking to your personal Macaulay Library page filtered by species and media type. Requires ML export.
+- Media: photo, audio, and video catalog counts, each linking to your personal Macaulay Library page filtered by species and media type. With "Show subspecies" on, the links narrow to the exact form you're viewing (e.g. just your Oregon Dark-eyed Juncos); with it off, they cover the whole species. Requires ML export.
 - Breeding Codes: every breeding code you have recorded for the species, with tier color, abbreviation, full label, and count.
 - Reported With: species most frequently appearing on the same checklists as the selected species, ranked by co-occurrence percentage.
 - Top Locations: ranked list of locations where you have observed the species. A location that is a public eBird hotspot is a link to its hotspot page on eBird; a personal location stays as plain text.
@@ -276,7 +276,7 @@ The Multimedia tab shows your complete life list with media coverage: which spec
 
 The tab loads automatically from your eBird backup and ML export saved in Settings. When both files are present, it enters Comprehensive mode, which builds the species list from your eBird observations so that every life-listed species appears even if it has no media yet. A Total column shows combined photo, audio, and video counts.
 
-Each non-zero count in the Photo, Audio, and Video columns is a clickable link to your personal Macaulay Library page filtered by species and media type.
+Each non-zero count in the Photo, Audio, and Video columns is a clickable link to your personal Macaulay Library page filtered by species and media type. With "Show subspecies" on, a form row's links narrow to that exact form's media; with it off, they cover the whole species.
 
 Toolbar options:
 

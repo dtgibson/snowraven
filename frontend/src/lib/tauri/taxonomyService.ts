@@ -208,13 +208,38 @@ async function loadTaxonomy(): Promise<TaxonomyCache> {
 
 interface SpeciesItem { commonName: string; scientificName: string }
 
+// Memoized all-category name->code reverse map (media-catalog-taxon-links fix):
+// lower(comName) -> code for EVERY category, derived by inverting byCode. This is the
+// desktop twin of the backend's `_by_com_all`; it lets a FORM name resolve to its own
+// issf code (e.g. "Scaly-breasted Munia (Scaled)" -> "scbmun2"). Rebuilt only when the
+// underlying cache object changes (an online supersede). Names are unique across
+// categories (zero byCode collisions), so the inversion is lossless.
+let _byComAllSource: TaxonomyCache | null = null;
+let _byComAll: Record<string, string> | null = null;
+
+function byComAllFor(cache: TaxonomyCache): Record<string, string> {
+  if (_byComAll && _byComAllSource === cache) return _byComAll;
+  _byComAllSource = cache;
+  const map: Record<string, string> = {};
+  for (const [code, name] of Object.entries(cache.byCode)) {
+    if (name) map[name.toLowerCase()] = code;
+  }
+  _byComAll = map;
+  return map;
+}
+
 export async function getTaxonomyCodes(
   species: SpeciesItem[]
-): Promise<{ codes: Record<string, string>; orders: Record<string, number> }> {
+): Promise<{ codes: Record<string, string>; orders: Record<string, number>; formCodes: Record<string, string> }> {
   const cache = await ensureTaxonomy();
+  const byComAll = byComAllFor(cache);
 
   const codes: Record<string, string> = {};
   const orders: Record<string, number> = {};
+  // `formCodes` is ADDITIVE — the code for the name EXACTLY as given (including a
+  // trailing subspecies/form parenthetical). `codes`/`orders` stay species-only and
+  // byte-identical so favicons/sort don't shift (parity with the backend twin).
+  const formCodes: Record<string, string> = {};
 
   for (const item of species) {
     const comLower = item.commonName.toLowerCase();
@@ -222,9 +247,13 @@ export async function getTaxonomyCodes(
     if (code) codes[item.commonName] = code;
     const order = cache.byOrder[comLower];
     if (order != null) orders[item.commonName] = order;
+    // All-category exact-name code (may be an issf/form/domestic code), else the
+    // species code so a plain species name still resolves here too.
+    const formCode = byComAll[comLower] ?? code;
+    if (formCode) formCodes[item.commonName] = formCode;
   }
 
-  return { codes, orders };
+  return { codes, orders, formCodes };
 }
 
 // Memoized species-category code set (the values of bySci — ~11.2k codes),

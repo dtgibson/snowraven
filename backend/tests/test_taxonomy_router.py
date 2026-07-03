@@ -28,6 +28,10 @@ _FAKE_TAXONOMY = [
     # Sub-forms (domestic/form): not species; reportAs points back to the parent.
     {"speciesCode": "rocpig1", "comName": "Rock Pigeon (Feral Pigeon)", "sciName": "Columba livia (Feral Pigeon)", "category": "domestic", "reportAs": "rocpig"},
     {"speciesCode": "rocpig2", "comName": "Rock Pigeon (Wild type)", "sciName": "Columba livia (Wild type)", "category": "form", "reportAs": "rocpig"},
+    # The bug's real case: Scaly-breasted Munia + its (Scaled) issf form. The species
+    # code (nutman) differs from the form code (scbmun2) — the OFF vs ON distinction.
+    {"speciesCode": "nutman", "comName": "Scaly-breasted Munia", "sciName": "Lonchura punctulata", "taxonOrder": 33000, "category": "species"},
+    {"speciesCode": "scbmun2", "comName": "Scaly-breasted Munia (Scaled)", "sciName": "Lonchura punctulata (Scaled)", "category": "issf", "reportAs": "nutman"},
 ]
 
 
@@ -51,6 +55,7 @@ def _reset_cache():
     t._by_order.clear()
     t._by_code.clear()
     t._report_as.clear()
+    t._by_com_all.clear()
     t._version = ""
     t._loaded = False
 
@@ -100,6 +105,72 @@ def test_empty_request_returns_empty_maps():
     data = resp.json()
     assert data["codes"] == {}
     assert data["orders"] == {}
+    assert data["formCodes"] == {}
+
+
+# --- formCodes (media-catalog-taxon-links) --------------------------------
+
+def test_form_codes_resolve_issf_form_name_to_its_own_code():
+    """A trailing-parenthetical FORM name resolves to its OWN issf code in formCodes
+    (the ON / "Show subspecies" media link), while `codes` (species-only, favicons)
+    still MISSES it — proving the additive map does not disturb species behavior."""
+    _reset_cache()
+    with _patch_taxonomy():
+        resp = client.post("/taxonomy/codes", json={"species": [
+            {"commonName": "Scaly-breasted Munia (Scaled)", "scientificName": "Lonchura punctulata (Scaled)"},
+            {"commonName": "Rock Pigeon (Feral Pigeon)", "scientificName": "Columba livia (Feral Pigeon)"},
+        ]})
+    data = resp.json()
+    # Form names carry their OWN code in formCodes.
+    assert data["formCodes"]["Scaly-breasted Munia (Scaled)"] == "scbmun2"
+    assert data["formCodes"]["Rock Pigeon (Feral Pigeon)"] == "rocpig1"
+    # species-only `codes` MUST NOT resolve the form names (byte-identical behavior).
+    assert "Scaly-breasted Munia (Scaled)" not in data["codes"]
+    assert "Rock Pigeon (Feral Pigeon)" not in data["codes"]
+
+
+def test_form_codes_species_name_resolves_to_species_code():
+    """A plain SPECIES name resolves to the species code in BOTH codes and formCodes —
+    formCodes falls back to the species code so a species name still links correctly."""
+    _reset_cache()
+    with _patch_taxonomy():
+        resp = client.post("/taxonomy/codes", json={"species": [
+            {"commonName": "Scaly-breasted Munia", "scientificName": "Lonchura punctulata"},
+        ]})
+    data = resp.json()
+    assert data["codes"]["Scaly-breasted Munia"] == "nutman"
+    assert data["formCodes"]["Scaly-breasted Munia"] == "nutman"
+
+
+def test_species_codes_byte_identical_with_form_map_added():
+    """Adding formCodes must not change the species `codes`/`orders` for a species
+    request — the favicon/sort contract."""
+    _reset_cache()
+    with _patch_taxonomy():
+        resp = client.post("/taxonomy/codes", json={"species": [
+            {"commonName": "American Robin", "scientificName": "Turdus migratorius"},
+            {"commonName": "Bald Eagle", "scientificName": "Haliaeetus leucocephalus"},
+        ]})
+    data = resp.json()
+    assert data["codes"] == {"American Robin": "amerob", "Bald Eagle": "baleag"}
+    assert data["orders"] == {"American Robin": 27616, "Bald Eagle": 3640}
+
+
+def test_form_codes_offline_floor(tmp_path):
+    """formCodes resolves a form name from the bundled snapshot with the network
+    blocked — the offline floor (byCode inversion) works with zero eBird calls."""
+    _reset_cache()
+    snap = tmp_path / "staticdata" / "ebird_taxonomy.json"
+    snap.parent.mkdir(parents=True, exist_ok=True)
+    import json as _json
+    snap.write_text(_json.dumps(_FIXTURE_SNAPSHOT))
+    taxonomy_module._STATIC = snap
+    with _patch_network_blocked():
+        resp = client.post("/taxonomy/codes", json={"species": [
+            {"commonName": "Rock Pigeon (Feral Pigeon)", "scientificName": "Columba livia (Feral Pigeon)"},
+        ]})
+    data = resp.json()
+    assert data["formCodes"]["Rock Pigeon (Feral Pigeon)"] == "rocpig1"
 
 
 def test_resolve_species_normalizes_subforms_to_parent():

@@ -5,6 +5,8 @@ import type { MediaFilterState, SortColumn, SortDir, SortState } from '../types'
 import type { AgeClass, Sex } from '../lib/mediaStats'
 import { BirdName } from './BirdName'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
+import { ML_CATALOG_BASE } from '../lib/statsFormat'
+import { resolveMediaLinkTaxonCode } from '../lib/mlCatalog'
 
 interface Props {
   entries: LifeListEntry[]
@@ -14,6 +16,13 @@ interface Props {
   onSortChange: (next: SortState) => void
   userId: string | null
   taxonMap: Record<string, string>
+  /** All-category name→code map (species + issf/domestic/form). Used for the ML link's
+   *  taxonCode when "Show subspecies" is on, so a form entry filters to its own media
+   *  (media-catalog-taxon-links). Absent → the species code is used everywhere. */
+  formTaxonMap?: Record<string, string>
+  /** True when "Show subspecies" is on (mergeSubspecies false). ML links then use the
+   *  form's own code; false (merged) uses the species code. */
+  showSubspecies?: boolean
   taxonOrders: Record<string, number>
   wideMode: boolean
   /** Navigate to + select a species on Species Detail (when a backbone entry exists). */
@@ -41,11 +50,6 @@ function countMedia(
   return entry.catalogIds.filter(id => mediaMap[id] === type).length
 }
 
-// The eBird/Macaulay media catalog. age/sex query params are confirmed against this
-// host (user-provided example links; see pipeline/media-sex-age-filters/schema.md);
-// it is the same media search formerly at search.macaulaylibrary.org/catalog.
-const ML_BASE = 'https://media.ebird.org/catalog'
-
 // Append the active sex/age facet as ML query params (lowercase). ML matches these
 // the same way the in-app filter does: a single facet is broad, and a combined
 // age+sex filters to media depicting an individual that is BOTH (exact-combo,
@@ -55,8 +59,12 @@ function facetSuffix(sex: Sex | null | undefined, age: AgeClass | null | undefin
   return `${age ? `&age=${age.toLowerCase()}` : ''}${sex ? `&sex=${sex.toLowerCase()}` : ''}`
 }
 
+// The Multimedia media links. `taxonCode` is the species code (default) or the
+// selected FORM's own issf code when "Show subspecies" is on — resolved by the caller
+// from the normalized (species) or full (form) name, so a form name never drops the
+// code. We NEVER fall back to `?taxaName=` — a form name there is a malformed filter,
+// and a bare link shows ALL the user's media (media-catalog-taxon-links fix).
 function mlUrl(
-  commonName: string,
   type: 'Photo' | 'Audio' | 'Video',
   userId: string | null,
   taxonCode: string | undefined,
@@ -64,24 +72,22 @@ function mlUrl(
   age: AgeClass | null | undefined
 ): string {
   const mediaType = type.toLowerCase()
-  const base = taxonCode
-    ? `${ML_BASE}?mediaType=${mediaType}&taxonCode=${taxonCode}`
-    : `${ML_BASE}?taxaName=${encodeURIComponent(commonName)}&mediaType=${mediaType}`
-  return `${userId ? `${base}&userId=${userId}` : base}${facetSuffix(sex, age)}`
+  const base = `${ML_CATALOG_BASE}?mediaType=${mediaType}${taxonCode ? `&taxonCode=${encodeURIComponent(taxonCode)}` : ''}`
+  return `${userId ? `${base}&userId=${encodeURIComponent(userId)}` : base}${facetSuffix(sex, age)}`
 }
 
-// All media for the species (no mediaType filter) — the Total count links here.
+// All media for the species/form (no mediaType filter) — the Total count links here.
 function mlUrlAll(
-  commonName: string,
   userId: string | null,
   taxonCode: string | undefined,
   sex: Sex | null | undefined,
   age: AgeClass | null | undefined
 ): string {
-  const base = taxonCode
-    ? `${ML_BASE}?taxonCode=${taxonCode}`
-    : `${ML_BASE}?taxaName=${encodeURIComponent(commonName)}`
-  return `${userId ? `${base}&userId=${userId}` : base}${facetSuffix(sex, age)}`
+  const base = `${ML_CATALOG_BASE}${taxonCode ? `?taxonCode=${encodeURIComponent(taxonCode)}` : ''}`
+  const withUser = userId
+    ? `${base}${taxonCode ? '&' : '?'}userId=${encodeURIComponent(userId)}`
+    : base
+  return `${withUser}${facetSuffix(sex, age)}`
 }
 
 const iconCell: React.CSSProperties = {
@@ -90,7 +96,18 @@ const iconCell: React.CSSProperties = {
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, taxonOrders, wideMode, onOpenSpecies, hasEbirdBackbone, sexFilter, ageFilter }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, formTaxonMap, showSubspecies, taxonOrders, wideMode, onOpenSpecies, hasEbirdBackbone, sexFilter, ageFilter }: Props) {
+  // Resolve the ML-link taxon code for an entry. OFF (merged): the SPECIES code, found
+  // by normalizing the name before the lookup (taxonMap is keyed by the display name,
+  // which is the species name when merged — but also try the normalized key so a form
+  // display name still resolves to its species). ON (showSubspecies): prefer the FORM's
+  // own code (formTaxonMap, all-category) so the link filters to just that form; fall
+  // back to the species code (offline gap / unmapped). Species code is the universal
+  // fallback — never a bare/taxaName link.
+  const linkTaxonCode = (commonName: string): string | undefined => {
+    const speciesCode = taxonMap[commonName] ?? taxonMap[normalizeSpeciesName(commonName)]
+    return resolveMediaLinkTaxonCode(!!showSubspecies, formTaxonMap?.[commonName], speciesCode)
+  }
   // Filter + sort are O(n log n) over the whole life list; memoize so they only
   // recompute when their inputs change, not on every parent re-render.
   const filtered = useMemo(() => entries.filter(entry => {
@@ -286,7 +303,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
             const audioCount = countMedia(entry, mediaMap, 'Audio')
             const videoCount = countMedia(entry, mediaMap, 'Video')
             const totalCount = photoCount + audioCount + videoCount
-            const taxonCode = taxonMap[entry.commonName]
+            const taxonCode = linkTaxonCode(entry.commonName)
             return (
               <tr
                 key={entry.commonName}
@@ -315,7 +332,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {photoCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Photo', userId, taxonCode, sexFilter, ageFilter)}
+                          href={mlUrl('Photo', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
                           aria-label={`${photoCount} ${photoCount === 1 ? 'photo' : 'photos'} on Macaulay Library (opens in a new tab)`}
@@ -330,7 +347,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {audioCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Audio', userId, taxonCode, sexFilter, ageFilter)}
+                          href={mlUrl('Audio', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
                           aria-label={`${audioCount} audio ${audioCount === 1 ? 'recording' : 'recordings'} on Macaulay Library (opens in a new tab)`}
@@ -345,7 +362,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={iconCell}>
                     {videoCount > 0
                       ? <a
-                          href={mlUrl(entry.commonName, 'Video', userId, taxonCode, sexFilter, ageFilter)}
+                          href={mlUrl('Video', userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
                           aria-label={`${videoCount} ${videoCount === 1 ? 'video' : 'videos'} on Macaulay Library (opens in a new tab)`}
@@ -360,7 +377,7 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     {totalCount > 0
                       ? <a
-                          href={mlUrlAll(entry.commonName, userId, taxonCode, sexFilter, ageFilter)}
+                          href={mlUrlAll(userId, taxonCode, sexFilter, ageFilter)}
                           target="_blank"
                           rel="noreferrer"
                           title="All media on Macaulay Library"

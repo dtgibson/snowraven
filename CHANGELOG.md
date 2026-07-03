@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.57] - 2026-07-02
+
+### Fixed
+- **Macaulay Library links for subspecies and form birds now filter correctly.** When you clicked a "view my photos/audio/video" link for a bird you'd recorded under a subspecies or form name — anything with a parenthetical, like Scaly-breasted Munia (Scaled), Dark-eyed Junco (Oregon), or Rock Pigeon (Feral Pigeon) — the link either dropped its filter and showed *all* your media, or built a broken filter that matched nothing. Now every such link on **Species Detail**, **Multimedia**, and **Statistics** filters to the right media: to the whole species by default, and — on the two tabs with a "Show subspecies" switch — to the exact form when that switch is on. Species Detail's links also moved to the same modern Macaulay catalog address the rest of the app already uses.
+
 ## [0.5.56] - 2026-07-02
 
 ### Changed
