@@ -1,29 +1,24 @@
 {
   "activeFeature": null,
-  "sessionNumber": 68,
+  "sessionNumber": 69,
   "sessionType": null,
   "currentStage": null,
-  "lastCompletedStage": 9,
+  "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "autonomyMode": "studio-style",
-  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. v0.5.58 (calendar-tab, Feature lane) FULLY SHIPPED -- source + binaries + records. New Calendar tab: twelve monthly grids per year, each day numbered by species-seen OR checklists-that-day (toggle, Species default); Months|Year (3x4 all-months heatmap) view toggle; year back/forward across years with data + all-years-combined (species UNION, checklists SUM); relative shading via a NEW deep-green --sr-cal-1..5 ramp + white --sr-cal-fg number (own ramp, NOT --sr-county -- number-on-fill needs the AA-guarded band; calendarContrast.test.ts asserts >=4.5:1 both themes); colorblind crosshatch = DOM repeating-linear-gradient (calendarTextures.ts, NOT the MapLibre sprite path); default-OFF 'count spuh/slash/hybrid' toggle affects Species metric only; click-a-day popup with ChecklistLink rows. Lexical dates only (no new Date()). Frontend-only, offline, zero new network/providers/data; privacy unchanged. Reused computeCountyTiers(,5), ChecklistLink, SetupRequired, SegControl/ToggleSwitch, formatDate; tab registered via tabLayout + App.tsx lazy (entry-chunk clean). Verified: 1351 FE + 178 BE tests, build/lint/typecheck green, security 0 findings. Release: feature commit 60785fd, tag v0.5.58, Windows CI 28686932793 (headSha==tag), headless release.sh (I RUN THE RELEASE MYSELF -- memory run-releases-not-the-user), GitHub Latest + 6 assets + latest.json 3 platforms. Records commit a3cf3a5 (PRODUCT_CONTEXT/ROADMAP/DECISIONS/CLAUDE[+2 conventions]/design-system[+--sr-cal pattern]). No pending releases.",
+  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. v0.5.59 (tab-improvements, Improve lane) FULLY SHIPPED -- source + binaries + records. Three improvements: (1) Named Birds title bars show the elapsed span between first & last sighting (pure formatSightingDuration in formatDate.ts). (2) Calendar Species filter dropdown -> narrows to one species (filter by normalized common name before buildDayCells; Species=daily presence, Checklists=recording-count; effectiveForms neutralization so a filtered spuh/slash/hybrid shows presence not empty grid; include-forms toggle inert under a concrete species). (3) Map Explorer Nearby Lifers + Media Targets: always-on locator dot at each anchor + per-panel Labels|Dots marker-style toggle (markerMode is a PROP, kept OUT of the remount key, so a toggle doesn't refit the map or drop the popup -- new CLAUDE.md map convention). Frontend-only, offline, zero new network. Verified: 1374 FE + 178 BE tests, build/lint/typecheck green, security 0 findings. Release: feature commit ec220ff, tag v0.5.59, Windows CI 28693829086 headSha==tag, headless release.sh by me (I RUN RELEASES -- run-releases-not-the-user), GitHub Latest + 6 assets + latest.json 3 platforms. Records commit cda2394; state+handoff commit follows. No pending releases.",
   "ideaId": null,
   "confirmedArtifacts": [
-    "pipeline/calendar-tab/strategic-brief.md",
-    "pipeline/calendar-tab/prd.md",
-    "pipeline/calendar-tab/schema.md",
-    "pipeline/calendar-tab/design-spec.md",
-    "pipeline/calendar-tab/design.html",
-    "pipeline/calendar-tab/decisions.md",
-    "pipeline/calendar-tab/pr-description.md",
-    "pipeline/calendar-tab/how-to-see.md",
-    "pipeline/calendar-tab/qa-report.md",
-    "pipeline/calendar-tab/security-report.md"
+    "pipeline/tab-improvements/change-brief.md",
+    "pipeline/tab-improvements/pr-description.md",
+    "pipeline/tab-improvements/how-to-see.md",
+    "pipeline/tab-improvements/qa-report.md",
+    "pipeline/tab-improvements/security-report.md"
   ],
-  "releasedVersion": "0.5.58",
-  "lastFeature": "calendar-tab (Feature lane) -- COMPLETE through all 9 Weft stages, shipped as v0.5.58 SOURCE + BINARIES + RECORDS. A new Calendar tab that renders a birder's own eBird backup as twelve monthly grids, each day numbered by species-seen or checklists-that-day (toggle), with a Months|Year 3x4 year-overview view, an all-years-combined view, relative deep-green shading + a colorblind crosshatch, a spuh/slash/hybrid include toggle, and a click-a-day popup linking to that day's checklists. Frontend-only, offline, zero new network. Studio Style run: user participated on the Designer (3 iterations added the Year Overview, the view toggle, and the spuh toggle); Strategy/Plan/Architect/Engineer/Tester/Auditor/Chronicler auto-advanced.",
-  "remainingBacklog": "No pending releases -- v0.5.58 fully shipped, supersedes v0.5.57. ROADMAP Up Next: mobile app (responsive + touch-a11y groundwork complete); Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; (new) county-style shading could extend to the Calendar -- not requested.",
-  "createdAt": "2026-07-03T20:14:25Z",
-  "updatedAt": "2026-07-03T23:32:00Z"
+  "releasedVersion": "0.5.59",
+  "lastFeature": "tab-improvements (Improve lane) -- COMPLETE through all 6 Weft stages, shipped as v0.5.59 SOURCE + BINARIES + RECORDS. Three enhancements to existing tabs: a sighting-duration span on Named Birds title bars, a per-species filter on the Calendar tab, and always-on locator dots plus a Labels/Dots marker-style toggle for Nearby Lifers + Media Targets on the maps. Frontend-only, offline, zero new network. Studio Style run (no designer stage in Improve, so all auto-advanced to the deploy sign-off); ultracode workflows for scope/build/test/security.",
+  "remainingBacklog": "No pending releases -- v0.5.59 fully shipped, supersedes v0.5.58. ROADMAP Up Next: mobile app (responsive + touch-a11y groundwork complete); Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth.",
+  "createdAt": "2026-07-04T03:03:28Z",
+  "updatedAt": "2026-07-04T03:57:00Z"
 }
