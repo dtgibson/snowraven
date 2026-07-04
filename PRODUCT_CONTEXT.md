@@ -5,9 +5,9 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
-### Calendar (complete — July 2026, v0.5.60)
+### Calendar (complete — July 2026, v0.5.61)
 
-A Calendar tab that renders the birder's own eBird export as a heatmap of their birding year — each day shaded (and numbered) by one of three metrics (species seen, checklists, or total individuals recorded that day), per year or all years combined — with a Large / Compact view toggle (both show the whole year, differing only in cell size; Compact shows the day number too), a per-day popup listing that day's checklists, a colorblind crosshatch texture mode, an optional include-spuh/slash/hybrid refinement, and a Species filter dropdown that narrows the whole calendar to one species (by normalized name, folding forms). Frontend-only, offline, and zero-network — computed entirely from the already-loaded backup.
+A Calendar tab that renders the birder's own eBird export as a heatmap of their birding year — each day shaded (and numbered) by one of three metrics (species seen, checklists, or total individuals recorded that day), per year or all years combined — with a Large / Compact view toggle (both show the whole year, differing only in cell size; on phones only the Large view shows), every Large-view day cell showing its day-of-month in the corner alongside the count, a per-day popup listing that day's checklists, a colorblind crosshatch texture mode, an optional include-spuh/slash/hybrid refinement, and a searchable type-to-find species filter that narrows the whole calendar to one species (by normalized name, folding forms). Frontend-only, offline, and zero-network — computed entirely from the already-loaded backup.
 
 ### County Completeness — a third county-shading metric on the Map Explorer (complete — July 2026, v0.5.54)
 
