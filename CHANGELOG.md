@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.59] - 2026-07-03
+
+### Added
+- **Named Birds now shows how long you've followed each individual.** Under the first-seen–last-seen date range on every Named Birds row, a small second line spells out the elapsed span between the first and last sighting — "2 yrs. 3 mos.", "5 mos.", "5 days", "1 day" for a single sighting. It's a rounded, at-a-glance label (a lingering resident reads very differently from a one-day vagrant), and it needs no new data — it's derived from the dates already on the row.
+- **The Calendar tab can now focus on a single species.** A new **Species** dropdown ("All species" by default) narrows the whole calendar — every day cell, the shading tiers, the legend, and the day popup — to just the one bird you pick, so you can see the seasonal shape of *when you record that species*. Under a species filter the Species metric becomes a simple "seen / not seen that day" and the Checklists metric counts the checklists that recorded it; the combined all-years view folds that one species across every year. Subspecies and form names fold into their parent (so "Dark-eyed Junco (Oregon)" lives under "Dark-eyed Junco"), and the spuh/slash/hybrid toggle steps aside while a single species is chosen. The selection is session-only and makes no new network calls.
+- **A Labels / Dots marker-style toggle on the Map Explorer's Nearby Lifers and Media Targets.** Each of those two panels gains a **Marker Style** switch. Every marker now also carries a small locator dot pinned to its exact coordinate, so you always know precisely where a bird is. In **Dots** mode the name/media chips collapse to just those dots — a clean overview of *where* the birds are without the labels crowding each other — while a click, tap, or keyboard press still opens the same popup listing every species at that spot. The two panels remember their own choice independently, for the session.
+
 ## [0.5.58] - 2026-07-03
 
 ### Added

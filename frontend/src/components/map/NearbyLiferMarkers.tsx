@@ -19,7 +19,9 @@ import { BirdName } from '../BirdName'
 import { ChecklistLink } from '../ChecklistLink'
 import type { NearbyLiferLocation } from '../../lib/mapExplorerTypes'
 
-export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, onSelect }: {
+export type MarkerMode = 'labels' | 'dots'
+
+export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, onSelect, markerMode = 'labels' }: {
   pins: NearbyLiferLocation[]
   // name → eBird taxon code, for the BirdName favicons (a no-op when absent).
   speciesCodeMap: Record<string, string>
@@ -29,6 +31,9 @@ export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, o
   // hotspot, and target lists.
   sel: string | null
   onSelect: (locId: string | null) => void
+  // 'labels' = the full name chip; 'dots' = only the locator dot, label hidden.
+  // The real <button> + aria-label + popup are unchanged in either mode.
+  markerMode?: MarkerMode
 }) {
   const map = useMap().current
   const fitKey = pins.length
@@ -58,17 +63,23 @@ export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, o
         const ariaLabel = single
           ? `${loc.lifers[0].comName}, a nearby lifer at ${loc.locName}`
           : `${loc.count} nearby lifers at ${loc.locName}`
+        const dots = markerMode === 'dots'
         return (
           <Marker key={`${loc.locId}-${i}`} longitude={loc.lng} latitude={loc.lat} anchor="left"
             ref={neutralizeMarkerWrapper}
             onClick={e => { e.originalEvent.stopPropagation(); onSelect(loc.locId) }}>
             {/* Real <button> so Enter/Space open the popup (the native click
                 bubbles to the wrapper's listener); the wrapper is demoted via
-                ref. The label names the lifer (or the species count), colored by
-                the location's recency tier — mirrors the Media Targets chips. */}
-            <button type="button" aria-label={ariaLabel} className="sr-touch-target"
-              style={{ background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}>
-              {label}
+                ref. An always-visible locator dot marks the exact coordinate; in
+                Dots mode the name chip is hidden but the button, its aria-label,
+                and popup behavior are unchanged. Colored by the location's
+                recency tier — mirrors the Media Targets chips. */}
+            <button type="button" aria-label={ariaLabel} className={dots ? 'sr-touch-target sr-map-icon-btn-touch' : 'sr-touch-target'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: dots ? 0 : 6, padding: dots ? 7 : 0, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <span aria-hidden="true" style={{ flex: '0 0 auto', width: 11, height: 11, borderRadius: '50%', background: bg, border: '2px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.45)' }} />
+              <span style={{ display: dots ? 'none' : 'inline-block', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)' }}>
+                {label}
+              </span>
             </button>
           </Marker>
         )

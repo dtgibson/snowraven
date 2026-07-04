@@ -30,6 +30,7 @@ import {
   type CalendarMetric, type CalendarView, type DayCell, type DayCellMap,
 } from '../lib/calendar'
 import { calHatchCss, calMiniHatchCss, type CalTier } from '../lib/calendarTextures'
+import { normalizeSpeciesName } from '../lib/speciesUtils'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] // Sunday-first single letters
@@ -393,10 +394,11 @@ function CalendarLegend({ view, metric, textures, tiers }: {
 
 // ── Day popup ────────────────────────────────────────────────────────────────
 
-function DayPopup({ cell, view, includeForms, onClose }: {
+function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
   cell: DayCell
   view: CalendarView
   includeForms: boolean
+  showFormsNote: boolean
   onClose: () => void
 }) {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -468,7 +470,7 @@ function DayPopup({ cell, view, includeForms, onClose }: {
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--sr-text)', letterSpacing: '-0.01em' }}>{dateLabel}</div>
             {combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Across all years</div>}
-            {includeForms && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Spuh / slash / hybrids included in the species count</div>}
+            {showFormsNote && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Spuh / slash / hybrids included in the species count</div>}
           </div>
           <button
             ref={closeRef}
@@ -555,6 +557,8 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   const [textures, setTextures] = useState(false)
   const [density, setDensity] = useState<ViewDensity>('months')
   const [includeForms, setIncludeForms] = useState(false)
+  // Session-only per-species filter ('' = All species). A normalized common name.
+  const [selectedSpecies, setSelectedSpecies] = useState('')
   const [popup, setPopup] = useState<DayCell | null>(null)
 
   const openerRef = useRef<HTMLButtonElement | null>(null)
@@ -590,13 +594,34 @@ export function Calendar({ onGoToSettings, filesVersion }: {
 
   const years = useMemo(() => (observations ? dataYears(observations) : []), [observations])
 
+  // Sorted, deduped normalized common names across all observations — the
+  // options for the per-species filter (folds subspecies/form parentheticals).
+  const speciesOptions = useMemo(() => {
+    if (!observations) return [] as string[]
+    const set = new Set<string>()
+    for (const o of observations) set.add(normalizeSpeciesName(o.commonName))
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }, [observations])
+
+  // A concrete species is selected only when the value is non-empty AND still a
+  // valid option (guards a stale selection after the backup changes).
+  const speciesFilterActive = selectedSpecies !== '' && speciesOptions.includes(selectedSpecies)
+
+  // Under a concrete species filter the include-forms toggle is inert/dimmed, so
+  // it must have NO effect on output: force the with-forms field. For a normal
+  // species countable===withForms (a no-op); for a selected spuh/slash/hybrid it
+  // makes the calendar render its own presence instead of an all-zero grid.
+  const effectiveForms = speciesFilterActive ? true : includeForms
+
   const cells = useMemo(
-    () => (observations ? buildDayCells(observations, view) : new Map() as DayCellMap),
-    [observations, view],
+    () => (observations
+      ? buildDayCells(observations, view, speciesFilterActive ? selectedSpecies : undefined)
+      : new Map() as DayCellMap),
+    [observations, view, speciesFilterActive, selectedSpecies],
   )
   const tiers = useMemo(
-    () => computeCountyTiers(nonZeroMetricCounts(cells, metric, includeForms), 5),
-    [cells, metric, includeForms],
+    () => computeCountyTiers(nonZeroMetricCounts(cells, metric, effectiveForms), 5),
+    [cells, metric, effectiveForms],
   )
 
   // Twelve months of cell descriptors (both densities read the same). Combined view
@@ -608,10 +633,10 @@ export function Calendar({ onGoToSettings, filesVersion }: {
       const keyFor = view.kind === 'combined'
         ? (day: number) => `${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
         : (day: number) => `${view.year}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-      out.push(buildMonthCells(m, refYear, keyFor, cells, tiers, metric, includeForms))
+      out.push(buildMonthCells(m, refYear, keyFor, cells, tiers, metric, effectiveForms))
     }
     return out
-  }, [cells, tiers, metric, includeForms, view, refYear])
+  }, [cells, tiers, metric, effectiveForms, view, refYear])
 
   // Days-birded count for the sub-line (distinct populated buckets).
   const daysBirded = cells.size
@@ -712,10 +737,13 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   const metricPhrase = metric === 'checklists'
     ? (combined ? 'Checklists across all years on each calendar day' : 'Checklists submitted each day')
     : (combined ? 'Species ever recorded on each calendar day' : 'Species seen each day')
-  const formsSuffix = metric === 'species' && includeForms ? ', spuh/slash/hybrids included' : ''
-  const viewSub = `${metricPhrase}${formsSuffix} · ${daysBirded.toLocaleString()} ${daysBirded === 1 ? 'day' : 'days'} birded`
+  const formsSuffix = metric === 'species' && !speciesFilterActive && includeForms ? ', spuh/slash/hybrids included' : ''
+  const speciesSuffix = speciesFilterActive ? ` · ${selectedSpecies} only` : ''
+  const viewSub = `${metricPhrase}${formsSuffix}${speciesSuffix} · ${daysBirded.toLocaleString()} ${daysBirded === 1 ? 'day' : 'days'} birded`
 
-  const formsDisabled = metric === 'checklists'
+  // The spuh/include-forms toggle is meaningless under a concrete species filter
+  // (a normalized name has no forms to admit), and always for the Checklists metric.
+  const formsDisabled = metric === 'checklists' || speciesFilterActive
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -743,6 +771,27 @@ export function Calendar({ onGoToSettings, filesVersion }: {
               onChange={setMetric}
               options={[{ value: 'species', label: 'Species' }, { value: 'checklists', label: 'Checklists' }]}
             />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+            <span style={ctrlLabelStyle}>Species</span>
+            <select
+              aria-label="Filter the calendar to one species"
+              className="sr-input-16"
+              value={selectedSpecies}
+              onChange={e => { setSelectedSpecies(e.target.value); setPopup(null) }}
+              style={{
+                font: 'inherit', fontSize: '0.75rem', fontWeight: 500,
+                maxWidth: 220, minWidth: 0, height: 30, padding: '0 8px', borderRadius: 6,
+                border: '1px solid var(--sr-border-input)', background: 'var(--sr-surface)',
+                color: 'var(--sr-text)', cursor: 'pointer',
+              }}
+            >
+              <option value="">All species</option>
+              {speciesOptions.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -840,7 +889,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
       )}
 
       {popup && (
-        <DayPopup cell={popup} view={view} includeForms={includeForms} onClose={closePopup} />
+        <DayPopup cell={popup} view={view} includeForms={effectiveForms} showFormsNote={includeForms && !speciesFilterActive} onClose={closePopup} />
       )}
     </div>
   )

@@ -120,4 +120,38 @@ describe('NearbyLiferMarkers', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(onSelect).toHaveBeenCalledWith(null)
   })
+
+  it('renders an always-visible locator dot inside each marker button (labels mode)', () => {
+    render(<NearbyLiferMarkers {...baseProps} sel={null} onSelect={() => {}} markerMode="labels" />)
+    const btn = screen.getByRole('button', { name: "Lawrence's Goldfinch, a nearby lifer at Hayward Regional Shoreline" })
+    // The aria-hidden locator dot is a round span with a border radius of 50%.
+    const dot = Array.from(btn.querySelectorAll('span')).find(s => s.style.borderRadius === '50%')
+    expect(dot).toBeTruthy()
+    expect(dot!.getAttribute('aria-hidden')).toBe('true')
+    // Label text is present in labels mode.
+    expect(btn.textContent).toContain("Lawrence's Goldfinch")
+  })
+
+  it('dots mode hides the label chip but keeps the dot, button, aria-label, and popup', () => {
+    const onSelect = vi.fn()
+    render(<NearbyLiferMarkers {...baseProps} sel={null} onSelect={onSelect} markerMode="dots" />)
+    const btn = screen.getByRole('button', { name: '2 nearby lifers at Coyote Hills Regional Park' })
+    // Dot still present.
+    const dot = Array.from(btn.querySelectorAll('span')).find(s => s.style.borderRadius === '50%')
+    expect(dot).toBeTruthy()
+    // The label chip span is display:none in dots mode.
+    const labelSpan = Array.from(btn.querySelectorAll('span')).find(s => s.textContent?.includes('2 species'))
+    expect(labelSpan).toBeTruthy()
+    expect(labelSpan!.style.display).toBe('none')
+    // Clicking still lifts selection (popup path intact).
+    fireEvent.click(btn)
+    expect(onSelect).toHaveBeenCalledWith('L100')
+  })
+
+  it('dots mode still opens the popup listing every lifer', () => {
+    render(<NearbyLiferMarkers {...baseProps} sel="L100" onSelect={() => {}} markerMode="dots" />)
+    const popup = screen.getByTestId('popup')
+    expect(within(popup).getByText("Lewis's Woodpecker")).toBeTruthy()
+    expect(within(popup).getByText('Sage Thrasher')).toBeTruthy()
+  })
 })

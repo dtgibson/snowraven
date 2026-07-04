@@ -179,6 +179,68 @@ export function formatDateRange(
   return `${formatDateCore(a, pref, false)} – ${formatDateCore(b, pref, false)}`
 }
 
+/**
+ * A rounded, human-readable elapsed span between two dates (e.g. the first and
+ * last sighting of a named bird). Reuses the module's lexical `parseParts`, so it
+ * is timezone-safe and — because it operates on FIXED date strings, never
+ * `Date.now()` — pure and render/memo-safe (react-hooks/purity).
+ *
+ * Returns '' when either side is null/empty/unparseable (never throws). Computes
+ * a Y/M/D difference with a 30-day month-borrow (a deliberate display
+ * approximation), then formats most-significant-first:
+ *
+ *   - years + months → "2 yrs. 3 mos."
+ *   - years only     → "1 yr."
+ *   - months only    → "5 mos."
+ *   - else           → "N days" (same-day → "1 day")
+ *
+ * Singular/plural is handled ("1 yr." / "2 yrs.", "1 mo." / "3 mos.", "1 day" /
+ * "5 days"). A reversed range (to < from) is treated as same-day → "1 day".
+ */
+export function formatSightingDuration(
+  from: string | null | undefined,
+  to: string | null | undefined,
+): string {
+  const a = parseParts(from)
+  const b = parseParts(to)
+  if (!a || !b) return ''
+
+  // Order the endpoints so a reversed pair doesn't yield negatives.
+  const [lo, hi] = compareParts(a, b) <= 0 ? [a, b] : [b, a]
+
+  let years = hi.y - lo.y
+  let months = hi.mo - lo.mo
+  let days = hi.d - lo.d
+  if (days < 0) {
+    months -= 1
+    days += 30 // 30-day borrow — a display approximation, per the brief
+  }
+  if (months < 0) {
+    years -= 1
+    months += 12
+  }
+
+  if (years > 0 && months > 0) return `${years} ${plur(years, 'yr')}. ${months} ${plur(months, 'mo')}.`
+  if (years > 0) return `${years} ${plur(years, 'yr')}.`
+  if (months > 0) return `${months} ${plur(months, 'mo')}.`
+  // Same-day (or reversed) → "1 day"; otherwise the inclusive-ish day span.
+  const dayCount = days <= 0 ? 1 : days
+  return `${dayCount} ${dayCount === 1 ? 'day' : 'days'}`
+}
+
+/** -1/0/1 comparison of two parsed date parts (Y, then M, then D). */
+function compareParts(a: DateParts, b: DateParts): number {
+  if (a.y !== b.y) return a.y < b.y ? -1 : 1
+  if (a.mo !== b.mo) return a.mo < b.mo ? -1 : 1
+  if (a.d !== b.d) return a.d < b.d ? -1 : 1
+  return 0
+}
+
+/** "yr"/"yrs", "mo"/"mos" pluralizer. */
+function plur(n: number, unit: 'yr' | 'mo'): string {
+  return n === 1 ? unit : `${unit}s`
+}
+
 // ── Back-compat named exports (kept so existing imports keep working) ──────────
 
 /**

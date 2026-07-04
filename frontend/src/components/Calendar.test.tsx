@@ -176,6 +176,42 @@ describe('Calendar — spuh toggle (QA-49)', () => {
   })
 })
 
+describe('Calendar — per-species filter (change 2)', () => {
+  it('renders a "Species" select defaulting to All species, with one option per normalized species', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    const select = screen.getByRole('combobox', { name: /Filter the calendar to one species/ }) as HTMLSelectElement
+    expect(select.value).toBe('') // All species
+    const optionLabels = Array.from(select.querySelectorAll('option')).map(o => o.textContent)
+    expect(optionLabels[0]).toBe('All species')
+    // Species present in the 2025 default year's dataset show up in the option list.
+    expect(optionLabels).toContain('American Robin')
+    expect(optionLabels).toContain('Blue Jay')
+  })
+
+  it('selecting a species disables the spuh/include-forms toggle and notes it in the sub-line', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    const formsSwitch = screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ })
+    expect(formsSwitch.getAttribute('aria-disabled')).not.toBe('true')
+
+    const select = screen.getByRole('combobox', { name: /Filter the calendar to one species/ })
+    fireEvent.change(select, { target: { value: 'American Robin' } })
+
+    expect(formsSwitch.getAttribute('aria-disabled')).toBe('true')
+    expect(formsSwitch.getAttribute('tabindex')).toBe('-1')
+    // Sub-line reflects the narrowing.
+    expect(screen.getByText(/American Robin only/)).toBeTruthy()
+  })
+
+  it('does not persist the species selection through the storage seam', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    fireEvent.change(screen.getByRole('combobox', { name: /Filter the calendar to one species/ }), { target: { value: 'Blue Jay' } })
+    expect(setSetting).not.toHaveBeenCalled()
+  })
+})
+
 describe('Calendar — textures (QA-28)', () => {
   it('Use Textures toggles and persists across a metric switch', async () => {
     render(<Calendar {...props} />)

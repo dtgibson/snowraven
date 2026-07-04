@@ -10,7 +10,7 @@
 
 import { useMemo, lazy, Suspense } from 'react'
 import { ChevronRight, ChevronDown, Map as MapIcon } from 'lucide-react'
-import { formatDate } from '../lib/formatDate'
+import { formatDate, formatSightingDuration } from '../lib/formatDate'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { ChecklistLink } from './ChecklistLink'
 import { HotspotLink } from './HotspotLink'
@@ -65,8 +65,18 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
           </span>
         )}
         <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 13, flexShrink: 0 }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-gray)', whiteSpace: 'nowrap' }}>
-            {formatDate(bird.firstSeen)} – {formatDate(bird.lastSeen)}
+          {/* Date range with the elapsed-span duration on a subtle second line
+              beneath it; the column keeps the two dates + duration together as a
+              unit when the header wraps on phones (parent already flexWraps). */}
+          <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-gray)', whiteSpace: 'nowrap' }}>
+              {formatDate(bird.firstSeen)} – {formatDate(bird.lastSeen)}
+            </span>
+            {formatSightingDuration(bird.firstSeen, bird.lastSeen) && (
+              <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', whiteSpace: 'nowrap' }}>
+                {formatSightingDuration(bird.firstSeen, bird.lastSeen)}
+              </span>
+            )}
           </span>
           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--sr-accent)', whiteSpace: 'nowrap' }}>
             {bird.sightingCount} {bird.sightingCount === 1 ? 'sighting' : 'sightings'}

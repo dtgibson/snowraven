@@ -99,8 +99,21 @@ export function dayOfWeek(year: number, month: number, day: number): number {
  *  — plus a Map<submissionId,date>. No per-cell rescans. Malformed-date rows are
  *  dropped per row (FR-12); a checklist still lands on the date its valid rows
  *  carry. buildDayCells itself takes no toggle flag; metricCount /
- *  nonZeroMetricCounts select which species field to read. */
-export function buildDayCells(observations: ObservationEntry[], view: CalendarView): DayCellMap {
+ *  nonZeroMetricCounts select which species field to read.
+ *
+ *  When `speciesFilter` (a NORMALIZED common name) is supplied, only rows whose
+ *  normalized common name equals it are bucketed — narrowing the whole calendar
+ *  to one species. Normalization folds subspecies/form parentheticals into the
+ *  parent (so "Dark-eyed Junco (Oregon)" filters under "Dark-eyed Junco"). The
+ *  filter is applied BEFORE bucketing, so the metric/tiering/legend/popup
+ *  pipeline is unchanged — it simply operates over a smaller DayCellMap. Under a
+ *  filter the Species metric is a 0-or-1-per-day presence and Checklists counts
+ *  the checklists that recorded that species. */
+export function buildDayCells(
+  observations: ObservationEntry[],
+  view: CalendarView,
+  speciesFilter?: string,
+): DayCellMap {
   interface Work {
     bucketKey: string
     countable: Set<string>
@@ -115,13 +128,16 @@ export function buildDayCells(observations: ObservationEntry[], view: CalendarVi
     if (view.kind === 'year') {
       if (Number(date.slice(0, 4)) !== view.year) continue
     }
+    const norm = normalizeSpeciesName(o.commonName)
+    // Per-species narrowing: drop every row that isn't the selected (normalized)
+    // species BEFORE bucketing, so the rest of the pipeline is unchanged.
+    if (speciesFilter !== undefined && norm !== speciesFilter) continue
     const bucketKey = view.kind === 'year' ? date : date.slice(5) // MM-DD for combined
     let w = work.get(bucketKey)
     if (!w) {
       w = { bucketKey, countable: new Set(), withForms: new Set(), checklists: new Map() }
       work.set(bucketKey, w)
     }
-    const norm = normalizeSpeciesName(o.commonName)
     w.withForms.add(norm)
     if (!isNonCountableSpecies(o.commonName)) w.countable.add(norm)
     // A checklist (submissionId) lands on THIS row's valid date. Globally-unique

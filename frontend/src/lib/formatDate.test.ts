@@ -4,6 +4,7 @@ import {
   formatDateRange,
   formatDateMonthFirst,
   formatDateLabel,
+  formatSightingDuration,
   setDateFormatPref,
   getDateFormatPref,
   asDateFormatPref,
@@ -201,5 +202,44 @@ describe('formatDateRange', () => {
     expect(formatDateRange('2026-03-01', '')).toBe('Mar 1, 2026')
     expect(formatDateRange(null, '2026-03-21')).toBe('Mar 21, 2026')
     expect(formatDateRange('', null)).toBe('')
+  })
+})
+
+describe('formatSightingDuration', () => {
+  it('same-day (single sighting) → "1 day"', () => {
+    expect(formatSightingDuration('2024-03-14', '2024-03-14')).toBe('1 day')
+  })
+
+  it('a multi-day span within a month → "N days"', () => {
+    expect(formatSightingDuration('2024-03-01', '2024-03-06')).toBe('5 days')
+    expect(formatSightingDuration('2024-03-01', '2024-03-02')).toBe('1 day')
+  })
+
+  it('a multi-month span pluralizes months', () => {
+    expect(formatSightingDuration('2024-01-10', '2024-04-10')).toBe('3 mos.')
+    expect(formatSightingDuration('2024-01-10', '2024-02-10')).toBe('1 mo.')
+  })
+
+  it('a multi-year span shows years (and months when present)', () => {
+    expect(formatSightingDuration('2022-01-01', '2024-01-01')).toBe('2 yrs.')
+    expect(formatSightingDuration('2020-01-01', '2021-01-01')).toBe('1 yr.')
+    expect(formatSightingDuration('2022-01-10', '2024-04-10')).toBe('2 yrs. 3 mos.')
+    expect(formatSightingDuration('2022-01-10', '2023-03-10')).toBe('1 yr. 2 mos.')
+  })
+
+  it('borrows across a month boundary (30-day approximation)', () => {
+    // Feb 20 → Mar 5: months diff is 0 after borrow, days = 5 - 20 + 30 = 15
+    expect(formatSightingDuration('2024-02-20', '2024-03-05')).toBe('15 days')
+  })
+
+  it('treats a reversed range the same as forward', () => {
+    expect(formatSightingDuration('2024-04-10', '2024-01-10')).toBe('3 mos.')
+  })
+
+  it('returns "" for empty/invalid input, never throws', () => {
+    expect(formatSightingDuration(null, '2024-03-14')).toBe('')
+    expect(formatSightingDuration('2024-03-14', null)).toBe('')
+    expect(formatSightingDuration('', '')).toBe('')
+    expect(formatSightingDuration('not-a-date', '2024-03-14')).toBe('')
   })
 })

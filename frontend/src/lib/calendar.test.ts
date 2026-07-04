@@ -201,6 +201,72 @@ describe('buildDayCells — combined view (QA-16/17/18/19)', () => {
   })
 })
 
+describe('buildDayCells — per-species filter (change 2)', () => {
+  const year: CalendarView = { kind: 'year', year: 2024 }
+
+  it('null/undefined filter leaves the derivation unchanged', () => {
+    const rows = [
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow' }),
+    ]
+    const all = buildDayCells(rows, year)
+    const explicitUndefined = buildDayCells(rows, year, undefined)
+    expect(all.get('2024-03-14')!.speciesCount).toBe(2)
+    expect(explicitUndefined.get('2024-03-14')!.speciesCount).toBe(2)
+  })
+
+  it('a concrete filter counts only that species, per day', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow' }),
+      obs({ date: '2024-03-15', submissionId: 'S2', commonName: 'American Robin' }),
+      obs({ date: '2024-03-16', submissionId: 'S3', commonName: 'Song Sparrow' }),
+    ], year, 'American Robin')
+    // Only the Robin days survive; each is a presence (speciesCount 1).
+    expect(cells.get('2024-03-14')!.speciesCount).toBe(1)
+    expect(cells.get('2024-03-15')!.speciesCount).toBe(1)
+    // 03-16 (Sparrow only) is dropped entirely.
+    expect(cells.has('2024-03-16')).toBe(false)
+  })
+
+  it('the Checklists metric counts checklists that recorded the filtered species', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S2', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S3', commonName: 'Song Sparrow' }), // no Robin → excluded
+    ], year, 'American Robin')
+    // S1 and S2 recorded the Robin; S3 didn't and doesn't count.
+    expect(cells.get('2024-03-14')!.checklistCount).toBe(2)
+  })
+
+  it('folds subspecies/form parentheticals into the normalized parent', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Dark-eyed Junco (Oregon)' }),
+      obs({ date: '2024-03-15', submissionId: 'S2', commonName: 'Dark-eyed Junco (Slate-colored)' }),
+    ], year, 'Dark-eyed Junco')
+    expect(cells.has('2024-03-14')).toBe(true)
+    expect(cells.has('2024-03-15')).toBe(true)
+  })
+
+  it('combined view aggregates the one species across years', () => {
+    const cells = buildDayCells([
+      obs({ date: '2022-01-12', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2023-01-12', submissionId: 'S2', commonName: 'American Robin' }),
+      obs({ date: '2023-01-12', submissionId: 'S3', commonName: 'Song Sparrow' }), // other species
+    ], { kind: 'combined' }, 'American Robin')
+    const c = cells.get('01-12')!
+    expect(c.speciesCount).toBe(1) // Robin, union across 2022+2023
+    expect(c.checklistCount).toBe(2) // S1 + S2 (Robin checklists); S3 excluded
+  })
+
+  it('a species with no data in the year yields an empty (blank) grid', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+    ], year, 'Snowy Owl')
+    expect(cells.size).toBe(0)
+  })
+})
+
 describe('metricCount / nonZeroMetricCounts — includeNonCountable BOTH flags (QA-49)', () => {
   const view: CalendarView = { kind: 'year', year: 2024 }
   const spuhOnly = buildDayCells([

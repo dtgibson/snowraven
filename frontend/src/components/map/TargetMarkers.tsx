@@ -11,8 +11,9 @@ import { formatDate } from '../../lib/formatDate'
 import { BirdName } from '../BirdName'
 import { ChecklistLink } from '../ChecklistLink'
 import type { DisplayTargetPin } from '../../lib/mapExplorerTypes'
+import type { MarkerMode } from './NearbyLiferMarkers'
 
-export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies, sel, onSelect }: {
+export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies, sel, onSelect, markerMode = 'labels' }: {
   pins: DisplayTargetPin[]
   speciesCodeMap: Record<string, string>
   hasEntryFor: (name: string) => boolean
@@ -23,6 +24,9 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
   // species+loc can address the popup directly.)
   sel: string | null
   onSelect: (locId: string | null) => void
+  // 'labels' = the full media-icon name chip; 'dots' = only the locator dot, the
+  // (escaped) label hidden. The real <button> + aria-label + popup are unchanged.
+  markerMode?: MarkerMode
 }) {
   const map = useMap().current
   const fitKey = pins.length
@@ -73,18 +77,26 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
           labelHtml = `${group.length} species`
           ariaLabel = `${group.length} target species at ${rep.locName}`
         }
+        const dots = markerMode === 'dots'
         return (
           <Marker key={`${rep.locId}-${i}`} longitude={rep.lng} latitude={rep.lat} anchor="left"
             ref={neutralizeMarkerWrapper}
             onClick={e => { e.originalEvent.stopPropagation(); onSelect(rep.locId) }}>
             {/* Real <button> so Enter/Space open the popup (the native click bubbles
-                to the wrapper's listener); the wrapper is demoted via ref. The
-                media-type SVGs inside labelHtml are aria-hidden, so the descriptive
-                aria-label carries the missing-media info. F014/F045. */}
-            <button type="button" aria-label={ariaLabel} className="sr-touch-target"
-              style={{ background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)', cursor: 'pointer', fontFamily: 'inherit' }}
-              dangerouslySetInnerHTML={{ __html: labelHtml }}
-            />
+                to the wrapper's listener); the wrapper is demoted via ref. An
+                always-visible locator dot marks the exact coordinate; in Dots mode
+                the label chip is hidden but the button, its aria-label, and popup
+                are unchanged. The media-type SVGs inside labelHtml are aria-hidden
+                and still emitted through escHtml — visibility is gated, escaping is
+                NOT. F014/F045. */}
+            <button type="button" aria-label={ariaLabel} className={dots ? 'sr-touch-target sr-map-icon-btn-touch' : 'sr-touch-target'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: dots ? 0 : 6, padding: dots ? 7 : 0, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <span aria-hidden="true" style={{ flex: '0 0 auto', width: 11, height: 11, borderRadius: '50%', background: bg, border: '2px solid rgba(255,255,255,0.95)', boxShadow: '0 1px 3px rgba(0,0,0,0.45)' }} />
+              <span
+                style={{ display: dots ? 'none' : 'inline-block', background: bg, color: text, padding: '3px 8px', borderRadius: 10, fontSize: '0.6875rem', fontWeight: 600, whiteSpace: 'nowrap', border: '1.5px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.35),0 0 0 1px rgba(0,0,0,0.1)' }}
+                dangerouslySetInnerHTML={{ __html: labelHtml }}
+              />
+            </button>
           </Marker>
         )
       })}

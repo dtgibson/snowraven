@@ -50,7 +50,7 @@ import { SightingMarkers } from './map/SightingMarkers'
 import { BasemapDesaturation } from './map/BasemapDesaturation'
 import { HotspotMarkers } from './map/HotspotMarkers'
 import { TargetMarkers } from './map/TargetMarkers'
-import { NearbyLiferMarkers } from './map/NearbyLiferMarkers'
+import { NearbyLiferMarkers, type MarkerMode } from './map/NearbyLiferMarkers'
 import { buildNearbyLifers, isWithinWindow } from '../lib/nearbyLifers'
 
 interface MapExplorerProps {
@@ -254,6 +254,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [lifersError, setLifersError]       = useState<OverlayError | null>(null)
   const [liferWindow, setLiferWindow]       = useState<TimeWindow>('all')
   const [selectedLiferLocId, setSelectedLiferLocId] = useState<string | null>(null)
+
+  // Marker style per panel (session-only): 'labels' shows the name chip, 'dots'
+  // collapses each marker to just its locator dot. Independent for Lifers/Targets.
+  const [liferMarkerMode, setLiferMarkerMode]   = useState<MarkerMode>('labels')
+  const [targetMarkerMode, setTargetMarkerMode] = useState<MarkerMode>('labels')
 
   // Map pan target (set by sidebar clicks, consumed by MapEffects inside SnowMap)
   const [panTarget, setPanTarget]             = useState<{ lat: number; lng: number } | null>(null)
@@ -1797,6 +1802,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               onChange={v => { setTargetViewMode(v as TimeWindow); setSelectedTargetLocId(null) }}
             />
           </div>
+          <div style={{ marginBottom: 12 }}>
+            <SidebarLabel>Marker Style</SidebarLabel>
+            <SegControl
+              ariaLabel="Target marker style"
+              options={[{ value: 'labels', label: 'Labels' }, { value: 'dots', label: 'Dots' }]}
+              value={targetMarkerMode}
+              onChange={v => setTargetMarkerMode(v as MarkerMode)}
+            />
+          </div>
           {atlasOverlayControls}
           {displayedTargetPins.length > 0 && (
             <div>
@@ -1938,6 +1952,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               options={TIME_WINDOW_OPTS}
               value={liferWindow}
               onChange={v => { setLiferWindow(v as TimeWindow); setSelectedLiferLocId(null) }}
+            />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <SidebarLabel>Marker Style</SidebarLabel>
+            <SegControl
+              ariaLabel="Lifer marker style"
+              options={[{ value: 'labels', label: 'Labels' }, { value: 'dots', label: 'Dots' }]}
+              value={liferMarkerMode}
+              onChange={v => setLiferMarkerMode(v as MarkerMode)}
             />
           </div>
           <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginBottom: 12 }}>
@@ -2189,10 +2212,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} />
               )}
               {viewMode === 'targets' && targetPins && (
-                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} sel={selectedTargetLocId} onSelect={setSelectedTargetLocId} />
+                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} sel={selectedTargetLocId} onSelect={setSelectedTargetLocId} markerMode={targetMarkerMode} />
               )}
               {viewMode === 'lifers' && liferPins && (
-                <NearbyLiferMarkers key={`${displayedLiferLocations.length}-${liferWindow}`} pins={displayedLiferLocations} speciesCodeMap={speciesCodeMap} onOpenSpecies={onOpenSpecies} sel={selectedLiferLocId} onSelect={setSelectedLiferLocId} />
+                <NearbyLiferMarkers key={`${displayedLiferLocations.length}-${liferWindow}`} pins={displayedLiferLocations} speciesCodeMap={speciesCodeMap} onOpenSpecies={onOpenSpecies} sel={selectedLiferLocId} onSelect={setSelectedLiferLocId} markerMode={liferMarkerMode} />
               )}
             </SnowMap>
           )}
