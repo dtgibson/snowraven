@@ -1,24 +1,22 @@
 {
   "activeFeature": null,
-  "sessionNumber": 71,
+  "sessionNumber": 72,
   "sessionType": null,
   "currentStage": null,
   "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "autonomyMode": "studio-style",
-  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. v0.5.61 (calendar-tuneup, Improve lane) FULLY SHIPPED -- source + binaries + records. Three Calendar changes + 1 app-wide fix: (1) searchable species picker -- shared components/SpeciesCombobox.tsx extracted from Species Detail's inline picker, used by BOTH tabs (useId-namespaced, 'All species' clear row, Enter selects first typed match). (2) phones show only Large view -- toggle hidden <=640 + Large forced via lib/useIsPhone.ts (useSyncExternalStore/matchMedia, NO resize JS). (3) every Large day cell shows its day-of-month date (incl. blank/zero cells) -- the REAL fix for the reported 'all-years fewer species': combined view aligns weekday cols to a fixed ref year so cell POSITION != date; counts were CONFIRMED CORRECT (union/sum >= single year, 2 independent passes + regression test), no count code changed. (4) .sr-input-16 iOS no-zoom guard was inert (inline font-size won) -> moved to input + !important, fixes ~25 inputs app-wide. Frontend-only, offline, zero new network. Verified 1406 FE + 178 BE tests, build/lint/typecheck green, security 0 findings. Release: feature commit ac098af, tag v0.5.61, Windows CI 28708161674 headSha==tag, headless release.sh by me (I RUN RELEASES). Records commit adf6371 (+2 CLAUDE conventions: matchMedia render-hook; .sr-input-16-on-the-input). Known limitation: !important 16px activation on ~25 inputs verified by grep not a 320px visual pass. No pending releases. NOTE: session has shipped v0.5.58/59/60/61 -- Calendar tab + 3 rounds of Calendar refinements.",
+  "autonomyNote": "Idle. Account profile = studio-style, participate=[designer]. v0.5.62 (calendar-view-clarity, Improve lane) FULLY SHIPPED -- source + binaries + records. Three Calendar changes, frontend-only, offline, zero new network/data/providers: (1) all-years COMBINED grid now aligns weekday columns to the CURRENT year (module-level SESSION_NOW_MS/CURRENT_YEAR constant, render-pure) instead of the fixed COMBINED_REF_YEAR=2000 -- the durable fix for the 'all-years shows fewer species' confusion (solved at the layout, not by labels); Feb pinned to 29 days in combined view regardless of current-year leapness so the Feb-29 cell survives (2026 non-leap); per-day count/union/sum logic UNCHANGED (v0.5.61 invariants intact + still regression-locked). (2) YearOverview mini-cells reverted to SHADING-ONLY -- reverses v0.5.60's mini-cell day-numbers + the .sr-cal-minimonth 152px container-query floor (retired). (3) View toggle labels SWAPPED: month-grid='Compact', overview='Large'; internal values made DENSITY-NEUTRAL ('months'/'overview') so labels/code can't drift on a future relabel (new CLAUDE.md convention). Phones still force the month-grid (now labeled Compact). Verified: 1410 FE tests (independent ground-truth re-run) + build/typecheck/lint green; 7-lens adversarial verify workflow = 0 confirmed defects; security PASSED 0 findings. Release: feature commit 89e3b9c, tag v0.5.62, Windows CI 28720531141 headSha==tag, headless release.sh by me on Hephaestus (I RUN RELEASES) -- notarized+stapled universal DMG, signed Windows installer, latest.json all 3 platforms, marked Latest. Records commit a12e098 (DECISIONS reversal entry for v0.5.60/61; CLAUDE convention + 2 stale-ref fixes; PRODUCT_CONTEXT Calendar line; ROADMAP Shipped 95->96). No pending releases.",
   "ideaId": null,
   "confirmedArtifacts": [
-    "pipeline/calendar-tuneup/change-brief.md",
-    "pipeline/calendar-tuneup/pr-description.md",
-    "pipeline/calendar-tuneup/how-to-see.md",
-    "pipeline/calendar-tuneup/qa-report.md",
-    "pipeline/calendar-tuneup/security-report.md"
+    "pipeline/calendar-view-clarity/change-brief.md",
+    "pipeline/calendar-view-clarity/qa-report.md",
+    "pipeline/calendar-view-clarity/security-report.md"
   ],
-  "releasedVersion": "0.5.61",
-  "lastFeature": "calendar-tuneup (Improve lane) -- COMPLETE through all 6 Weft stages, shipped as v0.5.61 SOURCE + BINARIES + RECORDS. Calendar: a searchable species picker (shared SpeciesCombobox, used by Species Detail too), phones show only the Large view, and every Large-view day cell shows its calendar date (the real fix for the all-years grid re-alignment confusion; counts were verified correct + regression-locked). Plus an app-wide iOS no-zoom (.sr-input-16) binding fix. Frontend-only, offline, zero new network. Studio Style run (all auto-advanced to the deploy sign-off); ultracode workflows; the combined-count 'bug' was adversarially verified as correct and re-diagnosed with the user as grid re-alignment.",
-  "remainingBacklog": "No pending releases -- v0.5.61 fully shipped, supersedes v0.5.60. ROADMAP Up Next: mobile app (responsive + touch-a11y groundwork complete); Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; (Calendar) list the day's species in the day popup; (Calendar) optional dates in the Compact/mini view; (Calendar) absolute-vs-per-view shading scale option.",
-  "createdAt": "2026-07-04T07:08:37Z",
-  "updatedAt": "2026-07-04T08:55:00Z"
+  "releasedVersion": "0.5.62",
+  "lastFeature": "calendar-view-clarity (Improve lane) -- COMPLETE through all 6 Improve stages, shipped as v0.5.62 SOURCE + BINARIES + RECORDS. Three Calendar refinements: the all-years combined grid aligns to the current year (Feb-29 preserved; the durable layout fix for the all-years alignment confusion, counts unchanged + still regression-locked), the year-overview thumbnails reverted to shading-only, and the Large/Compact toggle labels swapped (internal values made density-neutral). Frontend-only, offline, zero new network. Studio Style run (no Designer stage in Improve, so all auto-advanced to the deploy sign-off); ultracode 7-lens adversarial verification workflow + independent full-suite ground-truth re-run; DECISIONS.md logs the partial reversal of v0.5.60/61.",
+  "remainingBacklog": "No pending releases -- v0.5.62 fully shipped, supersedes v0.5.61. ROADMAP Up Next: mobile app (responsive + touch-a11y groundwork complete); Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; richer Calendar day popups / county-style shading parity (e.g. list the day's species in the day popup, per-species calendar).",
+  "createdAt": "2026-07-04T20:15:15Z",
+  "updatedAt": "2026-07-04T22:05:00Z"
 }
