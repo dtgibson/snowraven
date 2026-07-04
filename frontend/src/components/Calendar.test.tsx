@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import type { ObservationEntry } from '../types'
+import { dayOfWeek } from '../lib/calendar'
 
 function obs(over: Partial<ObservationEntry> & { date: string; submissionId: string; commonName: string }): ObservationEntry {
   return {
@@ -149,36 +150,37 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     expect(formsSwitch.getAttribute('tabindex')).toBe('0')
   })
 
-  it('the View density toggle defaults Large and switches to a 3×4 Compact overview of 12 mini-months (QA-48)', async () => {
+  it('the View toggle defaults to Compact (big month grids) and Large switches to a 3×4 overview of 12 mini-months (QA-48)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    const largeBtn = screen.getByRole('button', { name: 'Large' })
     const compactBtn = screen.getByRole('button', { name: 'Compact' })
-    expect(largeBtn.getAttribute('aria-pressed')).toBe('true')
-    expect(compactBtn.getAttribute('aria-pressed')).toBe('false')
+    const largeBtn = screen.getByRole('button', { name: 'Large' })
+    // Default is the big month grids, now labeled "Compact".
+    expect(compactBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(largeBtn.getAttribute('aria-pressed')).toBe('false')
 
-    fireEvent.click(compactBtn)
-    // 12 mini-month buttons, each "Open {Month} in the month view"
+    // "Large" is the whole-year thumbnail overview: 12 mini-month buttons.
+    fireEvent.click(largeBtn)
     const miniButtons = screen.getAllByRole('button', { name: /Open .* in the month view/ })
     expect(miniButtons).toHaveLength(12)
 
-    // clicking a mini-month flips back to Large
+    // clicking a mini-month flips back to the big month grids ("Compact")
     fireEvent.click(screen.getByRole('button', { name: 'Open March in the month view' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Large' }).getAttribute('aria-pressed')).toBe('true'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Compact' }).getAttribute('aria-pressed')).toBe('true'))
   })
 
-  it('Compact mini-cells now carry the metric count number (change 3)', async () => {
+  it('Large (overview) mini-cells are shading-only — no in-cell number and no hover title (change 3)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
-    // The March mini-month button contains its cells; the rich 2025-03-14 day (3
-    // species) renders its count. The cell carries a title with the value, and the
-    // number text is inside the mini-month button (decorative, pointer-events none).
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+    // The March mini-month button contains its cells. The rich 2025-03-14 day (3
+    // species) renders as a shaded cell only — no "3" glyph and no `title` figure.
     const marchMini = screen.getByRole('button', { name: 'Open March in the month view' })
-    // Cell title exposes the value; the number span renders the same digit.
-    const cell = marchMini.querySelector('[title="Mar 14, 2025: 3"]')
-    expect(cell).toBeTruthy()
-    expect(cell!.textContent).toContain('3')
+    // No cell carries a value title anymore (the v0.5.60 numbers/titles are retired).
+    expect(marchMini.querySelector('[title="Mar 14, 2025: 3"]')).toBeNull()
+    expect(marchMini.querySelector('[title]')).toBeNull()
+    // The thumbnail carries no digits at all — it's a clean shading-only heatmap.
+    expect(marchMini.textContent).not.toMatch(/\d/)
   })
 })
 
@@ -200,18 +202,18 @@ describe('Calendar — phone forces Large view (change 2)', () => {
     return () => { window.matchMedia = orig }
   }
 
-  it('at phone width the Compact branch never renders even after the toggle is clicked (forced Large)', async () => {
+  it('at phone width the overview (Large) branch never renders even after the toggle is clicked (forced to the big month grids)', async () => {
     // jsdom does not evaluate the @media(max-width:640px){display:none} that hides the
     // toggle, so the toggle buttons remain in the DOM here. What we CAN assert is the
-    // render-force: effectiveDensity = 'large' on a phone, so clicking Compact never
+    // render-force: effectiveMode = 'months' on a phone, so clicking "Large" never
     // mounts the mini-month (YearOverview) branch — the real guarantee of change 2.
     const restore = stubPhoneMatchMedia(true)
     try {
       render(<Calendar {...props} />)
       await screen.findByText('January')
-      // Try to switch to Compact.
-      fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
-      // The mini-month "Open … in the month view" buttons must NOT appear — the Large
+      // Try to switch to the Large overview.
+      fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+      // The mini-month "Open … in the month view" buttons must NOT appear — the big
       // month grids are still rendered.
       expect(screen.queryByRole('button', { name: /in the month view/ })).toBeNull()
       expect(screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })).toBeTruthy()
@@ -220,14 +222,14 @@ describe('Calendar — phone forces Large view (change 2)', () => {
     }
   })
 
-  it('the View toggle sits in a .sr-cal-view-toggle container (the CSS hide hook) and, at desktop width, Compact renders mini-months', async () => {
+  it('the View toggle sits in a .sr-cal-view-toggle container (the CSS hide hook) and, at desktop width, Large renders mini-months', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
     // The CSS hook that the ≤640 media query hides is present on the toggle container.
-    const compactBtn = screen.getByRole('button', { name: 'Compact' })
-    expect(compactBtn.closest('.sr-cal-view-toggle')).toBeTruthy()
-    // At desktop width (default not-phone) Compact still renders the mini-month overview.
-    fireEvent.click(compactBtn)
+    const largeBtn = screen.getByRole('button', { name: 'Large' })
+    expect(largeBtn.closest('.sr-cal-view-toggle')).toBeTruthy()
+    // At desktop width (default not-phone) Large renders the mini-month overview.
+    fireEvent.click(largeBtn)
     expect(screen.getAllByRole('button', { name: /in the month view/ }).length).toBe(12)
   })
 })
@@ -261,6 +263,53 @@ describe('Calendar — in-cell dates (change 3, Large view)', () => {
     const cell = await screen.findByRole('button', { name: /Mar 14 — 3\. Open day details/ })
     expect(cell.textContent).toContain('14')
     expect(cell.textContent).toContain('3')
+  })
+})
+
+describe('Calendar — combined view aligns to the current year & keeps Feb 29 (change 1)', () => {
+  // Return the cell-grid element for a named month card in the Large (big-grid) view.
+  // Card structure: [month-name div, weekday-header grid (aria-hidden), cell grid].
+  // The cell grid is the card's last element child.
+  function monthCellGrid(monthName: string): HTMLElement {
+    const card = screen.getByText(monthName).parentElement as HTMLElement
+    return card.lastElementChild as HTMLElement
+  }
+
+  it('the combined grid’s weekday lead-in matches the CURRENT year, not a fixed reference year', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    fireEvent.click(screen.getByRole('button', { name: 'All years' }))
+    // Wait for the combined view to render (its legend unit is combined-only).
+    await screen.findByText('Species ever recorded')
+
+    // The lead-in is the number of leading empty pad cells before day-of-month 1. In
+    // the combined view that must equal dayOfWeek(CURRENT_YEAR, month, 1) — the same
+    // value this year's single-year grid uses. A fixed 2000 reference would give a
+    // different lead for most months (a regression to the old behavior fails here).
+    const currentYear = new Date().getFullYear()
+    for (const [monthName, monthIdx] of [['January', 1], ['March', 3], ['July', 7]] as const) {
+      const grid = monthCellGrid(monthName)
+      // Leading pad cells: aria-hidden, no text (day 1 is the first cell carrying a
+      // "1"). Count children until the first one whose text starts with "1".
+      const kids = Array.from(grid.children) as HTMLElement[]
+      let lead = 0
+      while (lead < kids.length && (kids[lead].textContent ?? '').trim() === '') lead++
+      expect(lead).toBe(dayOfWeek(currentYear, monthIdx, 1))
+    }
+  })
+
+  it('the combined February keeps its Feb 29 cell even when the current year is not a leap year', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('February')
+    fireEvent.click(screen.getByRole('button', { name: 'All years' }))
+    await screen.findByText('Species ever recorded')
+    // February's card must contain a day-of-month "29". 2026 (a plausible current
+    // year) is NOT a leap year, so a naive current-year daysInMonth swap would drop
+    // this cell — the combined view pins February to 29 days regardless. The Feb-29
+    // day has no data in the fixture, so it renders as a dated no-data corner.
+    const grid = monthCellGrid('February')
+    const dayNums = Array.from(grid.querySelectorAll('.sr-cal-daynum')).map(e => e.textContent?.trim())
+    expect(dayNums).toContain('29')
   })
 })
 
@@ -474,9 +523,9 @@ describe('Calendar — no re-read / no re-parse on toggle (QA-04 / QA-41)', () =
     // Metric toggle Species → Checklists → Species.
     fireEvent.click(screen.getByRole('button', { name: 'Checklists' }))
     fireEvent.click(screen.getByRole('button', { name: 'Species' }))
-    // View-density toggle Large → Compact → Large.
-    fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
+    // View toggle Compact (big grids) → Large (overview) → Compact.
     fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
     // Use Textures on/off.
     fireEvent.click(screen.getByRole('switch', { name: 'Use Textures' }))
     fireEvent.click(screen.getByRole('switch', { name: 'Use Textures' }))

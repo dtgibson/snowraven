@@ -67,7 +67,7 @@ describe('date helpers — lexical, no new Date() (QA-08/QA-12/QA-15)', () => {
     expect(dayOfWeek(2000, 1, 1)).toBe(6)
     // 2025-01-01 was a Wednesday (3)
     expect(dayOfWeek(2025, 1, 1)).toBe(3)
-    // 2000-02-29 (the combined ref leap day) was a Tuesday (2)
+    // 2000-02-29 was a Tuesday (2)
     expect(dayOfWeek(2000, 2, 29)).toBe(2)
   })
 })

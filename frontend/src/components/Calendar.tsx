@@ -2,12 +2,13 @@
 // wall calendar's twelve pages), each day carrying a count — species-seen-that-day
 // or checklists-that-day, by a toggle — relatively color-shaded (with a colorblind
 // crosshatch-density alternative), navigable across every year the backup covers
-// plus an all-years-combined view. Clicking a day opens a popup with that day's
-// summary and links to its eBird checklists. A Large|Compact view-density toggle
-// switches between the big month grids and a 3×4 Year-Overview of mini-month
-// thumbnails (both show the whole year — only the cell size differs); a low-emphasis
-// "Count spuh, slash & hybrids" toggle optionally admits non-countable forms into
-// the Species / Total count metrics.
+// plus an all-years-combined view (whose weekday columns align to the CURRENT year).
+// Clicking a day opens a popup with that day's summary and links to its eBird
+// checklists. A view toggle switches between the big month grids (labeled "Compact")
+// and a 3×4 Year-Overview of shading-only mini-month thumbnails (labeled "Large") —
+// both show the whole year, only the cell size differs; a low-emphasis "Count spuh,
+// slash & hybrids" toggle optionally admits non-countable forms into the Species /
+// Total count metrics.
 //
 // Frontend-only, offline, zero new network. Pure derivation lives in lib/calendar.ts;
 // the DOM crosshatch density in lib/calendarTextures.ts. See pipeline/calendar-tab.
@@ -37,9 +38,21 @@ import { useIsPhone } from '../lib/useIsPhone'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] // Sunday-first single letters
-const COMBINED_REF_YEAR = 2000 // fixed reference leap year for stable weekday columns
 
-type ViewDensity = 'large' | 'compact'
+// The combined ("All years") grid aligns its weekday columns to the CURRENT year, so
+// the combined layout matches this year's single-year view instead of a fixed
+// reference year no birder is looking at. The "now" read is a module-level SESSION
+// constant (evaluated once at import) — NEVER a render-time new Date()/Date.now()
+// (react-hooks/purity is build-blocking). This is grid GEOMETRY only; it never feeds
+// dataYears/defaultYear (the no-now-read year-selection contract is untouched).
+const SESSION_NOW_MS = Date.now()
+const CURRENT_YEAR = new Date(SESSION_NOW_MS).getFullYear()
+
+// The View toggle is density-neutral internally: 'months' renders the big MonthGrid
+// (labeled "Compact"), 'overview' renders the YearOverview thumbnails (labeled
+// "Large"). Keeping the value names label-agnostic means the UI copy can be worded
+// however reads best without the code and the label disagreeing. Session-only state.
+type ViewMode = 'months' | 'overview'
 
 type Phase =
   | { tag: 'loading' }
@@ -254,11 +267,18 @@ function cellDateLabel(bucketKey: string): string {
   return `${abbr[mo - 1]} ${d}`
 }
 
-// Build the ordered cell descriptors for one month grid. `refYear` is the calendar
-// year for weekday geometry (the actual year, or COMBINED_REF_YEAR for combined).
+// Build the ordered cell descriptors for one month grid. `leadYear` is the calendar
+// year for the weekday lead-in geometry: the actual year for a single-year view, or
+// CURRENT_YEAR for the combined view so its columns match this year's grid. `combined`
+// forces February to 29 days regardless of the lead year's leapness — the combined
+// grid always keeps its Feb-29 cell (the README promise), even when CURRENT_YEAR is a
+// non-leap year like 2026. The two uses of the year are deliberately decoupled: the
+// weekday lead-in follows leadYear; daysInMonth for the combined view is pinned to 29
+// for February and the Feb-29 cell flows into the slot after Feb 28.
 function buildMonthCells(
   month: number,
-  refYear: number,
+  leadYear: number,
+  combined: boolean,
   keyFor: (day: number) => string,
   cells: DayCellMap,
   tiers: CountyTiers,
@@ -266,9 +286,9 @@ function buildMonthCells(
   includeForms: boolean,
 ): DayCellDescriptor[] {
   const out: DayCellDescriptor[] = []
-  const lead = dayOfWeek(refYear, month, 1) // 0=Sunday
+  const lead = dayOfWeek(leadYear, month, 1) // 0=Sunday
   for (let i = 0; i < lead; i++) out.push({ kind: 'pad' })
-  const dim = daysInMonth(refYear, month)
+  const dim = combined && month === 2 ? 29 : daysInMonth(leadYear, month)
   for (let day = 1; day <= dim; day++) {
     const key = keyFor(day)
     const cell = cells.get(key)
@@ -358,40 +378,23 @@ function MiniMonth({ month, descriptors, textures, onExpand }: {
 }
 
 function MiniDayCell({ desc, textures }: { desc: DayCellDescriptor; textures: boolean }) {
-  // A centering box for the decorative in-cell number. The whole mini-month is ONE
-  // button (its aria-label names the month) and each cell carries a `title` with the
-  // value — the number is a visual read only, so pointerEvents:none keeps the button
-  // the sole hit target and the number never intercepts the click.
+  // A shading-only thumbnail cell (the v0.5.58 baseline). The whole mini-month is ONE
+  // button (its aria-label names the month); each cell carries only its shade tier —
+  // no in-cell number and no hover title, so the thumbnail reads as a clean magnitude
+  // heatmap. The exact figures live in the Large (MonthGrid) view and the day popup.
   const base: React.CSSProperties = {
-    aspectRatio: '1 / 1', borderRadius: 2, minWidth: 0,
-    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
-  }
-  const numBase: React.CSSProperties = {
-    fontSize: '0.5rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
-    pointerEvents: 'none',
+    aspectRatio: '1 / 1', borderRadius: 2, minWidth: 0, overflow: 'hidden',
   }
   if (desc.kind === 'pad') return <div aria-hidden style={{ ...base, background: 'transparent' }} />
   if (desc.kind === 'nodata') return <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)' }} />
   if (desc.kind === 'zero') {
-    // Present-but-zero: a muted "0" (parity with the Large view's zero cell).
-    return (
-      <div aria-hidden title={`${cellDateLabel(desc.cell!.bucketKey)}: birded, 0 countable`} className="sr-cal-mininum" style={{ ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }}>
-        <span style={{ ...numBase, color: 'var(--sr-text-muted)' }}>0</span>
-      </div>
-    )
+    // Present-but-zero: a muted outlined cell (parity with the Large view's zero cell,
+    // shading-only — no "0" glyph in the thumbnail).
+    return <div aria-hidden style={{ ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }} />
   }
   const tier = desc.tier!
   const fill: React.CSSProperties = textures ? calMiniHatchCss(tier) : { background: `var(--sr-cal-${tier})` }
-  // In textures mode the crosshatch would swallow the number — back it with the same
-  // tier-color pill the Large cell uses so it reads over the hatch.
-  const pill: React.CSSProperties = textures
-    ? { background: `rgba(var(--sr-cal-${tier}-rgb), 0.9)`, borderRadius: 2, padding: '0 1px' }
-    : {}
-  return (
-    <div aria-hidden title={`${cellDateLabel(desc.cell!.bucketKey)}: ${desc.count}`} className="sr-cal-mininum" style={{ ...base, ...fill }}>
-      <span style={{ ...numBase, color: 'var(--sr-cal-fg)', ...pill }}>{desc.count}</span>
-    </div>
-  )
+  return <div aria-hidden style={{ ...base, ...fill }} />
 }
 
 // ── Legend ───────────────────────────────────────────────────────────────────
@@ -630,12 +633,14 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   const [view, setView] = useState<CalendarView>({ kind: 'year', year: 0 })
   const [metric, setMetric] = useState<CalendarMetric>('species')
   const [textures, setTextures] = useState(false)
-  const [density, setDensity] = useState<ViewDensity>('large')
-  // On a phone (≤640) always render the Large month grids: the two view branches are
+  // The View toggle: 'months' = the big MonthGrid ("Compact" label), 'overview' = the
+  // YearOverview thumbnails ("Large" label). Default is the big month grids.
+  const [viewMode, setViewMode] = useState<ViewMode>('months')
+  // On a phone (≤640) always render the big month grids: the two view branches are
   // different DOM (MonthGrid vs YearOverview), so CSS alone can't convert a stale
-  // 'compact' (carried in from a wider session) into Large. The View toggle itself is
-  // hidden via CSS (.sr-cal-view-toggle). effectiveDensity is the ONLY new derived
-  // value; `density` state + ViewDensity are unchanged.
+  // 'overview' (carried in from a wider session) into the month grids. The View toggle
+  // itself is hidden via CSS (.sr-cal-view-toggle). effectiveMode is the ONLY new
+  // derived value; `viewMode` state + ViewMode are session-only.
   const isPhone = useIsPhone()
   const [includeForms, setIncludeForms] = useState(false)
   // Session-only per-species filter ('' = All species). A normalized common name.
@@ -705,19 +710,23 @@ export function Calendar({ onGoToSettings, filesVersion }: {
     [cells, metric, effectiveForms],
   )
 
-  // Twelve months of cell descriptors (both densities read the same). Combined view
-  // uses the fixed reference leap year 2000 for weekday geometry & the Feb-29 cell.
-  const refYear = view.kind === 'combined' ? COMBINED_REF_YEAR : view.year
+  // Twelve months of cell descriptors (both densities read the same). The combined
+  // view aligns its weekday lead-in to CURRENT_YEAR (a module-level session constant,
+  // never a render-time now-read) so the combined grid matches this year's single-year
+  // view; buildMonthCells pins February to 29 days in the combined view so the Feb-29
+  // cell survives even in a non-leap current year.
+  const combinedView = view.kind === 'combined'
+  const leadYear = combinedView ? CURRENT_YEAR : view.year
   const monthDescriptors = useMemo(() => {
     const out: DayCellDescriptor[][] = []
     for (let m = 1; m <= 12; m++) {
-      const keyFor = view.kind === 'combined'
+      const keyFor = combinedView
         ? (day: number) => `${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
         : (day: number) => `${view.year}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-      out.push(buildMonthCells(m, refYear, keyFor, cells, tiers, metric, effectiveForms))
+      out.push(buildMonthCells(m, leadYear, combinedView, keyFor, cells, tiers, metric, effectiveForms))
     }
     return out
-  }, [cells, tiers, metric, effectiveForms, view, refYear])
+  }, [cells, tiers, metric, effectiveForms, view, combinedView, leadYear])
 
   // Days-birded count for the sub-line (distinct populated buckets).
   const daysBirded = cells.size
@@ -734,7 +743,8 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   }
 
   const expandMonth = (month: number) => {
-    setDensity('large')
+    // Jump from the overview into the big month grids and scroll to the month.
+    setViewMode('months')
     const idx = month - 1
     requestAnimationFrame(() => {
       const card = monthCardRefs.current[idx]
@@ -808,9 +818,10 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   }
 
   const combined = view.kind === 'combined'
-  // Phones always show Large (the toggle is CSS-hidden at ≤640); tablet/desktop honor
-  // the density toggle. A stale 'compact' from a wider session can't strand a phone.
-  const effectiveDensity: ViewDensity = isPhone ? 'large' : density
+  // Phones always show the big month grids (the toggle is CSS-hidden at ≤640, and it's
+  // labeled "Compact"); tablet/desktop honor the toggle. A stale 'overview' from a
+  // wider session can't strand a phone on the thumbnail view.
+  const effectiveMode: ViewMode = isPhone ? 'months' : viewMode
   const yearSpan = years.length ? { lo: years[0], hi: years[years.length - 1] } : null
   const prevDisabled = combined || adjacentDataYear(years, view.kind === 'year' ? view.year : 0, -1) == null
   const nextDisabled = combined || adjacentDataYear(years, view.kind === 'year' ? view.year : 0, 1) == null
@@ -907,12 +918,12 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <div className="sr-cal-view-toggle" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={ctrlLabelStyle}>View</span>
             <SegControl
-              ariaLabel="View density"
-              value={density}
-              onChange={setDensity}
+              ariaLabel="Calendar view"
+              value={viewMode}
+              onChange={setViewMode}
               options={[
-                { value: 'large', label: 'Large', title: 'Large day cells across the whole year, with day numbers', icon: <LayoutGrid size={13} strokeWidth={2.2} aria-hidden /> },
-                { value: 'compact', label: 'Compact', title: 'Compact day cells across the whole year', icon: <Grid2x2 size={13} strokeWidth={2.2} aria-hidden /> },
+                { value: 'months', label: 'Compact', title: 'The twelve big month grids, with a date and a count on every day', icon: <LayoutGrid size={13} strokeWidth={2.2} aria-hidden /> },
+                { value: 'overview', label: 'Large', title: 'All twelve months as shaded thumbnails — the whole year at a glance', icon: <Grid2x2 size={13} strokeWidth={2.2} aria-hidden /> },
               ]}
             />
           </div>
@@ -948,8 +959,9 @@ export function Calendar({ onGoToSettings, filesVersion }: {
         <CalendarLegend view={view} metric={metric} textures={textures} tiers={tiers} />
       </div>
 
-      {/* Grid */}
-      {effectiveDensity === 'large' ? (
+      {/* Grid: 'months' → the big MonthGrid cards ("Compact" label); 'overview' → the
+          YearOverview thumbnails ("Large" label). */}
+      {effectiveMode === 'months' ? (
         <div className="sr-cal-months">
           {monthDescriptors.map((descriptors, i) => (
             <MonthGrid

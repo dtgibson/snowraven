@@ -696,27 +696,12 @@ h1, h2, h3, h4, h5, h6 {
    reflow is column-controlled, so it isn't a self-collapsing auto-fill). */
 .sr-cal-year { display: grid; gap: 16px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-/* Mini-month card: the "Open →" affordance fades in on hover/focus. Also a SIZE
-   CONTAINER (change 3) so the in-cell day number can degrade to shading-only when the
-   card is too narrow for a legible cell — a container query, not a viewport breakpoint,
-   because the mini-month width is driven by the 3/2/1-up .sr-cal-year grid, not the
-   window. */
-.sr-cal-minimonth { container-type: inline-size; }
+/* Mini-month card: the "Open →" affordance fades in on hover/focus. The mini-month
+   thumbnails are shading-only (no in-cell numbers), so no container query is needed. */
 .sr-cal-mini-open { opacity: 0; transition: opacity .12s; }
 .sr-cal-minimonth:hover .sr-cal-mini-open,
 .sr-cal-minimonth:focus-visible .sr-cal-mini-open { opacity: 1; }
 .sr-cal-minimonth:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-
-/* Compact-view mini-cell day number (change 3). Hidden by default; a 7-col 1fr grid
-   inside a card padded 12px 14px means each cell is ~(cardW − 28 − 12) / 7 wide, so a
-   card ≥ ~152px gives ≥ ~16px cells — the legibility floor (the sanctioned px exception,
-   like .sr-input-16). Below that the number is hidden and the cell stays shading-only,
-   NEVER distorting the 3×4 grid or the aspectRatio-1/1 cells. The exact value always
-   lives in the Large view + the day popup. */
-.sr-cal-mininum > span { display: none; }
-@container (min-width: 152px) {
-  .sr-cal-mininum > span { display: inline; }
-}
 
 /* Fixed N-up grids that collapse on smaller screens (see the media blocks). */
 .sr-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sr-grid-gap, 14px); }
@@ -1091,8 +1076,8 @@ select:focus-visible {
      before collapsing to one column at the small-phone tier. Tightened inter-month
      gap so the stacked single column needs less scroll (change 2). */
   .sr-cal-months { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
-  /* Phones show only the Large view — hide the View density toggle (removes it from
-     the tab order + a11y tree; the render forces Large via useIsPhone). */
+  /* Phones show only the Compact view — hide the view toggle (removes it from
+     the tab order + a11y tree; the render forces Compact via useIsPhone). */
   .sr-cal-view-toggle { display: none; }
   /* Slightly larger in-cell day number on phones for legibility (rem → holds at 200%
      text scale). */

@@ -2,6 +2,13 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.62] - 2026-07-04
+
+### Changed
+- **The Calendar's All years grid now aligns to the current year.** The combined ("All years") view laid out its weekday columns against a fixed reference year, so the grid positions matched no real calendar. It now aligns to the current year, matching the layout of this year's single-year view — while still keeping February's Feb 29 cell even in a non-leap year.
+- **The Calendar's whole-year overview thumbnails are shading-only again.** The 3×4 mini-month thumbnails no longer print a number in each cell; the shape of your year reads from color (or texture) alone, and the exact figures stay in the big month grids and the day popup.
+- **The Calendar's View toggle labels are swapped.** The big month grids are now labeled **Compact** (the default) and the whole-year thumbnail overview is labeled **Large**. Only the labels changed — the two layouts are the same, and phones still always show the big month grids.
+
 ## [0.5.61] - 2026-07-04
 
 ### Changed

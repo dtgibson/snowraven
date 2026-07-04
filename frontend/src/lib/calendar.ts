@@ -102,8 +102,10 @@ export function dateParts(s: string): { year: number; month: number; day: number
 }
 
 /** Pure arithmetic day-of-week (Sakamoto), 0=Sunday..6=Saturday — NO new Date().
- *  Single-year months key on dayOfWeek(year, m, d); combined months key on
- *  dayOfWeek(2000, m, d) (the fixed reference leap year). */
+ *  Single-year months key on dayOfWeek(year, m, d); the combined ("All years") view
+ *  aligns its weekday lead-in to the CURRENT year (Calendar.tsx's CURRENT_YEAR
+ *  session constant) so it matches this year's grid, while pinning February to 29
+ *  days so the Feb-29 cell survives a non-leap current year. */
 export function dayOfWeek(year: number, month: number, day: number): number {
   const t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4]
   let y = year
