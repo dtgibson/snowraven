@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>SnowRaven — Calendar tab (design)</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════
+   SnowRaven design tokens — copied verbatim from frontend/src/globals.css
+   (:root light + [data-theme="dark"] dark). This mockup uses ONLY these.
+   ══════════════════════════════════════════════════════════════════════ */
+:root{
+  --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+  --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA; --sr-text-gray:#6B7280;
+  --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE; --sr-border-input:#8A8A91;
+  --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE;
+  --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-border-strong:rgba(39,116,72,0.7);
+  --sr-on-accent:#FFFFFF;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  /* Calendar day-shade ramp — NEW tokens from schema.md §1. Deep green, IDENTICAL
+     in both themes, sized so a WHITE on-cell number clears 4.5:1 on every tier. */
+  --sr-cal-1:#357E56; --sr-cal-1-rgb:53,126,86;
+  --sr-cal-2:#2A6847; --sr-cal-2-rgb:42,104,71;
+  --sr-cal-3:#205238; --sr-cal-3-rgb:32,82,56;
+  --sr-cal-4:#163D29; --sr-cal-4-rgb:22,61,41;
+  --sr-cal-5:#0C271A; --sr-cal-5-rgb:12,39,26;
+  --sr-cal-fg:#FFFFFF;
+}
+[data-theme="dark"]{
+  --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+  --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-disabled:#52525B; --sr-text-gray:#8A8A92;
+  --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46; --sr-border-input:#8A8A91;
+  --sr-accent:#34D399; --sr-accent-strong:#34D399; --sr-accent-bg:#052E16;
+  --sr-accent-border:rgba(52,211,153,0.2); --sr-accent-border-strong:rgba(52,211,153,0.7);
+  --sr-on-accent:#052E16;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  /* --sr-cal-* identical in both themes by design (deep ramp, single white number). */
+  --sr-cal-1:#357E56; --sr-cal-1-rgb:53,126,86;
+  --sr-cal-2:#2A6847; --sr-cal-2-rgb:42,104,71;
+  --sr-cal-3:#205238; --sr-cal-3-rgb:32,82,56;
+  --sr-cal-4:#163D29; --sr-cal-4-rgb:22,61,41;
+  --sr-cal-5:#0C271A; --sr-cal-5-rgb:12,39,26;
+  --sr-cal-fg:#FFFFFF;
+}
+
+*{box-sizing:border-box}
+html{font-size:16px}
+body{
+  margin:0; background:var(--sr-bg); color:var(--sr-text);
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased; line-height:1.5;
+}
+
+/* ── Mockup-only chrome (not part of the app; makes the two modes & themes viewable) ── */
+.mock-bar{
+  position:sticky; top:0; z-index:50; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  padding:10px 16px; background:var(--sr-surface); border-bottom:1px solid var(--sr-border);
+  font-size:0.75rem;
+}
+.mock-bar .mock-tag{font-weight:700; letter-spacing:0.02em; color:var(--sr-text-muted); margin-right:4px}
+.mock-btn{
+  font:inherit; font-size:0.71875rem; font-weight:600; cursor:pointer;
+  border:1px solid var(--sr-border-medium); background:var(--sr-surface); color:var(--sr-text);
+  border-radius:7px; padding:6px 11px; display:inline-flex; align-items:center; gap:6px;
+}
+.mock-btn[aria-pressed="true"]{background:var(--sr-accent-bg); border-color:var(--sr-accent-border-strong); color:var(--sr-accent); }
+.mock-note{font-size:0.6875rem; color:var(--sr-text-muted)}
+
+/* ── App panel (mirrors App.tsx .sr-panel: max-width cap, centered, tab padding) ── */
+.sr-panel{max-width:1280px; margin:0 auto; padding:40px 24px 48px; }
+
+/* ── House header (30px accent-bg icon tile + h2 + one-line muted description) ── */
+.house-head{display:flex; align-items:flex-start; gap:10px; margin-bottom:14px}
+.house-tile{
+  width:30px; height:30px; border-radius:8px; flex-shrink:0;
+  background:var(--sr-accent-bg); color:var(--sr-accent);
+  display:flex; align-items:center; justify-content:center;
+}
+.house-h2{font-size:1.125rem; font-weight:700; letter-spacing:-0.01em; margin:0 0 2px; color:var(--sr-text)}
+.house-sub{font-size:0.8125rem; color:var(--sr-text-muted); margin:0; line-height:1.5}
+
+/* ── Control strip (surface-faint band, like Checklists filters) ──
+   A vertical container: a primary controls row, then a low-emphasis settling row. */
+.ctrl-strip{
+  display:flex; flex-direction:column; gap:0;
+  padding:0; margin-bottom:18px;
+  background:var(--sr-surface-faint); border:1px solid var(--sr-border-subtle); border-radius:10px;
+}
+/* Primary controls — one graceful wrapping row (metric, year, view, textures). */
+.ctrl-primary{
+  display:flex; align-items:center; gap:16px 14px; flex-wrap:wrap;
+  padding:12px 16px;
+}
+.ctrl-group{display:flex; align-items:center; gap:8px}
+.ctrl-label{font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--sr-text-muted)}
+.ctrl-spacer{flex:1 1 auto; min-width:0}
+/* Settling row — its own full-width line below, visually separated, low emphasis. */
+.ctrl-settle{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:9px 16px; border-top:1px solid var(--sr-border-subtle);
+  background:var(--sr-surface-subtle); border-radius:0 0 10px 10px;
+}
+
+/* SegControl — pill-in-tray, verbatim from MapSidebarUI.tsx */
+.seg{display:inline-flex; gap:2px; background:var(--sr-surface-subtle); border-radius:6px; padding:2px}
+.seg button{
+  font:inherit; font-size:0.71875rem; padding:0.35rem 12px; border-radius:5px; cursor:pointer;
+  background:transparent; border:1px solid transparent; color:var(--sr-text-muted); font-weight:400; white-space:nowrap;
+  display:inline-flex; align-items:center; gap:5px;
+}
+.seg button svg{opacity:0.75}
+.seg button[aria-pressed="true"]{background:var(--sr-surface); border-color:var(--sr-border); color:var(--sr-text); font-weight:600}
+.seg button[aria-pressed="true"] svg{opacity:1}
+
+/* Year navigator */
+.yearnav{display:inline-flex; align-items:center; gap:2px}
+.yearnav .navbtn{
+  font:inherit; cursor:pointer; width:30px; height:30px; border-radius:8px;
+  border:1px solid var(--sr-border); background:var(--sr-surface); color:var(--sr-text);
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.yearnav .navbtn:disabled{opacity:0.4; cursor:default}
+.yearnav .navbtn:not(:disabled):hover{border-color:var(--sr-border-medium); background:var(--sr-surface-subtle)}
+.yearnav .yr{min-width:74px; text-align:center; font-size:0.9375rem; font-weight:700; color:var(--sr-text); font-variant-numeric:tabular-nums}
+.allyears{
+  font:inherit; font-size:0.71875rem; font-weight:600; cursor:pointer; margin-left:6px;
+  height:30px; padding:0 12px; border-radius:15px;
+  border:1.5px solid var(--sr-border); background:var(--sr-surface); color:var(--sr-text-muted);
+}
+.allyears[aria-pressed="true"]{border-color:var(--sr-accent-border-strong); background:var(--sr-accent-bg); color:var(--sr-accent)}
+
+/* ToggleSwitch — role="switch" pill (approximation of ui/ToggleSwitch.tsx) */
+.tsw{display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none}
+.tsw .tsw-label{font-size:0.75rem; font-weight:600; color:var(--sr-text)}
+.tsw .track{width:34px; height:20px; border-radius:999px; background:var(--sr-border-medium); position:relative; transition:background .12s}
+.tsw .knob{position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:left .12s}
+.tsw[aria-checked="true"] .track{background:var(--sr-accent)}
+.tsw[aria-checked="true"] .knob{left:16px}
+/* Small variant used for the forms settling-row toggle */
+.tsw-sm .track{width:30px; height:18px}
+.tsw-sm .knob{width:14px; height:14px}
+.tsw-sm[aria-checked="true"] .knob{left:14px}
+.tsw-sm .tsw-label{font-size:0.71875rem; font-weight:600}
+
+/* Forms settling row — the toggle and its caption sit inline on their own bottom row */
+.forms-cap{margin:0; font-size:0.6875rem; line-height:1.35; color:var(--sr-text-muted)}
+/* De-emphasized + non-interactive when the Checklists metric is active
+   (the forms toggle only affects the Species count). */
+.ctrl-settle.is-disabled{opacity:0.45; pointer-events:none}
+
+/* ── View label + legend row ── */
+.viewrow{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:14px}
+.viewlabel .vl-year{font-size:1rem; font-weight:700; color:var(--sr-text); letter-spacing:-0.01em}
+.viewlabel .vl-sub{font-size:0.71875rem; color:var(--sr-text-muted); margin-top:1px}
+
+.legend{display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap}
+.legend .lg-title{font-size:0.6875rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--sr-text-muted); padding-bottom:2px}
+/* A continuous ramp bar: contiguous tiers, endpoints labeled below with a fewer→more cue. */
+.legend .lg-block{display:flex; flex-direction:column; gap:4px}
+.legend .lg-scale{display:flex; align-items:center; gap:0; border:1px solid var(--sr-border-medium); border-radius:4px; overflow:hidden; box-shadow:0 0 0 1px var(--sr-surface)}
+.lg-item{display:block}
+.lg-sw{display:block; width:34px; height:13px}
+.lg-item:not(:last-child) .lg-sw{border-right:1px solid rgba(255,255,255,0.18)}
+.lg-t1{background:var(--sr-cal-1)} .lg-t2{background:var(--sr-cal-2)} .lg-t3{background:var(--sr-cal-3)} .lg-t4{background:var(--sr-cal-4)} .lg-t5{background:var(--sr-cal-5)}
+.lg-ends{display:flex; justify-content:space-between; align-items:center; gap:8px}
+.lg-ends .lg-end{font-size:0.625rem; color:var(--sr-text-muted); font-variant-numeric:tabular-nums; line-height:1}
+.lg-ends .lg-dir{font-size:0.5625rem; color:var(--sr-text-gray); letter-spacing:0.04em}
+.legend .lg-blanks{display:flex; flex-direction:column; gap:4px; padding-bottom:1px}
+.legend .lg-blank{display:inline-flex; align-items:center; gap:6px; font-size:0.625rem; color:var(--sr-text-muted)}
+.legend .lg-blank .lg-blank-sw{width:13px; height:13px; border-radius:3px; border:1px solid var(--sr-border); background:transparent; flex-shrink:0}
+.legend .lg-blank .lg-zero-sw{width:13px; height:13px; border-radius:3px; border:1px solid var(--sr-border); background:var(--sr-surface-subtle); color:var(--sr-text-muted); font-size:0.5rem; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0}
+.legend .lg-blank .lg-zero-sw{width:14px; height:14px; border-radius:3px; border:1px solid var(--sr-border); background:var(--sr-surface-subtle)}
+
+/* ── The twelve-month container — self-collapsing grid (sr-grid-auto analogue) ── */
+.cal-months{
+  display:grid; gap:18px;
+  grid-template-columns:repeat(auto-fill, minmax(min(230px,100%), 1fr));
+}
+.cal-month{
+  background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:12px;
+  box-shadow:var(--sr-card-shadow); padding:12px 12px 14px;
+}
+.cal-month-name{font-size:0.8125rem; font-weight:700; color:var(--sr-text); margin:0 2px 8px; letter-spacing:-0.01em}
+.cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px}
+.cal-grid-wd{margin-bottom:4px}
+.cal-wd{font-size:0.5625rem; font-weight:700; color:var(--sr-text-gray); text-align:center; text-transform:uppercase; letter-spacing:0.03em}
+
+/* Day cells — three states */
+.cal-cell{
+  aspect-ratio:1/1; border-radius:5px; border:0; padding:0; margin:0;
+  display:flex; align-items:center; justify-content:center; position:relative;
+  font:inherit;
+}
+.cal-pad{background:transparent; pointer-events:none}
+.cal-nodata{background:transparent; border:1px solid var(--sr-border-subtle); pointer-events:none}
+.cal-data, .cal-zero{cursor:pointer; -webkit-tap-highlight-color:transparent}
+.cal-data:focus-visible, .cal-zero:focus-visible{outline:2px solid var(--sr-accent); outline-offset:2px}
+.cal-num{font-size:0.6875rem; font-weight:600; font-variant-numeric:tabular-nums; color:var(--sr-cal-fg); line-height:1}
+.cal-num-muted{color:var(--sr-text-muted)}
+.cal-zero{background:var(--sr-surface-subtle); border:1px solid var(--sr-border-subtle)}
+
+/* Color tiers */
+.cal-t1{background:var(--sr-cal-1)} .cal-t2{background:var(--sr-cal-2)} .cal-t3{background:var(--sr-cal-3)} .cal-t4{background:var(--sr-cal-4)} .cal-t5{background:var(--sr-cal-5)}
+.cal-data:hover{filter:brightness(1.12)}
+.cal-zero:hover{background:var(--sr-border-subtle)}
+
+/* Texture tiers — repeating-linear-gradient crosshatch, density rises with tier.
+   Values track CAL_HATCH (gap 9→3, line 1.0→1.8) from calendarTextures.ts. */
+.cal-tex .cal-num{
+  /* number sits on a small backing chip so it reads over the sparse lattice */
+  background:rgba(var(--tex-rgb),0.9); border-radius:3px; padding:0 3px;
+}
+.cal-tex-1{--tex-rgb:var(--sr-cal-1-rgb); background-color:rgba(var(--sr-cal-1-rgb),0.12);
+  background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-1-rgb),0.85) 0 1px,transparent 1px 9px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-1-rgb),0.85) 0 1px,transparent 1px 9px)}
+.cal-tex-2{--tex-rgb:var(--sr-cal-2-rgb); background-color:rgba(var(--sr-cal-2-rgb),0.12);
+  background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-2-rgb),0.85) 0 1.1px,transparent 1.1px 7px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-2-rgb),0.85) 0 1.1px,transparent 1.1px 7px)}
+.cal-tex-3{--tex-rgb:var(--sr-cal-3-rgb); background-color:rgba(var(--sr-cal-3-rgb),0.12);
+  background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-3-rgb),0.85) 0 1.3px,transparent 1.3px 5.5px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-3-rgb),0.85) 0 1.3px,transparent 1.3px 5.5px)}
+.cal-tex-4{--tex-rgb:var(--sr-cal-4-rgb); background-color:rgba(var(--sr-cal-4-rgb),0.12);
+  background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-4-rgb),0.85) 0 1.5px,transparent 1.5px 4px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-4-rgb),0.85) 0 1.5px,transparent 1.5px 4px)}
+.cal-tex-5{--tex-rgb:var(--sr-cal-5-rgb); background-color:rgba(var(--sr-cal-5-rgb),0.12);
+  background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-5-rgb),0.85) 0 1.8px,transparent 1.8px 3px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-5-rgb),0.85) 0 1.8px,transparent 1.8px 3px)}
+/* Texture legend swatches (same source geometry) */
+.lg-tex{border:1px solid var(--sr-border-medium)}
+.lg-tex-1{background-color:rgba(var(--sr-cal-1-rgb),0.12); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-1-rgb),0.85) 0 1px,transparent 1px 9px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-1-rgb),0.85) 0 1px,transparent 1px 9px)}
+.lg-tex-2{background-color:rgba(var(--sr-cal-2-rgb),0.12); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-2-rgb),0.85) 0 1.1px,transparent 1.1px 7px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-2-rgb),0.85) 0 1.1px,transparent 1.1px 7px)}
+.lg-tex-3{background-color:rgba(var(--sr-cal-3-rgb),0.12); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-3-rgb),0.85) 0 1.3px,transparent 1.3px 5.5px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-3-rgb),0.85) 0 1.3px,transparent 1.3px 5.5px)}
+.lg-tex-4{background-color:rgba(var(--sr-cal-4-rgb),0.12); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-4-rgb),0.85) 0 1.5px,transparent 1.5px 4px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-4-rgb),0.85) 0 1.5px,transparent 1.5px 4px)}
+.lg-tex-5{background-color:rgba(var(--sr-cal-5-rgb),0.12); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-5-rgb),0.85) 0 1.8px,transparent 1.8px 3px),repeating-linear-gradient(135deg,rgba(var(--sr-cal-5-rgb),0.85) 0 1.8px,transparent 1.8px 3px)}
+
+/* ── Year Overview — twelve mini-month heatmap thumbnails in a 3×4 grid ──
+   Same 5-tier ramp/texture logic; day numbers dropped (shading is the signal). */
+.cal-year{
+  display:grid; gap:16px;
+  grid-template-columns:repeat(3, minmax(0, 1fr));  /* 3 cols × 4 rows desktop */
+}
+.mini-month{
+  background:var(--sr-surface); border:1px solid var(--sr-border); border-radius:12px;
+  box-shadow:var(--sr-card-shadow); padding:12px 14px 14px; cursor:pointer;
+  transition:border-color .12s, box-shadow .12s, transform .06s; text-align:left;
+  font:inherit; color:inherit; width:100%; display:block;
+}
+.mini-month:hover{border-color:var(--sr-accent-border-strong); box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+.mini-month:focus-visible{outline:2px solid var(--sr-accent); outline-offset:2px}
+.mini-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:0 0 8px}
+.mini-name{font-size:0.8125rem; font-weight:700; color:var(--sr-text); letter-spacing:-0.01em}
+.mini-open{font-size:0.625rem; color:var(--sr-accent); font-weight:600; opacity:0; transition:opacity .12s; display:inline-flex; align-items:center; gap:3px}
+.mini-month:hover .mini-open, .mini-month:focus-visible .mini-open{opacity:1}
+.mini-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:2px}
+.mini-cell{aspect-ratio:1/1; border-radius:2px; min-width:0}
+.mini-pad{background:transparent}
+.mini-nodata{background:transparent; border:1px solid var(--sr-border-subtle)}
+.mini-zero{background:var(--sr-surface-subtle); border:1px solid var(--sr-border-subtle)}
+.mini-t1{background:var(--sr-cal-1)} .mini-t2{background:var(--sr-cal-2)} .mini-t3{background:var(--sr-cal-3)} .mini-t4{background:var(--sr-cal-4)} .mini-t5{background:var(--sr-cal-5)}
+/* Simplified single-direction hatch for texture mode at thumbnail scale — still
+   monotonic (gap 5→2px), reads as density without the full crosshatch clogging a ~7px cell. */
+.mini-tex-1{background-color:rgba(var(--sr-cal-1-rgb),0.16); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-1-rgb),0.9) 0 1px,transparent 1px 5px)}
+.mini-tex-2{background-color:rgba(var(--sr-cal-2-rgb),0.16); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-2-rgb),0.9) 0 1px,transparent 1px 4px)}
+.mini-tex-3{background-color:rgba(var(--sr-cal-3-rgb),0.16); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-3-rgb),0.9) 0 1px,transparent 1px 3.2px)}
+.mini-tex-4{background-color:rgba(var(--sr-cal-4-rgb),0.16); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-4-rgb),0.9) 0 1.1px,transparent 1.1px 2.6px)}
+.mini-tex-5{background-color:rgba(var(--sr-cal-5-rgb),0.16); background-image:repeating-linear-gradient(45deg,rgba(var(--sr-cal-5-rgb),0.9) 0 1.2px,transparent 1.2px 2px)}
+
+/* Section separators inside the panel for the mockup's three showcase views */
+.showcase-head{display:flex; align-items:center; gap:8px; margin:38px 0 4px; padding-top:26px; border-top:1px dashed var(--sr-border)}
+.showcase-head:first-of-type{border-top:0; padding-top:0; margin-top:0}
+.showcase-kicker{font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.09em; color:var(--sr-accent); background:var(--sr-accent-bg); padding:3px 8px; border-radius:5px}
+.showcase-desc{font-size:0.75rem; color:var(--sr-text-muted); margin:2px 0 16px; max-width:62ch}
+
+/* ── Day popup (overlay) ── */
+.pop-backdrop{position:fixed; inset:0; z-index:1200; background:rgba(0,0,0,0.32); display:none; align-items:center; justify-content:center; padding:16px}
+.pop-backdrop.open{display:flex}
+.pop{
+  width:100%; max-width:400px; background:var(--sr-surface); color:var(--sr-text);
+  border:1px solid var(--sr-border); border-radius:14px; box-shadow:var(--sr-card-shadow);
+  overflow:hidden;
+}
+.pop-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:16px 18px 12px; border-bottom:1px solid var(--sr-border-subtle)}
+.pop-date{font-size:1rem; font-weight:700; color:var(--sr-text); letter-spacing:-0.01em; margin:0}
+.pop-agg{font-size:0.6875rem; color:var(--sr-text-muted); margin-top:2px}
+.pop-close{
+  font:inherit; cursor:pointer; width:26px; height:26px; flex-shrink:0; border-radius:7px;
+  border:1px solid var(--sr-border); background:var(--sr-surface); color:var(--sr-text-muted);
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.pop-close:hover{background:var(--sr-surface-subtle); color:var(--sr-text)}
+.pop-stats{display:flex; gap:10px; padding:14px 18px 4px}
+.pop-stat{flex:1; background:var(--sr-surface-subtle); border-radius:9px; padding:10px 12px}
+.pop-stat .ps-num{font-size:1.375rem; font-weight:700; color:var(--sr-accent); line-height:1; font-variant-numeric:tabular-nums}
+.pop-stat .ps-label{font-size:0.6875rem; color:var(--sr-text-muted); margin-top:4px}
+.pop-list-head{font-size:0.625rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color:var(--sr-text-muted); padding:14px 18px 6px}
+.pop-list{padding:0 10px 14px; display:flex; flex-direction:column; gap:2px}
+.pop-row{
+  display:flex; align-items:center; gap:9px; padding:8px 8px; border-radius:8px; text-decoration:none;
+  color:var(--sr-text); font-size:0.8125rem;
+}
+.pop-row:hover{background:var(--sr-surface-subtle)}
+.pop-row .cl-ico{color:var(--sr-accent); flex-shrink:0; display:inline-flex}
+.pop-row .cl-body{min-width:0; flex:1}
+.pop-row .cl-loc{font-weight:600; color:var(--sr-text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; align-items:center; gap:5px}
+.pop-row .cl-meta{font-size:0.6875rem; color:var(--sr-text-muted); margin-top:1px}
+.pop-row .cl-ext{color:var(--sr-accent); flex-shrink:0}
+.pop-row .yr-chip{font-size:0.5625rem; font-weight:700; color:var(--sr-text-muted); background:var(--sr-surface-subtle); border:1px solid var(--sr-border); border-radius:4px; padding:1px 5px; margin-left:auto; flex-shrink:0}
+
+/* Responsive: on phones the months already collapse toward one column via minmax.
+   Bump touch targets on dense day cells in the phone tier. */
+@media (max-width:1024px){
+  .cal-year{grid-template-columns:repeat(2, minmax(0, 1fr))}  /* 3×4 → 2-wide on tablet */
+}
+@media (max-width:640px){
+  .sr-panel{padding:26px 14px 40px}
+  .cal-months{grid-template-columns:repeat(auto-fill, minmax(min(280px,100%), 1fr))}
+  .ctrl-strip{gap:10px}
+  .cal-num{font-size:0.75rem}
+}
+@media (max-width:420px){
+  .cal-months{grid-template-columns:1fr}
+  .cal-year{grid-template-columns:1fr}  /* single column on a phone */
+}
+
+.mock-hidden{display:none !important}
+</style>
+</head>
+<body>
+
+<!-- ══ Mockup-only control bar (NOT part of the shipped tab) ══ -->
+<div class="mock-bar" role="region" aria-label="Mockup controls">
+  <span class="mock-tag">MOCKUP</span>
+  <button class="mock-btn" id="themeBtn" aria-pressed="false" title="Flip light / dark">🌙 Dark theme</button>
+  <span class="mock-note">The controls inside the tab are live too — try the Species / Checklists toggle, Use Textures, and click a shaded day.</span>
+</div>
+
+<!-- ══ The Calendar tab panel ══ -->
+<main class="sr-panel">
+
+  <!-- House header -->
+  <div class="house-head">
+    <div class="house-tile" aria-hidden="true">
+      <!-- lucide calendar-days -->
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+    </div>
+    <div>
+      <h2 class="house-h2">Calendar</h2>
+      <p class="house-sub">A year of your birding as twelve month grids — each day shaded by how much you saw, with a click into the checklists behind it.</p>
+    </div>
+  </div>
+
+  <!-- Control strip: a primary row of controls, then a low-emphasis settling row -->
+  <div class="ctrl-strip" role="region" aria-label="Calendar controls">
+   <div class="ctrl-primary">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Show</span>
+      <div class="seg" role="group" aria-label="Day metric" id="metricSeg">
+        <button aria-pressed="true"  data-metric="species">Species</button>
+        <button aria-pressed="false" data-metric="checklists">Checklists</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">Year</span>
+      <div class="yearnav">
+        <button class="navbtn" id="prevYear" aria-label="Previous year with data">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span class="yr" id="yearLabel">2025</span>
+        <button class="navbtn" id="nextYear" aria-label="Next year with data" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+        <button class="allyears" id="allYears" aria-pressed="false">All years</button>
+      </div>
+    </div>
+
+    <div class="ctrl-spacer"></div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">View</span>
+      <div class="seg" role="group" aria-label="View density" id="densitySeg">
+        <button aria-pressed="true"  data-density="months" title="Large month grids with day numbers">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+          Months
+        </button>
+        <button aria-pressed="false" data-density="year" title="All twelve months as small heatmap thumbnails">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Year
+        </button>
+      </div>
+    </div>
+
+    <div class="tsw" id="texToggle" role="switch" aria-checked="false" tabindex="0" aria-label="Use Textures">
+      <span class="track"><span class="knob"></span></span>
+      <span class="tsw-label">Use Textures</span>
+    </div>
+   </div><!-- /.ctrl-primary -->
+
+   <!-- Settling row: a low-emphasis refinement of the Species count, its own full-width line -->
+   <div class="ctrl-settle" id="formsSub">
+     <div class="tsw tsw-sm" id="formsToggle" role="switch" aria-checked="false" tabindex="0" aria-label="Count spuh, slash and hybrid forms as species">
+       <span class="track"><span class="knob"></span></span>
+       <span class="tsw-label">Count spuh, slash &amp; hybrids</span>
+     </div>
+     <p class="forms-cap" id="formsCap">Spuh / slash / hybrid forms aren't countable species; off by default.</p>
+   </div>
+  </div>
+
+  <!-- View label + legend -->
+  <div class="viewrow">
+    <div class="viewlabel">
+      <div class="vl-year" id="viewYear">2025</div>
+      <div class="vl-sub" id="viewSub">Species seen each day · 198 days birded</div>
+    </div>
+    <div class="legend" aria-label="Shade legend">
+      <span class="lg-title" id="legendTitle">Species / day</span>
+      <div class="lg-block">
+        <div class="lg-scale" id="legendScale"></div>
+        <div class="lg-ends"><span class="lg-end" id="legendMin">8</span><span class="lg-dir">fewer → more</span><span class="lg-end" id="legendMax">71</span></div>
+      </div>
+      <div class="lg-blanks">
+        <span class="lg-blank"><span class="lg-blank-sw"></span>no birding</span>
+        <span class="lg-blank"><span class="lg-zero-sw">0</span>birded · 0 countable</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Twelve months (Months density) -->
+  <div class="cal-months" id="calMonths"></div>
+  <!-- Year Overview (Year density) — hidden until the View toggle selects it -->
+  <div class="cal-year mock-hidden" id="calYear"></div>
+
+
+  <!-- ══ Showcase 2: Use Textures ON (colorblind mode) ══ -->
+  <div class="showcase-head">
+    <span class="showcase-kicker">Colorblind mode</span>
+  </div>
+  <p class="showcase-desc">The same year with <strong>Use Textures</strong> on. Each tier becomes a 45°/135° crosshatch whose density rises with the count, so level is read from ink-density, not hue or brightness. The exact number is always in the day popup too — color is never the only carrier.</p>
+  <div class="viewrow">
+    <div class="viewlabel">
+      <div class="vl-year">2025 · Textures</div>
+      <div class="vl-sub">Species seen each day — density encodes the tier</div>
+    </div>
+    <div class="legend" aria-label="Texture legend">
+      <span class="lg-title">Species / day</span>
+      <div class="lg-block">
+        <div class="lg-scale" id="texLegendScale"></div>
+        <div class="lg-ends"><span class="lg-end" id="texLegendMin">8</span><span class="lg-dir">fewer → more</span><span class="lg-end" id="texLegendMax">71</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="cal-months" id="calMonthsTex"></div>
+
+
+  <!-- ══ Showcase 3: All years combined ══ -->
+  <div class="showcase-head">
+    <span class="showcase-kicker">All years</span>
+  </div>
+  <p class="showcase-desc">Every year folded into one twelve-month grid, keyed by month-and-day. Species counts are a <strong>distinct-species union</strong> across years ("how many different birds have I ever recorded on this date"); checklists are a <strong>sum</strong>. February always carries a Feb&nbsp;29 cell. Aligned to a fixed reference year so the weekday columns stay stable.</p>
+  <div class="viewrow">
+    <div class="viewlabel">
+      <div class="vl-year">All years · 2016–2025</div>
+      <div class="vl-sub">Species ever recorded on each calendar day</div>
+    </div>
+    <div class="legend" aria-label="Combined legend">
+      <span class="lg-title">Species ever recorded</span>
+      <div class="lg-block">
+        <div class="lg-scale" id="combLegendScale"></div>
+        <div class="lg-ends"><span class="lg-end" id="combLegendMin">9</span><span class="lg-dir">fewer → more</span><span class="lg-end" id="combLegendMax">120</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="cal-months" id="calMonthsComb"></div>
+
+
+  <!-- ══ Showcase 4: Year Overview (year-at-a-glance) ══ -->
+  <div class="showcase-head">
+    <span class="showcase-kicker">Year overview</span>
+  </div>
+  <p class="showcase-desc">The <strong>View → Year</strong> density: all twelve months as small heatmap thumbnails in a 3×4 grid, like the back of a wall calendar. Day numbers drop away — the shading is the whole signal, so a year's rhythm (dark spring migration, thin mid-summer, the December spike) reads in one glance. The metric, year navigation, textures, and legend all still apply. Hovering a thumbnail reveals an <em>Open →</em> affordance; clicking it drops back into the big <strong>Months</strong> view scrolled to that month, and clicking an individual day opens the same day popup.</p>
+  <div class="viewrow">
+    <div class="viewlabel">
+      <div class="vl-year">2025 · Year overview</div>
+      <div class="vl-sub">Species seen each day — twelve heatmap thumbnails</div>
+    </div>
+    <div class="legend" aria-label="Year overview legend">
+      <span class="lg-title">Species / day</span>
+      <div class="lg-block">
+        <div class="lg-scale" id="yearLegendScale"></div>
+        <div class="lg-ends"><span class="lg-end" id="yearLegendMin">8</span><span class="lg-dir">fewer → more</span><span class="lg-end" id="yearLegendMax">71</span></div>
+      </div>
+      <div class="lg-blanks">
+        <span class="lg-blank"><span class="lg-blank-sw"></span>no birding</span>
+      </div>
+    </div>
+  </div>
+  <div class="cal-year" id="calYearShowcase"></div>
+
+</main>
+
+<!-- Day popup -->
+<div class="pop-backdrop" id="popBackdrop" role="dialog" aria-modal="true" aria-labelledby="popDate">
+  <div class="pop">
+    <div class="pop-head">
+      <div>
+        <p class="pop-date" id="popDate">March 3, 2025</p>
+        <p class="pop-agg" id="popAgg"></p>
+      </div>
+      <button class="pop-close" id="popClose" aria-label="Close">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="pop-stats">
+      <div class="pop-stat"><div class="ps-num" id="popSp">—</div><div class="ps-label" id="popSpLabel">species</div></div>
+      <div class="pop-stat"><div class="ps-num" id="popCl">—</div><div class="ps-label" id="popClLabel">checklists</div></div>
+    </div>
+    <div class="pop-list-head" id="popListHead">Checklists</div>
+    <div class="pop-list" id="popList"></div>
+  </div>
+</div>
+
+<script id="__CALDATA__" type="application/json">{"year":2025,"months":[{"name":"January","lead":3,"cells":[null,null,null,{"d":1,"sp":20,"cl":2,"tier":2},{"d":2,"nodata":true},{"d":3,"sp":22,"cl":2,"tier":2},{"d":4,"nodata":true},{"d":5,"sp":16,"cl":1,"tier":1},{"d":6,"sp":16,"cl":1,"tier":1},{"d":7,"nodata":true},{"d":8,"nodata":true},{"d":9,"sp":11,"cl":1,"tier":1},{"d":10,"sp":10,"cl":1,"tier":1},{"d":11,"nodata":true},{"d":12,"sp":22,"cl":2,"tier":2},{"d":13,"nodata":true},{"d":14,"nodata":true},{"d":15,"sp":26,"cl":1,"tier":3},{"d":16,"sp":21,"cl":2,"tier":2},{"d":17,"nodata":true},{"d":18,"sp":13,"cl":1,"tier":1},{"d":19,"sp":18,"cl":1,"tier":2},{"d":20,"sp":14,"cl":2,"tier":1},{"d":21,"nodata":true},{"d":22,"sp":11,"cl":2,"tier":1},{"d":23,"nodata":true},{"d":24,"sp":13,"cl":1,"tier":1},{"d":25,"sp":21,"cl":2,"tier":2},{"d":26,"sp":16,"cl":2,"tier":1},{"d":27,"sp":13,"cl":1,"tier":1},{"d":28,"sp":9,"cl":1,"tier":1},{"d":29,"nodata":true},{"d":30,"sp":22,"cl":1,"tier":2},{"d":31,"sp":11,"cl":1,"tier":1}]},{"name":"February","lead":6,"cells":[null,null,null,null,null,null,{"d":1,"nodata":true},{"d":2,"nodata":true},{"d":3,"nodata":true},{"d":4,"nodata":true},{"d":5,"nodata":true},{"d":6,"nodata":true},{"d":7,"nodata":true},{"d":8,"sp":30,"cl":1,"tier":4},{"d":9,"nodata":true},{"d":10,"sp":14,"cl":1,"tier":1},{"d":11,"nodata":true},{"d":12,"sp":11,"cl":2,"tier":1},{"d":13,"nodata":true},{"d":14,"nodata":true},{"d":15,"sp":20,"cl":1,"tier":2},{"d":16,"nodata":true},{"d":17,"nodata":true},{"d":18,"nodata":true},{"d":19,"nodata":true},{"d":20,"sp":22,"cl":2,"tier":2},{"d":21,"sp":26,"cl":2,"tier":3},{"d":22,"sp":19,"cl":1,"tier":2},{"d":23,"nodata":true},{"d":24,"nodata":true},{"d":25,"sp":11,"cl":2,"tier":1},{"d":26,"nodata":true},{"d":27,"nodata":true},{"d":28,"nodata":true}]},{"name":"March","lead":6,"cells":[null,null,null,null,null,null,{"d":1,"sp":19,"cl":2,"tier":2},{"d":2,"sp":10,"cl":3,"tier":1},{"d":3,"sp":34,"cl":1,"tier":4},{"d":4,"nodata":true},{"d":5,"sp":39,"cl":2,"tier":5},{"d":6,"sp":27,"cl":3,"tier":3},{"d":7,"sp":28,"cl":2,"tier":3},{"d":8,"sp":36,"cl":1,"tier":4},{"d":9,"nodata":true},{"d":10,"sp":31,"cl":1,"tier":4},{"d":11,"nodata":true},{"d":12,"nodata":true},{"d":13,"sp":32,"cl":2,"tier":4},{"d":14,"nodata":true},{"d":15,"nodata":true},{"d":16,"sp":14,"cl":1,"tier":1},{"d":17,"sp":21,"cl":1,"tier":2},{"d":18,"sp":37,"cl":2,"tier":4},{"d":19,"nodata":true},{"d":20,"nodata":true},{"d":21,"nodata":true},{"d":22,"nodata":true},{"d":23,"sp":24,"cl":2,"tier":3},{"d":24,"nodata":true},{"d":25,"nodata":true},{"d":26,"nodata":true},{"d":27,"sp":36,"cl":2,"tier":4},{"d":28,"sp":38,"cl":3,"tier":4},{"d":29,"sp":24,"cl":3,"tier":3},{"d":30,"nodata":true},{"d":31,"sp":21,"cl":1,"tier":2}]},{"name":"April","lead":2,"cells":[null,null,{"d":1,"sp":50,"cl":3,"tier":5},{"d":2,"sp":53,"cl":2,"tier":5},{"d":3,"sp":38,"cl":1,"tier":4},{"d":4,"nodata":true},{"d":5,"sp":26,"cl":1,"tier":3},{"d":6,"sp":41,"cl":1,"tier":5},{"d":7,"nodata":true},{"d":8,"nodata":true},{"d":9,"nodata":true},{"d":10,"sp":52,"cl":2,"tier":5},{"d":11,"sp":25,"cl":2,"tier":3},{"d":12,"sp":54,"cl":2,"tier":5},{"d":13,"sp":40,"cl":2,"tier":5},{"d":14,"sp":51,"cl":2,"tier":5},{"d":15,"sp":50,"cl":1,"tier":5},{"d":16,"sp":34,"cl":3,"tier":4},{"d":17,"sp":26,"cl":3,"tier":3},{"d":18,"sp":26,"cl":3,"tier":3},{"d":19,"sp":33,"cl":3,"tier":4},{"d":20,"sp":38,"cl":2,"tier":4},{"d":21,"nodata":true},{"d":22,"sp":45,"cl":2,"tier":5},{"d":23,"nodata":true},{"d":24,"sp":33,"cl":2,"tier":4},{"d":25,"sp":45,"cl":2,"tier":5},{"d":26,"sp":61,"cl":4,"tier":5},{"d":27,"nodata":true},{"d":28,"sp":31,"cl":2,"tier":4},{"d":29,"nodata":true},{"d":30,"sp":32,"cl":1,"tier":4}]},{"name":"May","lead":4,"cells":[null,null,null,null,{"d":1,"sp":43,"cl":2,"tier":5},{"d":2,"sp":37,"cl":2,"tier":4},{"d":3,"sp":36,"cl":4,"tier":4},{"d":4,"sp":43,"cl":4,"tier":5},{"d":5,"nodata":true},{"d":6,"nodata":true},{"d":7,"sp":37,"cl":4,"tier":4},{"d":8,"nodata":true},{"d":9,"sp":54,"cl":3,"tier":5},{"d":10,"sp":68,"cl":3,"tier":5},{"d":11,"sp":59,"cl":3,"tier":5},{"d":12,"sp":32,"cl":2,"tier":4},{"d":13,"sp":42,"cl":2,"tier":5},{"d":14,"sp":47,"cl":3,"tier":5},{"d":15,"sp":57,"cl":4,"tier":5},{"d":16,"sp":56,"cl":4,"tier":5},{"d":17,"nodata":true},{"d":18,"sp":39,"cl":3,"tier":5},{"d":19,"nodata":true},{"d":20,"nodata":true},{"d":21,"sp":42,"cl":2,"tier":5},{"d":22,"sp":49,"cl":2,"tier":5},{"d":23,"sp":48,"cl":3,"tier":5},{"d":24,"sp":59,"cl":3,"tier":5},{"d":25,"sp":41,"cl":3,"tier":5},{"d":26,"sp":42,"cl":4,"tier":5},{"d":27,"sp":49,"cl":2,"tier":5},{"d":28,"sp":37,"cl":4,"tier":4},{"d":29,"sp":33,"cl":3,"tier":4},{"d":30,"sp":27,"cl":3,"tier":3},{"d":31,"sp":30,"cl":3,"tier":4}]},{"name":"June","lead":0,"cells":[{"d":1,"sp":35,"cl":2,"tier":4},{"d":2,"nodata":true},{"d":3,"nodata":true},{"d":4,"sp":32,"cl":1,"tier":4},{"d":5,"sp":17,"cl":2,"tier":2},{"d":6,"sp":33,"cl":2,"tier":4},{"d":7,"nodata":true},{"d":8,"nodata":true},{"d":9,"nodata":true},{"d":10,"sp":21,"cl":2,"tier":2},{"d":11,"nodata":true},{"d":12,"nodata":true},{"d":13,"nodata":true},{"d":14,"nodata":true},{"d":15,"sp":27,"cl":2,"tier":3},{"d":16,"nodata":true},{"d":17,"sp":22,"cl":2,"tier":2},{"d":18,"nodata":true},{"d":19,"sp":28,"cl":1,"tier":3},{"d":20,"nodata":true},{"d":21,"nodata":true},{"d":22,"nodata":true},{"d":23,"nodata":true},{"d":24,"nodata":true},{"d":25,"sp":18,"cl":2,"tier":2},{"d":26,"sp":32,"cl":1,"tier":4},{"d":27,"sp":29,"cl":1,"tier":3},{"d":28,"nodata":true},{"d":29,"sp":29,"cl":1,"tier":3},{"d":30,"nodata":true}]},{"name":"July","lead":2,"cells":[null,null,{"d":1,"nodata":true},{"d":2,"sp":22,"cl":1,"tier":2},{"d":3,"nodata":true},{"d":4,"nodata":true},{"d":5,"nodata":true},{"d":6,"nodata":true},{"d":7,"nodata":true},{"d":8,"sp":19,"cl":1,"tier":2},{"d":9,"sp":16,"cl":2,"tier":1},{"d":10,"nodata":true},{"d":11,"nodata":true},{"d":12,"sp":14,"cl":1,"tier":1},{"d":13,"nodata":true},{"d":14,"nodata":true},{"d":15,"nodata":true},{"d":16,"nodata":true},{"d":17,"nodata":true},{"d":18,"nodata":true},{"d":19,"sp":0,"cl":1,"tier":0},{"d":20,"nodata":true},{"d":21,"nodata":true},{"d":22,"sp":19,"cl":2,"tier":2},{"d":23,"sp":10,"cl":1,"tier":1},{"d":24,"nodata":true},{"d":25,"sp":18,"cl":1,"tier":2},{"d":26,"nodata":true},{"d":27,"nodata":true},{"d":28,"nodata":true},{"d":29,"sp":10,"cl":2,"tier":1},{"d":30,"nodata":true},{"d":31,"sp":10,"cl":1,"tier":1}]},{"name":"August","lead":5,"cells":[null,null,null,null,null,{"d":1,"nodata":true},{"d":2,"nodata":true},{"d":3,"nodata":true},{"d":4,"sp":26,"cl":2,"tier":3},{"d":5,"nodata":true},{"d":6,"nodata":true},{"d":7,"nodata":true},{"d":8,"sp":18,"cl":1,"tier":2},{"d":9,"nodata":true},{"d":10,"nodata":true},{"d":11,"nodata":true},{"d":12,"nodata":true},{"d":13,"nodata":true},{"d":14,"nodata":true},{"d":15,"nodata":true},{"d":16,"nodata":true},{"d":17,"sp":23,"cl":1,"tier":3},{"d":18,"sp":18,"cl":2,"tier":2},{"d":19,"nodata":true},{"d":20,"nodata":true},{"d":21,"nodata":true},{"d":22,"nodata":true},{"d":23,"sp":21,"cl":2,"tier":2},{"d":24,"sp":19,"cl":2,"tier":2},{"d":25,"sp":15,"cl":1,"tier":1},{"d":26,"nodata":true},{"d":27,"nodata":true},{"d":28,"nodata":true},{"d":29,"nodata":true},{"d":30,"nodata":true},{"d":31,"nodata":true}]},{"name":"September","lead":1,"cells":[null,{"d":1,"sp":38,"cl":2,"tier":4},{"d":2,"sp":30,"cl":3,"tier":4},{"d":3,"sp":23,"cl":2,"tier":3},{"d":4,"sp":29,"cl":2,"tier":3},{"d":5,"sp":38,"cl":2,"tier":4},{"d":6,"sp":17,"cl":1,"tier":2},{"d":7,"sp":15,"cl":1,"tier":1},{"d":8,"nodata":true},{"d":9,"sp":22,"cl":3,"tier":2},{"d":10,"sp":31,"cl":2,"tier":4},{"d":11,"sp":20,"cl":1,"tier":2},{"d":12,"sp":19,"cl":3,"tier":2},{"d":13,"sp":19,"cl":1,"tier":2},{"d":14,"sp":21,"cl":3,"tier":2},{"d":15,"nodata":true},{"d":16,"nodata":true},{"d":17,"nodata":true},{"d":18,"sp":32,"cl":2,"tier":4},{"d":19,"sp":34,"cl":1,"tier":4},{"d":20,"nodata":true},{"d":21,"sp":39,"cl":2,"tier":5},{"d":22,"nodata":true},{"d":23,"nodata":true},{"d":24,"sp":18,"cl":1,"tier":2},{"d":25,"nodata":true},{"d":26,"sp":44,"cl":3,"tier":5},{"d":27,"sp":33,"cl":3,"tier":4},{"d":28,"sp":33,"cl":2,"tier":4},{"d":29,"sp":29,"cl":2,"tier":3},{"d":30,"sp":23,"cl":1,"tier":3}]},{"name":"October","lead":3,"cells":[null,null,null,{"d":1,"sp":31,"cl":2,"tier":4},{"d":2,"nodata":true},{"d":3,"sp":28,"cl":3,"tier":3},{"d":4,"sp":36,"cl":2,"tier":4},{"d":5,"nodata":true},{"d":6,"sp":15,"cl":2,"tier":1},{"d":7,"sp":19,"cl":1,"tier":2},{"d":8,"nodata":true},{"d":9,"sp":20,"cl":2,"tier":2},{"d":10,"sp":24,"cl":1,"tier":3},{"d":11,"sp":38,"cl":3,"tier":4},{"d":12,"nodata":true},{"d":13,"sp":21,"cl":2,"tier":2},{"d":14,"sp":33,"cl":2,"tier":4},{"d":15,"sp":15,"cl":3,"tier":1},{"d":16,"nodata":true},{"d":17,"sp":14,"cl":1,"tier":1},{"d":18,"nodata":true},{"d":19,"sp":27,"cl":2,"tier":3},{"d":20,"sp":41,"cl":2,"tier":5},{"d":21,"nodata":true},{"d":22,"nodata":true},{"d":23,"sp":18,"cl":3,"tier":2},{"d":24,"nodata":true},{"d":25,"nodata":true},{"d":26,"nodata":true},{"d":27,"sp":32,"cl":3,"tier":4},{"d":28,"sp":15,"cl":1,"tier":1},{"d":29,"sp":27,"cl":2,"tier":3},{"d":30,"sp":15,"cl":3,"tier":1},{"d":31,"sp":36,"cl":2,"tier":4}]},{"name":"November","lead":6,"cells":[null,null,null,null,null,null,{"d":1,"sp":10,"cl":2,"tier":1},{"d":2,"nodata":true},{"d":3,"sp":24,"cl":1,"tier":3},{"d":4,"nodata":true},{"d":5,"sp":18,"cl":1,"tier":2},{"d":6,"sp":17,"cl":1,"tier":2},{"d":7,"sp":24,"cl":2,"tier":3},{"d":8,"nodata":true},{"d":9,"sp":28,"cl":1,"tier":3},{"d":10,"nodata":true},{"d":11,"nodata":true},{"d":12,"nodata":true},{"d":13,"sp":15,"cl":2,"tier":1},{"d":14,"sp":16,"cl":1,"tier":1},{"d":15,"nodata":true},{"d":16,"nodata":true},{"d":17,"nodata":true},{"d":18,"nodata":true},{"d":19,"sp":11,"cl":2,"tier":1},{"d":20,"sp":11,"cl":2,"tier":1},{"d":21,"sp":22,"cl":2,"tier":2},{"d":22,"sp":10,"cl":2,"tier":1},{"d":23,"sp":27,"cl":2,"tier":3},{"d":24,"nodata":true},{"d":25,"sp":24,"cl":2,"tier":3},{"d":26,"sp":14,"cl":2,"tier":1},{"d":27,"nodata":true},{"d":28,"nodata":true},{"d":29,"nodata":true},{"d":30,"nodata":true}]},{"name":"December","lead":1,"cells":[null,{"d":1,"sp":34,"cl":2,"tier":4},{"d":2,"nodata":true},{"d":3,"nodata":true},{"d":4,"sp":20,"cl":1,"tier":2},{"d":5,"sp":16,"cl":2,"tier":1},{"d":6,"sp":35,"cl":1,"tier":4},{"d":7,"sp":19,"cl":3,"tier":2},{"d":8,"nodata":true},{"d":9,"sp":24,"cl":2,"tier":3},{"d":10,"sp":35,"cl":2,"tier":4},{"d":11,"nodata":true},{"d":12,"sp":35,"cl":2,"tier":4},{"d":13,"sp":20,"cl":2,"tier":2},{"d":14,"sp":63,"cl":3,"tier":5},{"d":15,"sp":23,"cl":1,"tier":3},{"d":16,"sp":20,"cl":1,"tier":2},{"d":17,"sp":14,"cl":3,"tier":1},{"d":18,"nodata":true},{"d":19,"nodata":true},{"d":20,"sp":71,"cl":4,"tier":5},{"d":21,"sp":12,"cl":2,"tier":1},{"d":22,"nodata":true},{"d":23,"sp":35,"cl":2,"tier":4},{"d":24,"nodata":true},{"d":25,"sp":24,"cl":2,"tier":3},{"d":26,"sp":10,"cl":2,"tier":1},{"d":27,"sp":10,"cl":2,"tier":1},{"d":28,"sp":20,"cl":2,"tier":2},{"d":29,"nodata":true},{"d":30,"sp":8,"cl":1,"tier":1},{"d":31,"nodata":true}]}],"legend":[{"tier":1,"min":8,"max":16},{"tier":2,"min":17,"max":22},{"tier":3,"min":23,"max":29},{"tier":4,"min":30,"max":38},{"tier":5,"min":39,"max":71}],"breaks":[16,22,29,38]}</script>
+<script>
+'use strict';
+var DATA = JSON.parse(document.getElementById('__CALDATA__').textContent);
+var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+var state = { metric: 'species', textures: false, density: 'months', includeForms: false };
+
+// A day's "extra" non-countable forms (spuh/slash/hybrid) — deterministic per day
+// so the ON toggle nudges believable numbers. In the real tab these come from the
+// actual rows; here we derive a stable small count from the day's own fields.
+// A present-but-zero day (sp===0) always has >=1 such form (that's WHY it's zero).
+function formsFor(c){
+  if (!c || c.nodata) return 0;
+  if (c.sp === 0) return 1 + ((c.d) % 2);            // the spuh-only day: 1–2 forms
+  return (c.d + (c.cl || 0)) % 4;                    // 0–3 uncertain forms on a normal day
+}
+// The species number for a cell, honoring the include-forms toggle.
+function speciesVal(c){
+  return state.includeForms ? (c.sp + formsFor(c)) : c.sp;
+}
+// Metric value for a cell (species honors the toggle; checklists never do).
+function cellVal(c, metric){
+  return metric === 'species' ? speciesVal(c) : c.cl;
+}
+
+// ── Build a combined ("all years") variant from the single-year data.
+// Species = union (a bit higher than one year), checklists = sum across ~10 years.
+// This is a mockup approximation; the real derivation is the pure buildDayCells().
+function makeCombined(){
+  var comb = { months: [] };
+  DATA.months.forEach(function(mo, mi){
+    var cells = mo.cells.map(function(c){
+      if (c === null) return null;
+      if (c.nodata){
+        // in combined mode, most days have SOME data across a decade; keep a few blanks
+        if ((c.d % 11) === 0) return { d:c.d, nodata:true };
+        var spU = 18 + ((c.d * 7 + mi * 5) % 46);         // union across years
+        var clS = 4 + ((c.d + mi) % 22);                   // sum across years
+        return { d:c.d, sp:spU, cl:clS, combined:true };
+      }
+      var spU2 = Math.min(120, c.sp + 12 + ((c.d * 3) % 40)); // union grows
+      var clS2 = c.cl * (6 + ((c.d + mi) % 6));                // sum across ~a decade
+      return { d:c.d, sp:spU2, cl:clS2, combined:true };
+    });
+    // February gets a 29th cell in combined mode regardless of year
+    if (mi === 1){
+      // ensure a Feb-29 present-but-data cell
+      cells.push({ d:29, sp:9, cl:2, combined:true, feb29:true });
+    }
+    comb.months.push({ name: mo.name, cells: cells });
+  });
+  return comb;
+}
+var COMBINED = makeCombined();
+
+// ── Quantile tiers (equal-count, 5 classes) over the non-zero counts of a metric+dataset.
+function computeTiers(dataset, metric){
+  var vals = [];
+  dataset.months.forEach(function(m){ m.cells.forEach(function(c){
+    if (c && !c.nodata){ var v = cellVal(c, metric); if (v > 0) vals.push(v); }
+  }); });
+  vals.sort(function(a,b){ return a-b; });
+  if (!vals.length) return { breaks: [], legend: [], tierFor: function(){ return 0; } };
+  var k = 5, raw = [];
+  for (var i=1;i<k;i++){ raw.push(vals[Math.min(Math.floor(i*vals.length/k), vals.length-1)]); }
+  var breaks = raw.filter(function(v,ix){ return raw.indexOf(v)===ix; });
+  function tierFor(v){ if (v<=0) return 0; var t=1; breaks.forEach(function(b){ if (v>b) t++; }); return Math.min(t, breaks.length+1); }
+  var legend = [], lo = vals[0], edges = breaks.concat([vals[vals.length-1]]);
+  edges.forEach(function(hi, ix){ legend.push({ tier: ix+1, min: lo, max: hi }); lo = hi+1; });
+  return { breaks: breaks, legend: legend, tierFor: tierFor };
+}
+
+// ── Render a set of months into a container.
+function renderMonths(container, dataset, metric, textures, opts){
+  opts = opts || {};
+  var tiers = computeTiers(dataset, metric);
+  container.innerHTML = '';
+  dataset.months.forEach(function(mo){
+    var wrap = document.createElement('div'); wrap.className = 'cal-month';
+    var name = document.createElement('div'); name.className = 'cal-month-name'; name.textContent = mo.name; wrap.appendChild(name);
+    var head = document.createElement('div'); head.className = 'cal-grid cal-grid-wd';
+    DOW.forEach(function(d){ var w=document.createElement('div'); w.className='cal-wd'; w.textContent=d[0]; head.appendChild(w); });
+    wrap.appendChild(head);
+    var grid = document.createElement('div'); grid.className = 'cal-grid cal-days';
+    mo.cells.forEach(function(c){
+      if (c === null){ var pad=document.createElement('div'); pad.className='cal-cell cal-pad'; pad.setAttribute('aria-hidden','true'); grid.appendChild(pad); return; }
+      if (c.nodata){ var nd=document.createElement('div'); nd.className='cal-cell cal-nodata'; nd.setAttribute('role','presentation'); nd.setAttribute('aria-hidden','true'); nd.title='No birding this day'; grid.appendChild(nd); return; }
+      var val = cellVal(c, metric);
+      var btn = document.createElement('button'); btn.type='button';
+      btn.dataset.mm = mo.name; btn.dataset.d = c.d; btn.dataset.sp = speciesVal(c); btn.dataset.cl = c.cl;
+      if (opts.combined) btn.dataset.combined = '1';
+      if (val === 0){
+        btn.className = 'cal-cell cal-zero';
+        btn.setAttribute('aria-label', mo.name+' '+c.d+': birded, 0 countable species');
+        var z=document.createElement('span'); z.className='cal-num cal-num-muted'; z.textContent='0'; btn.appendChild(z);
+      } else {
+        var tier = tiers.tierFor(val);
+        btn.className = 'cal-cell cal-data ' + (textures ? ('cal-tex cal-tex-'+tier) : ('cal-t'+tier));
+        btn.setAttribute('aria-label', mo.name+' '+c.d+': '+val+' '+(metric==='species'?'species':'checklists'));
+        var n=document.createElement('span'); n.className='cal-num'; n.textContent=val; btn.appendChild(n);
+      }
+      btn.addEventListener('click', function(){ openPopup(btn, opts.combined); });
+      grid.appendChild(btn);
+    });
+    wrap.appendChild(grid);
+    container.appendChild(wrap);
+  });
+  return tiers;
+}
+
+// ── Render the Year Overview: twelve mini-month heatmap thumbnails (no day numbers).
+// Same tier logic as renderMonths; shading is the only signal at this size.
+function renderMiniMonths(container, dataset, metric, textures, opts){
+  opts = opts || {};
+  var tiers = computeTiers(dataset, metric);
+  container.innerHTML = '';
+  dataset.months.forEach(function(mo){
+    var card = document.createElement('button'); card.type = 'button'; card.className = 'mini-month';
+    card.dataset.mm = mo.name;
+    card.setAttribute('aria-label', 'Open ' + mo.name + ' in the month view');
+    var head = document.createElement('div'); head.className = 'mini-head';
+    var name = document.createElement('span'); name.className = 'mini-name'; name.textContent = mo.name;
+    var open = document.createElement('span'); open.className = 'mini-open';
+    open.innerHTML = 'Open <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    head.appendChild(name); head.appendChild(open); card.appendChild(head);
+    var grid = document.createElement('div'); grid.className = 'mini-grid';
+    mo.cells.forEach(function(c){
+      var cell = document.createElement('div'); cell.className = 'mini-cell';
+      if (c === null){ cell.classList.add('mini-pad'); grid.appendChild(cell); return; }
+      if (c.nodata){ cell.classList.add('mini-nodata'); grid.appendChild(cell); return; }
+      var val = cellVal(c, metric);
+      if (val === 0){ cell.classList.add('mini-zero'); cell.title = mo.name+' '+c.d+': birded, 0 countable'; }
+      else {
+        var tier = tiers.tierFor(val);
+        cell.classList.add(textures ? ('mini-tex-'+tier) : ('mini-t'+tier));
+        cell.title = mo.name+' '+c.d+': '+val+' '+(metric==='species'?'species':'checklists');
+      }
+      grid.appendChild(cell);
+    });
+    card.appendChild(grid);
+    // Click-to-expand: in the real tab this switches to Months scrolled to this month.
+    card.addEventListener('click', function(){ expandToMonth(mo.name); });
+    container.appendChild(card);
+  });
+  return tiers;
+}
+
+// ── Legend rendering — a contiguous ramp bar; endpoints labeled separately.
+// minEl/maxEl (optional) receive the overall low/high count so no per-tier numbers crowd.
+function renderLegend(scaleEl, tiers, textures, minEl, maxEl){
+  scaleEl.innerHTML = '';
+  tiers.legend.forEach(function(l){
+    var item = document.createElement('div'); item.className='lg-item';
+    var sw = document.createElement('span');
+    sw.className = 'lg-sw ' + (textures ? ('lg-tex lg-tex-'+l.tier) : ('lg-t'+l.tier));
+    // per-tier range as a tooltip so the info is available without crowding the row
+    sw.title = (l.min===l.max ? String(l.min) : (l.min+'–'+l.max)) + ' / day';
+    item.appendChild(sw); scaleEl.appendChild(item);
+  });
+  if (minEl && tiers.legend.length) minEl.textContent = tiers.legend[0].min;
+  if (maxEl && tiers.legend.length) maxEl.textContent = tiers.legend[tiers.legend.length-1].max;
+}
+
+// ── The live (top) view
+function renderLive(){
+  var big = document.getElementById('calMonths');
+  var year = document.getElementById('calYear');
+  var tiers;
+  if (state.density === 'year'){
+    big.classList.add('mock-hidden'); year.classList.remove('mock-hidden');
+    tiers = renderMiniMonths(year, DATA, state.metric, state.textures, {});
+  } else {
+    year.classList.add('mock-hidden'); big.classList.remove('mock-hidden');
+    tiers = renderMonths(big, DATA, state.metric, state.textures, {});
+  }
+  renderLegend(document.getElementById('legendScale'), tiers, state.textures,
+    document.getElementById('legendMin'), document.getElementById('legendMax'));
+  var isSp = state.metric === 'species';
+  document.getElementById('legendTitle').textContent = isSp ? 'Species / day' : 'Checklists / day';
+  var densNote = state.density === 'year' ? ' — twelve heatmap thumbnails' : ' · 198 days birded';
+  var spNote = (isSp && state.includeForms) ? ', spuh/slash/hybrids included' : '';
+  document.getElementById('viewSub').textContent = (isSp
+    ? 'Species seen each day' : 'Checklists submitted each day') + spNote + densNote;
+}
+
+// Click a mini-month → switch to the big Months view scrolled to that month.
+// (In the shipped tab this sets density='months' and scrolls/focuses the month card.)
+function expandToMonth(monthName){
+  var densSeg = document.getElementById('densitySeg');
+  Array.prototype.forEach.call(densSeg.querySelectorAll('button'), function(x){
+    x.setAttribute('aria-pressed', String(x.dataset.density === 'months'));
+  });
+  state.density = 'months';
+  renderLive();
+  // scroll the newly-rendered big month into view
+  var cards = document.querySelectorAll('#calMonths .cal-month');
+  Array.prototype.forEach.call(cards, function(card){
+    var nm = card.querySelector('.cal-month-name');
+    if (nm && nm.textContent === monthName){
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
+}
+
+// ── Popup
+var lastFocus = null;
+function openPopup(btn, combined){
+  lastFocus = btn;
+  var mm = btn.dataset.mm, d = btn.dataset.d, sp = +btn.dataset.sp, cl = +btn.dataset.cl;
+  document.getElementById('popDate').textContent = combined ? (mm+' '+d) : (mm+' '+d+', 2025');
+  var agg = document.getElementById('popAgg');
+  document.getElementById('popSp').textContent = sp;
+  document.getElementById('popCl').textContent = cl;
+  if (combined){
+    agg.textContent = 'All years combined';
+    document.getElementById('popSpLabel').textContent = 'species ever recorded';
+    document.getElementById('popClLabel').textContent = 'checklists across years';
+    document.getElementById('popListHead').textContent = 'Checklists on this date, across years';
+  } else {
+    agg.textContent = state.includeForms ? 'Species count includes spuh / slash / hybrid forms' : '';
+    document.getElementById('popSpLabel').textContent = state.includeForms ? 'species (incl. forms)' : 'species';
+    document.getElementById('popClLabel').textContent = cl===1 ? 'checklist' : 'checklists';
+    document.getElementById('popListHead').textContent = cl===1 ? 'Checklist' : 'Checklists';
+  }
+  // build checklist rows
+  var HOTSPOTS = ['Mahon Falls Reservoir','Cabot Head Lighthouse','Presqu’ile Provincial Park','Reifel Migratory Bird Sanctuary','Colonel Samuel Smith Park','Point Pelee NP—Tip','Ottawa River—Deschênes Rapids','Amherst Island—Owl Woods','Rondeau PP—Marsh Trail','Toronto Islands—Hanlan’s Point','Long Point—Old Cut','Whitby Harbour'];
+  var TIMES = ['6:42 AM','7:15 AM','8:30 AM','9:05 AM','2:20 PM','4:10 PM'];
+  var list = document.getElementById('popList'); list.innerHTML='';
+  var base = (mm.charCodeAt(0) + (+d)) * 131 + 234500011;
+  var years = [2025, 2023, 2021, 2019]; // for combined labeling
+  for (var i=0;i<cl;i++){
+    var a = document.createElement('a');
+    a.className='pop-row'; a.href='#'; a.setAttribute('target','_blank'); a.setAttribute('rel','noreferrer');
+    var sid = 'S' + (base + i*7919);
+    var loc = HOTSPOTS[(base+i) % HOTSPOTS.length];
+    var time = TIMES[i % TIMES.length];
+    var yr = combined ? years[i % years.length] : 2025;
+    a.setAttribute('aria-label', loc + ' — open checklist on eBird (opens in a new tab)');
+    var ico = '<span class="cl-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>';
+    var ext = '<span class="cl-ext"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>';
+    var yrChip = combined ? ('<span class="yr-chip">'+yr+'</span>') : '';
+    a.innerHTML = ico +
+      '<span class="cl-body"><span class="cl-loc">'+loc+'</span><span class="cl-meta">'+ (combined ? (mm+' '+d+', '+yr) : (time+' · '+sid)) +'</span></span>' +
+      yrChip + ext;
+    a.addEventListener('click', function(e){ e.preventDefault(); });
+    list.appendChild(a);
+  }
+  var bd = document.getElementById('popBackdrop'); bd.classList.add('open');
+  document.getElementById('popClose').focus();
+}
+function closePopup(){
+  document.getElementById('popBackdrop').classList.remove('open');
+  if (lastFocus){ lastFocus.focus(); lastFocus = null; }
+}
+
+// ── Wire controls
+// Reflect whether the forms sub-toggle applies to the active metric (Species only).
+function syncFormsAvailability(){
+  var sub = document.getElementById('formsSub');
+  var sw = document.getElementById('formsToggle');
+  var applies = state.metric === 'species';
+  sub.classList.toggle('is-disabled', !applies);
+  sw.setAttribute('aria-disabled', String(!applies));
+  sw.setAttribute('tabindex', applies ? '0' : '-1');
+}
+document.getElementById('metricSeg').addEventListener('click', function(e){
+  var b = e.target.closest('button'); if (!b) return;
+  state.metric = b.dataset.metric;
+  Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){ x.setAttribute('aria-pressed', String(x===b)); });
+  syncFormsAvailability();
+  renderLive();
+});
+var formsToggle = document.getElementById('formsToggle');
+function flipForms(){
+  if (state.metric !== 'species') return;   // Species-only
+  state.includeForms = !state.includeForms;
+  formsToggle.setAttribute('aria-checked', String(state.includeForms));
+  renderLive();
+}
+formsToggle.addEventListener('click', flipForms);
+formsToggle.addEventListener('keydown', function(e){ if (e.key===' '||e.key==='Enter'){ e.preventDefault(); flipForms(); } });
+document.getElementById('densitySeg').addEventListener('click', function(e){
+  var b = e.target.closest('button'); if (!b) return;
+  state.density = b.dataset.density;
+  Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){ x.setAttribute('aria-pressed', String(x===b)); });
+  renderLive();
+});
+var texToggle = document.getElementById('texToggle');
+function flipTex(){
+  state.textures = !state.textures;
+  texToggle.setAttribute('aria-checked', String(state.textures));
+  renderLive();
+}
+texToggle.addEventListener('click', flipTex);
+texToggle.addEventListener('keydown', function(e){ if (e.key===' '||e.key==='Enter'){ e.preventDefault(); flipTex(); } });
+
+document.getElementById('popClose').addEventListener('click', closePopup);
+document.getElementById('popBackdrop').addEventListener('click', function(e){ if (e.target===this) closePopup(); });
+document.addEventListener('keydown', function(e){ if (e.key==='Escape') closePopup(); });
+
+// theme toggle (mockup only)
+var themeBtn = document.getElementById('themeBtn');
+themeBtn.addEventListener('click', function(){
+  var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+  themeBtn.setAttribute('aria-pressed', String(!dark));
+  themeBtn.textContent = dark ? '🌙 Dark theme' : '☀️ Light theme';
+});
+
+// ── Initial render of the live view + the four showcase views
+syncFormsAvailability();
+renderLive();
+// showcase 2 — textures on, species
+var texTiers = renderMonths(document.getElementById('calMonthsTex'), DATA, 'species', true, {});
+renderLegend(document.getElementById('texLegendScale'), texTiers, true,
+  document.getElementById('texLegendMin'), document.getElementById('texLegendMax'));
+// showcase 3 — combined
+var combTiers = renderMonths(document.getElementById('calMonthsComb'), COMBINED, 'species', false, { combined:true });
+renderLegend(document.getElementById('combLegendScale'), combTiers, false,
+  document.getElementById('combLegendMin'), document.getElementById('combLegendMax'));
+// showcase 4 — Year Overview (mini-months)
+var yearTiers = renderMiniMonths(document.getElementById('calYearShowcase'), DATA, 'species', false, {});
+renderLegend(document.getElementById('yearLegendScale'), yearTiers, false,
+  document.getElementById('yearLegendMin'), document.getElementById('yearLegendMax'));
+
+</script>
+</body>
+</html>
