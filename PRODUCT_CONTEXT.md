@@ -7,7 +7,7 @@ It records what has been built and key decisions made during development.
 
 ### Calendar (complete — July 2026, v0.5.58)
 
-A Calendar tab that renders the birder's own eBird export as a month-grid heatmap — each day shaded by that day's species or checklist count, per year (or all years combined) — with a per-day popup listing that day's checklists, a Months/Year-Overview density toggle, a colorblind crosshatch texture mode, and an optional include-spuh/slash/hybrid refinement on the Species metric. Frontend-only, offline, and zero-network — computed entirely from the already-loaded backup.
+A Calendar tab that renders the birder's own eBird export as a month-grid heatmap — each day shaded by that day's species or checklist count, per year (or all years combined) — with a per-day popup listing that day's checklists, a Months/Year-Overview density toggle, a colorblind crosshatch texture mode, an optional include-spuh/slash/hybrid refinement on the Species metric, and a Species filter dropdown that narrows the whole calendar to one species (by normalized name, folding forms; a selected spuh/slash/hybrid shows its own daily presence). Frontend-only, offline, and zero-network — computed entirely from the already-loaded backup.
 
 ### County Completeness — a third county-shading metric on the Map Explorer (complete — July 2026, v0.5.54)
 
@@ -100,7 +100,7 @@ Two buttons at the bottom of the Weather tab that look *forward* instead of back
 
 ### Nearby Lifers Map (complete — June 2026, v0.5.35)
 
-A new Map Explorer section that maps *where* species the user has never recorded were reported recently near a chosen point — not just which ones. The old flat **Nearby Lifers** list (the "Other Statistics → Nemesis Birds" block on the Statistics tab) was removed and rebuilt here as a fourth map view alongside My Sightings, Hotspots, and Media Targets. Each spot is a labeled pin — the species name, or "{n} species" where several lifers were reported at one place — colored by how recently it was seen; clicking a pin (or a row in the panel list) shows the lifers at that spot with their dates and eBird checklist links. It opens on the saved default location and offers the same controls as the other sections (use my location, place-name search, radius) plus a new **Time Range** filter (last day / last week / last 30 days). Lifer names render plain + favicons — no Species Detail link, since they are not in the user's recorded data.
+A new Map Explorer section that maps *where* species the user has never recorded were reported recently near a chosen point — not just which ones. The old flat **Nearby Lifers** list (the "Other Statistics → Nemesis Birds" block on the Statistics tab) was removed and rebuilt here as a fourth map view alongside My Sightings, Hotspots, and Media Targets. Each spot is a labeled pin — the species name, or "{n} species" where several lifers were reported at one place — colored by how recently it was seen, with an always-on locator dot at its exact coordinate and a per-panel **Marker style: Labels | Dots** toggle (shared with Media Targets) that collapses the chips to bare dots for a clean where-are-they overview; clicking a pin (or a row in the panel list) shows the lifers at that spot with their dates and eBird checklist links. It opens on the saved default location and offers the same controls as the other sections (use my location, place-name search, radius) plus a new **Time Range** filter (last day / last week / last 30 days). Lifer names render plain + favicons — no Species Detail link, since they are not in the user's recorded data.
 
 - **Built entirely on data the app already uses — no new providers, no privacy change.** The recent-observations endpoint is reused via `/map/recent-obs` with its species-code filter made optional, so a single call returns recent obs across all species near the point; the client filters that set against the user's life list to keep only true lifers (the personal backbone from the loaded backup), then groups them by location for the labeled pins. The now-dead `/stats/nemesis` route was removed.
 - **The Time Range filter is shared with Media Targets.** The same last day / last week / last 30 days control was added to the existing Media Targets section so the two panels behave the same way.
@@ -216,7 +216,8 @@ behavior). Entirely from the parse-once caches; no backend changes.
 
 Tracks individual birds the user names in eBird species comments via `[name:…]`
 tags (e.g. `[name:Winky]`, `[name:one-leg-pete]`). A new **Named Birds** tab
-lists each named individual (name, species, first/last seen, sighting count),
+lists each named individual (name, species, first/last seen with the elapsed span
+between them — e.g. "1 yr. 2 mos." — and sighting count),
 sortable by name/species/last-seen, each expanding to its checklists (date, eBird
 checklist link, the species comment). The same per-species view appears as a
 **Named Individuals** section on Species Detail. Keyed by name + species (same
