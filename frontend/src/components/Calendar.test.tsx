@@ -182,6 +182,88 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
   })
 })
 
+describe('Calendar — phone forces Large view (change 2)', () => {
+  // Install a matchMedia stub that reports the phone media query as matching, so
+  // useIsPhone() returns true. Restored after the test.
+  function stubPhoneMatchMedia(matches: boolean) {
+    const orig = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('max-width:640px') ? matches : false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia
+    return () => { window.matchMedia = orig }
+  }
+
+  it('at phone width the Compact branch never renders even after the toggle is clicked (forced Large)', async () => {
+    // jsdom does not evaluate the @media(max-width:640px){display:none} that hides the
+    // toggle, so the toggle buttons remain in the DOM here. What we CAN assert is the
+    // render-force: effectiveDensity = 'large' on a phone, so clicking Compact never
+    // mounts the mini-month (YearOverview) branch — the real guarantee of change 2.
+    const restore = stubPhoneMatchMedia(true)
+    try {
+      render(<Calendar {...props} />)
+      await screen.findByText('January')
+      // Try to switch to Compact.
+      fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
+      // The mini-month "Open … in the month view" buttons must NOT appear — the Large
+      // month grids are still rendered.
+      expect(screen.queryByRole('button', { name: /in the month view/ })).toBeNull()
+      expect(screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })).toBeTruthy()
+    } finally {
+      restore()
+    }
+  })
+
+  it('the View toggle sits in a .sr-cal-view-toggle container (the CSS hide hook) and, at desktop width, Compact renders mini-months', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    // The CSS hook that the ≤640 media query hides is present on the toggle container.
+    const compactBtn = screen.getByRole('button', { name: 'Compact' })
+    expect(compactBtn.closest('.sr-cal-view-toggle')).toBeTruthy()
+    // At desktop width (default not-phone) Compact still renders the mini-month overview.
+    fireEvent.click(compactBtn)
+    expect(screen.getAllByRole('button', { name: /in the month view/ }).length).toBe(12)
+  })
+})
+
+describe('Calendar — in-cell dates (change 3, Large view)', () => {
+  it('a Large data cell shows BOTH its day-of-month and its count', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    // The 2025-03-14 rich data cell: count 3 (in its aria-label) AND the day number 14.
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    expect(cell.textContent).toContain('3')  // the metric count (centered)
+    expect(cell.textContent).toContain('14') // the day-of-month date (top-left corner)
+  })
+
+  it('a no-data day cell (no checklist) shows its date', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    // 2025-03-14 and 03-15 are the only March data days. March 31 has NO checklist, so
+    // the ONLY way "31" appears in the March card is the nodata cell's dated corner —
+    // no data/zero cell carries a count of 31 here (max count is 3). This proves blank
+    // days are dated.
+    const marchCard = screen.getByText('March').parentElement as HTMLElement
+    expect(marchCard.textContent).toContain('31')
+  })
+
+  it('the combined (All years) view dates a cell by its MM-DD day', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    fireEvent.click(screen.getByRole('button', { name: 'All years' }))
+    // Mar 14 combined data cell — union count 3, day-of-month 14 both present.
+    const cell = await screen.findByRole('button', { name: /Mar 14 — 3\. Open day details/ })
+    expect(cell.textContent).toContain('14')
+    expect(cell.textContent).toContain('3')
+  })
+})
+
 describe('Calendar — spuh toggle (QA-49)', () => {
   it('defaults OFF and is Species-only: dimmed + inert under the Checklists metric', async () => {
     render(<Calendar {...props} />)
@@ -215,27 +297,48 @@ describe('Calendar — spuh toggle (QA-49)', () => {
   })
 })
 
-describe('Calendar — per-species filter (change 2)', () => {
-  it('renders a "Species" select defaulting to All species, with one option per normalized species', async () => {
+describe('Calendar — per-species filter (searchable combobox)', () => {
+  it('renders a searchable Species combobox defaulting to All species; opening lists All + one option per normalized species', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    const select = screen.getByRole('combobox', { name: /Filter the calendar to one species/ }) as HTMLSelectElement
-    expect(select.value).toBe('') // All species
-    const optionLabels = Array.from(select.querySelectorAll('option')).map(o => o.textContent)
-    expect(optionLabels[0]).toBe('All species')
+    const input = screen.getByRole('combobox', { name: /Filter the calendar to one species/ }) as HTMLInputElement
+    expect(input.value).toBe('') // All species (nothing selected)
+    // Open the listbox by focusing the input.
+    fireEvent.focus(input)
+    const listbox = await screen.findByRole('listbox', { name: /Filter the calendar to one species/ })
+    const optionLabels = within(listbox).getAllByRole('option').map(o => o.textContent)
+    // The synthetic "All species" clearing row sits first.
+    expect(optionLabels[0]).toContain('All species')
     // Species present in the 2025 default year's dataset show up in the option list.
-    expect(optionLabels).toContain('American Robin')
-    expect(optionLabels).toContain('Blue Jay')
+    expect(optionLabels.some(l => l?.includes('American Robin'))).toBe(true)
+    expect(optionLabels.some(l => l?.includes('Blue Jay'))).toBe(true)
   })
 
-  it('selecting a species disables the spuh/include-forms toggle and notes it in the sub-line', async () => {
+  it('typing filters the option list to matching species', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    const input = screen.getByRole('combobox', { name: /Filter the calendar to one species/ })
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'robin' } })
+    const listbox = await screen.findByRole('listbox', { name: /Filter the calendar to one species/ })
+    const labels = within(listbox).getAllByRole('option').map(o => o.textContent)
+    // The "All species" clearing row always survives the filter (never filtered out).
+    expect(labels.some(l => l?.includes('All species'))).toBe(true)
+    expect(labels.some(l => l?.includes('American Robin'))).toBe(true)
+    expect(labels.some(l => l?.includes('Blue Jay'))).toBe(false)
+  })
+
+  it('selecting a species (click) disables the spuh/include-forms toggle and notes it in the sub-line', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
     const formsSwitch = screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ })
     expect(formsSwitch.getAttribute('aria-disabled')).not.toBe('true')
 
-    const select = screen.getByRole('combobox', { name: /Filter the calendar to one species/ })
-    fireEvent.change(select, { target: { value: 'American Robin' } })
+    const input = screen.getByRole('combobox', { name: /Filter the calendar to one species/ })
+    fireEvent.focus(input)
+    const listbox = await screen.findByRole('listbox', { name: /Filter the calendar to one species/ })
+    const robin = within(listbox).getAllByRole('option').find(o => o.textContent?.includes('American Robin'))!
+    fireEvent.click(robin)
 
     expect(formsSwitch.getAttribute('aria-disabled')).toBe('true')
     expect(formsSwitch.getAttribute('tabindex')).toBe('-1')
@@ -243,10 +346,30 @@ describe('Calendar — per-species filter (change 2)', () => {
     expect(screen.getByText(/American Robin only/)).toBeTruthy()
   })
 
+  it('the "All species" row clears the filter (onChange null)', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    const input = screen.getByRole('combobox', { name: /Filter the calendar to one species/ }) as HTMLInputElement
+    // Select a species first.
+    fireEvent.focus(input)
+    let listbox = await screen.findByRole('listbox', { name: /Filter the calendar to one species/ })
+    fireEvent.click(within(listbox).getAllByRole('option').find(o => o.textContent?.includes('American Robin'))!)
+    expect(screen.getByText(/American Robin only/)).toBeTruthy()
+    // Reopen and click "All species" → the narrowing clears.
+    fireEvent.focus(input)
+    listbox = await screen.findByRole('listbox', { name: /Filter the calendar to one species/ })
+    fireEvent.click(within(listbox).getAllByRole('option').find(o => o.textContent?.includes('All species'))!)
+    expect(screen.queryByText(/American Robin only/)).toBeNull()
+    expect(input.value).toBe('')
+  })
+
   it('does not persist the species selection through the storage seam', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    fireEvent.change(screen.getByRole('combobox', { name: /Filter the calendar to one species/ }), { target: { value: 'Blue Jay' } })
+    const input = screen.getByRole('combobox', { name: /Filter the calendar to one species/ })
+    fireEvent.focus(input)
+    const listbox = await screen.findByRole('listbox', { name: /Filter the calendar to one species/ })
+    fireEvent.click(within(listbox).getAllByRole('option').find(o => o.textContent?.includes('Blue Jay'))!)
     expect(setSetting).not.toHaveBeenCalled()
   })
 })

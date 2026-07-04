@@ -32,6 +32,8 @@ import {
 } from '../lib/calendar'
 import { calHatchCss, calMiniHatchCss, type CalTier } from '../lib/calendarTextures'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
+import { SpeciesCombobox } from './SpeciesCombobox'
+import { useIsPhone } from '../lib/useIsPhone'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] // Sunday-first single letters
@@ -155,7 +157,12 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
     return <div aria-hidden style={{ ...base, background: 'transparent', pointerEvents: 'none' }} />
   }
   if (desc.kind === 'nodata') {
-    return <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }} />
+    // A day with no checklist — still dated (top-left) so every day is unambiguous.
+    return (
+      <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }}>
+        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" />}
+      </div>
+    )
   }
 
   const cell = desc.cell!
@@ -177,6 +184,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-border-subtle)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-subtle)')}
       >
+        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" />}
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-text-muted)', lineHeight: 1 }}>0</span>
       </button>
     )
@@ -204,10 +212,35 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
       onMouseEnter={e => (e.currentTarget.style.filter = textures ? 'none' : 'brightness(1.12)')}
       onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
     >
+      {desc.day != null && <DayCorner day={desc.day} color="var(--sr-cal-fg)" pillStyle={numStyle} />}
       <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-cal-fg)', lineHeight: 1, ...numStyle }}>
         {desc.count}
       </span>
     </button>
+  )
+}
+
+// The small day-of-month label in a Large-view cell's top-left corner (wall-calendar
+// convention). Decorative-only (the accessible date lives in each cell's aria-label /
+// the popup); pointer-events:none keeps the parent button the sole hit target. Sized
+// in rem so it holds at 200% text scale; the metric count stays the centered number.
+function DayCorner({ day, color, pillStyle }: { day: number; color: string; pillStyle?: React.CSSProperties }) {
+  return (
+    <span
+      aria-hidden
+      className="sr-cal-daynum"
+      style={{
+        position: 'absolute', top: 2, left: 3, lineHeight: 1,
+        fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+        color, pointerEvents: 'none',
+        // In textures mode pillStyle is the same solid tier-color pill the centered
+        // count carries — without it the white date renders over the faint hatch
+        // underlay (~1.2:1 in light theme). Empty ({}) in solid-fill mode → no change.
+        ...pillStyle,
+      }}
+    >
+      {day}
+    </span>
   )
 }
 
@@ -239,10 +272,14 @@ function buildMonthCells(
   for (let day = 1; day <= dim; day++) {
     const key = keyFor(day)
     const cell = cells.get(key)
-    if (!cell) { out.push({ kind: 'nodata' }); continue }
+    if (!cell) { out.push({ kind: 'nodata', day }); continue }
     const count = metricCount(cell, metric, includeForms)
     if (count === 0) { out.push({ kind: 'zero', day, cell }); continue }
-    out.push({ kind: 'data', day, count, cell, tier: tiers.tierFor(count) as CalTier })
+    // Clamp to the 5-class ramp: tierFor returns breaks.length (6) for a value above
+    // the max break. It can't fire today (every rendered count is in the tiering set),
+    // but the clamp keeps a --sr-cal-6-less ramp defensive — do it at the CALL SITE,
+    // never in countyShading.ts (the county overlay relies on the breaks.length return).
+    out.push({ kind: 'data', day, count, cell, tier: Math.min(tiers.tierFor(count), 5) as CalTier })
   }
   return out
 }
@@ -594,6 +631,12 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   const [metric, setMetric] = useState<CalendarMetric>('species')
   const [textures, setTextures] = useState(false)
   const [density, setDensity] = useState<ViewDensity>('large')
+  // On a phone (≤640) always render the Large month grids: the two view branches are
+  // different DOM (MonthGrid vs YearOverview), so CSS alone can't convert a stale
+  // 'compact' (carried in from a wider session) into Large. The View toggle itself is
+  // hidden via CSS (.sr-cal-view-toggle). effectiveDensity is the ONLY new derived
+  // value; `density` state + ViewDensity are unchanged.
+  const isPhone = useIsPhone()
   const [includeForms, setIncludeForms] = useState(false)
   // Session-only per-species filter ('' = All species). A normalized common name.
   const [selectedSpecies, setSelectedSpecies] = useState('')
@@ -765,6 +808,9 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   }
 
   const combined = view.kind === 'combined'
+  // Phones always show Large (the toggle is CSS-hidden at ≤640); tablet/desktop honor
+  // the density toggle. A stale 'compact' from a wider session can't strand a phone.
+  const effectiveDensity: ViewDensity = isPhone ? 'large' : density
   const yearSpan = years.length ? { lo: years[0], hi: years[years.length - 1] } : null
   const prevDisabled = combined || adjacentDataYear(years, view.kind === 'year' ? view.year : 0, -1) == null
   const nextDisabled = combined || adjacentDataYear(years, view.kind === 'year' ? view.year : 0, 1) == null
@@ -815,23 +861,16 @@ export function Calendar({ onGoToSettings, filesVersion }: {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
             <span style={ctrlLabelStyle}>Species</span>
-            <select
-              aria-label="Filter the calendar to one species"
-              className="sr-input-16"
+            <SpeciesCombobox
+              options={speciesOptions.map(name => ({ name }))}
               value={selectedSpecies}
-              onChange={e => { setSelectedSpecies(e.target.value); setPopup(null) }}
-              style={{
-                font: 'inherit', fontSize: '0.75rem', fontWeight: 500,
-                maxWidth: 220, minWidth: 0, height: 30, padding: '0 8px', borderRadius: 6,
-                border: '1px solid var(--sr-border-input)', background: 'var(--sr-surface)',
-                color: 'var(--sr-text)', cursor: 'pointer',
-              }}
-            >
-              <option value="">All species</option>
-              {speciesOptions.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))}
-            </select>
+              onChange={n => { setSelectedSpecies(n ?? ''); setPopup(null) }}
+              allLabel="All species"
+              placeholder="Filter to one species…"
+              ariaLabel="Filter the calendar to one species"
+              size="sm"
+              className="sr-input-16"
+            />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -865,7 +904,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
 
           <div style={{ flex: '1 1 auto', minWidth: 0 }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="sr-cal-view-toggle" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={ctrlLabelStyle}>View</span>
             <SegControl
               ariaLabel="View density"
@@ -910,7 +949,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
       </div>
 
       {/* Grid */}
-      {density === 'large' ? (
+      {effectiveDensity === 'large' ? (
         <div className="sr-cal-months">
           {monthDescriptors.map((descriptors, i) => (
             <MonthGrid

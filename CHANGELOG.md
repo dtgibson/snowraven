@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.61] - 2026-07-04
+
+### Changed
+- **The Calendar's Species filter is now a searchable combobox.** The old drop-down is replaced by a type-to-find picker — start typing a common or scientific name and the list narrows, with Arrow/Enter/Escape and an "All species" row at the top to clear it. It's the same picker Species Detail uses (now a shared component), which matters on a large life list where the plain drop-down was a long, unsearchable scroll.
+- **Every Calendar day cell now shows its calendar date.** In the Large month grids each day carries its day-of-month number in the top-left corner (wall-calendar style) alongside the count, including blank no-birding days. This removes a source of confusion in the **All years** view, where the weekday columns align to a fixed reference year — the same grid *position* can be a different date than in a single-year view, so you now read the date, not the position. (The day counts themselves were already correct; this is a labeling fix.) The Compact thumbnail view stays count-only.
+- **On phones the Calendar shows only the Large view.** The Large | Compact toggle is hidden at phone widths and the calendar always renders the big month grids, since the two layouts converge to a single column on a phone and the larger cells stay comfortably tappable. Tablet and desktop are unchanged.
+
+### Fixed
+- **iPhone auto-zoom on search and filter boxes is now genuinely suppressed app-wide.** The app's no-zoom guard for small text inputs could be silently overridden by a control's own font size, so tapping some inputs (the weather search, checklist filters, and others) still zoomed the page on iOS. The guard now always wins on every input that carries it.
+
 ## [0.5.60] - 2026-07-04
 
 ### Added

@@ -686,6 +686,11 @@ h1, h2, h3, h4, h5, h6 {
    display:grid can't be reached by a media query). */
 .sr-cal-months { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); }
 
+/* Large-view in-cell day-of-month label (change 3). Lifted to a class so the phone
+   tier can bump it for legibility (the ≤640 media block) — an inline font-size would
+   beat the media rule (inline specificity), so the size lives here, not inline. */
+.sr-cal-daynum { font-size: 0.5625rem; }
+
 /* Calendar Year Overview — the 3×4 mini-month thumbnail grid. Explicit 3-up
    desktop, collapsing 3 → 2 (≤1024) → 1 (phone) via the media blocks below (the
    reflow is column-controlled, so it isn't a self-collapsing auto-fill). */
@@ -1067,8 +1072,11 @@ select:focus-visible {
   .sr-media-count { display: inline; }
 
   /* iOS focus-zoom guard — 16px is the iOS threshold (an absolute px value), so
-     a px font-size is correct here; scoped to the phone tier only. */
-  .sr-input-16 { font-size: 16px; }
+     a px font-size is correct here; scoped to the phone tier only. !important so it
+     beats an inline sub-16px font-size on the same element (React inline styles are
+     specificity 1,0,0 and otherwise win — the guard was inert wherever a control also
+     set an inline fontSize, e.g. the SpeciesCombobox input and WeatherForecastPanel). */
+  .sr-input-16 { font-size: 16px !important; }
   .sr-two-col { grid-template-columns: 1fr; }
   .sr-compare-panels { grid-template-columns: 1fr; }
   .sr-map-container { height: 300px; }
@@ -1080,8 +1088,15 @@ select:focus-visible {
   /* Calendar Year Overview: single column on a phone (3 → 2 → 1). */
   .sr-cal-year { grid-template-columns: 1fr; }
   /* Calendar big months: a slightly larger min so the day cells stay tappable
-     before collapsing to one column at the small-phone tier. */
-  .sr-cal-months { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); }
+     before collapsing to one column at the small-phone tier. Tightened inter-month
+     gap so the stacked single column needs less scroll (change 2). */
+  .sr-cal-months { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
+  /* Phones show only the Large view — hide the View density toggle (removes it from
+     the tab order + a11y tree; the render forces Large via useIsPhone). */
+  .sr-cal-view-toggle { display: none; }
+  /* Slightly larger in-cell day number on phones for legibility (rem → holds at 200%
+     text scale). */
+  .sr-cal-daynum { font-size: 0.6875rem; }
   .sr-grid-chart-aside { grid-template-columns: 1fr; }
   /* Component-local horizontal padding trim (reaches inline-padded containers
      via !important, same approach as .sr-card above). */

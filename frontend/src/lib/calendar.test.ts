@@ -167,6 +167,24 @@ describe('buildDayCells — combined view (QA-16/17/18/19)', () => {
     expect(c.speciesCount).toBe(1) // union: Robin once
   })
 
+  it('combined Species UNION over DIFFERENT species per year is the union size, and >= any single year (QA-17)', () => {
+    // Jan-12 has DIFFERENT species across two years: 2023 = Robin+Jay, 2024 = Crow.
+    // The combined bucket must be the UNION (3), and can never be less than either
+    // single year's value for that day (union ⊇ each year's set).
+    const rows: ObservationEntry[] = [
+      obs({ date: '2023-01-12', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2023-01-12', submissionId: 'S1', commonName: 'Blue Jay' }),
+      obs({ date: '2024-01-12', submissionId: 'S2', commonName: 'American Crow' }),
+    ]
+    const y2023 = buildDayCells(rows, { kind: 'year', year: 2023 }).get('2023-01-12')!.speciesCount
+    const y2024 = buildDayCells(rows, { kind: 'year', year: 2024 }).get('2024-01-12')!.speciesCount
+    const combined = buildDayCells(rows, view).get('01-12')!.speciesCount
+    expect(y2023).toBe(2)
+    expect(y2024).toBe(1)
+    expect(combined).toBe(3) // union of Robin, Jay, Crow
+    expect(combined).toBeGreaterThanOrEqual(Math.max(y2023, y2024)) // the reported-impossible case
+  })
+
   it('combined Checklists is a SUM across years (6) (QA-18)', () => {
     const rows: ObservationEntry[] = []
     for (const y of [2022, 2023, 2024]) {

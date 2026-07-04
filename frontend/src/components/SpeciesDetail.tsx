@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle, Loader2, ChevronDown,
-  Search, ExternalLink, Check, Image, Mic, Video, Eye, MessageSquare, Dna,
+  Search, ExternalLink, Image, Mic, Video, Eye, MessageSquare, Dna,
   MapPin, Play, Calendar, SlidersHorizontal, Share2, Tag,
 } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
@@ -17,6 +17,7 @@ import {
   computeBreedingBreakdown, computeLocationsSorted, computeCoOccurrence,
 } from '../lib/speciesStats'
 import { SpeciesLinks } from './SpeciesLinks'
+import { SpeciesCombobox } from './SpeciesCombobox'
 import { BirdName } from './BirdName'
 import { computeNamedBirds } from '../lib/namedBirds'
 import { NamedBirdsTable } from './NamedBirdsTable'
@@ -60,9 +61,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   // (media-catalog-taxon-links). taxonMap stays species-only (favicons / selector).
   const [formTaxonMap, setFormTaxonMap] = useState<Record<string, string>>({})
   const [selectedSpecies, setSelectedSpecies] = useState<string | null>(null)
-  const [selectorQuery, setSelectorQuery] = useState('')
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [activeOptionIdx, setActiveOptionIdx] = useState(-1)
 
   const [mergeSubspecies, setMergeSubspecies] = useState(true)
   const [showSpuh, setShowSpuh] = useState(false)
@@ -83,9 +81,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   // Public-hotspot membership for location names (Top Locations, Comments). Loads the
   // backup itself via the shared cache, so it's safe to call before the phase guard.
   const { isHotspot } = useHotspotSet()
-
-  const selectorRef = useRef<HTMLDivElement>(null)
-  const dropdownListRef = useRef<HTMLDivElement>(null)
 
   const selectSpecies = (name: string | null) => {
     setSelectedSpecies(name)
@@ -117,25 +112,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     }
     setShowSpuh(nextShowSpuh)
   }
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function onPointerDown(e: MouseEvent) {
-      if (selectorRef.current && !selectorRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
-        setActiveOptionIdx(-1)
-      }
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    return () => document.removeEventListener('mousedown', onPointerDown)
-  }, [])
-
-  useEffect(() => {
-    if (activeOptionIdx >= 0) {
-      const el = document.getElementById(`species-option-${activeOptionIdx}`)
-      el?.scrollIntoView({ block: 'nearest' })
-    }
-  }, [activeOptionIdx])
 
   const fetchTaxonData = async (obs: ObservationEntry[]) => {
     try {
@@ -237,15 +213,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     () => showSpuh ? sortedSpeciesList : sortedSpeciesList.filter(name => !isSpuhOrSlash(name)),
     [sortedSpeciesList, showSpuh]
   )
-
-  const filteredSpeciesList = useMemo(() => {
-    const q = selectorQuery.trim().toLowerCase()
-    if (!q) return displaySpeciesList
-    return displaySpeciesList.filter(name => {
-      if (name.toLowerCase().includes(q)) return true
-      return (sciNameMap.get(name) ?? '').toLowerCase().includes(q)
-    })
-  }, [displaySpeciesList, selectorQuery, sciNameMap])
 
   // Select a species and scroll the detail back to the top (used by in-tab
   // BirdName clicks — Reported With / Top Locations — and external requests).
@@ -441,11 +408,6 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     return resolveMediaLinkTaxonCode(!mergeSubspecies, formTaxonMap[selectedSpecies], speciesTaxonCode)
   }, [selectedSpecies, formTaxonMap, mergeSubspecies, speciesTaxonCode])
 
-  // ── Selector input display value ─────────────────────────────────────
-  const selectorDisplayValue = dropdownOpen
-    ? selectorQuery
-    : (selectedSpecies ?? '')
-
   // ── Render ─────────────────────────────────────────────────────────────
 
   if (phase.tag === 'loading-saved') {
@@ -508,141 +470,17 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
         </span>
       </div>
 
-      {/* Species selector */}
-      <div ref={selectorRef} style={{ position: 'relative', marginBottom: 16, flexShrink: 0, zIndex: 20 }}>
-        <div style={{ position: 'relative' }}>
-          <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--sr-text-muted)', pointerEvents: 'none' }}>
-            <Search size={15} strokeWidth={2} />
-          </span>
-          <input
-            type="text"
-            value={selectorDisplayValue}
-            placeholder="Choose a species…"
-            onChange={e => {
-              setSelectorQuery(e.target.value)
-              setActiveOptionIdx(-1)
-              if (!dropdownOpen) setDropdownOpen(true)
-            }}
-            onFocus={e => {
-              setActiveOptionIdx(-1)
-              setDropdownOpen(true)
-              // Keep any in-progress query (restored on refocus); select it so
-              // typing replaces it for a fresh search instead of appending.
-              e.currentTarget.select()
-            }}
-            onKeyDown={e => {
-              if (e.key === 'Escape') { setDropdownOpen(false); setActiveOptionIdx(-1) }
-              if (e.key === 'Tab') { setDropdownOpen(false); setActiveOptionIdx(-1) }
-              if (e.key === 'ArrowDown') {
-                e.preventDefault()
-                if (!dropdownOpen) setDropdownOpen(true)
-                setActiveOptionIdx(i => Math.min(i + 1, filteredSpeciesList.length - 1))
-              }
-              if (e.key === 'ArrowUp') {
-                e.preventDefault()
-                setActiveOptionIdx(i => Math.max(i - 1, -1))
-              }
-              if (e.key === 'Enter' && dropdownOpen) {
-                e.preventDefault()
-                const target = activeOptionIdx >= 0 ? filteredSpeciesList[activeOptionIdx] : filteredSpeciesList[0]
-                if (target) { selectSpecies(target); setSelectorQuery(''); setDropdownOpen(false); setActiveOptionIdx(-1) }
-              }
-            }}
-            role="combobox"
-            aria-label="Select species"
-            aria-expanded={dropdownOpen}
-            aria-autocomplete="list"
-            aria-controls="species-listbox"
-            aria-haspopup="listbox"
-            aria-activedescendant={dropdownOpen && activeOptionIdx >= 0 ? `species-option-${activeOptionIdx}` : undefined}
-            style={{
-              width: '100%', height: 40, padding: '0 36px 0 38px',
-              border: `1.5px solid ${dropdownOpen ? 'var(--sr-accent)' : 'var(--sr-border)'}`,
-              borderRadius: dropdownOpen ? '8px 8px 0 0' : 8,
-              borderBottomColor: dropdownOpen ? 'transparent' : undefined,
-              fontSize: '0.875rem', fontWeight: selectedSpecies && !dropdownOpen ? 500 : 400,
-              fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)',
-              transition: 'border-color 0.15s',
-            }}
-          />
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label="Toggle species list"
-            onClick={() => setDropdownOpen(o => !o)}
-            style={{
-              // padding offset by `right` keeps the 16px chevron visually at the
-              // same spot while giving the button a ≥24×24 hit target (WCAG 2.5.8).
-              position: 'absolute', right: 7, top: '50%',
-              transform: `translateY(-50%) rotate(${dropdownOpen ? 180 : 0}deg)`,
-              transition: 'transform 0.15s', cursor: 'pointer',
-              color: 'var(--sr-text-muted)', display: 'flex',
-              background: 'transparent', border: 'none', padding: 4,
-            }}
-          >
-            <ChevronDown size={16} strokeWidth={2} />
-          </button>
-        </div>
-
-        {dropdownOpen && (
-          <div
-            ref={dropdownListRef}
-            role="listbox"
-            id="species-listbox"
-            style={{
-              position: 'absolute', top: '100%', left: 0, right: 0,
-              background: 'var(--sr-surface)',
-              border: '1.5px solid var(--sr-accent)',
-              borderTop: 'none', borderRadius: '0 0 8px 8px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
-              maxHeight: 260, overflowY: 'auto',
-            }}
-          >
-            {filteredSpeciesList.length === 0 ? (
-              <div style={{ padding: '12px 14px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
-                No species match this search.
-              </div>
-            ) : (
-              filteredSpeciesList.map((name, idx) => {
-                const isSelected = name === selectedSpecies
-                const isActive = idx === activeOptionIdx
-                return (
-                  <div
-                    key={name}
-                    id={`species-option-${idx}`}
-                    role="option"
-                    aria-selected={isSelected}
-                    onClick={() => {
-                      selectSpecies(name)
-                      setSelectorQuery('')
-                      setDropdownOpen(false)
-                      setActiveOptionIdx(-1)
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '9px 14px', cursor: 'pointer',
-                      background: isActive ? 'var(--sr-accent-bg-hover)' : isSelected ? 'var(--sr-accent-bg)' : 'transparent',
-                      outline: isActive ? `2px solid var(--sr-accent)` : 'none',
-                      outlineOffset: '-2px',
-                    }}
-                    onMouseEnter={e => { if (!isSelected && !isActive) (e.currentTarget as HTMLDivElement).style.background = 'var(--sr-surface-subtle)' }}
-                    onMouseLeave={e => { if (!isSelected && !isActive) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-                  >
-                    <span style={{ width: 16, flexShrink: 0, color: 'var(--sr-accent)' }}>
-                      {isSelected && <Check size={13} strokeWidth={3} />}
-                    </span>
-                    <span className="sr-truncate" style={{ fontSize: '0.84375rem', fontWeight: 500, color: isSelected ? 'var(--sr-accent)' : 'var(--sr-text)', flex: 1 }}>
-                      {name}
-                    </span>
-                    <span className="sr-truncate" style={{ fontSize: '0.6875rem', fontStyle: 'italic', color: 'var(--sr-text-muted)', flex: '0 1 auto', textAlign: 'right' }}>
-                      {sciNameMap.get(name)}
-                    </span>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        )}
+      {/* Species selector — the shared searchable combobox (reference impl for it). */}
+      <div style={{ marginBottom: 16, flexShrink: 0 }}>
+        <SpeciesCombobox
+          options={displaySpeciesList.map(n => ({ name: n, sciName: sciNameMap.get(n) }))}
+          value={selectedSpecies}
+          onChange={selectSpecies}
+          placeholder="Choose a species…"
+          ariaLabel="Select species"
+          size="md"
+          className="sr-input-16"
+        />
       </div>
 
       {/* Filter controls row */}
