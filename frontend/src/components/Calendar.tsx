@@ -3,10 +3,11 @@
 // or checklists-that-day, by a toggle — relatively color-shaded (with a colorblind
 // crosshatch-density alternative), navigable across every year the backup covers
 // plus an all-years-combined view. Clicking a day opens a popup with that day's
-// summary and links to its eBird checklists. A Months|Year view-density toggle
+// summary and links to its eBird checklists. A Large|Compact view-density toggle
 // switches between the big month grids and a 3×4 Year-Overview of mini-month
-// thumbnails; a low-emphasis "Count spuh, slash & hybrids" toggle optionally admits
-// non-countable forms into the Species metric.
+// thumbnails (both show the whole year — only the cell size differs); a low-emphasis
+// "Count spuh, slash & hybrids" toggle optionally admits non-countable forms into
+// the Species / Total count metrics.
 //
 // Frontend-only, offline, zero new network. Pure derivation lives in lib/calendar.ts;
 // the DOM crosshatch density in lib/calendarTextures.ts. See pipeline/calendar-tab.
@@ -36,7 +37,7 @@ const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'Ju
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] // Sunday-first single letters
 const COMBINED_REF_YEAR = 2000 // fixed reference leap year for stable weekday columns
 
-type ViewDensity = 'months' | 'year'
+type ViewDensity = 'large' | 'compact'
 
 type Phase =
   | { tag: 'loading' }
@@ -167,7 +168,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         type="button"
         tabIndex={0}
         onClick={() => onOpen(cell, ref.current!)}
-        aria-label={`${dateLabel} — birded, 0 ${metric === 'checklists' ? 'checklists' : 'countable species'}. Open day details`}
+        aria-label={`${dateLabel} — birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
         className="sr-touch-target"
         style={{
           ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)',
@@ -312,7 +313,7 @@ function MiniMonth({ month, descriptors, textures, onExpand }: {
           Open <ArrowRight size={10} strokeWidth={2.5} aria-hidden />
         </span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
+      <div className="sr-cal-minigrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
         {descriptors.map((d, i) => <MiniDayCell key={i} desc={d} textures={textures} />)}
       </div>
     </button>
@@ -320,24 +321,53 @@ function MiniMonth({ month, descriptors, textures, onExpand }: {
 }
 
 function MiniDayCell({ desc, textures }: { desc: DayCellDescriptor; textures: boolean }) {
-  const base: React.CSSProperties = { aspectRatio: '1 / 1', borderRadius: 2, minWidth: 0 }
+  // A centering box for the decorative in-cell number. The whole mini-month is ONE
+  // button (its aria-label names the month) and each cell carries a `title` with the
+  // value — the number is a visual read only, so pointerEvents:none keeps the button
+  // the sole hit target and the number never intercepts the click.
+  const base: React.CSSProperties = {
+    aspectRatio: '1 / 1', borderRadius: 2, minWidth: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+  }
+  const numBase: React.CSSProperties = {
+    fontSize: '0.5rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1,
+    pointerEvents: 'none',
+  }
   if (desc.kind === 'pad') return <div aria-hidden style={{ ...base, background: 'transparent' }} />
   if (desc.kind === 'nodata') return <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)' }} />
   if (desc.kind === 'zero') {
-    return <div aria-hidden title={`${cellDateLabel(desc.cell!.bucketKey)}: birded, 0 countable`} style={{ ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }} />
+    // Present-but-zero: a muted "0" (parity with the Large view's zero cell).
+    return (
+      <div aria-hidden title={`${cellDateLabel(desc.cell!.bucketKey)}: birded, 0 countable`} className="sr-cal-mininum" style={{ ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }}>
+        <span style={{ ...numBase, color: 'var(--sr-text-muted)' }}>0</span>
+      </div>
+    )
   }
   const tier = desc.tier!
   const fill: React.CSSProperties = textures ? calMiniHatchCss(tier) : { background: `var(--sr-cal-${tier})` }
-  return <div aria-hidden title={`${cellDateLabel(desc.cell!.bucketKey)}: ${desc.count}`} style={{ ...base, ...fill }} />
+  // In textures mode the crosshatch would swallow the number — back it with the same
+  // tier-color pill the Large cell uses so it reads over the hatch.
+  const pill: React.CSSProperties = textures
+    ? { background: `rgba(var(--sr-cal-${tier}-rgb), 0.9)`, borderRadius: 2, padding: '0 1px' }
+    : {}
+  return (
+    <div aria-hidden title={`${cellDateLabel(desc.cell!.bucketKey)}: ${desc.count}`} className="sr-cal-mininum" style={{ ...base, ...fill }}>
+      <span style={{ ...numBase, color: 'var(--sr-cal-fg)', ...pill }}>{desc.count}</span>
+    </div>
+  )
 }
 
 // ── Legend ───────────────────────────────────────────────────────────────────
 
 function legendUnit(view: CalendarView, metric: CalendarMetric): string {
+  const combined = view.kind === 'combined'
   if (metric === 'checklists') {
-    return view.kind === 'combined' ? 'Checklists across all years' : 'Checklists / day'
+    return combined ? 'Checklists across all years' : 'Checklists / day'
   }
-  return view.kind === 'combined' ? 'Species ever recorded' : 'Species / day'
+  if (metric === 'total') {
+    return combined ? 'Individuals across all years' : 'Individuals / day'
+  }
+  return combined ? 'Species ever recorded' : 'Species / day'
 }
 
 function CalendarLegend({ view, metric, textures, tiers }: {
@@ -434,6 +464,7 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
 
   const combined = view.kind === 'combined'
   const speciesNum = includeForms ? cell.speciesCountWithForms : cell.speciesCount
+  const totalNum = includeForms ? cell.totalCountWithForms : cell.totalCount
   // The number of DISTINCT years that contributed a checklist to this bucket — the
   // years actually birded on this MM-DD, NOT the full data-year span (FR-38/QA-35).
   const spanYears = combined
@@ -452,6 +483,9 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
   const checklistLabel = combined
     ? (spanYears ? `checklists across ${spanYears} ${spanYears === 1 ? 'year' : 'years'}` : 'checklists')
     : 'checklists'
+  const totalLabel = includeForms
+    ? (combined ? 'individuals (incl. forms), all years' : 'individuals (incl. forms)')
+    : (combined ? 'individuals, all years' : 'individuals')
 
   return (
     <div
@@ -470,7 +504,7 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--sr-text)', letterSpacing: '-0.01em' }}>{dateLabel}</div>
             {combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Across all years</div>}
-            {showFormsNote && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Spuh / slash / hybrids included in the species count</div>}
+            {showFormsNote && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Spuh / slash / hybrids included in the species &amp; individual counts</div>}
           </div>
           <button
             ref={closeRef}
@@ -483,14 +517,18 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, padding: '14px 18px 4px' }}>
-          <div style={{ flex: 1, background: 'var(--sr-surface-subtle)', borderRadius: 9, padding: '10px 12px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '14px 18px 4px' }}>
+          <div style={{ flex: '1 1 90px', minWidth: 90, background: 'var(--sr-surface-subtle)', borderRadius: 9, padding: '10px 12px' }}>
             <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{speciesNum}</div>
             <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 4 }}>{speciesLabel}</div>
           </div>
-          <div style={{ flex: 1, background: 'var(--sr-surface-subtle)', borderRadius: 9, padding: '10px 12px' }}>
+          <div style={{ flex: '1 1 90px', minWidth: 90, background: 'var(--sr-surface-subtle)', borderRadius: 9, padding: '10px 12px' }}>
             <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{cell.checklistCount}</div>
             <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 4 }}>{checklistLabel}</div>
+          </div>
+          <div style={{ flex: '1 1 90px', minWidth: 90, background: 'var(--sr-surface-subtle)', borderRadius: 9, padding: '10px 12px' }}>
+            <div style={{ fontSize: '1.375rem', fontWeight: 700, color: 'var(--sr-accent)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{totalNum.toLocaleString()}</div>
+            <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 4 }}>{totalLabel}</div>
           </div>
         </div>
 
@@ -555,7 +593,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   const [view, setView] = useState<CalendarView>({ kind: 'year', year: 0 })
   const [metric, setMetric] = useState<CalendarMetric>('species')
   const [textures, setTextures] = useState(false)
-  const [density, setDensity] = useState<ViewDensity>('months')
+  const [density, setDensity] = useState<ViewDensity>('large')
   const [includeForms, setIncludeForms] = useState(false)
   // Session-only per-species filter ('' = All species). A normalized common name.
   const [selectedSpecies, setSelectedSpecies] = useState('')
@@ -653,7 +691,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   }
 
   const expandMonth = (month: number) => {
-    setDensity('months')
+    setDensity('large')
     const idx = month - 1
     requestAnimationFrame(() => {
       const card = monthCardRefs.current[idx]
@@ -736,8 +774,10 @@ export function Calendar({ onGoToSettings, filesVersion }: {
     : String(view.kind === 'year' ? view.year : '')
   const metricPhrase = metric === 'checklists'
     ? (combined ? 'Checklists across all years on each calendar day' : 'Checklists submitted each day')
-    : (combined ? 'Species ever recorded on each calendar day' : 'Species seen each day')
-  const formsSuffix = metric === 'species' && !speciesFilterActive && includeForms ? ', spuh/slash/hybrids included' : ''
+    : metric === 'total'
+      ? (combined ? 'Individuals recorded on each calendar day' : 'Individuals recorded each day')
+      : (combined ? 'Species ever recorded on each calendar day' : 'Species seen each day')
+  const formsSuffix = (metric === 'species' || metric === 'total') && !speciesFilterActive && includeForms ? ', spuh/slash/hybrids included' : ''
   const speciesSuffix = speciesFilterActive ? ` · ${selectedSpecies} only` : ''
   const viewSub = `${metricPhrase}${formsSuffix}${speciesSuffix} · ${daysBirded.toLocaleString()} ${daysBirded === 1 ? 'day' : 'days'} birded`
 
@@ -769,7 +809,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
               ariaLabel="Day metric"
               value={metric}
               onChange={setMetric}
-              options={[{ value: 'species', label: 'Species' }, { value: 'checklists', label: 'Checklists' }]}
+              options={[{ value: 'species', label: 'Species' }, { value: 'checklists', label: 'Checklists' }, { value: 'total', label: 'Total count' }]}
             />
           </div>
 
@@ -832,8 +872,8 @@ export function Calendar({ onGoToSettings, filesVersion }: {
               value={density}
               onChange={setDensity}
               options={[
-                { value: 'months', label: 'Months', title: 'Large month grids with day numbers', icon: <LayoutGrid size={13} strokeWidth={2.2} aria-hidden /> },
-                { value: 'year', label: 'Year', title: 'All twelve months as small heatmap thumbnails', icon: <Grid2x2 size={13} strokeWidth={2.2} aria-hidden /> },
+                { value: 'large', label: 'Large', title: 'Large day cells across the whole year, with day numbers', icon: <LayoutGrid size={13} strokeWidth={2.2} aria-hidden /> },
+                { value: 'compact', label: 'Compact', title: 'Compact day cells across the whole year', icon: <Grid2x2 size={13} strokeWidth={2.2} aria-hidden /> },
               ]}
             />
           </div>
@@ -870,7 +910,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
       </div>
 
       {/* Grid */}
-      {density === 'months' ? (
+      {density === 'large' ? (
         <div className="sr-cal-months">
           {monthDescriptors.map((descriptors, i) => (
             <MonthGrid

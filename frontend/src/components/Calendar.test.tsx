@@ -124,22 +124,61 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     expect(screen.getByText('Checklists / day')).toBeTruthy()
   })
 
-  it('the View density toggle defaults Months and switches to a 3×4 Year Overview of 12 mini-months (QA-48)', async () => {
+  it('the Total count metric renders, relabels the legend/sub-line, and repaints the grid (change 1)', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    const totalBtn = screen.getByRole('button', { name: 'Total count' })
+    expect(totalBtn.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(totalBtn)
+    expect(totalBtn.getAttribute('aria-pressed')).toBe('true')
+    // legend unit switches to individuals
+    expect(screen.getByText('Individuals / day')).toBeTruthy()
+    // sub-line names individuals
+    expect(screen.getByText(/Individuals recorded each day/)).toBeTruthy()
+    // the 2025-03-14 rich day (3 species × count 1 = 3 individuals) still reads 3
+    expect(screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })).toBeTruthy()
+  })
+
+  it('Total count honors the include-forms toggle (it is NOT disabled for this metric) (change 1)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    const monthsBtn = screen.getByRole('button', { name: 'Months' })
-    const yearBtn = screen.getByRole('button', { name: 'Year' })
-    expect(monthsBtn.getAttribute('aria-pressed')).toBe('true')
-    expect(yearBtn.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(screen.getByRole('button', { name: 'Total count' }))
+    const formsSwitch = screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ })
+    // NOT disabled under Total count (unlike Checklists)
+    expect(formsSwitch.getAttribute('aria-disabled')).not.toBe('true')
+    expect(formsSwitch.getAttribute('tabindex')).toBe('0')
+  })
 
-    fireEvent.click(yearBtn)
-    // 12 mini-month buttons, each "Open {Month} in the month view", no day numbers
+  it('the View density toggle defaults Large and switches to a 3×4 Compact overview of 12 mini-months (QA-48)', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    const largeBtn = screen.getByRole('button', { name: 'Large' })
+    const compactBtn = screen.getByRole('button', { name: 'Compact' })
+    expect(largeBtn.getAttribute('aria-pressed')).toBe('true')
+    expect(compactBtn.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(compactBtn)
+    // 12 mini-month buttons, each "Open {Month} in the month view"
     const miniButtons = screen.getAllByRole('button', { name: /Open .* in the month view/ })
     expect(miniButtons).toHaveLength(12)
 
-    // clicking a mini-month flips back to Months
+    // clicking a mini-month flips back to Large
     fireEvent.click(screen.getByRole('button', { name: 'Open March in the month view' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Months' }).getAttribute('aria-pressed')).toBe('true'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Large' }).getAttribute('aria-pressed')).toBe('true'))
+  })
+
+  it('Compact mini-cells now carry the metric count number (change 3)', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
+    // The March mini-month button contains its cells; the rich 2025-03-14 day (3
+    // species) renders its count. The cell carries a title with the value, and the
+    // number text is inside the mini-month button (decorative, pointer-events none).
+    const marchMini = screen.getByRole('button', { name: 'Open March in the month view' })
+    // Cell title exposes the value; the number span renders the same digit.
+    const cell = marchMini.querySelector('[title="Mar 14, 2025: 3"]')
+    expect(cell).toBeTruthy()
+    expect(cell!.textContent).toContain('3')
   })
 })
 
@@ -171,7 +210,7 @@ describe('Calendar — spuh toggle (QA-49)', () => {
     await screen.findByText('January')
     fireEvent.click(screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Checklists' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Year' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
     expect(setSetting).not.toHaveBeenCalled()
   })
 })
@@ -234,9 +273,10 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
     const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
-    // both counts shown
+    // all three stat tiles shown regardless of the active metric (change 1)
     expect(within(dialog).getByText('species')).toBeTruthy()
     expect(within(dialog).getByText('checklists')).toBeTruthy()
+    expect(within(dialog).getByText('individuals')).toBeTruthy()
     // a real eBird checklist link (S100 is shape-valid)
     const links = within(dialog).getAllByRole('link', { name: /open checklist on eBird/ })
     expect(links.length).toBeGreaterThan(0)
@@ -311,9 +351,9 @@ describe('Calendar — no re-read / no re-parse on toggle (QA-04 / QA-41)', () =
     // Metric toggle Species → Checklists → Species.
     fireEvent.click(screen.getByRole('button', { name: 'Checklists' }))
     fireEvent.click(screen.getByRole('button', { name: 'Species' }))
-    // View-density toggle Months → Year → Months.
-    fireEvent.click(screen.getByRole('button', { name: 'Year' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Months' }))
+    // View-density toggle Large → Compact → Large.
+    fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }))
     // Use Textures on/off.
     fireEvent.click(screen.getByRole('switch', { name: 'Use Textures' }))
     fireEvent.click(screen.getByRole('switch', { name: 'Use Textures' }))

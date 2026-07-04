@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.60] - 2026-07-04
+
+### Added
+- **A "Total count" view on the Calendar tab.** The Calendar's *Show* toggle gains a third option alongside Species and Checklists: **Total count** shades and numbers each day by the total individual birds you recorded — the eBird *Count* column, summed. Paired with the Species filter it answers "how many of this bird did I record across the year," day by day. Same shading, legend, and popup as the other two metrics; the day popup now always shows all three numbers (species, checklists, individuals) whichever metric is active. Presence-only records — an "X" or a blank count — contribute 0 individuals, matching the Statistics tab's individual tally exactly, so the two never disagree. The "Count spuh, slash & hybrids" toggle re-shades Total count too (unlike Checklists, it isn't dimmed for this metric).
+
+### Changed
+- **The Calendar's view toggle is now Large | Compact (was Months | Year).** Both views always showed the whole year — only the cell size differed — so the labels were misleading. **Large** is the big month grids with day numbers; **Compact** is the 3×4 all-months thumbnail grid. Behavior is unchanged; only the labels are clearer.
+- **Compact-view mini-months now show a day number in each cell.** The small all-year thumbnail grid previously showed shading only; each populated day now also carries its count (species, checklists, or total individuals — whichever metric is active), so a day's value is legible without expanding to Large. Where a mini-cell is too small for a legible number it stays shading-only, and the exact figure is always in the Large view and the day popup.
+
 ## [0.5.59] - 2026-07-03
 
 ### Added

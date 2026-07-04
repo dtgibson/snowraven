@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { ObservationEntry } from '../types'
 import {
   buildDayCells, dataYears, defaultYear, adjacentDataYear, metricCount,
-  nonZeroMetricCounts, daysInMonth, dayOfWeek, isValidDateString, isValidCalendarDay,
+  nonZeroMetricCounts, individualsOf, daysInMonth, dayOfWeek, isValidDateString, isValidCalendarDay,
   dateParts, type CalendarView,
 } from './calendar'
 import { computeCountyTiers } from './countyShading'
@@ -19,7 +19,7 @@ function obs(partial: Partial<ObservationEntry> & { date: string; submissionId: 
     latitude: null,
     longitude: null,
     county: partial.county ?? null,
-    count: partial.count ?? 1,
+    count: 'count' in partial ? (partial.count ?? null) : 1,
     breedingCode: null,
     speciesComments: '',
     catalogIds: [],
@@ -311,6 +311,100 @@ describe('metricCount / nonZeroMetricCounts — includeNonCountable BOTH flags (
     for (const c of combined.values()) {
       expect(c.speciesCountWithForms).toBeGreaterThanOrEqual(c.speciesCount)
     }
+  })
+})
+
+describe('individualsOf — "X"/blank/null → 0 (Statistics-consistent, change 1)', () => {
+  it('returns the count when present', () => {
+    expect(individualsOf(5)).toBe(5)
+    expect(individualsOf(1)).toBe(1)
+    expect(individualsOf(50000)).toBe(50000)
+  })
+
+  it('returns 0 for null (the parsed "X"/blank/non-numeric case)', () => {
+    expect(individualsOf(null)).toBe(0)
+  })
+
+  it('treats 0 as 0 (not conflated with null)', () => {
+    expect(individualsOf(0)).toBe(0)
+  })
+})
+
+describe('Total count metric — totalCount / totalCountWithForms (change 1)', () => {
+  const year: CalendarView = { kind: 'year', year: 2024 }
+
+  it('sums individuals over countable rows; excludes spuh/slash/hybrid from totalCount', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', count: 3 }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow', count: 2 }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'gull sp.', count: 7 }),
+    ], year)
+    const c = cells.get('2024-03-14')!
+    expect(c.totalCount).toBe(5) // 3 Robin + 2 Sparrow; gull sp. excluded (non-countable)
+    expect(c.totalCountWithForms).toBe(12) // + 7 gull sp.
+    expect(c.totalCountWithForms).toBeGreaterThanOrEqual(c.totalCount)
+  })
+
+  it('an "X"/blank row (count null) contributes 0 individuals', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', count: null }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow', count: 4 }),
+    ], year)
+    const c = cells.get('2024-03-14')!
+    expect(c.totalCount).toBe(4) // Robin "X" → 0, Sparrow 4
+  })
+
+  it('SUMS across multiple checklists on the same day (no de-dup, unlike Species)', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', count: 2 }),
+      obs({ date: '2024-03-14', submissionId: 'S2', commonName: 'American Robin', count: 3 }),
+    ], year)
+    const c = cells.get('2024-03-14')!
+    // Same species on two same-day checklists adds twice: 2 + 3.
+    expect(c.speciesCount).toBe(1) // Species de-dups to 1
+    expect(c.totalCount).toBe(5) // Total count sums both rows
+  })
+
+  it("metricCount('total') honors includeNonCountable (with-forms vs countable)", () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', count: 3 }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'gull sp.', count: 7 }),
+    ], year)
+    const c = cells.get('2024-03-14')!
+    expect(metricCount(c, 'total', false)).toBe(3) // countable only
+    expect(metricCount(c, 'total', true)).toBe(10) // + 7 spuh individuals
+  })
+
+  it('nonZeroMetricCounts reads the total metric like the others', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', count: 3 }),
+      obs({ date: '2024-03-15', submissionId: 'S2', commonName: 'Song Sparrow', count: 2 }),
+      obs({ date: '2024-03-16', submissionId: 'S3', commonName: 'gull sp.', count: 9 }), // countable total 0
+    ], year)
+    // 03-16 is all-spuh → totalCount 0 → excluded from the non-zero tiering set.
+    expect(nonZeroMetricCounts(cells, 'total', false).sort((a, b) => a - b)).toEqual([2, 3])
+    // With forms ON, 03-16's 9 individuals enter the set.
+    expect(nonZeroMetricCounts(cells, 'total', true).sort((a, b) => a - b)).toEqual([2, 3, 9])
+  })
+
+  it('combined view SUMS individuals across years (Checklists-style, not Species-union)', () => {
+    const cells = buildDayCells([
+      obs({ date: '2022-01-12', submissionId: 'S1', commonName: 'American Robin', count: 4 }),
+      obs({ date: '2023-01-12', submissionId: 'S2', commonName: 'American Robin', count: 6 }),
+      obs({ date: '2024-01-12', submissionId: 'S3', commonName: 'American Robin', count: 5 }),
+    ], { kind: 'combined' })
+    const c = cells.get('01-12')!
+    expect(c.speciesCount).toBe(1) // union across years
+    expect(c.totalCount).toBe(15) // 4 + 6 + 5 summed across years
+  })
+
+  it('a species filter + Total count = that species individuals per day', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', count: 3 }),
+      obs({ date: '2024-03-14', submissionId: 'S2', commonName: 'American Robin', count: 4 }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow', count: 9 }), // excluded
+    ], year, 'American Robin')
+    expect(cells.get('2024-03-14')!.totalCount).toBe(7) // 3 + 4 Robin only
   })
 })
 

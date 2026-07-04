@@ -9,7 +9,17 @@
 import type { ObservationEntry } from '../types'
 import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
 
-export type CalendarMetric = 'species' | 'checklists'
+export type CalendarMetric = 'species' | 'checklists' | 'total'
+
+/** Individuals contributed by one row's Count. eBird "X"/blank/non-numeric parses to
+ *  ObservationEntry.count === null (parseEbirdObservations); an "X"/blank row therefore
+ *  contributes 0 individuals. This matches the Statistics tab's ONE individual tally
+ *  (birdingStats individualCount: `if (o.count !== null) sum += o.count`, X/blank = 0),
+ *  so the Calendar's "Total count" and Statistics' "most individuals" use identical
+ *  arithmetic and can never silently disagree. */
+export function individualsOf(count: number | null): number {
+  return count ?? 0
+}
 
 /** Single-year: bucketKey is 'YYYY-MM-DD'. Combined: bucketKey is 'MM-DD'. */
 export type CalendarView =
@@ -32,6 +42,14 @@ export interface DayCell {
    *  view: the SUM across years (FR-18). A spuh-only checklist still counts (FR-11).
    *  Unaffected by the include-non-countable toggle (Checklists is metric-only). */
   checklistCount: number
+  /** Σ individuals (ObservationEntry.count) over COUNTABLE rows only (spuh/slash/hybrid
+   *  excluded — the default value, mirroring speciesCount). An "X"/blank row contributes
+   *  0 (individualsOf). A SUM metric: no de-dup, so a species on two same-day checklists
+   *  adds its individuals twice; combined view SUMS across years (Checklists-style). */
+  totalCount: number
+  /** Σ individuals INCLUDING spuh/slash/hybrid rows (the spuh-toggle-ON value, mirroring
+   *  speciesCountWithForms). totalCountWithForms >= totalCount always. */
+  totalCountWithForms: number
   /** submissionId → the full 'YYYY-MM-DD' date that checklist was logged on. Drives
    *  the popup's ChecklistLink rows (year-labeled in combined mode). Newest-first
    *  ordering is applied at render from these dates. */
@@ -119,6 +137,8 @@ export function buildDayCells(
     countable: Set<string>
     withForms: Set<string>
     checklists: Map<string, string> // submissionId -> full YYYY-MM-DD date
+    total: number // Σ individuals, countable rows only
+    totalWithForms: number // Σ individuals, all rows (incl. spuh/slash/hybrid)
   }
   const work = new Map<string, Work>()
 
@@ -135,11 +155,16 @@ export function buildDayCells(
     const bucketKey = view.kind === 'year' ? date : date.slice(5) // MM-DD for combined
     let w = work.get(bucketKey)
     if (!w) {
-      w = { bucketKey, countable: new Set(), withForms: new Set(), checklists: new Map() }
+      w = { bucketKey, countable: new Set(), withForms: new Set(), checklists: new Map(), total: 0, totalWithForms: 0 }
       work.set(bucketKey, w)
     }
+    const n = individualsOf(o.count) // "X"/blank/null → 0 (Statistics-consistent)
     w.withForms.add(norm)
-    if (!isNonCountableSpecies(o.commonName)) w.countable.add(norm)
+    w.totalWithForms += n
+    if (!isNonCountableSpecies(o.commonName)) {
+      w.countable.add(norm)
+      w.total += n
+    }
     // A checklist (submissionId) lands on THIS row's valid date. Globally-unique
     // eBird submission ids mean a per-bucket Set spanning years has a size that
     // legitimately equals the sum, so one mechanism serves both views.
@@ -155,6 +180,8 @@ export function buildDayCells(
       speciesCount: w.countable.size,
       speciesCountWithForms: w.withForms.size,
       checklistCount: w.checklists.size,
+      totalCount: w.total,
+      totalCountWithForms: w.totalWithForms,
       checklists: [...w.checklists.entries()].map(([submissionId, date]) => ({ submissionId, date })),
     })
   }
@@ -195,13 +222,15 @@ export function adjacentDataYear(years: number[], current: number, dir: -1 | 1):
   return years[target]
 }
 
-/** The active-metric count of a DayCell (species vs checklists). The Species branch
- *  honors the FR-45 include-non-countable-forms toggle: includeNonCountable=false
- *  reads cell.speciesCount (countable only, default), true reads
- *  cell.speciesCountWithForms. The Checklists branch IGNORES includeNonCountable
- *  (metric-only, FR-45) and always returns cell.checklistCount. */
+/** The active-metric count of a DayCell (species / checklists / total individuals). The
+ *  Species AND Total branches honor the FR-45 include-non-countable-forms toggle:
+ *  includeNonCountable=false reads the countable-only field (speciesCount / totalCount,
+ *  the default), true reads the with-forms field (speciesCountWithForms /
+ *  totalCountWithForms). The Checklists branch IGNORES includeNonCountable (metric-only,
+ *  FR-45) and always returns cell.checklistCount. */
 export function metricCount(cell: DayCell, metric: CalendarMetric, includeNonCountable: boolean): number {
   if (metric === 'checklists') return cell.checklistCount
+  if (metric === 'total') return includeNonCountable ? cell.totalCountWithForms : cell.totalCount
   return includeNonCountable ? cell.speciesCountWithForms : cell.speciesCount
 }
 

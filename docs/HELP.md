@@ -220,26 +220,26 @@ The Calendar tab lays out a full year of your birding as twelve month grids, lik
 
 ### Reading the calendar
 
-- **Each day carries a count.** By default it's the number of **species** you saw that day; the **Show** toggle switches every day to the number of **checklists** you submitted that day instead. Species tells you how *good* a day was; checklists, how *much* you went out.
+- **Each day carries a count.** By default it's the number of **species** you saw that day; the **Show** toggle switches every day to the number of **checklists** you submitted that day, or the **total count** of individual birds you recorded that day (the eBird *Count* column, summed). Species tells you how *good* a day was; checklists, how *much* you went out; total count, how *many* birds you tallied. Presence-only records — an "X" or a blank count — add 0 to the total (the same rule as the Statistics tab's individual tally), so the two never disagree.
 - **Days are shaded green** by their count relative to the year on screen — darker means busier. So the shape of your year reads at a glance: busy spring and fall migration darken, quiet mid-summer thins out, a big December count-day day goes near-black.
-- **Three kinds of day:** a shaded, numbered **data day** (a real `<button>` — click it); a faint outlined **no-birding day** (you logged nothing); and a light **"0"** day — you birded, but the only things you recorded that day were non-countable forms (a spuh, slash, or hybrid), so your countable species count is zero.
-- **The legend** on the right names the unit ("Species / day", "Checklists / day", …) and shows the green ramp with the low and high counts of the current view, plus the "no birding" and "birded · 0 countable" keys.
+- **Three kinds of day:** a shaded, numbered **data day** (a real `<button>` — click it); a faint outlined **no-birding day** (you logged nothing); and a light **"0"** day — you birded, but nothing you recorded that day counted toward the active metric (for example, only non-countable spuh/slash/hybrid forms under Species).
+- **The legend** on the right names the unit ("Species / day", "Checklists / day", "Individuals / day", …) and shows the green ramp with the low and high counts of the current view, plus the "no birding" and "birded · 0 countable" keys.
 
 ### Moving through your data
 
 - **Year navigation** — the ‹ and › buttons move to the previous or next year that has data (gap years are skipped, and the buttons disable at the ends of your range).
-- **All years** — folds every year into one combined twelve-month grid, keyed by month-and-day. Here **species** is a *distinct-species union* across years ("how many different birds have I ever recorded on this date") and **checklists** is a *sum* across years; February always keeps its Feb 29 cell. The legend and the day popup label which is which so the two are never confused.
+- **All years** — folds every year into one combined twelve-month grid, keyed by month-and-day. Here **species** is a *distinct-species union* across years ("how many different birds have I ever recorded on this date"), while **checklists** and **total count** are *sums* across years; February always keeps its Feb 29 cell. The legend and the day popup label which is which so the two are never confused.
 
-### View density: Months or Year
+### View density: Large or Compact
 
-The **View** toggle switches between two layouts:
+The **View** toggle switches between two layouts — both show the whole year, only the cell size differs:
 
-- **Months** (default) — the twelve big month grids with a number on every day.
-- **Year** — all twelve months as small heatmap thumbnails in a 3×4 grid: the whole year at a glance, where the shading alone tells the story (there are no day numbers at this size). Click a mini-month to jump straight to its full month grid.
+- **Large** (default) — the twelve big month grids with a number on every day.
+- **Compact** — all twelve months as small thumbnails in a 3×4 grid: the whole year at a glance. Each populated day carries its count (species, checklists, or total individuals, matching the active metric); where a cell is too small for a legible number it stays shading-only, and the exact figure is always in the Large view and the day popup. Click a mini-month to jump straight to its full month grid.
 
 ### Focusing on one species
 
-A **Species** dropdown in the control row narrows the whole calendar to a single species. Leave it on **All species** (the default) for the normal view, or pick a bird to see the seasonal shape of just *when you record that species* — every day cell, the shading tiers, the legend, and the day popup redraw for that one species. Under a species filter the **Species** metric becomes a simple presence — 1 on a day you recorded it, blank otherwise — and the **Checklists** metric counts the checklists that recorded it that day; **All years** folds that one species across every year. Subspecies and form names fold into their parent (so picking "Dark-eyed Junco" includes "Dark-eyed Junco (Oregon)"), and the spuh/slash/hybrid toggle steps aside while a single species is chosen. The selection lasts for the session and makes no network calls.
+A **Species** dropdown in the control row narrows the whole calendar to a single species. Leave it on **All species** (the default) for the normal view, or pick a bird to see the seasonal shape of just *when you record that species* — every day cell, the shading tiers, the legend, and the day popup redraw for that one species. Under a species filter the **Species** metric becomes a simple presence — 1 on a day you recorded it, blank otherwise — the **Checklists** metric counts the checklists that recorded it that day, and **Total count** shows how many individuals of that one bird you recorded each day (the headline use case: "how many of this bird did I record across the year"); **All years** folds that one species across every year. Subspecies and form names fold into their parent (so picking "Dark-eyed Junco" includes "Dark-eyed Junco (Oregon)"), and the spuh/slash/hybrid toggle steps aside while a single species is chosen. The selection lasts for the session and makes no network calls.
 
 ### Textures (colorblind mode)
 
@@ -247,11 +247,11 @@ The **Use Textures** switch turns each shade tier into a crosshatch whose densit
 
 ### Counting spuh, slash & hybrids
 
-A low-emphasis switch at the bottom of the controls, **off by default**, optionally counts non-countable forms — a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), or a hybrid (`Mallard × American Black Duck`) — as species in the **Species** count. Turning it on raises some day counts and re-shades the grid, and a former "0" day becomes a real numbered day. It only affects the Species metric — checklists are unchanged — so it's dimmed and inactive whenever Checklists is the active metric.
+A low-emphasis switch at the bottom of the controls, **off by default**, optionally counts non-countable forms — a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), or a hybrid (`Mallard × American Black Duck`) — toward the **Species** count and the **Total count** individuals. Turning it on raises some day counts and re-shades the grid, and a former "0" day becomes a real numbered day. It has no effect on the Checklists metric — so it's dimmed and inactive whenever Checklists is the active metric (and while a single species is chosen).
 
 ### The day popup
 
-Click any day to open a popup showing **both** that day's species and checklist counts (regardless of which metric the grid is on) and a list of that day's checklists, each linking straight to eBird. In All-years mode the popup labels the union-vs-sum distinction and tags each checklist with its year. Close it with Escape, the Close button, or by clicking the backdrop.
+Click any day to open a popup showing **all three** of that day's numbers — species, checklists, and total individuals (regardless of which metric the grid is on) — and a list of that day's checklists, each linking straight to eBird. In All-years mode the popup labels the union-vs-sum distinction and tags each checklist with its year. Close it with Escape, the Close button, or by clicking the backdrop.
 
 ---
 
