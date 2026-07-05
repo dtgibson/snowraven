@@ -5,9 +5,9 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
-### Calendar (complete — July 2026, v0.5.62)
+### Calendar (complete — July 2026, v0.5.63)
 
-A Calendar tab that renders the birder's own eBird export as a heatmap of their birding year — each day shaded (and numbered) by one of three metrics (species seen, checklists, or total individuals recorded that day), per year or all years combined (the all-years grid aligns its weekday columns to the current year, with Feb 29 always present) — with a Compact / Large view toggle (Compact shows the twelve full month grids, each day cell carrying its day-of-month in the corner alongside the count; Large shows the whole year as shading-only month thumbnails; on phones only the Compact view shows), a per-day popup listing that day's checklists, a colorblind crosshatch texture mode, an optional include-spuh/slash/hybrid refinement, and a searchable type-to-find species filter that narrows the whole calendar to one species (by normalized name, folding forms). Frontend-only, offline, and zero-network — computed entirely from the already-loaded backup.
+A Calendar tab that renders the birder's own eBird export as a heatmap of their birding year — each day shaded by one of three metrics (species seen, checklists, or total individuals recorded that day), per year or all years combined (the all-years grid aligns its weekday columns to the current year, with Feb 29 always present) — with a Compact / Large view toggle (Compact shows the twelve full month grids as clean count-only cells; Large shows the whole year as month thumbnails whose day cells carry a small day-of-month number; on phones only the Compact view shows), a per-day popup that lists that day's checklists with each row's start time, location (plain text), species count, and eBird link, a colorblind crosshatch texture mode, an optional include-spuh/slash/hybrid refinement, and a searchable type-to-find species filter that narrows the whole calendar to one species (by normalized name, folding forms). Frontend-only, offline, and zero-network — computed entirely from the already-loaded backup.
 
 ### County Completeness — a third county-shading metric on the Map Explorer (complete — July 2026, v0.5.54)
 
