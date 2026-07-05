@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile",
+  "description": "iOS-only permissions: geolocation for 'Use my location' (when-in-use only, schema §2.7 / FR-16), and dialog:allow-open for the Mechanism B document-picker fallback (lib/iosImport.ts — remove the dialog grant if Mechanism A verifies in the simulator and B is dropped).",
+  "platforms": ["iOS"],
+  "windows": ["main"],
+  "permissions": [
+    "geolocation:allow-check-permissions",
+    "geolocation:allow-request-permissions",
+    "geolocation:allow-get-current-position",
+    "dialog:allow-open"
+  ]
+}

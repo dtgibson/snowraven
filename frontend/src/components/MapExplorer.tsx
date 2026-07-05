@@ -13,6 +13,8 @@ import { transport, TransportError } from '../lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE_SHORT, type LiveErrorKind } from '../lib/offlineMessage'
 import { OfflineMessage } from './OfflineMessage'
 import { storage } from '../lib/storage'
+import { isIOS } from '../lib/platform'
+import { mapContentClass } from '../lib/mapFullscreen'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { SnowMap } from './SnowMap'
@@ -2060,8 +2062,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         })}
       </div>
 
-      {/* Content: sidebar + map */}
-      <div className="sr-map-content" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      {/* Content: sidebar + map. On iOS builds ONLY, fullscreen adds
+          sr-map-ios-fullscreen (globals.css): the sidebar becomes the
+          phone-tier overlay and the Filters FAB appears at ANY width — the
+          user-approved mobile-app design-review rule. Desktop/web fullscreen
+          keeps the sidebar visible beside the map, unchanged. */}
+      <div className={mapContentClass(isIOS() && !!isFullscreen)} style={{ display: 'flex', flex: 1, minHeight: 0 }}>
         {/* Backdrop — mobile only, shown when sidebar open */}
         {sidebarOpen && (
           <div

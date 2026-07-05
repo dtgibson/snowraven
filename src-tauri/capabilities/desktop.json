@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "desktop",
+  "description": "Desktop-only permissions: the in-app updater and the process restart/exit it uses. Absent on iOS/iPadOS (FR-14 — updates flow through TestFlight/App Store; the plugins are not even compiled into mobile binaries).",
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["main"],
+  "permissions": [
+    "updater:default",
+    "process:allow-restart",
+    "process:allow-exit"
+  ]
+}

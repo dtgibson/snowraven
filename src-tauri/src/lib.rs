@@ -46,13 +46,29 @@ fn get_timezone(lat: f64, lng: f64) -> String {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_clipboard_manager::init());
+
+    // Desktop-only: the in-app updater + process restart. Absent from mobile
+    // binaries entirely (FR-14 — updates flow through TestFlight/App Store).
+    #[cfg(desktop)]
+    let builder = builder
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_process::init());
+
+    // Mobile-only: geolocation ("Use my location", schema §2.7) and dialog
+    // (the Mechanism B document-picker fallback, schema §2.6). Grants live in
+    // capabilities/mobile.json; desktop binaries are byte-unaffected.
+    #[cfg(mobile)]
+    let builder = builder
+        .plugin(tauri_plugin_geolocation::init())
+        .plugin(tauri_plugin_dialog::init());
+
+    builder
         .invoke_handler(tauri::generate_handler![
             get_api_key,
             set_api_key,

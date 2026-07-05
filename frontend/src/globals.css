@@ -604,6 +604,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* iOS safe areas (mobile-app NFR-07): with viewport-fit=cover the WebView
+   extends under the notch/Dynamic Island and rounded corners; these insets
+   keep the app's first row and side gutters clear in both orientations.
+   GATED behind .sr-ios-app (set on <html> by main.tsx only when isIOS()):
+   env() is NOT zero on the web build in iOS Safari — index.html ships
+   viewport-fit=cover to browsers too — so ungated rules would change the
+   shipped web rendering on notched phones (QA round-1 finding). Desktop is
+   env()=0 either way; web/Pi stays byte-identical because the class never
+   applies there. Bottom is handled per-surface (footer, map FAB cluster) so
+   fixed overlays can still bleed edge-to-edge. */
+.sr-ios-app body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* App footer — padding lifted from the inline style (values identical to the
+   pre-mobile-app inline '0 24px 20px', so desktop/web render byte-identically)
+   so the iOS home-indicator inset can extend it below. The ≤640 .sr-pad-x-trim
+   !important side-padding override still wins over these class rules. */
+.sr-app-footer {
+  padding: 0 24px 20px;
+}
+
+.sr-ios-app .sr-app-footer {
+  padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
 }
@@ -744,6 +772,32 @@ h1, h2, h3, h4, h5, h6 {
 .sr-map-explorer-panel { height: calc(100dvh - 178px); min-height: 340px; }
 @media (max-width: 640px) { .sr-map-explorer-panel { height: calc(100dvh - 132px); } }
 
+/* iOS compact chrome (preview-driven composition fixes, user-requested at the
+   live simulator preview — pipeline/mobile-app/decisions.md). Both classes are
+   applied by App.tsx ONLY when compactChrome() (platformGates) is true, i.e.
+   iOS/iPadOS builds; desktop and web never carry them.
+
+   1. The brand header collapses to a slim single-line bar. !important because
+      the base padding is inline (specificity 1,0,0) and the ≤640 tier's
+      .sr-header padding-top is itself !important; the double-class selector
+      (0,2,0) out-cascades it. */
+.sr-header.sr-header-compact {
+  padding: 8px 16px 6px !important;
+}
+
+/* 2. The Map Explorer panel sizes to the VISIBLE viewport under the compact
+      chrome — safe-area top inset (body padding) + compact header (~42px) +
+      tab nav (~66px) ≈ 108px, budgeted 112px — so the map AND its FAB cluster
+      (fullscreen/Filters) are above the fold when the tab opens, at any width
+      and either iPad orientation (dvh + env are orientation-aware; no JS).
+      The double-class selector out-specifies both the base rule and the ≤640
+      media-tier rule. min-height keeps a usable map (with page scroll) on
+      short landscape-phone viewports. */
+.sr-map-explorer-panel.sr-map-panel-ios {
+  height: calc(100dvh - 112px - env(safe-area-inset-top, 0px));
+  min-height: 300px;
+}
+
 /* Leaf utilities — attach to the specific child that needs them. */
 .sr-min0 { min-width: 0; }
 .sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -868,6 +922,15 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 1050;
   align-items: center;
   gap: 10px;
+}
+
+/* Safe-area insets (mobile-app NFR-07), iOS app only (.sr-ios-app — see the
+   body rule above): keep the 44px-class FABs clear of the home indicator and
+   rounded corners, incl. the fullscreen overlay where the map canvas bleeds
+   edge-to-edge. Web/desktop keep the base 20/16px, byte-identical. */
+.sr-ios-app .sr-map-fab-cluster {
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
 }
 
 .sr-map-filters-btn {
@@ -1129,6 +1192,44 @@ select:focus-visible {
   .sr-map-sidebar-close {
     display: flex;
   }
+}
+
+/* iOS map fullscreen (mobile-app, user-approved at the design review):
+   entering fullscreen hides the sidebar at ANY width — the map owns the
+   entire canvas — and the Filters FAB appears (opening the same overlay the
+   phone tier uses); exiting restores the in-flow sidebar beside the map.
+   MapExplorer applies .sr-map-ios-fullscreen ONLY when isIOS() && fullscreen
+   (lib/mapFullscreen.ts), so desktop/web fullscreen is untouched. These rules
+   mirror the ≤640 phone-tier block above exactly — keep the two in sync. */
+.sr-map-ios-fullscreen .sr-map-sidebar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: min(282px, 90vw);
+  z-index: 1200;
+  overflow-y: auto;
+  /* The fullscreen panel is position:fixed inset:0 (bypasses the body's
+     safe-area padding) and the overlay is pinned left:0 — pad its content
+     clear of the sensor housing in landscape (QA round-1 finding). This block
+     only applies on iOS builds, so no .sr-ios-app gate is needed here. */
+  padding-left: env(safe-area-inset-left, 0px);
+}
+
+.sr-map-ios-fullscreen .sr-map-sidebar-overlay.sr-map-sidebar-hidden {
+  display: none;
+}
+
+.sr-map-ios-fullscreen .sr-map-backdrop {
+  display: block;
+}
+
+.sr-map-ios-fullscreen .sr-map-filters-btn {
+  display: inline-flex;
+}
+
+.sr-map-ios-fullscreen .sr-map-sidebar-close {
+  display: flex;
 }
 
 /* Small-phone tier — stack inline rows that can't shrink further (action rows,

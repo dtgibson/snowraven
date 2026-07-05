@@ -129,6 +129,18 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect([...calExternals].filter(s => s === 'maplibre-gl' || s.startsWith('react-map-gl'))).toEqual([])
   })
 
+  it('the mobile-only plugins are dynamic-only — never static on the entry graph (mobile-app NFR-06)', () => {
+    // location.ts (geolocation) and iosImport.ts (dialog) ARE statically
+    // reachable from App.tsx, so this assertion is live: their plugin loads
+    // must stay `await import(...)` so desktop/web bundles never execute them
+    // and the entry chunk never grows. plugin-os is deliberately static (a
+    // few-KB sync probe backing isIOS()); it is not in this list.
+    const mobilePlugins = [...externals].filter(
+      s => s.startsWith('@tauri-apps/plugin-geolocation') || s.startsWith('@tauri-apps/plugin-dialog'),
+    )
+    expect(mobilePlugins).toEqual([])
+  })
+
   it('the App entry actually exists (guards against a broken closure root)', () => {
     expect(files.has(APP)).toBe(true)
     expect(files.size).toBeGreaterThan(20) // a real graph, not an empty/short-circuited one

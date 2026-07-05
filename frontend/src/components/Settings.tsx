@@ -8,7 +8,10 @@ import { type ConfigurableTab, TAB_LABELS, DEFAULT_TAB_ORDER } from '../lib/tabL
 import { storage } from '../lib/storage'
 import { formatDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
 import type { DateFormatPref } from '../lib/formatDate'
-import { isTauri } from '../lib/platform'
+import { isTauri, isIOS } from '../lib/platform'
+import { showOfflineMapsSection, supportsAppRelaunch } from '../lib/platformGates'
+import { fileRowButtonLabel } from '../lib/fileRowCopy'
+import { IOS_IMPORT_MECHANISM, pickCsvViaDialog } from '../lib/iosImport'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { clearEbirdObservationsCache } from '../lib/observationsCache'
@@ -262,15 +265,28 @@ interface FileRowProps {
   uploading: boolean
   error: string | null
   onUpload: (file: File) => void
+  // Mechanism B (mobile-app schema §2.6): the plugin-dialog document picker
+  // path, used on iOS only when IOS_IMPORT_MECHANISM === 'dialog'. The row's
+  // default iOS path (Mechanism A) is the file input below — WebKit presents
+  // the native document picker for it.
+  onNativePick?: () => void
   onDelete: () => void
 }
 
-function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }: FileRowProps) {
+function FileRow({ label, sublabel, info, uploading, error, onUpload, onNativePick, onDelete }: FileRowProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) { onUpload(file); e.target.value = '' }
+  }
+
+  const handlePickClick = () => {
+    if (isIOS() && IOS_IMPORT_MECHANISM === 'dialog' && onNativePick) {
+      onNativePick()
+      return
+    }
+    inputRef.current?.click()
   }
 
   return (
@@ -318,7 +334,7 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
           )}
 
           <button tabIndex={0}
-            onClick={() => inputRef.current?.click()}
+            onClick={handlePickClick}
             disabled={uploading}
             style={{
               height: 32, padding: '0 12px',
@@ -332,7 +348,9 @@ function FileRow({ label, sublabel, info, uploading, error, onUpload, onDelete }
               whiteSpace: 'nowrap',
             }}
           >
-            {uploading ? 'Uploading…' : info ? 'Upload new' : 'Upload file'}
+            {/* iOS uses the approved "Import" wording (decisions.md 2026-07-05);
+                desktop/web keep "Upload" — same seam as the picker itself. */}
+            {fileRowButtonLabel(uploading, !!info, isIOS())}
           </button>
 
           <button tabIndex={0}
@@ -949,7 +967,11 @@ interface ApiKeyStatus {
 // ---- Rebuild caches button ----
 
 function RebuildCachesButton() {
-  const [status, setStatus] = useState<'idle' | 'working'>('idle')
+  const [status, setStatus] = useState<'idle' | 'working' | 'cleared' | 'error'>('idle')
+  // iOS: no process plugin in the binary and no programmatic relaunch on the
+  // platform — clear the cache, then ask the user to close and reopen the app
+  // (QA round-1 fix; see supportsAppRelaunch in platformGates).
+  const relaunchable = supportsAppRelaunch()
 
   async function handleRebuild() {
     setStatus('working')
@@ -961,25 +983,50 @@ function RebuildCachesButton() {
         req.onblocked = () => resolve()
       })
     } catch { /* best-effort */ }
-    const { relaunch } = await import('@tauri-apps/plugin-process')
-    await relaunch()
+    if (!relaunchable) {
+      setStatus('cleared')
+      return
+    }
+    try {
+      const { relaunch } = await import('@tauri-apps/plugin-process')
+      await relaunch()
+      // relaunch() exits the process on success — nothing runs after it.
+    } catch {
+      // Never strand the button: reset and tell the user the manual path
+      // (caches WERE cleared above; a manual quit-and-reopen finishes the job).
+      setStatus('error')
+    }
   }
 
   return (
-    <button tabIndex={0}
-      onClick={handleRebuild}
-      disabled={status === 'working'}
-      style={{
-        height: 32, padding: '0 14px',
-        background: status === 'working' ? 'var(--sr-surface-subtle)' : 'var(--sr-surface)',
-        color: status === 'working' ? 'var(--sr-text-disabled)' : 'var(--sr-text)',
-        border: '1px solid var(--sr-border)', borderRadius: 6,
-        fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
-        cursor: status === 'working' ? 'not-allowed' : 'pointer',
-      }}
-    >
-      {status === 'working' ? 'Restarting…' : 'Rebuild caches & restart'}
-    </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      <button tabIndex={0}
+        onClick={handleRebuild}
+        disabled={status === 'working'}
+        style={{
+          height: 32, padding: '0 14px',
+          background: status === 'working' ? 'var(--sr-surface-subtle)' : 'var(--sr-surface)',
+          color: status === 'working' ? 'var(--sr-text-disabled)' : 'var(--sr-text)',
+          border: '1px solid var(--sr-border)', borderRadius: 6,
+          fontSize: '0.75rem', fontWeight: 500, fontFamily: 'inherit',
+          cursor: status === 'working' ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {status === 'working'
+          ? (relaunchable ? 'Restarting…' : 'Clearing…')
+          : relaunchable ? 'Rebuild caches & restart' : 'Rebuild caches'}
+      </button>
+      {status === 'cleared' && (
+        <span role="status" style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', minWidth: 0 }}>
+          Caches cleared — close and reopen SnowRaven to finish.
+        </span>
+      )}
+      {status === 'error' && (
+        <span role="alert" style={{ fontSize: '0.75rem', color: 'var(--sr-error)', minWidth: 0 }}>
+          Couldn't restart automatically. Caches were cleared — quit and reopen the app to finish.
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -1053,19 +1100,27 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
       .catch(() => {})
   }, [])
 
-  // File handlers
-  const handleUpload = async (slot: 'ebird' | 'ml', file: File) => {
+  // File handlers. The tail (extension guard → storage.writeFile → cache
+  // invalidation → metadata refresh) is shared by BOTH import mechanisms
+  // (mobile-app schema §2.6): the file-input path hands it a File's text, the
+  // iOS dialog path hands it an already-read string — so persistence, replace,
+  // error, and metadata semantics stay one code path (FR-10/11/12/13).
+  const importFileContent = async (
+    slot: 'ebird' | 'ml',
+    filename: string,
+    getContent: () => Promise<string>,
+  ) => {
     const setUploading = slot === 'ebird' ? setEbirdUploading : setMlUploading
     const setError = slot === 'ebird' ? setEbirdError : setMlError
-    if (!file.name.toLowerCase().endsWith('.csv')) {
+    if (!filename.toLowerCase().endsWith('.csv')) {
       setError('Only .csv files are accepted.')
       return
     }
     setUploading(true)
     setError(null)
     try {
-      const content = await file.text()
-      await storage.writeFile(slot, content, file.name)
+      const content = await getContent()
+      await storage.writeFile(slot, content, filename)
       if (slot === 'ebird') { clearEbirdObservationsCache(); invalidateHotspotSet() }
       if (slot === 'ml') clearMLExportCache()
       const updatedStatus = await storage.getFilesStatus()
@@ -1076,6 +1131,26 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
     } finally {
       setUploading(false)
     }
+  }
+
+  const handleUpload = (slot: 'ebird' | 'ml', file: File) =>
+    importFileContent(slot, file.name, () => file.text())
+
+  // Mechanism B only (IOS_IMPORT_MECHANISM === 'dialog'): native document
+  // picker via plugin-dialog, then the same shared tail. Cancel resolves null
+  // → clean no-op with prior data intact (FR-13).
+  const handleNativePick = async (slot: 'ebird' | 'ml') => {
+    const setError = slot === 'ebird' ? setEbirdError : setMlError
+    let picked: Awaited<ReturnType<typeof pickCsvViaDialog>>
+    try {
+      picked = await pickCsvViaDialog()
+    } catch {
+      setError('Upload failed. Please try again.')
+      return
+    }
+    if (!picked) return // cancelled
+    const { filename, content } = picked
+    await importFileContent(slot, filename, () => Promise.resolve(content))
   }
 
   const handleDeleteFile = async (slot: 'ebird' | 'ml') => {
@@ -1296,6 +1371,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
           uploading={ebirdUploading}
           error={ebirdError}
           onUpload={file => handleUpload('ebird', file)}
+          onNativePick={() => { void handleNativePick('ebird') }}
           onDelete={() => handleDeleteFile('ebird')}
         />
         <div style={{ borderTop: '1px solid var(--sr-border-subtle)' }}>
@@ -1306,6 +1382,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
             uploading={mlUploading}
             error={mlError}
             onUpload={file => handleUpload('ml', file)}
+            onNativePick={() => { void handleNativePick('ml') }}
             onDelete={() => handleDeleteFile('ml')}
           />
         </div>
@@ -1430,10 +1507,17 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
         </div>
       </div>
 
-      <div style={{ marginTop: 24 }}>
-        <SectionHeader label="Offline maps" />
-      </div>
-      <OfflineMapsSection />
+      {/* FR-15 / FR-23 (mobile-app): the Tier B region manager is a true
+          absence on iOS — no header, no disabled ghost. Desktop and web are
+          unchanged (the gate is !isIOS(); see platformGates.ts). */}
+      {showOfflineMapsSection() && (
+        <>
+          <div style={{ marginTop: 24 }}>
+            <SectionHeader label="Offline maps" />
+          </div>
+          <OfflineMapsSection />
+        </>
+      )}
 
       <div style={{ marginTop: 24 }}>
         <TabLayoutSection
@@ -1456,7 +1540,9 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
           <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px' }}>
               <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
-                If the map or species lookups stop working, rebuilding the app's local caches usually fixes it. The app will restart.
+                {supportsAppRelaunch()
+                  ? "If the map or species lookups stop working, rebuilding the app's local caches usually fixes it. The app will restart."
+                  : "If the map or species lookups stop working, rebuilding the app's local caches usually fixes it. Afterwards, close and reopen the app."}
               </p>
               <RebuildCachesButton />
             </div>

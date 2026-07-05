@@ -27,7 +27,11 @@ data/
 
 # Tauri / Rust build output
 src-tauri/target/
-src-tauri/gen/
+# gen/schemas is regenerated at build; gen/apple is COMMITTED (mobile-app
+# schema §2.1 — it holds hand-edited state: project.yml, Info.plist,
+# ExportOptions, entitlements). Build products inside gen/apple are excluded
+# by the .gitignore tauri ios init drops there (xcuserdata/build/Externals).
+src-tauri/gen/schemas/
 
 # Root package manager
 node_modules/

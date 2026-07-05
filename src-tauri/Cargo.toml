@@ -25,15 +25,31 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-http = "2"
 tauri-plugin-fs = "2"
-tauri-plugin-updater = "2"
-tauri-plugin-process = "2"
 # Cross-platform: native clipboard write for desktop auto-copy (weather lookup).
+# The plugin supports iOS, so the copy-after-await path works there too (FR-17).
 tauri-plugin-clipboard-manager = "2"
+# Cross-platform: backs the sync platform() probe behind isIOS() (schema §2.5).
+tauri-plugin-os = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 keyring = "3"
-# Cross-platform: used by the get_timezone command (weather feature) on every desktop OS.
+# Cross-platform: used by the get_timezone command (weather feature) on every OS,
+# iOS included. Must stay in [dependencies], not a target-scoped block (CLAUDE.md).
 tzf-rs = "0.4"
+
+# Desktop-only: the in-app updater and process restart/exit. NOT compiled into
+# mobile binaries — FR-14's "no self-update capability" holds at the binary
+# level (also the App Review posture). Registration is #[cfg(desktop)] in lib.rs.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
+
+# Mobile-only (schema §2.7/§2.6): geolocation for "Use my location" (the desktop
+# native get_location paths are byte-untouched), and dialog for the Mechanism B
+# document-picker fallback (see frontend/src/lib/iosImport.ts).
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-geolocation = "2"
+tauri-plugin-dialog = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

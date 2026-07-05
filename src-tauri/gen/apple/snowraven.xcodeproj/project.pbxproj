@@ -1,0 +1,464 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		07CCE8518172AD8660C8969C /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 59131E31DEF8878AD2E59625 /* Metal.framework */; };
+		19D4E264F67D2D6FDA285F58 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4EE423049E89A6A26CDE3F12 /* UIKit.framework */; };
+		1BD7674A811F996497FCF36D /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A7F64A3A9ECD7F61C9C94169 /* Security.framework */; };
+		1E8871D1573927FE5D4D5283 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8A9CB5AAF18F993EE9D9FC82 /* LaunchScreen.storyboard */; };
+		3A72DDA89A46DD2C935EE087 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9EB7600663565AC01E5948A2 /* MetalKit.framework */; };
+		7729B548056BE60D3FEDA56F /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8330644CA504C811422D6521 /* main.mm */; };
+		8D483CABE5A049E816885863 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 256E5D3C6A60F9B88AE5E38F /* WebKit.framework */; };
+		A4BD1734B2186EE8EC22D5BD /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8F23AA8A7E50FA8E220412E2 /* QuartzCore.framework */; };
+		AC045CBD7948AB586B064A9D /* assets in Resources */ = {isa = PBXBuildFile; fileRef = C452E42A79C7069773B2A827 /* assets */; };
+		CA253E9F2CBA377E6B43263A /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E8767E9E7771D43C24676AF0 /* libapp.a */; };
+		ED3BF23C1E91558DDD4F7F52 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7D0345591228586AC01A672C /* CoreGraphics.framework */; };
+		F1433DCE7D2D4F64A26291D4 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6F2781FE85DDE198F2979F45 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1C4EC3787978990D91819FB6 /* snowraven_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = snowraven_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		23078FA40A3E3963955CD505 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		256E5D3C6A60F9B88AE5E38F /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		4EE423049E89A6A26CDE3F12 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		59131E31DEF8878AD2E59625 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		6F2781FE85DDE198F2979F45 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		7A8A923AA184742F5765C617 /* location_windows.rs */ = {isa = PBXFileReference; path = location_windows.rs; sourceTree = "<group>"; };
+		7D0345591228586AC01A672C /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		8330644CA504C811422D6521 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
+		8A9CB5AAF18F993EE9D9FC82 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
+		8F23AA8A7E50FA8E220412E2 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		9C6D4234F5D96880316C4EAE /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
+		9EB7600663565AC01E5948A2 /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		A1BF3DAC09F9EF3FDF2E4D50 /* location.rs */ = {isa = PBXFileReference; path = location.rs; sourceTree = "<group>"; };
+		A7F64A3A9ECD7F61C9C94169 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		B5E10571A148D3EBE34ED1D7 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		C35E21DB85EBEE02C4DAEBD2 /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
+		C452E42A79C7069773B2A827 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		D496B0DCDEDADB0BA68A5361 /* snowraven_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = snowraven_iOS.entitlements; sourceTree = "<group>"; };
+		E8767E9E7771D43C24676AF0 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		6A592E0686D7C5C7C08CEFF3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CA253E9F2CBA377E6B43263A /* libapp.a in Frameworks */,
+				ED3BF23C1E91558DDD4F7F52 /* CoreGraphics.framework in Frameworks */,
+				07CCE8518172AD8660C8969C /* Metal.framework in Frameworks */,
+				3A72DDA89A46DD2C935EE087 /* MetalKit.framework in Frameworks */,
+				A4BD1734B2186EE8EC22D5BD /* QuartzCore.framework in Frameworks */,
+				1BD7674A811F996497FCF36D /* Security.framework in Frameworks */,
+				19D4E264F67D2D6FDA285F58 /* UIKit.framework in Frameworks */,
+				8D483CABE5A049E816885863 /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0D570DB5954825C982ABAF73 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7D0345591228586AC01A672C /* CoreGraphics.framework */,
+				E8767E9E7771D43C24676AF0 /* libapp.a */,
+				59131E31DEF8878AD2E59625 /* Metal.framework */,
+				9EB7600663565AC01E5948A2 /* MetalKit.framework */,
+				8F23AA8A7E50FA8E220412E2 /* QuartzCore.framework */,
+				A7F64A3A9ECD7F61C9C94169 /* Security.framework */,
+				4EE423049E89A6A26CDE3F12 /* UIKit.framework */,
+				256E5D3C6A60F9B88AE5E38F /* WebKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		2E9A04B4C850EA654590505F /* snowraven_iOS */ = {
+			isa = PBXGroup;
+			children = (
+				23078FA40A3E3963955CD505 /* Info.plist */,
+				D496B0DCDEDADB0BA68A5361 /* snowraven_iOS.entitlements */,
+			);
+			path = snowraven_iOS;
+			sourceTree = "<group>";
+		};
+		834183677184C2F3154504AF /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				B0E67B4813444768E7D8D268 /* snowraven */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		892046093EA599570DB4237A = {
+			isa = PBXGroup;
+			children = (
+				C452E42A79C7069773B2A827 /* assets */,
+				6F2781FE85DDE198F2979F45 /* Assets.xcassets */,
+				8A9CB5AAF18F993EE9D9FC82 /* LaunchScreen.storyboard */,
+				C857A3A3C99555792DDF5463 /* Externals */,
+				2E9A04B4C850EA654590505F /* snowraven_iOS */,
+				834183677184C2F3154504AF /* Sources */,
+				C102368DCB8732E23DCF3107 /* src */,
+				0D570DB5954825C982ABAF73 /* Frameworks */,
+				941BC0D29286F97E99B25D5C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		941BC0D29286F97E99B25D5C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				1C4EC3787978990D91819FB6 /* snowraven_iOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A7388A749C79FB5B20F4802F /* bindings */ = {
+			isa = PBXGroup;
+			children = (
+				9C6D4234F5D96880316C4EAE /* bindings.h */,
+			);
+			path = bindings;
+			sourceTree = "<group>";
+		};
+		B0E67B4813444768E7D8D268 /* snowraven */ = {
+			isa = PBXGroup;
+			children = (
+				8330644CA504C811422D6521 /* main.mm */,
+				A7388A749C79FB5B20F4802F /* bindings */,
+			);
+			path = snowraven;
+			sourceTree = "<group>";
+		};
+		C102368DCB8732E23DCF3107 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C35E21DB85EBEE02C4DAEBD2 /* lib.rs */,
+				7A8A923AA184742F5765C617 /* location_windows.rs */,
+				A1BF3DAC09F9EF3FDF2E4D50 /* location.rs */,
+				B5E10571A148D3EBE34ED1D7 /* main.rs */,
+			);
+			name = src;
+			path = ../../src;
+			sourceTree = "<group>";
+		};
+		C857A3A3C99555792DDF5463 /* Externals */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Externals;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		39C2DC9957639E6C41EE04E1 /* snowraven_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 410D2974DFA62D07129C1BCE /* Build configuration list for PBXNativeTarget "snowraven_iOS" */;
+			buildPhases = (
+				9640BE47D481865B5F35EDBE /* Build Rust Code */,
+				60189EAD143267EA9209E26C /* Sources */,
+				44CCDD81D10A1081DC06D7E3 /* Resources */,
+				6A592E0686D7C5C7C08CEFF3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = snowraven_iOS;
+			packageProductDependencies = (
+			);
+			productName = snowraven_iOS;
+			productReference = 1C4EC3787978990D91819FB6 /* snowraven_iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		FC00BC2D83CB3DD418C92B36 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = C37C4F07DFA4F85E642AE9E8 /* Build configuration list for PBXProject "snowraven" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 892046093EA599570DB4237A;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 941BC0D29286F97E99B25D5C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				39C2DC9957639E6C41EE04E1 /* snowraven_iOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		44CCDD81D10A1081DC06D7E3 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F1433DCE7D2D4F64A26291D4 /* Assets.xcassets in Resources */,
+				1E8871D1573927FE5D4D5283 /* LaunchScreen.storyboard in Resources */,
+				AC045CBD7948AB586B064A9D /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		9640BE47D481865B5F35EDBE /* Build Rust Code */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Code";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a",
+				"$(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "npm run -- tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		60189EAD143267EA9209E26C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7729B548056BE60D3FEDA56F /* main.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		030A26310D73551454C9A212 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = snowraven_iOS/snowraven_iOS.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = snowraven_iOS/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.snowraven;
+				PRODUCT_NAME = "SnowRaven";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = release;
+		};
+		34ABC3D7370F042CE4DA0943 /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = release;
+		};
+		C4F59406876D8CAE99473C08 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				ARCHS = (
+					arm64,
+				);
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = snowraven_iOS/snowraven_iOS.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_BITCODE = NO;
+				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"\".\"",
+				);
+				INFOPLIST_FILE = snowraven_iOS/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.snowraven;
+				PRODUCT_NAME = "SnowRaven";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALID_ARCHS = arm64;
+			};
+			name = debug;
+		};
+		F01D03075E6B5D0480568FBB /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		410D2974DFA62D07129C1BCE /* Build configuration list for PBXNativeTarget "snowraven_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C4F59406876D8CAE99473C08 /* debug */,
+				030A26310D73551454C9A212 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		C37C4F07DFA4F85E642AE9E8 /* Build configuration list for PBXProject "snowraven" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F01D03075E6B5D0480568FBB /* debug */,
+				34ABC3D7370F042CE4DA0943 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = FC00BC2D83CB3DD418C92B36 /* Project object */;
+}

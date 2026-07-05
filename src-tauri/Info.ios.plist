@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Merged on top of the generated gen/apple Info.plist at iOS build time
+       (Tauri reads Info.ios.plist next to tauri.conf.json). Keep this the
+       COMPLETE set of iOS additions (mobile-app schema §2.8): the ONLY usage
+       description is location (when-in-use; no camera/mic/photos/contacts/
+       tracking), no ATS exceptions (every provider is HTTPS), and deliberately
+       NO UIFileSharingEnabled / LSSupportsOpeningDocumentsInPlace — the app
+       sandbox holds data/api-keys.json in plaintext, so the Files app must not
+       expose it; CSV import is picker-only by design. -->
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>SnowRaven uses your location to center the map on your current position.</string>
+  <!-- Standard HTTPS only — skips the export-compliance question on every
+       TestFlight upload. -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+</dict>
+</plist>

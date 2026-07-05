@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, createContext, useContext } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList, CalendarDays, WifiOff } from 'lucide-react'
+import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList, CalendarDays } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from './lib/offlineMessage'
 import { isOfflineError } from './lib/offlineDetect'
 import { OfflineMessage, StalenessCue } from './components/OfflineMessage'
 import { storage } from './lib/storage'
 import { isTauri } from './lib/platform'
+import { compactChrome } from './lib/platformGates'
 import { copyText } from './lib/clipboard'
 import { extractChecklistId, isValidChecklistId } from './lib/checklistId'
 import { buildCombined } from './lib/tideFormatter'
@@ -25,6 +26,8 @@ import { Settings } from './components/Settings'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
 import { OutboundLink } from './components/OutboundLink'
+// Footer update affordance — renders null on iOS/iPadOS (FR-14, mobile-app).
+import { UpdateFooter, type UpdateStatus } from './components/UpdateFooter'
 import { WeatherForecastPanel } from './components/WeatherForecastPanel'
 
 // Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
@@ -87,20 +90,6 @@ type TideState =
   | { status: 'outside-us'; station: string; distanceMi: number }
   | { status: 'unavailable' }
   | { status: 'error'; errorKind: LiveErrorKind }
-
-type UpdateStatus =
-  | { kind: 'idle' }
-  | { kind: 'checking' }
-  | { kind: 'up-to-date'; current: string }
-  | { kind: 'available'; latest: string }
-  | { kind: 'downloading'; progress: number | null }
-  | { kind: 'ready-to-restart' }
-  // 'offline' is distinct from 'error' (FR-39): a connection-level failure says
-  // "couldn't reach the update server — you're offline"; a reachable server
-  // error (the backend's 502) shows the generic update-check error.
-  | { kind: 'offline' }
-  | { kind: 'error' }
-
 
 // Tab icon lookup — kept outside the component so it's never recreated
 const TAB_ICONS: Record<ConfigurableTab, React.ReactNode> = {
@@ -661,17 +650,23 @@ export default function App() {
     >
       <a href="#sr-main" className="sr-skip-link">Skip to main content</a>
 
-      {/* Header — banner landmark; the wordmark is the page's h1. */}
-      <header inert={chromeInert} className="sr-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <Bird size={30} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} aria-hidden="true" />
-          <h1 style={{ fontSize: '1.625rem', fontWeight: 700, letterSpacing: '-0.6px', margin: 0 }}>
+      {/* Header — banner landmark; the wordmark is the page's h1. On iOS the
+          chrome compacts to a slim single-line bar (no tagline) so header +
+          tab nav cost far less vertical space — a preview-driven composition
+          fix (pipeline/mobile-app/decisions.md); the compact padding lives in
+          .sr-header-compact (globals.css). Desktop/web unchanged. */}
+      <header inert={chromeInert} className={compactChrome() ? 'sr-header sr-header-compact' : 'sr-header'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: compactChrome() ? 7 : 10, marginBottom: compactChrome() ? 0 : 6 }}>
+          <Bird size={compactChrome() ? 20 : 30} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} aria-hidden="true" />
+          <h1 style={{ fontSize: compactChrome() ? '1.125rem' : '1.625rem', fontWeight: 700, letterSpacing: '-0.6px', margin: 0 }}>
             Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
           </h1>
         </div>
-        <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginBottom: 28 }}>
-          Birding tools for your eBird workflow
-        </p>
+        {!compactChrome() && (
+          <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginBottom: 28 }}>
+            Birding tools for your eBird workflow
+          </p>
+        )}
       </header>
 
       {/* Tab navigation — bar on desktop, dropdown on narrow screens (see TabNav).
@@ -1187,7 +1182,16 @@ export default function App() {
         id="panel-map-explorer"
         aria-labelledby="tab-map-explorer"
         aria-label="Map Explorer"
-        className={mapFullscreen ? undefined : 'sr-map-explorer-panel'}
+        className={
+          mapFullscreen
+            ? undefined
+            : compactChrome()
+            ? // iOS: size the panel to the visible viewport under the compact
+              // chrome so the map + FAB cluster are above the fold on open
+              // (preview-driven fix; rule in globals.css).
+              'sr-map-explorer-panel sr-map-panel-ios'
+            : 'sr-map-explorer-panel'
+        }
         style={{
           display: activeTab === 'map-explorer' ? 'flex' : 'none',
           flexDirection: 'column',
@@ -1263,7 +1267,9 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <p inert={chromeInert} role="contentinfo" className="sr-pad-x-trim" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', padding: '0 24px 20px', flexShrink: 0 }}>
+      {/* Padding lives in .sr-app-footer (globals.css) so the iOS home-indicator
+          safe-area inset can extend the bottom padding (NFR-07, mobile-app). */}
+      <p inert={chromeInert} role="contentinfo" className="sr-app-footer sr-pad-x-trim" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', flexShrink: 0 }}>
         <OutboundLink
           href="https://github.com/dtgibson/snowraven"
           style={{ color: 'inherit', textDecoration: 'none' }}
@@ -1289,118 +1295,14 @@ export default function App() {
         >
           Help
         </button>
-        {' · '}
-        {/* Update checker. One persistent polite live region carries every textual
-            outcome (always mounted, so AT reliably announces text changes — F024),
-            and no outcome auto-dismisses (F020: 2.2.1 Timing Adjustable). The
-            Check-For-Updates button stays present except while a check/download is
-            in flight, so re-checking is one click away and keyboard focus is never
-            dropped to <body> when an outcome resolves. */}
-        {(updateStatus.kind === 'idle'
-          || updateStatus.kind === 'up-to-date'
-          || updateStatus.kind === 'available'
-          || updateStatus.kind === 'offline'
-          || updateStatus.kind === 'error') && (
-          <>
-            <button tabIndex={0}
-              onClick={handleUpdateCheck}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                font: 'inherit',
-                color: 'var(--sr-text-footer)',
-                cursor: 'pointer',
-                textDecoration: 'none',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-              onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-            >
-              Check For Updates
-            </button>
-            {/* Desktop "available" gets its Install button as a sibling OUTSIDE the
-                live span so its mount doesn't depend on live-region timing (F025). */}
-            {updateStatus.kind === 'available' && isTauri() && (
-              <>
-                {' · '}
-                <button tabIndex={0}
-                  onClick={handleInstallUpdate}
-                  style={{
-                    background: 'none', border: 'none', padding: 0, font: 'inherit',
-                    color: 'var(--sr-warning)', cursor: 'pointer', fontWeight: 600,
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.textDecoration = 'underline')}
-                  onMouseLeave={e => (e.currentTarget.style.textDecoration = 'none')}
-                >
-                  Install update and restart
-                </button>
-              </>
-            )}
-          </>
-        )}
-        {/* Always-mounted polite live region (empty while idle). Its text content
-            changes per state, which AT announces reliably. The web "available"
-            branch keeps its actionable ./update.sh instruction here, persistent. */}
-        <span
-          role="status"
-          aria-live="polite"
-          style={{
-            marginLeft: updateStatus.kind === 'idle' ? 0 : 8,
-            color:
-              updateStatus.kind === 'up-to-date' || updateStatus.kind === 'ready-to-restart' ? 'var(--sr-accent)'
-              : updateStatus.kind === 'available' ? 'var(--sr-warning)'
-              : updateStatus.kind === 'error' ? 'var(--sr-error)'
-              : updateStatus.kind === 'offline' ? 'var(--sr-text-muted)'
-              : 'var(--sr-text-muted)',
-          }}
-        >
-          {updateStatus.kind === 'checking' && (
-            <>
-              <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
-              Checking…
-            </>
-          )}
-          {updateStatus.kind === 'up-to-date' && `Up to date (v${updateStatus.current})`}
-          {updateStatus.kind === 'available' && !isTauri() && (
-            <>
-              v{updateStatus.latest} available — run{' '}
-              <code style={{ fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace' }}>./update.sh</code>
-            </>
-          )}
-          {updateStatus.kind === 'available' && isTauri() && `v${updateStatus.latest} available`}
-          {updateStatus.kind === 'ready-to-restart' && 'Update installed — restarting…'}
-          {/* Offline: distinct from the generic error and conveyed by an icon +
-              text, not color alone (FR-39/NFR-09). */}
-          {updateStatus.kind === 'offline' && (
-            <>
-              <WifiOff size={11} strokeWidth={2.5} aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
-              Couldn't reach the update server — you're offline
-            </>
-          )}
-          {updateStatus.kind === 'error' && 'Could not check for updates'}
-        </span>
-        {/* Download progress: a real progressbar AT can query as a value, plus the
-            same persistent live text. Indeterminate (no Content-Length) → aria-busy. */}
-        {updateStatus.kind === 'downloading' && (
-          <span
-            role="progressbar"
-            aria-label="Downloading update"
-            aria-busy={updateStatus.progress === null}
-            {...(updateStatus.progress !== null
-              ? {
-                  'aria-valuemin': 0,
-                  'aria-valuemax': 100,
-                  'aria-valuenow': Math.round(updateStatus.progress * 100),
-                }
-              : {})}
-            style={{ marginLeft: 8, color: 'var(--sr-text-muted)' }}
-          >
-            <Loader2 size={11} className="spin" aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
-            {updateStatus.progress !== null
-              ? `Downloading… ${Math.round(updateStatus.progress * 100)}%`
-              : 'Downloading update…'}
-          </span>
-        )}
+        {/* Update affordance (check / install / live region / progress) —
+            extracted to UpdateFooter, which renders NOTHING on iOS/iPadOS
+            (FR-14, mobile-app): updates flow through TestFlight/App Store. */}
+        <UpdateFooter
+          updateStatus={updateStatus}
+          onCheck={handleUpdateCheck}
+          onInstall={handleInstallUpdate}
+        />
       </p>
 
       {coldStart === true && !welcomeDismissed && (

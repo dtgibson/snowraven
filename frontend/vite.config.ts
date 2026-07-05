@@ -4,6 +4,12 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
 
+// Tauri v2 mobile dev (mobile-app schema §2.1): when `tauri ios dev` targets a
+// PHYSICAL device it sets TAURI_DEV_HOST so the device can reach the dev
+// server over the LAN; simulator dev and plain web dev use localhost:5173
+// unchanged (host stays false → localhost-only, as before).
+const host = process.env.TAURI_DEV_HOST
+
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   clearScreen: false,
@@ -16,6 +22,8 @@ export default defineConfig({
     },
   },
   server: {
+    host: host || false,
+    hmr: host ? { protocol: 'ws', host, port: 5183 } : undefined,
     fs: {
       allow: ['..'],
     },
