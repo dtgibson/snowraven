@@ -1,6 +1,6 @@
 name: snowraven
 options:
-  bundleIdPrefix: com.snowraven
+  bundleIdPrefix: com.dtgibson.snowraven
   deploymentTarget:
     iOS: 16.0
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: SnowRaven
-      PRODUCT_BUNDLE_IDENTIFIER: com.snowraven
+      PRODUCT_BUNDLE_IDENTIFIER: com.dtgibson.snowraven
 targetTemplates:
   app:
     type: application
