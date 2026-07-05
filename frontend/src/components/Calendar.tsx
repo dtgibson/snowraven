@@ -4,11 +4,12 @@
 // crosshatch-density alternative), navigable across every year the backup covers
 // plus an all-years-combined view (whose weekday columns align to the CURRENT year).
 // Clicking a day opens a popup with that day's summary and links to its eBird
-// checklists. A view toggle switches between the big month grids (labeled "Compact")
-// and a 3×4 Year-Overview of shading-only mini-month thumbnails (labeled "Large") —
-// both show the whole year, only the cell size differs; a low-emphasis "Count spuh,
-// slash & hybrids" toggle optionally admits non-countable forms into the Species /
-// Total count metrics.
+// checklists. A view toggle switches between the big month grids (labeled "Compact",
+// count-only cells) and a 3×4 Year-Overview of shaded, dated mini-month thumbnails
+// (labeled "Large") — both show the whole year, only the cell size differs; the
+// overview is read-only (the toggle is the only way to switch views). A low-emphasis
+// "Count spuh, slash & hybrids" toggle optionally admits non-countable forms into the
+// Species / Total count metrics.
 //
 // Frontend-only, offline, zero new network. Pure derivation lives in lib/calendar.ts;
 // the DOM crosshatch density in lib/calendarTextures.ts. See pipeline/calendar-tab.
@@ -16,7 +17,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Loader2, AlertCircle, CalendarDays, ChevronLeft, ChevronRight,
-  LayoutGrid, Grid2x2, ArrowRight, X,
+  LayoutGrid, Grid2x2, X,
 } from 'lucide-react'
 import type { ObservationEntry } from '../types'
 import { SetupRequired } from './SetupRequired'
@@ -170,11 +171,11 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
     return <div aria-hidden style={{ ...base, background: 'transparent', pointerEvents: 'none' }} />
   }
   if (desc.kind === 'nodata') {
-    // A day with no checklist — still dated (top-left) so every day is unambiguous.
+    // A day with no checklist — a faint outlined cell. The big grids are count-only
+    // (the day-of-month date lives on the Large-view thumbnails); a day is identified
+    // by its grid position and, on a data/zero day, its aria-label.
     return (
-      <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }}>
-        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" />}
-      </div>
+      <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }} />
     )
   }
 
@@ -197,7 +198,6 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-border-subtle)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-subtle)')}
       >
-        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" />}
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-text-muted)', lineHeight: 1 }}>0</span>
       </button>
     )
@@ -225,7 +225,6 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
       onMouseEnter={e => (e.currentTarget.style.filter = textures ? 'none' : 'brightness(1.12)')}
       onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
     >
-      {desc.day != null && <DayCorner day={desc.day} color="var(--sr-cal-fg)" pillStyle={numStyle} />}
       <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-cal-fg)', lineHeight: 1, ...numStyle }}>
         {desc.count}
       </span>
@@ -233,10 +232,11 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
   )
 }
 
-// The small day-of-month label in a Large-view cell's top-left corner (wall-calendar
-// convention). Decorative-only (the accessible date lives in each cell's aria-label /
-// the popup); pointer-events:none keeps the parent button the sole hit target. Sized
-// in rem so it holds at 200% text scale; the metric count stays the centered number.
+// The small day-of-month label in the top-left corner (wall-calendar convention).
+// Used by the Year-Overview mini-month thumbnails (the big MonthGrid cells are
+// count-only; the date lives on the thumbnails). Decorative-only (the accessible date
+// lives in the day popup); pointer-events:none keeps the parent the sole hit target.
+// Sized in rem so it holds at 200% text scale.
 function DayCorner({ day, color, pillStyle }: { day: number; color: string; pillStyle?: React.CSSProperties }) {
   return (
     <span
@@ -306,18 +306,15 @@ function buildMonthCells(
 
 // ── Big month grid ───────────────────────────────────────────────────────────
 
-function MonthGrid({ month, descriptors, textures, metric, onOpen, cardRef }: {
+function MonthGrid({ month, descriptors, textures, metric, onOpen }: {
   month: number
   descriptors: DayCellDescriptor[]
   textures: boolean
   metric: CalendarMetric
   onOpen: (cell: DayCell, el: HTMLButtonElement) => void
-  cardRef?: (el: HTMLDivElement | null) => void
 }) {
   return (
     <div
-      ref={cardRef}
-      tabIndex={-1}
       style={{
         background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 12,
         boxShadow: 'var(--sr-card-shadow)', padding: '12px 12px 14px', minWidth: 0,
@@ -342,59 +339,107 @@ function MonthGrid({ month, descriptors, textures, metric, onOpen, cardRef }: {
 
 // ── Mini month (Year Overview) ───────────────────────────────────────────────
 
-function MiniMonth({ month, descriptors, textures, onExpand }: {
+function MiniMonth({ month, descriptors, textures, metric, onOpen }: {
   month: number
   descriptors: DayCellDescriptor[]
   textures: boolean
-  onExpand: (month: number) => void
+  metric: CalendarMetric
+  onOpen: (cell: DayCell, el: HTMLButtonElement) => void
 }) {
+  // A thumbnail card whose MONTH level is static/non-interactive (v0.5.63): the month
+  // name is readable text, and the card is a plain container — no onClick, no aria-label,
+  // no "Open →" affordance, so it never navigates between the two views (the Compact/
+  // Large toggle is the only view switch). Its DAY cells ARE interactive, though: each
+  // data/zero cell is a real <button> opening the SAME day popup as the Compact grid.
   return (
-    <button
-      type="button"
-      tabIndex={0}
-      onClick={() => onExpand(month)}
-      aria-label={`Open ${MONTH_NAMES[month - 1]} in the month view`}
+    <div
       className="sr-cal-minimonth"
       style={{
         background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 12,
-        boxShadow: 'var(--sr-card-shadow)', padding: '12px 14px 14px', cursor: 'pointer',
-        textAlign: 'left', font: 'inherit', color: 'inherit', width: '100%', display: 'block',
-        transition: 'border-color .12s, box-shadow .12s',
+        boxShadow: 'var(--sr-card-shadow)', padding: '12px 14px 14px',
       }}
-      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--sr-accent-border-strong)')}
-      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--sr-border)')}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, margin: '0 0 8px' }}>
-        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-text)', letterSpacing: '-0.01em' }}>{MONTH_NAMES[month - 1]}</span>
-        <span className="sr-cal-mini-open" style={{ fontSize: '0.625rem', color: 'var(--sr-accent)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-          Open <ArrowRight size={10} strokeWidth={2.5} aria-hidden />
-        </span>
+      <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--sr-text)', letterSpacing: '-0.01em', margin: '0 0 8px' }}>
+        {MONTH_NAMES[month - 1]}
       </div>
       <div className="sr-cal-minigrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 2 }}>
-        {descriptors.map((d, i) => <MiniDayCell key={i} desc={d} textures={textures} />)}
+        {descriptors.map((d, i) => <MiniDayCell key={i} desc={d} textures={textures} metric={metric} onOpen={onOpen} />)}
       </div>
-    </button>
+    </div>
   )
 }
 
-function MiniDayCell({ desc, textures }: { desc: DayCellDescriptor; textures: boolean }) {
-  // A shading-only thumbnail cell (the v0.5.58 baseline). The whole mini-month is ONE
-  // button (its aria-label names the month); each cell carries only its shade tier —
-  // no in-cell number and no hover title, so the thumbnail reads as a clean magnitude
-  // heatmap. The exact figures live in the Large (MonthGrid) view and the day popup.
+function MiniDayCell({ desc, textures, metric, onOpen }: {
+  desc: DayCellDescriptor
+  textures: boolean
+  metric: CalendarMetric
+  onOpen: (cell: DayCell, el: HTMLButtonElement) => void
+}) {
+  // A shaded thumbnail cell carrying a small day-of-month number (restored in v0.5.63).
+  // Data/zero cells are real, focusable <button>s (v0.5.63 revision) that open the SAME
+  // single day popup as the Compact grid's DayCellButton — one popup, one code path — so
+  // day detail is reachable from the Large overview without switching views. Which cell
+  // kinds are clickable MIRRORS the Compact grid EXACTLY (data + zero → button; pad +
+  // nodata → non-interactive). The number HIDES below the 152px cell floor (the
+  // .sr-cal-mininum container query in globals.css) so a too-small cell stays a clean
+  // magnitude heatmap. The cell shows shade + date only (no count) — the exact figures
+  // live in the Compact view and the day popup. position:relative anchors DayCorner.
+  // Hook must run unconditionally (before any early return) — React rules of hooks.
+  const ref = useRef<HTMLButtonElement>(null)
   const base: React.CSSProperties = {
-    aspectRatio: '1 / 1', borderRadius: 2, minWidth: 0, overflow: 'hidden',
+    aspectRatio: '1 / 1', borderRadius: 2, minWidth: 0, overflow: 'hidden', position: 'relative',
   }
   if (desc.kind === 'pad') return <div aria-hidden style={{ ...base, background: 'transparent' }} />
-  if (desc.kind === 'nodata') return <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)' }} />
+  if (desc.kind === 'nodata') {
+    return (
+      <div aria-hidden className="sr-cal-mininum" style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)' }}>
+        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" />}
+      </div>
+    )
+  }
+
+  const cell = desc.cell!
+  const dateLabel = cellDateLabel(cell.bucketKey)
+  const btnBase: React.CSSProperties = { ...base, border: 0, padding: 0, margin: 0, font: 'inherit', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }
+
   if (desc.kind === 'zero') {
-    // Present-but-zero: a muted outlined cell (parity with the Large view's zero cell,
-    // shading-only — no "0" glyph in the thumbnail).
-    return <div aria-hidden style={{ ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }} />
+    // Present-but-zero: a muted outlined cell (parity with the Compact zero cell), still
+    // dated so the day is identifiable; no "0" glyph. Accessible name matches the Compact
+    // zero cell's pattern.
+    return (
+      <button
+        ref={ref}
+        type="button"
+        tabIndex={0}
+        onClick={() => onOpen(cell, ref.current!)}
+        aria-label={`${dateLabel} — birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
+        className="sr-cal-mininum"
+        style={{ ...btnBase, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }}
+      >
+        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" />}
+      </button>
+    )
   }
   const tier = desc.tier!
   const fill: React.CSSProperties = textures ? calMiniHatchCss(tier) : { background: `var(--sr-cal-${tier})` }
-  return <div aria-hidden style={{ ...base, ...fill }} />
+  // In textures mode the crosshatch would swallow the number — back it with the same
+  // tier-color pill the Compact cell uses so the date reads over the hatch.
+  const numStyle: React.CSSProperties = textures
+    ? { background: `rgba(var(--sr-cal-${tier}-rgb), 0.9)`, borderRadius: 2, padding: '0 1px' }
+    : {}
+  return (
+    <button
+      ref={ref}
+      type="button"
+      tabIndex={0}
+      onClick={() => onOpen(cell, ref.current!)}
+      aria-label={`${dateLabel} — ${desc.count}. Open day details`}
+      className="sr-cal-mininum"
+      style={{ ...btnBase, ...fill }}
+    >
+      {desc.day != null && <DayCorner day={desc.day} color="var(--sr-cal-fg)" pillStyle={numStyle} />}
+    </button>
+  )
 }
 
 // ── Legend ───────────────────────────────────────────────────────────────────
@@ -577,7 +622,15 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
         </div>
         <div className="sr-map-popup-body" style={{ padding: '0 10px 14px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {rows.map((r, i) => (
-            <PopupChecklistRow key={`${r.submissionId}-${i}`} submissionId={r.submissionId} date={r.date} combined={combined} />
+            <PopupChecklistRow
+              key={`${r.submissionId}-${i}`}
+              submissionId={r.submissionId}
+              date={r.date}
+              time={r.time}
+              location={r.location}
+              speciesCount={includeForms ? r.speciesCountWithForms : r.speciesCount}
+              combined={combined}
+            />
           ))}
         </div>
       </div>
@@ -585,12 +638,51 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
   )
 }
 
-function PopupChecklistRow({ submissionId, date, combined }: { submissionId: string; date: string; combined: boolean }) {
-  // The whole row's link is the ChecklistLink affordance (junk id → plain text via
+// Tidy an eBird checklist start time ("HH:MM AM/PM") for display: trim a single
+// leading zero on the hour ("07:30 AM" → "7:30 AM"). Deliberately minimal — the eBird
+// export already carries a "HH:MM AM/PM" string, so we only shave the pad, not reparse.
+function formatChecklistTime(time: string): string {
+  return time.replace(/^0(\d:)/, '$1')
+}
+
+function PopupChecklistRow({ submissionId, date, time, location, speciesCount, combined }: {
+  submissionId: string
+  date: string
+  time: string | null
+  location: string
+  speciesCount: number
+  combined: boolean
+}) {
+  // The row's primary line is the ChecklistLink affordance (junk id → plain text via
   // SUBMISSION_ID_RE inside ChecklistLink), and ChecklistLink emits its OWN shared
   // external-link glyph — so we render exactly one icon per row (no duplicate). In
   // combined mode a year chip anchors the row.
+  //
+  // The secondary line shows the checklist's start time, location, and its OWN distinct-
+  // species count as low-emphasis context ("7:30 AM · Point Reyes NS--Bear Valley · 42
+  // species"). `speciesCount` already reflects the include-forms toggle (countable by
+  // default, with-forms when on) — the caller picks the field — so it stays consistent
+  // with the day-level stat tiles and the rest of the tab. The count is ALWAYS present
+  // (even "0 species" for a spuh-only checklist in countable mode), so it always shows;
+  // time and location degrade gracefully (no stray "·" when one is missing). The LOCATION
+  // IS PLAIN TEXT ON PURPOSE — NOT a HotspotLink: the Calendar tab is intentionally fully
+  // offline / zero new network (see this file's header), and HotspotLink needs a live
+  // hotspot-region fetch to decide public-vs-personal. Rendering the name as React
+  // children auto-escapes it (injection-safe). Do NOT "fix" this into a HotspotLink — it
+  // would add a network dependency the tab deliberately avoids.
   const year = date.slice(0, 4)
+  const prettyTime = time ? formatChecklistTime(time) : null
+  const loc = location.trim()
+  // "species" is an invariant plural here ("1 species", "42 species") — eBird/birder
+  // convention, and it keeps the count short so it never needs truncation.
+  const speciesPart = `${speciesCount.toLocaleString()} species`
+  // The "time · location" prefix degrades gracefully (no stray "·" when one is missing);
+  // the species count is ALWAYS present, so a middot precedes it only when a prefix
+  // exists. The prefix truncates (long location → ellipsis) while the species count is
+  // flex-shrink:0 so it stays fully visible on the tail — the count is short and must not
+  // be clipped. A single meta string kept location + count in one ellipsis; splitting
+  // them protects the count.
+  const prefix = prettyTime && loc ? `${prettyTime} · ${loc}` : (prettyTime ?? loc)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 8px', borderRadius: 8 }}
       onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-surface-subtle)')}
@@ -600,6 +692,12 @@ function PopupChecklistRow({ submissionId, date, combined }: { submissionId: str
         <div style={{ fontWeight: 600, color: 'var(--sr-text)', fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           <ChecklistLink submissionId={submissionId} label={formatDate(date)} style={{ fontWeight: 600 }} />
         </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2, minWidth: 0 }}>
+          {prefix && (
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{prefix}</span>
+          )}
+          <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{prefix ? ` · ${speciesPart}` : speciesPart}</span>
+        </div>
       </div>
       {combined && <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--sr-text-muted)', background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border)', borderRadius: 4, padding: '1px 5px', flexShrink: 0 }}>{year}</span>}
     </div>
@@ -608,15 +706,16 @@ function PopupChecklistRow({ submissionId, date, combined }: { submissionId: str
 
 // ── Year Overview ────────────────────────────────────────────────────────────
 
-function YearOverview({ monthDescriptors, textures, onExpand }: {
+function YearOverview({ monthDescriptors, textures, metric, onOpen }: {
   monthDescriptors: DayCellDescriptor[][]
   textures: boolean
-  onExpand: (month: number) => void
+  metric: CalendarMetric
+  onOpen: (cell: DayCell, el: HTMLButtonElement) => void
 }) {
   return (
     <div className="sr-cal-year">
       {monthDescriptors.map((descriptors, i) => (
-        <MiniMonth key={i + 1} month={i + 1} descriptors={descriptors} textures={textures} onExpand={onExpand} />
+        <MiniMonth key={i + 1} month={i + 1} descriptors={descriptors} textures={textures} metric={metric} onOpen={onOpen} />
       ))}
     </div>
   )
@@ -648,7 +747,6 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   const [popup, setPopup] = useState<DayCell | null>(null)
 
   const openerRef = useRef<HTMLButtonElement | null>(null)
-  const monthCardRefs = useRef<(HTMLDivElement | null)[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -740,20 +838,6 @@ export function Calendar({ onGoToSettings, filesVersion }: {
     // restore focus to the activating cell after the close render commits
     const el = openerRef.current
     if (el) requestAnimationFrame(() => el.focus())
-  }
-
-  const expandMonth = (month: number) => {
-    // Jump from the overview into the big month grids and scroll to the month.
-    setViewMode('months')
-    const idx = month - 1
-    requestAnimationFrame(() => {
-      const card = monthCardRefs.current[idx]
-      if (card) {
-        const prefersReduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-        card.scrollIntoView?.({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' })
-        card.focus({ preventScroll: true })
-      }
-    })
   }
 
   const goPrev = () => {
@@ -922,8 +1006,8 @@ export function Calendar({ onGoToSettings, filesVersion }: {
               value={viewMode}
               onChange={setViewMode}
               options={[
-                { value: 'months', label: 'Compact', title: 'The twelve big month grids, with a date and a count on every day', icon: <LayoutGrid size={13} strokeWidth={2.2} aria-hidden /> },
-                { value: 'overview', label: 'Large', title: 'All twelve months as shaded thumbnails — the whole year at a glance', icon: <Grid2x2 size={13} strokeWidth={2.2} aria-hidden /> },
+                { value: 'months', label: 'Compact', title: 'The twelve big month grids, with a count on every birded day', icon: <LayoutGrid size={13} strokeWidth={2.2} aria-hidden /> },
+                { value: 'overview', label: 'Large', title: 'All twelve months as shaded, dated thumbnails — the whole year at a glance', icon: <Grid2x2 size={13} strokeWidth={2.2} aria-hidden /> },
               ]}
             />
           </div>
@@ -971,12 +1055,11 @@ export function Calendar({ onGoToSettings, filesVersion }: {
               textures={textures}
               metric={metric}
               onOpen={openPopup}
-              cardRef={el => { monthCardRefs.current[i] = el }}
             />
           ))}
         </div>
       ) : (
-        <YearOverview monthDescriptors={monthDescriptors} textures={textures} onExpand={expandMonth} />
+        <YearOverview monthDescriptors={monthDescriptors} textures={textures} metric={metric} onOpen={openPopup} />
       )}
 
       {popup && (

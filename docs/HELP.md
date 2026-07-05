@@ -222,8 +222,8 @@ The Calendar tab lays out a full year of your birding as twelve month grids, lik
 
 - **Each day carries a count.** By default it's the number of **species** you saw that day; the **Show** toggle switches every day to the number of **checklists** you submitted that day, or the **total count** of individual birds you recorded that day (the eBird *Count* column, summed). Species tells you how *good* a day was; checklists, how *much* you went out; total count, how *many* birds you tallied. Presence-only records — an "X" or a blank count — add 0 to the total (the same rule as the Statistics tab's individual tally), so the two never disagree.
 - **Days are shaded green** by their count relative to the year on screen — darker means busier. So the shape of your year reads at a glance: busy spring and fall migration darken, quiet mid-summer thins out, a big December count-day day goes near-black.
-- **Every cell shows its calendar date** in the top-left corner (like a wall calendar), so a day is identified by its date, not just its position in the grid. The metric count stays the big number in the middle of a data day. In **All years** the weekday columns line up against the *current* year, so the combined grid matches the layout of this year's single-year view.
-- **Three kinds of day:** a shaded, numbered **data day** (a real `<button>` — click it); a faint outlined **no-birding day** (you logged nothing) — still dated in the corner; and a light **"0"** day — you birded, but nothing you recorded that day counted toward the active metric (for example, only non-countable spuh/slash/hybrid forms under Species).
+- **The metric count is the big number in the middle of a data day.** The big month grids (Compact view) are count-only; the day-of-month date lives on the whole-year thumbnails (Large view — see below). In **All years** the weekday columns line up against the *current* year, so the combined grid matches the layout of this year's single-year view.
+- **Three kinds of day:** a shaded **data day** showing its count (a real `<button>` — click it); a faint outlined **no-birding day** (you logged nothing); and a light **"0"** day — you birded, but nothing you recorded that day counted toward the active metric (for example, only non-countable spuh/slash/hybrid forms under Species).
 - **The legend** on the right names the unit ("Species / day", "Checklists / day", "Individuals / day", …) and shows the green ramp with the low and high counts of the current view, plus the "no birding" and "birded · 0 countable" keys.
 
 ### Moving through your data
@@ -235,8 +235,8 @@ The Calendar tab lays out a full year of your birding as twelve month grids, lik
 
 The **View** toggle switches between two layouts — both show the whole year, only the cell size differs:
 
-- **Compact** (default) — the twelve big month grids, with a date and a count on every day.
-- **Large** — all twelve months as small thumbnails in a 3×4 grid: the whole year at a glance. Each thumbnail is shading-only (no numbers) — the shape of your year reads from color or texture alone, and the exact figures are always in the Compact view and the day popup. Click a mini-month to jump straight to its full month grid.
+- **Compact** (default) — the twelve big month grids, with a count on every birded day. The big cells are count-only; they don't print a date.
+- **Large** — all twelve months as small thumbnails in a 3×4 grid: the whole year at a glance. Each cell is shaded by its count and carries a small day-of-month number in the corner (no count) — so the overview reads as a dated heatmap. When a thumbnail is too small for the number to stay legible it tucks away and the cell shows shading only; the exact figures are always in the Compact view and the day popup. **Click any day in a thumbnail to open its detail popup** — the same day summary and checklist links as in the Compact view, opened right where you are (no view switch). The month cards themselves don't navigate; use the toggle to switch between Compact and Large.
 
 On a phone the calendar always shows the **Compact** view (the toggle is hidden), since the two layouts converge to a single column there and the larger cells stay comfortably tappable.
 
@@ -254,7 +254,7 @@ A low-emphasis switch at the bottom of the controls, **off by default**, optiona
 
 ### The day popup
 
-Click any day to open a popup showing **all three** of that day's numbers — species, checklists, and total individuals (regardless of which metric the grid is on) — and a list of that day's checklists, each linking straight to eBird. In All-years mode the popup labels the union-vs-sum distinction and tags each checklist with its year. Close it with Escape, the Close button, or by clicking the backdrop.
+Click any day to open a popup showing **all three** of that day's numbers — species, checklists, and total individuals (regardless of which metric the grid is on) — and a list of that day's checklists, each linking straight to eBird. Every checklist row also shows its **start time, location, and species count** (for example, "7:30 AM · Point Reyes NS--Bear Valley · 42 species"), so you can tell one outing from another at a glance and see how each contributed; a checklist with no recorded start time shows just the location and count. The per-checklist species count follows the spuh/slash/hybrid toggle the same way the day totals do (countable species by default, all forms when the toggle is on). In All-years mode the popup labels the union-vs-sum distinction and tags each checklist with its year. Close it with Escape, the Close button, or by clicking the backdrop.
 
 ---
 

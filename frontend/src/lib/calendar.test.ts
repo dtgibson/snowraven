@@ -23,6 +23,9 @@ function obs(partial: Partial<ObservationEntry> & { date: string; submissionId: 
     breedingCode: null,
     speciesComments: '',
     catalogIds: [],
+    // time is optional on ObservationEntry: undefined unless a test supplies it. The
+    // 'time' in partial guard preserves an explicit null (a timeless export row).
+    ...('time' in partial ? { time: partial.time } : {}),
   }
 }
 
@@ -146,11 +149,98 @@ describe('buildDayCells — year view (QA-08/09/10/11)', () => {
     expect(cells.has('2024-03-14')).toBe(true)
   })
 
-  it('records checklist submission ids with their full dates', () => {
+  it('records checklist submission ids with their full dates, time, location, and species counts', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', time: '07:30 AM', location: 'West Pond' }),
+    ], view)
+    expect(cells.get('2024-03-14')!.checklists).toEqual([
+      { submissionId: 'S1', date: '2024-03-14', time: '07:30 AM', location: 'West Pond', speciesCount: 1, speciesCountWithForms: 1 },
+    ])
+  })
+
+  it('captures time + location from the FIRST row seen per submissionId (counts still accumulate every row)', () => {
+    // All rows of one checklist share time + location; a defensive later row with
+    // different values must NOT overwrite the first-seen ones. The per-checklist species
+    // Sets, by contrast, DO accumulate over every row (2 distinct species here).
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', time: '06:15 AM', location: 'Bear Valley' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow', time: '09:00 PM', location: 'Somewhere Else' }),
+    ], view)
+    const c = cells.get('2024-03-14')!
+    expect(c.checklists).toEqual([
+      { submissionId: 'S1', date: '2024-03-14', time: '06:15 AM', location: 'Bear Valley', speciesCount: 2, speciesCountWithForms: 2 },
+    ])
+  })
+
+  it('carries a null time through when the export had none', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin', time: null, location: 'West Pond' }),
+    ], view)
+    expect(cells.get('2024-03-14')!.checklists[0].time).toBeNull()
+    expect(cells.get('2024-03-14')!.checklists[0].location).toBe('West Pond')
+  })
+
+  it('per-checklist speciesCount excludes spuh/slash/hybrid; withForms counts them', () => {
+    // One checklist: Robin + Song Sparrow (both countable) + "gull sp." (spuh) →
+    // countable 2, with-forms 3. The per-checklist tallies mirror the day-level rule.
     const cells = buildDayCells([
       obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'gull sp.' }),
     ], view)
-    expect(cells.get('2024-03-14')!.checklists).toEqual([{ submissionId: 'S1', date: '2024-03-14' }])
+    const cl = cells.get('2024-03-14')!.checklists[0]
+    expect(cl.submissionId).toBe('S1')
+    expect(cl.speciesCount).toBe(2)
+    expect(cl.speciesCountWithForms).toBe(3)
+    expect(cl.speciesCountWithForms).toBeGreaterThanOrEqual(cl.speciesCount)
+  })
+
+  it('per-checklist species tallies dedup a repeated species within the checklist', () => {
+    // The same species logged twice on one checklist counts once (Set semantics).
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow' }),
+    ], view)
+    const cl = cells.get('2024-03-14')!.checklists[0]
+    expect(cl.speciesCount).toBe(2)
+    expect(cl.speciesCountWithForms).toBe(2)
+  })
+
+  it('a spuh-only checklist has per-checklist speciesCount 0, withForms 1', () => {
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S9', commonName: 'gull sp.' }),
+    ], view)
+    const cl = cells.get('2024-03-14')!.checklists[0]
+    expect(cl.speciesCount).toBe(0) // present-but-zero, consistent with the day-level rule
+    expect(cl.speciesCountWithForms).toBe(1)
+  })
+
+  it('per-checklist species tallies are scoped to EACH checklist (not the whole day)', () => {
+    // Two checklists on one day: S1 = Robin+Sparrow, S2 = Robin only. Each checklist's
+    // own count is independent of the day-level de-duped species set (2).
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow' }),
+      obs({ date: '2024-03-14', submissionId: 'S2', commonName: 'American Robin' }),
+    ], view)
+    const c = cells.get('2024-03-14')!
+    expect(c.speciesCount).toBe(2) // day-level union unchanged
+    const byId = new Map(c.checklists.map(cl => [cl.submissionId, cl]))
+    expect(byId.get('S1')!.speciesCount).toBe(2)
+    expect(byId.get('S2')!.speciesCount).toBe(1)
+  })
+
+  it('under a species filter each checklist count reflects the filtered view (0/1 per checklist)', () => {
+    // Filtered to American Robin: a checklist that recorded it counts 1; the whole tab
+    // is scoped to that species, so the per-checklist count reflecting that is consistent.
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Song Sparrow' }),
+    ], view, 'American Robin')
+    const cl = cells.get('2024-03-14')!.checklists[0]
+    expect(cl.speciesCount).toBe(1) // Robin only — Sparrow filtered out before accumulation
+    expect(cl.speciesCountWithForms).toBe(1)
   })
 })
 

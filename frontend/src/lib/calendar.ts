@@ -50,10 +50,21 @@ export interface DayCell {
   /** Σ individuals INCLUDING spuh/slash/hybrid rows (the spuh-toggle-ON value, mirroring
    *  speciesCountWithForms). totalCountWithForms >= totalCount always. */
   totalCountWithForms: number
-  /** submissionId → the full 'YYYY-MM-DD' date that checklist was logged on. Drives
-   *  the popup's ChecklistLink rows (year-labeled in combined mode). Newest-first
-   *  ordering is applied at render from these dates. */
-  checklists: { submissionId: string; date: string }[]
+  /** One entry per distinct submissionId that touched this bucket. `date` is the full
+   *  'YYYY-MM-DD' the checklist was logged on; `time` ("HH:MM AM/PM", or null when the
+   *  export carried none) and `location` (the human location name) are captured from the
+   *  FIRST row seen for that submissionId — all rows of one checklist share both.
+   *  `speciesCount` / `speciesCountWithForms` are that ONE checklist's distinct-species
+   *  tallies (normalized names): the countable-only count (spuh/slash/hybrid EXCLUDED,
+   *  the default) and the with-forms count (spuh/slash/hybrid INCLUDED) respectively —
+   *  the per-checklist analogue of the day-level fields above, `speciesCountWithForms >=
+   *  speciesCount` always. Under a species filter each reflects the filtered view (so a
+   *  single-species filter yields 0/1 per checklist, consistent with the rest of the tab);
+   *  in the normal unfiltered case they are the checklist's full species count. Drives
+   *  the popup's ChecklistLink rows (year-labeled in combined mode) plus a secondary
+   *  "time · location · N species" line. Newest-first ordering is applied at render from
+   *  these dates. Pure DISPLAY fields: they never enter any day-level count. */
+  checklists: { submissionId: string; date: string; time: string | null; location: string; speciesCount: number; speciesCountWithForms: number }[]
 }
 
 /** All populated day buckets for a view, built in ONE pass. Key = bucketKey. */
@@ -116,9 +127,12 @@ export function dayOfWeek(year: number, month: number, day: number): number {
 /** THE single-pass derivation. One loop over observations; per bucket it
  *  accumulates TWO Set<normalizedName>s — a countable-only set (→ speciesCount)
  *  and an all-names set that also admits spuh/slash/hybrid (→ speciesCountWithForms)
- *  — plus a Map<submissionId,date>. No per-cell rescans. Malformed-date rows are
- *  dropped per row (FR-12); a checklist still lands on the date its valid rows
- *  carry. buildDayCells itself takes no toggle flag; metricCount /
+ *  — plus a Map<submissionId, {date, time, location, countable, withForms}> whose two
+ *  per-checklist Sets accumulate that ONE checklist's distinct species (same
+ *  classification, same loop, same filter guard) → each checklist entry's own
+ *  speciesCount / speciesCountWithForms for the popup. No per-cell rescans.
+ *  Malformed-date rows are dropped per row (FR-12); a checklist still lands on the
+ *  date its valid rows carry. buildDayCells itself takes no toggle flag; metricCount /
  *  nonZeroMetricCounts select which species field to read.
  *
  *  When `speciesFilter` (a NORMALIZED common name) is supplied, only rows whose
@@ -134,11 +148,24 @@ export function buildDayCells(
   view: CalendarView,
   speciesFilter?: string,
 ): DayCellMap {
+  // Per checklist we carry its display fields (date + time + location) alongside the
+  // id, PLUS its own two distinct-species Sets — a countable-only set and an all-names
+  // (with-forms) set — accumulated over the SAME rows and under the SAME species-filter
+  // skip as the day-level sets, so a checklist's count stays consistent with the view.
+  // date/time/location are pure display; the two Sets are DISPLAY-only (they never touch
+  // any day-level count) and collapse to sizes on output.
+  interface ChecklistInfo {
+    date: string
+    time: string | null
+    location: string
+    countable: Set<string>
+    withForms: Set<string>
+  }
   interface Work {
     bucketKey: string
     countable: Set<string>
     withForms: Set<string>
-    checklists: Map<string, string> // submissionId -> full YYYY-MM-DD date
+    checklists: Map<string, ChecklistInfo> // submissionId -> its display fields
     total: number // Σ individuals, countable rows only
     totalWithForms: number // Σ individuals, all rows (incl. spuh/slash/hybrid)
   }
@@ -161,17 +188,30 @@ export function buildDayCells(
       work.set(bucketKey, w)
     }
     const n = individualsOf(o.count) // "X"/blank/null → 0 (Statistics-consistent)
+    const countable = !isNonCountableSpecies(o.commonName)
     w.withForms.add(norm)
     w.totalWithForms += n
-    if (!isNonCountableSpecies(o.commonName)) {
+    if (countable) {
       w.countable.add(norm)
       w.total += n
     }
     // A checklist (submissionId) lands on THIS row's valid date. Globally-unique
     // eBird submission ids mean a per-bucket Set spanning years has a size that
-    // legitimately equals the sum, so one mechanism serves both views.
-    if (o.submissionId && !w.checklists.has(o.submissionId)) {
-      w.checklists.set(o.submissionId, date)
+    // legitimately equals the sum, so one mechanism serves both views. We capture
+    // the checklist's time + location from the FIRST row seen for that submissionId
+    // (all rows of one checklist share both) — purely for the popup's display; they
+    // never feed any count. We ALSO accumulate this checklist's own distinct-species
+    // Sets here (same `norm`/`countable` classification as the day sets, inside the
+    // same filter-guarded loop) so the popup can show a per-checklist species count
+    // consistent with the filtered view.
+    if (o.submissionId) {
+      let ci = w.checklists.get(o.submissionId)
+      if (!ci) {
+        ci = { date, time: o.time ?? null, location: o.location, countable: new Set(), withForms: new Set() }
+        w.checklists.set(o.submissionId, ci)
+      }
+      ci.withForms.add(norm)
+      if (countable) ci.countable.add(norm)
     }
   }
 
@@ -184,7 +224,10 @@ export function buildDayCells(
       checklistCount: w.checklists.size,
       totalCount: w.total,
       totalCountWithForms: w.totalWithForms,
-      checklists: [...w.checklists.entries()].map(([submissionId, date]) => ({ submissionId, date })),
+      checklists: [...w.checklists.entries()].map(([submissionId, info]) => ({
+        submissionId, date: info.date, time: info.time, location: info.location,
+        speciesCount: info.countable.size, speciesCountWithForms: info.withForms.size,
+      })),
     })
   }
   return out

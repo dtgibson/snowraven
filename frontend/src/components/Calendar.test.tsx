@@ -26,6 +26,9 @@ function obs(over: Partial<ObservationEntry> & { date: string; submissionId: str
     breedingCode: null,
     speciesComments: '',
     catalogIds: [],
+    // time is optional; supply it only when a test sets it (an explicit null is a
+    // timeless export row and must be preserved).
+    ...('time' in over ? { time: over.time } : {}),
   }
 }
 
@@ -33,10 +36,12 @@ function obs(over: Partial<ObservationEntry> & { date: string; submissionId: str
 let observations: ObservationEntry[] = []
 function buildDataset(): ObservationEntry[] {
   const rows: ObservationEntry[] = []
-  // 2025: a rich data day 2025-03-14 (many species) + a lighter day 2025-03-15
-  rows.push(obs({ date: '2025-03-14', submissionId: 'S100', commonName: 'American Robin' }))
-  rows.push(obs({ date: '2025-03-14', submissionId: 'S100', commonName: 'Song Sparrow' }))
-  rows.push(obs({ date: '2025-03-14', submissionId: 'S101', commonName: 'Blue Jay' }))
+  // 2025: a rich data day 2025-03-14 (many species) + a lighter day 2025-03-15.
+  // S100 carries a start time (with a leading-zero hour to exercise the trim) and a
+  // location; S101 is TIMELESS (time null) to exercise the location-only popup row.
+  rows.push(obs({ date: '2025-03-14', submissionId: 'S100', commonName: 'American Robin', time: '07:30 AM', location: 'Point Reyes NS--Bear Valley' }))
+  rows.push(obs({ date: '2025-03-14', submissionId: 'S100', commonName: 'Song Sparrow', time: '07:30 AM', location: 'Point Reyes NS--Bear Valley' }))
+  rows.push(obs({ date: '2025-03-14', submissionId: 'S101', commonName: 'Blue Jay', time: null, location: 'Abbotts Lagoon' }))
   rows.push(obs({ date: '2025-03-15', submissionId: 'S102', commonName: 'American Crow' }))
   // 2025 spuh-only day → present-but-zero under Species (OFF)
   rows.push(obs({ date: '2025-06-01', submissionId: 'S103', commonName: 'gull sp.' }))
@@ -159,28 +164,87 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     expect(compactBtn.getAttribute('aria-pressed')).toBe('true')
     expect(largeBtn.getAttribute('aria-pressed')).toBe('false')
 
-    // "Large" is the whole-year thumbnail overview: 12 mini-month buttons.
+    // "Large" is the whole-year thumbnail overview: 12 static (non-interactive) mini-
+    // months (v0.5.63 removed the cross-view link — they are no longer buttons). Detect
+    // them by their .sr-cal-minimonth container, one per month.
     fireEvent.click(largeBtn)
-    const miniButtons = screen.getAllByRole('button', { name: /Open .* in the month view/ })
-    expect(miniButtons).toHaveLength(12)
-
-    // clicking a mini-month flips back to the big month grids ("Compact")
-    fireEvent.click(screen.getByRole('button', { name: 'Open March in the month view' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Compact' }).getAttribute('aria-pressed')).toBe('true'))
+    await waitFor(() => expect(largeBtn.getAttribute('aria-pressed')).toBe('true'))
+    const minis = document.querySelectorAll('.sr-cal-minimonth')
+    expect(minis).toHaveLength(12)
+    // Each names its month as readable text.
+    for (const m of ['January', 'February', 'March', 'December']) {
+      expect(screen.getByText(m)).toBeTruthy()
+    }
   })
 
-  it('Large (overview) mini-cells are shading-only — no in-cell number and no hover title (change 3)', async () => {
+  it('the overview MONTH level is NON-interactive — no cross-view link (change 3)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
     fireEvent.click(screen.getByRole('button', { name: 'Large' }))
-    // The March mini-month button contains its cells. The rich 2025-03-14 day (3
-    // species) renders as a shaded cell only — no "3" glyph and no `title` figure.
-    const marchMini = screen.getByRole('button', { name: 'Open March in the month view' })
-    // No cell carries a value title anymore (the v0.5.60 numbers/titles are retired).
-    expect(marchMini.querySelector('[title="Mar 14, 2025: 3"]')).toBeNull()
-    expect(marchMini.querySelector('[title]')).toBeNull()
-    // The thumbnail carries no digits at all — it's a clean shading-only heatmap.
-    expect(marchMini.textContent).not.toMatch(/\d/)
+    await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
+    // The v0.5.62 "Open … in the month view" mini-month buttons are gone: no button
+    // navigates between the two views. The overview's only buttons are the control-strip
+    // toggles and the per-day cells (see the popup test below) — never a whole month.
+    expect(screen.queryByRole('button', { name: /in the month view/ })).toBeNull()
+    // The March mini-month CARD is a plain container, not a button.
+    const marchMini = screen.getByText('March').closest('.sr-cal-minimonth') as HTMLElement
+    expect(marchMini.tagName).toBe('DIV')
+    // Clicking the card (not a day cell) changes nothing — Large stays selected, no
+    // Compact switch, no popup.
+    fireEvent.click(marchMini)
+    expect(screen.getByRole('button', { name: 'Large' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Compact' }).getAttribute('aria-pressed')).toBe('false')
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('an overview DAY cell opens the same day popup, in place, without switching views (v0.5.63 revision)', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+    await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
+
+    // The overview's per-day cells are real buttons with the same accessible-name pattern
+    // as the Compact grid (date + count + "Open day details"). The 2025-03-14 rich day
+    // lives in the March thumbnail; scope the query to that card so we hit the overview
+    // cell, not any Compact cell (Compact isn't mounted in Large mode, but scoping is
+    // explicit). It sits inside a .sr-cal-minimonth (proving it's the overview trigger).
+    const dayBtn = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    expect(dayBtn.closest('.sr-cal-minimonth')).toBeTruthy()
+
+    fireEvent.click(dayBtn)
+    // The SAME single day popup opens — same content contract as the Compact path.
+    const dialog = await screen.findByRole('dialog', { name: /Day details for \w{3}, Mar 14, 2025/ })
+    expect(within(dialog).getByText('species')).toBeTruthy()
+    expect(within(dialog).getByText('checklists')).toBeTruthy()
+    const links = within(dialog).getAllByRole('link', { name: /open checklist on eBird/ })
+    expect(links[0].getAttribute('href')).toContain('/checklist/S100')
+
+    // View did NOT switch — still Large, and the mini-months are still mounted behind the
+    // popup (opening a day popup is in place, never a Compact jump).
+    expect(screen.getByRole('button', { name: 'Large' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: 'Compact' }).getAttribute('aria-pressed')).toBe('false')
+    expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12)
+
+    // Escape closes it and restores focus to the activating overview cell.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(dayBtn))
+    // Still Large after the popup closes.
+    expect(screen.getByRole('button', { name: 'Large' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('an overview present-but-zero DAY cell opens its popup too (parity with Compact)', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+    await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
+    // The 2025-06-01 spuh-only day is present-but-zero under Species; its overview cell
+    // carries the same accessible name as the Compact zero cell and opens the popup.
+    const zeroBtn = screen.getByRole('button', { name: /Jun 1, 2025 — birded, 0 countable species\. Open day details/ })
+    expect(zeroBtn.closest('.sr-cal-minimonth')).toBeTruthy()
+    fireEvent.click(zeroBtn)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('species')).toBeTruthy()
   })
 })
 
@@ -213,9 +277,10 @@ describe('Calendar — phone forces Large view (change 2)', () => {
       await screen.findByText('January')
       // Try to switch to the Large overview.
       fireEvent.click(screen.getByRole('button', { name: 'Large' }))
-      // The mini-month "Open … in the month view" buttons must NOT appear — the big
-      // month grids are still rendered.
-      expect(screen.queryByRole('button', { name: /in the month view/ })).toBeNull()
+      // The mini-month thumbnails must NOT appear — the big month grids are still
+      // rendered (effectiveMode is forced to 'months' on a phone). The Compact-grid
+      // data cells are present; no .sr-cal-minimonth thumbnails mount.
+      expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(0)
       expect(screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })).toBeTruthy()
     } finally {
       restore()
@@ -228,51 +293,87 @@ describe('Calendar — phone forces Large view (change 2)', () => {
     // The CSS hook that the ≤640 media query hides is present on the toggle container.
     const largeBtn = screen.getByRole('button', { name: 'Large' })
     expect(largeBtn.closest('.sr-cal-view-toggle')).toBeTruthy()
-    // At desktop width (default not-phone) Large renders the mini-month overview.
+    // At desktop width (default not-phone) Large renders the 12 mini-month thumbnails.
     fireEvent.click(largeBtn)
-    expect(screen.getAllByRole('button', { name: /in the month view/ }).length).toBe(12)
+    expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12)
   })
 })
 
-describe('Calendar — in-cell dates (change 3, Large view)', () => {
-  it('a Large data cell shows BOTH its day-of-month and its count', async () => {
+describe('Calendar — Compact cells are count-only; the date lives on the Large thumbnails (v0.5.63)', () => {
+  it('a Compact data cell shows ONLY its count — no day-of-month date corner', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    // The 2025-03-14 rich data cell: count 3 (in its aria-label) AND the day number 14.
+    // The 2025-03-14 rich data cell: count 3 (centered + in its aria-label). The big
+    // grids no longer carry a per-day date, so "14" must NOT appear in the cell text.
     const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
-    expect(cell.textContent).toContain('3')  // the metric count (centered)
-    expect(cell.textContent).toContain('14') // the day-of-month date (top-left corner)
+    expect(cell.textContent).toBe('3')      // the metric count only
+    expect(cell.querySelector('.sr-cal-daynum')).toBeNull() // no date corner
   })
 
-  it('a no-data day cell (no checklist) shows its date', async () => {
+  it('a Compact no-data day cell renders no date (the big grids are count-only)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    // 2025-03-14 and 03-15 are the only March data days. March 31 has NO checklist, so
-    // the ONLY way "31" appears in the March card is the nodata cell's dated corner —
-    // no data/zero cell carries a count of 31 here (max count is 3). This proves blank
-    // days are dated.
+    // With the date corners gone, no .sr-cal-daynum span exists anywhere in the Compact
+    // month cards — a no-birding day is a bare outlined cell.
     const marchCard = screen.getByText('March').parentElement as HTMLElement
-    expect(marchCard.textContent).toContain('31')
+    expect(marchCard.querySelectorAll('.sr-cal-daynum')).toHaveLength(0)
   })
 
-  it('the combined (All years) view dates a cell by its MM-DD day', async () => {
+  it('a Large thumbnail data cell carries its day-of-month number (the date moved here)', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('January')
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+    await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
+    // The March thumbnail contains a dated corner for the 2025-03-14 data day: its
+    // .sr-cal-daynum span reads "14". (The thumbnail carries NO count — just shade +
+    // date; the count lives in the Compact grid and the day popup.)
+    const marchMini = screen.getByText('March').closest('.sr-cal-minimonth') as HTMLElement
+    const dayNums = Array.from(marchMini.querySelectorAll('.sr-cal-daynum')).map(e => e.textContent?.trim())
+    expect(dayNums).toContain('14')
+    expect(dayNums).toContain('15') // the lighter Mar-15 data day is dated too
+    // No metric count leaks into the thumbnail text — the shade + date carry the day.
+    // (The mini-cell IS a button now, so it has an aria-label with the count; the VISIBLE
+    // text is only the day-of-month, never the count. Assert "3" — Mar-14's count — is
+    // not shown as visible text: the only numeric text tokens are day-of-month numbers.)
+    const visibleText = Array.from(marchMini.querySelectorAll('.sr-cal-daynum')).map(e => e.textContent?.trim())
+    expect(visibleText.every(t => t == null || Number(t) <= 31)).toBe(true)
+  })
+
+  it('the combined (All years) Compact cell is count-only; the MM-DD date is on the thumbnail', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
     fireEvent.click(screen.getByRole('button', { name: 'All years' }))
-    // Mar 14 combined data cell — union count 3, day-of-month 14 both present.
+    // Mar 14 combined data cell — union count 3, no date corner in the big grid.
     const cell = await screen.findByRole('button', { name: /Mar 14 — 3\. Open day details/ })
-    expect(cell.textContent).toContain('14')
-    expect(cell.textContent).toContain('3')
+    expect(cell.textContent).toBe('3')
+    expect(cell.querySelector('.sr-cal-daynum')).toBeNull()
   })
 })
 
 describe('Calendar — combined view aligns to the current year & keeps Feb 29 (change 1)', () => {
-  // Return the cell-grid element for a named month card in the Large (big-grid) view.
+  // Return the cell-grid element for a named month card in the Compact (big-grid) view.
   // Card structure: [month-name div, weekday-header grid (aria-hidden), cell grid].
   // The cell grid is the card's last element child.
   function monthCellGrid(monthName: string): HTMLElement {
     const card = screen.getByText(monthName).parentElement as HTMLElement
     return card.lastElementChild as HTMLElement
+  }
+
+  // A leading PAD cell is a bare <div> with no border (borderStyle "none"); the first
+  // real day-of-month-1 cell breaks the streak — it's either a bordered no-data <div>
+  // (borderStyle "solid") or a <button> (zero/data cell). The big grids no longer carry
+  // a per-day date, so the lead can't be found by a "1" text corner — it's detected
+  // structurally (per the v0.5.63 count-only Compact cells). This still proves the
+  // current-year alignment guarantee: the pad count === dayOfWeek(CURRENT_YEAR, month, 1).
+  function leadPadCount(grid: HTMLElement): number {
+    const kids = Array.from(grid.children) as HTMLElement[]
+    let lead = 0
+    while (
+      lead < kids.length &&
+      kids[lead].tagName === 'DIV' &&
+      kids[lead].style.borderStyle === 'none'
+    ) lead++
+    return lead
   }
 
   it('the combined grid’s weekday lead-in matches the CURRENT year, not a fixed reference year', async () => {
@@ -286,15 +387,11 @@ describe('Calendar — combined view aligns to the current year & keeps Feb 29 (
     // the combined view that must equal dayOfWeek(CURRENT_YEAR, month, 1) — the same
     // value this year's single-year grid uses. A fixed 2000 reference would give a
     // different lead for most months (a regression to the old behavior fails here).
+    // Jan/Mar/Jul day-1 are all no-data days in the fixture → a clean pad-streak break.
     const currentYear = new Date().getFullYear()
     for (const [monthName, monthIdx] of [['January', 1], ['March', 3], ['July', 7]] as const) {
       const grid = monthCellGrid(monthName)
-      // Leading pad cells: aria-hidden, no text (day 1 is the first cell carrying a
-      // "1"). Count children until the first one whose text starts with "1".
-      const kids = Array.from(grid.children) as HTMLElement[]
-      let lead = 0
-      while (lead < kids.length && (kids[lead].textContent ?? '').trim() === '') lead++
-      expect(lead).toBe(dayOfWeek(currentYear, monthIdx, 1))
+      expect(leadPadCount(grid)).toBe(dayOfWeek(currentYear, monthIdx, 1))
     }
   })
 
@@ -303,13 +400,17 @@ describe('Calendar — combined view aligns to the current year & keeps Feb 29 (
     await screen.findByText('February')
     fireEvent.click(screen.getByRole('button', { name: 'All years' }))
     await screen.findByText('Species ever recorded')
-    // February's card must contain a day-of-month "29". 2026 (a plausible current
-    // year) is NOT a leap year, so a naive current-year daysInMonth swap would drop
-    // this cell — the combined view pins February to 29 days regardless. The Feb-29
-    // day has no data in the fixture, so it renders as a dated no-data corner.
+    // February's combined grid pins to 29 days regardless of the current year's leapness
+    // (2026, a plausible current year, is NOT a leap year — a naive daysInMonth swap
+    // would drop this cell). The big grids carry no per-day date now, so the Feb-29 cell
+    // is proven by COUNTING the grid's non-pad day cells: a 29-day February has exactly
+    // 29 real day cells (pads excluded). The Feb-29 day has no data in the fixture, so it
+    // renders as a bare no-data <div>. 28 would mean the leap cell was dropped.
     const grid = monthCellGrid('February')
-    const dayNums = Array.from(grid.querySelectorAll('.sr-cal-daynum')).map(e => e.textContent?.trim())
-    expect(dayNums).toContain('29')
+    const kids = Array.from(grid.children) as HTMLElement[]
+    const padCount = leadPadCount(grid) // pads only lead (no trailing pads in this grid)
+    const dayCells = kids.length - padCount
+    expect(dayCells).toBe(29)
   })
 })
 
@@ -456,6 +557,64 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  })
+
+  it('each popup checklist row shows the start time (leading zero trimmed), location, and species count', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    fireEvent.click(cell)
+    const dialog = await screen.findByRole('dialog')
+    // S100 carried "07:30 AM" @ "Point Reyes NS--Bear Valley" (Robin + Song Sparrow) —
+    // the "time · location" prefix is one span (leading zero trimmed, middot-joined), and
+    // the checklist's own countable species count (2) rides on the tail: "· 2 species".
+    expect(within(dialog).getByText('7:30 AM · Point Reyes NS--Bear Valley')).toBeTruthy()
+    expect(within(dialog).getByText('· 2 species')).toBeTruthy()
+  })
+
+  it('a checklist with no start time (time null) shows the location alone — then the species count — no stray separator', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    fireEvent.click(cell)
+    const dialog = await screen.findByRole('dialog')
+    // S101 (Blue Jay) is timeless — its prefix span shows JUST the location, with no
+    // leading "· " and no bare middot in that segment.
+    const locOnly = within(dialog).getByText('Abbotts Lagoon')
+    expect(locOnly).toBeTruthy()
+    expect(locOnly.textContent).toBe('Abbotts Lagoon')
+    expect(locOnly.textContent).not.toContain('·')
+    // Its species count (Blue Jay only → 1) rides on the tail as a sibling span.
+    expect(within(dialog).getByText('· 1 species')).toBeTruthy()
+  })
+
+  it('the popup checklist row species count follows the include-forms toggle (countable ↔ with-forms)', async () => {
+    // A dedicated dataset: one checklist S300 with Robin (countable) + "gull sp." (spuh),
+    // so the two counts differ (countable 1, with-forms 2). Rendering it as the only
+    // checklist on a day isolates the row.
+    observations = [
+      obs({ date: '2025-03-14', submissionId: 'S300', commonName: 'American Robin', time: '08:00 AM', location: 'Marsh Loop' }),
+      obs({ date: '2025-03-14', submissionId: 'S300', commonName: 'gull sp.', time: '08:00 AM', location: 'Marsh Loop' }),
+    ]
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    // Species metric, forms OFF (default): the day cell reads 1 (Robin only).
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 1\. Open day details/ })
+    fireEvent.click(cell)
+    let dialog = await screen.findByRole('dialog')
+    // OFF → the checklist's countable count (1).
+    expect(within(dialog).getByText('· 1 species')).toBeTruthy()
+    expect(within(dialog).queryByText('· 2 species')).toBeNull()
+    // Close the popup, flip the include-forms toggle ON, reopen the (now count-2) cell.
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    fireEvent.click(screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ }))
+    // With forms ON the day cell now reads 2 (Robin + gull sp.).
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025 — 2\. Open day details/ }))
+    dialog = await screen.findByRole('dialog')
+    // ON → the checklist's with-forms count (2).
+    expect(within(dialog).getByText('· 2 species')).toBeTruthy()
+    expect(within(dialog).queryByText('· 1 species')).toBeNull()
   })
 
   it('a present-but-zero cell opens its popup (species 0, checklists >= 1) (QA-36)', async () => {

@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.63] - 2026-07-04
+
+### Changed
+- **The Calendar's big month grids are count-only again.** The Compact view's day cells no longer print a day-of-month number in the corner — each birded day shows just its count (and no-birding days are bare), returning the big grids to their cleaner earlier look.
+- **The Calendar's whole-year thumbnails now carry a small day-of-month number.** Each cell in the Large view's 3×4 month thumbnails shows a small date in the corner alongside its shading (no count), and the number tucks away automatically when a thumbnail is too small for it to stay legible — so the whole-year overview reads as a dated heatmap.
+- **The Calendar overview's days open their popups; its months no longer jump views.** Clicking a *month* in the Large thumbnail overview used to switch you into the big-grid view — that navigation is gone, so the month cards stay put and the Compact / Large toggle is the only way to switch layouts. Clicking an individual *day* in a thumbnail now opens that day's detail popup (the same summary and checklist links as the big grid) right where you are, so day detail is reachable from the whole-year overview without switching views.
+- **The Calendar day popup now shows each checklist's start time, location, and species count.** Every checklist row in the day popup carries a second line with its start time, location, and how many species that checklist recorded (for example, "7:30 AM · Point Reyes NS--Bear Valley · 42 species"), so you can tell one outing from another at a glance and see how each contributed to the day; a checklist with no recorded start time shows just the location and count. The per-checklist count follows the spuh/slash/hybrid toggle exactly as the day totals do (countable species by default, all forms when it's on). Read straight from your already-loaded backup — no new network calls.
+
 ## [0.5.62] - 2026-07-04
 
 ### Changed
