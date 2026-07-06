@@ -1,0 +1,669 @@
+<title>SnowRaven — Weather Backlog design</title>
+<style>
+/* ── SnowRaven design tokens (verbatim from frontend/src/globals.css) ─────── */
+:root{
+  --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+  --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA; --sr-text-gray:#6B7280;
+  --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE; --sr-border-input:#8A8A91;
+  --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE; --sr-accent-bg-hover:#F0FAF4;
+  --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-border-strong:rgba(39,116,72,0.7); --sr-on-accent:#FFFFFF;
+  --sr-error:#D31F1F; --sr-error-bg:#FEF2F2; --sr-error-border:#FECACA; --sr-error-muted:#FCA5A5;
+  --sr-warning:#92400E; --sr-warning-bg:#FFFBEB; --sr-warning-subtle:#FDE68A;
+  --sr-gray-400:#8E8E96;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+}
+[data-theme="dark"]{
+  --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+  --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-disabled:#52525B; --sr-text-gray:#8A8A92;
+  --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46; --sr-border-input:#707078;
+  --sr-accent:#34D399; --sr-accent-strong:#34D399; --sr-accent-bg:#052E16; --sr-accent-bg-hover:#064E3B;
+  --sr-accent-border:rgba(52,211,153,0.2); --sr-accent-border-strong:rgba(52,211,153,0.5); --sr-on-accent:#052E16;
+  --sr-error:#F87171; --sr-error-bg:#1C0505; --sr-error-border:#7F1D1D; --sr-error-muted:#B91C1C;
+  --sr-warning:#FDE68A; --sr-warning-bg:#1C1002; --sr-warning-subtle:#78350F;
+  --sr-gray-400:#6E6E78;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--sr-bg); color:var(--sr-text);
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size:16px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit;}
+
+/* Shared layout classes (mirrored conceptually from globals.css) */
+.sr-action-row{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 12px; min-width:0;}
+.sr-min0{min-width:0;}
+.sr-truncate{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;}
+
+/* ── Mockup scaffold (NOT part of the app — the annotation frame around the design) ── */
+.scaffold{max-width:1120px; margin:0 auto; padding:28px 20px 80px;}
+.scaffold-head{display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:6px;}
+.scaffold-title{font-size:1.375rem; font-weight:700; letter-spacing:-0.02em; margin:0;}
+.scaffold-sub{font-size:0.8125rem; color:var(--sr-text-muted); margin:4px 0 0; max-width:640px;}
+.controls{display:flex; gap:8px; align-items:center; flex-shrink:0;}
+.ctl-btn{
+  display:inline-flex; align-items:center; gap:6px; height:34px; padding:0 13px;
+  background:var(--sr-surface); color:var(--sr-text); border:1px solid var(--sr-border-medium);
+  border-radius:8px; font:inherit; font-size:0.8125rem; font-weight:600; cursor:pointer;
+}
+.ctl-btn:hover{background:var(--sr-surface-subtle);}
+.annot{
+  margin:34px 0 12px; padding-left:12px; border-left:3px solid var(--sr-accent-border-strong);
+}
+.annot-num{
+  display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px;
+  background:var(--sr-accent); color:var(--sr-on-accent); font-size:0.75rem; font-weight:700; margin-right:8px;
+}
+.annot-title{font-size:0.9375rem; font-weight:700; letter-spacing:-0.01em;}
+.annot-body{font-size:0.78125rem; color:var(--sr-text-muted); margin:5px 0 0; max-width:760px;}
+.oq-note{
+  display:inline-flex; align-items:center; gap:6px; margin-top:8px; padding:4px 9px;
+  background:var(--sr-accent-bg); color:var(--sr-accent-strong); border:1px solid var(--sr-accent-border);
+  border-radius:999px; font-size:0.6875rem; font-weight:600;
+}
+[data-theme="dark"] .oq-note{color:var(--sr-accent);}
+
+/* device frame — simulates the centered .sr-panel + phone widths */
+.stage{
+  background:var(--sr-bg);
+  border:1px dashed var(--sr-border-medium); border-radius:14px;
+  padding:24px; display:flex; justify-content:center;
+}
+.stage.phone{padding:20px 14px;}
+.panel{width:100%; max-width:540px;}
+.panel.phone{max-width:340px;}
+
+/* ── App-fidelity pieces ─────────────────────────────────────────────────── */
+.sr-card{
+  width:100%; background:var(--sr-surface); border:1px solid var(--sr-border);
+  border-radius:12px; box-shadow:var(--sr-card-shadow);
+}
+.card-pad{padding:24px 26px;}
+.phone .card-pad{padding:18px;}
+
+/* dimmed single-lookup card shown for context */
+.dim{opacity:0.5; pointer-events:none; margin-bottom:14px;}
+.ctx-tag{
+  display:inline-flex; align-items:center; gap:5px; margin-bottom:8px; padding:2px 8px;
+  font-size:0.625rem; font-weight:600; letter-spacing:0.06em; text-transform:uppercase;
+  color:var(--sr-text-muted); border:1px dashed var(--sr-border-medium); border-radius:999px;
+}
+.lookup-label{display:block; font-size:0.875rem; font-weight:500; margin-bottom:8px;}
+.field-row{display:flex; gap:8px;}
+.lookup-input{
+  flex:1; height:44px; padding:0 14px; border:1.5px solid var(--sr-border); border-radius:8px;
+  font-size:0.875rem; font-family:inherit; color:var(--sr-text); background:var(--sr-surface); min-width:0;
+}
+.lookup-btn{
+  height:44px; padding:0 18px; background:var(--sr-accent); color:var(--sr-on-accent); border:none; border-radius:8px;
+  font-size:0.875rem; font-weight:500; font-family:inherit; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+}
+.lookup-hint{margin:8px 0 0; font-size:0.75rem; color:var(--sr-text-muted);}
+
+/* ── Backlog section ─────────────────────────────────────────────────────── */
+
+/* collapsed entry point */
+.entry{
+  width:100%; display:flex; align-items:center; gap:11px;
+  padding:15px 18px; background:var(--sr-surface); border:1px solid var(--sr-border);
+  border-radius:12px; box-shadow:var(--sr-card-shadow);
+  font-family:inherit; text-align:left; cursor:pointer; color:var(--sr-text);
+}
+.entry:hover{background:var(--sr-surface-faint);}
+.entry-icon{
+  display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+  width:30px; height:30px; border-radius:8px; background:var(--sr-accent-bg); color:var(--sr-accent);
+}
+.entry-main{min-width:0; flex:1;}
+.entry-title{font-size:0.9375rem; font-weight:600; letter-spacing:-0.01em;}
+.entry-sub{font-size:0.75rem; color:var(--sr-text-muted); margin-top:2px;}
+.entry-chev{flex-shrink:0; color:var(--sr-text-muted); transition:transform .15s;}
+.entry[aria-expanded="true"] .entry-chev{transform:rotate(180deg);}
+
+/* expanded section header */
+.bl-head{
+  padding:16px 18px 14px; border-bottom:1px solid var(--sr-border-subtle);
+}
+.bl-head-top{display:flex; align-items:center; gap:11px;}
+.bl-h2{font-size:1.0625rem; font-weight:700; letter-spacing:-0.01em; margin:0;}
+.bl-count{
+  font-size:0.75rem; color:var(--sr-text-muted); margin:8px 0 0; line-height:1.45;
+}
+.bl-count b{color:var(--sr-text); font-weight:600;}
+
+/* widen toggle (role=switch) */
+.widen-row{
+  display:flex; align-items:center; gap:9px; margin-top:12px;
+  padding:9px 11px; background:var(--sr-surface-faint); border:1px solid var(--sr-border-subtle); border-radius:9px;
+}
+.switch{
+  position:relative; flex-shrink:0; width:34px; height:20px; border-radius:999px;
+  background:var(--sr-gray-400); border:none; padding:0; cursor:pointer; transition:background .15s;
+}
+.switch[aria-checked="true"]{background:var(--sr-accent);}
+.switch::after{
+  content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%;
+  background:#fff; transition:transform .15s; box-shadow:0 1px 2px rgba(0,0,0,.25);
+}
+.switch[aria-checked="true"]::after{transform:translateX(14px);}
+.widen-label{font-size:0.8125rem; font-weight:500; color:var(--sr-text); min-width:0;}
+.widen-label .muted{color:var(--sr-text-muted); font-weight:400;}
+
+/* backlog rows */
+.bl-row{padding:13px 18px 14px; border-bottom:1px solid var(--sr-border-subtle);}
+.bl-row:last-child{border-bottom:none;}
+.bl-row.widened{background:var(--sr-surface-faint);}
+.row-top{display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; min-width:0;}
+.row-date{
+  font-size:0.8125rem; font-weight:600; color:var(--sr-accent); text-decoration:none;
+  display:inline-flex; align-items:center; gap:3px; white-space:nowrap;
+}
+.row-date:hover{text-decoration:underline;}
+.row-sep{font-size:0.75rem; color:var(--sr-text-disabled);}
+.row-loc{
+  font-size:0.8125rem; font-weight:500; color:var(--sr-accent); text-decoration:none;
+  display:inline-flex; align-items:center; gap:3px; min-width:0; max-width:100%;
+}
+.row-loc.plain{color:var(--sr-text); }
+.row-loc:not(.plain):hover{text-decoration:underline;}
+.row-loc .name{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.row-spp{
+  margin-left:auto; font-size:0.75rem; font-weight:700; color:var(--sr-accent); white-space:nowrap; flex-shrink:0; padding-left:12px;
+}
+
+/* second line: meta + widen chip */
+.row-meta{
+  display:flex; align-items:center; flex-wrap:wrap; gap:5px 9px; margin-top:5px;
+  font-size:0.71875rem; color:var(--sr-text-muted);
+}
+.row-meta .dot{color:var(--sr-text-disabled);}
+.chip{
+  display:inline-flex; align-items:center; gap:4px; padding:1px 7px; border-radius:5px;
+  font-size:0.65625rem; font-weight:600; letter-spacing:0.02em;
+}
+.chip-incomplete{background:var(--sr-warning-bg); color:var(--sr-warning); border:1px solid var(--sr-warning-subtle);}
+.chip-incidental{background:var(--sr-surface-subtle); color:var(--sr-text-muted); border:1px solid var(--sr-border);}
+
+/* action cluster */
+.row-actions{display:flex; align-items:center; gap:6px; margin-top:11px; flex-wrap:wrap;}
+.act{
+  display:inline-flex; align-items:center; justify-content:center; gap:6px; height:32px; padding:0 11px;
+  border-radius:8px; font-family:inherit; font-size:0.75rem; font-weight:600; cursor:pointer; white-space:nowrap;
+  border:1px solid var(--sr-border-medium); background:var(--sr-surface); color:var(--sr-text);
+}
+.act:hover{background:var(--sr-surface-subtle);}
+.act svg{flex-shrink:0;}
+.act-icon{width:32px; padding:0;}                 /* icon-only actions #1 #2 */
+.act-primary{                                      /* action #3 — the one accent action */
+  border-color:var(--sr-accent); background:var(--sr-accent); color:var(--sr-on-accent);
+}
+.act-primary:hover{background:var(--sr-accent-strong); border-color:var(--sr-accent-strong);}
+.act-primary.busy{opacity:.7; cursor:default;}
+.act-success{background:var(--sr-accent-bg); color:var(--sr-accent-strong); border-color:var(--sr-accent-border-strong);}
+[data-theme="dark"] .act-success{color:var(--sr-accent);}
+.act-sep{flex:1 1 auto; min-width:6px;}            /* pushes #3 to the right of #1/#2 */
+
+/* per-row inline result / failure line */
+.row-status{
+  display:flex; align-items:flex-start; gap:7px; margin-top:9px; padding:8px 11px;
+  border-radius:8px; font-size:0.75rem; line-height:1.4;
+}
+.row-status svg{flex-shrink:0; margin-top:1px;}
+.status-error{background:var(--sr-error-bg); color:var(--sr-error); border:1px solid var(--sr-error-border);}
+.status-warn{background:var(--sr-warning-bg); color:var(--sr-warning); border:1px solid var(--sr-warning-subtle);}
+.status-error b, .status-warn b{font-weight:700;}
+.status-link{
+  color:inherit; font-weight:700; text-decoration:underline; text-underline-offset:2px; cursor:pointer; white-space:nowrap;
+}
+.no-open-note{font-size:0.6875rem; opacity:.85; margin-top:2px;}
+
+/* pagination */
+.bl-foot{
+  display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
+  padding:14px 18px; border-top:1px solid var(--sr-border-subtle);
+}
+.page-btn{
+  height:36px; padding:0 15px; border-radius:8px; font-family:inherit; font-size:0.8125rem; font-weight:600; cursor:pointer;
+  border:1px solid var(--sr-border-medium); background:var(--sr-surface); color:var(--sr-text);
+}
+.page-btn:hover{background:var(--sr-surface-subtle);}
+.page-btn.ghost{border-color:transparent; color:var(--sr-accent);}
+.page-note{font-size:0.71875rem; color:var(--sr-text-muted);}
+
+/* empty / needs-data states */
+.state{padding:34px 24px; text-align:center;}
+.state-icon{
+  display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:12px;
+  background:var(--sr-surface-subtle); color:var(--sr-text-muted); margin-bottom:12px;
+}
+.state-title{font-size:0.9375rem; font-weight:600;}
+.state-body{font-size:0.8125rem; color:var(--sr-text-muted); margin:6px auto 0; max-width:360px; line-height:1.5;}
+.state-cta{
+  display:inline-flex; align-items:center; gap:6px; margin-top:14px; height:36px; padding:0 15px;
+  background:var(--sr-accent); color:var(--sr-on-accent); border:none; border-radius:8px;
+  font-family:inherit; font-size:0.8125rem; font-weight:600; cursor:pointer;
+}
+
+/* spinner */
+.spin{animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* two-up gallery for the state variants */
+.gallery{display:grid; grid-template-columns:repeat(auto-fill, minmax(min(300px,100%),1fr)); gap:16px;}
+
+/* phone: dense action controls climb toward 44px (the ≤640 .sr-touch-target posture) */
+@media (max-width:640px){
+  .act{min-height:44px; height:44px;}
+  .act-icon{width:44px;}
+  .page-btn{min-height:44px;}
+}
+.cap{font-size:0.6875rem; color:var(--sr-text-muted); text-align:center; margin:8px 0 0;}
+</style>
+
+<div class="scaffold">
+  <div class="scaffold-head">
+    <div>
+      <h1 class="scaffold-title">Weather Backlog</h1>
+      <p class="scaffold-sub">A new section at the bottom of the Weather tab — “List checklists with no weather blocks.” Designed entirely within SnowRaven’s existing system: real <code>--sr-*</code> tokens (light + dark), the Weather-tab card, and the Checklists-tab row anatomy. Toggle the theme and the phone view to see it hold.</p>
+    </div>
+    <div class="controls">
+      <button class="ctl-btn" id="themeBtn" onclick="toggleTheme()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <span id="themeLabel">Dark</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ 1. Collapsed entry point ══════════════════════════════════════════ -->
+  <div class="annot">
+    <div><span class="annot-num">1</span><span class="annot-title">Collapsed entry point</span></div>
+    <p class="annot-body">Sits as a third block at the bottom of the Weather tab, below the single-checklist lookup and the Current/Predict panel (both shown faintly for context — unchanged by this feature). One click expands the list in place; it never navigates away. The 30px accent icon tile echoes the app’s house-header pattern.</p>
+  </div>
+  <div class="stage">
+    <div class="panel">
+      <div class="ctx-tag">Existing — unchanged</div>
+      <div class="sr-card dim">
+        <div class="card-pad">
+          <span class="lookup-label">eBird checklist ID or URL</span>
+          <div class="field-row">
+            <input class="lookup-input" value="S12345678 or https://ebird.org/checklist/S…" readonly>
+            <button class="lookup-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Get weather</button>
+          </div>
+          <p class="lookup-hint">Weather is copied to the clipboard on a successful lookup. Tidal information shows below if available.</p>
+        </div>
+      </div>
+
+      <button class="entry" aria-expanded="false" onclick="return false">
+        <span class="entry-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h7M14 9h7M3 15h18M3 20h18"/><path d="M3 4h7v7H3z"/></svg></span>
+        <span class="entry-main">
+          <span class="entry-title">List checklists with no weather blocks</span>
+          <span class="entry-sub">Work down your missing-weather backlog, newest first</span>
+        </span>
+        <span class="entry-chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ 2 + 3. Expanded backlog with rows ═════════════════════════════════ -->
+  <div class="annot">
+    <div><span class="annot-num">2</span><span class="annot-title">Expanded backlog &amp; row anatomy</span></div>
+    <p class="annot-body">The header states the count and active filter context, then the widen toggle (default OFF). Each row mirrors the Checklists-tab row: date · location · badges, with the species count right-aligned in accent green. A second line carries protocol, completeness, and effort. The three actions live on their own row — two neutral icon buttons (open checklist ↗, open comment/edit page) and one accent <b>Copy weather &amp; go</b>. Rows below show the mid-lookup, success, and failure states.</p>
+    <span class="oq-note">OQ-2 · fields = date · location · species · protocol · completeness</span>
+    <span class="oq-note">OQ-3 · action #3 copies the weather block only (user choice)</span>
+  </div>
+  <div class="stage">
+    <div class="panel">
+      <div class="sr-card">
+        <!-- header -->
+        <div class="bl-head">
+          <div class="bl-head-top">
+            <span class="entry-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h7M14 9h7M3 15h18M3 20h18"/><path d="M3 4h7v7H3z"/></svg></span>
+            <h2 class="bl-h2">Checklists missing weather</h2>
+          </div>
+          <p class="bl-count"><b>100</b> most recent complete, non-incidental checklists with no weather block · newest first</p>
+          <div class="widen-row">
+            <button class="switch" role="switch" aria-checked="false" aria-label="Also show incomplete and incidental checklists" onclick="toggleWiden(this)"></button>
+            <span class="widen-label">Also show incomplete &amp; incidental <span class="muted">— widens the list</span></span>
+          </div>
+        </div>
+
+        <!-- row: idle / ready -->
+        <div class="bl-row">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">Jun 28, 2026</a>
+            <span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Point Reyes NS — Abbotts Lagoon</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">47 species</span>
+          </div>
+          <div class="row-meta">
+            <span>Traveling</span><span class="dot">·</span>
+            <span>1.9 mi</span><span class="dot">·</span>
+            <span>2h 05m</span><span class="dot">·</span>
+            <span>Marin, CA</span><span class="dot">·</span>
+            <span>Complete</span>
+          </div>
+          <div class="row-actions">
+            <button class="act act-icon" title="Open checklist on eBird" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" title="Open comment/edit page on eBird" aria-label="Open this checklist's comment and edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary" title="Copy weather and open the comment page" aria-label="Copy this checklist's weather and open its comment page on eBird"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+        </div>
+
+        <!-- row: mid-lookup (spinner) -->
+        <div class="bl-row">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">Jun 21, 2026</a>
+            <span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Bodega Head</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">31 species</span>
+          </div>
+          <div class="row-meta">
+            <span>Stationary</span><span class="dot">·</span>
+            <span>1h 10m</span><span class="dot">·</span>
+            <span>Sonoma, CA</span><span class="dot">·</span>
+            <span>Complete</span>
+          </div>
+          <div class="row-actions">
+            <button class="act act-icon" title="Open checklist on eBird" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" title="Open comment/edit page on eBird" aria-label="Open this checklist's comment and edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary busy" aria-label="Looking up weather" aria-busy="true"><svg class="spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.5"/></svg>Looking up…</button>
+          </div>
+          <div class="sr-only" role="status" aria-live="polite">Looking up weather for the Jun 21 checklist.</div>
+        </div>
+
+        <!-- row: success -->
+        <div class="bl-row">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">Jun 14, 2026</a>
+            <span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Half Moon Bay SB — Pillar Point Harbor</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">58 species</span>
+          </div>
+          <div class="row-meta">
+            <span>Traveling</span><span class="dot">·</span>
+            <span>0.7 mi</span><span class="dot">·</span>
+            <span>1h 40m</span><span class="dot">·</span>
+            <span>San Mateo, CA</span><span class="dot">·</span>
+            <span>Complete</span>
+          </div>
+          <div class="row-actions">
+            <button class="act act-icon" title="Open checklist on eBird" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" title="Open comment/edit page on eBird" aria-label="Open this checklist's comment and edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-success" aria-label="Weather copied — comment page opened"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Copied · comment page opened</button>
+          </div>
+          <div class="sr-only" role="status" aria-live="polite">Weather copied. Comment page opened in a new tab — paste to add it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 2b. Widen toggle ON — incomplete + incidental rows ════════════════ -->
+  <div class="annot">
+    <div><span class="annot-num">2b</span><span class="annot-title">Widen toggle ON — incomplete &amp; incidental marked</span></div>
+    <p class="annot-body">With the toggle on, the list <em>widens</em> to a superset: complete rows stay, and rows surfaced only by the wider filter carry a small chip — amber “Incomplete” or neutral “Incidental” — and a faint tinted row background, so a widened list is never ambiguous. The header count updates to name the wider context, and pagination resets to the first 100.</p>
+    <span class="oq-note">OQ-2 · widen rows carry an “Incomplete” / “Incidental” chip</span>
+  </div>
+  <div class="stage">
+    <div class="panel">
+      <div class="sr-card">
+        <div class="bl-head">
+          <div class="bl-head-top">
+            <span class="entry-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h7M14 9h7M3 15h18M3 20h18"/><path d="M3 4h7v7H3z"/></svg></span>
+            <h2 class="bl-h2">Checklists missing weather</h2>
+          </div>
+          <p class="bl-count"><b>100</b> most recent checklists with no weather block, including incomplete &amp; incidental · newest first</p>
+          <div class="widen-row">
+            <button class="switch" role="switch" aria-checked="true" aria-label="Also show incomplete and incidental checklists" onclick="toggleWiden(this)"></button>
+            <span class="widen-label">Also show incomplete &amp; incidental <span class="muted">— widens the list</span></span>
+          </div>
+        </div>
+
+        <!-- complete row (unmarked) -->
+        <div class="bl-row">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">Jun 28, 2026</a>
+            <span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Point Reyes NS — Abbotts Lagoon</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">47 species</span>
+          </div>
+          <div class="row-meta"><span>Traveling</span><span class="dot">·</span><span>1.9 mi</span><span class="dot">·</span><span>Marin, CA</span><span class="dot">·</span><span>Complete</span></div>
+          <div class="row-actions">
+            <button class="act act-icon" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" aria-label="Open comment/edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+        </div>
+
+        <!-- incomplete row -->
+        <div class="bl-row widened">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">Jun 09, 2026</a>
+            <span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Lake Merritt &amp; Lakeside Park</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">22 species</span>
+          </div>
+          <div class="row-meta">
+            <span class="chip chip-incomplete"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Incomplete</span>
+            <span>Traveling</span><span class="dot">·</span><span>0.4 mi</span><span class="dot">·</span><span>Alameda, CA</span>
+          </div>
+          <div class="row-actions">
+            <button class="act act-icon" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" aria-label="Open comment/edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+        </div>
+
+        <!-- incidental row -->
+        <div class="bl-row widened">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">Jun 02, 2026</a>
+            <span class="row-sep">·</span>
+            <span class="row-loc plain"><span class="name">Roadside — Hwy 1 near Davenport</span></span>
+            <span class="row-spp">6 species</span>
+          </div>
+          <div class="row-meta">
+            <span class="chip chip-incidental"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>Incidental</span>
+            <span>Incidental</span><span class="dot">·</span><span>Santa Cruz, CA</span>
+          </div>
+          <div class="row-actions">
+            <button class="act act-icon" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" aria-label="Open comment/edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+          <p class="cap" style="text-align:left; padding-left:1px; margin-top:9px;">↑ Personal location renders as plain text (no hotspot link) — never a styled 404.</p>
+        </div>
+
+        <!-- pagination -->
+        <div class="bl-foot">
+          <button class="page-btn">Show next 100</button>
+          <button class="page-btn ghost">Show all (1,284)</button>
+          <span class="page-note">Showing 1–100</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 4. Failure states ═════════════════════════════════════════════════ -->
+  <div class="annot">
+    <div><span class="annot-num">4</span><span class="annot-title">Per-row failure states — the edit page is never opened on failure</span></div>
+    <p class="annot-body">Action #3 does the weather lookup first. If it fails, the failure is reported inline on that row, in the app’s honest three-state vocabulary (reusing the shared <code>OfflineMessage</code> treatment) — and the comment/edit page is <b>not</b> opened, so the user never lands on eBird with nothing on their clipboard. Each row’s state is independent.</p>
+    <span class="oq-note">OQ-4 · inline failure: offline · missing key → Settings · generic error; no navigate on failure</span>
+  </div>
+  <div class="stage">
+    <div class="panel">
+      <div class="sr-card">
+        <!-- offline -->
+        <div class="bl-row">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">May 30, 2026</a><span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Elkhorn Slough NERR</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">63 species</span>
+          </div>
+          <div class="row-meta"><span>Traveling</span><span class="dot">·</span><span>2.3 mi</span><span class="dot">·</span><span>Monterey, CA</span><span class="dot">·</span><span>Complete</span></div>
+          <div class="row-actions">
+            <button class="act act-icon" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" aria-label="Open comment/edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+          <div class="row-status status-error" role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h4l3 8 4-16 3 8h4"/></svg>
+            <span><b>You’re offline.</b> The weather lookup needs a connection. Nothing was copied and the comment page wasn’t opened — try again when you’re back online.</span>
+          </div>
+        </div>
+
+        <!-- missing key -->
+        <div class="bl-row">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">May 24, 2026</a><span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Charleston Slough</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">41 species</span>
+          </div>
+          <div class="row-meta"><span>Stationary</span><span class="dot">·</span><span>55m</span><span class="dot">·</span><span>Santa Clara, CA</span><span class="dot">·</span><span>Complete</span></div>
+          <div class="row-actions">
+            <button class="act act-icon" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" aria-label="Open comment/edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+          <div class="row-status status-warn" role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span><b>Weather lookup needs an API key.</b> Add your eBird &amp; OpenWeather keys in <a class="status-link" href="#" onclick="return false">Settings →</a> to use this action. Nothing was copied.</span>
+          </div>
+        </div>
+
+        <!-- generic error -->
+        <div class="bl-row">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">May 18, 2026</a><span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Coyote Hills RP</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">38 species</span>
+          </div>
+          <div class="row-meta"><span>Traveling</span><span class="dot">·</span><span>3.1 mi</span><span class="dot">·</span><span>Alameda, CA</span><span class="dot">·</span><span>Complete</span></div>
+          <div class="row-actions">
+            <button class="act act-icon" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" aria-label="Open comment/edit page on eBird (opens in a new tab)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+          <div class="row-status status-error" role="alert">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+            <span><b>Weather lookup failed.</b> Something went wrong fetching this checklist’s weather. Nothing was copied and the comment page wasn’t opened. <a class="status-link" href="#" onclick="return false">Try again</a></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 5+6. Empty & needs-data states (gallery) ══════════════════════════ -->
+  <div class="annot">
+    <div><span class="annot-num">5+6</span><span class="annot-title">Empty, zero-match &amp; needs-data states</span></div>
+    <p class="annot-body">The section always resolves to a clear state — never a blank list or an endless spinner. The zero-match copy names the active filter context, so “everything is handled” reads as a win. Pagination controls only appear when there are more than 100 matches.</p>
+  </div>
+  <div class="stage">
+    <div class="panel" style="max-width:1120px;">
+      <div class="gallery">
+
+        <!-- needs data -->
+        <div class="sr-card">
+          <div class="state">
+            <span class="state-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M12 18v-6M9 15h6"/></svg></span>
+            <div class="state-title">Load your eBird backup first</div>
+            <p class="state-body">The backlog is built from your downloaded eBird data. Import your MyEBirdData export and this list fills in automatically — no lookups needed to build it.</p>
+            <button class="state-cta"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Go to Import</button>
+          </div>
+        </div>
+
+        <!-- zero match (default filter) -->
+        <div class="sr-card">
+          <div class="state">
+            <span class="state-icon" style="background:var(--sr-accent-bg); color:var(--sr-accent);"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></span>
+            <div class="state-title">No complete checklists are missing weather</div>
+            <p class="state-body">Every recent complete, non-incidental checklist already has a weather block. Turn on <b>“Also show incomplete &amp; incidental”</b> above to check the rest of your backlog.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ Phone stack ═══════════════════════════════════════════════════════ -->
+  <div class="annot">
+    <div><span class="annot-num">P</span><span class="annot-title">Phone (~340px) — the same rows, stacked and touch-sized</span></div>
+    <p class="annot-body">On phones the meta wraps, and the three actions grow to the ~44px touch posture (the <code>.sr-touch-target</code> ≤640 rule). Nothing overflows the viewport; layout holds at 200% text scale because everything is sized in rem.</p>
+  </div>
+  <div class="stage phone" data-phone>
+    <div class="panel phone">
+      <div class="sr-card">
+        <div class="bl-head">
+          <div class="bl-head-top">
+            <span class="entry-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h7M14 9h7M3 15h18M3 20h18"/><path d="M3 4h7v7H3z"/></svg></span>
+            <h2 class="bl-h2">Missing weather</h2>
+          </div>
+          <p class="bl-count"><b>100</b> recent complete checklists with no weather block</p>
+          <div class="widen-row">
+            <button class="switch" role="switch" aria-checked="false" aria-label="Also show incomplete and incidental checklists" onclick="toggleWiden(this)"></button>
+            <span class="widen-label">Show incomplete &amp; incidental</span>
+          </div>
+        </div>
+        <div class="bl-row">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">Jun 28, 2026</a><span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Point Reyes NS — Abbotts Lagoon</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">47 species</span>
+          </div>
+          <div class="row-meta"><span>Traveling</span><span class="dot">·</span><span>1.9 mi</span><span class="dot">·</span><span>Marin, CA</span><span class="dot">·</span><span>Complete</span></div>
+          <div class="row-actions">
+            <button class="act act-icon" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" aria-label="Open comment/edit page on eBird (opens in a new tab)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+        </div>
+        <div class="bl-row widened">
+          <div class="row-top">
+            <a class="row-date" href="#" onclick="return false">Jun 09, 2026</a><span class="row-sep">·</span>
+            <a class="row-loc" href="#" onclick="return false"><span class="name">Lake Merritt &amp; Lakeside Park</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></a>
+            <span class="row-spp">22 species</span>
+          </div>
+          <div class="row-meta"><span class="chip chip-incomplete"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>Incomplete</span><span>Traveling</span><span class="dot">·</span><span>Alameda, CA</span></div>
+          <div class="row-actions">
+            <button class="act act-icon" aria-label="Open checklist on eBird (opens in a new tab)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6M10 14 21 3"/></svg></button>
+            <button class="act act-icon" aria-label="Open comment/edit page on eBird (opens in a new tab)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg></button>
+            <span class="act-sep"></span>
+            <button class="act act-primary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy weather &amp; go</button>
+          </div>
+        </div>
+        <div class="bl-foot">
+          <button class="page-btn">Show next 100</button>
+          <button class="page-btn ghost">Show all</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleTheme(){
+    var d = document.documentElement;
+    var dark = d.getAttribute('data-theme') === 'dark';
+    d.setAttribute('data-theme', dark ? 'light' : 'dark');
+    document.getElementById('themeLabel').textContent = dark ? 'Dark' : 'Light';
+  }
+  function toggleWiden(btn){
+    var on = btn.getAttribute('aria-checked') === 'true';
+    btn.setAttribute('aria-checked', on ? 'false' : 'true');
+  }
+</script>
