@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SnowRaven — iOS / iPadOS Device Composition</title>
+<style>
+/* ════════════════════════════════════════════════════════════════════════
+   SnowRaven mobile-app design mockup — device composition showcase.
+   All colors are the REAL light-theme --sr-* token values from
+   frontend/src/globals.css. No new tokens are minted; page-chrome greys and
+   the iOS-system-UI colors (device bezel, picker Cancel blue) depict the
+   hardware / OS, not app UI.
+   ════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* — app tokens (light theme, verbatim from globals.css) — */
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-quote-bg: #EFF1F3;
+  --sr-quote-border: #E0E2E6;
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-warning: #92400E;
+  --sr-warning-bg: #FFFBEB;
+  --sr-warning-subtle: #FDE68A;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-cal-1: #357E56; --sr-cal-2: #2A6847; --sr-cal-3: #205238;
+  --sr-cal-4: #163D29; --sr-cal-5: #0C271A; --sr-cal-fg: #FFFFFF;
+  --sr-county-1:#C3E8D1; --sr-county-2:#A8D5BA; --sr-county-3:#8EC4A3;
+  --sr-county-4:#71B58D; --sr-county-5:#5FA47B; --sr-county-6:#4D956A;
+  --sr-county-7:#358758; --sr-county-8:#2D784D; --sr-county-9:#256A43;
+  --sr-county-10:#1A5C38;
+  --sr-map-pin-visited:#2D8653; --sr-map-pin-unvisited:#5B7FA6;
+  --sr-map-pin-personal:#B0701B; --sr-map-pin-target:#7C3AED;
+  --sr-map-pin-stroke:#3F3F46;
+  --sr-milestone-1-bg: linear-gradient(160deg,#F2FAF5,#E8F5EE);
+  --sr-milestone-1-border: rgba(45,134,83,0.28);
+  --sr-milestone-1-num: #2D8653; --sr-milestone-1-date: #43755C;
+  --sr-milestone-2-bg: linear-gradient(160deg,#E5F3EC,#D8EDE4);
+  --sr-milestone-2-border: rgba(28,100,60,0.32);
+  --sr-milestone-2-num: #1C6443; --sr-milestone-2-date: #386E4E;
+  --sr-milestone-3-bg: linear-gradient(160deg,#D6EAE0,#C6E2D5);
+  --sr-milestone-3-border: rgba(18,74,44,0.38);
+  --sr-milestone-3-num: #14502E; --sr-milestone-3-date: #2D6644;
+  --sr-milestone-4-bg: linear-gradient(160deg,#FEFAEC,#FEF3C7);
+  --sr-milestone-4-border: rgba(146,64,14,0.32);
+  --sr-milestone-4-num: #92400E; --sr-milestone-4-date: #B45309;
+  /* — mockup page chrome (not app UI) — */
+  --pg-bg: #ECEEF1;
+  --pg-ink: #0F1117;
+  --bezel: #17171A;
+  --bezel-edge: #3A3A3F;
+  --ios-blue: #007AFF; /* iOS system UI in the document-picker depiction only */
+  --font: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font);
+  background: var(--pg-bg);
+  color: var(--pg-ink);
+  line-height: 1.5;
+}
+button { font-family: inherit; cursor: pointer; }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+/* ── Page header ─────────────────────────────────────────────────────── */
+.page-head {
+  max-width: 1480px; margin: 0 auto; padding: 40px 32px 8px;
+}
+.page-head .kicker {
+  font-size: 0.71875rem; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--sr-accent);
+  display: flex; align-items: center; gap: 8px;
+}
+.page-head .kicker::before {
+  content: ""; width: 22px; height: 2px; background: var(--sr-accent); border-radius: 1px;
+}
+.page-head h1 {
+  font-size: 1.75rem; font-weight: 700; letter-spacing: -0.015em;
+  margin-top: 10px; color: var(--sr-text);
+}
+.page-head p.lede {
+  margin-top: 8px; max-width: 62ch; font-size: 0.875rem; color: var(--sr-text-muted);
+}
+.page-head p.lede strong { color: var(--sr-text); font-weight: 600; }
+
+/* ── Control bar ─────────────────────────────────────────────────────── */
+.controls {
+  position: sticky; top: 0; z-index: 50;
+  background: rgba(236,238,241,0.92); backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+  margin-top: 20px;
+}
+.controls-inner {
+  max-width: 1480px; margin: 0 auto; padding: 12px 32px;
+  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--sr-border-medium); background: var(--sr-surface);
+  color: var(--sr-text-muted); border-radius: 15px; height: 30px;
+  padding: 0 13px; font-size: 0.78125rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.chip:hover { background: var(--sr-accent-bg-hover); color: var(--sr-accent); }
+.chip[aria-pressed="true"] {
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  border-color: var(--sr-accent-border);
+}
+.chip svg { flex-shrink: 0; }
+.ctl-group { display: flex; align-items: center; gap: 8px; }
+.ctl-label { font-size: 0.71875rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--sr-text-muted); }
+.seg {
+  display: inline-flex; border: 1px solid var(--sr-border-medium); border-radius: 8px;
+  overflow: hidden; background: var(--sr-surface);
+}
+.seg button {
+  border: none; background: none; padding: 6px 12px; font-size: 0.75rem;
+  font-weight: 600; color: var(--sr-text-muted);
+}
+.seg button + button { border-left: 1px solid var(--sr-border); }
+.seg button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+.notes-toggle {
+  display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--sr-border-medium);
+  background: var(--sr-surface); border-radius: 8px; padding: 6px 12px;
+  font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted);
+}
+.notes-toggle[aria-pressed="true"] {
+  background: var(--sr-warning-bg); color: var(--sr-warning); border-color: var(--sr-warning-subtle);
+}
+.spacer { flex: 1; }
+
+/* ── Exhibits layout ─────────────────────────────────────────────────── */
+.exhibits {
+  max-width: 1480px; margin: 0 auto; padding: 36px 32px 8px;
+  display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap;
+  justify-content: center;
+}
+.exhibit { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.exhibit figcaption { text-align: center; max-width: 400px; }
+.exhibit .cap-title { font-size: 0.84375rem; font-weight: 700; color: var(--sr-text); }
+.exhibit .cap-sub { font-size: 0.71875rem; color: var(--sr-text-muted); margin-top: 2px; }
+.exhibit .cap-tier {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 7px;
+  font-size: 0.65625rem; font-weight: 600; color: var(--sr-accent);
+  background: var(--sr-accent-bg); border: 1px solid var(--sr-accent-border);
+  border-radius: 11px; padding: 2px 9px;
+}
+
+/* Scaled device stage */
+.stage { position: relative; }
+.device {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 0 0;
+  background: var(--sr-bg);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 11px var(--bezel),
+    0 0 0 13px var(--bezel-edge),
+    0 24px 60px rgba(15,17,23,0.28);
+}
+.device.iphone { border-radius: 48px; }
+.device.ipad   { border-radius: 26px; }
+
+/* Hardware furniture */
+.dyn-island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 122px; height: 35px; border-radius: 18px; background: #000; z-index: 40;
+}
+.home-ind {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 140px; height: 5px; border-radius: 3px; background: rgba(15,17,23,0.85); z-index: 40;
+}
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 35;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px 30px 0; font-size: 15px; font-weight: 600; color: var(--sr-text);
+  pointer-events: none;
+}
+.ipad .statusbar { padding: 6px 18px 0; font-size: 12px; }
+.sb-icons { display: flex; align-items: center; gap: 6px; }
+
+/* Safe-area visualisation (notes mode only) */
+.sa-band {
+  position: absolute; left: 0; right: 0; z-index: 38; display: none;
+  background: rgba(146,64,14,0.10);
+  pointer-events: none;
+}
+.sa-band .sa-tag {
+  position: absolute; right: 8px; font-size: 9px; font-weight: 700;
+  color: var(--sr-warning); background: var(--sr-warning-bg);
+  border: 1px dashed var(--sr-warning-subtle); border-radius: 4px; padding: 1px 6px;
+}
+.sa-top { top: 0; height: 59px; border-bottom: 1px dashed rgba(146,64,14,0.55); }
+.sa-top .sa-tag { bottom: 4px; }
+.sa-bottom { bottom: 0; height: 34px; border-top: 1px dashed rgba(146,64,14,0.55); }
+.sa-bottom .sa-tag { top: 5px; }
+body.notes-on .sa-band { display: block; }
+
+/* ── In-frame app chrome ─────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100%; background: var(--sr-bg); }
+.app-safe-top { height: 54px; flex-shrink: 0; }
+.ipad .app-safe-top { height: 26px; }
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 20px 8px; flex-shrink: 0;
+}
+.app-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9375rem; color: var(--sr-text); letter-spacing: -0.01em; }
+.app-brand .raven {
+  width: 22px; height: 22px; border-radius: 6px; background: var(--sr-accent);
+  color: var(--sr-on-accent); display: inline-flex; align-items: center; justify-content: center;
+}
+.nav-wrap { border-bottom: 1px solid var(--sr-border); padding: 12px 16px; flex-shrink: 0; }
+.nav-trigger {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px; border-radius: 8px; border: 1px solid var(--sr-border-medium);
+  background: var(--sr-surface); color: var(--sr-text);
+  font-size: 0.9375rem; font-weight: 600; min-height: 44px;
+}
+.nav-trigger .lead { display: flex; align-items: center; gap: 10px; color: var(--sr-accent); }
+.nav-trigger .lead span { color: var(--sr-text); }
+.nav-trigger .chev { color: var(--sr-text-muted); display: flex; }
+.app-main { flex: 1; overflow: hidden; position: relative; padding: 16px 16px 0; }
+.ipad .app-main { padding: 20px 28px 0; }
+.split-pane .app-main { padding: 14px 12px 0; }
+.fade-out {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 46px;
+  background: linear-gradient(rgba(249,250,251,0), var(--sr-bg)); pointer-events: none;
+}
+.app-footer {
+  flex-shrink: 0; text-align: center; font-size: 0.65625rem; color: var(--sr-text-muted);
+  padding: 6px 16px; border-top: 1px solid var(--sr-border-subtle);
+}
+.iphone .app-footer, .split-pane .app-footer { padding-bottom: 36px; } /* home-indicator inset */
+.ipad .app-footer { padding-bottom: 22px; }
+
+/* House header (tab pages) */
+.house { display: flex; align-items: flex-start; gap: 11px; margin-bottom: 14px; }
+.house .tile {
+  width: 30px; height: 30px; border-radius: 8px; background: var(--sr-accent-bg);
+  color: var(--sr-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.house h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; color: var(--sr-text); }
+.house .sub { font-size: 0.8125rem; color: var(--sr-text-muted); margin-top: 1px; }
+
+/* Cards */
+.card {
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 10px; box-shadow: var(--sr-card-shadow);
+}
+.card + .card, .note + .card, .card + .note { margin-top: 12px; }
+.card-pad { padding: 14px 16px; }
+.card-head {
+  display: flex; align-items: center; gap: 9px; padding: 12px 16px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.card-head .tile {
+  width: 26px; height: 26px; border-radius: 7px; background: var(--sr-accent-bg);
+  color: var(--sr-accent); display: flex; align-items: center; justify-content: center;
+}
+.card-head .t { font-size: 0.84375rem; font-weight: 700; color: var(--sr-text); }
+.card-head .s { font-size: 0.71875rem; color: var(--sr-text-muted); }
+
+/* Form bits */
+.field-label { font-size: 0.75rem; font-weight: 600; color: var(--sr-text); margin-bottom: 5px; display: block; }
+.ipt {
+  width: 100%; border: 1px solid var(--sr-border-input); border-radius: 8px;
+  background: var(--sr-surface); color: var(--sr-text);
+  font-size: 16px; /* .sr-input-16 — iOS focus-zoom guard */
+  padding: 10px 12px; min-height: 44px; display: flex; align-items: center;
+}
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border-radius: 8px; font-weight: 600; border: 1px solid transparent;
+  transition: background .15s, color .15s;
+}
+.btn-primary { background: var(--sr-accent); color: var(--sr-on-accent); font-size: 0.875rem; padding: 0 16px; min-height: 44px; width: 100%; }
+.btn-primary:hover { background: var(--sr-accent-strong); }
+.btn-copy {
+  background: var(--sr-surface); border-color: var(--sr-accent-border); color: var(--sr-accent);
+  font-size: 0.75rem; padding: 0 12px; min-height: 32px;
+}
+.btn-copy:hover { background: var(--sr-accent-bg-hover); }
+.btn-copy.copied { background: var(--sr-accent-bg); }
+.btn-copy-wide { width: 100%; min-height: 44px; font-size: 0.8125rem; }
+.btn-file {
+  background: var(--sr-accent-bg); border: 1.5px solid var(--sr-accent-border); color: var(--sr-accent);
+  font-size: 0.75rem; padding: 0 12px; min-height: 32px; border-radius: 6px; white-space: nowrap;
+}
+.btn-file.empty { background: var(--sr-surface); border-color: var(--sr-border); color: var(--sr-text); }
+.btn-clear {
+  background: var(--sr-surface); border: 1.5px solid var(--sr-border); color: var(--sr-text-disabled);
+  font-size: 0.75rem; padding: 0 12px; min-height: 32px; border-radius: 6px;
+}
+
+/* Quote-style formatted block */
+.wblock {
+  background: var(--sr-quote-bg); border: 1px solid var(--sr-quote-border);
+  border-left: 3px solid var(--sr-accent-border); border-radius: 8px;
+  padding: 10px 12px; font-size: 0.78125rem; color: var(--sr-text); line-height: 1.55;
+  white-space: pre-line; word-break: break-word;
+}
+.wblock .attrib { color: var(--sr-text-gray); font-size: 0.71875rem; }
+
+/* Stat cards / milestones */
+.stat-grid { display: grid; gap: 12px; }
+.g1 { grid-template-columns: 1fr; }
+.g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.stat { padding: 13px 15px; }
+.stat .n { font-size: 1.375rem; font-weight: 700; color: var(--sr-accent); letter-spacing: -0.02em; }
+.stat .l { font-size: 0.71875rem; font-weight: 600; color: var(--sr-text-muted); margin-top: 1px; }
+.mile {
+  border-radius: 10px; padding: 10px 12px; border: 1px solid;
+  display: flex; flex-direction: column; gap: 1px; position: relative;
+}
+.mile .mnum { font-weight: 700; font-size: 0.9375rem; }
+.mile .mname { font-size: 0.78125rem; font-weight: 600; color: var(--sr-text); }
+.mile .msci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); }
+.mile .mdate { font-size: 0.6875rem; font-weight: 600; }
+.mile .mcheck { position: absolute; top: 9px; right: 10px; }
+.m1 { background: var(--sr-milestone-1-bg); border-color: var(--sr-milestone-1-border); }
+.m1 .mnum { color: var(--sr-milestone-1-num); } .m1 .mdate { color: var(--sr-milestone-1-date); } .m1 .mcheck { color: var(--sr-milestone-1-num); }
+.m2 { background: var(--sr-milestone-2-bg); border-color: var(--sr-milestone-2-border); }
+.m2 .mnum { color: var(--sr-milestone-2-num); } .m2 .mdate { color: var(--sr-milestone-2-date); } .m2 .mcheck { color: var(--sr-milestone-2-num); }
+.m3 { background: var(--sr-milestone-3-bg); border-color: var(--sr-milestone-3-border); }
+.m3 .mnum { color: var(--sr-milestone-3-num); } .m3 .mdate { color: var(--sr-milestone-3-date); } .m3 .mcheck { color: var(--sr-milestone-3-num); }
+.m4 { background: var(--sr-milestone-4-bg); border-color: var(--sr-milestone-4-border); }
+.m4 .mnum { color: var(--sr-milestone-4-num); } .m4 .mdate { color: var(--sr-milestone-4-date); } .m4 .mcheck { color: var(--sr-milestone-4-num); }
+
+/* Bar chart */
+.bars { display: flex; align-items: flex-end; gap: 6px; height: 92px; padding-top: 6px; }
+.bars .b { flex: 1; background: var(--sr-accent); border-radius: 3px 3px 0 0; opacity: 0.88; min-width: 6px; }
+.bars-x { display: flex; gap: 6px; margin-top: 5px; }
+.bars-x span { flex: 1; text-align: center; font-size: 0.59375rem; font-weight: 600; color: var(--sr-text-muted); }
+.chart-aside { display: grid; grid-template-columns: 1fr minmax(140px, 180px); gap: 16px; align-items: start; }
+.chart-aside.stacked { grid-template-columns: 1fr; }
+
+/* BirdName rows */
+.brow { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--sr-border-subtle); min-height: 32px; }
+.brow:last-child { border-bottom: none; }
+.brow .fav { display: inline-flex; gap: 3px; flex-shrink: 0; }
+.brow .fav i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.brow .fav .f1 { background: var(--sr-accent); }
+.brow .fav .f2 { background: var(--sr-map-pin-stroke); }
+.brow .cname { font-size: 0.78125rem; font-weight: 600; color: var(--sr-accent); text-decoration: none; }
+.brow .sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); }
+.brow .cnt { margin-left: auto; font-size: 0.75rem; font-weight: 700; color: var(--sr-text); }
+
+/* Calendar */
+.cal-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.cal-year { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.9375rem; color: var(--sr-text); }
+.cal-year button {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--sr-border-medium);
+  background: var(--sr-surface); color: var(--sr-text-muted); display: inline-flex; align-items: center; justify-content: center;
+}
+.segctl { display: inline-flex; border: 1px solid var(--sr-border-medium); border-radius: 8px; overflow: hidden; background: var(--sr-surface); }
+.segctl button {
+  border: none; background: none; display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; font-size: 0.75rem; font-weight: 600; color: var(--sr-text-muted);
+}
+.segctl button + button { border-left: 1px solid var(--sr-border); }
+.segctl button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+.month-name { font-size: 0.84375rem; font-weight: 700; color: var(--sr-text); margin-bottom: 8px; }
+.cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
+.cal-dow span { text-align: center; font-size: 0.59375rem; font-weight: 700; color: var(--sr-text-muted); text-transform: uppercase; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal-cell {
+  aspect-ratio: 1; border-radius: 6px; position: relative;
+  background: var(--sr-surface); border: 1px solid var(--sr-border-subtle);
+  display: flex; align-items: center; justify-content: center;
+}
+.cal-cell.pad { background: transparent; border: none; }
+.cal-cell .d { position: absolute; top: 3px; left: 5px; font-size: 0.5625rem; font-weight: 600; color: var(--sr-text-muted); }
+.cal-cell .c { font-size: 0.78125rem; font-weight: 700; }
+.cal-cell.t1 { background: var(--sr-cal-1); border-color: var(--sr-cal-1); }
+.cal-cell.t2 { background: var(--sr-cal-2); border-color: var(--sr-cal-2); }
+.cal-cell.t3 { background: var(--sr-cal-3); border-color: var(--sr-cal-3); }
+.cal-cell.t4 { background: var(--sr-cal-4); border-color: var(--sr-cal-4); }
+.cal-cell.t5 { background: var(--sr-cal-5); border-color: var(--sr-cal-5); }
+.cal-cell.t1 .d, .cal-cell.t2 .d, .cal-cell.t3 .d, .cal-cell.t4 .d, .cal-cell.t5 .d { color: rgba(255,255,255,0.75); }
+.cal-cell.t1 .c, .cal-cell.t2 .c, .cal-cell.t3 .c, .cal-cell.t4 .c, .cal-cell.t5 .c { color: var(--sr-cal-fg); }
+.minimonths { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.minimonths.cols2 { grid-template-columns: repeat(2, 1fr); }
+.minimonth { padding: 10px 12px; }
+.minimonth .mm-name { font-size: 0.71875rem; font-weight: 700; color: var(--sr-text); margin-bottom: 6px; }
+.mm-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.mm-cell { aspect-ratio: 1; border-radius: 3px; background: var(--sr-surface-subtle); position: relative; }
+.mm-cell.pad { background: transparent; }
+.mm-cell .d { position: absolute; top: 1px; left: 2px; font-size: 7px; font-weight: 600; color: var(--sr-text-muted); }
+.mm-cell.t1 { background: var(--sr-cal-1); } .mm-cell.t2 { background: var(--sr-cal-2); }
+.mm-cell.t3 { background: var(--sr-cal-3); } .mm-cell.t4 { background: var(--sr-cal-4); }
+.mm-cell.t5 { background: var(--sr-cal-5); }
+.mm-cell.t1 .d, .mm-cell.t2 .d, .mm-cell.t3 .d, .mm-cell.t4 .d, .mm-cell.t5 .d { color: rgba(255,255,255,0.8); }
+
+/* Map */
+.map-shell { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid var(--sr-border); box-shadow: var(--sr-card-shadow); }
+.map-shell svg { display: block; width: 100%; height: 100%; }
+.map-fabs { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 9px; z-index: 5; }
+.fab {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--sr-surface); border: 1px solid var(--sr-border-medium);
+  color: var(--sr-text); display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: var(--sr-card-shadow);
+}
+.fab:hover { background: var(--sr-accent-bg-hover); color: var(--sr-accent); }
+.map-layout { display: grid; grid-template-columns: 250px 1fr; gap: 14px; height: 100%; }
+.map-sidebar { overflow: hidden; }
+.side-sec { padding: 11px 13px; border-bottom: 1px solid var(--sr-border-subtle); }
+.side-sec:last-child { border-bottom: none; }
+.side-label { font-size: 0.65625rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--sr-text-muted); margin-bottom: 7px; }
+.pill-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.fpill {
+  display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px;
+  border-radius: 15px; border: 1px solid var(--sr-border-medium); background: var(--sr-surface);
+  font-size: 0.71875rem; font-weight: 600; color: var(--sr-text-muted);
+}
+.fpill.on { background: var(--sr-accent-bg); border-color: var(--sr-accent-border); color: var(--sr-accent); }
+.fpill .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--sr-map-pin-stroke); }
+.ramp { display: flex; gap: 2px; margin-top: 4px; }
+.ramp i { flex: 1; height: 10px; border-radius: 2px; }
+.ramp-cap { display: flex; justify-content: space-between; font-size: 0.59375rem; color: var(--sr-text-muted); margin-top: 3px; }
+.tog-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); padding: 4px 0; }
+.tog { width: 34px; height: 20px; border-radius: 10px; background: var(--sr-accent); position: relative; flex-shrink: 0; }
+.tog.off { background: #8E8E96; }
+.tog::after { content:""; position: absolute; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.tog::after { right: 2px; } .tog.off::after { left: 2px; right: auto; }
+
+/* Map fullscreen overlay (the shipped CSS-overlay fullscreen, depicted) */
+.map-full-overlay {
+  position: absolute; inset: 0; z-index: 30; background: var(--sr-bg);
+  display: flex; flex-direction: column; padding-top: 26px;
+}
+.map-full-overlay .map-shell {
+  flex: 1; border-radius: 0; border: none; box-shadow: none;
+}
+.map-full-overlay .map-fabs { right: 16px; bottom: 28px; } /* clear of the home indicator */
+
+/* Settings */
+.set-sec-label {
+  display: flex; align-items: center; gap: 10px; margin: 18px 0 10px;
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted);
+}
+.set-sec-label::after { content: ""; flex: 1; height: 1px; background: var(--sr-border); }
+.set-sec-label:first-child { margin-top: 0; }
+.file-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; flex-wrap: wrap; }
+.file-row + .file-row { border-top: 1px solid var(--sr-border-subtle); }
+.file-tile {
+  width: 38px; height: 38px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+}
+.file-tile.empty { background: var(--sr-surface-subtle); color: var(--sr-text-disabled); }
+.file-meta { flex: 1; min-width: 140px; }
+.file-meta .fl { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); }
+.file-meta .fs { font-size: 0.78125rem; color: var(--sr-text); font-weight: 500; margin-top: 2px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.file-meta .fs .when { font-size: 0.71875rem; color: var(--sr-text-muted); font-weight: 400; }
+.file-meta .fs.none { color: var(--sr-text-muted); font-weight: 400; }
+.file-actions { display: flex; gap: 8px; align-items: center; }
+.nofile-pill {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px;
+  background: var(--sr-surface-subtle); border-radius: 12px;
+  font-size: 0.6875rem; font-weight: 500; color: var(--sr-text-muted);
+}
+.key-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px; }
+.key-row + .key-row { border-top: 1px solid var(--sr-border-subtle); }
+.key-row .kl { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); flex: 1; }
+.key-row .kv { font-size: 0.75rem; color: var(--sr-text-muted); letter-spacing: 0.15em; }
+.key-badge {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 0.65625rem; font-weight: 600;
+  color: var(--sr-accent); background: var(--sr-accent-bg); border-radius: 10px; padding: 2px 8px;
+}
+
+/* Ghost (hidden-on-iOS) sections — visible only in notes mode */
+.ghost {
+  display: none; border: 1.5px dashed var(--sr-border-medium); border-radius: 10px;
+  padding: 12px 16px; color: var(--sr-text-disabled); background: transparent;
+  align-items: center; gap: 10px; margin-top: 12px;
+}
+.ghost .g-title { font-size: 0.8125rem; font-weight: 600; text-decoration: line-through; }
+.ghost .g-why { font-size: 0.6875rem; color: var(--sr-warning); background: var(--sr-warning-bg); border: 1px dashed var(--sr-warning-subtle); border-radius: 5px; padding: 2px 8px; font-weight: 600; margin-left: auto; white-space: nowrap; }
+body.notes-on .ghost { display: flex; }
+
+/* Design notes (flow chips, notes mode only) */
+.note {
+  display: none; background: var(--sr-warning-bg); border: 1px dashed var(--sr-warning-subtle);
+  border-radius: 8px; padding: 8px 11px; font-size: 0.6875rem; line-height: 1.5;
+  color: var(--sr-warning); margin: 10px 0;
+}
+.note b { font-weight: 700; }
+body.notes-on .note { display: block; }
+
+/* Toast */
+.toast {
+  position: absolute; left: 50%; transform: translateX(-50%) translateY(8px);
+  bottom: 52px; z-index: 45; background: rgba(15,17,23,0.92); color: #fff;
+  font-size: 0.75rem; font-weight: 600; border-radius: 18px; padding: 8px 16px;
+  opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none;
+  display: flex; align-items: center; gap: 7px; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* iOS document picker sheet (system UI depiction) */
+.picker-veil {
+  position: absolute; inset: 0; z-index: 44; background: rgba(15,17,23,0.35);
+  opacity: 0; pointer-events: none; transition: opacity .28s;
+}
+.picker-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 88%; z-index: 45;
+  background: #F2F2F7; border-radius: 14px 14px 0 0;
+  transform: translateY(102%); transition: transform .32s cubic-bezier(.32,.72,.33,1);
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 -8px 40px rgba(15,17,23,0.25);
+}
+.picker-open .picker-veil { opacity: 1; pointer-events: auto; }
+.picker-open .picker-sheet { transform: translateY(0); }
+.grabber { width: 36px; height: 5px; border-radius: 3px; background: #C7C7CC; margin: 6px auto 2px; flex-shrink: 0; }
+.picker-head { display: flex; align-items: center; padding: 6px 14px 8px; flex-shrink: 0; }
+.picker-head .cancel { color: var(--ios-blue); font-size: 0.9375rem; background: none; border: none; padding: 6px 4px; }
+.picker-head .ttl { flex: 1; text-align: center; font-size: 0.9375rem; font-weight: 600; color: #0F1117; margin-right: 52px; }
+.picker-search { margin: 0 14px 10px; background: rgba(118,118,128,0.12); border-radius: 10px; padding: 8px 12px; font-size: 16px; color: #8A8A8E; display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.picker-list { flex: 1; overflow: hidden; background: #fff; border-radius: 10px; margin: 0 14px; }
+.pfile { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #E5E5EA; width: 100%; background: none; border-left: none; border-right: none; border-top: none; text-align: left; }
+.pfile:last-child { border-bottom: none; }
+.pfile .pico { width: 34px; height: 42px; border-radius: 6px; background: #E8F5EE; color: #277448; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 8px; font-weight: 800; letter-spacing: .04em; flex-direction: column; gap: 2px; }
+.pfile .pnm { font-size: 0.84375rem; font-weight: 500; color: #0F1117; }
+.pfile .pmeta { font-size: 0.71875rem; color: #8A8A8E; margin-top: 1px; }
+.pfile[disabled] { opacity: 0.42; }
+.pfile[disabled] .pico { background: #F2F2F7; color: #8A8A8E; }
+.picker-tabs { display: flex; justify-content: space-around; padding: 8px 0 26px; flex-shrink: 0; }
+.picker-tabs .pt { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.625rem; color: #8A8A8E; background: none; border: none; }
+.picker-tabs .pt.on { color: var(--ios-blue); }
+
+/* iPad Split View furniture */
+.split-stage { display: flex; height: 100%; background: #0F1117; }
+.split-left { flex: 1; background: #F2F2F7; display: flex; flex-direction: column; overflow: hidden; }
+.split-divider { width: 10px; background: #0F1117; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.split-divider i { width: 4px; height: 44px; border-radius: 2px; background: rgba(255,255,255,0.45); }
+.split-right { width: 320px; flex-shrink: 0; background: var(--sr-bg); display: flex; flex-direction: column; overflow: hidden; }
+.files-head { padding: 34px 20px 10px; }
+.files-head .fh-t { font-size: 1.25rem; font-weight: 700; color: #0F1117; }
+.files-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 12px 20px; }
+.fdoc { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.fdoc .fico { width: 52px; height: 64px; border-radius: 8px; background: #fff; border: 1px solid #E5E5EA; display: flex; align-items: center; justify-content: center; color: #277448; font-size: 9px; font-weight: 800; flex-direction: column; gap: 3px; }
+.fdoc .fnm { font-size: 0.65625rem; color: #0F1117; text-align: center; word-break: break-all; }
+.fdoc .fmeta { font-size: 0.59375rem; color: #8A8A8E; }
+
+/* Footnotes / tier ruler */
+.footnotes { max-width: 1480px; margin: 0 auto; padding: 30px 32px 70px; }
+.fn-card { background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px; box-shadow: var(--sr-card-shadow); padding: 24px 28px; }
+.fn-card h3 { font-size: 0.9375rem; font-weight: 700; color: var(--sr-text); margin-bottom: 6px; }
+.fn-card p { font-size: 0.8125rem; color: var(--sr-text-muted); max-width: 90ch; }
+.ruler-wrap { margin-top: 22px; }
+.ruler { position: relative; height: 12px; border-radius: 6px; overflow: hidden; display: flex; }
+.ruler i { height: 100%; }
+.ruler .r1 { background: var(--sr-county-2); }
+.ruler .r2 { background: var(--sr-county-4); }
+.ruler .r3 { background: var(--sr-county-6); }
+.ruler .r4 { background: var(--sr-county-8); }
+.ruler-marks { position: relative; height: 58px; margin-top: 6px; font-size: 0.65625rem; color: var(--sr-text-muted); }
+.rmark { position: absolute; transform: translateX(-50%); text-align: center; }
+.rmark::before { content: ""; display: block; width: 1px; height: 8px; background: var(--sr-border-medium); margin: 0 auto 3px; }
+.rmark b { display: block; color: var(--sr-text); font-size: 0.71875rem; }
+.rdev { position: absolute; top: 32px; transform: translateX(-50%); }
+.rdev span {
+  display: inline-flex; align-items: center; gap: 5px; background: var(--sr-accent-bg);
+  color: var(--sr-accent); border: 1px solid var(--sr-accent-border); border-radius: 10px;
+  padding: 2px 9px; font-size: 0.625rem; font-weight: 700; white-space: nowrap;
+}
+.tier-table { margin-top: 26px; overflow-x: auto; }
+table.tiers { border-collapse: collapse; width: 100%; font-size: 0.75rem; }
+.tiers th { text-align: left; font-size: 0.65625rem; text-transform: uppercase; letter-spacing: .06em; color: var(--sr-text-muted); font-weight: 700; padding: 8px 12px; border-bottom: 1px solid var(--sr-border); white-space: nowrap; }
+.tiers td { padding: 9px 12px; border-bottom: 1px solid var(--sr-border-subtle); color: var(--sr-text); vertical-align: top; }
+.tiers td:first-child { font-weight: 700; white-space: nowrap; }
+.tiers td .mut { color: var(--sr-text-muted); }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <div class="kicker">SnowRaven &middot; mobile-app &middot; Stage 4 design</div>
+  <h1>One app, three canvases</h1>
+  <p class="lede">
+    SnowRaven already reflows from 320&nbsp;px to large desktops — <strong>this is not a redesign</strong>.
+    This page shows how the shipped responsive tiers compose on iPhone, iPad, and an iPad Split View pane,
+    plus the one genuinely new mobile moment: importing the two CSVs through the native iOS document picker.
+    Pick a screen below; every frame updates. Toggle <strong>Design notes</strong> to read the reasoning in place.
+  </p>
+</header>
+
+<div class="controls">
+  <div class="controls-inner">
+    <div class="chip-row" role="group" aria-label="Screen">
+      <button class="chip" data-action="set-tab" data-tab="weather" aria-pressed="true"></button>
+      <button class="chip" data-action="set-tab" data-tab="stats" aria-pressed="false"></button>
+      <button class="chip" data-action="set-tab" data-tab="map" aria-pressed="false"></button>
+      <button class="chip" data-action="set-tab" data-tab="calendar" aria-pressed="false"></button>
+      <button class="chip" data-action="set-tab" data-tab="settings" aria-pressed="false"></button>
+    </div>
+    <div class="spacer"></div>
+    <div class="ctl-group">
+      <span class="ctl-label">iPad</span>
+      <div class="seg" role="group" aria-label="iPad orientation">
+        <button data-action="set-orient" data-orient="landscape" aria-pressed="true">Landscape</button>
+        <button data-action="set-orient" data-orient="portrait" aria-pressed="false">Portrait</button>
+      </div>
+    </div>
+    <button class="notes-toggle" data-action="toggle-notes" aria-pressed="false">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      Design notes
+    </button>
+  </div>
+</div>
+
+<main>
+  <section class="exhibits" id="exhibits"></section>
+
+  <section class="footnotes">
+    <div class="fn-card">
+      <h3>Where each device lands in the shipped breakpoint system</h3>
+      <p>
+        Layout keys off <em>window width</em>, never device identity — which is exactly why Split View works
+        for free. The tiers below are the ones already in <code>globals.css</code>; nothing new is introduced
+        for mobile.
+      </p>
+      <div class="ruler-wrap">
+        <div class="ruler" aria-hidden="true">
+          <i class="r1" style="flex: 480"></i><i class="r2" style="flex: 160"></i><i class="r3" style="flex: 384"></i><i class="r4" style="flex: 376"></i>
+        </div>
+        <div class="ruler-marks">
+          <div class="rmark" style="left: 0%"><b>320</b>floor</div>
+          <div class="rmark" style="left: 34.3%"><b>480</b>small phone</div>
+          <div class="rmark" style="left: 45.7%"><b>640</b>phone boundary</div>
+          <div class="rmark" style="left: 73.1%"><b>1024</b>tablet collapse</div>
+          <div class="rmark" style="left: 100%"><b>1400</b>&nbsp;</div>
+          <div class="rdev" style="left: 0%"><span>Split pane 320</span></div>
+          <div class="rdev" style="left: 6.5%"><span>iPhone 390</span></div>
+          <div class="rdev" style="left: 46.2%; top: 46px;"><span>iPad portrait 820</span></div>
+          <div class="rdev" style="left: 79.5%"><span>iPad landscape 1180</span></div>
+        </div>
+      </div>
+      <div class="tier-table">
+        <table class="tiers">
+          <tr><th>Surface</th><th>iPhone (390) &amp; Split pane (320)</th><th>iPad portrait (820)</th><th>iPad landscape (1180)</th></tr>
+          <tr><td>Navigation</td><td>Dropdown (overflow-measured)</td><td>Dropdown</td><td>Dropdown — the full 11-item bar needs ~1,380&nbsp;px, more than any iPad width <span class="mut">(see notes)</span></td></tr>
+          <tr><td>Statistics grids</td><td>Single column</td><td>2-up (the &le;1024 collapse)</td><td>3/4-up, chart + aside side by side</td></tr>
+          <tr><td>Map Explorer</td><td>Map + Filters FAB + fullscreen FAB</td><td colspan="2">Sidebar beside map; Filters FAB hidden; fullscreen FAB stays. Fullscreen hides the sidebar — map owns the canvas — and the Filters FAB returns (the shipped phone pattern, extended to fullscreen at any width)</td></tr>
+          <tr><td>Calendar</td><td>Big month grids only; view toggle hidden (<code>.sr-cal-view-toggle</code>)</td><td colspan="2">Compact / Large toggle; Large = 12 dated mini-month thumbnails</td></tr>
+          <tr><td>Settings</td><td>Stacked rows, 44&nbsp;px targets</td><td colspan="2">Same centered column, wider breathing room (<code>.sr-panel</code> cap 1280)</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ══════════════════ icons (lucide-style, stroke 2.2) ══════════════════ */
+function icon(name, size, extra) {
+  size = size || 14;
+  var paths = {
+    'cloud-sun': '<path d="M12 2v2"/><path d="m4.9 4.9 1.4 1.4"/><path d="M20 12h2"/><path d="m19.1 4.9-1.4 1.4"/><path d="M15.9 7.5A5 5 0 1 0 8 10"/><path d="M13 16a3 3 0 1 1 0 6H7a5 5 0 1 1 4.9-6Z"/>',
+    'bar-chart': '<path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8" rx="1"/><rect x="13" y="5" width="3" height="13" rx="1"/>',
+    'calendar': '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+    'map': '<path d="M14.1 6.1 8.9 3.5a1 1 0 0 0-.9 0L3.6 5.7A1 1 0 0 0 3 6.6v12.8a1 1 0 0 0 1.4.9l4.5-2.2 5.2 2.6a1 1 0 0 0 .9 0l4.4-2.2a1 1 0 0 0 .6-.9V4.8a1 1 0 0 0-1.4-.9l-4.5 2.2Z"/><path d="M9 3.5v13M15 6.1v13"/>',
+    'settings': '<circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    'chevron-down': '<path d="m6 9 6 6 6-6"/>',
+    'chevron-left': '<path d="m15 18-6-6 6-6"/>',
+    'chevron-right': '<path d="m9 18 6-6-6-6"/>',
+    'check': '<path d="M20 6 9 17l-5-5"/>',
+    'copy': '<rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    'sliders': '<line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/>',
+    'maximize': '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>',
+    'minimize': '<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>',
+    'search': '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+    'file-check': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="m9 15 2 2 4-4"/>',
+    'file-q': '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 10.3a2 2 0 0 1 3.9.6c0 1.3-2 2-2 2"/><path d="M12 17h.01"/>',
+    'folder': '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    'clock': '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    'grid': '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+    'grid2': '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18M12 3v18"/>',
+    'key': '<path d="m15.5 7.5 3 3L22 7l-3-3"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/>',
+    'help': '<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/>',
+    'feather': '<path d="M12.7 19.7c3-3.1 5.4-6.8 6.9-10.9.5-1.5.8-3 .9-4.6a1 1 0 0 0-1.1-1.1c-1.6.1-3.1.4-4.6.9A26 26 0 0 0 4 11"/><path d="M4 20c0-3 1.9-6.6 4.7-8.3"/><path d="M8 16h4"/>',
+    'external': '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>'
+  };
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (extra || '') + '>' + (paths[name] || '') + '</svg>';
+}
+
+/* ══════════════════ state ══════════════════ */
+var state = { tab: 'weather', orient: 'landscape', notes: false, mlImported: false, mapFull: false };
+
+var TABS = [
+  { id: 'weather',  label: 'Weather',           ic: 'cloud-sun' },
+  { id: 'stats',    label: 'Statistics',        ic: 'bar-chart' },
+  { id: 'map',      label: 'Map Explorer',      ic: 'map' },
+  { id: 'calendar', label: 'Calendar',          ic: 'calendar' },
+  { id: 'settings', label: 'Settings & Import', ic: 'settings' }
+];
+var NAV_LABEL = { weather: 'Weather', stats: 'Statistics', map: 'Map Explorer', calendar: 'Calendar', settings: 'Settings' };
+var NAV_IC    = { weather: 'cloud-sun', stats: 'bar-chart', map: 'map', calendar: 'calendar', settings: 'settings' };
+
+/* ══════════════════ shared chrome bits ══════════════════ */
+function statusbarPhone() {
+  return '<div class="statusbar"><span>9:41</span><span class="sb-icons">' + sigWifiBatt(17) + '</span></div>';
+}
+function statusbarPad() {
+  return '<div class="statusbar"><span>9:41 AM &nbsp; Sat Jun 28</span><span class="sb-icons">' + sigWifiBatt(14) + '</span></div>';
+}
+function sigWifiBatt(h) {
+  return '<svg width="' + h + '" height="' + Math.round(h * 0.65) + '" viewBox="0 0 46 13" fill="currentColor" aria-hidden="true">'
+    + '<rect x="0" y="8" width="3" height="5" rx="1"/><rect x="5" y="6" width="3" height="7" rx="1"/><rect x="10" y="3.5" width="3" height="9.5" rx="1"/><rect x="15" y="1" width="3" height="12" rx="1"/>'
+    + '<path d="M27 5.2a7.4 7.4 0 0 1 9.2 0l-1.5 1.8a5 5 0 0 0-6.2 0Zm2.4 3a3.6 3.6 0 0 1 4.4 0l-2.2 2.7Z"/>'
+    + '<rect x="39" y="2.5" width="6" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1"/><rect x="40" y="3.7" width="3.6" height="5.6" rx="1"/></svg>';
+}
+function navDropdown(tab, note) {
+  return '<div class="nav-wrap"><button class="nav-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Navigation, current view ' + NAV_LABEL[tab] + '">'
+    + '<span class="lead">' + icon(NAV_IC[tab], 15) + '<span>' + NAV_LABEL[tab] + '</span></span>'
+    + '<span class="chev">' + icon('chevron-down', 18) + '</span></button>'
+    + (note || '') + '</div>';
+}
+function appHeader() {
+  return '<div class="app-header"><span class="app-brand"><span class="raven">' + icon('feather', 13) + '</span>SnowRaven</span></div>';
+}
+function appFooter(kind) {
+  if (kind === 'ios') {
+    return '<div class="app-footer">SnowRaven v0.6.0 &middot; your data stays on this device</div>';
+  }
+  return '<div class="app-footer">SnowRaven v0.6.0</div>';
+}
+function houseHead(ic, title, sub) {
+  return '<div class="house"><div class="tile">' + icon(ic, 15) + '</div><div><h2>' + title + '</h2><div class="sub">' + sub + '</div></div></div>';
+}
+function note(html) { return '<div class="note">' + html + '</div>'; }
+
+/* ══════════════════ screen content: WEATHER ══════════════════ */
+var WBLOCK = '☀️ 58°F (feels like 56°F) · Clear sky\nWind SW 6 mph, gusting 9 · Humidity 71% · 30.06 inHg\nSunrise 5:14 AM · Sunset 9:08 PM';
+var TBLOCK = '🌊 Falling to low 0.4 ft at 6:52 AM,\nthen rising to high 6.8 ft at 1:18 PM';
+
+function weatherContent(tier) {
+  var wide = tier !== 'phone'; /* iPad portrait (820) is well past the 640 boundary */
+  var h = houseHead('cloud-sun', 'Weather', 'Paste a checklist ID to build the weather &amp; tide block.');
+  var form = '<div class="card card-pad">'
+    + '<label class="field-label" for="x">Checklist ID</label>'
+    + '<div style="display:flex; gap:8px; flex-wrap:wrap;">'
+    + '<div class="ipt" style="flex:1; min-width:150px; color:var(--sr-text);">S198276543</div>'
+    + '<button class="btn btn-primary" style="width:auto; flex-shrink:0;">Get weather</button>'
+    + '</div>'
+    + (tier !== 'pad' ? note('<b>16 px input, 44 px button.</b> The <code>.sr-input-16</code> guard means iOS never focus-zooms; the primary action meets the <code>.sr-touch-target</code> posture. Both already shipped — shown here holding on a real phone canvas.') : '')
+    + '</div>';
+  var result = '<div class="card">'
+    + '<div class="card-head"><div class="tile">' + icon('check', 13) + '</div><div><div class="t">Bottle Beach State Park</div><div class="s">Grays Harbor, Washington &middot; Jun 28, 2026 &middot; 7:15 AM &middot; 42 species</div></div></div>'
+    + '<div class="card-pad">'
+    + (wide ? '<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">' : '')
+    + '<div><div class="wblock">' + WBLOCK + '\n<span class="attrib">Weather from OpenWeather</span></div>'
+    + '<div style="display:flex; justify-content:flex-end; margin-top:8px;"><button class="btn btn-copy" data-action="copy" aria-label="Copy weather to clipboard">' + icon('copy', 12) + '<span class="cw">Copy</span></button></div></div>'
+    + '<div style="' + (wide ? '' : 'margin-top:10px;') + '"><div class="wblock">' + TBLOCK + '\n<span class="attrib">Station: Westport &middot; Tide from NOAA</span></div>'
+    + '<div style="display:flex; justify-content:flex-end; margin-top:8px;"><button class="btn btn-copy" data-action="copy" aria-label="Copy tide to clipboard">' + icon('copy', 12) + '<span class="cw">Copy</span></button></div></div>'
+    + (wide ? '</div>' : '')
+    + '<button class="btn btn-copy btn-copy-wide" data-action="copy" style="margin-top:10px;" aria-label="Copy weather and tide together to clipboard">' + icon('copy', 13) + '<span class="cw">Copy weather &amp; tide together</span></button>'
+    + (tier !== 'pad' ? note('<b>The founding workflow, end-to-end on the phone.</b> Copy goes through the native clipboard plugin, so the copy-after-await path works in WKWebView (FR-17). Tap Copy to see the confirmation.') : '')
+    + '</div></div>';
+  var padNote = wide ? note('<b>iPad composition:</b> weather and tide sit side by side above the shared copy action; the column caps at a comfortable reading width inside the 1280 px <code>.sr-panel</code> instead of stretching edge to edge.') : '';
+  var body = h + form + result + padNote;
+  if (wide) body = '<div style="max-width:760px; margin:0 auto;">' + body + '</div>';
+  return body;
+}
+
+/* ══════════════════ screen content: STATISTICS ══════════════════ */
+function statCard(n, l) { return '<div class="card stat"><div class="n">' + n + '</div><div class="l">' + l + '</div></div>'; }
+function mile(cls, num, name, sci, date) {
+  return '<div class="mile ' + cls + '"><span class="mcheck">' + icon('check', 13) + '</span>'
+    + '<span class="mnum">#' + num + '</span><span class="mname">' + name + '</span><span class="msci">' + sci + '</span><span class="mdate">' + date + '</span></div>';
+}
+function barChart() {
+  var hts = [18, 24, 42, 66, 88, 74, 52, 46, 58, 70, 38, 22];
+  var b = '<div class="bars">';
+  for (var i = 0; i < 12; i++) b += '<div class="b" style="height:' + hts[i] + '%"></div>';
+  b += '</div><div class="bars-x"><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span></div>';
+  return b;
+}
+function brow(name, sci, cnt) {
+  return '<div class="brow"><span class="fav"><i class="f1"></i><i class="f2"></i></span>'
+    + '<span><a class="cname" href="#" onclick="return false">' + name + '</a> <span class="sci">' + sci + '</span></span>'
+    + '<span class="cnt">' + cnt + '</span></div>';
+}
+function statsContent(tier) {
+  var cols = tier === 'phone' ? 'g1' : (tier === 'pad-portrait' ? 'g2' : 'g4');
+  var mcols = tier === 'phone' ? 'g1' : (tier === 'pad-portrait' ? 'g2' : 'g4');
+  var aside = tier === 'phone' ? 'stacked' : '';
+  var h = houseHead('bar-chart', 'Statistics', 'Your birding, computed from the imported backup.');
+  var counts = '<div class="stat-grid ' + cols + '">'
+    + statCard('412', 'Life list species') + statCard('187', 'Species this year')
+    + statCard('356', 'Checklists') + statCard('23', 'Counties birded') + '</div>';
+  var tierNote = '';
+  if (tier === 'pad-portrait') tierNote = note('<b>Portrait = the &le;1024 tier.</b> At 820 pt the shipped <code>.sr-grid-3/-4</code> collapse to 2-up — a deliberate, existing tier, not an iPad special case. Rotate to landscape and the full row returns, live, no reload (FR-03).');
+  if (tier === 'pad') tierNote = note('<b>Landscape = the full desktop tier.</b> 1180 pt clears the 1024 collapse, so 4-up stat rows and the chart-plus-aside composition render exactly as on a desktop window of the same width.');
+  if (tier === 'phone') tierNote = note('<b>Phone tier: everything single-column.</b> The same cards, stacked by the shipped &le;640 collapse — nothing is dropped, nothing is redesigned.');
+  var miles = '<div style="margin-top:12px;" class="stat-grid ' + mcols + '">'
+    + mile('m4', 400, 'Snowy Owl', 'Bubo scandiacus', 'Jan 6, 2026')
+    + mile('m3', 300, 'Elegant Trogon', 'Trogon elegans', 'Apr 22, 2023')
+    + mile('m2', 200, 'Surfbird', 'Calidris virgata', 'Sep 14, 2021')
+    + mile('m1', 100, 'Vermilion Flycatcher', 'Pyrocephalus obscurus', 'May 3, 2019')
+    + '</div>';
+  var chart = '<div class="card" style="margin-top:12px;">'
+    + '<div class="card-head"><div class="tile">' + icon('bar-chart', 13) + '</div><div><div class="t">Species by month</div><div class="s">2026 &middot; from 356 checklists</div></div></div>'
+    + '<div class="card-pad"><div class="chart-aside ' + aside + '">'
+    + '<div>' + barChart() + '</div>'
+    + '<div><div class="side-label" style="margin-bottom:4px;">Most reported</div>'
+    + brow('Song Sparrow', 'Melospiza melodia', '198')
+    + brow('Cedar Waxwing', 'Bombycilla cedrorum', '154')
+    + brow('Black Phoebe', 'Sayornis nigricans', '121')
+    + brow('Marbled Godwit', 'Limosa fedoa', '43')
+    + '</div></div></div></div>';
+  return h + tierNote + counts + miles + chart;
+}
+
+/* ══════════════════ screen content: MAP ══════════════════ */
+function mapFabs(showFilters, fsIcon, fsLabel, fsAction) {
+  return '<div class="map-fabs">'
+    + (showFilters ? '<button class="fab" aria-label="Filters">' + icon('sliders', 18) + '</button>' : '')
+    + '<button class="fab" aria-label="' + fsLabel + '"' + (fsAction ? ' data-action="' + fsAction + '"' : '') + '>' + icon(fsIcon, 18) + '</button>'
+    + '</div>';
+}
+function fakeMap(h, fabsHtml) {
+  var pins = ''
+    + pin(0.30, 0.38, 13, 'var(--sr-map-pin-visited)') + pin(0.36, 0.30, 9, 'var(--sr-map-pin-visited)')
+    + pin(0.48, 0.52, 16, 'var(--sr-map-pin-visited)') + pin(0.58, 0.34, 8, 'var(--sr-map-pin-visited)')
+    + pin(0.66, 0.58, 11, 'var(--sr-map-pin-visited)') + pin(0.25, 0.62, 9, 'var(--sr-map-pin-unvisited)')
+    + pin(0.72, 0.26, 8, 'var(--sr-map-pin-unvisited)') + pin(0.55, 0.70, 8, 'var(--sr-map-pin-personal)')
+    + pin(0.80, 0.46, 10, 'var(--sr-map-pin-target)');
+  function pin(x, y, r, c) {
+    return '<circle cx="' + (x * 100) + '%" cy="' + (y * 100) + '%" r="' + r + '" fill="' + c + '" fill-opacity="0.9" stroke="var(--sr-map-pin-stroke)" stroke-width="1.6"/>';
+  }
+  return '<div class="map-shell" style="height:' + h + ';">'
+    + '<svg preserveAspectRatio="none" viewBox="0 0 400 300" aria-label="Illustrative map with sighting pins">'
+    + '<rect width="400" height="300" fill="#EFEDE6"/>'
+    + '<path d="M0 210 C60 190 90 235 150 225 C210 215 230 265 300 255 C350 248 380 275 400 268 L400 300 L0 300 Z" fill="#CBDDEA"/>'
+    + '<path d="M120 40 C160 60 150 110 200 120 C250 130 260 90 310 100" fill="none" stroke="#FFFFFF" stroke-width="7"/>'
+    + '<path d="M120 40 C160 60 150 110 200 120 C250 130 260 90 310 100" fill="none" stroke="#E3DFD4" stroke-width="5"/>'
+    + '<path d="M30 140 C80 120 140 170 200 150 C260 130 320 180 390 150" fill="none" stroke="#E8E4DA" stroke-width="4"/>'
+    + '<ellipse cx="90" cy="90" rx="52" ry="34" fill="#DCE8D8"/>'
+    + '<ellipse cx="315" cy="190" rx="44" ry="26" fill="#DCE8D8"/>'
+    + '<path d="M200 0 V300 M100 0 V300 M300 0 V300 M0 75 H400 M0 150 H400 M0 225 H400" stroke="rgba(71,85,105,0.14)" stroke-width="1" stroke-dasharray="4 5"/>'
+    + pins
+    + '</svg>'
+    + (fabsHtml || '')
+    + '</div>';
+}
+function mapSidebar() {
+  return '<div class="card map-sidebar">'
+    + '<div class="side-sec"><div class="ipt" style="min-height:36px; font-size:0.78125rem; color:var(--sr-text-muted); gap:7px;">' + icon('search', 13) + ' Search hotspots…</div></div>'
+    + '<div class="side-sec"><div class="side-label">Show</div><div class="pill-row">'
+    + '<span class="fpill on"><i class="dot" style="background:var(--sr-map-pin-visited)"></i>Visited</span>'
+    + '<span class="fpill on"><i class="dot" style="background:var(--sr-map-pin-unvisited)"></i>Unvisited</span>'
+    + '<span class="fpill"><i class="dot" style="background:var(--sr-map-pin-personal)"></i>Personal</span>'
+    + '<span class="fpill on"><i class="dot" style="background:var(--sr-map-pin-target)"></i>Targets</span>'
+    + '</div></div>'
+    + '<div class="side-sec"><div class="tog-row"><span>County shading</span><span class="tog" aria-hidden="true"></span></div>'
+    + '<div class="ramp">'
+    + '<i style="background:var(--sr-county-1)"></i><i style="background:var(--sr-county-2)"></i><i style="background:var(--sr-county-3)"></i><i style="background:var(--sr-county-4)"></i><i style="background:var(--sr-county-5)"></i>'
+    + '<i style="background:var(--sr-county-6)"></i><i style="background:var(--sr-county-7)"></i><i style="background:var(--sr-county-8)"></i><i style="background:var(--sr-county-9)"></i><i style="background:var(--sr-county-10)"></i>'
+    + '</div><div class="ramp-cap"><span>fewer</span><span>more</span></div></div>'
+    + '<div class="side-sec"><div class="tog-row"><span>Heatmap</span><span class="tog off" aria-hidden="true"></span></div></div>'
+    + '</div>';
+}
+function mapContent(tier) {
+  var h = houseHead('map', 'Map Explorer', 'Every sighting, hotspot, and target on one map.');
+  if (tier === 'phone') {
+    return h
+      + note('<b>Phone: the map owns the panel.</b> Filters live behind the FAB (mobile-only); the fullscreen FAB shows at all widths. The FAB cluster sits inside the safe area — 44 px targets clear of the home indicator (NFR-07).')
+      + fakeMap('380px', mapFabs(true, 'maximize', 'Enter fullscreen', null))
+      + note('<b>Fullscreen is a CSS overlay</b> (<code>100dvh</code>, not the Fullscreen API — unreliable in WKWebView), so it already behaves on iOS; it just needs to respect <code>env(safe-area-inset-*)</code> for its own chrome.');
+  }
+  var sideBySide = '<div class="map-layout" style="height:' + (tier === 'pad-portrait' ? '520px' : '470px') + ';">'
+    + mapSidebar()
+    + fakeMap('100%', mapFabs(false, 'maximize', 'Enter fullscreen', 'map-full'))
+    + '</div>';
+  return h
+    + note('<b>iPad: sidebar beside map</b> — the shipped desktop composition, unchanged. The mobile-only Filters FAB is gone because the sidebar is simply visible; only the fullscreen FAB remains. <b>Tap the fullscreen FAB:</b> fullscreen hides the sidebar too — the map owns the entire canvas — and the Filters FAB comes back so filters stay reachable (the shipped phone pattern, extended to fullscreen at any width). Overlays (county shading, heatmap, atlas) all carry over.')
+    + sideBySide;
+}
+
+/* ══════════════════ screen content: CALENDAR ══════════════════ */
+/* June 2026 starts on a Monday; 30 days. Tier classes from --sr-cal-1..5. */
+var JUNE = { pad: 1, days: 30, shade: { 6:[12,1], 7:[31,3], 13:[8,1], 14:[54,4], 20:[22,2], 21:[68,5], 27:[15,2], 28:[42,3] } };
+function monthGrid(m) {
+  var g = '<div class="cal-dow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div><div class="cal-grid">';
+  for (var p = 0; p < m.pad; p++) g += '<div class="cal-cell pad"></div>';
+  for (var d = 1; d <= m.days; d++) {
+    var s = m.shade[d];
+    if (s) g += '<div class="cal-cell t' + s[1] + '"><span class="d">' + d + '</span><span class="c">' + s[0] + '</span></div>';
+    else g += '<div class="cal-cell"><span class="d">' + d + '</span></div>';
+  }
+  g += '</div>';
+  return g;
+}
+function miniMonth(name, pad, days, shaded) {
+  var g = '<div class="card minimonth"><div class="mm-name">' + name + '</div><div class="mm-grid">';
+  for (var p = 0; p < pad; p++) g += '<div class="mm-cell pad"></div>';
+  for (var d = 1; d <= days; d++) {
+    var t = shaded[d];
+    g += '<div class="mm-cell' + (t ? ' t' + t : '') + '"><span class="d">' + d + '</span></div>';
+  }
+  g += '</div></div>';
+  return g;
+}
+function calContent(tier) {
+  var h = houseHead('calendar', 'Calendar', 'Every birded day of the year, shaded by species count.');
+  var yearSel = '<span class="cal-year"><button aria-label="Previous year">' + icon('chevron-left', 15) + '</button>2026<button aria-label="Next year">' + icon('chevron-right', 15) + '</button></span>';
+  if (tier === 'phone') {
+    return h
+      + '<div class="cal-toolbar">' + yearSel + '</div>'
+      + note('<b>No view toggle on the phone — on purpose.</b> The shipped <code>.sr-cal-view-toggle</code> rule hides it &le;640 and <code>useIsPhone()</code> forces the big month grids; the mini-month overview never mounts on a phone (FR-07: existing phone-tier reductions are the design).')
+      + '<div class="card card-pad"><div class="month-name">June 2026</div>' + monthGrid(JUNE) + '</div>'
+      + '<div class="card card-pad" style="margin-top:12px;"><div class="month-name">July 2026</div><div class="cal-dow"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div></div>';
+  }
+  /* .sr-cal-year is 3-up, collapsing to 2-up at the <=1024 tier — so iPad
+     landscape shows 3 columns and portrait shows 2 (globals.css line 698/1044). */
+  var cols = tier === 'pad-portrait' ? 'minimonths cols2' : 'minimonths';
+  var sh1 = {}; sh1[3]=1; sh1[10]=2; sh1[17]=1; sh1[24]=3;
+  var sh2 = {}; sh2[7]=2; sh2[14]=1; sh2[21]=4; sh2[28]=2;
+  var sh3 = {}; sh3[8]=3; sh3[15]=1; sh3[29]=2;
+  var sh4 = {}; sh4[4]=1; sh4[11]=2; sh4[18]=3; sh4[25]=5;
+  var sh5 = {}; sh5[2]=2; sh5[9]=4; sh5[16]=1; sh5[23]=2; sh5[30]=3;
+  var sh6 = {}; sh6[6]=1; sh6[7]=3; sh6[13]=1; sh6[14]=4; sh6[20]=2; sh6[21]=5; sh6[27]=2; sh6[28]=3;
+  var sh7 = {}; sh7[5]=2; sh7[12]=3; sh7[19]=1;
+  var sh8 = {}; sh8[1]=1; sh8[15]=2; sh8[22]=4;
+  var months = miniMonth('January', 4, 31, sh1) + miniMonth('February', 0, 28, sh2)
+    + miniMonth('March', 0, 31, sh3) + miniMonth('April', 3, 30, sh4)
+    + miniMonth('May', 5, 31, sh5) + miniMonth('June', 1, 30, sh6)
+    + miniMonth('July', 3, 31, sh7) + miniMonth('August', 6, 31, sh8);
+  return h
+    + '<div class="cal-toolbar">' + yearSel
+    + '<span class="segctl" role="group" aria-label="View">'
+    + '<button aria-pressed="false">' + icon('grid', 12) + 'Compact</button>'
+    + '<button aria-pressed="true">' + icon('grid2', 12) + 'Large</button>'
+    + '</span></div>'
+    + note('<b>iPad keeps the full Compact / Large toggle</b> (QA-07). Shown: Large — the whole year as dated, shaded thumbnails in the shipped <code>.sr-cal-year</code> grid: 3-up in landscape, 2-up in portrait (the &le;1024 collapse). Mini-months are wide enough on both to clear the 152 px container-query floor, so day numbers render inside the cells (the shipped v0.5.60/61 behavior).')
+    + '<div class="' + cols + '">' + months + '</div>';
+}
+
+/* ══════════════════ screen content: SETTINGS ══════════════════ */
+function fileRow(label, sub, imported, fname, saved, action) {
+  if (imported) {
+    return '<div class="file-row"><div class="file-tile">' + icon('file-check', 18) + '</div>'
+      + '<div class="file-meta"><div class="fl">' + label + '</div><div class="fs">' + fname + ' <span class="when">&middot; Saved ' + saved + '</span></div></div>'
+      + '<div class="file-actions"><button class="btn-file"' + (action ? ' data-action="' + action + '"' : '') + '>Import new&hellip;</button><button class="btn-clear">Clear</button></div></div>';
+  }
+  return '<div class="file-row"><div class="file-tile empty">' + icon('file-q', 18) + '</div>'
+    + '<div class="file-meta"><div class="fl">' + label + '</div><div class="fs none">' + sub + '</div></div>'
+    + '<div class="file-actions"><span class="nofile-pill">No file saved</span><button class="btn-file empty"' + (action ? ' data-action="' + action + '"' : '') + '>Import file&hellip;</button></div></div>';
+}
+function settingsContent(tier) {
+  var phone = tier === 'phone';
+  var h = houseHead('settings', 'Settings', 'Keys, files, appearance — everything stays on this device.');
+  var keys = '<div class="set-sec-label">API keys</div><div class="card">'
+    + '<div class="key-row"><span style="color:var(--sr-accent); display:flex;">' + icon('key', 14) + '</span><span class="kl">eBird API key</span><span class="kv">••••••••</span><span class="key-badge">' + icon('check', 10) + ' Set</span></div>'
+    + '<div class="key-row"><span style="color:var(--sr-accent); display:flex;">' + icon('key', 14) + '</span><span class="kl">OpenWeather API key</span><span class="kv">••••••••</span><span class="key-badge">' + icon('check', 10) + ' Set</span></div>'
+    + '</div>';
+  var mlRow = state.mlImported
+    ? fileRow('ML export', '', true, 'ML_2026-06-28.csv', 'Jun 28, 2026', phone ? 'open-picker' : null)
+    : fileRow('ML export', 'Your Macaulay Library media export', false, null, null, phone ? 'open-picker' : null);
+  var files = '<div class="set-sec-label">Default files</div><div class="card">'
+    + fileRow('eBird backup', '', true, 'MyEBirdData.csv', 'Jun 28, 2026', phone ? 'open-picker' : null)
+    + mlRow
+    + '</div>'
+    + (phone
+      ? note('<b>The one new mobile moment.</b> The same Settings rows, but the button now presents the native iOS document picker — Files, iCloud Drive, any provider (FR-08/09/12). Tap <b>Import file&hellip;</b> on the ML row to see it. Cancel is a clean no-op; a wrong file shows the existing error state, prior data intact (FR-13). <b>iOS wording:</b> these rows say “Import”, not “Upload” — approved at the design review; desktop/web keep “Upload” (logged in decisions.md).'
+        + (state.mlImported ? ' <b>Imported</b> — the row now shows the app’s existing metadata confirmation, and it persists across relaunch (FR-10).' : ''))
+      : note('<b>Confirmation state shown here:</b> both files imported, with the app’s existing filename + saved-date metadata as proof (FR-12). Re-importing (<b>Import new&hellip;</b> — the approved iOS wording) replaces the file of that kind and every tab recomputes (FR-11).'));
+  var ghosts = '<div class="ghost"><span class="g-title">Offline maps &middot; region downloads</span><span class="g-why">Desktop-only &middot; hidden on iOS (FR-15, FR-23)</span></div>'
+    + '<div class="ghost"><span class="g-title">Check for updates &middot; Install update and restart</span><span class="g-why">No in-app updater on iOS — TestFlight / App Store (FR-14)</span></div>';
+  var loc = '<div class="set-sec-label">Location</div><div class="card card-pad" style="display:flex; align-items:center; gap:10px;">'
+    + '<div style="flex:1;"><div style="font-size:0.8125rem; font-weight:600; color:var(--sr-text);">Use my location</div>'
+    + '<div style="font-size:0.71875rem; color:var(--sr-text-muted); margin-top:1px;">First use asks iOS for permission; denial keeps manual entry fully usable (FR-16).</div></div>'
+    + '<span class="tog" aria-hidden="true"></span></div>';
+  var body = h + keys + files + loc + ghosts;
+  if (!phone) body = '<div style="max-width:760px; margin:0 auto;">' + body + '</div>';
+  return body;
+}
+
+/* iOS document picker sheet (iPhone frame only) */
+function pickerSheet() {
+  return '<div class="picker-veil" data-action="close-picker"></div>'
+    + '<div class="picker-sheet" role="dialog" aria-label="Document picker (iOS system UI)">'
+    + '<div class="grabber"></div>'
+    + '<div class="picker-head"><button class="cancel" data-action="close-picker">Cancel</button><span class="ttl">Recents</span></div>'
+    + '<div class="picker-search">' + icon('search', 14) + ' Search</div>'
+    + '<div class="picker-list">'
+    + '<button class="pfile" data-action="choose-file"><span class="pico">' + icon('file-check', 14) + 'CSV</span><span><span class="pnm">ML_2026-06-28.csv</span><br><span class="pmeta">1.1 MB &middot; Jun 28, 2026 &middot; iCloud Drive</span></span></button>'
+    + '<button class="pfile" data-action="choose-file"><span class="pico">' + icon('file-check', 14) + 'CSV</span><span><span class="pnm">MyEBirdData.csv</span><br><span class="pmeta">2.4 MB &middot; Jun 28, 2026 &middot; On My iPhone</span></span></button>'
+    + '<button class="pfile" disabled><span class="pico">PDF</span><span><span class="pnm">Shorebird field notes.pdf</span><br><span class="pmeta">Not a CSV — dimmed by the picker</span></span></button>'
+    + '</div>'
+    + '<div class="picker-tabs">'
+    + '<button class="pt on">' + icon('clock', 18) + 'Recents</button>'
+    + '<button class="pt">' + icon('folder', 18) + 'Shared</button>'
+    + '<button class="pt">' + icon('folder', 18) + 'Browse</button>'
+    + '</div></div>';
+}
+
+/* ══════════════════ frame builders ══════════════════ */
+function contentFor(tier) {
+  switch (state.tab) {
+    case 'weather':  return weatherContent(tier === 'phone' || tier === 'split' ? 'phone' : tier);
+    case 'stats':    return statsContent(tier === 'split' ? 'phone' : tier);
+    case 'map':      return mapContent(tier === 'split' ? 'phone' : (tier === 'phone' ? 'phone' : tier));
+    case 'calendar': return calContent(tier === 'split' ? 'phone' : tier);
+    case 'settings': return settingsContent(tier === 'split' ? 'phone' : (tier === 'phone' ? 'phone' : 'pad'));
+  }
+}
+function iphoneFrame() {
+  var navNote = state.tab === 'weather'
+    ? note('<b>Nav collapses to the dropdown</b> — the shipped overflow-measured behavior, not a mobile special case. All twelve destinations stay reachable; the open menu caps at <code>100dvh</code> so Settings is never clipped.')
+    : '';
+  return '<div class="device iphone" style="width:390px; height:844px; transform:scale(0.66);">'
+    + '<div class="dyn-island"></div>' + statusbarPhone()
+    + '<div class="sa-band sa-top"><span class="sa-tag">safe-area-inset-top 59pt</span></div>'
+    + '<div class="sa-band sa-bottom"><span class="sa-tag">inset-bottom 34pt</span></div>'
+    + '<div class="app">'
+    + '<div class="app-safe-top"></div>' + appHeader() + navDropdown(state.tab, navNote)
+    + '<div class="app-main">' + contentFor('phone') + '<div class="fade-out"></div></div>'
+    + appFooter('ios')
+    + '</div>'
+    + (state.tab === 'settings' ? pickerSheet() : '')
+    + '<div class="toast" id="toast-iphone">' + icon('check', 13) + '<span>Copied to clipboard</span></div>'
+    + '<div class="toast" id="toast-import">' + icon('check', 13) + '<span>ML export saved — tabs recomputed</span></div>'
+    + '<div class="home-ind"></div>'
+    + '</div>';
+}
+function ipadFrame() {
+  var land = state.orient === 'landscape';
+  var w = land ? 1180 : 820, h = land ? 820 : 1180;
+  var tier = land ? 'pad' : 'pad-portrait';
+  var mapOverlay = '';
+  if (state.tab === 'map' && state.mapFull) {
+    mapOverlay = '<div class="map-full-overlay">'
+      + fakeMap('100%', mapFabs(true, 'minimize', 'Exit fullscreen', 'map-exit'))
+      + '<div style="position:absolute; left:14px; top:36px; z-index:6; max-width:380px;">'
+      + note('<b>Fullscreen on iPad: the map owns the entire canvas.</b> The sidebar hides with the rest of the chrome, and the Filters FAB — the shipped phone affordance — appears so filters stay reachable while fullscreen. The exit FAB restores the sidebar-beside-map composition. For the Engineer this is one visibility-rule change: Filters FAB shows when (phone tier OR fullscreen); no new components.')
+      + '</div>'
+      + '</div>';
+  }
+  return '<div class="device ipad" style="width:' + w + 'px; height:' + h + 'px; transform:scale(0.46);">'
+    + statusbarPad()
+    + '<div class="app">'
+    + '<div class="app-safe-top"></div>' + appHeader()
+    + navDropdown(state.tab, state.tab === 'weather' ? note('<b>Honest depiction:</b> with the full default 11-tab set the bar needs ~1,380 px, so even iPad landscape (1,132 px available) gets the dropdown. It works and is fully accessible. Reviewed at the design gate and kept as-is for v1; a trigger width cap on wide viewports stays on the list as possible future polish.') : '')
+    + '<div class="app-main">' + contentFor(tier) + '<div class="fade-out"></div></div>'
+    + appFooter('ios')
+    + '</div>'
+    + mapOverlay
+    + '<div class="toast" id="toast-ipad">' + icon('check', 13) + '<span>Copied to clipboard</span></div>'
+    + '<div class="home-ind" style="width:220px;"></div>'
+    + '</div>';
+}
+function splitFrame() {
+  return '<div class="device ipad" style="width:1180px; height:820px; transform:scale(0.46);">'
+    + statusbarPad()
+    + '<div class="split-stage">'
+    + '<div class="split-left">'
+    + '<div class="files-head"><div class="fh-t">Recents</div></div>'
+    + '<div class="files-grid">'
+    + '<div class="fdoc"><div class="fico">' + icon('file-check', 16) + 'CSV</div><div class="fnm">MyEBirdData.csv</div><div class="fmeta">2.4 MB</div></div>'
+    + '<div class="fdoc"><div class="fico">' + icon('file-check', 16) + 'CSV</div><div class="fnm">ML_2026-06-28.csv</div><div class="fmeta">1.1 MB</div></div>'
+    + '<div class="fdoc"><div class="fico" style="color:#8A8A8E;">PDF</div><div class="fnm">Shorebird notes.pdf</div><div class="fmeta">4.8 MB</div></div>'
+    + '</div></div>'
+    + '<div class="split-divider"><i></i></div>'
+    + '<div class="split-right split-pane">'
+    + '<div class="app" style="height:100%;">'
+    + '<div style="height:30px; flex-shrink:0;"></div>'
+    + navDropdown(state.tab, state.tab === 'weather' ? note('<b>320 pt pane &rarr; phone tier. Correct, by design.</b> Layout keys off window width, so the narrow pane gets the same single-column composition an iPhone gets — the strategic brief calls this out as a success criterion, not a bug (FR-03, QA-03). Widen the divider and the richer tier returns live.') : '')
+    + '<div class="app-main">' + contentFor('split') + '<div class="fade-out"></div></div>'
+    + appFooter('ios')
+    + '</div></div>'
+    + '</div>'
+    + '<div class="home-ind" style="width:220px;"></div>'
+    + '</div>';
+}
+
+/* ══════════════════ render ══════════════════ */
+function stage(html, w, h, s) {
+  return '<div class="stage" style="width:' + Math.ceil(w * s) + 'px; height:' + Math.ceil(h * s) + 'px;">' + html + '</div>';
+}
+function render() {
+  var land = state.orient === 'landscape';
+  var padW = land ? 1180 : 820, padH = land ? 820 : 1180;
+  var tabLabel = TABS.filter(function (t) { return t.id === state.tab; })[0].label;
+  var el = document.getElementById('exhibits');
+  el.innerHTML =
+    '<figure class="exhibit">' + stage(iphoneFrame(), 390, 844, 0.66)
+    + '<figcaption><div class="cap-title">iPhone &middot; ' + tabLabel + '</div>'
+    + '<div class="cap-sub">390 &times; 844 pt &middot; portrait</div>'
+    + '<span class="cap-tier">' + icon('check', 10) + ' phone tier (&le;640)</span></figcaption></figure>'
+    + '<figure class="exhibit">' + stage(ipadFrame(), padW, padH, 0.46)
+    + '<figcaption><div class="cap-title">iPad &middot; ' + tabLabel + '</div>'
+    + '<div class="cap-sub">' + padW + ' &times; ' + padH + ' pt &middot; ' + state.orient + '</div>'
+    + '<span class="cap-tier">' + icon('check', 10) + ' ' + (land ? 'desktop tier (&gt;1024)' : 'tablet tier (&le;1024)') + '</span></figcaption></figure>'
+    + '<figure class="exhibit">' + stage(splitFrame(), 1180, 820, 0.46)
+    + '<figcaption><div class="cap-title">iPad Split View &middot; ' + tabLabel + '</div>'
+    + '<div class="cap-sub">SnowRaven in the 320 pt pane beside Files</div>'
+    + '<span class="cap-tier">' + icon('check', 10) + ' phone tier &mdash; deliberate (QA-03)</span></figcaption></figure>';
+  /* chip labels (first render only writes text) */
+  var chips = document.querySelectorAll('.chip[data-tab]');
+  for (var i = 0; i < chips.length; i++) {
+    var t = TABS[i];
+    if (!chips[i].innerHTML) chips[i].innerHTML = icon(t.ic, 13) + t.label;
+    chips[i].setAttribute('aria-pressed', String(t.id === state.tab));
+  }
+  var segs = document.querySelectorAll('[data-action="set-orient"]');
+  for (var j = 0; j < segs.length; j++) segs[j].setAttribute('aria-pressed', String(segs[j].getAttribute('data-orient') === state.orient));
+}
+
+/* ══════════════════ interactions ══════════════════ */
+document.addEventListener('click', function (e) {
+  var t = e.target.closest('[data-action]');
+  if (!t) return;
+  var a = t.getAttribute('data-action');
+  if (a === 'set-tab') { state.tab = t.getAttribute('data-tab'); state.mapFull = false; render(); }
+  else if (a === 'set-orient') { state.orient = t.getAttribute('data-orient'); render(); }
+  else if (a === 'map-full') { state.mapFull = true; render(); }
+  else if (a === 'map-exit') { state.mapFull = false; render(); }
+  else if (a === 'toggle-notes') {
+    state.notes = !state.notes;
+    document.body.classList.toggle('notes-on', state.notes);
+    t.setAttribute('aria-pressed', String(state.notes));
+  }
+  else if (a === 'copy') {
+    var label = t.querySelector('.cw');
+    var old = label.textContent;
+    label.textContent = 'Copied!';
+    t.classList.add('copied');
+    var frame = t.closest('.device');
+    var toast = frame ? frame.querySelector('.toast') : null;
+    if (toast) toast.classList.add('show');
+    setTimeout(function () {
+      label.textContent = old;
+      t.classList.remove('copied');
+      if (toast) toast.classList.remove('show');
+    }, 1800);
+  }
+  else if (a === 'open-picker') {
+    var dev = t.closest('.device');
+    if (dev) dev.classList.add('picker-open');
+  }
+  else if (a === 'close-picker') {
+    var dv = t.closest('.device');
+    if (dv) dv.classList.remove('picker-open');
+  }
+  else if (a === 'choose-file') {
+    var d2 = t.closest('.device');
+    if (d2) d2.classList.remove('picker-open');
+    state.mlImported = true;
+    setTimeout(function () {
+      render();
+      var tt = document.getElementById('toast-import');
+      if (tt) {
+        tt.classList.add('show');
+        setTimeout(function () { tt.classList.remove('show'); }, 2200);
+      }
+    }, 340);
+  }
+});
+
+render();
+</script>
+</body>
+</html>
