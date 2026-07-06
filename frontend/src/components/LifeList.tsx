@@ -554,7 +554,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           fontSize: '0.8125rem', color: 'var(--sr-warning)', marginBottom: 12, flexShrink: 0,
         }}>
           <AlertCircle size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-          Media links could not be personalised — the CSV filename was not in the default Macaulay Library format. Links will open the general catalog search instead.
+          Media links could not be personalised. The CSV filename was not in the default Macaulay Library format, so links will open the general catalog search instead.
         </div>
       )}
 
@@ -808,7 +808,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           <button tabIndex={0}
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}
-            title={wideMode ? 'Collapse table into scroll box' : 'Expand table — scroll the whole page on mobile'}
+            title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
           >
             {wideMode ? '↔ Normal' : '↔ Unbounded'}
           </button>

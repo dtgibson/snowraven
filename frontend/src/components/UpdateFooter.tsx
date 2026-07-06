@@ -111,18 +111,18 @@ export function UpdateFooter({ updateStatus, onCheck, onInstall }: UpdateFooterP
         {updateStatus.kind === 'up-to-date' && `Up to date (v${updateStatus.current})`}
         {updateStatus.kind === 'available' && !isTauri() && (
           <>
-            v{updateStatus.latest} available — run{' '}
+            v{updateStatus.latest} available: run{' '}
             <code style={{ fontFamily: 'ui-monospace, "Cascadia Code", "Fira Code", Consolas, monospace' }}>./update.sh</code>
           </>
         )}
         {updateStatus.kind === 'available' && isTauri() && `v${updateStatus.latest} available`}
-        {updateStatus.kind === 'ready-to-restart' && 'Update installed — restarting…'}
+        {updateStatus.kind === 'ready-to-restart' && 'Update installed. Restarting…'}
         {/* Offline: distinct from the generic error and conveyed by an icon +
             text, not color alone (FR-39/NFR-09). */}
         {updateStatus.kind === 'offline' && (
           <>
             <WifiOff size={11} strokeWidth={2.5} aria-hidden="true" style={{ verticalAlign: '-1px', marginRight: 4 }} />
-            Couldn't reach the update server — you're offline
+            Couldn't reach the update server. You're offline.
           </>
         )}
         {updateStatus.kind === 'error' && 'Could not check for updates'}

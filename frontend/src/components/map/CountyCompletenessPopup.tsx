@@ -85,8 +85,8 @@ export function CountyCompletenessPopup({ countyName, result, onLoad, onOpenSpec
         </div>
         <div style={{ ...CAPTION, marginTop: 3, marginBottom: 0 }}>
           {birded
-            ? "Countable species — spuhs, slashes & hybrids don't count."
-            : '0% — the county stays a plain outline on the map.'}
+            ? "Countable species: spuhs, slashes & hybrids don't count."
+            : '0%: the county stays a plain outline on the map.'}
         </div>
       </>
     )
@@ -100,7 +100,7 @@ export function CountyCompletenessPopup({ countyName, result, onLoad, onOpenSpec
   } else if (status === 'empty') {
     ebirdHalf = (
       <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', lineHeight: 1.45, padding: '2px 0' }}>
-        No species have been reported to eBird for this county yet — so there's no percentage to show.
+        No species have been reported to eBird for this county yet, so there's no percentage to show.
       </div>
     )
   } else if (status === 'no-region') {
@@ -118,7 +118,7 @@ export function CountyCompletenessPopup({ countyName, result, onLoad, onOpenSpec
         </div>
         {birded && (
           <div style={{ ...CAPTION, marginTop: 5, marginBottom: 0 }}>
-            You've recorded {x.toLocaleString()} countable species here — spuhs, slashes & hybrids don't count.
+            You've recorded {x.toLocaleString()} countable species here; spuhs, slashes & hybrids don't count.
           </div>
         )}
         {status === 'error' && (
@@ -137,7 +137,7 @@ export function CountyCompletenessPopup({ countyName, result, onLoad, onOpenSpec
         <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', lineHeight: 1.5, marginBottom: 10 }}>
           {birded
             ? 'Completeness hasn’t been fetched for this county yet.'
-            : `You haven’t birded ${countyName} yet — it stays a plain outline.`}
+            : `You haven’t birded ${countyName} yet, so it stays a plain outline.`}
         </div>
         <LoadButton label="Load completeness" onClick={onLoad} />
         <div style={{ ...CAPTION, margin: '8px 0 0' }}>
@@ -157,7 +157,7 @@ export function CountyCompletenessPopup({ countyName, result, onLoad, onOpenSpec
       {recentNew.length > 0 && (
         <div style={BLOCK}>
           <div style={TITLE}>Recently added</div>
-          <div style={CAPTION}>Your newest county species — from your backup, works offline.</div>
+          <div style={CAPTION}>Your newest county species, from your backup, works offline.</div>
           <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {recentNew.map(r => (
               <li key={r.commonName} style={LI}>
@@ -199,7 +199,7 @@ export function CountyCompletenessPopup({ countyName, result, onLoad, onOpenSpec
             ))}
           </ol>
           <div style={{ ...CAPTION, margin: '6px 0 0' }}>
-            Green names are on your life list — they open Species Detail. Others render plain.
+            Green names are on your life list: they open Species Detail. Others render plain.
           </div>
         </div>
       )}

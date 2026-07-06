@@ -322,7 +322,7 @@ export function AtlasLayer({ data, shade = false, breedingByBlock = null, useTex
               </ul>
               {listOverCap && (
                 <div style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 4, padding: '0 2px', lineHeight: 1.4 }}>
-                  Showing the first {MARKER_LIST_CAP} of {listTotal.toLocaleString()} in view — zoom in to narrow the list.
+                  Showing the first {MARKER_LIST_CAP} of {listTotal.toLocaleString()} in view. Zoom in to narrow the list.
                 </div>
               )}
             </div>

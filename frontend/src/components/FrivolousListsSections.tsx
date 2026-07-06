@@ -170,7 +170,7 @@ function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies, isHo
               </>
             ) : (
               <span style={{ flex: 1, fontSize: '0.8125rem', fontStyle: 'italic', color: 'var(--sr-text-disabled)' }}>
-                — no {color} bird yet
+                no {color} bird yet
               </span>
             )}
           </li>

@@ -170,7 +170,7 @@ export async function downloadRegion(
   }
   // FR-11a: never fetch a single tile byte while the toggle is off.
   if (!(await isOfflineMapsEnabled())) {
-    throw new Error('Offline maps are disabled — enable them in Settings first')
+    throw new Error('Offline maps are disabled. Enable them in Settings first')
   }
   // FR-20: region downloads are desktop-only (web/Pi can't durably persist GB blobs).
   if (!isTauri()) {

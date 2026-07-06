@@ -143,7 +143,7 @@ export function NamedBirdMedia({
                 onClick={handleShowMore}
                 // Accessible name = the visible label + a media-context suffix
                 // (superstring), so it leads with the exact on-screen text.
-                aria-label={`${showMoreLabel} — media of ${birdName}`}
+                aria-label={`${showMoreLabel}: media of ${birdName}`}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   height: 32, padding: '0 14px', borderRadius: 8,

@@ -25,6 +25,6 @@ export const EBIRD_BACKUP_STEPS: ReactNode[] = [
 export const ML_EXPORT_STEPS: ReactNode[] = [
   <>Go to <strong>macaulaylibrary.org</strong> → <strong>My Media</strong></>,
   <>Set the media-type filter to <strong>All</strong> (not just Birds) so every item is included</>,
-  <>Click <strong>Save Spreadsheet</strong> — don't rename the downloaded file</>,
+  <>Click <strong>Save Spreadsheet</strong>; don't rename the downloaded file</>,
   <>Upload it in <strong>Settings → Default Files → ML Export</strong></>,
 ]

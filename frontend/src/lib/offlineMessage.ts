@@ -34,10 +34,10 @@ export interface ClassifiedLiveError {
 // line is deliberately honest and reassuring (it'll work again on reconnect),
 // distinct from a server error and from a missing key.
 export const OFFLINE_MESSAGE =
-  "You're offline — this needs a connection. It'll work again when you reconnect.";
+  "You're offline. This needs a connection. It'll work again when you reconnect.";
 
 // A shorter variant for dense / inline spots (sidebars, compact rows).
-export const OFFLINE_MESSAGE_SHORT = "You're offline — this needs a connection.";
+export const OFFLINE_MESSAGE_SHORT = "You're offline. This needs a connection.";
 
 export const NO_KEY_MESSAGE = 'API key not configured. Add it in Settings.';
 
@@ -50,7 +50,7 @@ export const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 // (NOT "you're offline"). On desktop (Tauri) there is no local backend, so this
 // state cannot occur — see isLikelyBackendDown.
 export const BACKEND_DOWN_MESSAGE =
-  "Can't reach the SnowRaven server — make sure it's running, then try again.";
+  "Can't reach the SnowRaven server. Make sure it's running, then try again.";
 
 export const BACKEND_DOWN_MESSAGE_SHORT = "Can't reach the SnowRaven server.";
 
@@ -124,5 +124,5 @@ export function formatLoadedTime(ms: number): string {
 
 /** The full staleness cue text including the loaded time (FR-31). */
 export function stalenessCueText(replayedAt: number): string {
-  return `Offline — showing the last loaded result, from ${formatLoadedTime(replayedAt)}.`;
+  return `Offline: showing the last loaded result, from ${formatLoadedTime(replayedAt)}.`;
 }

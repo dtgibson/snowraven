@@ -102,7 +102,7 @@ function WeatherSummaryView({ s }: { s: WeatherSummary }) {
             )}
           </div>
           <div style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginTop: 1 }}>
-            {s.description}{s.isDaily ? ' — forecast for that day' : ''}
+            {s.description}{s.isDaily ? ', forecast for that day' : ''}
           </div>
         </div>
       </div>
@@ -288,9 +288,9 @@ export function WeatherForecastPanel() {
 
   const onPredictSubmit = useCallback(async () => {
     const c = coordRef.current
-    if (!c) { setSearchErr('Pick a place first — search, tap the map, or type coordinates.'); return }
+    if (!c) { setSearchErr('Pick a place first: search, tap the map, or type coordinates.'); return }
     if (!Number.isFinite(c.lat) || !Number.isFinite(c.lng) || c.lat < -90 || c.lat > 90 || c.lng < -180 || c.lng > 180) {
-      setSearchErr('Those coordinates are out of range — latitude is -90 to 90, longitude -180 to 180.'); return
+      setSearchErr('Those coordinates are out of range: latitude is -90 to 90, longitude -180 to 180.'); return
     }
     if (!dateStr || !timeStr) { setSearchErr('Choose a date and a time.'); return }
     const dtLocal = `${dateStr} ${timeStr}`
@@ -351,7 +351,7 @@ export function WeatherForecastPanel() {
 
       <div style={{ fontSize: '1.0625rem', fontWeight: 700, letterSpacing: '-0.01em' }}>Now, or any time ahead</div>
       <p style={{ margin: '4px 0 14px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>
-        Skip the checklist — get weather and tide for where you are, or for a place and time you choose.
+        Skip the checklist: get weather and tide for where you are, or for a place and time you choose.
       </p>
 
       <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '10px' }}>
@@ -397,7 +397,7 @@ export function WeatherForecastPanel() {
           <Suspense fallback={<div style={{ height: PREDICT_MAP_HEIGHT, borderRadius: 9, border: '1px solid var(--sr-border-input)', background: 'var(--sr-surface-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8125rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
             <PredictMap coord={coord} onPick={setCoord} />
           </Suspense>
-          <p style={{ margin: '7px 0 0', fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>Tap the map to drop a pin, drag to fine-tune — or type coordinates below.</p>
+          <p style={{ margin: '7px 0 0', fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>Tap the map to drop a pin, drag to fine-tune, or type coordinates below.</p>
 
           <div className="sr-grid-2" style={{ ['--sr-grid-gap' as string]: '12px', marginTop: 12 }}>
             <div>
@@ -463,7 +463,7 @@ export function WeatherForecastPanel() {
                 ? (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, background: 'var(--sr-warning-bg)', border: '1px solid var(--sr-warning-subtle)', color: 'var(--sr-warning)', borderRadius: 9, padding: '12px 14px', fontSize: '0.8125rem', lineHeight: 1.5 }}>
                     <AlertCircle size={16} strokeWidth={2.2} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden="true" />
-                    <span>No weather forecast reaches {formatDate(d.whenRaw)} — that's beyond the ~8-day window. The tide below is an astronomical prediction, so it's still solid this far out.</span>
+                    <span>No weather forecast reaches {formatDate(d.whenRaw)}. That's beyond the ~8-day window. The tide below is an astronomical prediction, so it's still solid this far out.</span>
                   </div>
                 )
                 : d.weatherErr

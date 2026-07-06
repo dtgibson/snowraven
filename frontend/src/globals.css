@@ -771,17 +771,11 @@ h1, h2, h3, h4, h5, h6 {
    display:grid can't be reached by a media query). */
 .sr-cal-months { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); }
 
-/* Year-Overview thumbnail in-cell day-of-month label (v0.5.63 — the big MonthGrid
-   cells are count-only at DESKTOP width; the date moved onto the thumbnails). Lifted to
-   a class so the phone tier can bump it for legibility (the ≤640 media block) — an inline
-   font-size would beat the media rule (inline specificity), so the size lives here. */
+/* Year-Overview thumbnail in-cell day-of-month label (v0.5.63 — the big MonthGrid cells
+   are count-only at EVERY width; the date lives only on the Large thumbnails, which are
+   reachable on the phone via the View toggle, v0.5.68). Its sole use is the mini-month
+   cells; sized in rem so it holds at 200% text scale. */
 .sr-cal-daynum { font-size: 0.5625rem; }
-
-/* Big MonthGrid per-day date, PHONE tier only (v0.5.64 — restores the date the phone's
-   forced big-grid view lost when v0.5.63 moved dates onto the Large thumbnails, which
-   never render on a phone). Hidden by default so DESKTOP big grids stay dateless (the
-   v0.5.63 decision preserved for wide viewports); the ≤640 block reveals it. */
-.sr-cal-bigday { display: none; }
 
 /* Calendar Year Overview — the 3×4 mini-month thumbnail grid. Explicit 3-up
    desktop, collapsing 3 → 2 (≤1024) → 1 (phone) via the media blocks below (the
@@ -1221,15 +1215,11 @@ select:focus-visible {
      before collapsing to one column at the small-phone tier. Tightened inter-month
      gap so the stacked single column needs less scroll (change 2). */
   .sr-cal-months { grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
-  /* Phones show only the Compact view — hide the view toggle (removes it from
-     the tab order + a11y tree; the render forces Compact via useIsPhone). Because the
-     dated Large thumbnails never render on a phone, the Compact cells carry the date
-     themselves here (v0.5.64): reveal the phone-only .sr-cal-bigday corner and bump
-     .sr-cal-daynum for legibility at the larger big-cell size (a phone big cell is far
-     wider than a thumbnail mini-cell). Desktop big grids stay dateless. */
-  .sr-cal-view-toggle { display: none; }
-  .sr-cal-bigday { display: inline; }
-  .sr-cal-daynum { font-size: 0.6875rem; }
+  /* The Calendar View toggle stays visible on the phone (v0.5.68): the two views are
+     distinct on mobile too — Compact = per-day counts (no date), Large = dated + shaded
+     mini-months (data on tap). The single-column Large card clears the 152px container-
+     query floor, so its mini-cell dates show on a phone. No phone force, no phone-only
+     date corner on the Compact cells. */
   .sr-grid-chart-aside { grid-template-columns: 1fr; }
   /* Component-local horizontal padding trim (reaches inline-padded containers
      via !important, same approach as .sr-card above). */

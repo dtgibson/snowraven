@@ -95,7 +95,7 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
       </div>
       {items.length === 0 ? (
         <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
-          None in the current map view — pan or zoom to bring markers into view.
+          None in the current map view. Pan or zoom to bring markers into view.
         </div>
       ) : (
         <>
@@ -144,7 +144,7 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
           </ul>
           {overCap && (
             <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
-              Showing the first {MARKER_LIST_CAP} of {total.toLocaleString()} in view — zoom in to narrow the list.
+              Showing the first {MARKER_LIST_CAP} of {total.toLocaleString()} in view. Zoom in to narrow the list.
             </div>
           )}
         </>
@@ -218,7 +218,7 @@ export function CountyCompletenessLegend({ useTextures }: { useTextures: boolean
   return (
     <div style={{ marginTop: 12 }} aria-live="polite">
       <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
-        Completeness — % of the county list
+        Completeness: % of the county list
       </div>
       {COMPLETENESS_BANDS.map(b => (
         <div key={b.band} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
@@ -231,11 +231,11 @@ export function CountyCompletenessLegend({ useTextures }: { useTextures: boolean
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 8, marginBottom: 6 }}>
         <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 3, flexShrink: 0, border: '1px dashed var(--sr-border-medium)', background: 'transparent' }} />
         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>
-          Not birded / not fetched <span style={{ color: 'var(--sr-text-muted)' }}>— outline only</span>
+          Not birded / not fetched <span style={{ color: 'var(--sr-text-muted)' }}>(outline only)</span>
         </span>
       </div>
       <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.45 }}>
-        Fixed 0–100% bands — the same shade always means the same completeness, in every county.
+        Fixed 0–100% bands: the same shade always means the same completeness, in every county.
       </div>
     </div>
   )

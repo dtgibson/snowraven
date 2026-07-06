@@ -266,7 +266,7 @@ function TriPill({ label, state, onCycle, icon, hasLabel, noLabel }: {
     <button tabIndex={0}
       onClick={onCycle}
       aria-pressed={state !== null}
-      title={`${label} — click to cycle: any / has / doesn't have`}
+      title={`${label}. Click to cycle: any / has / doesn't have`}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 5,
         height: 30, padding: '0 11px', borderRadius: 15,
@@ -563,7 +563,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
         <div>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-text)' }}>Checklists</h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: 0, lineHeight: 1.5 }}>
-            Every checklist you've submitted — search the comments you wrote, and browse or filter the full list of your outings.
+            Every checklist you've submitted. Search the comments you wrote, and browse or filter the full list of your outings.
           </p>
         </div>
       </div>
@@ -594,7 +594,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
         <CommentSearchBox
           icon={<MessagesSquare size={14} strokeWidth={2.2} />}
           title="Species Comments"
-          sub="notes you wrote on individual sightings — all species"
+          sub="notes you wrote on individual sightings, all species"
           placeholder="Filter species comments…"
           entries={speciesComments}
           emptyAll="No species comments found."

@@ -1061,7 +1061,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 role="switch"
                 aria-checked={shadeByBreeding}
                 aria-label="Shade atlas blocks by my highest breeding code"
-                title="Only one shading shows at a time — turning this on switches off county shading."
+                title="Only one shading shows at a time: turning this on switches off county shading."
                 disabled={!backupReady}
                 tabIndex={0}
                 onClick={() => backupReady && handleShadeBreeding()}
@@ -1177,7 +1177,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   role="switch"
                   aria-checked={shadeByCounty}
                   aria-label="Shade counties by the selected metric"
-                  title="Only one shading shows at a time — turning this on switches off atlas shading."
+                  title="Only one shading shows at a time: turning this on switches off atlas shading."
                   aria-disabled={!backupReady}
                   disabled={!backupReady}
                   tabIndex={0}
@@ -1197,8 +1197,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
                 {backupReady
                   ? (countyMetric === 'completeness' && shadeByCounty
-                      ? 'Tints each county by how complete your county list is — your backup measured against everything reported on eBird.'
-                      : 'Tints each county by your own count there — drawn only from your loaded backup.')
+                      ? 'Tints each county by how complete your county list is: your backup measured against everything reported on eBird.'
+                      : 'Tints each county by your own count there, drawn only from your loaded backup.')
                   : 'Load your eBird backup in Settings to use this.'}
                 {backupReady && shadeByBreeding && ' Turning this on switches off atlas shading.'}
               </div>
@@ -1291,7 +1291,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                       <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 8, marginBottom: 6 }}>
                         <span aria-hidden="true" style={{ width: 26, height: 15, borderRadius: 3, flexShrink: 0, border: '1px dashed var(--sr-border-medium)', background: 'transparent' }} />
                         <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>
-                          No records <span style={{ color: 'var(--sr-text-muted)' }}>— outline only</span>
+                          No records <span style={{ color: 'var(--sr-text-muted)' }}>(outline only)</span>
                         </span>
                       </div>
                       <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.45 }}>
@@ -1828,7 +1828,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               </div>
               {targetsInView.visible.length === 0 ? (
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
-                  None in the current map view — pan or zoom to bring targets into view.
+                  None in the current map view. Pan or zoom to bring targets into view.
                 </div>
               ) : (
                 <ul role="list" aria-label="Targets in view" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
@@ -1894,7 +1894,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               )}
               {targetsInView.overCap && (
                 <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
-                  Showing the first {MARKER_LIST_CAP} of {targetsInView.total.toLocaleString()} in view — zoom in to narrow the list.
+                  Showing the first {MARKER_LIST_CAP} of {targetsInView.total.toLocaleString()} in view. Zoom in to narrow the list.
                 </div>
               )}
                 </div>

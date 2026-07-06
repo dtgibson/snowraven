@@ -17,7 +17,7 @@ describe('ChecklistLink', () => {
 
   it('leads the accessible name with the visible label (WCAG 2.5.3 Label in Name)', () => {
     render(<ChecklistLink submissionId="S999" label="Jun 5, 2024" />)
-    const link = screen.getByRole('link', { name: 'Jun 5, 2024 — open checklist on eBird (opens in a new tab)' })
+    const link = screen.getByRole('link', { name: 'Jun 5, 2024: open checklist on eBird (opens in a new tab)' })
     expect(link.textContent).toContain('Jun 5, 2024')
     // The raw id is not shown when a human-readable label is given.
     expect(link.textContent).not.toContain('S999')
@@ -46,7 +46,7 @@ describe('ChecklistLink', () => {
 
   it('checklistLinkAriaLabel leads with the label when present, else names the id', () => {
     expect(checklistLinkAriaLabel('S1')).toBe('Open checklist S1 on eBird (opens in a new tab)')
-    expect(checklistLinkAriaLabel('S1', '12 species')).toBe('12 species — open checklist on eBird (opens in a new tab)')
+    expect(checklistLinkAriaLabel('S1', '12 species')).toBe('12 species: open checklist on eBird (opens in a new tab)')
     // A label equal to the id collapses to the id-based form (no redundancy).
     expect(checklistLinkAriaLabel('S1', 'S1')).toBe('Open checklist S1 on eBird (opens in a new tab)')
   })

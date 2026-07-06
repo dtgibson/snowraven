@@ -136,7 +136,7 @@ export function SightingsGraph({ data, interval, viewMode, hasML }: {
       {hasAnyMedia && (
         <SectionCard>
           <SectionHead icon={<TrendingUp size={14} strokeWidth={2.2} />} title="Media Over Time" />
-          <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Media over time line chart — photo, audio, and video. ${mediaAxisLabel}`}>
+          <div style={{ padding: '14px 18px 0' }} role="img" aria-label={`Media over time line chart: photo, audio, and video. ${mediaAxisLabel}`}>
             <div style={{ marginBottom: 12 }}>
               <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', letterSpacing: '0.01em' }}>{mediaAxisLabel}</span>
             </div>

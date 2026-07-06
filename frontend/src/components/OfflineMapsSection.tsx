@@ -128,7 +128,7 @@ export function OfflineMapsSection() {
             <Monitor size={15} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0, marginTop: 1, color: 'var(--sr-text-muted)' }} />
             <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--sr-text-muted)', lineHeight: 1.55 }}>
               Downloadable offline map regions are available in the desktop app. Nothing is stored either way until you
-              choose to download — your maps and data stay on your device.
+              choose to download. Your maps and data stay on your device.
             </p>
           </div>
         </div>

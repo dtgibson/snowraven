@@ -207,7 +207,7 @@ describe('CountyCompletenessPopup — degraded states (FR-24/25/29/30/31, NFR-08
 describe('CountyCompletenessLegend — fixed 0–100% scale (FR-27)', () => {
   it('shows ten fixed percentage ranges, the unshaded entry, and the fixed-bands caption', () => {
     render(<CountyCompletenessLegend useTextures={false} />)
-    expect(screen.getByText('Completeness — % of the county list')).toBeTruthy()
+    expect(screen.getByText('Completeness: % of the county list')).toBeTruthy()
     expect(screen.getByText('1–10%')).toBeTruthy()
     expect(screen.getByText('41–50%')).toBeTruthy()
     expect(screen.getByText('91–100%')).toBeTruthy()

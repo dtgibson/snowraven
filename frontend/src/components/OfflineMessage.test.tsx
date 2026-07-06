@@ -67,7 +67,7 @@ describe('StalenessCue — replayed-result provenance (QA-21/QA-27)', () => {
     const ms = new Date(2026, 5, 19, 9, 15).getTime();
     render(<StalenessCue replayedAt={ms} />);
     const node = screen.getByRole('status');
-    expect(node.textContent).toContain('Offline — showing the last loaded result');
+    expect(node.textContent).toContain('Offline: showing the last loaded result');
     expect(node.textContent).toContain(formatLoadedTime(ms));
   });
 });

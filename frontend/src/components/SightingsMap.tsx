@@ -59,7 +59,7 @@ export function SightingsMap({ markers, switcher = true }: {
     >
       {markers.map(m => {
         const n = m.sightings.length
-        const label = `${m.lat.toFixed(4)}, ${m.lng.toFixed(4)} — ${n} sighting${n === 1 ? '' : 's'}`
+        const label = `${m.lat.toFixed(4)}, ${m.lng.toFixed(4)}: ${n} sighting${n === 1 ? '' : 's'}`
         return (
           <Marker key={`${m.lat},${m.lng}`} longitude={m.lng} latitude={m.lat} anchor="bottom"
             ref={neutralizeMarkerWrapper}

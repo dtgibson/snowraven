@@ -68,11 +68,11 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
         </div>
 
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '14px 0 8px', letterSpacing: '-0.2px' }}>
-          Welcome — let's get you set up
+          Welcome, let's get you set up
         </h1>
         <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', lineHeight: 1.6, margin: '0 0 24px' }}>
           SnowRaven turns your own eBird and Macaulay Library exports into a personal birding
-          dashboard — all on your device, nothing collected. Two quick things unlock everything:
+          dashboard, all on your device, nothing collected. Two quick things unlock everything:
         </p>
 
         <div style={{

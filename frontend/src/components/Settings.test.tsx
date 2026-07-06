@@ -225,7 +225,7 @@ describe('Settings — iOS wirings (FR-12/FR-13/FR-15, supportsAppRelaunch)', ()
       const btn = screen.getByRole('button', { name: 'Rebuild caches' })
       fireEvent.click(btn)
       await waitFor(() => {
-        expect(screen.getByRole('status').textContent).toMatch(/Caches cleared — close and reopen/i)
+        expect(screen.getByRole('status').textContent).toMatch(/Caches cleared\. Close and reopen/i)
       })
       // Not stranded: the button is enabled again, and the desktop-only
       // process plugin was never touched.

@@ -143,11 +143,11 @@ export function WeatherTideSection({ idA, idB, metaA, metaB, keyStatus, onGoToSe
         <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {missing.includes('eBird') && (
             <Nudge onGoToSettings={onGoToSettings}
-              text="eBird API key not configured — weather & tide lookups require an eBird API key." />
+              text="eBird API key not configured. Weather & tide lookups require an eBird API key." />
           )}
           {missing.includes('OpenWeather') && (
             <Nudge onGoToSettings={onGoToSettings}
-              text="OpenWeather API key not configured — weather lookups won't return conditions." />
+              text="OpenWeather API key not configured. Weather lookups won't return conditions." />
           )}
         </div>
       ) : !loaded ? (

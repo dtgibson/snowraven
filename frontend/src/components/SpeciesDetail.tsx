@@ -721,7 +721,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                         {sightingsStats.totalIndividuals}
                       </div>
                     ) : (
-                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-muted)' }}>—</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-muted)' }}>-</div>
                     )}
                   </div>
                   {frequencyDisplay !== null && (
@@ -749,7 +749,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     {sightingsStats.bestObs ? (
                       <StatValueLink value={String(sightingsStats.bestCount)} submissionId={sightingsStats.bestObs.submissionId} />
                     ) : (
-                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-muted)' }}>—</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--sr-text-muted)' }}>-</div>
                     )}
                   </div>
                   <div>

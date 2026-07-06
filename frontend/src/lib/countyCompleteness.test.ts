@@ -234,8 +234,8 @@ describe('computeCompleteness — combined result (FR-09 clamp, FR-24/FR-25 shap
 describe('cacheLineText', () => {
   const DAY = 86_400_000
   it('reads "just now" same-day and "N days ago" after that', () => {
-    expect(cacheLineText(1000, 1000)).toBe('eBird data fetched just now — cached for 30 days')
-    expect(cacheLineText(1000, 1000 + DAY)).toBe('eBird data from 1 day ago — cached for 30 days')
-    expect(cacheLineText(1000, 1000 + 3 * DAY)).toBe('eBird data from 3 days ago — cached for 30 days')
+    expect(cacheLineText(1000, 1000)).toBe('eBird data fetched just now, cached for 30 days')
+    expect(cacheLineText(1000, 1000 + DAY)).toBe('eBird data from 1 day ago, cached for 30 days')
+    expect(cacheLineText(1000, 1000 + 3 * DAY)).toBe('eBird data from 3 days ago, cached for 30 days')
   })
 })

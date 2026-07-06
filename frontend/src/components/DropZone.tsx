@@ -77,7 +77,7 @@ export function DropZone({ label, file, error, onFile }: DropZoneProps) {
       onMouseLeave={() => setIsHovered(false)}
       tabIndex={0}
       role="button"
-      aria-label={`Upload ${label} — click or drag and drop a CSV file`}
+      aria-label={`Upload ${label}: click or drag and drop a CSV file`}
     >
       <input
         ref={inputRef}

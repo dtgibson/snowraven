@@ -210,7 +210,7 @@ function AppearanceRow() {
             margin: '0 0 10px',
             lineHeight: 1.55,
           }}>
-            Your preference will be saved in this browser's local storage — on this device only. Nothing is sent to the server.
+            Your preference will be saved in this browser's local storage, on this device only. Nothing is sent to the server.
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
             <button tabIndex={0}
@@ -1018,12 +1018,12 @@ function RebuildCachesButton() {
       </button>
       {status === 'cleared' && (
         <span role="status" style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', minWidth: 0 }}>
-          Caches cleared — close and reopen SnowRaven to finish.
+          Caches cleared. Close and reopen SnowRaven to finish.
         </span>
       )}
       {status === 'error' && (
         <span role="alert" style={{ fontSize: '0.75rem', color: 'var(--sr-error)', minWidth: 0 }}>
-          Couldn't restart automatically. Caches were cleared — quit and reopen the app to finish.
+          Couldn't restart automatically. Caches were cleared; quit and reopen the app to finish.
         </span>
       )}
     </div>
@@ -1338,7 +1338,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
             label="OpenWeather API Key"
             sublabel="Not configured"
             hint={<>Create a key at{' '}
-              <OutboundLink href="https://openweathermap.org/api" style={{ color: 'var(--sr-accent)', fontWeight: 500 }}>openweathermap.org</OutboundLink>, then subscribe it to the free <strong>“One Call by Call”</strong> plan — weather lookups fail without that subscription.</>}
+              <OutboundLink href="https://openweathermap.org/api" style={{ color: 'var(--sr-accent)', fontWeight: 500 }}>openweathermap.org</OutboundLink>, then subscribe it to the free <strong>“One Call by Call”</strong> plan. Weather lookups fail without that subscription.</>}
             value={keys.openweather}
             visible={openweatherKeyVisible}
             editing={openweatherKeyEditing}
@@ -1357,8 +1357,8 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
 
       <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginTop: 10, lineHeight: 1.5, marginBottom: 24 }}>
         {isTauri()
-          ? 'Keys are stored in this app\'s local data directory and take effect immediately — no restart needed.'
-          : 'Keys are stored in the server\'s .env file and take effect immediately — no restart needed. They stay configured across app restarts.'}
+          ? 'Keys are stored in this app\'s local data directory and take effect immediately; no restart needed.'
+          : 'Keys are stored in the server\'s .env file and take effect immediately; no restart needed. They stay configured across app restarts.'}
       </p>
 
       <SectionHeader label="Default Files" />
@@ -1366,7 +1366,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
       <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden' }}>
         <FileRow
           label="eBird Backup"
-          sublabel="Your eBird sightings export — used across most tabs"
+          sublabel="Your eBird sightings export, used across most tabs"
           info={status.ebird}
           uploading={ebirdUploading}
           error={ebirdError}
@@ -1377,7 +1377,7 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
         <div style={{ borderTop: '1px solid var(--sr-border-subtle)' }}>
           <FileRow
             label="ML Export"
-            sublabel="Your Macaulay Library export — powers the Multimedia tab"
+            sublabel="Your Macaulay Library export, powers the Multimedia tab"
             info={status.ml}
             uploading={mlUploading}
             error={mlError}

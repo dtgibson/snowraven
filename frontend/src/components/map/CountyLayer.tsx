@@ -371,7 +371,7 @@ export function CountyLayer({
                   neither 'species' nor 'records'). */}
               <div style={{ display: 'flex', gap: 18, marginTop: 9 }}>
                 <CountStat n={selSpecies} label="species" active={metric === 'species'} title="Distinct species you've recorded in this county" />
-                <CountStat n={selRecords} label="checklists" active={metric === 'records'} title="Your checklists in this county — not individual birds counted" />
+                <CountStat n={selRecords} label="checklists" active={metric === 'records'} title="Your checklists in this county, not individual birds counted" />
               </div>
 
               {metric === 'completeness' && completeness ? (
@@ -527,7 +527,7 @@ export function CountyLayer({
               </ul>
               {listOverCap && (
                 <div style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 4, padding: '0 2px', lineHeight: 1.4 }}>
-                  Showing the first {MARKER_LIST_CAP} of {listTotal.toLocaleString()} in view — zoom in to narrow the list.
+                  Showing the first {MARKER_LIST_CAP} of {listTotal.toLocaleString()} in view. Zoom in to narrow the list.
                 </div>
               )}
             </div>

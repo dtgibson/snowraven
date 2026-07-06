@@ -45,8 +45,8 @@ function BreedingBadge({ apiCode }: { apiCode: string | null }) {
   return (
     <span
       role="img"
-      aria-label={`${def.code} — ${def.label}`}
-      title={`${def.code} — ${def.label}`}
+      aria-label={`${def.code}: ${def.label}`}
+      title={`${def.code}: ${def.label}`}
       style={{
         flexShrink: 0, padding: '1px 4px', borderRadius: 4, fontSize: '0.625rem', fontWeight: 700,
         lineHeight: 1.4, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.02em',
@@ -135,7 +135,7 @@ function sortRows(rows: ChecklistRow[], sort: Sort): ChecklistRow[] {
 
 // A single count value; the higher of the two on a shared species is emphasized.
 function Count({ value, emphasized }: { value: string | null; emphasized: boolean }) {
-  if (value === null) return <span style={{ color: 'var(--sr-text-muted)' }}>—</span>
+  if (value === null) return <span style={{ color: 'var(--sr-text-muted)' }}>-</span>
   return (
     <span style={{
       fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
@@ -240,7 +240,7 @@ export function ChecklistComparer({ onOpenSpecies, keyStatus, onGoToSettings }: 
       return
     }
     if (a === b) {
-      setError("Those are the same checklist — enter two different ones.")
+      setError("Those are the same checklist. Enter two different ones.")
       return
     }
     setLoading(true)

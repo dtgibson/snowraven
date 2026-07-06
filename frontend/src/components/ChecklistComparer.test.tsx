@@ -70,7 +70,7 @@ describe('ChecklistComparer — per-species cell a11y', () => {
   it('announces the breeding badge as an image with code and label (F004)', async () => {
     await compare()
     // NY → "Recently..."? NY is "Nest with Young". role="img" makes the label reliable.
-    const badge = screen.getByRole('img', { name: 'NY — Nest with Young' })
+    const badge = screen.getByRole('img', { name: 'NY: Nest with Young' })
     expect(badge).toBeTruthy()
     // Uses the per-tier text token (tier 4), never the old flat --sr-on-accent.
     expect(badge.getAttribute('style')).toContain('var(--sr-tier-4-text)')

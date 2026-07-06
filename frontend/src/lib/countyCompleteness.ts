@@ -297,8 +297,8 @@ export function computeCompleteness(
 
 export function cacheLineText(fetchedAt: number, nowMs: number): string {
   const days = Math.floor((nowMs - fetchedAt) / 86_400_000)
-  if (days <= 0) return 'eBird data fetched just now — cached for 30 days'
-  return `eBird data from ${days} day${days === 1 ? '' : 's'} ago — cached for 30 days`
+  if (days <= 0) return 'eBird data fetched just now, cached for 30 days'
+  return `eBird data from ${days} day${days === 1 ? '' : 's'} ago, cached for 30 days`
 }
 
 // ── Date formatting for the popup's recent-new rows ────────────────────────────

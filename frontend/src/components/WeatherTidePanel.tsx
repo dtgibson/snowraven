@@ -127,7 +127,7 @@ function ReconciliationNote() {
       <Info size={13} strokeWidth={2.25} style={{ flexShrink: 0, marginTop: 1, color: 'var(--sr-accent)' }} aria-hidden="true" />
       <span>
         This checklist's comment already includes a weather block. OpenWeather revises its historical
-        data over time, so this fresh lookup may differ from what's in the comment — SnowRaven shows
+        data over time, so this fresh lookup may differ from what's in the comment. SnowRaven shows
         what the API returns now.
       </span>
     </div>

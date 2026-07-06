@@ -100,7 +100,7 @@ describe('NamedBirdMedia — bounded batch + Show more (FR-12)', () => {
     // …and the accessible name is a SUPERSTRING of that visible text.
     const accName = btn.getAttribute('aria-label')!
     expect(accName).toContain(visible)
-    expect(accName).toBe('Show 5 more (of 11) — media of Winky')
+    expect(accName).toBe('Show 5 more (of 11): media of Winky')
   })
 
   it('does not drop focus to <body> when the final reveal exhausts the list (WCAG 2.4.3)', () => {

@@ -45,7 +45,7 @@ export interface ChecklistLinkProps {
 // eslint-disable-next-line react-refresh/only-export-components -- pure accessible-name formula, tested directly; lives here beside the component it names
 export function checklistLinkAriaLabel(submissionId: string, label?: string): string {
   if (label && label !== submissionId) {
-    return `${label} — open checklist on eBird (opens in a new tab)`
+    return `${label}: open checklist on eBird (opens in a new tab)`
   }
   return `Open checklist ${submissionId} on eBird (opens in a new tab)`
 }

@@ -70,7 +70,7 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
             : ''
           labelHtml = `${escHtml(pin.comName)}${iconsHtml}`
           const missing = pin.missingTypes.length > 0
-            ? ` — missing ${pin.missingTypes.map(t => t.toLowerCase()).join(', ')}`
+            ? `, missing ${pin.missingTypes.map(t => t.toLowerCase()).join(', ')}`
             : ''
           ariaLabel = `${pin.comName}${missing}, at ${rep.locName}`
         } else {

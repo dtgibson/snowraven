@@ -465,7 +465,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           <button tabIndex={0}
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}
-            title={wideMode ? 'Collapse table into scroll box' : 'Expand table — scroll the whole page on mobile'}
+            title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
           >
             {wideMode ? '↔ Normal' : '↔ Unbounded'}
           </button>

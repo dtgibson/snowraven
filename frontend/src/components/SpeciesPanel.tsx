@@ -59,7 +59,7 @@ export function SpeciesPanel({ title, species, taxonMap = {}, hasEntry = false, 
           margin: 0,
         }}
         role="list"
-        aria-label={`${title} — ${species.length} species`}
+        aria-label={`${title}: ${species.length} species`}
       >
         {species.length === 0 ? (
           <li style={{ padding: '32px 18px', fontSize: '0.8125rem', color: 'var(--sr-text-muted)', textAlign: 'center' }}>

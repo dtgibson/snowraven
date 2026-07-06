@@ -253,7 +253,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
           {youngSpecies.length > 0 && (
             <>
               <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', margin: '0 0 8px' }}>
-                Species you've documented as a juvenile or immature — a filled dot marks each age class you've captured.
+                Species you've documented as a juvenile or immature. A filled dot marks each age class you've captured.
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginBottom: 8 }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Dot on color={AGE_COLOR.Adult} /> Adult</span>
@@ -308,7 +308,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
               return (
                 <BarRow key={b.label} label={b.label} value={b.value} max={topBehaviors[0]?.value ?? 1} labelWidth={120}
                   href={href}
-                  linkLabel={href ? `${fmt(b.value)} — Open your ${b.label} media in the Macaulay Library` : undefined} />
+                  linkLabel={href ? `${fmt(b.value)}: Open your ${b.label} media in the Macaulay Library` : undefined} />
               )
             })}
           </div>
@@ -333,7 +333,7 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
                       return (
                         <BarRow key={b.label} label={b.label} value={b.value} max={breedingBehaviors[0]?.value ?? 1} labelWidth={120}
                           href={href}
-                          linkLabel={href ? `${fmt(b.value)} — Open your ${b.label} media in the Macaulay Library` : undefined} />
+                          linkLabel={href ? `${fmt(b.value)}: Open your ${b.label} media in the Macaulay Library` : undefined} />
                       )
                     })}
                   </div>

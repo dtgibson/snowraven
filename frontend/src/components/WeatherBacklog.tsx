@@ -240,7 +240,7 @@ function BacklogRowView({
             <SquarePen {...ICON} aria-hidden="true" />
           </OutboundLink>
         ) : (
-          <span className="sr-touch-target" title="Comment/edit page unavailable — this checklist has no valid eBird id"
+          <span className="sr-touch-target" title="Comment/edit page unavailable: this checklist has no valid eBird id"
             style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, border: '1px solid var(--sr-border-subtle)', borderRadius: 8, color: 'var(--sr-text-disabled)' }}
             aria-label="Comment/edit page unavailable for this checklist"
           >
@@ -256,7 +256,7 @@ function BacklogRowView({
           aria-busy={busy}
           aria-label={
             state.kind === 'success'
-              ? `Weather copied for the ${dateLabel} checklist — comment page opened`
+              ? `Weather copied for the ${dateLabel} checklist. Comment page opened`
               : `Copy this checklist's weather and open its comment page on eBird`
           }
           className="sr-touch-target"
@@ -285,14 +285,14 @@ function BacklogRowView({
         {state.kind === 'looking-up' || state.kind === 'copying'
           ? `Looking up weather for the ${dateLabel} checklist.`
           : state.kind === 'success'
-            ? 'Weather copied. Comment page opened in a new tab — paste to add it.'
+            ? 'Weather copied. Comment page opened in a new tab. Paste to add it.'
             : ''}
       </span>
 
       {/* Inline failure states (role=alert). The comment page is NOT opened. */}
       {state.kind === 'error-offline' && (
         <RowStatus tone="error" icon={<WifiOff {...ICON} aria-hidden="true" />}>
-          <b>You're offline.</b> The weather lookup needs a connection. Nothing was copied and the comment page wasn't opened — try again when you're back online.
+          <b>You're offline.</b> The weather lookup needs a connection. Nothing was copied and the comment page wasn't opened. Try again when you're back online.
         </RowStatus>
       )}
       {state.kind === 'error-no-key' && (
@@ -444,7 +444,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
             <StateBlock
               icon={<FileText width={22} height={22} strokeWidth={2} aria-hidden="true" />}
               title="Load your eBird backup first"
-              body="The backlog is built from your downloaded eBird data. Import your MyEBirdData export and this list fills in automatically — no lookups needed to build it."
+              body="The backlog is built from your downloaded eBird data. Import your MyEBirdData export and this list fills in automatically; no lookups needed to build it."
               cta={onGoToImport ? { label: 'Go to Import', onClick: onGoToImport } : undefined}
             />
           ) : (
@@ -484,7 +484,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                     }} />
                   </button>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)', minWidth: 0 }}>
-                    Also show incomplete &amp; incidental <span style={{ color: 'var(--sr-text-muted)', fontWeight: 400 }}>— widens the list</span>
+                    Also show incomplete &amp; incidental <span style={{ color: 'var(--sr-text-muted)', fontWeight: 400 }}>(widens the list)</span>
                   </span>
                 </div>
               </div>

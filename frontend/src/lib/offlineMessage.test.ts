@@ -138,10 +138,10 @@ describe('staleness cue formatting (QA-21/QA-27)', () => {
     expect(out).toMatch(/10:30/);
   });
 
-  it('stalenessCueText leads with "Offline — showing the last loaded result"', () => {
+  it('stalenessCueText leads with "Offline: showing the last loaded result"', () => {
     const ms = new Date(2026, 5, 19, 10, 30).getTime();
     const text = stalenessCueText(ms);
-    expect(text).toContain('Offline — showing the last loaded result');
+    expect(text).toContain('Offline: showing the last loaded result');
     expect(text).toContain(formatLoadedTime(ms));
   });
 });

@@ -443,7 +443,7 @@ export default function App() {
   // (core:window:allow-set-title). Label sourced the same way the nav does.
   const activeTabLabel = activeTab === 'settings' ? 'Settings' : TAB_LABELS[activeTab]
   useEffect(() => {
-    const title = `${activeTabLabel} — SnowRaven`
+    const title = `${activeTabLabel} · SnowRaven`
     document.title = title
     if (isTauri()) {
       void import('@tauri-apps/api/window')
@@ -762,7 +762,7 @@ export default function App() {
                 border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
                 fontSize: '0.8125rem', color: 'var(--sr-warning)',
               }}>
-                <span className="sr-min0">eBird API key not configured — weather lookups require an eBird API key.</span>
+                <span className="sr-min0">eBird API key not configured. Weather lookups require an eBird API key.</span>
                 <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{
@@ -781,7 +781,7 @@ export default function App() {
                 border: '1px solid var(--sr-warning-subtle)', borderRadius: 8,
                 fontSize: '0.8125rem', color: 'var(--sr-warning)',
               }}>
-                <span className="sr-min0">OpenWeather API key not configured — weather lookups won't return conditions. If you don't use weather features, you can disable or move this tab in Settings.</span>
+                <span className="sr-min0">OpenWeather API key not configured. Weather lookups won't return conditions. If you don't use weather features, you can disable or move this tab in Settings.</span>
                 <button tabIndex={0}
                   onClick={() => setActiveTab('settings')}
                   style={{

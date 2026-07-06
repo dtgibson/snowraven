@@ -142,7 +142,7 @@ async function fetchTaxonomyOnline(): Promise<TaxonomyCache> {
     throw new Error('eBird returned an unexpected response format. Try again later.');
   }
   if (!Array.isArray(taxonomy) || taxonomy.length < 100) {
-    throw new Error(`eBird taxonomy returned ${Array.isArray(taxonomy) ? taxonomy.length : 0} entries — expected 10,000+. Check your API key in Settings.`);
+    throw new Error(`eBird taxonomy returned ${Array.isArray(taxonomy) ? taxonomy.length : 0} entries; expected 10,000+. Check your API key in Settings.`);
   }
   const bySci: Record<string, string> = {};
   const byCom: Record<string, string> = {};

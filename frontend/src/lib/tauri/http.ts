@@ -26,7 +26,7 @@ export async function tauriFetch(
   } catch (err) {
     if (controller.signal.aborted) {
       throw Object.assign(
-        new Error('The request timed out — check your connection and try again.'),
+        new Error('The request timed out. Check your connection and try again.'),
         { status: 0, timeout: true },
       )
     }

@@ -159,7 +159,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
       <div style={placeholderStyle} role={loadError ? 'alert' : 'status'}>
         {loadError ? (
           <>
-            <span>{"Map couldn't load — check your connection."}</span>
+            <span>{"Map couldn't load. Check your connection."}</span>
             <button
               type="button"
               tabIndex={0}
@@ -233,7 +233,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
                   aria-disabled={rasterOffline || undefined}
                   aria-describedby={rasterOffline ? offlineCueId : undefined}
                   title={rasterOffline ? `${BASE_LABEL[k]} is unavailable offline` : undefined}
-                  aria-label={rasterOffline ? `${BASE_LABEL[k]} — unavailable offline` : undefined}
+                  aria-label={rasterOffline ? `${BASE_LABEL[k]}: unavailable offline` : undefined}
                   onClick={() => { if (!rasterOffline) selectBase(k) }}
                   style={rasterOffline ? { opacity: 0.5, cursor: 'not-allowed', color: 'var(--sr-text-disabled)' } : undefined}
                 >
@@ -254,7 +254,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
               disabled={offline}
               aria-disabled={offline || undefined}
               aria-describedby={offline ? offlineCueId : undefined}
-              aria-label={offline ? 'Trails — unavailable offline' : 'Trails'}
+              aria-label={offline ? 'Trails: unavailable offline' : 'Trails'}
               tabIndex={offline ? -1 : 0}
             />
             Trails
@@ -264,7 +264,7 @@ export function SnowMap({ initialViewState, style, children, onLoad, switcher, s
               Referenced by aria-describedby from each disabled raster control. */}
           {offline && (
             <span id={offlineCueId} role="status" style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', lineHeight: 1.4, maxWidth: 180 }}>
-              You're offline — Satellite, Topo, and Trails need a connection.
+              You're offline. Satellite, Topo, and Trails need a connection.
             </span>
           )}
         </div>

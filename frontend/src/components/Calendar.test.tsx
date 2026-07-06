@@ -142,7 +142,7 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     // sub-line names individuals
     expect(screen.getByText(/Individuals recorded each day/)).toBeTruthy()
     // the 2025-03-14 rich day (3 species × count 1 = 3 individuals) still reads 3
-    expect(screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })).toBeTruthy()
   })
 
   it('Total count honors the include-forms toggle (it is NOT disabled for this metric) (change 1)', async () => {
@@ -208,7 +208,7 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     // lives in the March thumbnail; scope the query to that card so we hit the overview
     // cell, not any Compact cell (Compact isn't mounted in Large mode, but scoping is
     // explicit). It sits inside a .sr-cal-minimonth (proving it's the overview trigger).
-    const dayBtn = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    const dayBtn = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
     expect(dayBtn.closest('.sr-cal-minimonth')).toBeTruthy()
 
     fireEvent.click(dayBtn)
@@ -240,7 +240,7 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
     // The 2025-06-01 spuh-only day is present-but-zero under Species; its overview cell
     // carries the same accessible name as the Compact zero cell and opens the popup.
-    const zeroBtn = screen.getByRole('button', { name: /Jun 1, 2025 — birded, 0 countable species\. Open day details/ })
+    const zeroBtn = screen.getByRole('button', { name: /Jun 1, 2025: birded, 0 countable species\. Open day details/ })
     expect(zeroBtn.closest('.sr-cal-minimonth')).toBeTruthy()
     fireEvent.click(zeroBtn)
     const dialog = await screen.findByRole('dialog')
@@ -249,8 +249,10 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
 })
 
 // Install a matchMedia stub that reports the phone media query (max-width:640px) as
-// matching, so useIsPhone() returns true. Returns a restore fn. Module-level so both the
-// "phone forces Large view" and the "phone big-grid dates" describes can use it.
+// matching. Returns a restore fn. The Calendar no longer forces a mode by width (the
+// v0.5.61/v0.5.64 phone force + phone-only date corner were removed in v0.5.68), so this
+// only proves the view toggle is width-agnostic: matching the phone query changes nothing
+// about which view mounts — the toggle governs at every width.
 function stubPhoneMatchMedia(matches: boolean) {
   const orig = window.matchMedia
   window.matchMedia = ((query: string) => ({
@@ -266,127 +268,132 @@ function stubPhoneMatchMedia(matches: boolean) {
   return () => { window.matchMedia = orig }
 }
 
-describe('Calendar — phone forces Large view (change 2)', () => {
-  it('at phone width the overview (Large) branch never renders even after the toggle is clicked (forced to the big month grids)', async () => {
-    // jsdom does not evaluate the @media(max-width:640px){display:none} that hides the
-    // toggle, so the toggle buttons remain in the DOM here. What we CAN assert is the
-    // render-force: effectiveMode = 'months' on a phone, so clicking "Large" never
-    // mounts the mini-month (YearOverview) branch — the real guarantee of change 2.
+describe('Calendar — the View toggle governs at ALL widths, including a phone (v0.5.68)', () => {
+  it('at phone width clicking "Large" DOES mount the mini-month overview (no phone force)', async () => {
+    // v0.5.68 removed the phone force (effectiveMode = isPhone ? "months" : viewMode).
+    // The toggle now drives the view at every width: even with the ≤640 media query
+    // matching, clicking "Large" mounts the 12 mini-month thumbnails (the old behavior
+    // pinned Compact on a phone and this branch never rendered).
     const restore = stubPhoneMatchMedia(true)
     try {
       render(<Calendar {...props} />)
       await screen.findByText('January')
-      // Try to switch to the Large overview.
-      fireEvent.click(screen.getByRole('button', { name: 'Large' }))
-      // The mini-month thumbnails must NOT appear — the big month grids are still
-      // rendered (effectiveMode is forced to 'months' on a phone). The Compact-grid
-      // data cells are present; no .sr-cal-minimonth thumbnails mount.
+      // Default is Compact: the big grids, count-bearing cells, no thumbnails.
       expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(0)
-      expect(screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })).toBeTruthy()
+      expect(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })).toBeTruthy()
+      // Switch to Large — the mini-months DO mount at phone width now.
+      fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+      await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
+      // And back to Compact re-mounts the big grids.
+      fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
+      await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(0))
     } finally {
       restore()
     }
   })
 
-  it('the View toggle sits in a .sr-cal-view-toggle container (the CSS hide hook) and, at desktop width, Large renders mini-months', async () => {
+  it('the View toggle container is NOT hidden by any component logic; Large renders the 12 mini-months', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    // The CSS hook that the ≤640 media query hides is present on the toggle container.
+    // The toggle sits in its .sr-cal-view-toggle container and both segment buttons are in
+    // the DOM (no render-time gate; the phone-only CSS display:none hide was removed in
+    // v0.5.68, so the toggle is a live control at every width).
     const largeBtn = screen.getByRole('button', { name: 'Large' })
     expect(largeBtn.closest('.sr-cal-view-toggle')).toBeTruthy()
-    // At desktop width (default not-phone) Large renders the 12 mini-month thumbnails.
+    expect(screen.getByRole('button', { name: 'Compact' })).toBeTruthy()
     fireEvent.click(largeBtn)
     expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12)
   })
 })
 
-describe('Calendar — Compact big-grid cells carry a phone-only date; desktop stays dateless (v0.5.64)', () => {
-  // v0.5.64: the big MonthGrid cells now render a day-of-month corner in the DOM, but it is
-  // the phone-only .sr-cal-bigday span — hidden by default (desktop stays dateless, the
-  // v0.5.63 decision) and revealed only in the ≤640 media block. jsdom applies no CSS, so
-  // the span is always in the DOM here regardless of width; these tests assert the correct
-  // GATING (it's a .sr-cal-bigday span, and the centered VISIBLE count is unchanged), and
-  // the phone-tier reveal is proven separately below via the matchMedia stub.
-  it('a Compact data cell carries a phone-only date corner (.sr-cal-bigday) alongside its count', async () => {
+describe('Calendar — Compact is count-only (no date) and Large is dated (no count) at all widths (v0.5.68)', () => {
+  // v0.5.68: the big MonthGrid (Compact) cells carry NO day-of-month date at ANY width —
+  // the phone-only .sr-cal-bigday date corner (v0.5.64) was removed. The day-of-month lives
+  // only on the Large-view mini-month thumbnails, which are reachable on the phone via the
+  // toggle. Compact cells carry the count; Large cells carry date + shade (count on tap).
+  it('a Compact data cell carries its count but NO date corner (dateless at every width)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    // The 2025-03-14 rich data cell: count 3 (centered + in its aria-label). The date corner
-    // is present but is the phone-gated span, so at desktop width it is CSS-hidden.
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
-    const corner = cell.querySelector('.sr-cal-daynum')
-    expect(corner).not.toBeNull()
-    expect(corner!.classList.contains('sr-cal-bigday')).toBe(true) // phone-only reveal class
-    expect(corner!.textContent?.trim()).toBe('14')                 // the day-of-month
-    // Every big-grid date corner is the phone-gated span (never an always-on desktop date).
-    const bareCorners = Array.from(cell.querySelectorAll('.sr-cal-daynum'))
-      .filter(el => !el.classList.contains('sr-cal-bigday'))
-    expect(bareCorners).toHaveLength(0)
+    // The 2025-03-14 rich data cell: count 3 (centered visible text + aria-label). There is
+    // NO .sr-cal-daynum date corner in the big grid anymore.
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    expect(cell.querySelector('.sr-cal-daynum')).toBeNull()
+    // The visible count "3" is still centered in the cell.
+    expect(cell.textContent).toContain('3')
   })
 
-  it('a Compact no-data day cell also carries a phone-only date corner (every day cell is dated on a phone)', async () => {
+  it('the Compact big grids carry NO day-of-month date anywhere (a whole month card is dateless)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    // A no-birding day is a bare outlined cell that STILL carries its date on the phone tier
-    // (a normal wall calendar dates every day). Every .sr-cal-daynum in the big month cards
-    // is the phone-gated .sr-cal-bigday span — desktop shows none of them (CSS-hidden).
+    // A month card in the big-grid view has no .sr-cal-daynum spans at all (no-data, zero,
+    // and data cells are all dateless — the date moved to the Large thumbnails).
     const marchCard = screen.getByText('March').parentElement as HTMLElement
-    const corners = Array.from(marchCard.querySelectorAll('.sr-cal-daynum'))
-    expect(corners.length).toBeGreaterThan(0) // March has 31 dated day cells
-    expect(corners.every(el => el.classList.contains('sr-cal-bigday'))).toBe(true)
+    expect(marchCard.querySelectorAll('.sr-cal-daynum')).toHaveLength(0)
   })
 
-  it('at the phone tier the big-grid date corners are the visible day affordance (matchMedia ≤640)', async () => {
-    // The real reveal is CSS (.sr-cal-bigday → display:inline at ≤640); jsdom can't evaluate
-    // it, but we prove the phone RENDER path: at phone width effectiveMode is forced to the
-    // big month grids (no thumbnails), and those big cells carry the dated corners — so the
-    // TestFlight round-1 "no dates on a phone" regression is fixed. Desktop parity is proven
-    // by the .sr-cal-bigday gating above (hidden unless ≤640).
+  it('at phone width the Compact grid is STILL dateless (no phone-only date corner)', async () => {
+    // The v0.5.64 phone-only date corner is gone: matching the phone query does not add any
+    // .sr-cal-daynum to the big grid. Dates on a phone come from switching to the Large view.
     const restore = stubPhoneMatchMedia(true)
     try {
       render(<Calendar {...props} />)
       await screen.findByText('March')
-      // Phone → big month grids only (no Large thumbnails).
-      expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(0)
-      // The Mar-14 big data cell carries its date corner.
-      const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
-      const corner = cell.querySelector('.sr-cal-bigday')
-      expect(corner).not.toBeNull()
-      expect(corner!.textContent?.trim()).toBe('14')
+      expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(0) // Compact by default
+      const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+      expect(cell.querySelector('.sr-cal-daynum')).toBeNull()
     } finally {
       restore()
     }
   })
 
-  it('a Large thumbnail data cell carries its day-of-month number (the date lives here too)', async () => {
+  it('a Large thumbnail data cell carries its day-of-month number and NO count (date + shade only)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
     fireEvent.click(screen.getByRole('button', { name: 'Large' }))
     await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
     // The March thumbnail contains a dated corner for the 2025-03-14 data day: its
-    // .sr-cal-daynum span reads "14". (The thumbnail carries NO count — just shade +
-    // date; the count lives in the Compact grid and the day popup.)
+    // .sr-cal-daynum span reads "14". The thumbnail carries NO count — just shade + date;
+    // the count lives in the Compact grid and the day popup.
     const marchMini = screen.getByText('March').closest('.sr-cal-minimonth') as HTMLElement
     const dayNums = Array.from(marchMini.querySelectorAll('.sr-cal-daynum')).map(e => e.textContent?.trim())
     expect(dayNums).toContain('14')
     expect(dayNums).toContain('15') // the lighter Mar-15 data day is dated too
-    // No metric count leaks into the thumbnail text — the shade + date carry the day.
-    // (The mini-cell IS a button now, so it has an aria-label with the count; the VISIBLE
-    // text is only the day-of-month, never the count. Assert "3" — Mar-14's count — is
-    // not shown as visible text: the only numeric text tokens are day-of-month numbers.)
+    // No metric count leaks into the thumbnail's VISIBLE text: the only text tokens are
+    // day-of-month numbers (≤ 31). Mar-14's count (3) is never shown as visible text.
     const visibleText = Array.from(marchMini.querySelectorAll('.sr-cal-daynum')).map(e => e.textContent?.trim())
     expect(visibleText.every(t => t == null || Number(t) <= 31)).toBe(true)
   })
 
-  it('the combined (All years) Compact cell carries its MM-DD day corner as the phone-only .sr-cal-bigday span', async () => {
+  it('a day tap opens the same DayPopup from BOTH views (Compact and Large)', async () => {
+    render(<Calendar {...props} />)
+    await screen.findByText('March')
+    // From Compact: tap the Mar-14 count cell → the day popup opens.
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ }))
+    let dialog = await screen.findByRole('dialog', { name: /Day details for \w{3}, Mar 14, 2025/ })
+    expect(within(dialog).getByText('species')).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    // Switch to Large and tap the same day's mini-cell → the SAME popup opens.
+    fireEvent.click(screen.getByRole('button', { name: 'Large' }))
+    await waitFor(() => expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(12))
+    const dayBtn = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
+    expect(dayBtn.closest('.sr-cal-minimonth')).toBeTruthy() // it's the overview trigger
+    fireEvent.click(dayBtn)
+    dialog = await screen.findByRole('dialog', { name: /Day details for \w{3}, Mar 14, 2025/ })
+    expect(within(dialog).getByText('species')).toBeTruthy()
+    // The view did NOT switch when the popup opened — still Large.
+    expect(screen.getByRole('button', { name: 'Large' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('the combined (All years) Compact cell carries its MM-DD count with NO date corner', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
     fireEvent.click(screen.getByRole('button', { name: 'All years' }))
-    // Mar 14 combined data cell — union count 3, plus the phone-gated date corner ("14").
-    const cell = await screen.findByRole('button', { name: /Mar 14 — 3\. Open day details/ })
-    const corner = cell.querySelector('.sr-cal-daynum')
-    expect(corner).not.toBeNull()
-    expect(corner!.classList.contains('sr-cal-bigday')).toBe(true)
-    expect(corner!.textContent?.trim()).toBe('14')
+    // Mar 14 combined data cell — union count 3, and no date corner (Compact is dateless).
+    const cell = await screen.findByRole('button', { name: /Mar 14: 3\. Open day details/ })
+    expect(cell.querySelector('.sr-cal-daynum')).toBeNull()
+    expect(cell.textContent).toContain('3')
   })
 })
 
@@ -583,7 +590,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
     // the 2025-03-14 rich data cell (3 species, 2 checklists)
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     // all three stat tiles shown regardless of the active metric (change 1)
@@ -602,7 +609,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
   it('each popup checklist row shows the start time (leading zero trimmed), location, and species count', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     // S100 carried "07:30 AM" @ "Point Reyes NS--Bear Valley" (Robin + Song Sparrow) —
@@ -615,7 +622,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
   it('a checklist with no start time (time null) shows the location alone — then the species count — no stray separator', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     // S101 (Blue Jay) is timeless — its prefix span shows JUST the location, with no
@@ -639,7 +646,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
     // Species metric, forms OFF (default): the day cell reads 1 (Robin only).
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 1\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 1\. Open day details/ })
     fireEvent.click(cell)
     let dialog = await screen.findByRole('dialog')
     // OFF → the checklist's countable count (1).
@@ -650,7 +657,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     fireEvent.click(screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ }))
     // With forms ON the day cell now reads 2 (Robin + gull sp.).
-    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025 — 2\. Open day details/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 2\. Open day details/ }))
     dialog = await screen.findByRole('dialog')
     // ON → the checklist's with-forms count (2).
     expect(within(dialog).getByText('· 2 species')).toBeTruthy()
@@ -660,7 +667,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
   it('a present-but-zero cell opens its popup (species 0, checklists >= 1) (QA-36)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('June')
-    const zeroCell = screen.getByRole('button', { name: /Jun 1, 2025 — birded, 0 countable species\. Open day details/ })
+    const zeroCell = screen.getByRole('button', { name: /Jun 1, 2025: birded, 0 countable species\. Open day details/ })
     fireEvent.click(zeroCell)
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('species')).toBeTruthy()
@@ -678,7 +685,7 @@ describe('Calendar — All years combined popup labels union vs sum (QA-35)', ()
     // legend switches to combined unit
     expect(await screen.findByText('Species ever recorded')).toBeTruthy()
     // open a combined data cell (Mar 14 across years)
-    const cell = screen.getByRole('button', { name: /Mar 14 — 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14: 3\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('species ever recorded')).toBeTruthy()
@@ -780,7 +787,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
   it('restores focus to the activating day cell after Escape closes the popup', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
     fireEvent.click(cell)
     await screen.findByRole('dialog')
 
@@ -793,7 +800,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
   it('restores focus to the activating day cell after the Close control closes the popup', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
 
@@ -805,7 +812,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
   it('closes via a backdrop mousedown (the third close affordance) (QA-37)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    const cell = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
     fireEvent.click(cell)
     const dialog = await screen.findByRole('dialog')
     // The backdrop is the role="presentation" ancestor; a mousedown ON it (target ===
@@ -820,7 +827,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
   it('opening a second day popup replaces the first — only one dialog open at a time (QA-38)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    const first = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+    const first = screen.getByRole('button', { name: /Mar 14, 2025: 3\. Open day details/ })
     fireEvent.click(first)
     // The dialog's accessible name uniquely identifies the day via the weekday-
     // prefixed date ("… Day details for Fri, Mar 14, 2025"), which the checklist-row
@@ -830,7 +837,7 @@ describe('Calendar — popup focus restore & single-open (QA-37 / QA-38)', () =>
 
     // Activate a DIFFERENT day cell while the first popup is open. The single `popup`
     // state means the second replaces the first; the app never stacks two dialogs.
-    const second = screen.getByRole('button', { name: /Mar 15, 2025 — 1\. Open day details/ })
+    const second = screen.getByRole('button', { name: /Mar 15, 2025: 1\. Open day details/ })
     fireEvent.click(second)
 
     await waitFor(() => {

@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.68] - 2026-07-06
+
+### Fixed
+- **The Calendar's Compact and Large views now work as two distinct views on a phone.** On narrow screens the View toggle was hidden and the calendar was pinned to one layout, so tapping Compact vs. Large did nothing and the single view crammed in both the count and the date. The toggle is now available at every width and drives two genuinely different views on mobile: **Compact** shows a per-day count on each birded day (no day-of-month date), and **Large** shows the dated, shaded whole-year mini-months (the day's figures appear when you tap a day and open its popup). A day tap opens the same day popup from either view. Desktop behavior is unchanged: it already worked this way.
+
+### Changed
+- **Em dashes are gone from the app's wording and the in-app Help.** Across the app's on-screen text, tooltips, accessibility labels, and the Help documentation, em dashes (—) have been replaced with plainer punctuation (periods, commas, colons, or parentheses) for a cleaner, more consistent product voice. Wording and meaning are unchanged; this is a punctuation-only polish.
+
+### Internal
+- On/off switch thumbs now read their color from a design token (`--sr-switch-thumb`) instead of a hardcoded value. Pixel-identical; no visible change.
+
 ## [0.5.67] - 2026-07-06
 
 ### Added

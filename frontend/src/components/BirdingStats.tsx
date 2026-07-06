@@ -321,7 +321,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     return (
       <SetupRequired
         title="Statistics require your eBird backup"
-        body="Upload your eBird backup to see comprehensive statistics about your birding history — life list, effort, geography, and more."
+        body="Upload your eBird backup to see comprehensive statistics about your birding history: life list, effort, geography, and more."
         steps={EBIRD_BACKUP_STEPS}
         onGoToSettings={onGoToSettings}
       />
@@ -500,7 +500,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 ))}
               </div>
             </div>
-            <div style={{ height: 180 }} role="img" aria-label={`Life list accumulation chart — ${fmt(totals.speciesCount)} species recorded over time`}>
+            <div style={{ height: 180 }} role="img" aria-label={`Life list accumulation chart: ${fmt(totals.speciesCount)} species recorded over time`}>
               <ResponsiveContainer width="100%" height="100%">
                 {deferredAccGranularity === 'total' ? (
                   <AreaChart data={accumulation.liferPoints} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
@@ -741,7 +741,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     ))}
                   </div>
                   <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                    <div style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }} role="img" aria-label={`Checklists by day of week — ${weekendPct}% on weekends`}>
+                    <div style={{ position: 'relative', width: 120, height: 120, flexShrink: 0 }} role="img" aria-label={`Checklists by day of week: ${weekendPct}% on weekends`}>
                       <PieChart width={120} height={120}>
                         <Pie data={dowPieData} dataKey="value" cx={60} cy={60} innerRadius={34} outerRadius={56} strokeWidth={0}>
                           {dowPieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
@@ -1031,8 +1031,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             <SubLabel>Totals</SubLabel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(6rem, 1fr))', gap: 1, background: 'var(--sr-border-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
               {[
-                { label: 'Time Afield', value: effort.totalHours !== null ? `${fmt(effort.totalHours, 0)} h` : '—', sub: effort.durationCount > 0 ? `${fmt(effort.durationCount)} lists` : '' },
-                { label: 'Distance', value: effort.totalDistanceMi !== null ? `${fmt(effort.totalDistanceMi, 0)} mi` : '—', sub: effort.distanceCount > 0 ? `${fmt(effort.distanceCount)} lists` : '' },
+                { label: 'Time Afield', value: effort.totalHours !== null ? `${fmt(effort.totalHours, 0)} h` : '-', sub: effort.durationCount > 0 ? `${fmt(effort.durationCount)} lists` : '' },
+                { label: 'Distance', value: effort.totalDistanceMi !== null ? `${fmt(effort.totalDistanceMi, 0)} mi` : '-', sub: effort.distanceCount > 0 ? `${fmt(effort.distanceCount)} lists` : '' },
                 effort.totalAreaAcres !== null ? { label: 'Area Covered', value: `${fmt(effort.totalAreaAcres, 0)} ac`, sub: effort.areaCount > 0 ? `${fmt(effort.areaCount)} lists` : '' } : null,
               ].filter((c): c is { label: string; value: string; sub: string } => c !== null).map((cell, i) => (
                 <div key={i} style={{ background: 'var(--sr-surface-subtle)', padding: '12px 8px', textAlign: 'center' }}>
@@ -1140,11 +1140,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         <SubLabel>Key metrics</SubLabel>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(5rem, 1fr))', gap: 1, background: 'var(--sr-border-subtle)', border: '1px solid var(--sr-border-subtle)', borderRadius: 8, overflow: 'hidden' }}>
           {[
-            { label: 'Average duration', value: effort.avgDurationMin !== null ? `${fmt(effort.avgDurationMin, 0)} min` : '—' },
-            { label: 'Average distance', value: effort.avgDistanceMi !== null ? `${fmt(effort.avgDistanceMi, 1)} mi` : '—' },
+            { label: 'Average duration', value: effort.avgDurationMin !== null ? `${fmt(effort.avgDurationMin, 0)} min` : '-' },
+            { label: 'Average distance', value: effort.avgDistanceMi !== null ? `${fmt(effort.avgDistanceMi, 1)} mi` : '-' },
             effort.avgAreaAcres !== null ? { label: 'Average area', value: `${fmt(effort.avgAreaAcres, 1)} ac` } : null,
-            { label: 'Species per hour', value: effort.sppPerHour !== null ? fmt(effort.sppPerHour, 1) : '—' },
-            { label: 'Species per mile', value: effort.sppPerMi !== null ? fmt(effort.sppPerMi, 1) : '—' },
+            { label: 'Species per hour', value: effort.sppPerHour !== null ? fmt(effort.sppPerHour, 1) : '-' },
+            { label: 'Species per mile', value: effort.sppPerMi !== null ? fmt(effort.sppPerMi, 1) : '-' },
           ].filter((c): c is { label: string; value: string } => c !== null).map((cell, i) => (
             <div key={i} style={{ background: 'var(--sr-surface-subtle)', padding: '12px 8px', textAlign: 'center' }}>
               <div style={{ fontSize: '1.375rem', fontWeight: 700, lineHeight: 1 }}>{cell.value}</div>
@@ -1173,8 +1173,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   {effort.protocolRows.map(r => (
                     <tr key={r.name} style={{ borderBottom: '1px solid var(--sr-border-subtle)' }}>
                       <td style={{ padding: '5px 8px', textAlign: 'left' }}>{r.name}</td>
-                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>{r.avgDurationMin !== null ? fmt(r.avgDurationMin, 0) : '—'}</td>
-                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>{r.avgDistanceMi !== null ? fmt(r.avgDistanceMi, 1) : '—'}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>{r.avgDurationMin !== null ? fmt(r.avgDurationMin, 0) : '-'}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>{r.avgDistanceMi !== null ? fmt(r.avgDistanceMi, 1) : '-'}</td>
                       <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>{fmt(r.count)}</td>
                     </tr>
                   ))}
@@ -1467,12 +1467,12 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         <ChecklistLink submissionId={entry.submissionId} label={fmt(entry.count)} style={{ fontWeight: 600 }} />
                       </td>
                       <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)' }}>
-                        {entry.date ? fmtDate(entry.date) : '—'}
+                        {entry.date ? fmtDate(entry.date) : '-'}
                       </td>
                       <td style={{ padding: '5px 8px', textAlign: 'right', color: 'var(--sr-text-muted)', maxWidth: 180 }}>
                         {entry.location
                           ? <HotspotLink locId={entry.locationId} name={entry.location} isHotspot={isHotspot(entry.locationId)} truncate style={{ color: 'var(--sr-text-muted)', maxWidth: '100%', justifyContent: 'flex-end' }} />
-                          : '—'}
+                          : '-'}
                       </td>
                     </tr>
                   ))}
@@ -1700,7 +1700,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
           {/* Chart */}
           {mediaGraphResult.data.length >= 2 && (
-            <div style={{ height: 240, marginBottom: 20 }} role="img" aria-label="Line chart of media uploaded over time — photo, audio, video, and total counts">
+            <div style={{ height: 240, marginBottom: 20 }} role="img" aria-label="Line chart of media uploaded over time: photo, audio, video, and total counts">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={mediaDisplayData} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
                   <XAxis

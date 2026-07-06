@@ -5,11 +5,13 @@
 // plus an all-years-combined view (whose weekday columns align to the CURRENT year).
 // Clicking a day opens a popup with that day's summary and links to its eBird
 // checklists. A view toggle switches between the big month grids (labeled "Compact",
-// count-only cells) and a 3×4 Year-Overview of shaded, dated mini-month thumbnails
-// (labeled "Large") — both show the whole year, only the cell size differs; the
-// overview is read-only (the toggle is the only way to switch views). A low-emphasis
-// "Count spuh, slash & hybrids" toggle optionally admits non-countable forms into the
-// Species / Total count metrics.
+// count-only cells, no day-of-month date) and a 3×4 Year-Overview of shaded, dated
+// mini-month thumbnails (labeled "Large", date + shade, no count — the figures live in
+// the day popup). Both show the whole year, only the cell size and what each cell
+// carries differ; the overview is read-only (the toggle is the only way to switch
+// views). The toggle governs at ALL widths (phones included), so both distinct views
+// are reachable on mobile. A low-emphasis "Count spuh, slash & hybrids" toggle
+// optionally admits non-countable forms into the Species / Total count metrics.
 //
 // Frontend-only, offline, zero new network. Pure derivation lives in lib/calendar.ts;
 // the DOM crosshatch density in lib/calendarTextures.ts. See pipeline/calendar-tab.
@@ -35,7 +37,6 @@ import {
 import { calHatchCss, calMiniHatchCss, type CalTier } from '../lib/calendarTextures'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { SpeciesCombobox } from './SpeciesCombobox'
-import { useIsPhone } from '../lib/useIsPhone'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] // Sunday-first single letters
@@ -171,17 +172,12 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
     return <div aria-hidden style={{ ...base, background: 'transparent', pointerEvents: 'none' }} />
   }
   if (desc.kind === 'nodata') {
-    // A day with no checklist — a faint outlined cell. At DESKTOP width the big grids are
-    // count-only (the day-of-month date lives on the Large-view thumbnails, never rendered
-    // on a phone). On the PHONE tier the phones are FORCED to this big-grid view (useIsPhone),
-    // so — to restore the wall-calendar date affordance TestFlight round-1 flagged missing —
-    // every big cell also carries a DayCorner date that is HIDDEN by default and revealed
-    // only in the ≤640 media block (.sr-cal-bigday, globals.css). A day is otherwise
-    // identified by its grid position and, on a data/zero day, its aria-label.
+    // A day with no checklist: a faint outlined cell. The big month grids are count-only
+    // at EVERY width (the day-of-month date lives on the Large-view thumbnails, which are
+    // reachable on the phone via the View toggle). A day is identified by its grid
+    // position and, on a data/zero day, its aria-label.
     return (
-      <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }}>
-        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" bigPhone />}
-      </div>
+      <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }} />
     )
   }
 
@@ -195,7 +191,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         type="button"
         tabIndex={0}
         onClick={() => onOpen(cell, ref.current!)}
-        aria-label={`${dateLabel} — birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
+        aria-label={`${dateLabel}: birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
         className="sr-touch-target"
         style={{
           ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)',
@@ -204,7 +200,6 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-border-subtle)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-subtle)')}
       >
-        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" bigPhone />}
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-text-muted)', lineHeight: 1 }}>0</span>
       </button>
     )
@@ -224,7 +219,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
       type="button"
       tabIndex={0}
       onClick={() => onOpen(cell, ref.current!)}
-      aria-label={`${dateLabel} — ${desc.count}. Open day details`}
+      aria-label={`${dateLabel}: ${desc.count}. Open day details`}
       className="sr-touch-target"
       style={{
         ...base, ...fill, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
@@ -232,10 +227,9 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
       onMouseEnter={e => (e.currentTarget.style.filter = textures ? 'none' : 'brightness(1.12)')}
       onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
     >
-      {/* On the phone tier this cell carries its date in the corner (revealed by the ≤640
-          .sr-cal-bigday rule); on a data cell the white --sr-cal-fg reads over the shade,
-          and in textures mode the same tier-color pill the centered count uses backs it. */}
-      {desc.day != null && <DayCorner day={desc.day} color="var(--sr-cal-fg)" pillStyle={numStyle} bigPhone />}
+      {/* The big month cells are count-only at every width: the centered --sr-cal-fg count
+          reads over the shade (and in textures mode over the tier-color pill numStyle backs).
+          The day-of-month date lives on the Large-view thumbnails, reachable via the toggle. */}
       <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-cal-fg)', lineHeight: 1, ...numStyle }}>
         {desc.count}
       </span>
@@ -244,18 +238,16 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
 }
 
 // The small day-of-month label in the top-left corner (wall-calendar convention).
-// Two callers: the Year-Overview mini-month thumbnails (always shown at their container-
-// query floor), and the big MonthGrid cells on the PHONE tier ONLY (bigPhone → the
-// .sr-cal-bigday class, hidden by default and revealed by the ≤640 media block, so the
-// phone's forced big-grid view regains its dates while desktop big grids stay dateless —
-// the v0.5.63 decision preserved for wide viewports). Decorative-only (the accessible
-// date lives in the day popup); pointer-events:none keeps the parent the sole hit target.
-// Sized in rem so it holds at 200% text scale.
-function DayCorner({ day, color, pillStyle, bigPhone }: { day: number; color: string; pillStyle?: React.CSSProperties; bigPhone?: boolean }) {
+// The sole caller is the Year-Overview mini-month thumbnails (shown at their container-
+// query legibility floor); the big MonthGrid cells are count-only at every width and
+// carry no date. Decorative-only (the accessible date lives in the day popup);
+// pointer-events:none keeps the parent the sole hit target. Sized in rem so it holds at
+// 200% text scale.
+function DayCorner({ day, color, pillStyle }: { day: number; color: string; pillStyle?: React.CSSProperties }) {
   return (
     <span
       aria-hidden
-      className={bigPhone ? 'sr-cal-daynum sr-cal-bigday' : 'sr-cal-daynum'}
+      className="sr-cal-daynum"
       style={{
         position: 'absolute', top: 2, left: 3, lineHeight: 1,
         fontWeight: 600, fontVariantNumeric: 'tabular-nums',
@@ -426,7 +418,7 @@ function MiniDayCell({ desc, textures, metric, onOpen }: {
         type="button"
         tabIndex={0}
         onClick={() => onOpen(cell, ref.current!)}
-        aria-label={`${dateLabel} — birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
+        aria-label={`${dateLabel}: birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
         className="sr-cal-mininum"
         style={{ ...btnBase, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)' }}
       >
@@ -447,7 +439,7 @@ function MiniDayCell({ desc, textures, metric, onOpen }: {
       type="button"
       tabIndex={0}
       onClick={() => onOpen(cell, ref.current!)}
-      aria-label={`${dateLabel} — ${desc.count}. Open day details`}
+      aria-label={`${dateLabel}: ${desc.count}. Open day details`}
       className="sr-cal-mininum"
       style={{ ...btnBase, ...fill }}
     >
@@ -746,15 +738,11 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   const [view, setView] = useState<CalendarView>({ kind: 'year', year: 0 })
   const [metric, setMetric] = useState<CalendarMetric>('species')
   const [textures, setTextures] = useState(false)
-  // The View toggle: 'months' = the big MonthGrid ("Compact" label), 'overview' = the
-  // YearOverview thumbnails ("Large" label). Default is the big month grids.
+  // The View toggle: 'months' = the big MonthGrid ("Compact" label, count-only), 'overview'
+  // = the YearOverview thumbnails ("Large" label, date + shade). Default is the big month
+  // grids. The toggle governs at ALL widths — phones included — so both distinct views are
+  // reachable on mobile (no phone force). Session-only state.
   const [viewMode, setViewMode] = useState<ViewMode>('months')
-  // On a phone (≤640) always render the big month grids: the two view branches are
-  // different DOM (MonthGrid vs YearOverview), so CSS alone can't convert a stale
-  // 'overview' (carried in from a wider session) into the month grids. The View toggle
-  // itself is hidden via CSS (.sr-cal-view-toggle). effectiveMode is the ONLY new
-  // derived value; `viewMode` state + ViewMode are session-only.
-  const isPhone = useIsPhone()
   const [includeForms, setIncludeForms] = useState(false)
   // Session-only per-species filter ('' = All species). A normalized common name.
   const [selectedSpecies, setSelectedSpecies] = useState('')
@@ -916,10 +904,6 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   }
 
   const combined = view.kind === 'combined'
-  // Phones always show the big month grids (the toggle is CSS-hidden at ≤640, and it's
-  // labeled "Compact"); tablet/desktop honor the toggle. A stale 'overview' from a
-  // wider session can't strand a phone on the thumbnail view.
-  const effectiveMode: ViewMode = isPhone ? 'months' : viewMode
   const yearSpan = years.length ? { lo: years[0], hi: years[years.length - 1] } : null
   const prevDisabled = combined || adjacentDataYear(years, view.kind === 'year' ? view.year : 0, -1) == null
   const nextDisabled = combined || adjacentDataYear(years, view.kind === 'year' ? view.year : 0, 1) == null
@@ -950,7 +934,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
         <div>
           <h2 style={{ fontSize: '1.125rem', fontWeight: 700, margin: '0 0 2px', color: 'var(--sr-text)', letterSpacing: '-0.01em' }}>Calendar</h2>
           <p style={{ fontSize: '0.8125rem', color: 'var(--sr-text-muted)', margin: 0, lineHeight: 1.5 }}>
-            A year of your birding as twelve month grids — each day shaded by how much you saw, with a click into the checklists behind it.
+            A year of your birding as twelve month grids, each day shaded by how much you saw, with a click into the checklists behind it.
           </p>
         </div>
       </div>
@@ -989,7 +973,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
                 <ChevronLeft size={15} strokeWidth={2.4} aria-hidden />
               </button>
               <span style={{ minWidth: 74, textAlign: 'center', fontSize: '0.9375rem', fontWeight: 700, color: 'var(--sr-text)', fontVariantNumeric: 'tabular-nums' }}>
-                {combined ? '—' : (view.kind === 'year' ? view.year : '')}
+                {combined ? '·' : (view.kind === 'year' ? view.year : '')}
               </span>
               <button type="button" onClick={goNext} disabled={nextDisabled} aria-label="Next year with data" style={navBtnStyle(nextDisabled)}>
                 <ChevronRight size={15} strokeWidth={2.4} aria-hidden />
@@ -1021,7 +1005,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
               onChange={setViewMode}
               options={[
                 { value: 'months', label: 'Compact', title: 'The twelve big month grids, with a count on every birded day', icon: <LayoutGrid size={13} strokeWidth={2.2} aria-hidden /> },
-                { value: 'overview', label: 'Large', title: 'All twelve months as shaded, dated thumbnails — the whole year at a glance', icon: <Grid2x2 size={13} strokeWidth={2.2} aria-hidden /> },
+                { value: 'overview', label: 'Large', title: 'All twelve months as shaded, dated thumbnails: the whole year at a glance', icon: <Grid2x2 size={13} strokeWidth={2.2} aria-hidden /> },
               ]}
             />
           </div>
@@ -1057,9 +1041,10 @@ export function Calendar({ onGoToSettings, filesVersion }: {
         <CalendarLegend view={view} metric={metric} textures={textures} tiers={tiers} />
       </div>
 
-      {/* Grid: 'months' → the big MonthGrid cards ("Compact" label); 'overview' → the
-          YearOverview thumbnails ("Large" label). */}
-      {effectiveMode === 'months' ? (
+      {/* Grid: 'months' → the big MonthGrid cards ("Compact" label, count-only); 'overview'
+          → the YearOverview thumbnails ("Large" label, dated + shaded). The toggle governs
+          at all widths, so both are reachable on a phone. */}
+      {viewMode === 'months' ? (
         <div className="sr-cal-months">
           {monthDescriptors.map((descriptors, i) => (
             <MonthGrid
