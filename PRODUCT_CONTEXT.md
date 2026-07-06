@@ -249,7 +249,7 @@ annotations (computed offline):
   media day, longest streak, collection span.
 - **Documentation coverage** — % of the life list captured with any media / photo
   / audio / video.
-- **Photos Tagged With Age or Gender** — age-class and gender mixes (per
+- **Photos Tagged With Age or Sex** — age-class and sex mixes (per
   individual, Unknown shown honestly), age coverage by species, only-adults count.
 - **Behaviors** — distinct count + top behaviors + media-backed breeding tiers.
 - **When captured** — time-of-day distribution by format.
@@ -258,8 +258,8 @@ annotations (computed offline):
   additive + guarded). Demo-data generator extended so the showcase reflects it.
 - **(v0.5.22)** Removed the Format-coverage breakdown (redundant with Documentation
   coverage) and the Community-ratings section (still computed in `mediaStats`, just
-  not rendered); renamed Age & sex → **Photos Tagged With Age or Gender** (donuts
-  "Age"/"Gender"); added a separator above the Top-N rankings.
+  not rendered); renamed Age & sex → **Photos Tagged With Age or Sex** (donuts
+  "Age"/"Sex"); added a separator above the Top-N rankings.
 - **(v0.5.24)** Fixed **At a glance** alignment by moving the busiest-day, longest-
   streak, and span facts out of the StatCell grid (a `sub`-line tile is a line
   taller than a plain one, and in the `auto-fit` grid that knocked the row out of

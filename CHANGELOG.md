@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.65] - 2026-07-05
+
+### Changed
+- **The Statistics media card now says "Sex" instead of "Gender."** eBird and the Macaulay Library name this field "Sex" in their exports, so the app now matches: the "Photos Tagged With Age or Sex" section heading, the donut titled "Sex," and its note ("…and sex for N…") all use the source-aligned term. This is a wording change only — the data, colors, and the male / female / unknown breakdown are unchanged.
+
 ## [0.5.64] - 2026-07-05
 
 ### Fixed

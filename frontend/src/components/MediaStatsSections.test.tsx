@@ -49,7 +49,7 @@ describe('MediaStatsSections', () => {
     render(<MediaStatsSections stats={stats} renderName={renderName} />)
     expect(screen.getByText('At a glance')).toBeTruthy()
     expect(screen.getByText('Documentation coverage')).toBeTruthy()
-    expect(screen.getByText('Photos Tagged With Age or Gender')).toBeTruthy()
+    expect(screen.getByText('Photos Tagged With Age or Sex')).toBeTruthy()
     expect(screen.getByText('Behaviors documented')).toBeTruthy()
     expect(screen.getByText('When you capture media')).toBeTruthy()
   })

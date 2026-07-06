@@ -193,11 +193,11 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
         </>
       )}
 
-      {/* Photos tagged with age or gender */}
+      {/* Photos tagged with age or sex */}
       {ageTotal > 0 && (
         <>
           <Divider />
-          <SubLabel>Photos Tagged With Age or Gender</SubLabel>
+          <SubLabel>Photos Tagged With Age or Sex</SubLabel>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, justifyContent: 'center' }}>
             <Donut
               title="Age"
@@ -206,14 +206,14 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId }:
               centerLabel="tagged"
             />
             <Donut
-              title="Gender"
+              title="Sex"
               data={s.sexMix.map(b => ({ label: b.label, value: b.value, color: SEX_COLOR[b.label] }))}
               centerValue={pct(sexedInd, sexTotal)}
               centerLabel="tagged"
             />
           </div>
           <p style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'center', margin: '10px 0 0' }}>
-            Counted per individual: age tagged for {fmt(agedInd)} and gender for {fmt(sexedInd)} of {fmt(ageTotal)} documented {ageTotal === 1 ? 'individual' : 'individuals'}.
+            Counted per individual: age tagged for {fmt(agedInd)} and sex for {fmt(sexedInd)} of {fmt(ageTotal)} documented {ageTotal === 1 ? 'individual' : 'individuals'}.
           </p>
         </>
       )}
