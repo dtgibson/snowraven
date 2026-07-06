@@ -1,10 +1,10 @@
 {
-  "activeFeature": "mobile-app",
-  "sessionNumber": 74,
-  "sessionType": "feature",
-  "currentStage": 8,
-  "lastCompletedStage": 7,
-  "lastCheckpointStatus": "paused",
+  "activeFeature": null,
+  "sessionNumber": 75,
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 8,
+  "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "autonomyMode": "studio-style",
   "autonomyNote": "PAUSED at Stage 8 (Deployer) by user choice — keeping the mobile-app feature OPEN (more TestFlight rounds expected before App Store). Studio Style FEATURE run. STATE OF THE FEATURE: The universal iOS/iPadOS app (Tauri v2 iOS target on the existing React frontend; committed gen/apple; bundle id com.dtgibson.snowraven for iOS via src-tauri/tauri.ios.conf.json overlay, desktop stays com.snowraven; iOS 16 floor; isIOS() platform seam + lib/platformGates.ts predicates; updater/process #[cfg(desktop)]; geolocation mobile-only; native document-picker import (Mechanism A, verified on sim); compact iOS header; map-fullscreen-hides-sidebar; safe-area under .sr-ios-app) is BUILT, tested (Stage 6: 9-lens adversarial QA, 10 findings fixed+reverified), security-cleared (Stage 7: PASSED WITH NOTES — dormant dialog:allow-open grant KEEP-through-TestFlight w/ removal trigger before App Store; api-keys-in-backups + CSP-null noted). SHIPPED TO TESTFLIGHT as BUILD 1 = v0.5.63 (Delivery UUID 30782eb9-..., uploaded via altool w/ ASC API key AuthKey_BVVLBRRVL6; ASC app record com.dtgibson.snowraven created by user; Apple Distribution cert in keychain). USER'S OPEN STEPS: (a) in App Store Connect, add self as internal tester so build 1 installs via TestFlight on iPhone+iPad; (b) eventually App Store submission (package prepared — synthetic screenshots + privacy labels 'Data Not Collected' + reviewer sample CSVs + review notes; PRIVACY_POLICY/README/website stay mobile-SILENT until App Store launch per the phased-announcement decision). DEPLOYER-BEFORE-APPSTORE: execute the dialog-grant removal trigger once Mechanism A confirmed on a physical device; ExportOptions.plist export-method must be app-store-connect (was debugging). MACHINE NOTE: sudo xcode-select -s /Applications/Xcode.app is a pending one-time user fix (until then tauri ios build needs the /tmp/xcshim xcodebuild+xcrun shims + parent DEVELOPER_DIR+LANG — documented in pipeline/mobile-app/how-to-see.md). ON-DEVICE FEEDBACK THIS SESSION -> two phone-tier bugs surfaced: (1) Calendar showed no dates on phone (v0.5.63 regression) -> FIXED (day-of-month back on phone month grid, ≤640 CSS reveal) and SHIPPED as v0.5.64 to desktop/web (release live, marked Latest, latest.json all 3 platforms; Windows CI 28763749373 was the FIRST green Windows build w/ the mobile Cargo cfg changes — cross-platform gating holds). (2) Wide 'Unbounded' tables (Breeding Codes, List Comparer) ugly on phone -> tried a zoomable surface (contained frame + Fit/pinch/CSS-zoom) across MANY rounds; CSS zoom would NOT visibly scale content in WKWebView (zoom% changed, matrix didn't shrink, codes unreadable) -> user chose to REVERT entirely; tables now = original Unbounded toggle (git-reverted to HEAD, byte-identical); zoom files deleted. Lesson logged: CSS zoom unreliable in WKWebView; a phone wide-table 'see it all' needs a different technique (deferred). TestFlight BUILD 2 (with the v0.5.64 calendar fix) was DEFERRED by the user. Verified: 1469 FE tests, typecheck/lint/build/cargo all green. Sim (iPhone 128090F3.../iPad 9C2835F3...) has the user's real data loaded (copied into the app container) running v0.5.64.",
@@ -26,5 +26,5 @@
   "lastFeature": "mobile-app (Feature lane) — IN PROGRESS, paused at Stage 8. Universal iOS/iPadOS app on TestFlight (build 1 = v0.5.63); App Store submission is the user's open step. A phone calendar-dates fix that surfaced during device testing shipped separately as v0.5.64 to desktop/web (live). The phone wide-table zoom experiment was reverted per the user.",
   "remainingBacklog": "ROADMAP Up Next after mobile: Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; Calendar day popup listing the day's species; AND (new, deferred) a phone-appropriate wide-table 'see it all' view that works in WKWebView (CSS zoom proved unreliable).",
   "createdAt": "2026-07-05T03:31:23Z",
-  "updatedAt": "2026-07-06T02:40:24Z"
+  "updatedAt": "2026-07-06T03:24:49Z"
 }
