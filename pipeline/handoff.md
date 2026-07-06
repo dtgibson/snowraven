@@ -1,43 +1,42 @@
 ## What We Accomplished
 
-Shipped **Named Birds Media (v0.5.66)**. On the Named Birds tab, each named
-individual now shows its own Macaulay Library media — photos, audio, and video —
-in a tidy grid below its sightings map. Each item carries its capture date and a
-link to the checklist it came from.
+Shipped **Weather Backlog (v0.5.67)**. The Weather tab now has a "List checklists
+with no weather blocks" section at the bottom: it lists your 100 most-recent
+complete, non-incidental checklists that still have no SnowRaven (or RainCrow)
+weather block, newest first, built entirely from your loaded eBird backup. Each
+row shows the date, location, species count, protocol, effort and completeness,
+with three actions — open the checklist on eBird, open its comment/edit page, and
+**Copy weather & go** (copies that checklist's weather and opens the eBird edit
+page so you can paste). The list pages in 100s (Show next 100 / Show all), and a
+toggle widens it to include incomplete and incidental checklists.
 
-The key design choice (yours): media is matched to a named bird by the `[name:…]`
-tag in each **media asset's own** caption/media-notes — not the checklist or
-species comment, since those name the bird but don't point at a specific asset.
-It's fully local matching; only the embed player itself needs a connection.
-Embeds load on demand (newest 6, then "Show more"), and offline or on a failed
-load they degrade to a placeholder that still shows the date, the checklist link,
-and a "View on Macaulay Library" link-out — never a broken frame. The privacy
-policy now discloses the Named Birds tab as an inline-media surface.
+The live preview against your real data earned its keep: it caught two Tauri-only
+bugs the automated tests couldn't see — `window.open` is silently dropped in the
+desktop WebView (fixed with a new `openExternalUrl` seam that opens external URLs
+the way the rest of the app already does), and a setState-in-render in the expand
+toggle. Both were fixed and re-verified before ship.
 
 ## What Has Been Saved
 
-- **Shipped to production.** Desktop (universal macOS + Windows) is **live** at
-  the v0.5.66 GitHub release with the signed DMG, Windows installer, updater
-  bundle, and `latest.json` — in-app updates will detect it. iOS/iPadOS **build 2**
-  is uploaded to **TestFlight** (App Store Connect processing).
-- This release also carried the previously-committed **sex-terminology** fix
-  (v0.5.65).
-- Commits on `main`: `01cc4ea` (feature), `0dc52c4` (records), and the final
-  state+handoff closeout. Tag `v0.5.66`.
-- Verified before ship: build ✓, lint ✓, **1503 tests** ✓, maplibre off the
-  entry chunk. A 6-lens adversarial review (security/correctness/offline/a11y/
-  privacy/conventions) found 5 issues — all fixed and re-verified clean.
-- Records updated: DECISIONS, PRODUCT_CONTEXT, ROADMAP, CLAUDE.md (two
-  conventions promoted: media-asset-comment matching + the non-destructive
-  embed-timeout/offline-overlay pattern).
+- **Shipped to production.** Desktop (universal macOS + Windows) is **live** at the
+  v0.5.67 GitHub release with the notarized DMG, signed Windows installer, updater
+  bundle, and `latest.json` — the in-app updater will offer it to every user.
+- Commits on `main`: `aa46b85` (feature), `568b99a` (pipeline artifacts),
+  `a3c8ca0` (records), plus this state+handoff closeout. Tag `v0.5.67`; Windows CI
+  run `28816707897` green.
+- Verified before ship: build ✓, lint ✓, **1548 frontend + 178 backend tests** ✓,
+  maplibre off the entry chunk, a clean security review, and a live desktop
+  preview against your real data.
+- Records updated: PRODUCT_CONTEXT, DECISIONS, ROADMAP (→ Shipped), and CLAUDE.md
+  (one new convention: never `window.open` in Tauri — use the `openExternalUrl`
+  seam or OutboundLink/ChecklistLink).
 
 ## Where We Are
 
 Feature complete and shipped. Pipeline is idle.
 
-**Notable follow-up on the roadmap (On the Horizon):** the existing Species
-Detail media embed has no offline/failed-load fallback — this feature built one
-worth backporting there.
+A concurrent task (started separately) is tokenizing the WeatherBacklog switch
+thumb; it lands on its own branch and doesn't affect this release.
 
 ## Resume Prompt
 
