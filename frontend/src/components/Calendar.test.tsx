@@ -248,24 +248,25 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
   })
 })
 
-describe('Calendar — phone forces Large view (change 2)', () => {
-  // Install a matchMedia stub that reports the phone media query as matching, so
-  // useIsPhone() returns true. Restored after the test.
-  function stubPhoneMatchMedia(matches: boolean) {
-    const orig = window.matchMedia
-    window.matchMedia = ((query: string) => ({
-      matches: query.includes('max-width:640px') ? matches : false,
-      media: query,
-      onchange: null,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-    })) as unknown as typeof window.matchMedia
-    return () => { window.matchMedia = orig }
-  }
+// Install a matchMedia stub that reports the phone media query (max-width:640px) as
+// matching, so useIsPhone() returns true. Returns a restore fn. Module-level so both the
+// "phone forces Large view" and the "phone big-grid dates" describes can use it.
+function stubPhoneMatchMedia(matches: boolean) {
+  const orig = window.matchMedia
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes('max-width:640px') ? matches : false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia
+  return () => { window.matchMedia = orig }
+}
 
+describe('Calendar — phone forces Large view (change 2)', () => {
   it('at phone width the overview (Large) branch never renders even after the toggle is clicked (forced to the big month grids)', async () => {
     // jsdom does not evaluate the @media(max-width:640px){display:none} that hides the
     // toggle, so the toggle buttons remain in the DOM here. What we CAN assert is the
@@ -299,27 +300,64 @@ describe('Calendar — phone forces Large view (change 2)', () => {
   })
 })
 
-describe('Calendar — Compact cells are count-only; the date lives on the Large thumbnails (v0.5.63)', () => {
-  it('a Compact data cell shows ONLY its count — no day-of-month date corner', async () => {
+describe('Calendar — Compact big-grid cells carry a phone-only date; desktop stays dateless (v0.5.64)', () => {
+  // v0.5.64: the big MonthGrid cells now render a day-of-month corner in the DOM, but it is
+  // the phone-only .sr-cal-bigday span — hidden by default (desktop stays dateless, the
+  // v0.5.63 decision) and revealed only in the ≤640 media block. jsdom applies no CSS, so
+  // the span is always in the DOM here regardless of width; these tests assert the correct
+  // GATING (it's a .sr-cal-bigday span, and the centered VISIBLE count is unchanged), and
+  // the phone-tier reveal is proven separately below via the matchMedia stub.
+  it('a Compact data cell carries a phone-only date corner (.sr-cal-bigday) alongside its count', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    // The 2025-03-14 rich data cell: count 3 (centered + in its aria-label). The big
-    // grids no longer carry a per-day date, so "14" must NOT appear in the cell text.
+    // The 2025-03-14 rich data cell: count 3 (centered + in its aria-label). The date corner
+    // is present but is the phone-gated span, so at desktop width it is CSS-hidden.
     const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
-    expect(cell.textContent).toBe('3')      // the metric count only
-    expect(cell.querySelector('.sr-cal-daynum')).toBeNull() // no date corner
+    const corner = cell.querySelector('.sr-cal-daynum')
+    expect(corner).not.toBeNull()
+    expect(corner!.classList.contains('sr-cal-bigday')).toBe(true) // phone-only reveal class
+    expect(corner!.textContent?.trim()).toBe('14')                 // the day-of-month
+    // Every big-grid date corner is the phone-gated span (never an always-on desktop date).
+    const bareCorners = Array.from(cell.querySelectorAll('.sr-cal-daynum'))
+      .filter(el => !el.classList.contains('sr-cal-bigday'))
+    expect(bareCorners).toHaveLength(0)
   })
 
-  it('a Compact no-data day cell renders no date (the big grids are count-only)', async () => {
+  it('a Compact no-data day cell also carries a phone-only date corner (every day cell is dated on a phone)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
-    // With the date corners gone, no .sr-cal-daynum span exists anywhere in the Compact
-    // month cards — a no-birding day is a bare outlined cell.
+    // A no-birding day is a bare outlined cell that STILL carries its date on the phone tier
+    // (a normal wall calendar dates every day). Every .sr-cal-daynum in the big month cards
+    // is the phone-gated .sr-cal-bigday span — desktop shows none of them (CSS-hidden).
     const marchCard = screen.getByText('March').parentElement as HTMLElement
-    expect(marchCard.querySelectorAll('.sr-cal-daynum')).toHaveLength(0)
+    const corners = Array.from(marchCard.querySelectorAll('.sr-cal-daynum'))
+    expect(corners.length).toBeGreaterThan(0) // March has 31 dated day cells
+    expect(corners.every(el => el.classList.contains('sr-cal-bigday'))).toBe(true)
   })
 
-  it('a Large thumbnail data cell carries its day-of-month number (the date moved here)', async () => {
+  it('at the phone tier the big-grid date corners are the visible day affordance (matchMedia ≤640)', async () => {
+    // The real reveal is CSS (.sr-cal-bigday → display:inline at ≤640); jsdom can't evaluate
+    // it, but we prove the phone RENDER path: at phone width effectiveMode is forced to the
+    // big month grids (no thumbnails), and those big cells carry the dated corners — so the
+    // TestFlight round-1 "no dates on a phone" regression is fixed. Desktop parity is proven
+    // by the .sr-cal-bigday gating above (hidden unless ≤640).
+    const restore = stubPhoneMatchMedia(true)
+    try {
+      render(<Calendar {...props} />)
+      await screen.findByText('March')
+      // Phone → big month grids only (no Large thumbnails).
+      expect(document.querySelectorAll('.sr-cal-minimonth')).toHaveLength(0)
+      // The Mar-14 big data cell carries its date corner.
+      const cell = screen.getByRole('button', { name: /Mar 14, 2025 — 3\. Open day details/ })
+      const corner = cell.querySelector('.sr-cal-bigday')
+      expect(corner).not.toBeNull()
+      expect(corner!.textContent?.trim()).toBe('14')
+    } finally {
+      restore()
+    }
+  })
+
+  it('a Large thumbnail data cell carries its day-of-month number (the date lives here too)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
     fireEvent.click(screen.getByRole('button', { name: 'Large' }))
@@ -339,14 +377,16 @@ describe('Calendar — Compact cells are count-only; the date lives on the Large
     expect(visibleText.every(t => t == null || Number(t) <= 31)).toBe(true)
   })
 
-  it('the combined (All years) Compact cell is count-only; the MM-DD date is on the thumbnail', async () => {
+  it('the combined (All years) Compact cell carries its MM-DD day corner as the phone-only .sr-cal-bigday span', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('March')
     fireEvent.click(screen.getByRole('button', { name: 'All years' }))
-    // Mar 14 combined data cell — union count 3, no date corner in the big grid.
+    // Mar 14 combined data cell — union count 3, plus the phone-gated date corner ("14").
     const cell = await screen.findByRole('button', { name: /Mar 14 — 3\. Open day details/ })
-    expect(cell.textContent).toBe('3')
-    expect(cell.querySelector('.sr-cal-daynum')).toBeNull()
+    const corner = cell.querySelector('.sr-cal-daynum')
+    expect(corner).not.toBeNull()
+    expect(corner!.classList.contains('sr-cal-bigday')).toBe(true)
+    expect(corner!.textContent?.trim()).toBe('14')
   })
 })
 

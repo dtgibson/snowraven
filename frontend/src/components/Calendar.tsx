@@ -171,11 +171,17 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
     return <div aria-hidden style={{ ...base, background: 'transparent', pointerEvents: 'none' }} />
   }
   if (desc.kind === 'nodata') {
-    // A day with no checklist — a faint outlined cell. The big grids are count-only
-    // (the day-of-month date lives on the Large-view thumbnails); a day is identified
-    // by its grid position and, on a data/zero day, its aria-label.
+    // A day with no checklist — a faint outlined cell. At DESKTOP width the big grids are
+    // count-only (the day-of-month date lives on the Large-view thumbnails, never rendered
+    // on a phone). On the PHONE tier the phones are FORCED to this big-grid view (useIsPhone),
+    // so — to restore the wall-calendar date affordance TestFlight round-1 flagged missing —
+    // every big cell also carries a DayCorner date that is HIDDEN by default and revealed
+    // only in the ≤640 media block (.sr-cal-bigday, globals.css). A day is otherwise
+    // identified by its grid position and, on a data/zero day, its aria-label.
     return (
-      <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }} />
+      <div aria-hidden style={{ ...base, background: 'transparent', border: '1px solid var(--sr-border-subtle)', pointerEvents: 'none' }}>
+        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" bigPhone />}
+      </div>
     )
   }
 
@@ -198,6 +204,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         onMouseEnter={e => (e.currentTarget.style.background = 'var(--sr-border-subtle)')}
         onMouseLeave={e => (e.currentTarget.style.background = 'var(--sr-surface-subtle)')}
       >
+        {desc.day != null && <DayCorner day={desc.day} color="var(--sr-text-muted)" bigPhone />}
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-text-muted)', lineHeight: 1 }}>0</span>
       </button>
     )
@@ -225,6 +232,10 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
       onMouseEnter={e => (e.currentTarget.style.filter = textures ? 'none' : 'brightness(1.12)')}
       onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
     >
+      {/* On the phone tier this cell carries its date in the corner (revealed by the ≤640
+          .sr-cal-bigday rule); on a data cell the white --sr-cal-fg reads over the shade,
+          and in textures mode the same tier-color pill the centered count uses backs it. */}
+      {desc.day != null && <DayCorner day={desc.day} color="var(--sr-cal-fg)" pillStyle={numStyle} bigPhone />}
       <span style={{ fontSize: '0.6875rem', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: 'var(--sr-cal-fg)', lineHeight: 1, ...numStyle }}>
         {desc.count}
       </span>
@@ -233,15 +244,18 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
 }
 
 // The small day-of-month label in the top-left corner (wall-calendar convention).
-// Used by the Year-Overview mini-month thumbnails (the big MonthGrid cells are
-// count-only; the date lives on the thumbnails). Decorative-only (the accessible date
-// lives in the day popup); pointer-events:none keeps the parent the sole hit target.
+// Two callers: the Year-Overview mini-month thumbnails (always shown at their container-
+// query floor), and the big MonthGrid cells on the PHONE tier ONLY (bigPhone → the
+// .sr-cal-bigday class, hidden by default and revealed by the ≤640 media block, so the
+// phone's forced big-grid view regains its dates while desktop big grids stay dateless —
+// the v0.5.63 decision preserved for wide viewports). Decorative-only (the accessible
+// date lives in the day popup); pointer-events:none keeps the parent the sole hit target.
 // Sized in rem so it holds at 200% text scale.
-function DayCorner({ day, color, pillStyle }: { day: number; color: string; pillStyle?: React.CSSProperties }) {
+function DayCorner({ day, color, pillStyle, bigPhone }: { day: number; color: string; pillStyle?: React.CSSProperties; bigPhone?: boolean }) {
   return (
     <span
       aria-hidden
-      className="sr-cal-daynum"
+      className={bigPhone ? 'sr-cal-daynum sr-cal-bigday' : 'sr-cal-daynum'}
       style={{
         position: 'absolute', top: 2, left: 3, lineHeight: 1,
         fontWeight: 600, fontVariantNumeric: 'tabular-nums',

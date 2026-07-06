@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.64] - 2026-07-05
+
+### Fixed
+- **The Calendar shows dates again on a narrow screen.** On phone-width screens the Calendar always shows the big month grids, and a recent change had moved the day-of-month numbers onto the whole-year thumbnails — which those narrow screens never show — so the day cells lost their dates. Every day cell in the big month grids now carries its date again on narrow screens, restoring the familiar wall-calendar layout. Wider screens are unchanged (their big grids stay date-free, with the dates on the whole-year thumbnails).
+
 ## [0.5.63] - 2026-07-04
 
 ### Changed
