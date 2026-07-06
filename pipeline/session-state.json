@@ -1,22 +1,18 @@
 {
   "activeFeature": null,
-  "sessionNumber": 75,
+  "sessionNumber": 76,
   "sessionType": null,
   "currentStage": null,
-  "lastCompletedStage": 6,
+  "lastCompletedStage": 9,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
+  "confirmedArtifacts": [],
   "autonomyMode": "studio-style",
-  "autonomyNote": "Idle. sex-terminology (Improve) is CODE-COMPLETE + committed to main (6d846b6) as v0.5.65 but DELIBERATELY UNRELEASED — user chose to close it without publishing and bundle the release with the NEXT run (Named Birds multimedia). PENDING RELEASE: v0.5.65 sits on main un-tagged; the named-birds run's Deployer must publish it (release covers everything since v0.5.64 — the sex-terminology fix + named-birds). Decide the final version at that publish (keep 0.5.65 bundling both, or bump higher if named-birds warrants). The change: display-only 'Gender'->'Sex' on the Statistics Media card (data model already used 'sex'); verified 1469 FE tests + build green, grep-clean; proportional QA + security (0 findings, no new surface). NEXT: improvement (2) Named Birds multimedia — show ML media for named birds below the map with date + checklist context via Macaulay Library inline embeds; the user will provide the embed format. Likely a New Feature lane (it's a new capability). Studio Style; live preview before ship.",
+  "autonomyNote": "Studio Style FEATURE run complete. named-birds-media SHIPPED as v0.5.66 (bundled the committed-unreleased v0.5.65 sex-terminology fix). Pipeline idle.",
   "ideaId": null,
-  "confirmedArtifacts": [
-    "pipeline/sex-terminology/change-brief.md",
-    "pipeline/sex-terminology/qa-report.md",
-    "pipeline/sex-terminology/security-report.md"
-  ],
-  "releasedVersion": "0.5.64",
-  "lastFeature": "sex-terminology (Improve) — code-complete, committed to main as v0.5.65 but UNRELEASED by user choice; bundled into the next run's release. Display-only 'Gender'->'Sex' on the Statistics Media card + docs.",
-  "remainingBacklog": "PENDING RELEASE: v0.5.65 (sex-terminology, on main un-tagged) publishes with the named-birds run. NEXT RUN: (2) Named Birds multimedia — ML inline embeds + date/checklist below the map (user provides embed format; likely New Feature). Then: mobile App Store submission (user's step); Windows code signing. On the Horizon: county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; Calendar day-species popup; phone wide-table 'see it all' (CSS zoom unreliable in WKWebView).",
-  "createdAt": "2026-07-06T03:25:30Z",
-  "updatedAt": "2026-07-06T03:47:00Z"
+  "releasedVersion": "0.5.66",
+  "lastFeature": "named-birds-media (Feature) — SHIPPED v0.5.66. Below each named bird's map on the Named Birds tab, its own Macaulay Library media (photo/audio/video), matched by the [name:…] tag in each asset's OWN caption/mediaNotes (not the checklist/species comment), each with capture date + checklist link, lazy-mounted (initial 6 + Show more), with a non-destructive offline/failed-load overlay (keeps date+checklist+ML link-out). Desktop (macOS universal + Windows) LIVE via GitHub release; iOS build 2 to TestFlight (build+altool). Bundled the v0.5.65 sex-terminology fix in the same release.",
+  "remainingBacklog": "v0.5.65 sex-terminology NO LONGER pending — shipped bundled in v0.5.66. Still open (user's own steps): iOS/iPadOS public App Store submission (TestFlight build 2 is up); Windows code signing (Authenticode). On the Horizon: backport the inline-embed offline/failed-load fallback to the Species Detail embed (it currently has none); county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; Calendar day-species popup; phone wide-table 'see it all' (CSS zoom unreliable in WKWebView).",
+  "createdAt": "2026-07-06T03:50:00Z",
+  "updatedAt": "2026-07-06T07:15:00Z"
 }

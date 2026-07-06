@@ -1,39 +1,44 @@
 ## What We Accomplished
 
-Corrected the app's terminology: **"sex" now, not "gender"**, for male/female
-birds. On the Statistics Media card the "Photos Tagged With Age or Gender"
-section, its donut, and its note all read "Sex" — matching the eBird / Macaulay
-Library field and the data model, which already used "sex" under the hood. A
-display-only copy fix; nothing behaves differently.
+Shipped **Named Birds Media (v0.5.66)**. On the Named Birds tab, each named
+individual now shows its own Macaulay Library media — photos, audio, and video —
+in a tidy grid below its sightings map. Each item carries its capture date and a
+link to the checklist it came from.
+
+The key design choice (yours): media is matched to a named bird by the `[name:…]`
+tag in each **media asset's own** caption/media-notes — not the checklist or
+species comment, since those name the bird but don't point at a specific asset.
+It's fully local matching; only the embed player itself needs a connection.
+Embeds load on demand (newest 6, then "Show more"), and offline or on a failed
+load they degrade to a placeholder that still shows the date, the checklist link,
+and a "View on Macaulay Library" link-out — never a broken frame. The privacy
+policy now discloses the Named Birds tab as an inline-media surface.
 
 ## What Has Been Saved
 
-- **Committed to `main`** (`6d846b6`) as **v0.5.65** — but **not released yet, on
-  purpose**. You chose to close this out and bundle its release with the next run
-  (the Named Birds multimedia feature), so it's on `main` un-tagged and will ship
-  in that release.
-- Files: `MediaStatsSections.tsx` + its test, `README.md`, `docs/HELP.md`,
-  `website/index.html`, `PRODUCT_CONTEXT.md`, version 0.5.65 in both manifests,
-  and a `CHANGELOG.md` 0.5.65 entry. Historical/dated records (the v0.5.22
-  changelog entry, DECISIONS) were left as-is.
-- Verified: full suite green (1469 frontend tests), typecheck / lint / build
-  clean; a grep confirms no user-facing "gender" remains. QA and security both
-  pass (a copy swap has no new surface).
+- **Shipped to production.** Desktop (universal macOS + Windows) is **live** at
+  the v0.5.66 GitHub release with the signed DMG, Windows installer, updater
+  bundle, and `latest.json` — in-app updates will detect it. iOS/iPadOS **build 2**
+  is uploaded to **TestFlight** (App Store Connect processing).
+- This release also carried the previously-committed **sex-terminology** fix
+  (v0.5.65).
+- Commits on `main`: `01cc4ea` (feature), `0dc52c4` (records), and the final
+  state+handoff closeout. Tag `v0.5.66`.
+- Verified before ship: build ✓, lint ✓, **1503 tests** ✓, maplibre off the
+  entry chunk. A 6-lens adversarial review (security/correctness/offline/a11y/
+  privacy/conventions) found 5 issues — all fixed and re-verified clean.
+- Records updated: DECISIONS, PRODUCT_CONTEXT, ROADMAP, CLAUDE.md (two
+  conventions promoted: media-asset-comment matching + the non-destructive
+  embed-timeout/offline-overlay pattern).
 
 ## Where We Are
 
-Improvement (1) is done and committed; its release is deferred and bundled with
-the next run. Pipeline is idle.
+Feature complete and shipped. Pipeline is idle.
 
-**Pending release:** v0.5.65 is on `main`, un-tagged. When the Named Birds
-multimedia run reaches its Deployer, that release will publish everything since
-v0.5.64 — this sex-terminology fix plus the new feature.
-
-**Next up:** improvement (2) — Named Birds multimedia (Macaulay Library inline
-embeds with date + checklist context, below the map). You offered to provide the
-embed format; I'll ask for it as we scope. Likely a New Feature run.
+**Notable follow-up on the roadmap (On the Horizon):** the existing Species
+Detail media embed has no offline/failed-load fallback — this feature built one
+worth backporting there.
 
 ## Resume Prompt
 
-Run `/weft` in this project to start the Named Birds multimedia run (or anything
-else). It reads saved state and picks up fresh.
+Run `/weft` to start the next feature.
