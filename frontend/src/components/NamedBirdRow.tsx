@@ -14,7 +14,9 @@ import { formatDate, formatSightingDuration } from '../lib/formatDate'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { ChecklistLink } from './ChecklistLink'
 import { HotspotLink } from './HotspotLink'
+import { NamedBirdMedia } from './NamedBirdMedia'
 import type { NamedBird } from '../lib/namedBirds'
+import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 
 // SightingsMap (and the ~1 MB maplibre-gl it pulls) is lazy-loaded so it stays
 // out of the app's entry chunk and off first paint — this static import was the
@@ -23,7 +25,7 @@ import type { NamedBird } from '../lib/namedBirds'
 // opening a row stays instant. See the 0.5.42 load-optimization change.
 const SightingsMap = lazy(() => import('./SightingsMap').then(m => ({ default: m.SightingsMap })))
 
-export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies, isHotspot }: {
+export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies, isHotspot, media = [], hasML = false }: {
   bird: NamedBird
   open: boolean
   onToggle: () => void
@@ -32,6 +34,10 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
   showMap: boolean
   renderSpecies?: (commonName: string, scientificName: string) => React.ReactNode
   isHotspot: (locId: string | null | undefined) => boolean
+  /** This individual's matched ML media (Named Birds tab only; [] elsewhere). */
+  media?: NamedBirdAsset[]
+  /** True when an ML export is loaded — gates the media section's presence (FR-17). */
+  hasML?: boolean
 }) {
   // Per-coordinate markers for this bird, skipping null-coord sightings (FR-22).
   // Empty → no map rendered (FR-23). Cheap, but memoized so the array identity is
@@ -146,6 +152,14 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
                 </Suspense>
               </div>
             </div>
+          )}
+
+          {/* Per-individual media — below the map block, Named-Birds-tab-only (like
+              the map). Renders in this position whether or not the bird has a map;
+              it draws its own empty state, and renders nothing when no ML is loaded
+              (FR-06/16/17). Species Detail's caller omits showMap → media-less. */}
+          {showMap && (
+            <NamedBirdMedia birdName={bird.name} assets={media} open={open} hasML={hasML} />
           )}
         </div>
       )}

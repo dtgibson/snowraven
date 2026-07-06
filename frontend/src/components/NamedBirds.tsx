@@ -8,10 +8,13 @@ import { Loader2, AlertCircle, Tag } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
+import { loadMLExport } from '../lib/mlExportCache'
 import { storage } from '../lib/storage'
 import { transport } from '../lib/transport'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
 import { computeNamedBirds, type NamedBird } from '../lib/namedBirds'
+import { computeNamedBirdMedia } from '../lib/namedBirdMedia'
+import type { MLExportRow } from '../lib/parseMLExport'
 import { NamedBirdsTable } from './NamedBirdsTable'
 import { BirdName } from './BirdName'
 
@@ -29,6 +32,10 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
+  // The parsed ML export rows (null when no ML file is stored). ML is OPTIONAL and
+  // orthogonal to the eBird backup — its absence/failure must never block or error
+  // the named-birds computation, which is driven entirely by the eBird backup.
+  const [mlRows, setMlRows] = useState<MLExportRow[] | null>(null)
 
   const fetchTaxonCodes = async (birds: NamedBird[]) => {
     try {
@@ -47,6 +54,7 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
     let cancelled = false
     async function autoLoad() {
       setPhase({ tag: 'loading-saved' })
+      setMlRows(null)
       try {
         const status = await storage.getFilesStatus()
         if (cancelled) return
@@ -59,6 +67,14 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
         const birds = computeNamedBirds(ebird.observations)
         setPhase({ tag: 'ready', birds })
         if (birds.length > 0) fetchTaxonCodes(birds)
+        // Optional ML media join — loaded independently, never gating the tab. A
+        // missing/unparseable export leaves mlRows null (no media section anywhere).
+        try {
+          const ml = await loadMLExport()
+          if (!cancelled) setMlRows(ml?.rows ?? null)
+        } catch {
+          if (!cancelled) setMlRows(null)
+        }
       } catch {
         if (!cancelled) setPhase({ tag: 'setup-required' })
       }
@@ -82,6 +98,11 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
     (name: string) => taxonOrders[name] ?? normTaxonOrder[normalizeSpeciesName(name)] ?? Infinity,
     [taxonOrders, normTaxonOrder],
   )
+
+  // The media join, computed once per ML load. Identity-stable until mlRows
+  // changes (filesVersion drives the re-load). Pure — no impure call in the memo.
+  const mediaByBird = useMemo(() => computeNamedBirdMedia(mlRows), [mlRows])
+  const hasML = mlRows !== null
 
   if (phase.tag === 'loading-saved') {
     return (
@@ -143,6 +164,8 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
           showSpecies
           singleOpen
           orderFor={orderFor}
+          mediaByBird={mediaByBird}
+          hasML={hasML}
           renderSpecies={(commonName, scientificName) => (
             <BirdName commonName={commonName} scientificName={scientificName} taxonCode={codeFor(commonName)} hasEntry onOpenSpecies={onOpenSpecies} size="sm" />
           )}

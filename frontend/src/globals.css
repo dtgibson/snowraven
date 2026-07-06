@@ -682,6 +682,50 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
+/* Named Birds media — a framed tile holding the player region (or its offline /
+   loading placeholder) above the meta row. The frame reuses the media grid; only
+   the player HEIGHT differs by format, so the offline/loading placeholder shares
+   the exact footprint and there is no layout shift on switch. Tokens only. */
+.sr-media-frame {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--sr-border);
+  border-radius: 9px;
+  background: var(--sr-surface);
+  overflow: hidden;
+}
+
+/* Per-format player heights (design-spec: photo/video 230px, audio 116px). The
+   frame and the iframe both take the format class so the placeholder box matches
+   the player box exactly. */
+.sr-media-iframe--photo,
+.sr-media-iframe--video { height: 230px; }
+.sr-media-iframe--audio { height: 116px; }
+
+/* Loading / lazy placeholder — same footprint, a subtle surface sweep honoring
+   prefers-reduced-motion (the shimmer animation is killed by the global
+   reduced-motion block; the static surface remains). */
+.sr-media-shimmer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    100deg,
+    var(--sr-surface-subtle) 30%,
+    var(--sr-surface-faint) 50%,
+    var(--sr-surface-subtle) 70%
+  );
+  background-size: 200% 100%;
+  animation: sr-media-shimmer-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes sr-media-shimmer-sweep {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
 /* ── Responsive layout hooks — mobile-responsive-sweep (v0.5.37) ────────────
    React inline styles have specificity 1,0,0 and BEAT class rules, and inline
    grids cannot be reached by a media query (see .sr-two-col above and the
@@ -1148,6 +1192,13 @@ select:focus-visible {
   .sr-map-container { height: 300px; }
   .sr-media-grid { grid-template-columns: 1fr; }
   .sr-media-iframe { height: 360px; }
+
+  /* Named Birds media — taller single-column players on phones (design-spec:
+     photo/video 280px, audio 130px). The --audio/--photo/--video rules must win
+     over the base .sr-media-iframe 360px on phone, so re-state them here. */
+  .sr-media-iframe--photo,
+  .sr-media-iframe--video { height: 280px; }
+  .sr-media-iframe--audio { height: 130px; }
 
   /* New layout hooks collapse to a single column on phones. */
   .sr-grid-2, .sr-grid-3, .sr-grid-4 { grid-template-columns: 1fr; }

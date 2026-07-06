@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.66] - 2026-07-05
+
+### Added
+- **The Named Birds tab now shows each individual's own photos, audio, and video.** When you've saved your Macaulay Library export, expanding a named bird reveals a **Media of {name}** section below its map, gathering that specific individual's media as inline players from the Macaulay Library. An asset belongs to a named bird when the asset's *own* comment — its caption or media notes, not the observation comment that the export copies onto every asset — carries the same `[name:…]` tag, matched to the correct species, so the grouping is precise and never mixes up two birds that share a name. Each item is labeled with its capture date and a link to the checklist it came from, newest first. Players load only when you open the card, in an initial batch of six with a **Show more** control for well-documented individuals, and each mounts as it scrolls into view so the tab stays responsive. If you're offline or a player can't load, that tile shows a **View on Macaulay Library** link instead of a broken frame — keeping its date and checklist link, which are computed locally. A named bird with no matching media shows a short "No media matched to this bird." note; with no ML export saved, the media section simply doesn't appear. This is a Named Birds tab feature — the Named Individuals section on Species Detail is unchanged.
+
 ## [0.5.65] - 2026-07-05
 
 ### Changed

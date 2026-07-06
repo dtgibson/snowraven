@@ -1,6 +1,6 @@
 # Privacy Policy — SnowRaven
 
-**Effective date:** June 18, 2026
+**Effective date:** July 5, 2026
 
 ## Overview
 
@@ -57,7 +57,7 @@ Offline map regions are entirely opt-in and off by default. Nothing about them t
 
 A few things in the app load directly from the Cornell Lab of Ornithology's websites, the same way any web page loads an embedded image — so, like the map tiles above, those sites receive your IP address and the specific item requested:
 
-- **Macaulay Library embeds** — the Species Detail tab can show your photos, audio, and video embedded from **macaulaylibrary.org**; loading one tells the Macaulay Library which asset was viewed.
+- **Macaulay Library embeds** — the Species Detail tab and the Named Birds tab can show your photos, audio, and video embedded from **macaulaylibrary.org**; loading one tells the Macaulay Library which asset was viewed.
 - **Site icons next to bird names** — the small link icons shown beside bird names throughout the app load from **ebird.org** and **birdsoftheworld.org**.
 
 No key or account is used for these loads, no SnowRaven server is involved, and the developer adds no tracking and keeps no copy. These are Cornell Lab of Ornithology services; see [Cornell's privacy statement](https://privacy.cornell.edu/).

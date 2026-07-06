@@ -8,8 +8,9 @@ import { useMemo, useState } from 'react'
 import { sortNamedBirds, type NamedBird, type NamedBirdSort } from '../lib/namedBirds'
 import { NamedBirdRow } from './NamedBirdRow'
 import { useHotspotSet } from '../lib/useHotspotSet'
+import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 
-export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, singleOpen }: {
+export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, singleOpen, mediaByBird, hasML }: {
   birds: NamedBird[]
   showSpecies: boolean
   /** Renders a species name (BirdName) — supplied only when showSpecies. */
@@ -21,6 +22,12 @@ export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, s
    *  live maps at one WebGL context. The Named Birds tab passes true; Species
    *  Detail's map-less section stays multi-open. */
   singleOpen?: boolean
+  /** NamedBird.key → that individual's matched ML media. Supplied only by the
+   *  Named Birds tab; Species Detail omits it → every row gets [] (media-less). */
+  mediaByBird?: Map<string, NamedBirdAsset[]>
+  /** True when an ML export is loaded (rides alongside mediaByBird) — lets a bird
+   *  with no matched media show the empty state vs. the section being absent. */
+  hasML?: boolean
 }) {
   const [sort, setSort] = useState<NamedBirdSort>('lastSeen')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -98,6 +105,8 @@ export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, s
             showMap={!!singleOpen}
             renderSpecies={renderSpecies}
             isHotspot={isHotspot}
+            media={mediaByBird?.get(bird.key) ?? []}
+            hasML={!!hasML}
           />
         ))}
       </div>

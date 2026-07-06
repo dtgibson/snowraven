@@ -40,6 +40,19 @@ export type NamedBirdSort = 'name' | 'alphabetical' | 'taxonomic' | 'lastSeen'
 // ReDoS that would freeze the UI on a malformed comment in the user's own export.
 const NAME_TAG_RE = /\[\s*name\s*:([^\]]{0,120})\]/gi
 
+/**
+ * The join key for a named individual: lowercased name :: normalized lowercased
+ * species. "Pete" the Mallard and "Pete" the Canada Goose are different keys.
+ *
+ * This is the single source of truth for the identity so the media matcher
+ * (`computeNamedBirdMedia`) and `computeNamedBirds` bucket on byte-identical keys
+ * — the join between an individual and its media depends on this not drifting. A
+ * parity test locks the two callers to this one helper.
+ */
+export function namedBirdKey(name: string, commonName: string): string {
+  return `${name.toLowerCase()}::${normalizeSpeciesName(commonName).toLowerCase()}`
+}
+
 /** Extract the distinct name tags from one comment (case-insensitive, in order). */
 export function parseNameTags(comment: string): string[] {
   if (!comment) return []
@@ -67,7 +80,7 @@ export function computeNamedBirds(observations: ObservationEntry[]): NamedBird[]
     if (names.length === 0) continue
     const species = normalizeSpeciesName(obs.commonName)
     for (const name of names) {
-      const key = `${name.toLowerCase()}::${species.toLowerCase()}`
+      const key = namedBirdKey(name, obs.commonName)
       const sighting: NamedSighting = {
         date: obs.date,
         submissionId: obs.submissionId,
