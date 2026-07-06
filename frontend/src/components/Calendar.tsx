@@ -134,8 +134,8 @@ function Switch({ label, checked, onChange, small, disabled }: {
       }}>
         <span style={{
           position: 'absolute', top: 2, left: checked ? trackW - knob - 2 : 2,
-          width: knob, height: knob, borderRadius: '50%', background: '#fff',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.25)', transition: 'left 0.12s',
+          width: knob, height: knob, borderRadius: '50%', background: 'var(--sr-switch-thumb)',
+          boxShadow: 'var(--sr-switch-thumb-shadow)', transition: 'left 0.12s',
         }} />
       </span>
       <span style={{ fontSize: small ? '0.71875rem' : '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>{label}</span>

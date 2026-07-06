@@ -1039,7 +1039,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         >
           <span style={{
             position: 'absolute', top: 2, left: atlasEnabled ? 22 : 2, width: 20, height: 20,
-            borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+            borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
           }} />
         </button>
       </div>
@@ -1073,7 +1073,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               >
                 <span style={{
                   position: 'absolute', top: 2, left: shadeByBreeding ? 22 : 2, width: 20, height: 20,
-                  borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+                  borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
                 }} />
               </button>
             </div>
@@ -1103,7 +1103,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   >
                     <span style={{
                       position: 'absolute', top: 2, left: useTextures ? 22 : 2, width: 20, height: 20,
-                      borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+                      borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
                     }} />
                   </button>
                 </div>
@@ -1155,7 +1155,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           >
             <span style={{
               position: 'absolute', top: 2, left: countyLinesEnabled ? 22 : 2, width: 20, height: 20,
-              borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+              borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
             }} />
           </button>
         </div>
@@ -1190,7 +1190,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 >
                   <span style={{
                     position: 'absolute', top: 2, left: shadeByCounty ? 22 : 2, width: 20, height: 20,
-                    borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+                    borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
                   }} />
                 </button>
               </div>
@@ -1252,7 +1252,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                     >
                       <span style={{
                         position: 'absolute', top: 2, left: useCountyTextures ? 22 : 2, width: 20, height: 20,
-                        borderRadius: '50%', background: '#fff', transition: 'left 0.15s',
+                        borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
                       }} />
                     </button>
                   </div>

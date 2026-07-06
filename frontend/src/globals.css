@@ -113,6 +113,14 @@
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
 
+  /* Switch (on/off toggle) thumb — theme-neutral white knob, IDENTICAL in both themes
+     (a white knob reads correctly on the accent/gray-400 track in light AND dark; the
+     --sr-gray-400 off-track above is contrast-tuned against this white). The knob carries
+     no text, so no on-surface AA concern. Shadow is a subtle drop under the knob, also the
+     same value in both themes (kept non-theme-flipped so the refactor is pixel-identical). */
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+
   /* Calendar day-shade ramp — deep green, identical in both themes, sized so a
      WHITE on-cell number clears 4.5:1 on EVERY tier (unlike --sr-county-N, whose
      light top tiers carry no on-fill text). 5 classes so >=1.2:1 adjacency ALSO
@@ -320,6 +328,11 @@
 
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+  /* Switch thumb — same white knob + shadow as :root by design (theme-neutral control
+     chrome, carries no text; --sr-gray-400 off-track is contrast-tuned against this white). */
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
 
   /* Calendar day-shade ramp — identical to :root by design (deep green, theme-
      identical). Deep enough that the single WHITE --sr-cal-fg number clears

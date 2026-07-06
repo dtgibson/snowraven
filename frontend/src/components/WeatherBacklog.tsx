@@ -479,7 +479,7 @@ export function WeatherBacklog({ rows, lookupWeather, onCopy, isHotspot, onGoToS
                   >
                     <span aria-hidden="true" style={{
                       position: 'absolute', top: 2, left: 2, width: 16, height: 16, borderRadius: '50%',
-                      background: '#fff', boxShadow: '0 1px 2px rgba(0,0,0,.25)', transition: 'transform .15s',
+                      background: 'var(--sr-switch-thumb)', boxShadow: 'var(--sr-switch-thumb-shadow)', transition: 'transform .15s',
                       transform: includeWidened ? 'translateX(14px)' : 'none',
                     }} />
                   </button>

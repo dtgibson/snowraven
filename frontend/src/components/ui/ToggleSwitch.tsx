@@ -29,11 +29,11 @@ export function ToggleSwitch({ label, checked, onChange }: ToggleSwitchProps) {
       }}>
         <div style={{
           width: 12, height: 12, borderRadius: '50%',
-          background: 'white',
+          background: 'var(--sr-switch-thumb)',
           position: 'absolute', top: 2,
           left: checked ? 14 : 2,
           transition: 'left 0.15s',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.25)',
+          boxShadow: 'var(--sr-switch-thumb-shadow)',
         }} />
       </div>
       {label}
