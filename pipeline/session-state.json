@@ -3,28 +3,20 @@
   "sessionNumber": 75,
   "sessionType": null,
   "currentStage": null,
-  "lastCompletedStage": 8,
+  "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "autonomyMode": "studio-style",
-  "autonomyNote": "PAUSED at Stage 8 (Deployer) by user choice — keeping the mobile-app feature OPEN (more TestFlight rounds expected before App Store). Studio Style FEATURE run. STATE OF THE FEATURE: The universal iOS/iPadOS app (Tauri v2 iOS target on the existing React frontend; committed gen/apple; bundle id com.dtgibson.snowraven for iOS via src-tauri/tauri.ios.conf.json overlay, desktop stays com.snowraven; iOS 16 floor; isIOS() platform seam + lib/platformGates.ts predicates; updater/process #[cfg(desktop)]; geolocation mobile-only; native document-picker import (Mechanism A, verified on sim); compact iOS header; map-fullscreen-hides-sidebar; safe-area under .sr-ios-app) is BUILT, tested (Stage 6: 9-lens adversarial QA, 10 findings fixed+reverified), security-cleared (Stage 7: PASSED WITH NOTES — dormant dialog:allow-open grant KEEP-through-TestFlight w/ removal trigger before App Store; api-keys-in-backups + CSP-null noted). SHIPPED TO TESTFLIGHT as BUILD 1 = v0.5.63 (Delivery UUID 30782eb9-..., uploaded via altool w/ ASC API key AuthKey_BVVLBRRVL6; ASC app record com.dtgibson.snowraven created by user; Apple Distribution cert in keychain). USER'S OPEN STEPS: (a) in App Store Connect, add self as internal tester so build 1 installs via TestFlight on iPhone+iPad; (b) eventually App Store submission (package prepared — synthetic screenshots + privacy labels 'Data Not Collected' + reviewer sample CSVs + review notes; PRIVACY_POLICY/README/website stay mobile-SILENT until App Store launch per the phased-announcement decision). DEPLOYER-BEFORE-APPSTORE: execute the dialog-grant removal trigger once Mechanism A confirmed on a physical device; ExportOptions.plist export-method must be app-store-connect (was debugging). MACHINE NOTE: sudo xcode-select -s /Applications/Xcode.app is a pending one-time user fix (until then tauri ios build needs the /tmp/xcshim xcodebuild+xcrun shims + parent DEVELOPER_DIR+LANG — documented in pipeline/mobile-app/how-to-see.md). ON-DEVICE FEEDBACK THIS SESSION -> two phone-tier bugs surfaced: (1) Calendar showed no dates on phone (v0.5.63 regression) -> FIXED (day-of-month back on phone month grid, ≤640 CSS reveal) and SHIPPED as v0.5.64 to desktop/web (release live, marked Latest, latest.json all 3 platforms; Windows CI 28763749373 was the FIRST green Windows build w/ the mobile Cargo cfg changes — cross-platform gating holds). (2) Wide 'Unbounded' tables (Breeding Codes, List Comparer) ugly on phone -> tried a zoomable surface (contained frame + Fit/pinch/CSS-zoom) across MANY rounds; CSS zoom would NOT visibly scale content in WKWebView (zoom% changed, matrix didn't shrink, codes unreadable) -> user chose to REVERT entirely; tables now = original Unbounded toggle (git-reverted to HEAD, byte-identical); zoom files deleted. Lesson logged: CSS zoom unreliable in WKWebView; a phone wide-table 'see it all' needs a different technique (deferred). TestFlight BUILD 2 (with the v0.5.64 calendar fix) was DEFERRED by the user. Verified: 1469 FE tests, typecheck/lint/build/cargo all green. Sim (iPhone 128090F3.../iPad 9C2835F3...) has the user's real data loaded (copied into the app container) running v0.5.64.",
+  "autonomyNote": "Idle. sex-terminology (Improve) is CODE-COMPLETE + committed to main (6d846b6) as v0.5.65 but DELIBERATELY UNRELEASED — user chose to close it without publishing and bundle the release with the NEXT run (Named Birds multimedia). PENDING RELEASE: v0.5.65 sits on main un-tagged; the named-birds run's Deployer must publish it (release covers everything since v0.5.64 — the sex-terminology fix + named-birds). Decide the final version at that publish (keep 0.5.65 bundling both, or bump higher if named-birds warrants). The change: display-only 'Gender'->'Sex' on the Statistics Media card (data model already used 'sex'); verified 1469 FE tests + build green, grep-clean; proportional QA + security (0 findings, no new surface). NEXT: improvement (2) Named Birds multimedia — show ML media for named birds below the map with date + checklist context via Macaulay Library inline embeds; the user will provide the embed format. Likely a New Feature lane (it's a new capability). Studio Style; live preview before ship.",
   "ideaId": null,
   "confirmedArtifacts": [
-    "pipeline/mobile-app/strategic-brief.md",
-    "pipeline/mobile-app/prd.md",
-    "pipeline/mobile-app/schema.md",
-    "pipeline/mobile-app/design-spec.md",
-    "pipeline/mobile-app/design.html",
-    "pipeline/mobile-app/qa-report.md",
-    "pipeline/mobile-app/security-report.md",
-    "pipeline/mobile-app/decisions.md",
-    "pipeline/mobile-app/pr-description.md",
-    "pipeline/mobile-app/how-to-see.md",
-    "pipeline/mobile-app/privacy-labels.md"
+    "pipeline/sex-terminology/change-brief.md",
+    "pipeline/sex-terminology/qa-report.md",
+    "pipeline/sex-terminology/security-report.md"
   ],
   "releasedVersion": "0.5.64",
-  "lastFeature": "mobile-app (Feature lane) — IN PROGRESS, paused at Stage 8. Universal iOS/iPadOS app on TestFlight (build 1 = v0.5.63); App Store submission is the user's open step. A phone calendar-dates fix that surfaced during device testing shipped separately as v0.5.64 to desktop/web (live). The phone wide-table zoom experiment was reverted per the user.",
-  "remainingBacklog": "ROADMAP Up Next after mobile: Windows code signing. On the Horizon: county shading on Species Detail + Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; Calendar day popup listing the day's species; AND (new, deferred) a phone-appropriate wide-table 'see it all' view that works in WKWebView (CSS zoom proved unreliable).",
-  "createdAt": "2026-07-05T03:31:23Z",
-  "updatedAt": "2026-07-06T03:24:49Z"
+  "lastFeature": "sex-terminology (Improve) — code-complete, committed to main as v0.5.65 but UNRELEASED by user choice; bundled into the next run's release. Display-only 'Gender'->'Sex' on the Statistics Media card + docs.",
+  "remainingBacklog": "PENDING RELEASE: v0.5.65 (sex-terminology, on main un-tagged) publishes with the named-birds run. NEXT RUN: (2) Named Birds multimedia — ML inline embeds + date/checklist below the map (user provides embed format; likely New Feature). Then: mobile App Store submission (user's step); Windows code signing. On the Horizon: county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; Calendar day-species popup; phone wide-table 'see it all' (CSS zoom unreliable in WKWebView).",
+  "createdAt": "2026-07-06T03:25:30Z",
+  "updatedAt": "2026-07-06T03:47:00Z"
 }
