@@ -1,22 +1,18 @@
 {
-  "activeFeature": "calendar-views-and-emdash",
+  "activeFeature": null,
   "sessionNumber": 78,
-  "sessionType": "maintain",
-  "currentStage": 5,
-  "lastCompletedStage": 4,
-  "lastCheckpointStatus": "in-progress",
+  "sessionType": null,
+  "currentStage": null,
+  "lastCompletedStage": 6,
+  "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
-  "confirmedArtifacts": [
-    "pipeline/calendar-views-and-emdash/change-brief.md",
-    "pipeline/calendar-views-and-emdash/qa-report.md",
-    "pipeline/calendar-views-and-emdash/security-report.md"
-  ],
+  "confirmedArtifacts": [],
   "autonomyMode": "studio-style",
-  "autonomyNote": "Studio Style IMPROVE (maintain) run in progress: calendar-views-and-emdash. Maintain lane has NO Designer stage → all stages auto-advance; Deploy always gates; security blockers surface; live preview before ship (visual Calendar change + user preference). Two items: (1) remove em dashes (—) from user-facing app copy (our copy + HELP.md; NOT eBird data / code comments; weather-block format is a flagged edge); (2) Calendar Compact/Large view-mode fix — Compact = data+counts, no day-of-month date; Large = dates+shading, no data until a day is clicked; also fix modes rendering identically on mobile.",
+  "autonomyNote": "Studio Style IMPROVE run complete. calendar-views-and-emdash SHIPPED as v0.5.68 (also carried the switch-thumb tokenization to production). Pipeline idle.",
   "ideaId": null,
-  "releasedVersion": "0.5.67",
-  "lastFeature": "weather-backlog (Feature) — SHIPPED v0.5.67. A 'List checklists with no weather blocks' section at the bottom of the Weather tab: the 100 most-recent complete/non-incidental checklists lacking a SnowRaven/RainCrow weather block, built offline from the loaded backup, newest first; each row has open-checklist / open-comment-page / 'Copy weather & go' (copies weather-only, then opens the eBird edit page) actions, Show next 100 / Show all paging, and a toggle to widen to incomplete+incidental. Live preview caught + fixed two Tauri-only bugs (window.open silently dropped → new lib/openExternal.ts openExternalUrl seam; setState-in-render in the expand toggle). Desktop (macOS universal + Windows) live via GitHub release + latest.json.",
-  "remainingBacklog": "Open (user's own steps): iOS/iPadOS public App Store submission (TestFlight build 2 up); Windows code signing (Authenticode). In flight (separate task): tokenize the WeatherBacklog #fff switch-thumb; the broader app-wide --sr-switch-thumb migration across all four inline switches is a candidate. On the Horizon: backport the inline-embed offline/failed-load fallback to the Species Detail embed; county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; richer Calendar day-species popup.",
+  "releasedVersion": "0.5.68",
+  "lastFeature": "calendar-views-and-emdash (Improve) — SHIPPED v0.5.68. The Calendar Compact/Large view modes now work distinctly on mobile (Compact = per-day counts, no date; Large = dated + shaded mini-months, no count, data on tap; the phone view-force + phone-only date corner were removed so the toggle governs at all widths — desktop unchanged). Em dashes removed from the app's user-facing copy + in-app Help (~163 spots; 2 out-of-scope residuals: the Esri-mandated attribution string and a data-parsing regex). This release also carried the switch-thumb tokenization (--sr-switch-thumb) to production. Desktop (macOS universal + Windows) live via GitHub release + latest.json.",
+  "remainingBacklog": "Open (user's own steps): iOS/iPadOS public App Store submission (TestFlight build 2 up); Windows code signing (Authenticode). On the Horizon: backport the inline-embed offline/failed-load fallback to the Species Detail embed; county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; richer Calendar day-species popup. NOTE: the Calendar mobile layout shipped test-verified but NOT human-eye-verified on a real phone (the desktop app window wouldn't narrow far enough on the user's machine) — worth an eyeball on an actual phone when convenient.",
   "createdAt": "2026-07-06T20:42:54Z",
-  "updatedAt": "2026-07-06T22:00:00Z"
+  "updatedAt": "2026-07-06T23:10:00Z"
 }
