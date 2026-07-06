@@ -58,6 +58,18 @@ italic at 0.71875rem `--sr-text-gray`.
   (`/^S\d+$/`); `target="_blank" rel="noreferrer"`; accent + ExternalLink glyph.
 - **Icons:** Lucide, 11–15px, stroke ~2.2, purposeful only.
 - **Maps:** `<SnowMap>`/`SightingsMap` wrappers only.
+- **Inline media (ML embeds):** Macaulay Library `.../asset/<id>/embed` iframe in
+  a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. Per-format
+  height (photo/video taller, audio compact — a modifier class, tokens only). Each
+  item labels its capture date + a `ChecklistLink`; the media-type marker follows
+  the app's own convention (uppercase muted micro-label + Lucide icon, NOT a
+  colored chip — the green stays reserved for the actionable link). A bounded
+  initial batch (~6) + a keyboard-operable "Show more" (`.sr-touch-target`), lazy-
+  mounted; offline/failed degrades to a same-footprint placeholder that keeps the
+  date + checklist + an `OutboundLink` to the single-asset ML URL, never a broken
+  frame. Established Species Detail Recent Media; extended to Named Birds
+  (named-birds-media feature) with per-format sizing + the offline placeholder.
+  No new tokens.
 
 ## Accessibility commitments
 Every `<button>` gets explicit `tabIndex={0}` (WKWebView Tab behavior); toggles

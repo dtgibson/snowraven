@@ -1,0 +1,479 @@
+<!--
+  Named Birds Media — Designer mockup (Weft Stage 4)
+  Self-contained. Token values copied verbatim from frontend/src/globals.css
+  (:root light + [data-theme="dark"] dark). No external assets EXCEPT one real
+  Macaulay Library iframe (to show true player scale); all other items are
+  correctly-sized styled placeholder "player" tiles so the layout reads without
+  loading many live players. This is a MOCKUP, not shipping code.
+-->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Named Birds Media — SnowRaven design mockup</title>
+<style>
+  /* ── Tokens copied verbatim from globals.css ───────────────────────────── */
+  :root {
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+    --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA; --sr-text-gray:#6B7280;
+    --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE; --sr-border-input:#8A8A91;
+    --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE; --sr-accent-bg-hover:#F0FAF4;
+    --sr-accent-border:rgba(39,116,72,0.25); --sr-accent-border-strong:rgba(39,116,72,0.7); --sr-on-accent:#FFFFFF;
+    --sr-quote-bg:#EFF1F3; --sr-quote-border:#E0E2E6;
+    --sr-error:#D31F1F; --sr-error-bg:#FEF2F2; --sr-error-border:#FECACA;
+    --sr-is-target-bg:#FFF7ED; --sr-is-target-text:#C2410C; --sr-is-target-border:rgba(194,65,12,0.35);
+    --sr-card-shadow:0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-focus-ring:rgba(45,134,83,0.12);
+  }
+  [data-theme="dark"] {
+    --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+    --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-disabled:#52525B; --sr-text-gray:#8A8A92;
+    --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46; --sr-border-input:#707078;
+    --sr-accent:#34D399; --sr-accent-strong:#34D399; --sr-accent-bg:#052E16; --sr-accent-bg-hover:#064E3B;
+    --sr-accent-border:rgba(52,211,153,0.2); --sr-accent-border-strong:rgba(52,211,153,0.5); --sr-on-accent:#052E16;
+    --sr-quote-bg:#2E2E33; --sr-quote-border:#3A3A40;
+    --sr-error:#F87171; --sr-error-bg:#1C0505; --sr-error-border:#7F1D1D;
+    --sr-is-target-bg:#1C0F00; --sr-is-target-text:#FB923C; --sr-is-target-border:rgba(251,146,60,0.3);
+    --sr-card-shadow:0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+    --sr-focus-ring:rgba(52,211,153,0.18);
+  }
+
+  /* ── Mockup chrome (NOT part of the shipped design) ─────────────────────── */
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Inter',system-ui,-apple-system,sans-serif; background:var(--sr-bg); color:var(--sr-text); -webkit-font-smoothing:antialiased; }
+  .mock-head { max-width:1180px; margin:0 auto; padding:28px 22px 8px; }
+  .mock-head h1 { font-size:1.35rem; font-weight:700; letter-spacing:-0.02em; margin:0 0 6px; }
+  .mock-head p { font-size:0.875rem; color:var(--sr-text-muted); margin:0 0 4px; line-height:1.5; max-width:70ch; }
+  .mock-note { font-size:0.78rem; color:var(--sr-text-gray); }
+  .panes { max-width:1180px; margin:0 auto; padding:14px 22px 60px; display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start; }
+  @media (max-width:900px){ .panes { grid-template-columns:1fr; } }
+  .pane { border:1px solid var(--sr-border); border-radius:14px; overflow:hidden; background:var(--sr-bg); }
+  .pane[data-theme="dark"] { background:var(--sr-bg); }
+  .pane-label { display:flex; align-items:center; gap:8px; padding:9px 14px; font-size:0.72rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--sr-text-muted); background:var(--sr-surface-faint); border-bottom:1px solid var(--sr-border); }
+  .pane-body { padding:16px; background:var(--sr-bg); }
+  .swatch { width:11px; height:11px; border-radius:50%; }
+  .sec-divider { max-width:1180px; margin:26px auto 0; padding:0 22px; }
+  .sec-divider h2 { font-size:0.95rem; font-weight:700; color:var(--sr-text); margin:0 0 3px; letter-spacing:-0.01em; }
+  .sec-divider p { font-size:0.8rem; color:var(--sr-text-muted); margin:0; line-height:1.5; }
+
+  /* ── SnowRaven surfaces reproduced from real components ─────────────────── */
+  /* Named Bird card (from NamedBirdRow.tsx) */
+  .nb-card { border:1px solid var(--sr-border); border-radius:10px; overflow:hidden; background:var(--sr-surface); box-shadow:var(--sr-card-shadow); }
+  .nb-header { display:flex; align-items:baseline; gap:8px; row-gap:4px; flex-wrap:wrap; width:100%; padding:11px 13px; }
+  .nb-chev { color:var(--sr-text-muted); align-self:center; display:inline-flex; }
+  .nb-name { font-size:0.9375rem; font-weight:700; color:var(--sr-text); letter-spacing:-0.01em; }
+  .nb-species { font-size:0.84375rem; font-weight:500; color:var(--sr-text); }
+  .nb-meta { margin-left:auto; display:flex; align-items:baseline; flex-wrap:wrap; gap:13px; }
+  .nb-daterange { font-size:0.75rem; color:var(--sr-text-gray); white-space:nowrap; }
+  .nb-count { font-size:0.75rem; font-weight:700; color:var(--sr-accent); white-space:nowrap; }
+  .nb-body { border-top:1px solid var(--sr-border-subtle); background:var(--sr-surface-faint); }
+
+  /* Stubbed map block (matches the real .sr-named-map footprint + header) */
+  .block-head { display:flex; align-items:center; gap:6px; margin-bottom:7px; font-size:0.6875rem; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--sr-text-muted); }
+  .map-stub-wrap { padding:12px 14px 14px; }
+  .map-stub { border-radius:10px; overflow:hidden; border:1px solid var(--sr-border); height:150px; background:
+      repeating-linear-gradient(0deg, var(--sr-surface-subtle) 0, var(--sr-surface-subtle) 1px, transparent 1px, transparent 22px),
+      repeating-linear-gradient(90deg, var(--sr-surface-subtle) 0, var(--sr-surface-subtle) 1px, transparent 1px, transparent 22px),
+      var(--sr-surface); display:flex; align-items:center; justify-content:center; color:var(--sr-text-disabled); font-size:0.72rem; position:relative; }
+  .map-stub::after { content:"◍ sightings map (stubbed for mockup)"; }
+  .map-stub .pin { position:absolute; width:9px; height:9px; border-radius:50% 50% 50% 0; background:var(--sr-accent); transform:rotate(-45deg); box-shadow:0 1px 2px rgba(0,0,0,0.3); }
+
+  /* ── THE MEDIA SECTION (the actual design) ──────────────────────────────── */
+  .nbm { padding:2px 14px 16px; }
+  .nbm-sep { height:1px; background:var(--sr-border-subtle); margin:0 0 12px; }
+
+  /* Section header — mirrors the map block's uppercase micro-label exactly. */
+  .nbm-head { display:flex; align-items:center; gap:8px; margin-bottom:11px; flex-wrap:wrap; }
+  .nbm-title { display:flex; align-items:center; gap:6px; font-size:0.6875rem; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--sr-text-muted); }
+  .nbm-title svg { flex-shrink:0; }
+  .nbm-showing { margin-left:auto; font-size:0.6875rem; color:var(--sr-text-gray); white-space:nowrap; }
+
+  /* Grid — reuses the app's .sr-media-grid (3-up → 1 col ≤640). */
+  .sr-media-grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px; align-items:start; }
+  .sr-media-item { min-width:0; }
+
+  /* Each media item = framed tile: [player/placeholder] + meta row. */
+  .mi-frame { border:1px solid var(--sr-border); border-radius:9px; overflow:hidden; background:var(--sr-surface); }
+
+  /* Player footprint per format. max-width:100% always; heights differ.
+     Photo/Video = 230px tall; Audio = compact 116px (a waveform strip needs
+     far less height than a photo). ≤640 they get a touch taller for the wider
+     single-column player. */
+  .mi-player { width:100%; display:block; position:relative; background:var(--sr-surface-subtle); }
+  .mi-player.is-photo, .mi-player.is-video { height:230px; }
+  .mi-player.is-audio { height:116px; }
+  .mi-iframe { width:100%; height:100%; border:0; display:block; }
+
+  /* Placeholder "player" tile (stands in for a live embed in the mockup, AND is
+     the real loading/lazy state). Subtle, no spinner glare. */
+  .ph { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; height:100%; color:var(--sr-text-disabled); }
+  .ph .ico { opacity:0.55; }
+  .ph .lbl { font-size:0.7rem; letter-spacing:0.02em; }
+  .ph.is-photo { background:
+      radial-gradient(circle at 32% 34%, color-mix(in srgb, var(--sr-accent) 8%, transparent), transparent 60%),
+      var(--sr-surface-subtle); }
+  .ph.is-audio { background:var(--sr-surface-subtle); }
+  .ph.is-video { background:var(--sr-surface-subtle); }
+  /* faux waveform for the audio placeholder */
+  .wave { display:flex; align-items:center; gap:2px; height:26px; }
+  .wave i { width:2px; background:var(--sr-text-disabled); opacity:0.5; border-radius:1px; }
+
+  /* Loading shimmer state */
+  .ph.loading { background:linear-gradient(100deg, var(--sr-surface-subtle) 30%, var(--sr-surface-faint) 50%, var(--sr-surface-subtle) 70%); background-size:200% 100%; animation:sh 1.4s ease-in-out infinite; }
+  @keyframes sh { 0%{background-position:180% 0;} 100%{background-position:-80% 0;} }
+  @media (prefers-reduced-motion: reduce){ .ph.loading{ animation:none; } }
+
+  /* Offline / failed placeholder — same footprint, keeps meta + link-out. */
+  .ph.offline { background:var(--sr-surface-faint); gap:9px; padding:12px; text-align:center; }
+  .ph.offline .msg { font-size:0.72rem; color:var(--sr-text-muted); line-height:1.45; max-width:26ch; }
+  .ph.offline .cloud { color:var(--sr-text-disabled); }
+  .ml-out { display:inline-flex; align-items:center; gap:4px; font-size:0.75rem; font-weight:600; color:var(--sr-accent); text-decoration:none; padding:5px 9px; border:1px solid var(--sr-accent-border); border-radius:7px; background:var(--sr-accent-bg); }
+  .ml-out:hover { text-decoration:underline; }
+
+  /* Meta row under each player: format marker + date + checklist link.
+     Format marker follows the app's OWN media-type convention (Species Detail's
+     uppercase muted micro-label) — an icon + uppercase muted text, NOT a colored
+     chip. Keeps the green meaning "actionable" (the checklist link), per the
+     design-system's "one accent per surface, not everywhere" restraint. The icon
+     alone carries the photo/audio/video distinction; text is the redundant name. */
+  .mi-meta { display:flex; align-items:center; gap:0; padding:8px 10px; flex-wrap:wrap; row-gap:5px; }
+  .fmt { display:inline-flex; align-items:center; gap:4px; font-size:0.625rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; color:var(--sr-text-muted); flex-shrink:0; }
+  .fmt svg { color:var(--sr-text-gray); }
+  .mi-date { font-size:0.75rem; font-weight:600; color:var(--sr-text); flex-shrink:0; padding-left:9px; }
+  .mi-dot { font-size:0.75rem; color:var(--sr-text-disabled); padding:0 7px; flex-shrink:0; }
+  .chk { display:inline-flex; align-items:center; gap:3px; color:var(--sr-accent); text-decoration:none; font-size:0.75rem; font-weight:600; flex-shrink:0; }
+  .chk:hover { text-decoration:underline; }
+
+  /* Show-more control */
+  .nbm-more-wrap { margin-top:13px; display:flex; justify-content:center; }
+  .nbm-more { display:inline-flex; align-items:center; gap:7px; font-family:inherit; font-size:0.78rem; font-weight:600; color:var(--sr-accent); background:var(--sr-surface); border:1px solid var(--sr-border-medium); border-radius:9px; padding:8px 16px; cursor:pointer; min-height:36px; }
+  .nbm-more:hover { background:var(--sr-accent-bg); border-color:var(--sr-accent-border-strong); }
+  .nbm-more:focus-visible { outline:3px solid var(--sr-accent); outline-offset:3px; box-shadow:0 0 0 6px var(--sr-focus-ring); }
+  .nbm-more .kbd-hint { color:var(--sr-text-gray); font-weight:500; }
+
+  /* Empty state (muted one-liner) */
+  .nbm-empty { font-size:0.78rem; color:var(--sr-text-muted); font-style:italic; padding:2px 0 4px; }
+
+  /* Standalone tile demo cards for states 4/6 */
+  .state-strip { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+  @media (max-width:640px){ .state-strip { grid-template-columns:1fr; } }
+  .state-cap { font-size:0.7rem; font-weight:600; color:var(--sr-text-muted); margin:0 0 7px; }
+
+  /* Phone-tier collapse for the media grid (mirrors globals.css ≤640) */
+  @media (max-width:640px){
+    .sr-media-grid { grid-template-columns:1fr; }
+    .mi-player.is-photo, .mi-player.is-video { height:280px; }
+    .mi-player.is-audio { height:130px; }
+    .nbm-more { min-height:2.75rem; padding:10px 18px; }
+  }
+
+  /* Phone preview column */
+  .phone-frame { max-width:1180px; margin:0 auto; padding:0 22px; }
+  .phone { width:340px; max-width:100%; margin:14px auto 0; border:1px solid var(--sr-border-medium); border-radius:22px; overflow:hidden; box-shadow:var(--sr-card-shadow); background:var(--sr-bg); }
+  .phone .nb-body { background:var(--sr-surface-faint); }
+  .phone .sr-media-grid { grid-template-columns:1fr; }
+  .phone .mi-player.is-photo, .phone .mi-player.is-video { height:200px; }
+  .phone .mi-player.is-audio { height:120px; }
+  .phone .nbm-more { min-height:2.75rem; }
+</style>
+
+<div class="mock-head">
+  <h1>Named Birds — media section</h1>
+  <p>A media block under a named individual's sightings map: that bird's own Macaulay Library photos, audio, and video, each anchored to its capture date and checklist. Designed to look native to the Named Birds tab and stay light — a tidy grid of labeled tiles, not a wall of live players.</p>
+  <p class="mock-note">Both themes shown side by side. Token values are copied verbatim from <code>globals.css</code>. One tile embeds a real Macaulay Library player to show true scale; every other tile is a correctly-sized styled placeholder (which doubles as the real loading/offline state).</p>
+</div>
+
+<!-- ══ SECTION 1 — the media section in context, light + dark ══════════════ -->
+<div class="sec-divider">
+  <h2>1 · In context — below the map, within the expanded row</h2>
+  <p>The section sits directly under the "Where {name} has been seen" map block, using the identical uppercase micro-label + lucide icon the map header uses. Header: <strong>Media of {name}</strong> · a quiet "Showing 6 of 11" on the right.</p>
+</div>
+
+<div class="panes">
+  <!-- LIGHT -->
+  <div class="pane" data-theme="light">
+    <div class="pane-label"><span class="swatch" style="background:var(--sr-bg)"></span> Light</div>
+    <div class="pane-body">
+      <div class="nb-card">
+        <div class="nb-header">
+          <span class="nb-chev">▾</span>
+          <span class="nb-name">Stumpy</span>
+          <span class="nb-species">Red-tailed Hawk</span>
+          <span class="nb-meta">
+            <span class="nb-daterange">Mar 3, 2024 – Jun 28, 2026</span>
+            <span class="nb-count">14 sightings</span>
+          </span>
+        </div>
+        <div class="nb-body">
+          <!-- stubbed map block -->
+          <div class="map-stub-wrap">
+            <div class="block-head">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+              Where Stumpy has been seen
+            </div>
+            <div class="map-stub"><span class="pin" style="top:38%;left:44%"></span><span class="pin" style="top:56%;left:60%"></span></div>
+          </div>
+
+          <!-- ══ MEDIA SECTION ══ -->
+          <div class="nbm">
+            <div class="nbm-sep"></div>
+            <div class="nbm-head">
+              <span class="nbm-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Media of Stumpy
+              </span>
+              <span class="nbm-showing">Showing 6 of 11</span>
+            </div>
+
+            <div class="sr-media-grid">
+              <!-- item 1: REAL embed (shows true scale) -->
+              <div class="sr-media-item">
+                <div class="mi-frame">
+                  <div class="mi-player is-photo">
+                    <iframe class="mi-iframe" src="https://macaulaylibrary.org/asset/611600426/embed" title="Photo of Stumpy (Jun 28, 2026)" loading="lazy" allowfullscreen scrolling="no"></iframe>
+                  </div>
+                  <div class="mi-meta">
+                    <span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span>
+                    <span class="mi-date">Jun 28, 2026</span>
+                    <span class="mi-dot">·</span>
+                    <a class="chk" href="#" onclick="return false" aria-label="Jun 28, 2026 — open checklist on eBird (opens in a new tab)">S184420011<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- item 2: audio placeholder (compact) -->
+              <div class="sr-media-item">
+                <div class="mi-frame">
+                  <div class="mi-player is-audio"><div class="ph is-audio"><div class="wave"><i style="height:8px"></i><i style="height:16px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:26px"></i><i style="height:18px"></i><i style="height:9px"></i><i style="height:20px"></i><i style="height:24px"></i><i style="height:11px"></i><i style="height:15px"></i><i style="height:7px"></i></div><span class="lbl">Audio player</span></div></div>
+                  <div class="mi-meta">
+                    <span class="fmt audio"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>Audio</span>
+                    <span class="mi-date">May 12, 2026</span>
+                    <span class="mi-dot">·</span>
+                    <a class="chk" href="#" onclick="return false" aria-label="May 12, 2026 — open checklist on eBird (opens in a new tab)">S180331245<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- item 3: video placeholder -->
+              <div class="sr-media-item">
+                <div class="mi-frame">
+                  <div class="mi-player is-video"><div class="ph is-video"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="2.5"/><polygon points="10 9 15.5 12 10 15 10 9" fill="currentColor" stroke="none"/></svg><span class="lbl">Video player</span></div></div>
+                  <div class="mi-meta">
+                    <span class="fmt video"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>Video</span>
+                    <span class="mi-date">Apr 2, 2026</span>
+                    <span class="mi-dot">·</span>
+                    <a class="chk" href="#" onclick="return false" aria-label="Apr 2, 2026 — open checklist on eBird (opens in a new tab)">S177845190<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+                  </div>
+                </div>
+              </div>
+
+              <!-- items 4-6: photo placeholders -->
+              <div class="sr-media-item"><div class="mi-frame"><div class="mi-player is-photo"><div class="ph is-photo"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">Photo</span></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Mar 18, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false" aria-label="Mar 18, 2026 — open checklist on eBird (opens in a new tab)">S176004518<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div></div>
+              <div class="sr-media-item"><div class="mi-frame"><div class="mi-player is-photo"><div class="ph is-photo"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">Photo</span></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Jan 9, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false" aria-label="Jan 9, 2026 — open checklist on eBird (opens in a new tab)">S172119003<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div></div>
+              <div class="sr-media-item"><div class="mi-frame"><div class="mi-player is-photo"><div class="ph is-photo"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">Photo</span></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Nov 24, 2025</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false" aria-label="Nov 24, 2025 — open checklist on eBird (opens in a new tab)">S168990412<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div></div>
+            </div>
+
+            <div class="nbm-more-wrap">
+              <button type="button" class="nbm-more" aria-label="Show 5 more media of Stumpy">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                Show 5 more <span class="kbd-hint">(of 11)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DARK -->
+  <div class="pane" data-theme="dark">
+    <div class="pane-label"><span class="swatch" style="background:var(--sr-accent)"></span> Dark</div>
+    <div class="pane-body">
+      <div class="nb-card">
+        <div class="nb-header">
+          <span class="nb-chev">▾</span>
+          <span class="nb-name">Stumpy</span>
+          <span class="nb-species">Red-tailed Hawk</span>
+          <span class="nb-meta">
+            <span class="nb-daterange">Mar 3, 2024 – Jun 28, 2026</span>
+            <span class="nb-count">14 sightings</span>
+          </span>
+        </div>
+        <div class="nb-body">
+          <div class="map-stub-wrap">
+            <div class="block-head">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+              Where Stumpy has been seen
+            </div>
+            <div class="map-stub"><span class="pin" style="top:38%;left:44%"></span><span class="pin" style="top:56%;left:60%"></span></div>
+          </div>
+
+          <div class="nbm">
+            <div class="nbm-sep"></div>
+            <div class="nbm-head">
+              <span class="nbm-title">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Media of Stumpy
+              </span>
+              <span class="nbm-showing">Showing 6 of 11</span>
+            </div>
+
+            <div class="sr-media-grid">
+              <div class="sr-media-item">
+                <div class="mi-frame">
+                  <div class="mi-player is-photo"><div class="ph is-photo"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">Photo player</span></div></div>
+                  <div class="mi-meta">
+                    <span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span>
+                    <span class="mi-date">Jun 28, 2026</span><span class="mi-dot">·</span>
+                    <a class="chk" href="#" onclick="return false" aria-label="Jun 28, 2026 — open checklist on eBird (opens in a new tab)">S184420011<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+                  </div>
+                </div>
+              </div>
+              <div class="sr-media-item">
+                <div class="mi-frame">
+                  <div class="mi-player is-audio"><div class="ph is-audio"><div class="wave"><i style="height:8px"></i><i style="height:16px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:26px"></i><i style="height:18px"></i><i style="height:9px"></i><i style="height:20px"></i><i style="height:24px"></i><i style="height:11px"></i><i style="height:15px"></i><i style="height:7px"></i></div><span class="lbl">Audio player</span></div></div>
+                  <div class="mi-meta">
+                    <span class="fmt audio"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>Audio</span>
+                    <span class="mi-date">May 12, 2026</span><span class="mi-dot">·</span>
+                    <a class="chk" href="#" onclick="return false" aria-label="May 12, 2026 — open checklist on eBird (opens in a new tab)">S180331245<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+                  </div>
+                </div>
+              </div>
+              <div class="sr-media-item">
+                <div class="mi-frame">
+                  <div class="mi-player is-video"><div class="ph is-video"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="2.5"/><polygon points="10 9 15.5 12 10 15 10 9" fill="currentColor" stroke="none"/></svg><span class="lbl">Video player</span></div></div>
+                  <div class="mi-meta">
+                    <span class="fmt video"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m22 8-6 4 6 4V8Z"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>Video</span>
+                    <span class="mi-date">Apr 2, 2026</span><span class="mi-dot">·</span>
+                    <a class="chk" href="#" onclick="return false" aria-label="Apr 2, 2026 — open checklist on eBird (opens in a new tab)">S177845190<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
+                  </div>
+                </div>
+              </div>
+              <div class="sr-media-item"><div class="mi-frame"><div class="mi-player is-photo"><div class="ph is-photo"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">Photo</span></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Mar 18, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false" aria-label="Mar 18, 2026 — open checklist on eBird (opens in a new tab)">S176004518<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div></div>
+              <div class="sr-media-item"><div class="mi-frame"><div class="mi-player is-photo"><div class="ph is-photo"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">Photo</span></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Jan 9, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false" aria-label="Jan 9, 2026 — open checklist on eBird (opens in a new tab)">S172119003<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div></div>
+              <div class="sr-media-item"><div class="mi-frame"><div class="mi-player is-photo"><div class="ph is-photo"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">Photo</span></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Nov 24, 2025</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false" aria-label="Nov 24, 2025 — open checklist on eBird (opens in a new tab)">S168990412<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div></div>
+            </div>
+
+            <div class="nbm-more-wrap">
+              <button type="button" class="nbm-more" aria-label="Show 5 more media of Stumpy">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                Show 5 more <span class="kbd-hint">(of 11)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION 2 — the item states (offline/failed, loading) ═══════════════ -->
+<div class="sec-divider">
+  <h2>2 · Item states — loading, offline / failed</h2>
+  <p>Every state keeps the <strong>same tile footprint</strong> so switching between them never shifts the layout, and every state keeps the date + checklist link (they're local, always known). The offline/failed tile adds a "View on Macaulay Library" link-out so the item is never useless.</p>
+</div>
+
+<div class="panes">
+  <div class="pane" data-theme="light">
+    <div class="pane-label"><span class="swatch" style="background:var(--sr-bg)"></span> Light</div>
+    <div class="pane-body">
+      <div class="nb-card"><div class="nb-body"><div class="nbm"><div class="state-strip">
+        <div>
+          <p class="state-cap">Loading / lazy (before scroll-in)</p>
+          <div class="mi-frame"><div class="mi-player is-photo"><div class="ph loading is-photo"><svg class="ico" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Jun 28, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false">S184420011<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+        </div>
+        <div>
+          <p class="state-cap">Offline / embed failed (photo)</p>
+          <div class="mi-frame"><div class="mi-player is-photo"><div class="ph offline"><svg class="cloud" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17.5 19a4.5 4.5 0 0 0 .5-8.98A6 6 0 0 0 6.2 9.4 4 4 0 0 0 6.5 19h11Z"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="1.8"/></svg><span class="msg">Media unavailable offline</span><a class="ml-out" href="https://macaulaylibrary.org/asset/611600426" target="_blank" rel="noreferrer" aria-label="View on Macaulay Library (opens in a new tab)">View on Macaulay Library<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">May 12, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false">S180331245<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+        </div>
+        <div>
+          <p class="state-cap">Offline (audio — compact)</p>
+          <div class="mi-frame"><div class="mi-player is-audio"><div class="ph offline"><svg class="cloud" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17.5 19a4.5 4.5 0 0 0 .5-8.98A6 6 0 0 0 6.2 9.4 4 4 0 0 0 6.5 19h11Z"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="1.8"/></svg><a class="ml-out" href="https://macaulaylibrary.org/asset/611600426" target="_blank" rel="noreferrer" aria-label="View on Macaulay Library (opens in a new tab)">View on Macaulay Library<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div><div class="mi-meta"><span class="fmt audio"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>Audio</span><span class="mi-date">Apr 2, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false">S177845190<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+        </div>
+      </div></div></div></div>
+    </div>
+  </div>
+
+  <div class="pane" data-theme="dark">
+    <div class="pane-label"><span class="swatch" style="background:var(--sr-accent)"></span> Dark</div>
+    <div class="pane-body">
+      <div class="nb-card"><div class="nb-body"><div class="nbm"><div class="state-strip">
+        <div>
+          <p class="state-cap">Loading / lazy (before scroll-in)</p>
+          <div class="mi-frame"><div class="mi-player is-photo"><div class="ph loading is-photo"><svg class="ico" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Jun 28, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false">S184420011<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+        </div>
+        <div>
+          <p class="state-cap">Offline / embed failed (photo)</p>
+          <div class="mi-frame"><div class="mi-player is-photo"><div class="ph offline"><svg class="cloud" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17.5 19a4.5 4.5 0 0 0 .5-8.98A6 6 0 0 0 6.2 9.4 4 4 0 0 0 6.5 19h11Z"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="1.8"/></svg><span class="msg">Media unavailable offline</span><a class="ml-out" href="https://macaulaylibrary.org/asset/611600426" target="_blank" rel="noreferrer" aria-label="View on Macaulay Library (opens in a new tab)">View on Macaulay Library<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">May 12, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false">S180331245<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+        </div>
+        <div>
+          <p class="state-cap">Offline (audio — compact)</p>
+          <div class="mi-frame"><div class="mi-player is-audio"><div class="ph offline"><svg class="cloud" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M17.5 19a4.5 4.5 0 0 0 .5-8.98A6 6 0 0 0 6.2 9.4 4 4 0 0 0 6.5 19h11Z"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="1.8"/></svg><a class="ml-out" href="https://macaulaylibrary.org/asset/611600426" target="_blank" rel="noreferrer" aria-label="View on Macaulay Library (opens in a new tab)">View on Macaulay Library<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div><div class="mi-meta"><span class="fmt audio"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>Audio</span><span class="mi-date">Apr 2, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false">S177845190<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div>
+        </div>
+      </div></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION 3 — empty state ═════════════════════════════════════════════ -->
+<div class="sec-divider">
+  <h2>3 · Empty state — ML loaded, but this bird has no name-tagged media</h2>
+  <p>A quiet one-line note (muted, italic) under the map. It confirms the app looked and found none — never an error, never an empty gap. When no ML export is loaded <em>at all</em>, the whole section is absent (nothing rendered), so an ML-less user's tab is unchanged.</p>
+</div>
+
+<div class="panes">
+  <div class="pane" data-theme="light">
+    <div class="pane-label"><span class="swatch" style="background:var(--sr-bg)"></span> Light</div>
+    <div class="pane-body">
+      <div class="nb-card"><div class="nb-body">
+        <div class="map-stub-wrap"><div class="block-head"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> Where Old Blue has been seen</div><div class="map-stub"><span class="pin" style="top:44%;left:52%"></span></div></div>
+        <div class="nbm"><div class="nbm-sep"></div>
+          <div class="nbm-head"><span class="nbm-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Media of Old Blue</span></div>
+          <div class="nbm-empty">No media matched to this bird.</div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+  <div class="pane" data-theme="dark">
+    <div class="pane-label"><span class="swatch" style="background:var(--sr-accent)"></span> Dark</div>
+    <div class="pane-body">
+      <div class="nb-card"><div class="nb-body">
+        <div class="map-stub-wrap"><div class="block-head"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> Where Old Blue has been seen</div><div class="map-stub"><span class="pin" style="top:44%;left:52%"></span></div></div>
+        <div class="nbm"><div class="nbm-sep"></div>
+          <div class="nbm-head"><span class="nbm-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Media of Old Blue</span></div>
+          <div class="nbm-empty">No media matched to this bird.</div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION 4 — phone (320–375px) ═══════════════════════════════════════ -->
+<div class="sec-divider">
+  <h2>4 · Phone (single column, ~340px)</h2>
+  <p>The <code>.sr-media-grid</code> collapses to one column ≤640px; the player gets a touch taller because it's now full-width. "Show more" grows to a 44px touch target. Every control stays keyboard-operable with the same accessible name.</p>
+</div>
+
+<div class="phone-frame">
+  <div class="phone" data-theme="light">
+    <div class="pane-label"><span class="swatch" style="background:var(--sr-bg)"></span> Light · phone</div>
+    <div class="nb-card" style="border-radius:0;border:none;box-shadow:none">
+      <div class="nb-header" style="padding:11px 13px"><span class="nb-chev">▾</span><span class="nb-name">Stumpy</span><span class="nb-species">Red-tailed Hawk</span></div>
+      <div class="nb-body">
+        <div class="map-stub-wrap"><div class="block-head"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg> Where Stumpy has been seen</div><div class="map-stub"><span class="pin" style="top:40%;left:48%"></span></div></div>
+        <div class="nbm"><div class="nbm-sep"></div>
+          <div class="nbm-head"><span class="nbm-title"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Media of Stumpy</span><span class="nbm-showing">Showing 6 of 11</span></div>
+          <div class="sr-media-grid">
+            <div class="sr-media-item"><div class="mi-frame"><div class="mi-player is-photo"><div class="ph is-photo"><svg class="ico" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.8"/><path d="M21 15l-5-5L5 21"/></svg><span class="lbl">Photo player</span></div></div><div class="mi-meta"><span class="fmt photo"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Photo</span><span class="mi-date">Jun 28, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false">S184420011<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div></div>
+            <div class="sr-media-item"><div class="mi-frame"><div class="mi-player is-audio"><div class="ph is-audio"><div class="wave"><i style="height:8px"></i><i style="height:16px"></i><i style="height:22px"></i><i style="height:12px"></i><i style="height:26px"></i><i style="height:18px"></i><i style="height:9px"></i><i style="height:20px"></i><i style="height:24px"></i><i style="height:11px"></i><i style="height:15px"></i><i style="height:7px"></i></div><span class="lbl">Audio player</span></div></div><div class="mi-meta"><span class="fmt audio"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>Audio</span><span class="mi-date">May 12, 2026</span><span class="mi-dot">·</span><a class="chk" href="#" onclick="return false">S180331245<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a></div></div></div>
+          </div>
+          <div class="nbm-more-wrap"><button type="button" class="nbm-more" aria-label="Show 5 more media of Stumpy"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>Show 5 more <span class="kbd-hint">(of 11)</span></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="max-width:1180px;margin:0 auto;padding:30px 22px 60px;">
+  <p style="font-size:0.75rem;color:var(--sr-text-gray);line-height:1.6;border-top:1px solid var(--sr-border);padding-top:16px;">
+    Mockup notes · The one live embed (top-left of Section 1, light pane) shows the true Macaulay player scale; all other tiles are styled placeholders that <em>also</em> serve as the real loading / offline states. Placeholder heights match the live player exactly, so the grid never shifts when a real embed mounts. Format hues reuse existing token families — photo = accent green, audio = <code>--sr-is-target</code> amber, video = <code>--sr-tier-3</code> purple — introducing no new brand color. All text meets WCAG AA in both themes.
+  </p>
+</div>
