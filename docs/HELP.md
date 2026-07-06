@@ -100,6 +100,20 @@ At the bottom of the Weather tab, two buttons let you look up weather and tide d
 
 Weather forecasts reach about eight days out. Within the first couple of days you get an hour-by-hour reading; further out, you get that day's forecast summary, clearly labeled as a daily summary. Tide runs much further ahead, because tides are astronomical and predictable — so if you pick a date beyond the weather window, SnowRaven still shows you the tide and simply notes that no weather forecast reaches that far. Each result is a readable summary, with the same copy-ready block as the checklist lookup tucked behind a "Copy-ready block" toggle.
 
+### Weather backlog — checklists with no weather block
+
+At the very bottom of the Weather tab, a **List checklists with no weather blocks** section lets you work down your backlog instead of looking checklists up one at a time. Open it to see your most-recent checklists whose comment carries no recognized weather block — SnowRaven's or Raincrow's — newest first. The list is built entirely from your loaded eBird backup, so it builds and pages with no lookups and works offline; only the per-row weather lookup (below) needs a connection.
+
+Each row shows the checklist's date, location, species count, protocol, effort, and completeness, and offers three actions:
+
+- **Open checklist** — opens the checklist on eBird in a new tab.
+- **Open comment/edit page** — opens the checklist's comment/edit page on eBird in a new tab, ready for you to paste into.
+- **Copy weather & go** — looks up that checklist's weather, copies the block to your clipboard (weather only), and, on a successful copy, opens the comment/edit page so you can paste right away. If the lookup can't complete, the row tells you exactly why — you're offline, an API key is missing (with a nudge to Settings), or a general error — and the comment page is **not** opened, so you never land on eBird with nothing on your clipboard. Each row's state is its own, so you can work several in a row.
+
+By default the list shows only your **complete, non-incidental** checklists. A toggle, **Also show incomplete & incidental**, widens the list to include those too; a widened row is marked with a small chip so the wider list is never ambiguous. The list shows the first 100 matches, with **Show next 100** and **Show all** controls when there are more. If no backup is loaded, the section explains that it needs your eBird backup first; if every recent checklist already has weather, it says so rather than showing an empty list.
+
+Locations in this list are plain text in this version.
+
 ### SnowRaven Mini (browser extension)
 
 SnowRaven Mini is a separate companion project: a small Chrome and Firefox extension that runs the same weather and tide lookup directly on an eBird checklist's Edit Comments page and copies the block for pasting, in the same format SnowRaven produces. It is independent of the app — nothing in SnowRaven requires or uses it — and it needs its own copies of the free eBird and OpenWeather keys. It is not yet on the extension stores; source, releases, and documentation live at [github.com/dtgibson/snowraven-mini](https://github.com/dtgibson/snowraven-mini).

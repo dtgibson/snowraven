@@ -29,6 +29,9 @@ import { OutboundLink } from './components/OutboundLink'
 // Footer update affordance — renders null on iOS/iPadOS (FR-14, mobile-app).
 import { UpdateFooter, type UpdateStatus } from './components/UpdateFooter'
 import { WeatherForecastPanel } from './components/WeatherForecastPanel'
+import { WeatherBacklog } from './components/WeatherBacklog'
+import { loadEbirdObservations } from './lib/observationsCache'
+import { buildChecklistRows, type ChecklistRowData } from './lib/checklistsTab'
 
 // Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
 // Detail, and Help are kept out of the entry bundle so first paint is light. Named
@@ -182,6 +185,12 @@ export default function App() {
   // and every date reflects the new preference immediately (no remount).
   const [dateFormatVersion, setDateFormatVersion] = useState(0)
   const [mediaListFilter, setMediaListFilter] = useState<'is-target' | undefined>(undefined)
+  // Weather Backlog (bottom of the Weather tab). Rows are built lazily — only
+  // after the user first expands the backlog — so the default Weather tab paint
+  // stays free of a backup parse. `undefined` = not yet requested; `null` = no
+  // backup loaded (needs-data state); an array = built rows.
+  const [backlogRows, setBacklogRows] = useState<ChecklistRowData[] | null | undefined>(undefined)
+  const [backlogRequested, setBacklogRequested] = useState(false)
   // Click any bird name → open + select it on the Species Detail tab (single-use).
   const [requestedSpecies, setRequestedSpecies] = useState<string | undefined>(undefined)
   // Documentation overlay — lifted to App so a Help affordance is reachable from
@@ -487,6 +496,35 @@ export default function App() {
       return null
     }
   }, [])
+
+  // State-free per-checklist weather lookup for the Weather Backlog. It makes the
+  // SAME /weather/<id> transport call loadWeather makes (same URL shape,
+  // encodeURIComponent, replay/offline behavior) but touches NONE of the
+  // single-checklist section's UI state, so the backlog can never corrupt the
+  // single lookup (NFR-10). It RETHROWS on failure so the backlog's own
+  // classifyLiveError can pick the per-row offline/no-key/error state.
+  const lookupBacklogWeather = useCallback(async (id: string): Promise<string | null> => {
+    const { data } = await transport.getReplayable<{ formatted: string }>(
+      `/weather/${encodeURIComponent(id)}`,
+    )
+    return data.formatted
+  }, [])
+
+  // Lazily build the backlog's rows once the user first expands it (onFirstExpand
+  // sets backlogRequested), and rebuild when the eBird backup changes
+  // (filesVersion). loadEbirdObservations is the parse-once cache, so this does
+  // not re-parse a backup another tab already loaded.
+  useEffect(() => {
+    if (!backlogRequested) return
+    let alive = true
+    void loadEbirdObservations()
+      .then(res => {
+        if (!alive) return
+        setBacklogRows(res ? buildChecklistRows(res.observations, null) : null)
+      })
+      .catch(() => { if (alive) setBacklogRows(null) })
+    return () => { alive = false }
+  }, [backlogRequested, filesVersion])
 
   const handleLookup = useCallback(async () => {
     const id = extractChecklistId(input)
@@ -1019,6 +1057,20 @@ export default function App() {
               checklist. Self-contained; the map (maplibre) lazy-loads only when
               the user opens Predict, so the first-paint Weather tab stays light. */}
           <WeatherForecastPanel />
+        </div>
+        {/* Weather Backlog — a third bottom section: list the user's recent
+            checklists that still have no weather block, built from the loaded
+            backup. The single-checklist lookup, Current, and Predict above are
+            untouched (NFR-10). */}
+        <div style={{ width: '100%', maxWidth: 540, marginTop: 14 }}>
+          <WeatherBacklog
+            rows={backlogRequested ? backlogRows : null}
+            lookupWeather={lookupBacklogWeather}
+            onCopy={copyText}
+            onFirstExpand={() => setBacklogRequested(true)}
+            onGoToSettings={() => setActiveTab('settings')}
+            onGoToImport={() => setActiveTab('settings')}
+          />
         </div>
         <p style={{ width: '100%', maxWidth: 540, margin: '14px 0 0', textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)' }}>
           Also for your browser:{' '}

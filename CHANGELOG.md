@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.67] - 2026-07-06
+
+### Added
+- **The Weather tab can now list your checklists that still have no weather block, so you can work down the backlog instead of looking them up one at a time.** A new "List checklists with no weather blocks" section sits at the bottom of the Weather tab, below the single-checklist lookup and the Current/Predict panel (both unchanged). Open it to see your most-recent checklists whose comment carries no recognized weather block — SnowRaven's or RainCrow's — newest first, built entirely from your loaded eBird backup with no lookups needed to build the list. Each row shows the date, location, species count, protocol, effort, and completeness, and offers three actions: open the checklist on eBird, open its comment/edit page, and **Copy weather & go** — which looks up that checklist's weather, copies it to your clipboard (weather only), and opens the comment page so you can paste. By default the list shows only your complete, non-incidental checklists; a toggle widens it to also include incomplete and incidental ones, which are marked with a small chip so the wider list is never ambiguous. The list pages in 100s (Show next 100 / Show all). If a weather lookup fails, the row says exactly why — you're offline, an API key is missing (with a Settings nudge), or a general error — and the comment page is never opened, so you never land on eBird with nothing on your clipboard.
+
 ## [0.5.66] - 2026-07-05
 
 ### Added
