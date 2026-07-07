@@ -1,18 +1,18 @@
 {
   "activeFeature": null,
-  "sessionNumber": 79,
-  "sessionType": null,
+  "sessionNumber": 80,
+  "sessionType": "feature",
   "currentStage": null,
-  "lastCompletedStage": 6,
+  "lastCompletedStage": 9,
   "lastCheckpointStatus": "approved",
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "autonomyMode": "studio-style",
-  "autonomyNote": "Studio Style FIX run complete. iOS app-icon fix SHIPPED to TestFlight (iOS 0.5.68 build 2). Offline-maps-on-iOS ruled a feature (desktop-only v1) and deferred (idea 90b0dd7d). Pipeline idle.",
+  "autonomyNote": "IDLE — no active build. Last run (mobile-wide-tables) completed the full 9-stage feature lane and SHIPPED; it ran GUIDED through Stage 5 then AUTONOMOUS for Stages 6-9 (user: 'move the following gates automatically, and ship when ready unless you have a question'). Pipeline is clean; run /weft to start the next thing.",
   "ideaId": null,
-  "releasedVersion": "0.5.68",
-  "lastFeature": "ios-offline-maps-and-icon (Fix) — SHIPPED (iOS 0.5.68 build 2 to TestFlight). The iOS app showed Tauri's default placeholder icon; the correct green SR icon set existed at src-tauri/icons/ios/ but was never copied into the committed gen/apple appiconset at tauri-ios-init. Copied it in, then flattened all 18 icons to opaque RGB after App Store Connect rejected the alpha channel on the large icon (altool err 90717). Rebuilt build 2, re-uploaded → accepted. iOS-asset-only; desktop 0.5.68 unaffected, no version bump. Offline-maps-on-iOS confirmed a FEATURE (deliberately desktop-only in v1) and DEFERRED. Claude ran the whole iOS build+upload (DEVELOPER_DIR + /tmp/xcshim, app-store-connect export, altool).",
-  "remainingBacklog": "Open (user's own steps): iOS/iPadOS public App Store submission (latest TestFlight = 0.5.68 build 2, corrected icon); Windows code signing (Authenticode). DEFERRED feature: iOS offline maps (region downloads; on ROADMAP On-the-Horizon; idea 90b0dd7d). On the Horizon: backport the inline-embed offline/failed-load fallback to the Species Detail embed; county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; richer Calendar day-species popup. NOTE: the v0.5.68 Calendar mobile layout is test-verified but not human-eye-verified on a real phone.",
-  "createdAt": "2026-07-06T23:30:17Z",
-  "updatedAt": "2026-07-07T00:30:00Z"
+  "releasedVersion": "0.5.69",
+  "lastFeature": "mobile-wide-tables (New Feature) — SHIPPED 0.5.69. Desktop (macOS universal + Windows) live via release.sh on Hephaestus (GitHub release v0.5.69 + latest.json); iOS 0.5.69 build 1 uploaded to TestFlight. A comfortable Breeding Codes matrix on phones: at <=640 the code columns narrow to ~30px dot-width (.sr-bc-code-col) with 0.625rem headers + native viewport pinch to magnify (no CSS zoom); thin vertical column rules (--sr-border-subtle on .sr-bc-code-col/.sr-bc-name-col) at all widths; a horizontally-sticky species-name column; and a NATURAL full-height page-scrolling table with the tier legend after the last row. Notable: a frozen-title-row + capped-height data-grid was built and live-tested, then REVERTED at the user's request — pure CSS can't combine a frozen-to-page header + an unbounded table + contained horizontal scroll (overflow-x:auto forces overflow-y to auto/hidden). Multimedia table untouched (already fine on phone). iOS build gotcha fixed + recorded in CLAUDE.md: tauri ios build --export-method app-store-connect needs APPLE_API_KEY/APPLE_API_ISSUER/APPLE_API_KEY_PATH env (distinct from altool's $APPLE_API_KEY_ID/$APPLE_API_ISSUER_ID). Feature commit 6da3645; records commit 28912da; iOS Info.plist stamped 0.5.69/0.5.69.1.",
+  "remainingBacklog": "NEXT ON-DEVICE CHECK: confirm native pinch-to-zoom on the Breeding Codes matrix on a real iPhone (0.5.69 build 1 is on TestFlight) — QA-11, the only thing a desktop browser could not verify. Open (user's own steps): iOS/iPadOS public App Store submission (latest TestFlight = 0.5.69 build 1); Windows code signing (Authenticode). DEFERRED feature: iOS offline maps (region downloads; ROADMAP On-the-Horizon; idea 90b0dd7d). On the Horizon: backport the inline-embed offline/failed-load fallback to the Species Detail embed; county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; richer Calendar day-species popup. NOTE: the v0.5.68 Calendar mobile layout is test-verified but not human-eye-verified on a real phone.",
+  "createdAt": "2026-07-07T02:56:22Z",
+  "updatedAt": "2026-07-07T05:52:00Z"
 }
