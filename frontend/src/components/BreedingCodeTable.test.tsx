@@ -97,3 +97,207 @@ describe('BreedingCodeTable accessibility', () => {
     expect(screen.getByText('No species match these filters.')).toBeTruthy()
   })
 })
+
+describe('BreedingCodeTable mobile column narrowing (mobile-wide-tables)', () => {
+  // The code-column width is lifted off the inline width:44 onto the .sr-bc-code-col
+  // class so the ≤640 media query can narrow it to ~30px (globals.css). jsdom has no
+  // layout engine and can't apply a media query, so these assert the CLASS HOOK is
+  // present (the pixel narrowing is verified visually on-device at the gate) and that
+  // the desktop base carries no inline width that would defeat the class. FR-01/FR-05.
+
+  it('applies .sr-bc-code-col to each code column header (FR-01/QA-05)', () => {
+    renderTable({ codesPresent: ['NB', 'FL'] })
+    // The columnheader's visible/accessible name is the terse code; its <th> carries
+    // the class the ≤640 rule targets.
+    const nbHeader = screen.getByRole('columnheader', { name: /^NB/ })
+    expect(nbHeader.classList.contains('sr-bc-code-col')).toBe(true)
+    const flHeader = screen.getByRole('columnheader', { name: /^FL/ })
+    expect(flHeader.classList.contains('sr-bc-code-col')).toBe(true)
+  })
+
+  it('applies .sr-bc-code-col to each code count cell (FR-02)', () => {
+    renderTable({ entries: [entry({ commonName: 'American Robin', codes: { NB: 2 } })], codesPresent: ['NB', 'FL'] })
+    // The count-dot cells are <td>s (not <th>); the row header is the species name.
+    const cells = document.querySelectorAll('td.sr-bc-code-col')
+    expect(cells.length).toBe(2) // one per present code (NB, FL)
+  })
+
+  it('does NOT set an inline width on the code header (so the class rule can reach it) (FR-01)', () => {
+    renderTable({ codesPresent: ['NB'] })
+    const nbHeader = screen.getByRole('columnheader', { name: /^NB/ })
+    // An inline width:44 would beat the class (specificity 1,0,0) and freeze the
+    // desktop width onto the phone tier — the exact convention pitfall we're avoiding.
+    expect(nbHeader.style.width).toBe('')
+    expect(nbHeader.style.minWidth).toBe('')
+  })
+
+  it('keeps the code header a real sortable button with its full-meaning aria-label after narrowing (FR-04/QA-04)', () => {
+    renderTable({ codesPresent: ['NB', 'FL'] })
+    // Narrowing the column must not cost the accessible name or the sort control.
+    const nbBtn = screen.getByRole('button', { name: 'Sort by Nest Building (NB)' })
+    expect(nbBtn.tagName).toBe('BUTTON')
+    // The button is the direct child of the classed <th>, so the ≤640 font rule
+    // (th.sr-bc-code-col > button) reaches it.
+    expect((nbBtn.parentElement as HTMLElement).classList.contains('sr-bc-code-col')).toBe(true)
+  })
+
+  it('does not use CSS zoom or transform:scale to magnify (FR-08/NFR-03/QA-08)', () => {
+    const { container } = renderTable({ codesPresent: ['NB', 'FL'] })
+    // No element on the changed surface carries a CSS pixel-scaling primitive — the
+    // magnify strategy is native viewport pinch, not CSS scaling (proven WKWebView
+    // failure). Guards against a regression re-introducing the reverted approach.
+    const scaled = container.querySelectorAll('[style*="scale"],[style*="zoom"]')
+    expect(scaled.length).toBe(0)
+  })
+
+  it('keeps the sticky name column in the default (non-wideMode) branch and drops it in wideMode (FR-03/FR-13)', () => {
+    const { rerender } = renderTable({ wideMode: false })
+    const rowHeader = screen.getByRole('rowheader')
+    // Default: frozen name column (position:sticky; left:0) so it stays visible while
+    // the narrowed code columns scroll/pan.
+    expect(rowHeader.style.position).toBe('sticky')
+    expect(rowHeader.style.left).toBe('0px')
+    // wideMode drops the sticky positioning (the graceful escape for the
+    // sticky-under-pinch risk) — the whole matrix scrolls as max-content.
+    rerender(
+      <BreedingCodeTable
+        entries={[entry({ commonName: 'American Robin', codes: { NB: 2 } })]}
+        codesPresent={['NB', 'FL']}
+        sort={baseSort}
+        onSortChange={vi.fn()}
+        filter={new Set()}
+        taxonMap={{}}
+        taxonOrders={{}}
+        wideMode={true}
+        onOpenSpecies={undefined}
+      />
+    )
+    expect(screen.getByRole('rowheader').style.position).not.toBe('sticky')
+  })
+})
+
+describe('BreedingCodeTable column separators + horizontal-sticky name column (mobile-wide-tables)', () => {
+  // jsdom has no layout engine, so these assert the CLASS HOOKS (border separators)
+  // and the position/left attributes (horizontal name-column freeze) — the actual
+  // pinning is eyeballed on the live dev instance. The vertical (top) header freeze
+  // and the capped-height data-grid were removed in favor of natural page scroll:
+  // the header row scrolls away with the page, the table renders full-height, and the
+  // tier legend follows the last row in normal flow. Only the HORIZONTAL name-column
+  // freeze (which predates that work) remains.
+
+  // --- Separators (kept) ---
+
+  it('gives each code column cell the separator class (.sr-bc-code-col carries border-right) (rev1)', () => {
+    renderTable({ entries: [entry({ commonName: 'American Robin', codes: { NB: 2 } })], codesPresent: ['NB', 'FL'] })
+    // Header + body code cells both carry the class whose CSS adds the 1px right
+    // separator (full-height column line through header + body).
+    expect(document.querySelectorAll('th.sr-bc-code-col').length).toBe(2)
+    expect(document.querySelectorAll('td.sr-bc-code-col').length).toBe(2)
+  })
+
+  it('gives the species-name header and every name row cell the name-column separator class (rev1)', () => {
+    renderTable({
+      entries: [
+        entry({ commonName: 'American Robin', codes: { NB: 2 } }),
+        entry({ commonName: 'Song Sparrow', codes: { FL: 1 } }),
+      ],
+      codesPresent: ['NB', 'FL'],
+    })
+    // The corner header cell (the "Species" columnheader) carries the name-col class.
+    const speciesHeader = screen.getByRole('columnheader', { name: /Species/ })
+    expect(speciesHeader.classList.contains('sr-bc-name-col')).toBe(true)
+    // Every name row header carries it too, so the divider runs the full body height.
+    const rowHeaders = screen.getAllByRole('rowheader')
+    expect(rowHeaders.length).toBe(2)
+    for (const rh of rowHeaders) expect(rh.classList.contains('sr-bc-name-col')).toBe(true)
+  })
+
+  // --- Header row scrolls away; no vertical freeze (frozen-header/capped-box removed) ---
+
+  it('does NOT vertically freeze the code headers — they scroll away with the page', () => {
+    renderTable({ codesPresent: ['NB', 'FL'], wideMode: false })
+    // No sticky-top on the code headers: the header row is normal flow and scrolls
+    // with the page (the user chose natural page scroll over a frozen-header grid).
+    for (const name of [/^NB/, /^FL/]) {
+      const codeHeader = screen.getByRole('columnheader', { name }) as HTMLElement
+      expect(codeHeader.style.position).not.toBe('sticky')
+      expect(codeHeader.style.top).toBe('')
+    }
+  })
+
+  it('does NOT vertically freeze the corner — it has no top inset in either mode', () => {
+    const cornerStyle = () => (screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement).style
+    const { rerender } = renderTable({ codesPresent: ['NB'], wideMode: false })
+    expect(cornerStyle().top).toBe('')
+    rerender(
+      <BreedingCodeTable
+        entries={[entry({ commonName: 'American Robin', codes: { NB: 2 } })]}
+        codesPresent={['NB']}
+        sort={baseSort}
+        onSortChange={vi.fn()}
+        filter={new Set()}
+        taxonMap={{}}
+        taxonOrders={{}}
+        wideMode={true}
+        onOpenSpecies={undefined}
+      />
+    )
+    expect(cornerStyle().top).toBe('')
+  })
+
+  // --- Horizontal name-column freeze (pre-existing) is KEPT ---
+
+  it('keeps the corner horizontally sticky (left:0, no top) in Normal mode', () => {
+    renderTable({ codesPresent: ['NB'], wideMode: false })
+    const corner = screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement
+    // Horizontal freeze only: sticky + left:0 so the name column stays put while the
+    // codes scroll sideways; NO top (the header scrolls away vertically).
+    expect(corner.style.position).toBe('sticky')
+    expect(corner.style.left).toBe('0px')
+    expect(corner.style.top).toBe('')
+  })
+
+  it('drops the corner horizontal freeze in wideMode (FR-13)', () => {
+    renderTable({ codesPresent: ['NB'], wideMode: true })
+    const corner = screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement
+    // wideMode scrolls the whole max-content matrix — the name column is not frozen.
+    expect(corner.style.position).toBe('')
+    expect(corner.style.left).toBe('')
+  })
+
+  it('keeps the name row cells horizontally sticky (left:0, no top) in Normal, dropped in wideMode (FR-03/FR-13)', () => {
+    const { rerender } = renderTable({ entries: [entry({ commonName: 'American Robin', codes: { NB: 2 } })], codesPresent: ['NB'], wideMode: false })
+    const nameCell = () => screen.getByRole('rowheader') as HTMLElement
+    expect(nameCell().style.position).toBe('sticky')
+    expect(nameCell().style.left).toBe('0px')
+    expect(nameCell().style.top).toBe('')
+    rerender(
+      <BreedingCodeTable
+        entries={[entry({ commonName: 'American Robin', codes: { NB: 2 } })]}
+        codesPresent={['NB']}
+        sort={baseSort}
+        onSortChange={vi.fn()}
+        filter={new Set()}
+        taxonMap={{}}
+        taxonOrders={{}}
+        wideMode={true}
+        onOpenSpecies={undefined}
+      />
+    )
+    expect(nameCell().style.position).not.toBe('sticky')
+  })
+
+  // --- No inner vertical-scroll box: the table is full-height, the page scrolls ---
+
+  it('scrolls the wrapper horizontally only, with no vertical max-height box (natural page scroll)', () => {
+    const { container } = renderTable({ wideMode: false })
+    const wrapper = container.querySelector('table')!.parentElement as HTMLElement
+    // Horizontal scroll for the wide matrix; NO capped-height data-grid class and no
+    // inline vertical bound — the table renders full-height and the whole page scrolls.
+    expect(wrapper.classList.contains('sr-bc-scroll')).toBe(false)
+    expect(wrapper.style.overflowX).toBe('auto')
+    expect(wrapper.style.maxHeight).toBe('')
+    // overflow (both-axes) must not be set — that would reintroduce the inner box.
+    expect(wrapper.style.overflow).toBe('')
+  })
+})

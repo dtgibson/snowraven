@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.69] - 2026-07-07
+
+### Changed
+- **The Breeding Codes matrix is far more usable on a phone.** On narrow screens each breeding-code column now shrinks to the width of its colored dot, so a full species row's codes are scannable at a glance instead of a one- or two-column peephole beside the species name. Roughly twice as many code columns fit before you scroll, and you can pinch to zoom in on any part of the grid with your device's normal gesture (no on-screen zoom controls to learn). Thin vertical rules now separate every column (at all widths) so the dots read in clean lanes, and the species-name column stays fixed on the left as you scroll the codes sideways. The table scrolls as one natural page, with the breeding-code legend sitting at the very end after the last row. Wider screens keep their familiar layout, now with the same column rules.
+
 ## [0.5.68] - 2026-07-06
 
 ### Fixed

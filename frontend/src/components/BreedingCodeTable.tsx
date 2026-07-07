@@ -99,17 +99,20 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     tierGroups.get(def.tier)!.push(code)
   }
 
+  // No vertical (top) freeze: the header row scrolls away with the page (the user
+  // chose natural page scroll over a capped-height frozen-header data-grid). position
+  // is kept 'sticky' only so the CORNER can carry its horizontal left:0 name-column
+  // freeze (added in the corner's own style block); with no `top` the code headers
+  // have no vertical anchor and scroll normally. The bottom-border boxShadow is the
+  // header's divider from the first row.
   const thBase: React.CSSProperties = {
     fontSize: '0.6875rem',
     fontWeight: 600,
     letterSpacing: '0.06em',
     textTransform: 'uppercase',
     userSelect: 'none',
-    position: 'sticky',
-    top: 0,
     background: 'var(--sr-bg)',
     boxShadow: 'inset 0 -1px 0 var(--sr-border)',
-    zIndex: 2,
   }
 
   // Sortable headers are real <button>s inside the <th> so screen readers
@@ -143,6 +146,12 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
       minWidth: 0,
       ...(wideMode ? { width: 'max-content' } : {}),
     }}>
+      {/* Horizontal-only scroll: overflow-x:auto keeps the wide matrix scrolling
+          sideways WITHIN the card (no page-level horizontal leak) while the table
+          renders at its FULL natural height and the whole PAGE scrolls vertically as
+          one — so the tier legend below simply follows the last row in normal flow.
+          No vertical max-height / inner scroll box (the user chose natural page
+          scroll over a capped frozen-header data-grid). */}
       {/* scrollPaddingLeft keeps a focused cell from landing under the sticky
           first column when keyboard focus scrolls it horizontally (WCAG 2.4.11). */}
       {/* position:relative scopes the cells' absolutely-positioned .sr-only
@@ -158,12 +167,19 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
         }}>
           <thead>
             <tr>
+              {/* The corner (species-name header) keeps the HORIZONTAL name-column
+                  freeze only: sticky left:0 in Normal so the name column stays put
+                  while the codes scroll sideways (wideMode drops it, as before). No
+                  vertical freeze — the header scrolls away with the page. zIndex 3
+                  keeps it above the sticky name body cells (1) during a sideways
+                  scroll. */}
               <th
                 scope="col"
+                className="sr-bc-name-col"
                 aria-sort={sort.column === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 style={{
                   ...thBase,
-                  ...(wideMode ? {} : { left: 0, zIndex: 3, boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)' }),
+                  ...(wideMode ? {} : { position: 'sticky', left: 0, zIndex: 3, boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)' }),
                   textAlign: 'left',
                   padding: '10px 12px',
                   width: NAME_COL_WIDTH,
@@ -180,14 +196,18 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   <th
                     key={code}
                     scope="col"
+                    className="sr-bc-code-col"
                     aria-sort={sort.column === code ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                     title={def.label}
+                    // Width + column separator live in .sr-bc-code-col
+                    // (globals.css): 44px base narrowing to ~30px at the ≤640
+                    // phone tier (an inline width can't be reached by a media
+                    // query). No sticky/zIndex — the code headers scroll away
+                    // normally with the page.
                     style={{
                       ...thBase,
                       textAlign: 'center',
                       padding: '10px 0',
-                      width: 44,
-                      minWidth: 44,
                     }}
                   >
                     {/* The visible header is the terse code; the aria-label carries
@@ -223,11 +243,14 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   onMouseEnter={() => setHoveredRow(entry.commonName)}
                   onMouseLeave={() => setHoveredRow(null)}
                 >
-                  <th scope="row" style={{
+                  <th scope="row" className="sr-bc-name-col" style={{
                     padding: '9px 12px',
                     // <th> defaults to center; match the left-aligned name cells used
                     // elsewhere (Media tab, Life List, etc.).
                     textAlign: 'left',
+                    // Horizontal name-column freeze only: sticky left:0 keeps the name
+                    // visible while the codes scroll sideways (zIndex 1 lifts it above
+                    // the normal body cells during that scroll). No vertical freeze.
                     ...(wideMode ? {} : { position: 'sticky', left: 0, zIndex: 1, boxShadow: '1px 0 0 var(--sr-border)' }),
                     background: rowBg,
                     width: NAME_COL_WIDTH,
@@ -252,6 +275,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     return (
                       <td
                         key={code}
+                        className="sr-bc-code-col"
                         style={{
                           textAlign: 'center',
                           verticalAlign: 'middle',

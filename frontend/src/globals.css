@@ -822,6 +822,22 @@ h1, h2, h3, h4, h5, h6 {
    are clipped here rather than escaping to force horizontal page scroll. */
 .sr-scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; min-width: 0; position: relative; }
 
+/* Breeding Codes matrix — code-column width, lifted off the inline width:44 in
+   BreedingCodeTable.tsx so the ≤640 phone tier can narrow it (an inline width is
+   unreachable by a media query — the standing responsive convention). The BASE
+   width equals today's 44px; the phone narrow (~30px) lives in the
+   @media (max-width:640px) block below.
+
+   Both column classes also carry a faint 1px right-border column separator
+   (--sr-border-subtle, the same token as the table's horizontal row borders) so
+   the separators run the full height through header + body. The last code column
+   drops its trailing separator so the grid closes cleanly at the right edge. */
+.sr-bc-code-col { width: 44px; min-width: 44px; border-right: 1px solid var(--sr-border-subtle); }
+.sr-bc-code-col:last-child { border-right: none; }
+/* The sticky species-name column's right separator, dividing it from the first
+   code column (runs full height through the name header + every name row cell). */
+.sr-bc-name-col { border-right: 1px solid var(--sr-border-subtle); }
+
 /* Map Explorer (non-fullscreen) panel height. Replaces the inline
    calc(100vh - 178px) magic number: dvh tracks the mobile browser toolbar, the
    offset (app chrome) shrinks on phones, and a min-height keeps the map usable
@@ -1194,6 +1210,21 @@ select:focus-visible {
      specificity 1,0,0 and otherwise win — the guard was inert wherever a control also
      set an inline fontSize, e.g. the SpeciesCombobox input and WeatherForecastPanel). */
   .sr-input-16 { font-size: 16px !important; }
+
+  /* Breeding Codes matrix on a phone: narrow each code column from 44px to ~30px
+     (the 28px count dot + ~1px breathing room each side), roughly halving the
+     matrix width so a full species row is scannable at a glance and the frozen
+     name column no longer leaves a one-column peephole. The terse code header
+     (1-3 chars: NB, FL, CF, ...) drops one step to 0.625rem and loses its
+     letter-spacing so it stays legible at the narrower width; it remains a real
+     sortable <button> with its full-meaning aria-label (untouched in the TSX).
+     Magnify beyond this is native viewport pinch — no CSS zoom/transform:scale. */
+  .sr-bc-code-col { width: 30px; min-width: 30px; }
+  /* The header <button> carries inline `font: inherit` + `letter-spacing: inherit`
+     (specificity 1,0,0), so !important is required to shrink it at the phone tier —
+     same reason .sr-input-16 above is !important (it must beat an inline value). */
+  th.sr-bc-code-col > button { font-size: 0.625rem !important; letter-spacing: 0 !important; }
+
   .sr-two-col { grid-template-columns: 1fr; }
   .sr-compare-panels { grid-template-columns: 1fr; }
   .sr-map-container { height: 300px; }
