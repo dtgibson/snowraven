@@ -301,3 +301,99 @@ describe('BreedingCodeTable column separators + horizontal-sticky name column (m
     expect(wrapper.style.overflow).toBe('')
   })
 })
+
+describe('BreedingCodeTable matrix table-layout hook (unbounded-column-narrowing)', () => {
+  // The phone code-column narrowing (.sr-bc-code-col → 30px at ≤640) only held in
+  // Normal view, not Unbounded (wideMode), because the matrix <table> uses the
+  // default table-layout: auto (30px is a floor there). The fix puts .sr-bc-matrix
+  // on the <table> and moves the table's OWN width/min-width onto that class, so a
+  // ≤640-only rule can switch to `table-layout: fixed; width: max-content; min-width: 0`
+  // and make the declared widths bind in BOTH modes without the circular-width runaway
+  // that inline `width:100%; min-width:max-content` + fixed layout caused in wideMode.
+  // jsdom has no layout engine and can't apply a media query or compute layout, so
+  // these assert the CLASS HOOK is present and the width is NOT re-pinned inline (the
+  // pixel narrowing / no-explosion is verified live at phone width at the gate).
+
+  it('puts .sr-bc-matrix on the matrix <table> and does NOT set inline width/min-width/table-layout (so the class rules bind) — Normal mode', () => {
+    const { container } = renderTable({ wideMode: false })
+    const table = container.querySelector('table')!
+    expect(table.classList.contains('sr-bc-matrix')).toBe(true)
+    // The table's width/min-width now live on .sr-bc-matrix (base = width:100%/
+    // min-width:max-content; ≤640 override = table-layout:fixed; width:max-content;
+    // min-width:0). An inline width/min-width would beat the media query (specificity
+    // 1,0,0) and re-introduce the wideMode circular-width explosion — so there must be
+    // none. table-layout is never set in JS (one CSS rule fixes both modes).
+    expect(table.style.width).toBe('')
+    expect(table.style.minWidth).toBe('')
+    expect(table.style.tableLayout).toBe('')
+  })
+
+  it('keeps .sr-bc-matrix on the <table> with no inline width/min-width in Unbounded (wideMode) — the mode that exploded', () => {
+    const { container } = renderTable({ wideMode: true })
+    const table = container.querySelector('table')!
+    expect(table.classList.contains('sr-bc-matrix')).toBe(true)
+    // Same contract in wideMode: no inline width/min-width, so the ≤640
+    // width:max-content override can tame the fixed-layout table to its ~540px
+    // definite width instead of running away to the max-element cap.
+    expect(table.style.width).toBe('')
+    expect(table.style.minWidth).toBe('')
+    expect(table.style.tableLayout).toBe('')
+  })
+
+  it('keeps .sr-bc-code-col on the code cells in BOTH modes so the 30px width can bind under fixed layout', () => {
+    for (const wideMode of [false, true]) {
+      const { unmount } = renderTable({
+        entries: [entry({ commonName: 'American Robin', codes: { NB: 2 } })],
+        codesPresent: ['NB', 'FL'],
+        wideMode,
+      })
+      // header + body code cells both carry the width-bearing class in either mode.
+      expect(document.querySelectorAll('th.sr-bc-code-col').length).toBe(2)
+      expect(document.querySelectorAll('td.sr-bc-code-col').length).toBe(2)
+      unmount()
+    }
+  })
+
+  it('keeps the sticky name column carrying its declared NAME_COL_WIDTH so fixed layout distributes cleanly', () => {
+    // Under table-layout: fixed every column needs a declared width; the name column's
+    // is the inline clamp() NAME_COL_WIDTH on both the corner header and each name row
+    // cell. (jsdom's CSSOM drops `width: clamp(...)` on the width longhand but keeps it
+    // on min-width — the TSX sets both to the same clamp, so the observable min-width
+    // proves the declared width is present.)
+    renderTable({ entries: [entry({ commonName: 'American Robin', codes: { NB: 2 } })], codesPresent: ['NB'] })
+    const corner = screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement
+    expect(corner.style.minWidth).toContain('clamp(')
+    const nameCell = screen.getByRole('rowheader') as HTMLElement
+    expect(nameCell.style.minWidth).toContain('clamp(')
+  })
+
+  // The wideMode card's width was lifted off the inline `width: max-content` onto
+  // .sr-bc-card so the ≤640 tier can switch it to `width: min-content` — sizing the
+  // Unbounded card to the fixed-layout table's declared-width sum (~540px) instead of
+  // the columns' intrinsic content width (~1751px), removing the trailing whitespace.
+  // The card is the component's ROOT <div> (the <table>'s grandparent: table → wrapper
+  // → card). jsdom can't compute layout, so these assert the class hook + no inline
+  // width (the same lift-to-class contract as .sr-bc-matrix); the whitespace removal is
+  // verified live at phone width.
+  function card(container: HTMLElement): HTMLElement {
+    return container.querySelector('table')!.parentElement!.parentElement as HTMLElement
+  }
+
+  it('puts .sr-bc-card on the Unbounded (wideMode) card with no inline width, so the ≤640 min-content rule can bind', () => {
+    const { container } = renderTable({ wideMode: true })
+    const c = card(container)
+    expect(c.classList.contains('sr-bc-card')).toBe(true)
+    // No inline width — it lives on .sr-bc-card (base max-content; ≤640 min-content).
+    // An inline width would beat the media query and re-introduce the whitespace.
+    expect(c.style.width).toBe('')
+  })
+
+  it('does NOT put .sr-bc-card on the card in Normal mode (it never uses the max-content card)', () => {
+    const { container } = renderTable({ wideMode: false })
+    const c = card(container)
+    // Normal mode uses the overflowX:auto wrapper, not the max-content card, so it must
+    // not carry .sr-bc-card — the ≤640 min-content rule must not reach Normal mode.
+    expect(c.classList.contains('sr-bc-card')).toBe(false)
+    expect(c.style.width).toBe('')
+  })
+})

@@ -134,18 +134,32 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
   })
 
   return (
-    <div style={{
-      border: '1px solid var(--sr-border)',
-      borderRadius: 10,
-      background: 'var(--sr-surface)',
-      display: 'flex',
-      flexDirection: 'column',
-      // min-width:0 lets this card shrink below the table's max-content width
-      // when it's a flex child of the panel, so the inner overflowX:auto wrapper
-      // actually engages and scrolls instead of pushing the whole page wide.
-      minWidth: 0,
-      ...(wideMode ? { width: 'max-content' } : {}),
-    }}>
+    <div
+      // .sr-bc-card is applied ONLY in wideMode — it owns the card's width so the
+      // ≤640 phone tier can override it (an inline width is unreachable by a media
+      // query). Base rule `width: max-content` reproduces the old inline wideMode
+      // value exactly (desktop Unbounded byte-identical: the card hugs its wide
+      // auto-layout table). At ≤640 the class switches to `width: min-content`, which
+      // sizes the card to the SUM of the fixed-layout table's DECLARED column widths
+      // (~540px) instead of `max-content`'s INTRINSIC content width (~1751px) — so the
+      // now-narrow 30px-column table no longer trails ~1200px of empty card to its
+      // right. min-content (not fit-content) sizes to the declared-width sum
+      // regardless of viewport, so a 320px phone can't cap the card below the table
+      // and force a table-overflows-card clip. Normal mode omits the class entirely
+      // (no max-content card — it uses the overflowX:auto wrapper), so it is untouched.
+      className={wideMode ? 'sr-bc-card' : undefined}
+      style={{
+        border: '1px solid var(--sr-border)',
+        borderRadius: 10,
+        background: 'var(--sr-surface)',
+        display: 'flex',
+        flexDirection: 'column',
+        // min-width:0 lets this card shrink below the table's max-content width
+        // when it's a flex child of the panel, so the inner overflowX:auto wrapper
+        // actually engages and scrolls instead of pushing the whole page wide.
+        minWidth: 0,
+      }}
+    >
       {/* Horizontal-only scroll: overflow-x:auto keeps the wide matrix scrolling
           sideways WITHIN the card (no page-level horizontal leak) while the table
           renders at its FULL natural height and the whole PAGE scrolls vertically as
@@ -159,9 +173,23 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
           the table instead of escaping to the page and forcing horizontal page
           scroll on phones (the wide matrix sits far right of the viewport). */}
       <div style={wideMode ? {} : { overflowX: 'auto', scrollPaddingLeft: NAME_COL_WIDTH, minWidth: 0, position: 'relative' }}>
-        <table style={{
-          width: '100%',
-          minWidth: 'max-content',
+        {/* .sr-bc-matrix owns the table's width/min-width AND a ≤640-only
+            `table-layout: fixed` (globals.css). The BASE class rule is today's
+            `width: 100%; min-width: max-content` (so desktop + Normal are
+            byte-identical, and Unbounded on desktop keeps its content-driven wide
+            columns). At the ≤640 phone tier the class switches to
+            `table-layout: fixed; width: max-content; min-width: 0`, which makes the
+            declared column widths (name = NAME_COL_WIDTH; each code col = the
+            .sr-bc-code-col 30px) AUTHORITATIVE, so the phone narrowing holds in BOTH
+            Normal and Unbounded (wideMode). The width MUST live on the class, not
+            inline: `table-layout: fixed` + inline `width: 100%` + inline
+            `min-width: max-content` inside wideMode's shrink-to-fit (max-content)
+            card is a CIRCULAR width constraint that runs away to the browser's
+            max-element cap (~500,000px). Under `fixed`, `width: max-content` resolves
+            to the sum of the declared column widths (~540px) — definite and
+            non-circular. Per the standing convention (inline beats a media query),
+            these widths live on the class so the ≤640 rule can override them. */}
+        <table className="sr-bc-matrix" style={{
           borderCollapse: 'separate',
           borderSpacing: 0,
         }}>

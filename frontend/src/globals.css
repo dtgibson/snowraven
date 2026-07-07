@@ -838,6 +838,21 @@ h1, h2, h3, h4, h5, h6 {
    code column (runs full height through the name header + every name row cell). */
 .sr-bc-name-col { border-right: 1px solid var(--sr-border-subtle); }
 
+/* The matrix <table>'s width, lifted off the inline width:100%/min-width:max-content
+   in BreedingCodeTable.tsx so the ≤640 phone tier can override it (an inline width is
+   unreachable by a media query). These BASE values are byte-identical to the old
+   inline ones, so desktop + Normal render exactly as before; the ≤640 override (with
+   table-layout: fixed) lives in the @media (max-width:640px) block below. */
+.sr-bc-matrix { width: 100%; min-width: max-content; }
+
+/* The Unbounded (wideMode) card's width, lifted off the inline width:max-content in
+   BreedingCodeTable.tsx (applied ONLY in wideMode) so the ≤640 phone tier can override
+   it. BASE width:max-content is byte-identical to the old inline value — desktop
+   Unbounded is unchanged (the card hugs its wide auto-layout table). The ≤640 override
+   (width:min-content) lives in the @media (max-width:640px) block below. Normal mode
+   never carries this class, so it is unaffected. */
+.sr-bc-card { width: max-content; }
+
 /* Map Explorer (non-fullscreen) panel height. Replaces the inline
    calc(100vh - 178px) magic number: dvh tracks the mobile browser toolbar, the
    offset (app chrome) shrinks on phones, and a min-height keeps the map usable
@@ -1220,6 +1235,38 @@ select:focus-visible {
      sortable <button> with its full-meaning aria-label (untouched in the TSX).
      Magnify beyond this is native viewport pinch — no CSS zoom/transform:scale. */
   .sr-bc-code-col { width: 30px; min-width: 30px; }
+  /* table-layout: fixed (phone tier ONLY) makes the DECLARED column widths
+     authoritative rather than a floor, so the 30px .sr-bc-code-col narrowing
+     holds in BOTH Normal and Unbounded (wideMode). Under the default
+     table-layout: auto, wideMode's unbounded max-content card lets auto layout
+     size each code column above the 30px floor to its content, so they stayed
+     wide (Normal squeezed them down via its scroll wrapper, but Unbounded had no
+     cap). Every column carries a declared width for fixed to distribute cleanly:
+     the sticky name column its inline clamp() NAME_COL_WIDTH, each code column
+     the 30px above.
+
+     width: max-content; min-width: 0 OVERRIDES the base .sr-bc-matrix
+     `width: 100%; min-width: max-content` here — REQUIRED, not cosmetic: with
+     table-layout: fixed, `width: 100%` + `min-width: max-content` INSIDE wideMode's
+     shrink-to-fit (width:max-content) scroll card is a circular width constraint that
+     runs away to the browser's ~500,000px max-element cap (measured live). Under
+     fixed layout `width: max-content` resolves to the SUM of the declared column
+     widths (name NAME_COL_WIDTH + 30px×N ≈ 540px) — definite and non-circular — and
+     min-width: 0 drops the old max-content floor that forced the columns wide in the
+     first place. Desktop (>640) keeps table-layout: auto AND the base width:100%/
+     min-width:max-content — byte-identical to today (content-driven ~44px+ columns
+     unchanged). */
+  .sr-bc-matrix { table-layout: fixed; width: max-content; min-width: 0; }
+  /* Unbounded (wideMode) card: min-content instead of the base max-content. With the
+     ≤640 fixed-layout table the code columns are 30px, so max-content still sizes the
+     card to the columns' INTRINSIC content width (~1751px) and ~1200px of empty card
+     trails to the right of the ~540px table. min-content sizes the card to the SUM of
+     the table's DECLARED column widths (~540px), flush with the table — whitespace
+     gone, table still page-scrolls to its right edge. min-content (not fit-content)
+     stays at the declared-width sum regardless of viewport, so a 320px phone can't cap
+     the card below the table and clip it. Normal mode never carries .sr-bc-card, so it
+     is untouched; desktop (>640) keeps the base max-content and hugs its wide table. */
+  .sr-bc-card { width: min-content; }
   /* The header <button> carries inline `font: inherit` + `letter-spacing: inherit`
      (specificity 1,0,0), so !important is required to shrink it at the phone tier —
      same reason .sr-input-16 above is !important (it must beat an inline value). */

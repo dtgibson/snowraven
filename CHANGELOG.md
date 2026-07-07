@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.70] - 2026-07-07
+
+### Fixed
+- **On a phone, the Breeding Codes matrix now keeps its dot-width columns in the Unbounded view, not just the normal one.** The last update tightened the code columns to dot-width in the normal view, but they stayed full-width when you switched to Unbounded, and once narrowed there was a wide band of empty space to the right of the table. Both are fixed: the columns are dot-width in both views on a phone now, and the table's container hugs the columns so scrolling sideways stops at the last code instead of running into blank space. Wider screens are unchanged.
+
 ## [0.5.69] - 2026-07-07
 
 ### Changed
