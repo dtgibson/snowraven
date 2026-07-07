@@ -80,7 +80,16 @@ italic at 0.71875rem `--sr-text-gray`.
   full-height, page-scrolling table with any legend in normal flow after the last
   row — NOT a frozen-header / capped-height data-grid (pure CSS can't combine a
   page-frozen header + an unbounded table + contained horizontal scroll, so a
-  frozen header forces a capped box; the natural table is preferred). The Breeding
+  frozen header forces a capped box; the natural table is preferred). To make the
+  phone column widths AUTHORITATIVE — so the narrowing holds even in an uncapped /
+  "unbounded" wide view (under the default `table-layout: auto` a cell width is
+  only a floor a wide table grows past) — put `table-layout: fixed` on the
+  `<table>` at ≤640 with a DEFINITE table width (`width: max-content; min-width: 0`),
+  never `width: 100%` inside a `max-content`/shrink-to-fit container (a circular
+  constraint that runs the table to the browser's element-width cap). A
+  horizontally-scrolling card wrapping such a fixed-width table uses
+  `width: min-content` (not `max-content`, which sizes to the columns' intrinsic
+  width and leaves trailing whitespace) so the card hugs the table. The Breeding
   Codes matrix is the exemplar. No new tokens.
 
 ## Accessibility commitments
