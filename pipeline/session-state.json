@@ -1,6 +1,6 @@
 {
   "activeFeature": null,
-  "sessionNumber": 78,
+  "sessionNumber": 79,
   "sessionType": null,
   "currentStage": null,
   "lastCompletedStage": 6,
@@ -8,11 +8,11 @@
   "awaitingHuman": null,
   "confirmedArtifacts": [],
   "autonomyMode": "studio-style",
-  "autonomyNote": "Studio Style IMPROVE run complete. calendar-views-and-emdash SHIPPED as v0.5.68 (also carried the switch-thumb tokenization to production). Pipeline idle.",
+  "autonomyNote": "Studio Style FIX run complete. iOS app-icon fix SHIPPED to TestFlight (iOS 0.5.68 build 2). Offline-maps-on-iOS ruled a feature (desktop-only v1) and deferred (idea 90b0dd7d). Pipeline idle.",
   "ideaId": null,
   "releasedVersion": "0.5.68",
-  "lastFeature": "calendar-views-and-emdash (Improve) — SHIPPED v0.5.68. The Calendar Compact/Large view modes now work distinctly on mobile (Compact = per-day counts, no date; Large = dated + shaded mini-months, no count, data on tap; the phone view-force + phone-only date corner were removed so the toggle governs at all widths — desktop unchanged). Em dashes removed from the app's user-facing copy + in-app Help (~163 spots; 2 out-of-scope residuals: the Esri-mandated attribution string and a data-parsing regex). This release also carried the switch-thumb tokenization (--sr-switch-thumb) to production. Desktop (macOS universal + Windows) live via GitHub release + latest.json.",
-  "remainingBacklog": "Open (user's own steps): iOS/iPadOS public App Store submission (TestFlight build 2 up); Windows code signing (Authenticode). On the Horizon: backport the inline-embed offline/failed-load fallback to the Species Detail embed; county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; richer Calendar day-species popup. NOTE: the Calendar mobile layout shipped test-verified but NOT human-eye-verified on a real phone (the desktop app window wouldn't narrow far enough on the user's machine) — worth an eyeball on an actual phone when convenient.",
-  "createdAt": "2026-07-06T20:42:54Z",
-  "updatedAt": "2026-07-06T23:10:00Z"
+  "lastFeature": "ios-offline-maps-and-icon (Fix) — SHIPPED (iOS 0.5.68 build 2 to TestFlight). The iOS app showed Tauri's default placeholder icon; the correct green SR icon set existed at src-tauri/icons/ios/ but was never copied into the committed gen/apple appiconset at tauri-ios-init. Copied it in, then flattened all 18 icons to opaque RGB after App Store Connect rejected the alpha channel on the large icon (altool err 90717). Rebuilt build 2, re-uploaded → accepted. iOS-asset-only; desktop 0.5.68 unaffected, no version bump. Offline-maps-on-iOS confirmed a FEATURE (deliberately desktop-only in v1) and DEFERRED. Claude ran the whole iOS build+upload (DEVELOPER_DIR + /tmp/xcshim, app-store-connect export, altool).",
+  "remainingBacklog": "Open (user's own steps): iOS/iPadOS public App Store submission (latest TestFlight = 0.5.68 build 2, corrected icon); Windows code signing (Authenticode). DEFERRED feature: iOS offline maps (region downloads; on ROADMAP On-the-Horizon; idea 90b0dd7d). On the Horizon: backport the inline-embed offline/failed-load fallback to the Species Detail embed; county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; richer Calendar day-species popup. NOTE: the v0.5.68 Calendar mobile layout is test-verified but not human-eye-verified on a real phone.",
+  "createdAt": "2026-07-06T23:30:17Z",
+  "updatedAt": "2026-07-07T00:30:00Z"
 }
