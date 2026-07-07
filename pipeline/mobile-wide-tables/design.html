@@ -1,0 +1,739 @@
+<!--
+  design.html — Mobile Breeding-Codes Matrix (Comfortable Phone View)
+  Feature: mobile-wide-tables · Stage 4 (The Designer)
+
+  A self-contained, single-file mockup. Open directly in any browser:
+  file:///Users/developer/devwork/snowraven/pipeline/mobile-wide-tables/design.html
+
+  Fidelity note: every color is the ACTUAL --sr-* token value pulled from
+  frontend/src/globals.css (light + dark). The breeding-code dots use the real
+  purple tier ramp (tier 4 darkest → tier 1 lightest); the accent green is
+  reserved for links/active state, exactly as in the running app. The sticky
+  name column, the 28px count dot, the tier legend, and the tab chrome mirror
+  BreedingCodeTable.tsx / BreedingCodeList.tsx. This should be hard to tell from
+  the real Breeding Codes tab.
+-->
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven — Mobile Breeding Codes (design)</title>
+<style>
+  /* ---- Tokens: verbatim from frontend/src/globals.css ------------------- */
+  :root, [data-theme="light"] {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-gray: #6B7280;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-on-accent: #FFFFFF;
+    --sr-tier-4: #3B0764;
+    --sr-tier-3: #6B21A8;
+    --sr-tier-2: #9333EA;
+    --sr-tier-1: #C084FC;
+    --sr-tier-1-text: #3B0764;
+    --sr-tier-2-text: #FFFFFF;
+    --sr-tier-3-text: #FFFFFF;
+    --sr-tier-4-text: #FFFFFF;
+
+    /* page (mockup shell, not app tokens) */
+    --page-bg: #ECEFF3;
+    --page-panel: #FFFFFF;
+    --page-ink: #1c2431;
+    --page-ink-soft: #5a6472;
+    --page-line: #dfe4ea;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-gray: #8A8A92;
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-on-accent: #052E16;
+    --sr-tier-4: #6B21A8;
+    --sr-tier-3: #7C3AED;
+    --sr-tier-2: #A855F7;
+    --sr-tier-1: #C084FC;
+    --sr-tier-1-text: #1A0030;
+    --sr-tier-2-text: #1A0030;
+    --sr-tier-3-text: #FFFFFF;
+    --sr-tier-4-text: #FFFFFF;
+
+    --page-bg: #0b0d10;
+    --page-panel: #14171c;
+    --page-ink: #e7ebf0;
+    --page-ink-soft: #9aa3af;
+    --page-line: #232830;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--page-bg);
+    color: var(--page-ink);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    padding: 28px 20px 80px;
+  }
+
+  /* ---- Page chrome ------------------------------------------------------ */
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  .masthead { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 6px; flex-wrap: wrap; }
+  .masthead h1 { font-size: 1.55rem; font-weight: 700; letter-spacing: -0.02em; margin: 0; }
+  .masthead .sub { color: var(--page-ink-soft); font-size: 0.9rem; max-width: 640px; margin-top: 4px; }
+  .kicker { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--sr-accent); margin-bottom: 3px; }
+
+  .controls { display: inline-flex; align-items: center; gap: 8px; }
+  .toggle {
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    background: var(--page-panel); border: 1px solid var(--page-line);
+    border-radius: 999px; padding: 7px 14px; font-size: 0.8rem; font-weight: 600;
+    color: var(--page-ink); user-select: none;
+  }
+  .toggle:hover { border-color: var(--sr-accent); }
+  .toggle .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--sr-accent); }
+
+  .lede {
+    background: var(--page-panel); border: 1px solid var(--page-line); border-radius: 14px;
+    padding: 16px 20px; margin: 20px 0 30px; display: flex; gap: 16px; align-items: flex-start;
+  }
+  .lede .mark { flex-shrink: 0; width: 34px; height: 34px; border-radius: 9px; background: var(--sr-accent-bg);
+    color: var(--sr-accent); display: grid; place-items: center; }
+  .lede p { margin: 0; font-size: 0.9rem; color: var(--page-ink-soft); }
+  .lede strong { color: var(--page-ink); font-weight: 650; }
+
+  /* ---- Section headers -------------------------------------------------- */
+  .section-h { display: flex; align-items: baseline; gap: 10px; margin: 40px 0 4px; }
+  .section-h .n { font-size: 0.72rem; font-weight: 800; color: var(--sr-accent);
+    background: var(--sr-accent-bg); border-radius: 6px; padding: 2px 8px; letter-spacing: 0.04em; }
+  .section-h h2 { font-size: 1.12rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  .section-note { color: var(--page-ink-soft); font-size: 0.87rem; margin: 2px 0 20px; max-width: 760px; }
+
+  /* ---- Phone frame ------------------------------------------------------ */
+  .phones { display: flex; flex-wrap: wrap; gap: 34px; align-items: flex-start; }
+  .phone-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .phone-label { text-align: center; }
+  .phone-label .t { font-size: 0.82rem; font-weight: 700; }
+  .phone-label .d { font-size: 0.76rem; color: var(--page-ink-soft); }
+  .phone-label .verdict { font-size: 0.72rem; font-weight: 700; margin-top: 3px; }
+  .verdict.bad { color: #b4341f; }
+  .verdict.good { color: var(--sr-accent); }
+  [data-theme="dark"] .verdict.bad { color: #f0836e; }
+
+  .phone {
+    width: 360px; border-radius: 40px; padding: 12px;
+    background: #0d0f12; box-shadow: 0 22px 50px -18px rgba(0,0,0,0.55), 0 0 0 2px #232830;
+    position: relative;
+  }
+  [data-theme="dark"] .phone { background: #05070a; box-shadow: 0 22px 50px -18px rgba(0,0,0,0.8), 0 0 0 2px #1a1e25; }
+  .phone .notch { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 24px; background: #0d0f12; border-radius: 0 0 14px 14px; z-index: 20; }
+  .screen {
+    background: var(--sr-bg); border-radius: 30px; overflow: hidden; height: 720px;
+    display: flex; flex-direction: column; position: relative;
+  }
+
+  /* status bar */
+  .statusbar { height: 30px; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: space-between;
+    padding: 0 22px 3px; font-size: 0.72rem; font-weight: 700; color: var(--sr-text); }
+  .statusbar .right { display: inline-flex; gap: 5px; align-items: center; }
+
+  /* app tab header (mirrors the "house header": accent icon tile + h2 + muted sub) */
+  .apphead { padding: 8px 14px 10px; display: flex; gap: 10px; align-items: center; flex-shrink: 0;
+    border-bottom: 1px solid var(--sr-border-subtle); background: var(--sr-bg); }
+  .apphead .tile { width: 30px; height: 30px; border-radius: 8px; background: var(--sr-accent-bg);
+    color: var(--sr-accent); display: grid; place-items: center; flex-shrink: 0; }
+  .apphead h3 { margin: 0; font-size: 1.06rem; font-weight: 700; letter-spacing: -0.01em; color: var(--sr-text); }
+  .apphead .sub { margin: 0; font-size: 0.72rem; color: var(--sr-text-muted); line-height: 1.3; }
+
+  /* filter strip (condensed — a couple pills + sort + count + wide toggle) */
+  .filterstrip { padding: 8px 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    flex-shrink: 0; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border-radius: 6px;
+    font-size: 0.7rem; font-weight: 500; border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+    color: var(--sr-text-muted); white-space: nowrap; }
+  .pill.on { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); }
+  .pill .swatch { width: 12px; height: 12px; border-radius: 50%; }
+  .segwrap { display: inline-flex; border: 1.5px solid var(--sr-accent-border); border-radius: 6px; overflow: hidden; }
+  .seg { height: 26px; padding: 0 11px; border: none; font-size: 0.7rem; font-weight: 500; background: transparent;
+    color: var(--sr-text-muted); font-family: inherit; }
+  .seg.on { background: var(--sr-accent-bg); color: var(--sr-accent); }
+  .seg + .seg { border-left: 1.5px solid var(--sr-accent-border); }
+  .strip-meta { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; }
+  .count { font-size: 0.7rem; color: var(--sr-text-muted); white-space: nowrap; }
+  .ghost { height: 24px; padding: 0 9px; border-radius: 6px; font-size: 0.66rem; font-weight: 500;
+    border: 1.5px solid var(--sr-border); background: none; color: var(--sr-text-muted); white-space: nowrap; }
+
+  /* ---- The matrix card (faithful to BreedingCodeTable.tsx) -------------- */
+  .matrix-shell { flex: 1; min-height: 0; padding: 0 12px 12px; display: flex; flex-direction: column; }
+  .matrix-card {
+    border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface);
+    display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+    flex: 1; min-height: 0;
+  }
+  .matrix-scroll { overflow-x: auto; overflow-y: auto; position: relative; flex: 1; min-height: 0;
+    -webkit-overflow-scrolling: touch; }
+  table.bc { border-collapse: separate; border-spacing: 0; min-width: max-content; width: 100%; }
+
+  /* header cells */
+  table.bc thead th {
+    position: sticky; top: 0; z-index: 2; background: var(--sr-bg);
+    box-shadow: inset 0 -1px 0 var(--sr-border);
+    font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; user-select: none;
+    color: var(--sr-text-muted);
+  }
+  /* the sticky NAME column header (top-left) */
+  table.bc thead th.namecol {
+    left: 0; z-index: 3; text-align: left; padding: 10px 12px;
+    box-shadow: inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border);
+    font-size: 0.6875rem;
+  }
+  table.bc thead th.namecol .sortlabel { display: inline-flex; align-items: center; gap: 2px; color: var(--sr-text); }
+  table.bc thead th.namecol .arrow { color: var(--sr-accent); font-size: 0.625rem; }
+
+  /* code column header — this is the DESIGN DECISION surface */
+  table.bc thead th.codecol { text-align: center; }
+  table.bc thead th.codecol .code {
+    font-weight: 600; letter-spacing: 0.02em; color: var(--sr-text-muted);
+  }
+
+  /* row name cell (sticky) */
+  table.bc tbody th.namecell {
+    position: sticky; left: 0; z-index: 1; text-align: left; padding: 9px 12px;
+    box-shadow: 1px 0 0 var(--sr-border); border-top: 1px solid var(--sr-border-subtle);
+    vertical-align: middle; font-weight: normal; background: var(--sr-surface);
+  }
+  table.bc tbody tr:hover th.namecell,
+  table.bc tbody tr:hover td.codecell { background: var(--sr-surface-faint); }
+
+  /* BirdName rendering (mirrors .sr-birdname) */
+  .birdname { display: inline-flex; flex-direction: column; min-width: 0; }
+  .birdname .row { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+  .birdname .name { font-size: 0.84375rem; color: var(--sr-accent); font-weight: 500; }
+  .birdname .name.plain { color: var(--sr-text); }
+  .birdname .favs { display: inline-flex; gap: 3px; flex-shrink: 0; }
+  .birdname .fav { width: 12px; height: 12px; border-radius: 3px; opacity: 0.9;
+    display: grid; place-items: center; font-size: 8px; color: #fff; line-height: 1; }
+  .birdname .fav.eb { background: #d4462a; }
+  .birdname .fav.bow { background: #1f6f5c; }
+  .birdname .sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); margin-top: 1px; }
+
+  /* code cell + the 28px count dot */
+  table.bc td.codecell { text-align: center; vertical-align: middle; padding: 6px 0;
+    border-top: 1px solid var(--sr-border-subtle); background: var(--sr-surface); }
+  .dot { width: 28px; height: 28px; border-radius: 50%; font-size: 0.6875rem; font-weight: 700;
+    letter-spacing: -0.3px; display: inline-flex; align-items: center; justify-content: center; }
+  .dot.t4 { background: var(--sr-tier-4); color: var(--sr-tier-4-text); }
+  .dot.t3 { background: var(--sr-tier-3); color: var(--sr-tier-3-text); }
+  .dot.t2 { background: var(--sr-tier-2); color: var(--sr-tier-2-text); }
+  .dot.t1 { background: var(--sr-tier-1); color: var(--sr-tier-1-text); }
+
+  /* tier legend footer */
+  .legend { background: var(--sr-surface-faint); border-top: 1px solid var(--sr-border-subtle);
+    padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 12px; flex-shrink: 0; }
+  .legend .grp { display: flex; align-items: flex-start; gap: 6px; }
+  .legend .lgdot { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; margin-top: 1px; }
+  .legend .txt { font-size: 0.66rem; color: var(--sr-text-muted); }
+  .legend .txt b { color: var(--sr-text); }
+  .legend .codes { display: flex; flex-wrap: wrap; gap: 1px 8px; margin-top: 2px; }
+  .legend .codes span { white-space: nowrap; }
+  .legend .codes strong { font-weight: 700; }
+
+  /* ---- width variants: 44px (before) vs 30px (after) -------------------- */
+  .m44 table.bc thead th.codecol { padding: 10px 0; width: 44px; min-width: 44px; }
+  .m44 table.bc thead th.codecol .code { font-size: 0.6875rem; }
+  .m44 table.bc td.codecell { width: 44px; min-width: 44px; }
+
+  .m30 table.bc thead th.codecol { padding: 10px 0; width: 30px; min-width: 30px; }
+  .m30 table.bc thead th.codecol .code { font-size: 0.625rem; letter-spacing: 0; }
+  .m30 table.bc td.codecell { width: 30px; min-width: 30px; }
+
+  /* ---- rotated-header alternative (toggle to compare) ------------------- */
+  .rot table.bc thead th.codecol { height: 62px; vertical-align: bottom; padding: 0 0 8px; }
+  .rot table.bc thead th.codecol .code {
+    display: inline-block; writing-mode: vertical-rl; transform: rotate(180deg);
+    font-size: 0.625rem; letter-spacing: 0.04em; line-height: 1;
+  }
+
+  /* pinch annotation overlay on the AFTER phone */
+  .pinch-fab { position: absolute; right: 14px; bottom: 74px; z-index: 15;
+    display: flex; flex-direction: column; gap: 7px; align-items: center; }
+  .pinch-badge {
+    background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 999px;
+    box-shadow: 0 4px 14px -4px rgba(0,0,0,0.3); padding: 6px 11px 6px 8px;
+    display: inline-flex; align-items: center; gap: 7px; font-size: 0.68rem; font-weight: 600;
+    color: var(--sr-text);
+  }
+  .pinch-badge .glyph { color: var(--sr-accent); display: inline-flex; }
+
+  /* the −/Fit/+ fallback control (iOS-only, drawn dashed = "fallback, off by default") */
+  .zoomctl { display: inline-flex; align-items: stretch; border-radius: 9px; overflow: hidden;
+    background: var(--sr-surface); border: 1.5px dashed var(--sr-accent-border); box-shadow: 0 4px 14px -6px rgba(0,0,0,0.3); }
+  .zoomctl button { width: 40px; height: 40px; border: none; background: none; font-family: inherit;
+    font-size: 0.9rem; font-weight: 700; color: var(--sr-text-muted); display: grid; place-items: center; }
+  .zoomctl button.fit { width: auto; padding: 0 12px; font-size: 0.72rem; font-weight: 600; color: var(--sr-accent); }
+  .zoomctl button + button { border-left: 1px solid var(--sr-border-subtle); }
+
+  /* callout annotations sitting beside the phones */
+  .annos { display: flex; flex-direction: column; gap: 14px; max-width: 300px; padding-top: 14px; }
+  .anno { position: relative; padding: 12px 14px 12px 16px; background: var(--page-panel);
+    border: 1px solid var(--page-line); border-radius: 12px; }
+  .anno::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px;
+    border-radius: 3px; background: var(--sr-accent); }
+  .anno h4 { margin: 0 0 3px; font-size: 0.83rem; font-weight: 700; }
+  .anno p { margin: 0; font-size: 0.79rem; color: var(--page-ink-soft); line-height: 1.5; }
+  .anno .tag { display: inline-block; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--sr-accent); margin-bottom: 4px; }
+
+  /* peephole guide overlay for the BEFORE phone */
+  .peephole-note { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%);
+    background: rgba(180,52,31,0.94); color: #fff; font-size: 0.66rem; font-weight: 600;
+    padding: 5px 11px; border-radius: 999px; white-space: nowrap; z-index: 16;
+    box-shadow: 0 6px 18px -6px rgba(0,0,0,0.5); }
+  [data-theme="dark"] .peephole-note { background: rgba(200,80,58,0.95); }
+
+  .cut-hint { position: absolute; top: 0; right: 0; bottom: 0; width: 34px; z-index: 14; pointer-events: none;
+    background: linear-gradient(to right, transparent, rgba(180,52,31,0.14)); }
+
+  /* header-treatment options card */
+  .opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-top: 8px; }
+  .opt { background: var(--page-panel); border: 1px solid var(--page-line); border-radius: 12px; padding: 16px; }
+  .opt.chosen { border-color: var(--sr-accent); box-shadow: 0 0 0 1px var(--sr-accent); }
+  .opt .badge { display: inline-block; font-size: 0.63rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 5px; margin-bottom: 8px; }
+  .opt.chosen .badge { background: var(--sr-accent); color: var(--sr-on-accent); }
+  .opt:not(.chosen) .badge { background: var(--sr-surface-subtle); color: var(--sr-text-muted); }
+  .opt h4 { margin: 0 0 6px; font-size: 0.9rem; font-weight: 700; }
+  .opt p { margin: 0 0 10px; font-size: 0.78rem; color: var(--page-ink-soft); line-height: 1.45; }
+  .opt .verdict-line { font-size: 0.74rem; font-weight: 600; }
+  .opt.chosen .verdict-line { color: var(--sr-accent); }
+  .opt:not(.chosen) .verdict-line { color: var(--page-ink-soft); }
+
+  /* mini header demo inside option cards */
+  .hdemo { display: flex; gap: 3px; align-items: flex-end; padding: 10px; background: var(--sr-bg);
+    border: 1px solid var(--sr-border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .hdemo .col { width: 30px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .hdemo .hd { font-size: 0.625rem; font-weight: 600; color: var(--sr-text-muted); text-transform: uppercase; letter-spacing: 0.02em; }
+  .hdemo .hd.rot { writing-mode: vertical-rl; transform: rotate(180deg); height: 30px; }
+  .hdemo .dotmini { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 0.6rem; font-weight: 700; }
+
+  /* footer legend for the whole doc */
+  .doc-foot { margin-top: 46px; padding-top: 18px; border-top: 1px solid var(--page-line);
+    font-size: 0.78rem; color: var(--page-ink-soft); }
+  .doc-foot code { background: var(--sr-surface-subtle); color: var(--page-ink); padding: 1px 5px; border-radius: 4px; font-size: 0.86em; }
+
+  @media (max-width: 760px) {
+    body { padding: 20px 14px 60px; }
+    .phone { width: 320px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ Masthead ============ -->
+  <header class="masthead">
+    <div>
+      <div class="kicker">SnowRaven · Design direction</div>
+      <h1>Breeding Codes, comfortable on a phone</h1>
+      <p class="sub">Narrow each code column from 44px to ~30px so a full species row is scannable at a glance, and lean on native pinch-zoom to magnify. Everything below uses the app's real <code style="font-size:0.85em">--sr-*</code> tokens — a reviewer shouldn't be able to tell it from the running tab.</p>
+    </div>
+    <div class="controls">
+      <label class="toggle" id="rotToggle"><span class="dot"></span> Header: <b id="rotState" style="margin-left:2px">Horizontal</b></label>
+      <label class="toggle" id="themeToggle"><span class="dot"></span> <span id="themeState">Light</span></label>
+    </div>
+  </header>
+
+  <div class="lede">
+    <div class="mark" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    </div>
+    <p>The species name column stays <strong>frozen</strong> while you scroll the codes. The colored dot (tier-purple, unchanged) stays the tappable, legible unit. Nothing about the desktop/tablet view changes — this is the <strong>≤640 phone tier only</strong>.</p>
+  </div>
+
+  <!-- ============ SECTION 1 — Before / After ============ -->
+  <div class="section-h">
+    <span class="n">1</span>
+    <h2>Before &amp; after, at phone width</h2>
+  </div>
+  <p class="section-note">Same eight species, same fourteen breeding codes, same 360px screen. On the left, today's 44px columns leave a one- or two-column peephole beside the frozen name. On the right, ~30px columns fit roughly twice as many codes, so you can scan a whole row.</p>
+
+  <div class="phones">
+    <!-- BEFORE -->
+    <div class="phone-col">
+      <div class="phone-label">
+        <div class="t">Today — 44px columns</div>
+        <div class="d">a peephole beside the frozen name</div>
+        <div class="verdict bad">✕ can't scan a row</div>
+      </div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen" id="screenBefore"></div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="phone-col">
+      <div class="phone-label">
+        <div class="t">Proposed — ~30px columns</div>
+        <div class="d">~2× the codes visible, full rows scannable</div>
+        <div class="verdict good">✓ a row reads at a glance</div>
+      </div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen" id="screenAfter"></div>
+      </div>
+    </div>
+
+    <!-- annotations -->
+    <div class="annos">
+      <div class="anno">
+        <span class="tag">Frozen column</span>
+        <h4>The bird never scrolls away</h4>
+        <p>The species name column stays pinned (<code style="font-size:0.82em">clamp(7.5rem, 40vw, 220px)</code>, unchanged) so you always know which bird a row belongs to while the codes scroll or pan.</p>
+      </div>
+      <div class="anno">
+        <span class="tag">Primary gesture</span>
+        <h4>Pinch to magnify &amp; pan</h4>
+        <p>Any dot too small to read? Pinch with the same native iOS gesture you use everywhere else — the whole matrix (frozen column included) scales together. No custom zoom UI ships by default.</p>
+      </div>
+      <div class="anno">
+        <span class="tag">Untouched</span>
+        <h4>Dot, sort, filters, legend</h4>
+        <p>The 28px count dot, per-column sort, code/category/county/date filters, the tier legend, and the species links to Species Detail all behave exactly as today.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION 2 — The header treatment (the design decision) ============ -->
+  <div class="section-h">
+    <span class="n">2</span>
+    <h2>The code-header treatment at 30px</h2>
+  </div>
+  <p class="section-note">At 30px the colored dot (28px) is fixed — the open question is the little code label above it. Here are the three treatments considered. The recommended one is chosen; the header toggle at the top of the page flips both phones between the recommended horizontal header and the rotated alternative so you can feel the difference on-device.</p>
+
+  <div class="opts">
+    <div class="opt chosen">
+      <span class="badge">Recommended</span>
+      <div class="hdemo">
+        <div class="col"><span class="hd">S</span><span class="dotmini t1">2</span></div>
+        <div class="col"><span class="hd">CF</span><span class="dotmini t4">1</span></div>
+        <div class="col"><span class="hd">FL</span><span class="dotmini t4">3</span></div>
+        <div class="col"><span class="hd">NB</span><span class="dotmini t3">1</span></div>
+        <div class="col"><span class="hd">ON</span><span class="dotmini t4">1</span></div>
+      </div>
+      <h4>Horizontal, one step smaller</h4>
+      <p>The terse code sits above the dot at 0.625rem (down from 0.6875rem). eBird codes are 1–3 chars (S, H, CF, FL, NB, S7) and all fit in 30px. Zero mechanism change — still a real sortable <code style="font-size:0.82em">&lt;button&gt;</code> with its full-meaning <code style="font-size:0.82em">aria-label</code>.</p>
+      <div class="verdict-line">✓ Most faithful · biggest tap target · no alignment risk</div>
+    </div>
+
+    <div class="opt">
+      <span class="badge">Alternative</span>
+      <div class="hdemo">
+        <div class="col"><span class="hd rot">S</span><span class="dotmini t1">2</span></div>
+        <div class="col"><span class="hd rot">CF</span><span class="dotmini t4">1</span></div>
+        <div class="col"><span class="hd rot">FL</span><span class="dotmini t4">3</span></div>
+        <div class="col"><span class="hd rot">NB</span><span class="dotmini t3">1</span></div>
+        <div class="col"><span class="hd rot">ON</span><span class="dotmini t4">1</span></div>
+      </div>
+      <h4>Rotated (vertical) header</h4>
+      <p>Buys room for longer labels and looks tidy, but it grows the header band ~2×, makes the sticky top-left corner harder to align, and turns a small header into an awkward vertical tap target. Overkill when the codes are this short.</p>
+      <div class="verdict-line">◦ Only if a real code overflows 30px on-device</div>
+    </div>
+
+    <div class="opt">
+      <span class="badge">Rejected</span>
+      <div class="hdemo">
+        <div class="col"><span class="dotmini t1">2</span></div>
+        <div class="col"><span class="dotmini t4">1</span></div>
+        <div class="col"><span class="dotmini t4">3</span></div>
+        <div class="col"><span class="dotmini t3">1</span></div>
+        <div class="col"><span class="dotmini t4">1</span></div>
+      </div>
+      <h4>Dot-only (legend header)</h4>
+      <p>Drop the per-column code and rely on the legend alone. Cleanest look, but it strands the sort control and breaks the one-to-one "this column is CF" association that the whole matrix depends on. A step too far.</p>
+      <div class="verdict-line">✕ Loses per-column sort &amp; identity</div>
+    </div>
+  </div>
+
+  <!-- ============ SECTION 3 — The magnify feel ============ -->
+  <div class="section-h">
+    <span class="n">3</span>
+    <h2>The magnify feel — pinch first, control as fallback</h2>
+  </div>
+  <p class="section-note">Native pinch-zoom is the whole bet: it magnifies the entire page (frozen column and all) with no custom code, exactly like pinching any web page in Safari. The −/Fit/+ control below is a <strong>designed-but-dormant fallback</strong> — it ships only if the on-device check proves the WebView declines native pinch, and only on iOS. It calls Tauri's native <code style="font-size:0.85em">setZoom</code> (not CSS zoom, which failed before).</p>
+
+  <div class="phones">
+    <!-- pinch phone -->
+    <div class="phone-col">
+      <div class="phone-label">
+        <div class="t">Primary — native pinch</div>
+        <div class="d">no UI, the platform gesture does it all</div>
+      </div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen" id="screenPinch"></div>
+      </div>
+    </div>
+
+    <!-- fallback phone -->
+    <div class="phone-col">
+      <div class="phone-label">
+        <div class="t">Fallback (iOS-only, off by default)</div>
+        <div class="d">a small −/Fit/+ control, shown dashed here</div>
+      </div>
+      <div class="phone">
+        <div class="notch"></div>
+        <div class="screen" id="screenFallback"></div>
+      </div>
+    </div>
+
+    <div class="annos">
+      <div class="anno">
+        <span class="tag">Why pinch</span>
+        <h4>The platform already does this well</h4>
+        <p>Native viewport pinch is categorically different from the CSS <code style="font-size:0.82em">zoom</code> / <code style="font-size:0.82em">transform: scale</code> that broke the frozen column last time. Under native zoom, <code style="font-size:0.82em">position: sticky</code> scales correctly with the page.</p>
+      </div>
+      <div class="anno">
+        <span class="tag">Fallback shape</span>
+        <h4>−  /  Fit  /  +</h4>
+        <p>Three ≥44px buttons, keyboard-reachable, calling native <code style="font-size:0.82em">setZoom()</code>. Dashed here to signal it's not part of the default build — a conscious re-scope only if the device declines pinch.</p>
+      </div>
+      <div class="anno">
+        <span class="tag">Your call</span>
+        <h4>Show the control by default?</h4>
+        <p>My recommendation: <strong>no</strong> — keep it hidden unless the on-device test shows pinch fails. A visible zoom control on a page that already pinches invites confusion. But it's a one-line flip if you'd rather always show it on iOS.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="doc-foot">
+    <p><strong>Fidelity:</strong> all colors are the exact <code>--sr-*</code> values from <code>frontend/src/globals.css</code> (light + dark). Dots use the real purple tier ramp (tier 4 <code>#3B0764</code> → tier 1 <code>#C084FC</code> in light); the green accent is reserved for links/active state. The sticky name column, 28px dot, tier legend, filter pills, and house header mirror <code>BreedingCodeTable.tsx</code> / <code>BreedingCodeList.tsx</code>. Toggle the theme and header treatment above. This is a first design direction — react to it.</p>
+  </div>
+
+</div>
+
+<script>
+/* --------------------------------------------------------------------------
+   Data — realistic species × breeding codes with a believable fill pattern.
+   tier: 4 Confirmed (darkest) · 3 Confirmed-also · 2 Probable · 1 Possible.
+   Only a subset of cells are filled, as in real data.
+-------------------------------------------------------------------------- */
+const CODES = [
+  { code: 'S',  label: 'Singing Bird',            tier: 1 },
+  { code: 'H',  label: 'In Appropriate Habitat',  tier: 1 },
+  { code: 'P',  label: 'Pair in Suitable Habitat',tier: 2 },
+  { code: 'T',  label: 'Territorial Defense',     tier: 2 },
+  { code: 'C',  label: 'Courtship / Display',     tier: 2 },
+  { code: 'N',  label: 'Visiting Probable Nest',  tier: 2 },
+  { code: 'NB', label: 'Nest Building',           tier: 3 },
+  { code: 'CN', label: 'Carrying Nesting Mat.',   tier: 3 },
+  { code: 'CF', label: 'Carrying Food',           tier: 4 },
+  { code: 'FL', label: 'Recently Fledged Young',  tier: 4 },
+  { code: 'FY', label: 'Feeding Young',           tier: 4 },
+  { code: 'ON', label: 'Occupied Nest',           tier: 4 },
+  { code: 'NE', label: 'Nest with Eggs',          tier: 4 },
+  { code: 'NY', label: 'Nest with Young',         tier: 4 },
+];
+
+// species rows: sci name + a map of code -> count (omitted = empty cell)
+const SPECIES = [
+  { name: 'American Robin',    sci: 'Turdus migratorius', c: { S:8, H:5, T:2, NB:1, CF:4, FL:6, FY:3, NY:1 } },
+  { name: 'Song Sparrow',      sci: 'Melospiza melodia',  c: { S:12, H:7, P:2, T:3, CF:2, FL:3 } },
+  { name: 'House Finch',       sci: 'Haemorhous mexicanus', c: { S:6, H:4, P:1, NB:1, CF:1, ON:1 } },
+  { name: 'Barn Swallow',      sci: 'Hirundo rustica',    c: { H:3, P:2, NB:2, CN:1, ON:3, NE:1, NY:2 } },
+  { name: 'Northern Cardinal', sci: 'Cardinalis cardinalis', c: { S:9, H:6, P:3, C:1, CF:3, FL:4, FY:2 } },
+  { name: 'Tree Swallow',      sci: 'Tachycineta bicolor', c: { H:4, P:2, N:1, ON:2, NE:1, FL:1 } },
+  { name: 'Chipping Sparrow',  sci: 'Spizella passerina', c: { S:7, H:3, T:1, NB:1, CF:1 } },
+  { name: 'House Wren',        sci: 'Troglodytes aedon',  c: { S:10, H:5, P:1, T:2, NB:3, CN:1, ON:1 } },
+];
+
+const TIER_CLASS = { 1: 't1', 2: 't2', 3: 't3', 4: 't4' };
+const TIER_LEGEND = [
+  { tier: 4, label: 'Confirmed', codes: ['CF','FL','FY','ON','NE','NY','CN','NB'] },
+  { tier: 2, label: 'Probable',  codes: ['P','T','C','N'] },
+  { tier: 1, label: 'Possible',  codes: ['S','H'] },
+];
+
+const esc = (s) => String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+function birdName(sp, i) {
+  // First few species are "linkable" (green) to reflect hasEntry; all show favicons + sci.
+  const linkable = true;
+  return `<span class="birdname">
+    <span class="row">
+      <span class="name${linkable ? '' : ' plain'}">${esc(sp.name)}</span>
+      <span class="favs" aria-hidden="true">
+        <span class="fav eb" title="eBird">e</span>
+        <span class="fav bow" title="Birds of the World">b</span>
+      </span>
+    </span>
+    <span class="sci">${esc(sp.sci)}</span>
+  </span>`;
+}
+
+function dot(count, tier) {
+  const cat = tier >= 3 ? 'Confirmed' : tier === 2 ? 'Probable' : 'Possible';
+  return `<span class="dot ${TIER_CLASS[tier]}" role="img" aria-label="${count}, ${cat}">${count}</span>`;
+}
+
+function legendHtml() {
+  return `<div class="legend">${TIER_LEGEND.map(g => `
+    <div class="grp">
+      <span class="lgdot ${TIER_CLASS[g.tier]}" style="background:var(--sr-tier-${g.tier})"></span>
+      <span class="txt"><b>${g.label}</b>
+        <span class="codes">${g.codes.map(cd => {
+          const def = CODES.find(x => x.code === cd);
+          return `<span><strong>${cd}</strong> ${def ? esc(def.label) : ''}</span>`;
+        }).join('')}</span>
+      </span>
+    </div>`).join('')}</div>`;
+}
+
+function matrixTable() {
+  const thead = `<thead><tr>
+    <th class="namecol" scope="col" aria-sort="ascending">
+      <span class="sortlabel">Species<span class="arrow">↑</span></span>
+    </th>
+    ${CODES.map(cd => `
+      <th class="codecol" scope="col" title="${esc(cd.label)}">
+        <span class="code" role="button" tabindex="0" aria-label="Sort by ${esc(cd.label)} (${cd.code})">${cd.code}</span>
+      </th>`).join('')}
+  </tr></thead>`;
+
+  const tbody = `<tbody>${SPECIES.map((sp, i) => `
+    <tr>
+      <th class="namecell" scope="row">${birdName(sp, i)}</th>
+      ${CODES.map(cd => {
+        const n = sp.c[cd.code];
+        return `<td class="codecell">${n ? dot(n, cd.tier) : ''}</td>`;
+      }).join('')}
+    </tr>`).join('')}</tbody>`;
+
+  return `<table class="bc">${thead}${tbody}</table>`;
+}
+
+/* App chrome for a screen: status bar + house header + condensed filter strip */
+function appChrome(extra) {
+  return `
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="right">
+        <svg width="16" height="11" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true"><rect x="0" y="7" width="3" height="5" rx="1"/><rect x="5" y="4" width="3" height="8" rx="1"/><rect x="10" y="1" width="3" height="11" rx="1" opacity="0.4"/><rect x="15" y="1" width="3" height="11" rx="1" opacity="0.4"/></svg>
+        <svg width="22" height="11" viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x="1" y="1.5" width="19" height="9" rx="2.5"/><rect x="2.5" y="3" width="13" height="6" rx="1" fill="currentColor"/><rect x="21" y="4.5" width="1.6" height="3" rx="0.8" fill="currentColor"/></svg>
+      </span>
+    </div>
+    <div class="apphead">
+      <div class="tile" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h.01M8 20l4-16m0 0a4 4 0 0 1 4 4c0 4-4 6-8 6"/><path d="M4 20h9a5 5 0 0 0 5-5V9"/></svg>
+      </div>
+      <div style="min-width:0">
+        <h3>Breeding Codes</h3>
+        <p class="sub">Your confirmed &amp; possible nesting, by species</p>
+      </div>
+    </div>
+    <div class="filterstrip">
+      <span class="pill on">All</span>
+      <span class="pill"><span class="swatch" style="background:var(--sr-tier-4)"></span>Confirmed</span>
+      <span class="segwrap"><span class="seg on">A–Z</span><span class="seg">Taxonomic</span></span>
+      <span class="strip-meta">
+        <span class="count">8 species</span>
+        <span class="ghost">↔ Unbounded</span>
+      </span>
+    </div>
+    ${extra || ''}`;
+}
+
+function buildScreen(id, widthClass, extras = {}) {
+  const el = document.getElementById(id);
+  el.className = 'screen ' + widthClass;
+  el.innerHTML = appChrome() + `
+    <div class="matrix-shell">
+      <div class="matrix-card">
+        <div class="matrix-scroll">${matrixTable()}</div>
+        ${legendHtml()}
+      </div>
+    </div>` + (extras.overlay || '');
+}
+
+/* Overlays -------------------------------------------------------------- */
+const pinchOverlay = `
+  <div class="pinch-fab">
+    <div class="pinch-badge">
+      <span class="glyph" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m8 0h3a2 2 0 0 0 2-2v-3"/></svg>
+      </span>
+      Pinch to zoom &amp; pan
+    </div>
+  </div>`;
+
+const fallbackOverlay = `
+  <div class="pinch-fab">
+    <div class="zoomctl" role="group" aria-label="Zoom (iOS fallback)">
+      <button aria-label="Zoom out">−</button>
+      <button class="fit" aria-label="Fit to width">Fit</button>
+      <button aria-label="Zoom in">+</button>
+    </div>
+  </div>`;
+
+const peepholeOverlay = `
+  <div class="cut-hint" aria-hidden="true"></div>
+  <div class="peephole-note">↔ ~12 more columns off-screen</div>`;
+
+/* Render ---------------------------------------------------------------- */
+function renderAll() {
+  buildScreen('screenBefore', 'm44', { overlay: peepholeOverlay });
+  buildScreen('screenAfter',  'm30', { overlay: pinchOverlay });
+  buildScreen('screenPinch',  'm30', { overlay: pinchOverlay });
+  buildScreen('screenFallback','m30', { overlay: fallbackOverlay });
+  // On first paint, scroll the "before" phone's matrix a touch to show it's mid-scroll
+  const bs = document.querySelector('#screenBefore .matrix-scroll');
+  if (bs) bs.scrollLeft = 6;
+}
+renderAll();
+
+/* Theme toggle ---------------------------------------------------------- */
+const html = document.documentElement;
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const dark = html.getAttribute('data-theme') === 'dark';
+  html.setAttribute('data-theme', dark ? 'light' : 'dark');
+  document.getElementById('themeState').textContent = dark ? 'Light' : 'Dark';
+});
+
+/* Header treatment toggle (horizontal <-> rotated) ---------------------- */
+let rotated = false;
+document.getElementById('rotToggle').addEventListener('click', () => {
+  rotated = !rotated;
+  document.getElementById('rotState').textContent = rotated ? 'Rotated' : 'Horizontal';
+  ['screenBefore','screenAfter','screenPinch','screenFallback'].forEach(id => {
+    document.getElementById(id).classList.toggle('rot', rotated);
+  });
+});
+</script>
+</body>
+</html>

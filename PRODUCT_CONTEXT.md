@@ -600,6 +600,10 @@ no code (soundscapes, pre-fetch) show nothing.
 A fourth tab that parses an eBird backup CSV and renders a species-by-breeding-code
 matrix. Each cell shows a count of how many times that species was observed with that
 code, rendered as a tier-colored circle. Entirely client-side — no backend changes.
+On a phone the matrix reads well: the code columns narrow to compact dot-width columns,
+thin vertical rules separate them, the species-name column stays fixed while the codes
+scroll sideways, and you pinch the viewport to magnify (a natural full-height table that
+scrolls with the page, not a boxed data-grid).
 
 **What it does:**
 - Drop zone accepts `MyEBirdData.csv` (eBird backup); drag-and-drop or click-to-browse

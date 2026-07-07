@@ -4,6 +4,20 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Mobile Breeding Codes matrix: dot-width columns + native pinch, NOT a custom zoom control and NOT a frozen-header data-grid — 2026-07-07 (v0.5.69)
+
+**What:** Made the Breeding Codes matrix comfortable to read on a phone. Frontend-only (`frontend/src/components/BreedingCodeTable.tsx` + its test + `frontend/src/globals.css`); no new data model, network call, provider, backend route, bundled dataset, token, or persisted setting. Four live-verified revisions at the Engineer gate settled the approach. Desktop shipped as v0.5.69 (notarized universal macOS DMG + signed Windows installer); iOS 0.5.69 build 1 uploaded to TestFlight. Feature commit `6da3645`.
+
+**Decision:** On phones the matrix is made usable by narrowing the code columns to ~30px dot-width (`.sr-bc-code-col`, 0.625rem headers, at ≤640) and relying on NATIVE viewport pinch to magnify — NOT a custom −/Fit/+ zoom control, and NOT a frozen-header / capped-height data-grid. A frozen title row + capped-height scroll box WAS built and live-tested (revisions 2–3), then REVERTED at the user's request in favor of a natural full-height, page-scrolling table with the tier legend in normal flow after the last row. The species-name column stays horizontally sticky only (`left:0`), and thin vertical column rules (`--sr-border-subtle` right-borders on `.sr-bc-code-col` / `.sr-bc-name-col`) are kept at all widths.
+
+**Rationale:**
+- **Native pinch, not a CSS zoom control.** CSS `zoom` / `transform:scale` is unreliable in WKWebView — the same reason the v0.5.64 ZoomableWideSurface was reverted — so magnification is delegated to the viewport's own pinch. eBird codes are 1–3 chars and stay legible at 30px; the `−/Fit/+` fallback control the Designer reserved (feature `decisions.md`) ships only if an on-device pinch check fails, and did not ship.
+- **Natural table, not a frozen-header capped box (empirical CSS limit).** Pure CSS cannot combine a page-frozen header + an unbounded (full-height) table + contained horizontal scroll on a phone: `overflow-x:auto` forces the vertical axis to `auto`/`hidden`, which binds a sticky header to the wrapper rather than the page — so removing the vertical height bound necessarily un-freezes the header (verified both ways: `overflow-y: visible`→auto and `clip`→hidden each fail). Faced with that tradeoff the user chose the natural full-length page-scrolling table over the freeze.
+
+**Implications:** Keep the horizontal-only sticky name column + the vertical column rules; do NOT re-introduce the capped-height frozen-header box on this matrix. Future wide-table-on-a-phone work uses the same recipe — dot-width columns single-sourced in a CSS class + native pinch — not a custom zoom widget or a frozen-header data-grid. Promoted to CLAUDE.md (a Breeding-Codes-matrix note by the responsive-layout conventions) and folded into `pipeline/design-system.md` as the reusable "Phone wide-table" pattern. Separately, this run surfaced a real gap in the iOS build recipe — `tauri ios build --export-method app-store-connect` needs the App Store Connect API key under Tauri's own env names (`APPLE_API_KEY` / `APPLE_API_ISSUER` / `APPLE_API_KEY_PATH`), distinct from the `altool` upload creds — also promoted to CLAUDE.md (iOS release). QA and Security both PASSED with no new attack surface and no builder Convention Flags; `PRIVACY_POLICY.md` / `ACCESSIBILITY.md` correctly unchanged.
+
+---
+
 ## iOS app icon fix (+ offline-maps deferral) — 2026-07-06 (iOS build v0.5.68 build 2)
 
 **Decision:** Fixed the iOS app showing Tauri's default placeholder icon (a committed-artifact bug), and — from the same two-issue report — confirmed that offline maps on iOS is a FEATURE, not a bug, and DEFERRED it (not built). iOS-asset-only: the desktop v0.5.68 bundle is unaffected, no version bump; it shipped as iOS build 2 to TestFlight. Commits `e070d73` (icon swap) + `21fd5b2` (flatten).

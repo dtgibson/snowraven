@@ -70,6 +70,18 @@ italic at 0.71875rem `--sr-text-gray`.
   frame. Established Species Detail Recent Media; extended to Named Birds
   (named-birds-media feature) with per-format sizing + the offline placeholder.
   No new tokens.
+- **Phone wide-table:** a wide matrix/table (many narrow columns beside a label
+  column) is made comfortable on a phone by (1) narrowing the data columns to
+  dot-width via a single CSS class at the ≤640 tier — never an inline width — with
+  smaller (0.625rem) headers; (2) thin `--sr-border-subtle` column rules to keep
+  the dense columns readable; (3) a horizontally-sticky first (label) column
+  (`left:0`, no `top`); and (4) native viewport pinch-to-zoom for magnification —
+  NO CSS `zoom` / `transform:scale` (unreliable in WKWebView). It stays a NATURAL
+  full-height, page-scrolling table with any legend in normal flow after the last
+  row — NOT a frozen-header / capped-height data-grid (pure CSS can't combine a
+  page-frozen header + an unbounded table + contained horizontal scroll, so a
+  frozen header forces a capped box; the natural table is preferred). The Breeding
+  Codes matrix is the exemplar. No new tokens.
 
 ## Accessibility commitments
 Every `<button>` gets explicit `tabIndex={0}` (WKWebView Tab behavior); toggles
