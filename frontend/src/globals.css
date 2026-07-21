@@ -708,12 +708,16 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
-/* Per-format player heights (design-spec: photo/video 230px, audio 116px). The
-   frame and the iframe both take the format class so the placeholder box matches
-   the player box exactly. */
+/* Per-format player heights. Named Birds media uses these (photo/video 230px, audio
+   116px — a compact preview in its dense multi-item grid). Species Detail's Recent
+   Media instead uses --recent for all three, so its row of most-recent
+   photo/audio/video is uniform AND the Macaulay audio player's controls fit (the
+   compact height clips them). The frame and the iframe both take the height class so
+   the placeholder box matches the player box exactly. */
 .sr-media-iframe--photo,
 .sr-media-iframe--video { height: 230px; }
 .sr-media-iframe--audio { height: 116px; }
+.sr-media-iframe--recent { height: 230px; }
 
 /* Loading / lazy placeholder — same footprint, a subtle surface sweep honoring
    prefers-reduced-motion (the shimmer animation is killed by the global
@@ -1284,6 +1288,7 @@ select:focus-visible {
   .sr-media-iframe--photo,
   .sr-media-iframe--video { height: 280px; }
   .sr-media-iframe--audio { height: 130px; }
+  .sr-media-iframe--recent { height: 280px; }
 
   /* New layout hooks collapse to a single column on phones. */
   .sr-grid-2, .sr-grid-3, .sr-grid-4 { grid-template-columns: 1fr; }

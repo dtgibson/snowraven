@@ -12,7 +12,7 @@ The recommended setup sequence is:
 
 1. Enter your eBird API key in Settings. This is required for the Weather tab and the Map Explorer (including its Nearby Lifers section).
 2. Enter your OpenWeather API key in Settings. This is required for the Weather tab.
-3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer tabs.
+3. Upload your eBird backup file (`MyEBirdData.csv`) in Settings. This powers the Species Detail, Statistics, Calendar, Map Explorer, Breeding Codes, Multimedia, Named Birds, Checklists, and List Comparer tabs.
 4. Upload your ML export from Macaulay Library in Settings. This is optional but unlocks media-specific features in Multimedia, Species Detail, and Statistics.
 
 ---
@@ -38,13 +38,13 @@ Keep your API key private. It is tied to your eBird account and should not be sh
 
 The OpenWeather API key lets SnowRaven retrieve historical weather for any eBird checklist you look up. The service is free for the first 1,000 requests per day -- well above what a typical user needs.
 
-**Important:** After creating your OpenWeather account, you must subscribe to the "One Call by Call" plan separately. The key is not activated for this plan automatically when you create an account. Go to your account's Billing plans page and subscribe to One Call by Call. The free tier covers 1,000 calls per day at no cost. Without this step, weather lookups will return an error.
+**Important:** After creating your OpenWeather account, you must subscribe to the "One Call by Call" plan separately. The key is not activated for this plan automatically when you create an account. Go to your account's Billing plans page and subscribe to One Call by Call. The free tier covers 1,000 calls per day at no cost, but subscribing requires a payment card on file; you can set a usage cap in your OpenWeather account to avoid any charges. Without this step, weather lookups will return an error.
 
 To get your key:
 
 1. Create a free account at [openweathermap.org](https://openweathermap.org).
 2. Go to API keys in your account dashboard. Copy the default key.
-3. Go to Billing plans and subscribe to One Call by Call.
+3. Go to Billing plans and subscribe to One Call by Call (this requires a payment card on file, even though the free tier is free).
 4. Open SnowRaven, go to Settings, and paste the key into the OpenWeather API Key field.
 
 ---
@@ -59,7 +59,7 @@ Your eBird backup is a full export of all your eBird observations -- every check
 
 The file is called `MyEBirdData.csv`. To download it, sign in at [ebird.org](https://ebird.org) and go to [ebird.org/downloadMyData](https://ebird.org/downloadMyData). Click "Download My Data" and save the download; if it arrives as a `.zip`, unzip it to find `MyEBirdData.csv`. In SnowRaven, go to Settings and upload that CSV under Default Files.
 
-The eBird backup is used by: Species Detail, Statistics, Map Explorer, Breeding Codes, Multimedia, and List Comparer.
+The eBird backup is used by: Species Detail, Statistics, Calendar, Map Explorer, Breeding Codes, Multimedia, Named Birds, Checklists, and List Comparer.
 
 eBird generates the export with all observations up to the download date. Re-upload the file whenever you want your tabs to reflect recent checklists.
 
@@ -138,7 +138,7 @@ The tab shows the following sections for each species:
 - Top Locations: ranked list of locations where you have observed the species. A location that is a public eBird hotspot is a link to its hotspot page on eBird; a personal location stays as plain text.
 - Sighting Locations map: an interactive map with a pin at every unique observation coordinate. Click any pin to see the dates and checklist links for that location. Toggle between Pins and Heatmap view; in Heatmap mode a Heatmap Intensity slider (1–10) lets you dial the coverage from tighter to broader and hotter, the same control as the Map Explorer's My Sightings map.
 - Comments: all your per-species field notes from the eBird backup, sortable by date and filterable by keyword.
-- Recent Media: the most recently uploaded photo, audio recording, and video from your Macaulay Library, embedded inline. Requires ML export and at least one item in the catalog for this species.
+- Recent Media: the most recently uploaded photo, audio recording, and video from your Macaulay Library, embedded inline at a matching size. Beneath each one is its capture date, a link that opens that recording on the Macaulay Library, and the checklist it came from. If an embed is slow, cannot load, or you are offline, it shows a placeholder with that same link instead of a blank frame, and recovers on its own once you are back online. Requires ML export and at least one item in the catalog for this species.
 
 Toolbar options:
 

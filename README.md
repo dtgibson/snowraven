@@ -37,7 +37,7 @@ SnowRaven is local-first and **collects nothing** — no accounts, no analytics,
 Two free API keys, entered once in the app's Settings:
 
 - **eBird API key** — free, from [ebird.org/api/keygen](https://ebird.org/api/keygen). Powers weather lookups, hotspot and recent-sighting data, the map's hotspot features, and taxonomy/region lookups.
-- **OpenWeather API key** — free, from [openweathermap.org](https://openweathermap.org). You must subscribe to the **One Call by Call** plan (free for the first 1,000 calls/day) or weather lookups return an error.
+- **OpenWeather API key** — free, from [openweathermap.org](https://openweathermap.org). You must subscribe to the **One Call by Call** plan (free for the first 1,000 calls/day) or weather lookups return an error. Activating that plan requires a payment card on file even though the free tier is free; you can set a usage cap in your account to avoid charges.
 
 Most analytics tabs also use your own data files (optional, but they unlock most features):
 

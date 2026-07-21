@@ -11,29 +11,17 @@
 //
 // Degradation (FR-14/15): offline or failed-load → a placeholder that keeps the
 // date + ChecklistLink and adds an OutboundLink to the single-asset ML URL — never
-// a broken frame. The date + checklist are local, so they always show.
+// a broken frame. The date + checklist are local, so they always show. The resilient
+// frame/fallback/shimmer primitives are shared with Species Detail (see MediaEmbed).
 
 import { useEffect, useRef, useState } from 'react'
-import { Play, Image as ImageIcon, Mic, Video, CloudOff, ChevronDown } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Play, ChevronDown } from 'lucide-react'
 import { formatDate } from '../lib/formatDate'
-import { mlAssetUrl } from '../lib/mlCatalog'
 import { useOnline } from '../lib/useOnline'
 import { ChecklistLink } from './ChecklistLink'
-import { OutboundLink } from './OutboundLink'
+import { MediaFrame, MediaFallback, MediaShimmer } from './MediaEmbed'
+import { MEDIA_FORMAT_META, MEDIA_CATALOG_ID_RE } from '../lib/mediaEmbed'
 import type { NamedBirdAsset } from '../lib/namedBirdMedia'
-
-// Catalog ids from the parser are already ^\d+$, but guard again before a value
-// becomes an iframe src or a link — defense in depth for the security contract.
-const CATALOG_ID_RE = /^\d+$/
-
-// Per-format presentation: the type label, its icon, and the iframe height class.
-// All three formats share ONE embed URL; only the label and player height vary.
-const FORMAT_META: Record<NamedBirdAsset['format'], { icon: LucideIcon; heightClass: string }> = {
-  Photo: { icon: ImageIcon, heightClass: 'sr-media-iframe--photo' },
-  Video: { icon: Video, heightClass: 'sr-media-iframe--video' },
-  Audio: { icon: Mic, heightClass: 'sr-media-iframe--audio' },
-}
 
 interface NamedBirdMediaProps {
   birdName: string
@@ -131,7 +119,7 @@ export function NamedBirdMedia({
         <>
           <div className="sr-media-grid" ref={gridRef}>
             {visible.map((asset, i) => (
-              <MediaEmbed key={asset.catalogId} asset={asset} birdName={birdName} open={open} index={i} />
+              <NamedBirdMediaItem key={asset.catalogId} asset={asset} birdName={birdName} open={open} index={i} />
             ))}
           </div>
 
@@ -163,15 +151,9 @@ export function NamedBirdMedia({
   )
 }
 
-// A media embed can legitimately take a while on a slow-but-working link, so the
-// give-up deadline is generous — it exists to catch an embed that will NEVER load
-// (a truly broken asset, a blocked host), not to race a slow one. When it fires it
-// only SHOWS an overlay; it never tears the iframe down, so a late load still wins.
-const EMBED_GIVE_UP_MS = 20000
-
 // ── One media item ──────────────────────────────────────────────────────────
 
-function MediaEmbed({ asset, birdName, open, index }: {
+function NamedBirdMediaItem({ asset, birdName, open, index }: {
   asset: NamedBirdAsset
   birdName: string
   open: boolean
@@ -183,9 +165,10 @@ function MediaEmbed({ asset, birdName, open, index }: {
   const [inView, setInView] = useState(false)
   const wrapRef = useRef<HTMLDivElement | null>(null)
 
-  const { icon: Icon, heightClass } = FORMAT_META[asset.format]
-  const validId = CATALOG_ID_RE.test(asset.catalogId)
+  const { icon: Icon, heightClass } = MEDIA_FORMAT_META[asset.format]
+  const validId = MEDIA_CATALOG_ID_RE.test(asset.catalogId)
   const dateLabel = formatDate(asset.date)
+  const title = `${asset.format} of ${birdName}${dateLabel ? ` (${dateLabel})` : ''}`
 
   // Lazy-mount: reveal the iframe only after the item scrolls into view. Combined
   // with the open-gate and the reveal cap, this bounds live players even within a
@@ -216,13 +199,13 @@ function MediaEmbed({ asset, birdName, open, index }: {
           // No embeddable id, or offline → the fallback (never a broken frame).
           // Offline is keyed by `online`, so coming back online remounts the frame
           // fresh and re-attempts — event-driven recovery, no setState-in-effect.
-          <MediaFallback asset={asset} format={asset.format} compact={asset.format === 'Audio'} />
+          <MediaFallback catalogId={asset.catalogId} format={asset.format} compact={asset.format === 'Audio'} />
         ) : wantEmbed ? (
           // Keyed on `online` so an offline→online flip remounts a FRESH frame with
           // clean latch state (the recovery path). The frame keeps its iframe
           // MOUNTED through a give-up timeout — the timeout only overlays a fallback,
           // so a late onLoad still swaps the real embed in.
-          <MediaFrame key={online ? 'online' : 'offline'} asset={asset} birdName={birdName} Icon={Icon} heightClass={heightClass} dateLabel={dateLabel} />
+          <MediaFrame key={online ? 'online' : 'offline'} catalogId={asset.catalogId} format={asset.format} title={title} Icon={Icon} heightClass={heightClass} />
         ) : (
           // Open but not yet in view (or waiting to mount): the loading shimmer.
           <MediaShimmer Icon={Icon} />
@@ -253,109 +236,6 @@ function MediaEmbed({ asset, birdName, open, index }: {
         )}
         <ChecklistLink submissionId={asset.checklistId} style={{ flexShrink: 0, fontSize: '0.75rem', fontWeight: 600 }} />
       </div>
-    </div>
-  )
-}
-
-// The live embed frame. It keeps the iframe MOUNTED for its whole lifetime — the
-// give-up timeout and iframe onError NEVER unmount it, they only overlay a fallback
-// on top. That way a slow-but-working embed that finally fires onLoad after the
-// deadline still wins: onLoad clears the latches and reveals the real player. This
-// component is REMOUNTED (via a key on `online` in the parent) to re-attempt after
-// a reconnection, so no reset effect / setState-in-effect is needed.
-function MediaFrame({ asset, birdName, Icon, heightClass, dateLabel }: {
-  asset: NamedBirdAsset
-  birdName: string
-  Icon: LucideIcon
-  heightClass: string
-  dateLabel: string
-}) {
-  const [loaded, setLoaded] = useState(false)
-  const [failed, setFailed] = useState(false)
-  const [gaveUp, setGaveUp] = useState(false)
-  const title = `${asset.format} of ${birdName}${dateLabel ? ` (${dateLabel})` : ''}`
-
-  // Give-up timer: if nothing loads within the deadline, SHOW the fallback overlay
-  // (non-destructive). Cleared once loaded. No Date.now() — a plain timer id in an
-  // effect (never in render).
-  useEffect(() => {
-    if (loaded) return
-    const t = setTimeout(() => setGaveUp(true), EMBED_GIVE_UP_MS)
-    return () => clearTimeout(t)
-  }, [loaded])
-
-  // Overlay the fallback while giving-up/broken AND not yet loaded, so a late load
-  // makes it disappear. The iframe underneath is always mounted and loading.
-  const showFallbackOverlay = (failed || gaveUp) && !loaded
-
-  return (
-    <>
-      {!loaded && !showFallbackOverlay && <MediaShimmer Icon={Icon} />}
-      <iframe
-        src={`https://macaulaylibrary.org/asset/${encodeURIComponent(asset.catalogId)}/embed`}
-        title={title}
-        loading="lazy"
-        allowFullScreen
-        scrolling="no"
-        className={`sr-media-iframe ${heightClass}`}
-        // On a (possibly late) load, reveal the real embed AND clear both latches so
-        // it swaps in over any give-up/error overlay — recovery in place.
-        onLoad={() => { setLoaded(true); setFailed(false); setGaveUp(false) }}
-        onError={() => setFailed(true)}
-        style={loaded ? undefined : { visibility: 'hidden' }}
-      />
-      {showFallbackOverlay && (
-        <div style={{ position: 'absolute', inset: 0 }}>
-          <MediaFallback asset={asset} format={asset.format} compact={asset.format === 'Audio'} reason="load-failed" />
-        </div>
-      )}
-    </>
-  )
-}
-
-function MediaShimmer({ Icon }: { Icon: LucideIcon }) {
-  return (
-    <div className="sr-media-shimmer" aria-hidden>
-      <Icon size={20} strokeWidth={2} style={{ color: 'var(--sr-text-disabled)' }} />
-    </div>
-  )
-}
-
-function MediaFallback({ asset, format, compact, reason = 'offline' }: {
-  asset: NamedBirdAsset
-  format: NamedBirdAsset['format']
-  compact: boolean
-  /** Why the embed isn't showing — drives the placeholder message. */
-  reason?: 'offline' | 'load-failed'
-}) {
-  const canLink = CATALOG_ID_RE.test(asset.catalogId)
-  const message = reason === 'load-failed' ? "Media couldn't load" : 'Media unavailable offline'
-  return (
-    <div style={{
-      height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', gap: compact ? 6 : 8,
-      padding: '10px 12px', textAlign: 'center', background: 'var(--sr-surface-subtle)',
-    }}>
-      <CloudOff size={compact ? 16 : 20} strokeWidth={2} style={{ color: 'var(--sr-text-muted)' }} aria-hidden />
-      {!compact && (
-        <span style={{ fontSize: '0.72rem', color: 'var(--sr-text-muted)', lineHeight: 1.4 }}>
-          {message}
-        </span>
-      )}
-      {canLink && (
-        <OutboundLink
-          href={mlAssetUrl(asset.catalogId)}
-          aria-label={`View ${format} on Macaulay Library`}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            fontSize: '0.72rem', fontWeight: 600, color: 'var(--sr-accent)',
-            textDecoration: 'none', border: '1.5px solid var(--sr-accent-border)',
-            borderRadius: 7, padding: '5px 10px', background: 'var(--sr-accent-bg)',
-          }}
-        >
-          View on Macaulay Library
-        </OutboundLink>
-      )}
     </div>
   )
 }

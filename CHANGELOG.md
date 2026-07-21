@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.71] - 2026-07-20
+
+### Changed
+- **The Species Detail "Recent Media" embeds now degrade gracefully when they are slow, broken, or offline** instead of showing a dead or blank frame. Each of the most-recent photo, audio, and video players shows a brief loading placeholder, and if it cannot load it flips to a small card with a link to the recording on the Macaulay Library, keeping the frame mounted so a slow embed still appears if it finishes loading later. Going offline shows that same placeholder, and the players recover on their own once you are back online. This brings Species Detail's media to parity with the Named Birds tab, which already worked this way, and the two now share one implementation. Species Detail's three players sit in a uniform framed row, and each now shows a line beneath it with the capture date, a link that opens that recording on the Macaulay Library (its credit and a way to view or play it), and the eBird checklist it came from.
+
+### Fixed
+- **The in-app Help's "the eBird backup powers these tabs" summaries now list every tab that uses it.** Calendar, Named Birds, and Checklists were missing from the two summary lists, even though the rest of the Help already documented that those tabs need the backup. The OpenWeather setup notes in the Help and README also now mention that activating the One Call by Call plan requires a payment card on file, even though the daily free allowance is free.
+
 ## [0.5.70] - 2026-07-07
 
 ### Fixed

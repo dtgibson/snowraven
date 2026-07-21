@@ -35,6 +35,7 @@ import { SnowMap } from './SnowMap'
 import { SightingsMap } from './SightingsMap'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { extractUserId, mlCatalogLink, resolveMediaLinkTaxonCode } from '../lib/mlCatalog'
+import { RecentMediaEmbed } from './RecentMediaEmbed'
 import { SectionCard, SectionHead, StatLabel, StatValueLink } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
@@ -299,6 +300,14 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     () => computeRecentMediaIds(speciesObs, phase.tag === 'ready' ? phase.mediaMap : new Map<string, string>()),
     [speciesObs, phase],
   )
+
+  // Per-asset export row keyed by catalog id, so each Recent Media embed can show its
+  // capture date + checklist beneath the player (from the user's own ML export rows).
+  const mediaRowById = useMemo(() => {
+    const m = new Map<string, MLExportRow>()
+    if (phase.tag === 'ready') for (const r of phase.mlRows) m.set(r.catalogId, r)
+    return m
+  }, [phase])
 
   // Highest breeding category pill
   const breedingPill = useMemo(() => computeBreedingPill(speciesObs), [speciesObs])
@@ -1301,24 +1310,8 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   {(['Photo', 'Audio', 'Video'] as MediaType[]).map(type => {
                     const id = recentMediaIds[type]
                     if (!id) return null
-                    return (
-                      <div key={type} className="sr-media-item">
-                        <div style={{
-                          fontSize: '0.6875rem', fontWeight: 600, textTransform: 'uppercase',
-                          letterSpacing: '0.07em', color: 'var(--sr-text-muted)', marginBottom: 8,
-                        }}>
-                          {type}
-                        </div>
-                        <iframe
-                          src={`https://macaulaylibrary.org/asset/${id}/embed`}
-                          title={`Most recent ${type} of ${selectedSpecies}`}
-                          loading="lazy"
-                          allowFullScreen
-                          scrolling="no"
-                          className="sr-media-iframe"
-                        />
-                      </div>
-                    )
+                    const row = mediaRowById.get(id)
+                    return <RecentMediaEmbed key={type} id={id} type={type} species={selectedSpecies} date={row?.date} checklistId={row?.checklistId} />
                   })}
                 </div>
               </div>
