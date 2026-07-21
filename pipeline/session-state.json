@@ -1,18 +1,15 @@
 {
   "activeFeature": null,
-  "sessionNumber": 81,
   "sessionType": "maintain",
+  "entryPath": "new",
   "currentStage": null,
   "lastCompletedStage": 6,
   "lastCheckpointStatus": "approved",
+  "confirmedArtifacts": [
+    "pipeline/species-detail-media-fallback/change-brief.md"
+  ],
   "awaitingHuman": null,
-  "confirmedArtifacts": [],
-  "autonomyMode": "studio-style",
-  "autonomyNote": "IDLE — no active build. Last run (unbounded-column-narrowing, Improve lane) completed all 6 stages and SHIPPED 0.5.70; it ran GUIDED through Stage 2 then AUTOPILOT for Stages 3-6 (user: 'finish this run on autopilot and ship unless you have a question'). Pipeline is clean; run /weft to start the next thing.",
   "ideaId": null,
-  "releasedVersion": "0.5.70",
-  "lastFeature": "unbounded-column-narrowing (Improve) — SHIPPED 0.5.70. Desktop (macOS universal + Windows) live via release.sh on Hephaestus (GitHub release v0.5.70 + latest.json); iOS 0.5.70 build 1 uploaded to TestFlight. Fixed the mobile Breeding Codes matrix: at <=640 the code columns now tighten to 30px dot-width in the Unbounded (wideMode) view too (previously only Normal narrowed) via .sr-bc-matrix table-layout:fixed making the declared widths authoritative, and the wideMode card (.sr-bc-card, base max-content / <=640 min-content) hugs the table so ~1200px of trailing whitespace is gone. Desktop (>640) unchanged. TWO layout-only bugs caught in live phone-width preview + fixed (bare table-layout:fixed + inline width:100% inside the max-content card ran away to the ~500000px element cap; then the min-content card removed the whitespace) — the automated suite couldn't see them. Feature commit daadb6a; records commit ff02934; iOS Info.plist stamped 0.5.70/0.5.70.1. Durable CSS lessons recorded in DECISIONS + CLAUDE.md.",
-  "remainingBacklog": "NEXT ON-DEVICE CHECK: confirm native pinch-to-zoom on the Breeding Codes matrix on a real iPhone (iOS 0.5.70 build 1 on TestFlight; QA-11). Open (user's own steps): iOS/iPadOS public App Store submission (latest TestFlight = 0.5.70 build 1); Windows code signing (Authenticode). DEFERRED feature: iOS offline maps (region downloads; ROADMAP On-the-Horizon; idea 90b0dd7d). On the Horizon: backport the inline-embed offline/failed-load fallback to the Species Detail embed; county shading on Species Detail/Statistics maps; findability-ranked completeness targets; non-US county support; per-species county choropleth; richer Calendar day-species popup. NOTE: the v0.5.68 Calendar mobile layout is test-verified but not human-eye-verified on a real phone.",
   "createdAt": "2026-07-07T06:10:00Z",
-  "updatedAt": "2026-07-07T07:52:00Z"
+  "updatedAt": "2026-07-21T06:30:26Z"
 }
