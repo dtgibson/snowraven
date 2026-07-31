@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.72] - 2026-07-30
+
+### Added
+- **A global “Disable embedded media” setting** now lets you stop every inline Macaulay Library player from loading in Species Detail and Named Birds. It is off by default, applies immediately, and persists across launches. When enabled, player areas show a quiet “Embedded media is disabled in Settings.” note while dates, checklist links, direct Macaulay Library links, media counts, comments, and analytics remain available. The preference stays closed while loading at startup, so a saved opt-out never flashes or requests an iframe first.
+
+### Security
+- **Backend request handling and environment-file tooling are hardened.** The pinned FastAPI, Starlette, `python-multipart`, and `python-dotenv` dependencies now use their current patched releases, closing known request-parsing denial-of-service and smuggling flaws as well as an environment-file symlink overwrite flaw.
+
 ## [0.5.71] - 2026-07-20
 
 ### Changed

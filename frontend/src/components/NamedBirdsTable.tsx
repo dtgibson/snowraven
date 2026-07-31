@@ -10,7 +10,7 @@ import { NamedBirdRow } from './NamedBirdRow'
 import { useHotspotSet } from '../lib/useHotspotSet'
 import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 
-export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, singleOpen, mediaByBird, hasML }: {
+export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, singleOpen, mediaByBird, hasML, embedAllowed }: {
   birds: NamedBird[]
   showSpecies: boolean
   /** Renders a species name (BirdName) — supplied only when showSpecies. */
@@ -28,6 +28,8 @@ export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, s
   /** True when an ML export is loaded (rides alongside mediaByBird) — lets a bird
    *  with no matched media show the empty state vs. the section being absent. */
   hasML?: boolean
+  /** Hydrated app-wide iframe eligibility gate. */
+  embedAllowed: boolean
 }) {
   const [sort, setSort] = useState<NamedBirdSort>('lastSeen')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -107,6 +109,7 @@ export function NamedBirdsTable({ birds, showSpecies, renderSpecies, orderFor, s
             isHotspot={isHotspot}
             media={mediaByBird?.get(bird.key) ?? []}
             hasML={!!hasML}
+            embedAllowed={embedAllowed}
           />
         ))}
       </div>

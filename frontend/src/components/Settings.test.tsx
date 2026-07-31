@@ -70,6 +70,10 @@ function renderSettings(overrides: Partial<React.ComponentProps<typeof Settings>
     onReorder,
     onToggleVisibility,
     onRestoreDefaults: vi.fn(),
+    disableEmbeddedMedia: false,
+    embeddedMediaPreferenceSaving: false,
+    embeddedMediaPreferenceError: null,
+    onDisableEmbeddedMediaChange: vi.fn(),
     ...overrides,
   }
   const utils = render(<Settings {...props} />)
@@ -156,6 +160,34 @@ describe('Settings — form labels and error roles (F007/F048/F010)', () => {
       const alert = screen.getByRole('alert')
       expect(alert.textContent).toMatch(/Latitude must be a number between -90 and 90/i)
     })
+  })
+})
+
+describe('Settings — embedded media preference', () => {
+  it('shows no misleading off-state switch before the durable preference hydrates', () => {
+    renderSettings({ disableEmbeddedMedia: null })
+    expect(screen.queryByRole('switch', { name: 'Disable embedded media' })).toBeNull()
+    expect(screen.getByRole('status', { name: 'Loading embedded media preference' })).toBeTruthy()
+  })
+
+  it('renders the exact accessible switch label, off by default, and applies a change immediately', () => {
+    const onChange = vi.fn()
+    renderSettings({ disableEmbeddedMedia: false, onDisableEmbeddedMediaChange: onChange })
+    const toggle = screen.getByRole('switch', { name: 'Disable embedded media' })
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    expect(screen.getByText(/Direct media links remain available/i)).toBeTruthy()
+
+    fireEvent.click(toggle)
+    expect(onChange).toHaveBeenCalledWith(true)
+  })
+
+  it('surfaces a persistence failure next to the restored control', () => {
+    renderSettings({
+      disableEmbeddedMedia: false,
+      embeddedMediaPreferenceError: "Couldn't save this setting. Your previous choice was restored.",
+    })
+    expect(screen.getByRole('alert').textContent).toMatch(/previous choice was restored/i)
+    expect(screen.getByRole('switch', { name: 'Disable embedded media' }).getAttribute('aria-checked')).toBe('false')
   })
 })
 

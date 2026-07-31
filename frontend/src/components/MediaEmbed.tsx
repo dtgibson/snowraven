@@ -13,12 +13,27 @@
 // MEDIA_FORMAT_META) live in lib/mediaEmbed.ts so this file stays component-only.
 
 import { useEffect, useState } from 'react'
-import { CloudOff } from 'lucide-react'
+import { CloudOff, ImageOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { MediaType } from '../types'
 import { mlAssetUrl } from '../lib/mlCatalog'
 import { OutboundLink } from './OutboundLink'
 import { MEDIA_CATALOG_ID_RE, EMBED_GIVE_UP_MS } from '../lib/mediaEmbed'
+
+export const EMBEDDED_MEDIA_DISABLED_MESSAGE = 'Embedded media is disabled in Settings.'
+
+// One shared, neutral replacement for an intentionally suppressed player. It is
+// plain informational content (not an alert) and uses the player's existing frame.
+export function EmbeddedMediaDisabled() {
+  return (
+    <div className="sr-media-disabled" role="status">
+      <span className="sr-media-disabled__icon" aria-hidden>
+        <ImageOff size={18} strokeWidth={2} />
+      </span>
+      <span>{EMBEDDED_MEDIA_DISABLED_MESSAGE}</span>
+    </div>
+  )
+}
 
 // Loading / lazy placeholder — same footprint as the player, a subtle surface sweep.
 export function MediaShimmer({ Icon }: { Icon: LucideIcon }) {
@@ -74,12 +89,15 @@ export function MediaFallback({ catalogId, format, compact, reason = 'offline' }
 // timeout and iframe onError NEVER unmount it, they only overlay a fallback. A late
 // onLoad clears the latches and reveals the real player. Remount it (a key on the
 // caller's online flag) to re-attempt after a reconnection — no reset effect needed.
-export function MediaFrame({ catalogId, format, title, Icon, heightClass, compact = format === 'Audio' }: {
+export function MediaFrame({ catalogId, format, title, Icon, heightClass, embedAllowed, compact = format === 'Audio' }: {
   catalogId: string
   format: MediaType
   title: string
   Icon: LucideIcon
   heightClass: string
+  /** Defense in depth: every frame callsite must prove the hydrated global
+   * preference allows an iframe before this component can construct one. */
+  embedAllowed: boolean
   /** Whether the give-up/failed overlay uses the compact fallback (icon + link, no
    *  message). Defaults to the audio compact preview; a full-height caller (Species
    *  Detail) passes false so the offline message shows. */
@@ -93,14 +111,16 @@ export function MediaFrame({ catalogId, format, title, Icon, heightClass, compac
   // (non-destructive). Cleared once loaded. A plain timer id in an effect, never in
   // render (no Date.now() in render).
   useEffect(() => {
-    if (loaded) return
+    if (!embedAllowed || loaded) return
     const t = setTimeout(() => setGaveUp(true), EMBED_GIVE_UP_MS)
     return () => clearTimeout(t)
-  }, [loaded])
+  }, [embedAllowed, loaded])
 
   // Overlay the fallback while giving-up/broken AND not yet loaded, so a late load
   // makes it disappear. The iframe underneath is always mounted and loading.
   const showFallbackOverlay = (failed || gaveUp) && !loaded
+
+  if (!embedAllowed) return null
 
   return (
     <>

@@ -719,6 +719,58 @@ h1, h2, h3, h4, h5, h6 {
 .sr-media-iframe--audio { height: 116px; }
 .sr-media-iframe--recent { height: 230px; }
 
+/* User-disabled inline media. The surrounding .sr-media-frame supplies the
+   exact player footprint, so replacing an iframe does not shift local metadata.
+   This is an intentional preference state, not an error or offline fallback. */
+.sr-media-disabled {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  color: var(--sr-text-muted);
+  background: var(--sr-surface-faint);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.45;
+  animation: sr-media-disabled-settle 180ms ease-out both;
+}
+
+.sr-media-disabled__icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sr-text-muted);
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border-medium);
+  border-radius: 50%;
+}
+
+@keyframes sr-media-disabled-settle {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sr-media-disabled-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.sr-media-disabled-list .sr-media-item {
+  padding: 10px 12px;
+  border: 1px solid var(--sr-border-subtle);
+  border-radius: 8px;
+  background: var(--sr-surface);
+}
+
 /* Loading / lazy placeholder — same footprint, a subtle surface sweep honoring
    prefers-reduced-motion (the shimmer animation is killed by the global
    reduced-motion block; the static surface remains). */
@@ -1280,6 +1332,7 @@ select:focus-visible {
   .sr-compare-panels { grid-template-columns: 1fr; }
   .sr-map-container { height: 300px; }
   .sr-media-grid { grid-template-columns: 1fr; }
+  .sr-media-disabled-list { grid-template-columns: 1fr; }
   .sr-media-iframe { height: 360px; }
 
   /* Named Birds media — taller single-column players on phones (design-spec:

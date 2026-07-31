@@ -41,7 +41,7 @@ const birds = computeNamedBirds([
 
 describe('NamedBirdsTable', () => {
   it('renders each named bird with its sighting count and the four-option sort when showSpecies', () => {
-    render(<NamedBirdsTable birds={birds} showSpecies renderSpecies={cn => <span>{cn}</span>} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies renderSpecies={cn => <span>{cn}</span>} />)
     expect(screen.getByText('Pete')).toBeTruthy()
     expect(screen.getByText('Honk')).toBeTruthy()
     expect(screen.getByText('2 sightings')).toBeTruthy()
@@ -52,7 +52,7 @@ describe('NamedBirdsTable', () => {
   })
 
   it('shows only Name (Individual) + Last Seen when showSpecies is false', () => {
-    render(<NamedBirdsTable birds={birds} showSpecies={false} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies={false} />)
     expect(screen.queryByRole('button', { name: 'Alphabetical' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Taxonomic' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Name (Individual)' })).toBeTruthy()
@@ -60,7 +60,7 @@ describe('NamedBirdsTable', () => {
   })
 
   it('expands a bird to show its reports (date · location · checklist link + comment)', () => {
-    render(<NamedBirdsTable birds={birds} showSpecies renderSpecies={cn => <span>{cn}</span>} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies renderSpecies={cn => <span>{cn}</span>} />)
     const peteRow = screen.getByText('Pete').closest('button')!
     fireEvent.click(peteRow)
     const link = screen.getByRole('link', { name: /S200/ })
@@ -71,7 +71,7 @@ describe('NamedBirdsTable', () => {
   })
 
   it('omits the location segment for a report with no location', () => {
-    render(<NamedBirdsTable birds={birds} showSpecies renderSpecies={cn => <span>{cn}</span>} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies renderSpecies={cn => <span>{cn}</span>} />)
     fireEvent.click(screen.getByText('Pete').closest('button')!)
     // S200 has no location; its row must not invent a placeholder. There are two
     // Pete reports — S100 with "Lake Merritt", S200 with none — so exactly one
@@ -83,7 +83,7 @@ describe('NamedBirdsTable', () => {
     const junk = computeNamedBirds([
       obs({ submissionId: 'N/A', commonName: 'Mallard', date: '2024-02-02', location: 'Nowhere', latitude: null, longitude: null, speciesComments: '[name:Mystery]' }),
     ])
-    render(<NamedBirdsTable birds={junk} showSpecies renderSpecies={cn => <span>{cn}</span>} />)
+    render(<NamedBirdsTable embedAllowed birds={junk} showSpecies renderSpecies={cn => <span>{cn}</span>} />)
     fireEvent.click(screen.getByText('Mystery').closest('button')!)
     // The junk id shows as text but must not become a styled 404 link.
     expect(screen.getByText('N/A')).toBeTruthy()
@@ -91,7 +91,7 @@ describe('NamedBirdsTable', () => {
   })
 
   it('mounts the per-individual map (one SnowMap) only when expanded and only on the single-open tab', async () => {
-    render(<NamedBirdsTable birds={birds} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
     // Collapsed: no map.
     expect(screen.queryByTestId('snowmap-stub')).toBeNull()
     fireEvent.click(screen.getByText('Pete').closest('button')!)
@@ -103,13 +103,13 @@ describe('NamedBirdsTable', () => {
   })
 
   it('renders no map for the Species Detail section (multi-open, no singleOpen)', () => {
-    render(<NamedBirdsTable birds={birds} showSpecies={false} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies={false} />)
     fireEvent.click(screen.getByText('Pete').closest('button')!)
     expect(screen.queryByTestId('snowmap-stub')).toBeNull()
   })
 
   it('single-open accordion: opening a second card collapses the first', async () => {
-    render(<NamedBirdsTable birds={birds} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
     fireEvent.click(screen.getByText('Pete').closest('button')!)
     expect(screen.getByText('[name:Pete] still here')).toBeTruthy()
     // Open Honk → Pete's panel (and its map) must tear down.
@@ -121,7 +121,7 @@ describe('NamedBirdsTable', () => {
   })
 
   it('multi-open accordion (no singleOpen): a second card opens without closing the first', () => {
-    render(<NamedBirdsTable birds={birds} showSpecies={false} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies={false} />)
     fireEvent.click(screen.getByText('Pete').closest('button')!)
     fireEvent.click(screen.getByText('Honk').closest('button')!)
     expect(screen.getByText('[name:Pete] still here')).toBeTruthy()
@@ -132,14 +132,14 @@ describe('NamedBirdsTable', () => {
     const noCoord = computeNamedBirds([
       obs({ submissionId: 'S1', commonName: 'Mallard', date: '2024-01-01', latitude: null, longitude: null, speciesComments: '[name:Ghost]' }),
     ])
-    render(<NamedBirdsTable birds={noCoord} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
+    render(<NamedBirdsTable embedAllowed birds={noCoord} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
     fireEvent.click(screen.getByText('Ghost').closest('button')!)
     expect(screen.queryByTestId('snowmap-stub')).toBeNull()
   })
 
   it('re-sorts when the Taxonomic option is chosen using orderFor', () => {
     const orderFor = (cn: string) => ({ 'Canada Goose': 1, Mallard: 5 }[cn] ?? Infinity)
-    render(<NamedBirdsTable birds={birds} showSpecies orderFor={orderFor} renderSpecies={cn => <span>{cn}</span>} />)
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies orderFor={orderFor} renderSpecies={cn => <span>{cn}</span>} />)
     fireEvent.click(screen.getByRole('button', { name: 'Taxonomic' }))
     // Goose (order 1) before Mallard/Pete (order 5).
     const names = screen.getAllByText(/^(Pete|Honk)$/).map(n => n.textContent)

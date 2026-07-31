@@ -32,6 +32,7 @@ import { WeatherForecastPanel } from './components/WeatherForecastPanel'
 import { WeatherBacklog } from './components/WeatherBacklog'
 import { loadEbirdObservations } from './lib/observationsCache'
 import { buildChecklistRows, type ChecklistRowData } from './lib/checklistsTab'
+import { useEmbeddedMediaPreference } from './lib/useEmbeddedMediaPreference'
 
 // Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
 // Detail, and Help are kept out of the entry bundle so first paint is light. Named
@@ -212,6 +213,13 @@ export default function App() {
   // In-app Text Size (rem multiplier on the root). Initial value is read sync from
   // localStorage (web flash-free); desktop hydrates the durable value after mount.
   const [textScale, setTextScaleState] = useState<TextScale>(readStoredScale)
+  const {
+    disableEmbeddedMedia,
+    embedAllowed,
+    preferenceError: embeddedMediaPreferenceError,
+    preferenceSaving: embeddedMediaPreferenceSaving,
+    setDisableEmbeddedMedia,
+  } = useEmbeddedMediaPreference()
 
   const handleFilesSaved = useCallback(() => setFilesVersion(v => v + 1), [])
 
@@ -1159,7 +1167,12 @@ export default function App() {
         }}
       >
         {mountedTabs.has('named-birds') && (
-          <NamedBirds onGoToSettings={() => setActiveTab('settings')} filesVersion={filesVersion} onOpenSpecies={navigateToSpeciesDetail} />
+          <NamedBirds
+            onGoToSettings={() => setActiveTab('settings')}
+            filesVersion={filesVersion}
+            onOpenSpecies={navigateToSpeciesDetail}
+            embedAllowed={embedAllowed}
+          />
         )}
       </div>
 
@@ -1223,6 +1236,7 @@ export default function App() {
               filesVersion={filesVersion}
               requestedSpecies={requestedSpecies}
               onRequestedSpeciesConsumed={clearRequestedSpecies}
+              embedAllowed={embedAllowed}
             />
           </Suspense>
         )}
@@ -1313,6 +1327,10 @@ export default function App() {
             onReorder={handleReorder}
             onToggleVisibility={handleToggleVisibility}
             onRestoreDefaults={handleRestoreDefaults}
+            disableEmbeddedMedia={disableEmbeddedMedia}
+            embeddedMediaPreferenceSaving={embeddedMediaPreferenceSaving}
+            embeddedMediaPreferenceError={embeddedMediaPreferenceError}
+            onDisableEmbeddedMediaChange={setDisableEmbeddedMedia}
           />
         )}
       </div>

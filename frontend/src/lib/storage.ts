@@ -133,11 +133,14 @@ class WebStorage implements StorageAdapter {
   }
 
   async setSetting<T>(key: string, value: T): Promise<void> {
-    await fetch(`/settings/${key}`, {
+    const res = await fetch(`/settings/${key}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(value),
     });
+    // A resolved fetch is not necessarily a saved setting. Propagate non-2xx
+    // responses so controlled Settings rows can restore the last durable value.
+    if (!res.ok) throw new Error(`Setting save failed (${res.status})`);
   }
 
   async deleteSetting(key: string): Promise<void> {

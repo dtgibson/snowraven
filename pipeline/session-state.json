@@ -1,15 +1,21 @@
 {
-  "activeFeature": null,
-  "sessionType": "maintain",
+  "activeFeature": "disable-embedded-media",
+  "sessionType": "feature",
   "entryPath": "new",
-  "currentStage": null,
-  "lastCompletedStage": 6,
+  "currentStage": 8,
+  "lastCompletedStage": 7,
   "lastCheckpointStatus": "approved",
   "confirmedArtifacts": [
-    "pipeline/species-detail-media-fallback/change-brief.md"
+    "pipeline/disable-embedded-media/strategic-brief.md",
+    "pipeline/disable-embedded-media/prd.md",
+    "pipeline/disable-embedded-media/schema.md",
+    "pipeline/disable-embedded-media/design-spec.md",
+    "pipeline/disable-embedded-media/pr-description.md",
+    "pipeline/disable-embedded-media/qa-report.md",
+    "pipeline/disable-embedded-media/security-report.md"
   ],
   "awaitingHuman": null,
   "ideaId": null,
   "createdAt": "2026-07-07T06:10:00Z",
-  "updatedAt": "2026-07-21T06:30:26Z"
+  "updatedAt": "2026-07-31T00:41:21Z"
 }

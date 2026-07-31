@@ -15,6 +15,7 @@ describe('MediaFrame — embed src + title', () => {
   it('renders the /embed iframe with an encodeURIComponent-wrapped id and the given title', () => {
     render(
       <MediaFrame
+        embedAllowed
         catalogId="123456"
         format="Photo"
         title="Most recent Photo of Acorn Woodpecker"
@@ -26,6 +27,21 @@ describe('MediaFrame — embed src + title', () => {
     expect(frame.getAttribute('src')).toBe('https://macaulaylibrary.org/asset/123456/embed')
     expect(frame.getAttribute('title')).toBe('Most recent Photo of Acorn Woodpecker')
   })
+
+  it('constructs no iframe when the shared eligibility gate is closed', () => {
+    const { container } = render(
+      <MediaFrame
+        embedAllowed={false}
+        catalogId="123456"
+        format="Photo"
+        title="Most recent Photo of Acorn Woodpecker"
+        Icon={ImageIcon}
+        heightClass="sr-media-iframe--photo"
+      />,
+    )
+    expect(container.querySelector('iframe')).toBeNull()
+    expect(container.querySelector('.sr-media-shimmer')).toBeNull()
+  })
 })
 
 describe('MediaFrame — non-destructive give-up + late-load recovery', () => {
@@ -33,7 +49,7 @@ describe('MediaFrame — non-destructive give-up + late-load recovery', () => {
     vi.useFakeTimers()
     try {
       render(
-        <MediaFrame catalogId="55" format="Photo" title="t" Icon={ImageIcon} heightClass="sr-media-iframe--photo" />,
+        <MediaFrame embedAllowed catalogId="55" format="Photo" title="t" Icon={ImageIcon} heightClass="sr-media-iframe--photo" />,
       )
       const frame = document.querySelector('iframe')!
       // Before the deadline: no give-up overlay.
@@ -62,7 +78,7 @@ describe('MediaFrame — non-destructive give-up + late-load recovery', () => {
     vi.useFakeTimers()
     try {
       render(
-        <MediaFrame catalogId="56" format="Photo" title="t" Icon={ImageIcon} heightClass="sr-media-iframe--photo" />,
+        <MediaFrame embedAllowed catalogId="56" format="Photo" title="t" Icon={ImageIcon} heightClass="sr-media-iframe--photo" />,
       )
       const frame = document.querySelector('iframe')!
       act(() => { vi.advanceTimersByTime(21000) })

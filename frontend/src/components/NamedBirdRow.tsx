@@ -25,7 +25,7 @@ import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 // opening a row stays instant. See the 0.5.42 load-optimization change.
 const SightingsMap = lazy(() => import('./SightingsMap').then(m => ({ default: m.SightingsMap })))
 
-export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies, isHotspot, media = [], hasML = false }: {
+export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, renderSpecies, isHotspot, media = [], hasML = false, embedAllowed }: {
   bird: NamedBird
   open: boolean
   onToggle: () => void
@@ -38,6 +38,8 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
   media?: NamedBirdAsset[]
   /** True when an ML export is loaded — gates the media section's presence (FR-17). */
   hasML?: boolean
+  /** Hydrated app-wide iframe eligibility gate. */
+  embedAllowed: boolean
 }) {
   // Per-coordinate markers for this bird, skipping null-coord sightings (FR-22).
   // Empty → no map rendered (FR-23). Cheap, but memoized so the array identity is
@@ -159,7 +161,7 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
               it draws its own empty state, and renders nothing when no ML is loaded
               (FR-06/16/17). Species Detail's caller omits showMap → media-less. */}
           {showMap && (
-            <NamedBirdMedia birdName={bird.name} assets={media} open={open} hasML={hasML} />
+            <NamedBirdMedia birdName={bird.name} assets={media} open={open} hasML={hasML} embedAllowed={embedAllowed} />
           )}
         </div>
       )}

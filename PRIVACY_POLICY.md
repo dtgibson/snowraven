@@ -57,7 +57,7 @@ Offline map regions are entirely opt-in and off by default. Nothing about them t
 
 A few things in the app load directly from the Cornell Lab of Ornithology's websites, the same way any web page loads an embedded image — so, like the map tiles above, those sites receive your IP address and the specific item requested:
 
-- **Macaulay Library embeds** — the Species Detail tab and the Named Birds tab can show your photos, audio, and video embedded from **macaulaylibrary.org**; loading one tells the Macaulay Library which asset was viewed.
+- **Macaulay Library embeds** — while embedded media is enabled, the Species Detail tab and the Named Birds tab can show your photos, audio, and video embedded from **macaulaylibrary.org**; loading one tells the Macaulay Library which asset was viewed. The **Disable embedded media** option in Settings is off by default. Turning it on prevents all of those players and their asset requests from loading; direct Macaulay Library links remain available and contact the site only when you choose to open one.
 - **Site icons next to bird names** — the small link icons shown beside bird names throughout the app load from **ebird.org** and **birdsoftheworld.org**.
 
 No key or account is used for these loads, no SnowRaven server is involved, and the developer adds no tracking and keeps no copy. These are Cornell Lab of Ornithology services; see [Cornell's privacy statement](https://privacy.cornell.edu/).

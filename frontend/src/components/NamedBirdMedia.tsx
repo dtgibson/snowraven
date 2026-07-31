@@ -19,8 +19,10 @@ import { Play, ChevronDown } from 'lucide-react'
 import { formatDate } from '../lib/formatDate'
 import { useOnline } from '../lib/useOnline'
 import { ChecklistLink } from './ChecklistLink'
-import { MediaFrame, MediaFallback, MediaShimmer } from './MediaEmbed'
+import { EmbeddedMediaDisabled, MediaFrame, MediaFallback, MediaShimmer } from './MediaEmbed'
 import { MEDIA_FORMAT_META, MEDIA_CATALOG_ID_RE } from '../lib/mediaEmbed'
+import { mlAssetUrl } from '../lib/mlCatalog'
+import { OutboundLink } from './OutboundLink'
 import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 
 interface NamedBirdMediaProps {
@@ -31,6 +33,8 @@ interface NamedBirdMediaProps {
   /** True when an ML export is loaded (so an empty bird shows the empty state).
    *  False → render nothing (no ML at all; FR-17). */
   hasML: boolean
+  /** Hydrated app-wide gate. False includes the unresolved startup state. */
+  embedAllowed: boolean
   /** Bounded initial batch of live embeds; default 6 (design default). */
   initialCount?: number
   /** How many more each "Show more" reveals; default = initialCount. */
@@ -42,6 +46,7 @@ export function NamedBirdMedia({
   assets,
   open,
   hasML,
+  embedAllowed,
   initialCount = 6,
   batchSize = initialCount,
 }: NamedBirdMediaProps) {
@@ -66,8 +71,8 @@ export function NamedBirdMedia({
     el?.focus()
   })
 
-  // No ML loaded at all → the section is absent entirely (FR-17). Nothing renders.
-  if (!hasML) return null
+  // No ML loaded, or a collapsed parent row → the section is absent entirely.
+  if (!hasML || !open) return null
 
   const total = assets.length
   const shown = Math.min(revealCount, total)
@@ -117,9 +122,22 @@ export function NamedBirdMedia({
         </p>
       ) : (
         <>
-          <div className="sr-media-grid" ref={gridRef}>
+          {!embedAllowed && (
+            <div className="sr-media-frame sr-media-iframe--recent">
+              <EmbeddedMediaDisabled />
+            </div>
+          )}
+
+          <div className={embedAllowed ? 'sr-media-grid' : 'sr-media-disabled-list'} ref={gridRef}>
             {visible.map((asset, i) => (
-              <NamedBirdMediaItem key={asset.catalogId} asset={asset} birdName={birdName} open={open} index={i} />
+              <NamedBirdMediaItem
+                key={asset.catalogId}
+                asset={asset}
+                birdName={birdName}
+                open={open}
+                embedAllowed={embedAllowed}
+                index={i}
+              />
             ))}
           </div>
 
@@ -153,10 +171,11 @@ export function NamedBirdMedia({
 
 // ── One media item ──────────────────────────────────────────────────────────
 
-function NamedBirdMediaItem({ asset, birdName, open, index }: {
+function NamedBirdMediaItem({ asset, birdName, open, embedAllowed, index }: {
   asset: NamedBirdAsset
   birdName: string
   open: boolean
+  embedAllowed: boolean
   /** Position in the visible grid — used as a stable focus target when a "Show
    *  more" reveal exhausts the list and its button unmounts (WCAG 2.4.3). */
   index: number
@@ -174,6 +193,7 @@ function NamedBirdMediaItem({ asset, birdName, open, index }: {
   // with the open-gate and the reveal cap, this bounds live players even within a
   // revealed batch (FR-12, NFR-01).
   useEffect(() => {
+    if (!embedAllowed) return
     const el = wrapRef.current
     if (!el || typeof IntersectionObserver === 'undefined') {
       // Environments without IntersectionObserver (some test/jsdom setups) fall
@@ -188,29 +208,31 @@ function NamedBirdMediaItem({ asset, birdName, open, index }: {
     )
     obs.observe(el)
     return () => obs.disconnect()
-  }, [])
+  }, [embedAllowed])
 
-  const wantEmbed = open && inView && online && validId
+  const wantEmbed = embedAllowed && open && inView && online && validId
 
   return (
     <div className="sr-media-item" data-media-index={index} tabIndex={-1} style={{ outline: 'none' }}>
-      <div ref={wrapRef} className={`sr-media-frame ${heightClass}`}>
-        {!validId || !online ? (
-          // No embeddable id, or offline → the fallback (never a broken frame).
-          // Offline is keyed by `online`, so coming back online remounts the frame
-          // fresh and re-attempts — event-driven recovery, no setState-in-effect.
-          <MediaFallback catalogId={asset.catalogId} format={asset.format} compact={asset.format === 'Audio'} />
-        ) : wantEmbed ? (
-          // Keyed on `online` so an offline→online flip remounts a FRESH frame with
-          // clean latch state (the recovery path). The frame keeps its iframe
-          // MOUNTED through a give-up timeout — the timeout only overlays a fallback,
-          // so a late onLoad still swaps the real embed in.
-          <MediaFrame key={online ? 'online' : 'offline'} catalogId={asset.catalogId} format={asset.format} title={title} Icon={Icon} heightClass={heightClass} />
-        ) : (
-          // Open but not yet in view (or waiting to mount): the loading shimmer.
-          <MediaShimmer Icon={Icon} />
-        )}
-      </div>
+      {embedAllowed && (
+        <div ref={wrapRef} className={`sr-media-frame ${heightClass}`}>
+          {!validId || !online ? (
+            // No embeddable id, or offline → the fallback (never a broken frame).
+            // Offline is keyed by `online`, so coming back online remounts the frame
+            // fresh and re-attempts — event-driven recovery, no setState-in-effect.
+            <MediaFallback catalogId={asset.catalogId} format={asset.format} compact={asset.format === 'Audio'} />
+          ) : wantEmbed ? (
+            // Keyed on `online` so an offline→online flip remounts a FRESH frame with
+            // clean latch state (the recovery path). The frame keeps its iframe
+            // MOUNTED through a give-up timeout — the timeout only overlays a fallback,
+            // so a late onLoad still swaps the real embed in.
+            <MediaFrame key={online ? 'online' : 'offline'} catalogId={asset.catalogId} format={asset.format} title={title} Icon={Icon} heightClass={heightClass} embedAllowed />
+          ) : (
+            // Open but not yet in view (or waiting to mount): the loading shimmer.
+            <MediaShimmer Icon={Icon} />
+          )}
+        </div>
+      )}
 
       {/* Meta row — format marker + date + checklist link. Always shown, in both
           embed and fallback states (the date + checklist are local). */}
@@ -231,7 +253,19 @@ function NamedBirdMediaItem({ asset, birdName, open, index }: {
             {dateLabel}
           </span>
         )}
-        {dateLabel && asset.checklistId && (
+        {dateLabel && validId && (
+          <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0 }} aria-hidden>·</span>
+        )}
+        {validId && (
+          <OutboundLink
+            href={mlAssetUrl(asset.catalogId)}
+            aria-label={`View this ${asset.format.toLowerCase()} on the Macaulay Library (ML${asset.catalogId})`}
+            style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-accent)', whiteSpace: 'nowrap' }}
+          >
+            Macaulay Library
+          </OutboundLink>
+        )}
+        {(dateLabel || validId) && asset.checklistId && (
           <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-disabled)', flexShrink: 0 }} aria-hidden>·</span>
         )}
         <ChecklistLink submissionId={asset.checklistId} style={{ flexShrink: 0, fontSize: '0.75rem', fontWeight: 600 }} />

@@ -20,6 +20,7 @@ import { clearNetworkCache } from '../lib/networkCache'
 import { invalidateHotspotSet } from '../lib/hotspotSet'
 import { OutboundLink } from './OutboundLink'
 import { OfflineMapsSection } from './OfflineMapsSection'
+import { ToggleSwitch } from './ui/ToggleSwitch'
 
 type ConsentState = 'idle' | 'pending'
 
@@ -697,6 +698,52 @@ function DateFormatRow({ onDateFormatChange }: { onDateFormatChange?: () => void
   )
 }
 
+// ---- Embedded media row ----
+
+function EmbeddedMediaRow({ value, saving, error, onChange }: {
+  value: boolean | null
+  saving: boolean
+  error: string | null
+  onChange: (disabled: boolean) => void
+}) {
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto',
+      alignItems: 'center', gap: 16, padding: '14px 16px',
+      borderTop: '1px solid var(--sr-border)',
+    }}>
+      <div className="sr-min0">
+        <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 4 }}>
+          Disable embedded media
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: 0, lineHeight: 1.5 }}>
+          Prevents inline Macaulay Library players from loading. Direct media links remain available.
+        </p>
+        {error && (
+          <p role="alert" style={{ fontSize: '0.75rem', color: 'var(--sr-error)', margin: '7px 0 0', lineHeight: 1.45 }}>
+            {error}
+          </p>
+        )}
+        {saving && <span className="sr-only" role="status">Saving embedded media preference…</span>}
+      </div>
+
+      {value === null ? (
+        <span role="status" aria-label="Loading embedded media preference" style={{ display: 'inline-flex', padding: 8, color: 'var(--sr-text-muted)' }}>
+          <Loader2 size={16} strokeWidth={2} className="spin" aria-hidden />
+        </span>
+      ) : (
+        <ToggleSwitch
+          label="Disable embedded media"
+          labelVisible={false}
+          checked={value}
+          busy={saving}
+          onChange={() => onChange(!value)}
+        />
+      )}
+    </div>
+  )
+}
+
 // ---- Section header ----
 
 function SectionHeader({ label }: { label: string }) {
@@ -1042,9 +1089,29 @@ interface SettingsProps {
   onReorder: (newOrder: ConfigurableTab[]) => void
   onToggleVisibility: (tab: ConfigurableTab) => void
   onRestoreDefaults: () => void
+  disableEmbeddedMedia: boolean | null
+  embeddedMediaPreferenceSaving: boolean
+  embeddedMediaPreferenceError: string | null
+  onDisableEmbeddedMediaChange: (disabled: boolean) => void
 }
 
-export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpenHelp, textScale, onTextScaleChange, tabOrder, tabHidden, onReorder, onToggleVisibility, onRestoreDefaults }: SettingsProps) {
+export function Settings({
+  onKeysSaved,
+  onFilesSaved,
+  onDateFormatChange,
+  onOpenHelp,
+  textScale,
+  onTextScaleChange,
+  tabOrder,
+  tabHidden,
+  onReorder,
+  onToggleVisibility,
+  onRestoreDefaults,
+  disableEmbeddedMedia,
+  embeddedMediaPreferenceSaving,
+  embeddedMediaPreferenceError,
+  onDisableEmbeddedMediaChange,
+}: SettingsProps) {
   const [status, setStatus] = useState<StoredFilesStatus>({ ebird: null, ml: null })
   const [keys, setKeys] = useState<ApiKeyStatus>({ ebird: null, openweather: null })
 
@@ -1309,6 +1376,12 @@ export function Settings({ onKeysSaved, onFilesSaved, onDateFormatChange, onOpen
         <AppearanceRow />
         <TextSizeRow value={textScale} onChange={onTextScaleChange} />
         <DateFormatRow onDateFormatChange={onDateFormatChange} />
+        <EmbeddedMediaRow
+          value={disableEmbeddedMedia}
+          saving={embeddedMediaPreferenceSaving}
+          error={embeddedMediaPreferenceError}
+          onChange={onDisableEmbeddedMediaChange}
+        />
       </div>
 
       <SectionHeader label="API Keys" />

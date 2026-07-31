@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 0.5.71">v0.5.71</span>
+        <span class="version-pill" aria-label="Version 0.5.72">v0.5.72</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -129,8 +129,10 @@
             Your eBird backup, Macaulay Library export, settings, and API keys never leave
             your computer. When you ask for data, it talks directly to the services it
             draws from: eBird and OpenWeather with your own keys, plus keyless sources —
-            OpenStreetMap, map tiles, NOAA tides, and the Cornell Lab sites that embedded
-            Macaulay media and bird-link icons load from. There is no SnowRaven server in the middle.
+            OpenStreetMap, map tiles, NOAA tides, and the Cornell Lab sites that bird-link
+            icons and, while enabled, embedded Macaulay media load from. There is no SnowRaven server in the middle.
+            An off-by-default <strong>Disable embedded media</strong> setting prevents those
+            players and requests; direct media links still work when you choose to open them.
             If you opt in to downloading an offline map region on the desktop app, that region's
             tiles are fetched from GitHub at download time (your IP and the region you chose are
             visible to GitHub then) and afterward stored on your device and served with no further
@@ -379,6 +381,12 @@
               Library, each labeled with its date and checklist. Named birds also surface
               per-species on Species Detail.
             </p>
+            <p>
+              Prefer no inline players? Turn on <strong>Disable embedded media</strong> in
+              Settings. It is off by default; when enabled, player areas say “Embedded media
+              is disabled in Settings.” while dates, checklists, and direct Macaulay Library
+              links stay available.
+            </p>
           </div>
           <figure class="feature-media feature-mock" aria-hidden="true">
             <div class="named">
@@ -622,7 +630,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v0.5.71 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v0.5.72 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

@@ -24,10 +24,11 @@ type Phase =
   | { tag: 'error'; message: string }
   | { tag: 'ready'; birds: NamedBird[] }
 
-export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
+export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies, embedAllowed }: {
   onGoToSettings: () => void
   filesVersion?: number
   onOpenSpecies?: (commonName: string) => void
+  embedAllowed: boolean
 }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -166,6 +167,7 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies }: {
           orderFor={orderFor}
           mediaByBird={mediaByBird}
           hasML={hasML}
+          embedAllowed={embedAllowed}
           renderSpecies={(commonName, scientificName) => (
             <BirdName commonName={commonName} scientificName={scientificName} taxonCode={codeFor(commonName)} hasEntry onOpenSpecies={onOpenSpecies} size="sm" />
           )}

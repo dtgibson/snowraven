@@ -9,18 +9,19 @@
 import { useOnline } from '../lib/useOnline'
 import { formatDate } from '../lib/formatDate'
 import { mlAssetUrl } from '../lib/mlCatalog'
-import { MediaFrame, MediaFallback } from './MediaEmbed'
+import { EmbeddedMediaDisabled, MediaFrame, MediaFallback } from './MediaEmbed'
 import { MEDIA_FORMAT_META, MEDIA_CATALOG_ID_RE } from '../lib/mediaEmbed'
 import { OutboundLink } from './OutboundLink'
 import { ChecklistLink } from './ChecklistLink'
 import type { MediaType } from '../types'
 
-export function RecentMediaEmbed({ id, type, species, date, checklistId }: {
+export function RecentMediaEmbed({ id, type, species, date, checklistId, embedAllowed }: {
   id: string
   type: MediaType
   species: string
   date?: string
   checklistId?: string
+  embedAllowed: boolean
 }) {
   const online = useOnline()
   const { icon: Icon } = MEDIA_FORMAT_META[type]
@@ -39,10 +40,12 @@ export function RecentMediaEmbed({ id, type, species, date, checklistId }: {
         {type}
       </div>
       <div className={`sr-media-frame ${heightClass}`}>
-        {!validId || !online ? (
+        {!embedAllowed && validId ? (
+          <EmbeddedMediaDisabled />
+        ) : !validId || !online ? (
           <MediaFallback catalogId={id} format={type} compact={false} />
         ) : (
-          <MediaFrame key={online ? 'online' : 'offline'} catalogId={id} format={type} title={title} Icon={Icon} heightClass={heightClass} compact={false} />
+          <MediaFrame key={online ? 'online' : 'offline'} catalogId={id} format={type} title={title} Icon={Icon} heightClass={heightClass} embedAllowed compact={false} />
         )}
       </div>
 

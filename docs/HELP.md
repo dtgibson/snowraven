@@ -456,6 +456,8 @@ Set your color scheme: System (follows your operating system preference), Light,
 
 **Date format.** Choose how dates appear throughout the app: month-first (Jun 8, 2026), day-first (8 Jun 2026), or ISO (2026-06-08). The default is month-first. Your choice applies everywhere dates are shown and is remembered across sessions.
 
+**Disable embedded media.** This option is off by default, so Species Detail and Named Birds normally show inline Macaulay Library players. Turn it on to prevent those players from loading anywhere in SnowRaven. Their space will say “Embedded media is disabled in Settings.” Dates, checklist links, media counts, comments, analytics, and direct links to each item on the Macaulay Library remain available. The choice takes effect immediately and is remembered across sessions.
+
 ### API Keys
 
 Enter and manage your eBird and OpenWeather API keys. Keys are saved securely -- in the desktop app, they are stored in the app's local data directory; in web/Pi mode, they are saved to the server's .env file. Changes take effect immediately without a restart. Saved keys are masked by default; use Show or Hide to reveal or re-mask them. Use Update to replace a key, or Clear to remove it.

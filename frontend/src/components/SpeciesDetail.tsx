@@ -53,7 +53,7 @@ const COMMENTS_PAGE = 10
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, onRequestedSpeciesConsumed }: { onGoToSettings: () => void; filesVersion?: number; requestedSpecies?: string; onRequestedSpeciesConsumed?: () => void }) {
+export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, onRequestedSpeciesConsumed, embedAllowed }: { onGoToSettings: () => void; filesVersion?: number; requestedSpecies?: string; onRequestedSpeciesConsumed?: () => void; embedAllowed: boolean }) {
   const [phase, setPhase] = useState<Phase>({ tag: 'loading-saved' })
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
@@ -1296,7 +1296,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                 <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 12px', lineHeight: 1.5 }}>
                   Individuals you've named in this species' checklist comments with a <code style={{ fontFamily: 'ui-monospace, monospace', fontSize: '0.6875rem', color: 'var(--sr-text)' }}>[name:…]</code> tag. The full cross-species list is on the Named Birds tab.
                 </p>
-                <NamedBirdsTable birds={namedIndividuals} showSpecies={false} />
+                <NamedBirdsTable birds={namedIndividuals} showSpecies={false} embedAllowed={embedAllowed} />
               </div>
             </SectionCard>
           )}
@@ -1311,7 +1311,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     const id = recentMediaIds[type]
                     if (!id) return null
                     const row = mediaRowById.get(id)
-                    return <RecentMediaEmbed key={type} id={id} type={type} species={selectedSpecies} date={row?.date} checklistId={row?.checklistId} />
+                    return <RecentMediaEmbed key={type} id={id} type={type} species={selectedSpecies} date={row?.date} checklistId={row?.checklistId} embedAllowed={embedAllowed} />
                   })}
                 </div>
               </div>

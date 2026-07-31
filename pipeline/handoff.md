@@ -1,52 +1,55 @@
 ## What We Accomplished
 
-Shipped **v0.5.71**: backported the Named Birds non-destructive inline-embed
-resilience to Species Detail's Recent Media, and added a Macaulay Library
-info + attribution row beneath each player. A slow, broken, or offline
-recent-media embed now shows a loading shimmer then a non-destructive
-placeholder with a link to the recording (recovering on reconnect) instead of a
-dead frame, and each of the three players (photo/audio/video) shows its capture
-date, a link that opens that asset on the Macaulay Library (the required credit
-plus a way to view/play it), and its eBird checklist.
+Built and independently verified the off-by-default **Disable embedded media**
+preference. It suppresses every current Macaulay Library iframe in Species
+Detail and Named Birds, replaces players with the approved note, and preserves
+dates, formats, checklist links, direct media links, comments, analytics, and
+batching. The approved backend dependency and Calendar performance-test
+remediations are also complete.
 
-The resilient frame/fallback/shimmer primitives were extracted to a shared
-module (`components/MediaEmbed.tsx` + `lib/mediaEmbed.ts`); Named Birds now
-shares them (behavior byte-identical, its suite green). Species Detail's Recent
-Media is a new, testable `components/RecentMediaEmbed.tsx`. The three players use
-one uniform full height (`.sr-media-iframe--recent`) so they match and the audio
-controls fit -- a live-review finding (the compact 116px audio clipped the
-Macaulay player's controls). Named Birds kept its shipped compact grid.
-
-Also acted on a docs review: its High/Med findings were false alarms (they
-rested on a `master` branch that does not exist; `main`'s docs are current
-through 0.5.70). The real items shipped: HELP's two "eBird backup powers these
-tabs" lists now include Calendar/Named Birds/Checklists, an OpenWeather "needs a
-payment card" note (HELP + README), and the repo's About -> website field was set.
+Independent QA passed all release-level checks: 178 backend tests, 1,602
+frontend tests, the focused 78-test feature suite, Calendar isolation,
+TypeScript, ESLint, Ruff, the production build, startup and health smoke,
+dependency consistency, iframe inventory, and diff checks. The repeat security
+review found no open security or privacy issues; all prior multipart, dotenv,
+and Starlette findings are resolved, and the full resolved npm and Python
+production graphs have zero current advisories.
 
 ## What Has Been Saved
 
-- **Shipped and live.** Desktop **v0.5.71** -- GitHub release with the notarized
-  universal macOS DMG, the signed Windows installer, the updater bundle, and
-  `latest.json` (version 0.5.71; darwin-aarch64 + darwin-x86_64 + windows-x86_64).
-  iOS **0.5.71 build 1** uploaded to TestFlight (altool: UPLOAD SUCCEEDED).
-- Feature commit `8c9c988` (code + version bump 0.5.70->0.5.71 + CHANGELOG +
-  HELP/README/website) on `main` and tagged `v0.5.71`. This closeout adds the
-  records commit (DECISIONS, ROADMAP, CLAUDE.md, the change-brief, pipeline
-  state) plus the iOS 0.5.71 Info.plist version stamp.
-- New reusable module: `components/MediaEmbed.tsx` + `lib/mediaEmbed.ts` (the
-  shared inline-embed resilience) and `components/RecentMediaEmbed.tsx`. Locked
-  by `MediaEmbed.test.tsx` + `RecentMediaEmbed.test.tsx` (the attribution row).
+- `pipeline/disable-embedded-media/strategic-brief.md`
+- `pipeline/disable-embedded-media/prd.md`
+- `pipeline/disable-embedded-media/schema.md`
+- `pipeline/disable-embedded-media/design.html`
+- `pipeline/disable-embedded-media/design-spec.md`
+- `pipeline/disable-embedded-media/pr-description.md`
+- `pipeline/disable-embedded-media/how-to-see.md`
+- `pipeline/disable-embedded-media/qa-report.md`
+- `pipeline/disable-embedded-media/security-report.md`
+- Feature code and regression tests under `frontend/src/`
+- Updated backend dependency pins, user documentation, privacy policy, website,
+  changelog, and synchronized `0.5.72` desktop versions
 
 ## Where We Are
 
-Improvement complete and shipped. Pipeline is idle. PRODUCT_CONTEXT was left
-unchanged (a refinement of an existing surface, not a new capability). One
-follow-on was recorded: Named Birds' compact audio embeds have the same
-control-clipping the Species Detail work fixed (its per-format grid is
-unchanged) -- a targeted future tweak. The earlier deferred items (iOS offline
-maps; confirm native pinch on the Breeding Codes matrix on a real iPhone) remain
-on the roadmap.
+The feature is at Step 8 of 9 with The Deployer. Reconciliation and pre-deploy
+readiness checks pass: the refreshed remote `main` has not moved, all `0.5.72`
+version surfaces agree, release tooling and credentials are present, and the
+reviewed diff is clean. The user explicitly approved the complete production
+release sequence; it is now ready to commit, push, verify CI and the tag SHA,
+then sign, notarize, and publish.
 
 ## Resume Prompt
 
-Run `/weft` to start the next thing.
+To resume this session: run `$weft` in a Codex session in this project. It reads
+saved state and picks up exactly here.
+
+---
+
+Resume SnowRaven's `disable-embedded-media` feature at Step 8 with The Deployer.
+Production release approval has been granted. Commit and push the complete
+reviewed `0.5.72` working tree, tag that exact commit, wait for the new Pipeline
+and Windows Build to pass with a matching tag SHA, then run
+`CI=true zsh -lc ./release.sh` to publish the signed/notarized multi-platform
+release. Stop on any failed check or SHA mismatch. After a confirmed and healthy
+production release, continue to The Chronicler for final project-memory updates.
