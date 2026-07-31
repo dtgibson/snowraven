@@ -5,6 +5,25 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Disable Embedded Media (complete — July 2026, v0.5.72)
+
+Settings now has an off-by-default **Disable embedded media** preference for
+people who do not want unreliable Macaulay Library players to load. The choice
+persists through SnowRaven's existing cross-platform settings storage and
+applies immediately. When enabled, Species Detail Recent Media and expanded
+Named Birds media areas replace their players with “Embedded media is disabled
+in Settings.” while keeping local formats, dates, checklist links, direct
+Macaulay Library links, counts, comments, and analytics available.
+
+Embed eligibility stays closed until the saved preference hydrates, so a
+disabled installation never flashes or requests an iframe at startup.
+`MediaFrame` remains the app's sole iframe constructor and requires the shared
+App-root eligibility gate; future embedded-media surfaces inherit that same
+contract. The release also moved the audited backend runtime to exact pins for
+FastAPI 0.141.1, Starlette 1.3.1, python-multipart 0.0.32, and python-dotenv
+1.2.2, resolving the reachable dependency advisories without adding a backend
+feature or data-model change.
+
 ### Weather Backlog (complete — July 2026, v0.5.67)
 
 A "List checklists with no weather blocks" section at the bottom of the Weather tab (below the unchanged single-checklist lookup and Current/Predict panel) that turns the one-at-a-time weather lookup into a work-down-my-backlog workflow: it lists the user's most-recent checklists whose comment carries no recognized weather block (SnowRaven's or RainCrow's, via the shipped `hasWeatherBlock` detector) — newest first, built entirely from the already-loaded backup with no lookups needed to build the list. Each row shows date, location, species count, protocol, effort, and completeness, and offers three actions: open the checklist on eBird, open its comment/edit page, and "Copy weather & go" — which looks up that checklist's weather, copies it (weather only) to the clipboard, and opens the comment page ready to paste; on a failed lookup the row says why (offline / missing-or-invalid key with a Settings nudge / generic error) and the comment page is never opened, so the user never lands on eBird with nothing on their clipboard. The default list shows only complete, non-incidental checklists; a toggle widens it to also include incomplete and incidental ones (chip-marked so a wider list is unambiguous), and the list pages in 100s.

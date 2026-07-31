@@ -69,7 +69,13 @@ italic at 0.71875rem `--sr-text-gray`.
   date + checklist + an `OutboundLink` to the single-asset ML URL, never a broken
   frame. Established Species Detail Recent Media; extended to Named Birds
   (named-birds-media feature) with per-format sizing + the offline placeholder.
-  No new tokens.
+  The app-wide disabled mode replaces only the player footprint with the shared
+  neutral `EmbeddedMediaDisabled` presentation: exact copy “Embedded media is
+  disabled in Settings.”, `role="status"` (never an alert), muted text on the
+  existing faint/subtle surface, no shimmer or error treatment, and no note
+  where embed-backed content is absent. Keep the surrounding date, format,
+  checklist, and direct-asset links. Settings uses the existing trailing
+  `ToggleSwitch` row with explanatory copy; no modal, Save button, or new token.
 - **Phone wide-table:** a wide matrix/table (many narrow columns beside a label
   column) is made comfortable on a phone by (1) narrowing the data columns to
   dot-width via a single CSS class at the ≤640 tier — never an inline width — with

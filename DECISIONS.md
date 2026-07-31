@@ -4,6 +4,59 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Disable embedded media: one fail-closed global gate, with audited backend and CI pins — 2026-07-30 (v0.5.72)
+
+**Decision:** Added one durable, off-by-default **Disable embedded media**
+setting rather than per-surface controls. `useEmbeddedMediaPreference` owns the
+`disableEmbeddedMedia` value at the App root and exposes iframe eligibility only
+after hydration confirms the exact saved value `false`; unresolved startup and
+saved `true` both keep the gate closed. Species Detail Recent Media and expanded
+Named Birds media consume that gate, immediately unmount players when disabled,
+and show the shared neutral sentence “Embedded media is disabled in Settings.”
+only where embed-backed content exists. Formats, dates, checklist links, direct
+asset links, counts, comments, analytics, and other non-embed behavior remain.
+`MediaFrame` stays the sole iframe constructor and now also requires explicit
+eligibility, so a future missed call-site guard still cannot silently request an
+embed.
+
+**Rationale:** Macaulay Library's third-party players have become unreliable;
+their existing slow/failed/offline fallback cannot make the provider
+deterministic. A single locally persisted opt-out gives users control without
+removing useful export-derived data or user-initiated links. Failing closed only
+while the preference hydrates prevents a player/request flash on a relaunch with
+embeds disabled, while the negative setting's absent, malformed, and non-boolean
+values preserve the historical embeds-enabled default. Web writes now reject
+non-2xx responses so Settings can restore the last durable value and show its
+fixed inline error instead of claiming an unsaved choice.
+
+**Dependency and verification decisions:** The release audit found reachable
+advisories in the former multipart, dotenv, and Starlette resolution. The
+backend therefore keeps the independently verified exact runtime set
+`fastapi==0.141.1`, `starlette==1.3.1`, `python-multipart==0.0.32`, and
+`python-dotenv==1.2.2`; clean `pip check` and exact-version OSV queries found no
+runtime advisories. CI also pins `ruff==0.15.20` and `pytest==9.1.1` instead of
+installing unconstrained verification tools. The Calendar's unchanged QA-41
+contract still requires one complete `buildDayCells` run below 50 ms, but takes
+the minimum of seven complete measurements so unrelated parallel-runner
+contention cannot create a one-sample false failure; neither the work measured
+nor the 50 ms threshold was weakened. Starlette 1.3.1's warning about the
+test-only `httpx` TestClient transport is a future harness-migration note, not a
+production issue.
+
+**Implications and release evidence:** Every future inline ML surface must pass
+the hydrated App-root gate and reuse `MediaFrame` plus the shared disabled
+status; direct links remain available because they make no provider request
+until chosen. v0.5.72 is published from tag commit
+`4e472570587e85b3ffd051cd977502a54697616c`: Pipeline run `30594949885` and
+Windows Build run `30594969963` passed, all six release assets and `latest.json`
+were verified, and the website serves the release. The headlessly styled outer
+DMG has one non-blocking tooling diagnostic: after conversion it reports no
+usable container signature, although its stapled notarization ticket validates
+and the signed app inside passes strict codesign and Gatekeeper as Notarized
+Developer ID. v0.5.72 is healthy; a future release-tooling pass may investigate
+preserving or adding the outer-container signature without recasting this
+shipped notarized app as broken.
+
 ## Species Detail Recent Media: shared resilient-embed primitives + Macaulay Library attribution/links, backporting v0.5.66 — 2026-07-20 (v0.5.71)
 
 **Decision:** Backported the v0.5.66 non-destructive inline-embed resilience to Species Detail's "Recent Media" and, in doing so, promoted it to a shared implementation. The `MediaFrame` / `MediaFallback` / `MediaShimmer` components moved to `components/MediaEmbed.tsx` and their constants (`MEDIA_CATALOG_ID_RE`, `EMBED_GIVE_UP_MS`, `MEDIA_FORMAT_META`) to `lib/mediaEmbed.ts` (split out so the component file stays component-only for `react-refresh/only-export-components`); Named Birds now imports them, behavior byte-identical (its suite unchanged). Species Detail's Recent Media is a new component `components/RecentMediaEmbed.tsx` (extracted from the huge `SpeciesDetail.tsx` so its attribution row is unit-testable without dragging in maplibre), which adds the shared resilient frame PLUS the `^\d+$` id-guard + `encodeURIComponent` the bare iframe lacked, and — new for Species Detail — an info + attribution row beneath each player: capture date, a link that opens that asset on the Macaulay Library (credit + view/play), and its eBird checklist (all from the user's own ML export, so shown even offline). All three players share ONE uniform full height (`.sr-media-iframe--recent`, 230px / 280px phone) instead of per-format heights, and `MediaFrame` gained a `compact` prop so a caller picks its fallback density. Two doc-review ride-alongs also shipped: HELP's two "eBird backup powers these tabs" lists now include Calendar/Named Birds/Checklists, and an OpenWeather "requires a payment card" note (HELP + README); the repo's About → website field was set.
