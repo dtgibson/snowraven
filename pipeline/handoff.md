@@ -32,12 +32,19 @@ production graphs have zero current advisories.
 
 ## Where We Are
 
-The feature is at Step 8 of 9 with The Deployer. Reconciliation and pre-deploy
-readiness checks pass: the refreshed remote `main` has not moved, all `0.5.72`
-version surfaces agree, release tooling and credentials are present, and the
-reviewed diff is clean. The user explicitly approved the complete production
-release sequence; it is now ready to commit, push, verify CI and the tag SHA,
-then sign, notarize, and publish.
+The feature is at Step 8 of 9 with The Deployer. The reviewed feature was
+committed and pushed as `b23801dfb994c2d69b5a7262d4a3d5a6d8dd05b6`, and the
+unpublished `v0.5.72` tag points to that exact commit. Pages and frontend CI
+passed, but backend CI stopped before pytest because the workflow installed
+unpinned Ruff 0.16.1 while independent QA used Ruff 0.15.20; the newer release
+enabled 49 repo-wide rules. No GitHub `v0.5.72` release exists and `release.sh`
+has not run.
+
+The user approved the recovery: pin the already-verified Ruff and pytest
+versions in CI, rerun local verification, commit and push that tooling-only
+fix, then replace the unpublished `v0.5.72` tag at the corrected commit. The old
+Windows run must be ignored and the replacement run's `headSha` must match the
+replacement tag exactly.
 
 ## Resume Prompt
 
@@ -47,9 +54,11 @@ saved state and picks up exactly here.
 ---
 
 Resume SnowRaven's `disable-embedded-media` feature at Step 8 with The Deployer.
-Production release approval has been granted. Commit and push the complete
-reviewed `0.5.72` working tree, tag that exact commit, wait for the new Pipeline
-and Windows Build to pass with a matching tag SHA, then run
-`CI=true zsh -lc ./release.sh` to publish the signed/notarized multi-platform
-release. Stop on any failed check or SHA mismatch. After a confirmed and healthy
-production release, continue to The Chronicler for final project-memory updates.
+The CI-toolchain remediation and replacement of the unpublished tag are
+approved. Pin Ruff 0.15.20 and pytest 9.1.1 in the backend CI install, verify
+locally, commit and push the tooling-only fix, replace the unpublished
+`v0.5.72` tag at that exact new commit, and monitor only the replacement
+Pipeline and Windows Build. Verify the successful Windows run's `headSha`
+equals the peeled replacement tag before running
+`CI=true zsh -lc ./release.sh`. Stop on any failure or SHA mismatch. After a
+confirmed and healthy production release, continue to The Chronicler.

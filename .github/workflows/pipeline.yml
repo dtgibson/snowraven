@@ -47,6 +47,8 @@ jobs:
           cache: 'pip'
           cache-dependency-path: backend/requirements.txt
       - run: pip install -r requirements.txt
-      - run: pip install ruff pytest
+      # Keep CI on the exact tool versions used by local release verification.
+      # Unpinned Ruff 0.16.1 enabled 49 new repo-wide rules mid-release.
+      - run: pip install ruff==0.15.20 pytest==9.1.1
       - run: ruff check .
       - run: pytest
