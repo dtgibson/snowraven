@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.73] - 2026-08-03
+
+### Fixed
+- **The Settings "Disable embedded media" switch no longer sits inside an empty box.** The switch is drawn by a shared control that frames a switch plus a visible text label; this row hides that label (the row's own title carries the name), so only the empty frame remained around the switch. The row now shows just the switch, slightly larger so it reads clearly on its own, with the same colors, motion, keyboard focus ring, and phone-friendly tap area. Every other switch in the app is unchanged.
+
 ## [0.5.72] - 2026-07-30
 
 ### Added

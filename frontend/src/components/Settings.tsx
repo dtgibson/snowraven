@@ -735,6 +735,7 @@ function EmbeddedMediaRow({ value, saving, error, onChange }: {
         <ToggleSwitch
           label="Disable embedded media"
           labelVisible={false}
+          bare
           checked={value}
           busy={saving}
           onChange={() => onChange(!value)}

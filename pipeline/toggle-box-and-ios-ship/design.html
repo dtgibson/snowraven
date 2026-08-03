@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings toggle refinement — SnowRaven</title>
+<style>
+  /* SnowRaven tokens (values mirrored from frontend/src/globals.css) */
+  .theme-light {
+    --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-surface-subtle: #F4F4F5;
+    --sr-text: #0F1117; --sr-text-muted: #6B6B74;
+    --sr-border: #E4E4E7; --sr-border-subtle: #F4F4F5;
+    --sr-accent: #277448; --sr-gray-400: #8E8E96;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-switch-thumb: #FFFFFF; --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    --sr-focus-halo: rgba(45, 134, 83, 0.12);
+  }
+  .theme-dark {
+    --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A;
+    --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA;
+    --sr-border: #27272A; --sr-border-subtle: #1F1F23;
+    --sr-accent: #34D399; --sr-gray-400: #6E6E78;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+    --sr-switch-thumb: #FFFFFF; --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+    --sr-focus-halo: rgba(52, 211, 153, 0.15);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: linear-gradient(180deg, #F4F6F5 0%, #EDF1EE 100%);
+    color: #0F1117;
+    padding: 40px 24px 64px;
+    min-height: 100vh;
+  }
+
+  .page { max-width: 1080px; margin: 0 auto; }
+
+  .page-head { margin-bottom: 28px; }
+  .page-head h1 {
+    font-size: 1.375rem; font-weight: 700; letter-spacing: -0.01em;
+    margin: 0 0 6px; color: #12351F;
+  }
+  .page-head p { margin: 0; font-size: 0.84375rem; line-height: 1.55; color: #566158; max-width: 56ch; }
+
+  .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 880px) { .themes { grid-template-columns: 1fr; } }
+
+  .theme-panel {
+    background: var(--sr-bg); border-radius: 14px; padding: 22px;
+    border: 1px solid rgba(0,0,0,0.07);
+  }
+  .theme-panel.theme-dark { border-color: rgba(0,0,0,0.35); }
+
+  .theme-label {
+    font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .theme-label::after { content: ""; flex: 1; height: 1px; background: var(--sr-border); }
+
+  .variant-tag {
+    font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em;
+    color: var(--sr-text-muted); margin: 0 0 8px;
+  }
+  .variant-tag.after { color: var(--sr-accent); }
+
+  .card {
+    border: 1px solid var(--sr-border); border-radius: 10px;
+    background: var(--sr-surface); overflow: hidden;
+    box-shadow: var(--sr-card-shadow); margin-bottom: 20px;
+  }
+
+  .row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center; gap: 16px; padding: 14px 16px;
+  }
+  .row + .row { border-top: 1px solid var(--sr-border); }
+
+  .row-title { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); margin-bottom: 4px; }
+  .row-sub { font-size: 0.75rem; color: var(--sr-text-muted); margin: 0; line-height: 1.5; }
+
+  /* Context row stand-in control (theme segmented pick, abbreviated) */
+  .seg {
+    display: inline-flex; gap: 4px; padding: 3px;
+    border: 1px solid var(--sr-border); border-radius: 8px; background: var(--sr-surface-subtle);
+  }
+  .seg span {
+    font-size: 0.75rem; font-weight: 500; padding: 4px 10px; border-radius: 6px;
+    color: var(--sr-text-muted);
+  }
+  .seg span.on { background: var(--sr-surface); color: var(--sr-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+
+  /* ---- The switch, both treatments ---- */
+
+  button.sw { font-family: inherit; cursor: pointer; }
+  button.sw:focus-visible {
+    outline: 3px solid var(--sr-accent);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px var(--sr-focus-halo);
+  }
+
+  /* Today: the shared ToggleSwitch chrome with its label hidden — the orphan box */
+  .sw-boxed {
+    display: inline-flex; align-items: center; height: 30px;
+    padding: 0 10px 0 8px; border-radius: 6px;
+    border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  }
+
+  /* Refined: no chrome — the switch itself is the control */
+  .sw-bare {
+    display: inline-flex; align-items: center; padding: 7px;
+    border: none; background: none; border-radius: 999px;
+  }
+
+  .track {
+    position: relative; flex-shrink: 0; border-radius: 999px;
+    background: var(--sr-gray-400);
+    transition: background 180ms ease-out;
+  }
+  .sw[aria-checked="true"] .track { background: var(--sr-accent); }
+
+  .sw-boxed .track { width: 28px; height: 16px; }
+  .sw-bare  .track { width: 36px; height: 20px; }
+
+  .knob {
+    position: absolute; top: 2px; left: 2px; border-radius: 50%;
+    background: var(--sr-switch-thumb);
+    box-shadow: var(--sr-switch-thumb-shadow);
+    transition: left 180ms ease-out;
+  }
+  .sw-boxed .knob { width: 12px; height: 12px; }
+  .sw-boxed.sw[aria-checked="true"] .knob { left: 14px; }
+  .sw-bare .knob { width: 16px; height: 16px; }
+  .sw-bare.sw[aria-checked="true"] .knob { left: 18px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .track, .knob { transition: none; }
+  }
+
+  .callout {
+    margin-top: 26px; padding: 16px 18px; border-radius: 10px;
+    background: #FFFFFF; border: 1px solid #E2E7E3;
+    box-shadow: 0 1px 4px rgba(18,53,31,0.05);
+  }
+  .callout h2 { font-size: 0.84375rem; font-weight: 600; color: #12351F; margin: 0 0 8px; }
+  .callout ul { margin: 0; padding-left: 18px; }
+  .callout li { font-size: 0.8125rem; color: #566158; line-height: 1.6; }
+  .callout strong { color: #12351F; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-head">
+    <h1>Settings · the embedded media switch loses its box</h1>
+    <p>The Appearance card's "Disable embedded media" row, today and refined, in both themes.
+       The switches below are live: click them, or Tab to one to see the focus ring.</p>
+  </div>
+
+  <div class="themes">
+    <!-- ============ LIGHT ============ -->
+    <section class="theme-panel theme-light">
+      <div class="theme-label">Light theme</div>
+
+      <p class="variant-tag">Today</p>
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="row-title">Theme</div>
+            <p class="row-sub">Light, dark, or follow your system.</p>
+          </div>
+          <span class="seg" aria-hidden="true"><span class="on">Light</span><span>Dark</span><span>System</span></span>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-title">Disable embedded media</div>
+            <p class="row-sub">Prevents inline Macaulay Library players from loading. Direct media links remain available.</p>
+          </div>
+          <button type="button" class="sw sw-boxed" role="switch" aria-checked="false" aria-label="Disable embedded media (current treatment)">
+            <span class="track"><span class="knob"></span></span>
+          </button>
+        </div>
+      </div>
+
+      <p class="variant-tag after">Refined</p>
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="row-title">Theme</div>
+            <p class="row-sub">Light, dark, or follow your system.</p>
+          </div>
+          <span class="seg" aria-hidden="true"><span class="on">Light</span><span>Dark</span><span>System</span></span>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-title">Disable embedded media</div>
+            <p class="row-sub">Prevents inline Macaulay Library players from loading. Direct media links remain available.</p>
+          </div>
+          <button type="button" class="sw sw-bare" role="switch" aria-checked="false" aria-label="Disable embedded media (refined treatment)">
+            <span class="track"><span class="knob"></span></span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DARK ============ -->
+    <section class="theme-panel theme-dark">
+      <div class="theme-label">Dark theme</div>
+
+      <p class="variant-tag">Today</p>
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="row-title">Theme</div>
+            <p class="row-sub">Light, dark, or follow your system.</p>
+          </div>
+          <span class="seg" aria-hidden="true"><span>Light</span><span class="on">Dark</span><span>System</span></span>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-title">Disable embedded media</div>
+            <p class="row-sub">Prevents inline Macaulay Library players from loading. Direct media links remain available.</p>
+          </div>
+          <button type="button" class="sw sw-boxed" role="switch" aria-checked="true" aria-label="Disable embedded media (current treatment)">
+            <span class="track"><span class="knob"></span></span>
+          </button>
+        </div>
+      </div>
+
+      <p class="variant-tag after">Refined</p>
+      <div class="card">
+        <div class="row">
+          <div>
+            <div class="row-title">Theme</div>
+            <p class="row-sub">Light, dark, or follow your system.</p>
+          </div>
+          <span class="seg" aria-hidden="true"><span>Light</span><span class="on">Dark</span><span>System</span></span>
+        </div>
+        <div class="row">
+          <div>
+            <div class="row-title">Disable embedded media</div>
+            <p class="row-sub">Prevents inline Macaulay Library players from loading. Direct media links remain available.</p>
+          </div>
+          <button type="button" class="sw sw-bare" role="switch" aria-checked="true" aria-label="Disable embedded media (refined treatment)">
+            <span class="track"><span class="knob"></span></span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="callout">
+    <h2>What changes, exactly</h2>
+    <ul>
+      <li><strong>The box goes away.</strong> The bordered button chrome existed to wrap a visible label next to the switch. Settings hides that label, so the empty frame is all that remained. The switch itself becomes the control.</li>
+      <li><strong>The bare switch grows slightly</strong> (36&times;20 track, 16px knob, up from 28&times;16 / 12px) so it holds its own beside the row text without the frame. Same tokens, same 180ms ease-out slide. Every other switch in the app keeps the boxed treatment and is untouched.</li>
+      <li><strong>Keyboard and touch are preserved.</strong> The app's global focus ring draws around the bare switch, and invisible padding keeps the tap area comfortable on a phone.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('button.sw').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      btn.setAttribute('aria-checked', btn.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    });
+  });
+</script>
+</body>
+</html>

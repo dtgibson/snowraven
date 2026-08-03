@@ -6,6 +6,10 @@ interface ToggleSwitchProps {
   labelVisible?: boolean
   disabled?: boolean
   busy?: boolean
+  /** Chromeless variant: drops the bordered-button frame so the switch itself is
+      the control, with a slightly larger track that holds its own without the
+      frame. For rows whose visible label is the row text (Settings). */
+  bare?: boolean
 }
 
 /**
@@ -19,7 +23,13 @@ export function ToggleSwitch({
   labelVisible = true,
   disabled = false,
   busy = false,
+  bare = false,
 }: ToggleSwitchProps) {
+  // Track/knob geometry: the bare variant is slightly larger (36×20 / 16px)
+  // because it stands alone without the frame; the boxed default stays 28×16.
+  const trackW = bare ? 36 : 28
+  const trackH = bare ? 20 : 16
+  const knob = bare ? 16 : 12
   return (
     <button tabIndex={0}
       role="switch"
@@ -27,7 +37,15 @@ export function ToggleSwitch({
       aria-busy={busy || undefined}
       onClick={onChange}
       disabled={disabled}
-      style={{
+      className={bare ? 'sr-touch-target' : undefined}
+      style={bare ? {
+        display: 'inline-flex', alignItems: 'center', gap: 7,
+        padding: 7, borderRadius: 999,
+        border: 'none', background: 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 500,
+        color: disabled ? 'var(--sr-text-disabled)' : 'var(--sr-text-muted)', whiteSpace: 'nowrap',
+        opacity: disabled ? 0.72 : 1,
+      } : {
         display: 'inline-flex', alignItems: 'center', gap: 7,
         height: 30, padding: '0 10px 0 8px', borderRadius: 6,
         border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)',
@@ -37,15 +55,15 @@ export function ToggleSwitch({
       }}
     >
       <div style={{
-        width: 28, height: 16, borderRadius: 8, flexShrink: 0, position: 'relative',
+        width: trackW, height: trackH, borderRadius: trackH / 2, flexShrink: 0, position: 'relative',
         background: checked ? 'var(--sr-accent)' : 'var(--sr-gray-400)',
         transition: 'background 180ms ease-out',
       }}>
         <div style={{
-          width: 12, height: 12, borderRadius: '50%',
+          width: knob, height: knob, borderRadius: '50%',
           background: 'var(--sr-switch-thumb)',
           position: 'absolute', top: 2,
-          left: checked ? 14 : 2,
+          left: checked ? trackW - knob - 2 : 2,
           transition: 'left 180ms ease-out',
           boxShadow: 'var(--sr-switch-thumb-shadow)',
         }} />
