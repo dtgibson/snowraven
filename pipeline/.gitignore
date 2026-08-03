@@ -5,3 +5,5 @@ handoff.md
 */qa-report.md
 */security-report.md
 */deployment-record.md
+# Weft: per-run files + run records (durable docs still commit)
+.qa-attempts

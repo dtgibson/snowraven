@@ -4,6 +4,14 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Toggle Box and iOS Ship — 2026-08-03 (v0.5.73)
+
+**Decision:** The shared `ToggleSwitch` gained an opt-in `bare` prop (chromeless: no bordered-button frame, a larger 36×20 track / 16px knob, `.sr-touch-target`) for rows whose visible label is the row's own text; Settings' "Disable embedded media" row is its only consumer. The boxed default is the standard everywhere a switch carries its own visible label, and its render path stays byte-identical (locked by `ToggleSwitch.test.tsx`). The run also shipped iOS 0.5.73 build 1 to TestFlight, closing the gap left when v0.5.72 shipped desktop-only.
+
+**Rationale:** The chrome exists to frame a visible label next to the switch; Settings hides that label (`labelVisible={false}`), so users saw an empty box around a bare switch — a reported visual defect, not a design choice worth keeping. An opt-in variant fixes the one mis-fitting site without touching the other switch call sites or the v0.5.68 switch-thumb tokenization (the bare variant reuses `--sr-switch-thumb`/`--sr-switch-thumb-shadow`/`--sr-gray-400` unchanged).
+
+**Implications:** New Settings-style rows (row text as the visible label, trailing switch) should pass `bare`; label-carrying switches keep the boxed default. Two release-ops facts are promoted to CLAUDE.md: after a Hephaestus reboot the login keychain is locked for remote sessions and must be unlocked by the user in their own terminal before any signing (codesign/export dies with `errSecInternalComponent`; the in-chat `!` prompt cannot take a hidden password), and `tauri ios build` stamps `gen/apple/snowraven_iOS/Info.plist` with the version/build number, which must be committed before `release.sh` (its clean-tree preflight aborts otherwise) — commit the stamp when the iOS build runs before the desktop release. No prior decision reversed. Verified: full frontend suite (1606) + backend (178) green, `npm run build` green, notarization Accepted, all six release assets + three-key `latest.json` confirmed, altool upload accepted (delivery 3c24380f).
+
 ## Disable embedded media: one fail-closed global gate, with audited backend and CI pins — 2026-07-30 (v0.5.72)
 
 **Decision:** Added one durable, off-by-default **Disable embedded media**

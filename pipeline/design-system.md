@@ -76,6 +76,12 @@ italic at 0.71875rem `--sr-text-gray`.
   where embed-backed content is absent. Keep the surrounding date, format,
   checklist, and direct-asset links. Settings uses the existing trailing
   `ToggleSwitch` row with explanatory copy; no modal, Save button, or new token.
+- **Switches:** the shared `ToggleSwitch` is a boxed pill-button when it carries
+  its own visible label (the app-wide default). A row whose visible label is the
+  row's own text (Settings-style title + description + trailing switch) passes
+  `bare`: chromeless, larger 36×20 track / 16px knob, same thumb/track tokens,
+  global focus ring, `.sr-touch-target`. Never leave the boxed chrome around a
+  label-hidden switch (it reads as an empty box).
 - **Phone wide-table:** a wide matrix/table (many narrow columns beside a label
   column) is made comfortable on a phone by (1) narrowing the data columns to
   dot-width via a single CSS class at the ≤640 tier — never an inline width — with
