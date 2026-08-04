@@ -18,9 +18,9 @@ vi.mock('../lib/storage', () => ({
   },
 }))
 // vi.fn-based so the iOS suite below can flip the platform per test (QA
-// finding F8: a hardwired `() => false` left the three iOS wirings in
-// Settings.tsx — fileRowButtonLabel, the IOS_IMPORT_MECHANISM branch,
-// showOfflineMapsSection — with zero wiring coverage).
+// finding F8: a hardwired `() => false` left the iOS wirings in Settings.tsx —
+// fileRowButtonLabel and the IOS_IMPORT_MECHANISM branch — with zero wiring
+// coverage).
 vi.mock('../lib/platform', () => ({
   isTauri: vi.fn(() => false),
   isIOS: vi.fn(() => false),
@@ -191,14 +191,12 @@ describe('Settings — embedded media preference', () => {
   })
 })
 
-describe('Settings — desktop/web side of the mobile-app gates (FR-12/FR-15)', () => {
-  it('file rows keep the Upload wording and the Offline maps section renders', () => {
+describe('Settings — desktop/web side of the mobile-app gates (FR-12)', () => {
+  it('file rows keep the Upload wording', () => {
     renderSettings()
     // Two file rows (eBird backup + ML export), both on the Upload copy.
     expect(screen.getAllByRole('button', { name: 'Upload file' })).toHaveLength(2)
     expect(screen.queryByText(/import file/i)).toBeNull()
-    // Web renders the Offline maps section (the gate is !isIOS(), not isTauri()).
-    expect(screen.getByText('Offline maps')).toBeTruthy()
   })
 })
 
@@ -206,7 +204,7 @@ describe('Settings — desktop/web side of the mobile-app gates (FR-12/FR-15)', 
 // these exercise the REAL component with isIOS() flipped, not the pure
 // helpers — a lost isIOS() argument, an inverted gate, or a re-stranded
 // RebuildCaches button fails here.
-describe('Settings — iOS wirings (FR-12/FR-13/FR-15, supportsAppRelaunch)', () => {
+describe('Settings — iOS wirings (FR-12/FR-13, supportsAppRelaunch)', () => {
   beforeEach(() => {
     vi.mocked(isTauri).mockReturnValue(true)
     vi.mocked(isIOS).mockReturnValue(true)
@@ -216,11 +214,6 @@ describe('Settings — iOS wirings (FR-12/FR-13/FR-15, supportsAppRelaunch)', ()
     renderSettings()
     expect(screen.getAllByRole('button', { name: 'Import file…' })).toHaveLength(2)
     expect(screen.queryByText(/upload file/i)).toBeNull()
-  })
-
-  it('hides the Offline maps section entirely (true absence, no ghost)', () => {
-    renderSettings()
-    expect(screen.queryByText('Offline maps')).toBeNull()
   })
 
   it("Mechanism B ('dialog') routes the Import button to the native picker, and cancel is a clean no-op", async () => {

@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 0.5.73">v0.5.73</span>
+        <span class="version-pill" aria-label="Version 0.5.74">v0.5.74</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -133,10 +133,6 @@
             icons and, while enabled, embedded Macaulay media load from. There is no SnowRaven server in the middle.
             An off-by-default <strong>Disable embedded media</strong> setting prevents those
             players and requests; direct media links still work when you choose to open them.
-            If you opt in to downloading an offline map region on the desktop app, that region's
-            tiles are fetched from GitHub at download time (your IP and the region you chose are
-            visible to GitHub then) and afterward stored on your device and served with no further
-            network. It's off by default.
           </p>
         </div>
         <ul class="privacy-points">
@@ -469,13 +465,6 @@
               earlier re-show, marked as the last loaded result.
             </p>
             <p>
-              On the desktop app you can opt in to downloading offline map regions: while
-              you have a connection, save the counties you bird (or whole states), then pan
-              and zoom them later with full street detail. A manager shows each region's
-              size, a running total, flags ones that are out of date, and lets you remove
-              them. It's off by default.
-            </p>
-            <p>
               SnowRaven is honest about the edges. Live lookups — current weather and tide,
               place search, the Checklist Comparer, nearby-bird overlays, and app updates —
               still need a connection; offline you see the last loaded result where one
@@ -486,13 +475,14 @@
           <figure class="feature-media feature-mock" aria-hidden="true">
             <div class="named">
               <div class="ck-search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l2.8 2.8M16.2 16.2 19 19M19 5l-2.8 2.8M7.8 16.2 5 19"/></svg>
-                Downloaded map regions
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01M8.5 16.43a5 5 0 0 1 7 0M5 12.86a10 10 0 0 1 5.17-2.69M19 12.86a10 10 0 0 0-2.01-1.52M2 8.82a15 15 0 0 1 4.18-2.64M22 8.82a15 15 0 0 0-11.29-3.76M2 2l20 20"/></svg>
+                No connection
               </div>
-              <div class="named-row"><span class="named-tag">Saved</span><span class="named-sp">Marin County, CA</span><span class="named-seen">86 MB</span></div>
-              <div class="named-row"><span class="named-tag">Saved</span><span class="named-sp">Sonoma County, CA</span><span class="named-seen">112 MB</span></div>
-              <div class="named-row"><span class="named-tag">Saved</span><span class="named-sp">San Mateo County, CA</span><span class="named-seen">74 MB</span></div>
-              <div class="ck-count">3 regions · 272 MB on device</div>
+              <div class="named-row"><span class="named-tag">Open</span><span class="named-sp">Map Explorer</span><span class="named-seen">your sightings</span></div>
+              <div class="named-row"><span class="named-tag">Open</span><span class="named-sp">Species Detail</span><span class="named-seen">your data</span></div>
+              <div class="named-row"><span class="named-tag">Open</span><span class="named-sp">Statistics</span><span class="named-seen">your data</span></div>
+              <div class="named-row"><span class="named-tag">Saved</span><span class="named-sp">Weather &amp; tide</span><span class="named-seen">last loaded</span></div>
+              <div class="ck-count">Working from data already on your device</div>
             </div>
           </figure>
         </article>
@@ -630,7 +620,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v0.5.73 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v0.5.74 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

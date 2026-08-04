@@ -476,21 +476,6 @@ Reorder and show or hide individual tabs. Drag rows to reorder, or use the **Mov
 
 On narrow screens and mobile browsers the tab bar automatically collapses into a compact dropdown that follows the same order and visibility choices, so every tab stays reachable without horizontal scrolling. The rest of the interface is built to hold up on a phone too: controls and lists wrap rather than overflow, buttons and pills grow to a comfortable tap size, and a map popup that is taller than the screen -- a shaded county's completeness card, a pin's sightings list, a target or nearby-lifer marker -- scrolls inside itself so its content stays reachable.
 
-### Offline maps (desktop app)
-
-In the Mac and Windows desktop apps, the Settings tab includes an **Offline maps** section for downloading map regions so the Map Explorer keeps full street detail when you have no connection. It is **off by default** -- nothing downloads until you turn it on -- and it does not appear in the web/Pi version, where this section instead explains that downloadable regions are a desktop-app feature.
-
-To download a region:
-
-1. Turn on **Enable offline maps**.
-2. Pick a region and choose **Download**. The counties you bird are suggested automatically from your eBird backup; pick one of those, or download a whole state.
-3. While a region downloads, you'll see its progress and a **Cancel** button.
-4. Once it finishes, open the Map Explorer offline anywhere inside that region to pan and zoom with full street detail.
-
-The manager lists each downloaded region with its size and a running total of the space in use. A region flagged **Out of date** can be updated to the latest tiles, and any region can be removed to reclaim space.
-
-Note that only the **Map** (vector) base works offline; **Satellite**, **Topo**, and **Trails** need a connection and are disabled while you're offline.
-
 ### Troubleshooting (desktop app)
 
 In the Mac and Windows desktop apps, the Settings tab includes a Troubleshooting section with a **Rebuild caches & restart** button. If the map or species lookups stop working, rebuilding the app's local caches usually fixes it; the app clears its cached taxonomy data and restarts. This section does not appear in the web/Pi version.
@@ -510,7 +495,7 @@ SnowRaven keeps working without a connection. Every analytical tab and every map
 
 **What still needs a connection:**
 
-- **Full street detail on the map** comes from the network unless you've downloaded that region (see **Offline maps** under Settings, desktop app only). Without a downloaded region, an offline map still shows your data and the base map's labels, but the full street detail needs a downloaded region. Only the **Map** (vector) base works offline; Satellite, Topo, and Trails are disabled while you're offline.
+- **Full street detail on the map** comes from the network. An offline map still shows your data and the base map's place labels, and an area you have already panned over recently often redraws from the app's own cache, but street-level detail for somewhere new waits for a connection. Only the **Map** (vector) base works offline; Satellite, Topo, and Trails are disabled while you're offline.
 - **Live weather and tide lookups** are online-only, but a reading you've loaded before re-shows offline (above).
 - **County Completeness lookups** need a connection and your eBird API key. Counties you fetched in the last 30 days still shade from the on-device cache, and the popup's local pieces (your countable count and Recently added list) work fully offline; only new county lookups wait for a connection.
 - **These features are online-only with no offline fallback** -- they show a clear "you're offline" message: place and address search, the Checklist Comparer, live nearby-bird overlays, and downloading an app update.

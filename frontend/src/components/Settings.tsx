@@ -9,7 +9,7 @@ import { storage } from '../lib/storage'
 import { formatDate, setDateFormatPref, asDateFormatPref } from '../lib/formatDate'
 import type { DateFormatPref } from '../lib/formatDate'
 import { isTauri, isIOS } from '../lib/platform'
-import { showOfflineMapsSection, supportsAppRelaunch } from '../lib/platformGates'
+import { supportsAppRelaunch } from '../lib/platformGates'
 import { fileRowButtonLabel } from '../lib/fileRowCopy'
 import { IOS_IMPORT_MECHANISM, pickCsvViaDialog } from '../lib/iosImport'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
@@ -19,7 +19,6 @@ import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
 import { invalidateHotspotSet } from '../lib/hotspotSet'
 import { OutboundLink } from './OutboundLink'
-import { OfflineMapsSection } from './OfflineMapsSection'
 import { ToggleSwitch } from './ui/ToggleSwitch'
 
 type ConsentState = 'idle' | 'pending'
@@ -1580,18 +1579,6 @@ export function Settings({
           </div>
         </div>
       </div>
-
-      {/* FR-15 / FR-23 (mobile-app): the Tier B region manager is a true
-          absence on iOS — no header, no disabled ghost. Desktop and web are
-          unchanged (the gate is !isIOS(); see platformGates.ts). */}
-      {showOfflineMapsSection() && (
-        <>
-          <div style={{ marginTop: 24 }}>
-            <SectionHeader label="Offline maps" />
-          </div>
-          <OfflineMapsSection />
-        </>
-      )}
 
       <div style={{ marginTop: 24 }}>
         <TabLayoutSection

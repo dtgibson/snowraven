@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.74] - 2026-08-04
+
+### Removed
+- **The "Offline maps" section has been removed from Settings.** It offered downloadable map regions, but no region was ever actually available to download on any platform, so the section could only ever show an empty list. Rather than leave a control that promises something it cannot deliver, it is gone. Nothing you were using stops working, and nothing needs cleaning up on your device.
+
+### Notes
+- **Offline map behavior itself is unchanged.** The Map Explorer still opens with no connection and draws your sightings, heatmap, atlas blocks, county lines and shading, and the base map's place labels, once that map has loaded online at least once. Areas you have already panned over often redraw from the app's own cache. Full street detail for somewhere new still needs a connection, and Satellite, Topo, and Trails are still disabled while you are offline. The app has never downloaded map data on its own, and it still does not.
+
+### Privacy
+- **The privacy policy shrank.** GitHub is no longer listed as a map-tile source and the "Offline maps" subsection is gone, because the app can no longer contact that endpoint at all. The desktop app's file-system permissions were narrowed to match: the four grants that existed only to read downloaded region files are withdrawn.
+
 ## [0.5.73] - 2026-08-03
 
 ### Fixed

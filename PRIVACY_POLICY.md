@@ -1,6 +1,6 @@
 # Privacy Policy — SnowRaven
 
-**Effective date:** July 5, 2026
+**Effective date:** August 4, 2026
 
 ## Overview
 
@@ -47,11 +47,6 @@ The maps in SnowRaven are drawn using map tiles served by third-party providers.
 - **Esri** (`server.arcgisonline.com`) — the "Satellite" base map. See [Esri's privacy statement](https://www.esri.com/en-us/privacy/overview).
 - **USGS — The National Map** (`basemap.nationalmap.gov`) — the "Topo (US)" base map (United States only); a U.S. government service.
 - **Waymarked Trails** (`tile.waymarkedtrails.org`) — the optional "Trails" overlay. See [waymarkedtrails.org](https://hiking.waymarkedtrails.org/).
-- **GitHub** (`github.com`) — when, and only when, you turn on offline maps and choose to download a map region (desktop app), that region's map data is fetched from SnowRaven's release files hosted on GitHub. See [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
-
-### Offline maps
-
-Offline map regions are entirely opt-in and off by default. Nothing about them touches the network until you turn on "Enable offline maps" in Settings and pick a region to download. When you download a region, your device fetches that region's map data from GitHub (above), so GitHub receives your IP address and which region you downloaded at that moment. Once a region is downloaded, it is stored on your device and drawn with no further network request — you can pan and zoom it fully offline. Downloaded regions stay on your device, are never sent anywhere, and can be removed at any time in Settings. Region downloads are a desktop-app feature.
 
 ## Embedded Bird Media and Link Icons
 

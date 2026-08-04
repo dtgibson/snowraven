@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.5.73",
+  "version": "0.5.74",
   "type": "module",
   "engines": {
     "node": ">=20.19.0"
@@ -26,7 +26,6 @@
     "@tauri-apps/plugin-updater": "^2.10.1",
     "lucide-react": "^1.14.0",
     "maplibre-gl": "^5.24.0",
-    "pmtiles": "^4.4.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-map-gl": "^8.1.1",

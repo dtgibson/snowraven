@@ -12,15 +12,6 @@ export function showUpdaterFooter(): boolean {
   return !isIOS();
 }
 
-// FR-15 / FR-23 — the Tier B "Offline maps" region-download section is hidden
-// on iOS/iPadOS (desktop-only in v1). Deliberately `!isIOS()` rather than the
-// schema's literal `isTauri() && !isIOS()`: the web build currently RENDERS
-// the section (disabled toggle + honest note), and the PRD forbids desktop/web
-// behavior changes — so web keeps its section and only iOS loses it.
-export function showOfflineMapsSection(): boolean {
-  return !isIOS();
-}
-
 // iOS cannot programmatically relaunch itself — the process plugin is not
 // compiled into the mobile binary (FR-14 posture) and the platform forbids
 // self-restart. The Troubleshooting "Rebuild caches" control stays PRESENT on

@@ -34,22 +34,6 @@
     {
       "identifier": "fs:allow-remove",
       "allow": [{ "path": "$APPLOCALDATA/**" }]
-    },
-    {
-      "identifier": "fs:allow-open",
-      "allow": [{ "path": "$APPLOCALDATA/**" }]
-    },
-    {
-      "identifier": "fs:allow-read",
-      "allow": [{ "path": "$APPLOCALDATA/**" }]
-    },
-    {
-      "identifier": "fs:allow-seek",
-      "allow": [{ "path": "$APPLOCALDATA/**" }]
-    },
-    {
-      "identifier": "fs:allow-write-file",
-      "allow": [{ "path": "$APPLOCALDATA/**" }]
     }
   ]
 }

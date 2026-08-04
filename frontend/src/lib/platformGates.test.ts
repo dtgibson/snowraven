@@ -1,5 +1,5 @@
-// Platform-visibility gates (mobile-app FR-14 / FR-15 / FR-23), isIOS mocked
-// both ways — the components (UpdateFooter, Settings) consume these predicates.
+// Platform-visibility gates (mobile-app FR-14), isIOS mocked both ways — the
+// components (UpdateFooter, Settings) consume these predicates.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 
 vi.mock('./platform', () => ({ isIOS: vi.fn(), isTauri: vi.fn(), isWindows: vi.fn() }))
@@ -7,7 +7,6 @@ vi.mock('./platform', () => ({ isIOS: vi.fn(), isTauri: vi.fn(), isWindows: vi.f
 import { isIOS } from './platform'
 import {
   showUpdaterFooter,
-  showOfflineMapsSection,
   compactChrome,
   supportsAppRelaunch,
 } from './platformGates'
@@ -49,17 +48,5 @@ describe('supportsAppRelaunch (QA round-1 — RebuildCaches gating)', () => {
   it('is true on desktop — Rebuild caches keeps its restart step', () => {
     vi.mocked(isIOS).mockReturnValue(false)
     expect(supportsAppRelaunch()).toBe(true)
-  })
-})
-
-describe('showOfflineMapsSection (FR-15 / FR-23)', () => {
-  it('is false on iOS — the Tier B region manager is a true absence', () => {
-    vi.mocked(isIOS).mockReturnValue(true)
-    expect(showOfflineMapsSection()).toBe(false)
-  })
-
-  it('is true on desktop AND web — web keeps its disabled-toggle presentation (byte-parity)', () => {
-    vi.mocked(isIOS).mockReturnValue(false)
-    expect(showOfflineMapsSection()).toBe(true)
   })
 })

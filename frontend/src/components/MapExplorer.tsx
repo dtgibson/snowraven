@@ -19,7 +19,6 @@ import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { SnowMap } from './SnowMap'
 import { AtlasLayer } from './AtlasLayer'
-import { RegionBaseSource } from './map/RegionBaseSource'
 import type { AtlasData } from '../lib/atlasBlocks'
 import { buildBreedingByBlock } from '../lib/atlasBreeding'
 import { CountyLayer } from './map/CountyLayer'
@@ -2174,10 +2173,6 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 onDefaultDone={handleDefaultCenterDone}
               />
               <BoundsTracker onBounds={handleBounds} />
-              {/* Offline region rendering (FR-17): serves a downloaded region's
-                  local tiles when offline + in coverage. Self-gates to a no-op
-                  unless offline-maps is enabled AND a region is downloaded. */}
-              <RegionBaseSource />
               {/* Mute the basemap (grey the land fills / desaturate raster bases)
                   while a county or atlas shading ramp is active, so the ramp pops. */}
               <BasemapDesaturation active={shadeByCounty || shadeByBreeding} />

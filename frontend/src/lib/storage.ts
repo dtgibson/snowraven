@@ -11,7 +11,7 @@ export interface FilesStatus {
 }
 
 // ── Offline-support persisted shapes ──────────────────────────────────────────
-// All three stores live in their OWN files on desktop (never settings.json — FR-42)
+// Both stores live in their OWN files on desktop (never settings.json — FR-42)
 // and as one-file-per-key generic settings on web/Pi.
 
 // A tuned maplibre StyleSpecification persisted whole for offline map mount (FR-01/02/05/06).
@@ -38,28 +38,6 @@ export interface ReplayStore {
   order: string[];
 }
 
-// One completed offline region (desktop only) — FR-13/17/19.
-export interface RegionEntry {
-  regionId: string;
-  name: string;
-  kind: 'county' | 'state';
-  stateCode: string;
-  countyName?: string;
-  extent: [number, number, number, number]; // [w, s, e, n] WGS84
-  minZoom: number;
-  maxZoom: number; // baked range (FR-17 over-zoom fallback)
-  bytes: number; // on-disk size
-  downloadedAt: number; // ms epoch
-  sourceVersion: string; // catalog/bake version (FR-19 supersede)
-}
-
-// Manifest of all completed regions. Empty (never null) when absent so callers
-// don't branch (FR-13/14/19).
-export interface RegionsManifest {
-  version: number;
-  regions: RegionEntry[];
-}
-
 export interface StorageAdapter {
   getApiKey(service: 'ebird' | 'openweather'): Promise<string | null>;
   setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void>;
@@ -79,31 +57,6 @@ export interface StorageAdapter {
   // ── Offline support — replay store (FR-32/33/34) ──
   getReplayStore(): Promise<ReplayStore | null>;
   setReplayStore(store: ReplayStore): Promise<void>;
-
-  // ── Offline support — region files, DESKTOP ONLY (FR-12/16/20) ──
-  // Downloads write to a temp `.partial` name and atomic-rename on completion.
-  writeRegionPartial(regionId: string, bytes: Uint8Array): Promise<void>;
-  renameRegionPartial(regionId: string): Promise<void>;
-  writeRegionFile(regionId: string, bytes: Uint8Array): Promise<void>;
-  readRegionBytes(regionId: string, offset: number, length: number): Promise<ArrayBuffer>;
-  removeRegionFile(regionId: string): Promise<void>;
-
-  // ── Offline support — regions manifest (FR-13/14/19) ──
-  getRegionsManifest(): Promise<RegionsManifest>;
-  setRegionsManifest(m: RegionsManifest): Promise<void>;
-}
-
-// Region id shape guard (NFR-12/QA-39): `us-ca-001`, `us-ca`, etc.
-// Validate BEFORE any path interpolation — never interpolate an unvalidated id.
-const REGION_ID_RE = /^[a-z]{2}(-[a-z0-9-]{1,40})?$/;
-function assertRegionId(regionId: string): void {
-  if (!REGION_ID_RE.test(regionId)) {
-    throw new Error(`Invalid region id: ${JSON.stringify(regionId)}`);
-  }
-}
-
-function regionDownloadsUnavailable(): never {
-  throw new Error('Region downloads are not available in the browser build');
 }
 
 class WebStorage implements StorageAdapter {
@@ -188,43 +141,6 @@ class WebStorage implements StorageAdapter {
   async setReplayStore(store: ReplayStore): Promise<void> {
     await this.setSetting('replay-store-v1', store);
   }
-
-  // Region downloads are desktop-only (FR-20). Fail loudly — callers gate on
-  // isTauri(), but a stray call must not silently no-op.
-  async writeRegionPartial(regionId: string, bytes: Uint8Array): Promise<void> {
-    void regionId; void bytes;
-    regionDownloadsUnavailable();
-  }
-
-  async renameRegionPartial(regionId: string): Promise<void> {
-    void regionId;
-    regionDownloadsUnavailable();
-  }
-
-  async writeRegionFile(regionId: string, bytes: Uint8Array): Promise<void> {
-    void regionId; void bytes;
-    regionDownloadsUnavailable();
-  }
-
-  async readRegionBytes(regionId: string, offset: number, length: number): Promise<ArrayBuffer> {
-    void regionId; void offset; void length;
-    return regionDownloadsUnavailable();
-  }
-
-  async removeRegionFile(regionId: string): Promise<void> {
-    void regionId;
-    regionDownloadsUnavailable();
-  }
-
-  // Empty manifest on web/Pi (desktop-only feature) — never null so the UI
-  // doesn't branch. setRegionsManifest is a friendly no-op (the UI won't call it).
-  async getRegionsManifest(): Promise<RegionsManifest> {
-    return { version: 1, regions: [] };
-  }
-
-  async setRegionsManifest(m: RegionsManifest): Promise<void> {
-    void m; // no-op: regions are desktop-only
-  }
 }
 
 // All persistent Tauri data lives in AppLocalData/data/:
@@ -249,10 +165,6 @@ const FILE_PATHS: Record<'ebird' | 'ml', string> = {
 // Offline-support own-file locations (never settings.json — FR-42).
 const STYLE_DIR = `${DATA_DIR}/map-style`;
 const REPLAY_PATH = `${DATA_DIR}/replay.json`;
-const REGIONS_DIR = `${DATA_DIR}/regions`;
-const REGIONS_MANIFEST_PATH = `${DATA_DIR}/regions-manifest.json`;
-const regionFilePath = (regionId: string) => `${REGIONS_DIR}/${regionId}.pmtiles`;
-const regionPartialPath = (regionId: string) => `${REGIONS_DIR}/.${regionId}.partial`;
 const styleFilePath = (variant: string) => `${STYLE_DIR}/${variant}.json`;
 
 class TauriStorage implements StorageAdapter {
@@ -391,93 +303,6 @@ class TauriStorage implements StorageAdapter {
     const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
     await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
     await writeTextFile(REPLAY_PATH, JSON.stringify(store), { baseDir: BaseDirectory.AppLocalData });
-  }
-
-  // ── Offline support — region files (FR-12/16) ──
-  // Binary writes to data/regions/. Download flow writes a temp `.partial`,
-  // then atomic-renames on completion.
-  async writeRegionPartial(regionId: string, bytes: Uint8Array): Promise<void> {
-    assertRegionId(regionId);
-    const { mkdir, writeFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    await mkdir(REGIONS_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
-    await writeFile(regionPartialPath(regionId), bytes, { baseDir: BaseDirectory.AppLocalData });
-  }
-
-  async renameRegionPartial(regionId: string): Promise<void> {
-    assertRegionId(regionId);
-    const { rename, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    await rename(regionPartialPath(regionId), regionFilePath(regionId), {
-      oldPathBaseDir: BaseDirectory.AppLocalData,
-      newPathBaseDir: BaseDirectory.AppLocalData,
-    });
-  }
-
-  // Convenience whole-write: partial → rename, so the final file is never seen
-  // half-written (atomic completion).
-  async writeRegionFile(regionId: string, bytes: Uint8Array): Promise<void> {
-    await this.writeRegionPartial(regionId, bytes);
-    await this.renameRegionPartial(regionId);
-  }
-
-  // TRUE range read via open + seek + sized read (NOT whole-file readFile).
-  // `read` may return fewer bytes than requested near EOF, so loop on the
-  // actual bytes-read and return only what was read.
-  async readRegionBytes(regionId: string, offset: number, length: number): Promise<ArrayBuffer> {
-    assertRegionId(regionId);
-    const { open, SeekMode, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    const handle = await open(regionFilePath(regionId), {
-      read: true,
-      baseDir: BaseDirectory.AppLocalData,
-    });
-    try {
-      await handle.seek(offset, SeekMode.Start);
-      const buf = new Uint8Array(length);
-      let total = 0;
-      while (total < length) {
-        const chunk = buf.subarray(total);
-        const n = await handle.read(chunk);
-        if (n === null || n === 0) break; // EOF
-        total += n;
-      }
-      // Return exactly the bytes read as a standalone ArrayBuffer (never a
-      // view onto a larger buffer, so the consumer owns the full slice).
-      return buf.slice(0, total).buffer;
-    } finally {
-      await handle.close();
-    }
-  }
-
-  async removeRegionFile(regionId: string): Promise<void> {
-    assertRegionId(regionId);
-    const { remove, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    // Remove the completed file and any stray `.partial` (swept on manager open).
-    for (const path of [regionFilePath(regionId), regionPartialPath(regionId)]) {
-      try {
-        if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
-          await remove(path, { baseDir: BaseDirectory.AppLocalData });
-        }
-      } catch { /* best-effort: ignore if absent */ }
-    }
-  }
-
-  // ── Offline support — regions manifest (FR-13/14/19) ──
-  // OWN file data/regions-manifest.json. Empty (never null) when absent.
-  async getRegionsManifest(): Promise<RegionsManifest> {
-    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    try {
-      if (!await exists(REGIONS_MANIFEST_PATH, { baseDir: BaseDirectory.AppLocalData })) {
-        return { version: 1, regions: [] };
-      }
-      return JSON.parse(await readTextFile(REGIONS_MANIFEST_PATH, { baseDir: BaseDirectory.AppLocalData })) as RegionsManifest;
-    } catch {
-      return { version: 1, regions: [] };
-    }
-  }
-
-  async setRegionsManifest(m: RegionsManifest): Promise<void> {
-    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
-    await writeTextFile(REGIONS_MANIFEST_PATH, JSON.stringify(m), { baseDir: BaseDirectory.AppLocalData });
   }
 }
 
