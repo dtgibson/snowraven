@@ -708,15 +708,19 @@ h1, h2, h3, h4, h5, h6 {
   overflow: hidden;
 }
 
-/* Per-format player heights. Named Birds media uses these (photo/video 230px, audio
-   116px — a compact preview in its dense multi-item grid). Species Detail's Recent
-   Media instead uses --recent for all three, so its row of most-recent
-   photo/audio/video is uniform AND the Macaulay audio player's controls fit (the
-   compact height clips them). The frame and the iframe both take the height class so
-   the placeholder box matches the player box exactly. */
+/* Per-format player heights. Named Birds media uses these; Species Detail's Recent
+   Media instead uses --recent for all three. Audio was a compact 116px preview until
+   v0.5.75: under .sr-media-frame's overflow:hidden that clipped the Macaulay audio
+   player's transport row, so a named bird's recording was visible but not playable.
+   It now matches photo/video at 230px — the height Species Detail live-verified at a
+   comparable tile width, which also lets mixed-format rows line up. The classes stay
+   SEPARATE even though three values now coincide: display height is a per-caller
+   choice (v0.5.71), so a future per-format tune must not become a two-surface change.
+   The frame and the iframe both take the height class so the placeholder box matches
+   the player box exactly. */
 .sr-media-iframe--photo,
 .sr-media-iframe--video { height: 230px; }
-.sr-media-iframe--audio { height: 116px; }
+.sr-media-iframe--audio { height: 230px; }
 .sr-media-iframe--recent { height: 230px; }
 
 /* User-disabled inline media. The surrounding .sr-media-frame supplies the
@@ -1335,12 +1339,16 @@ select:focus-visible {
   .sr-media-disabled-list { grid-template-columns: 1fr; }
   .sr-media-iframe { height: 360px; }
 
-  /* Named Birds media — taller single-column players on phones (design-spec:
-     photo/video 280px, audio 130px). The --audio/--photo/--video rules must win
-     over the base .sr-media-iframe 360px on phone, so re-state them here. */
+  /* Named Birds media — taller single-column players on phones (280px for every
+     format). Audio held a compact 130px here until v0.5.75; at one column a tile runs
+     the full panel and is WIDER than a desktop three-across tile, so the spectrogram
+     (which scales with width) makes the player taller here, not shorter. Undercutting
+     would clip the transport row at exactly the top of this tier. The
+     --audio/--photo/--video rules must win over the base .sr-media-iframe 360px on
+     phone, so re-state them here. */
   .sr-media-iframe--photo,
   .sr-media-iframe--video { height: 280px; }
-  .sr-media-iframe--audio { height: 130px; }
+  .sr-media-iframe--audio { height: 280px; }
   .sr-media-iframe--recent { height: 280px; }
 
   /* New layout hooks collapse to a single column on phones. */

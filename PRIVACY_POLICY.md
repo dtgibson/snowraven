@@ -43,7 +43,7 @@ When you tap "Use my location" — on the map, when setting a default location i
 
 The maps in SnowRaven are drawn using map tiles served by third-party providers. As you pan and zoom, your device requests the tiles for the area you are viewing directly from these providers — so, like any website that displays a map, they receive your IP address and which part of the map you are looking at. No SnowRaven server is involved, no API key or account is used, and the developer adds no tracking and keeps no copy. You choose which base map is active with the layer switcher, and only the active layers' tiles are requested. Tiles come from:
 
-- **OpenFreeMap** (`tiles.openfreemap.org`) — the default "Map" base map, served as vector tiles. The map's style, label fonts (glyphs), and icon sheet (sprite) are also fetched from OpenFreeMap. A free, keyless, community-run service; see [openfreemap.org](https://openfreemap.org/).
+- **OpenFreeMap** (`tiles.openfreemap.org`) — the default "Map" base map, served as vector tiles. The map's style definition is fetched from OpenFreeMap as well. The label fonts (glyphs) and icon sheet (sprite) are **not**: they ship inside the app and load from it directly, so no request for them leaves your device. A free, keyless, community-run service; see [openfreemap.org](https://openfreemap.org/).
 - **Esri** (`server.arcgisonline.com`) — the "Satellite" base map. See [Esri's privacy statement](https://www.esri.com/en-us/privacy/overview).
 - **USGS — The National Map** (`basemap.nationalmap.gov`) — the "Topo (US)" base map (United States only); a U.S. government service.
 - **Waymarked Trails** (`tile.waymarkedtrails.org`) — the optional "Trails" overlay. See [waymarkedtrails.org](https://hiking.waymarkedtrails.org/).

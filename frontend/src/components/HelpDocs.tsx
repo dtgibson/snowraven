@@ -4,6 +4,15 @@ import helpText from '../../../docs/HELP.md?raw'
 
 // ── TOC definition ────────────────────────────────────────────────────────────
 
+// One entry per `##` section in docs/HELP.md, IN THE SAME ORDER as the document —
+// all 16. (The `sub: true` rows are a deliberately selective handful of `###`
+// headings, not every one; HELP.md has 30+ and listing them all would bury the
+// sections.) The ids must match textToId() of the heading text, since that is what
+// the renderer stamps on each h2 and what the jump links target.
+//
+// Keep this in step with HELP.md: Calendar, Using SnowRaven offline, and Updating
+// SnowRaven each shipped as content but were never added here, so for several
+// versions they rendered in the body yet were unreachable from the sidebar.
 const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'getting-started',      label: 'Getting Started',        sub: false },
   { id: 'api-keys',             label: 'API Keys',               sub: false },
@@ -15,6 +24,7 @@ const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'weather',              label: 'Weather',                sub: false },
   { id: 'species-detail',       label: 'Species Detail',         sub: false },
   { id: 'statistics',           label: 'Statistics',             sub: false },
+  { id: 'calendar',             label: 'Calendar',               sub: false },
   { id: 'map-explorer',         label: 'Map Explorer',           sub: false },
   { id: 'multimedia',           label: 'Multimedia',             sub: false },
   { id: 'breeding-codes',       label: 'Breeding Codes',         sub: false },
@@ -22,6 +32,8 @@ const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'checklists',           label: 'Checklists',             sub: false },
   { id: 'list-comparer',        label: 'List Comparer',          sub: false },
   { id: 'settings',             label: 'Settings',               sub: false },
+  { id: 'using-snowraven-offline', label: 'Using SnowRaven offline', sub: false },
+  { id: 'updating-snowraven',   label: 'Updating SnowRaven',     sub: false },
 ]
 
 // ── Markdown renderer ─────────────────────────────────────────────────────────

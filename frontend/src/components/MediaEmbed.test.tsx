@@ -21,6 +21,7 @@ describe('MediaFrame — embed src + title', () => {
         title="Most recent Photo of Acorn Woodpecker"
         Icon={ImageIcon}
         heightClass="sr-media-iframe--photo"
+        compact={false}
       />,
     )
     const frame = document.querySelector('iframe')!
@@ -37,6 +38,7 @@ describe('MediaFrame — embed src + title', () => {
         title="Most recent Photo of Acorn Woodpecker"
         Icon={ImageIcon}
         heightClass="sr-media-iframe--photo"
+        compact={false}
       />,
     )
     expect(container.querySelector('iframe')).toBeNull()
@@ -49,7 +51,7 @@ describe('MediaFrame — non-destructive give-up + late-load recovery', () => {
     vi.useFakeTimers()
     try {
       render(
-        <MediaFrame embedAllowed catalogId="55" format="Photo" title="t" Icon={ImageIcon} heightClass="sr-media-iframe--photo" />,
+        <MediaFrame embedAllowed catalogId="55" format="Photo" title="t" Icon={ImageIcon} heightClass="sr-media-iframe--photo" compact={false} />,
       )
       const frame = document.querySelector('iframe')!
       // Before the deadline: no give-up overlay.
@@ -78,7 +80,7 @@ describe('MediaFrame — non-destructive give-up + late-load recovery', () => {
     vi.useFakeTimers()
     try {
       render(
-        <MediaFrame embedAllowed catalogId="56" format="Photo" title="t" Icon={ImageIcon} heightClass="sr-media-iframe--photo" />,
+        <MediaFrame embedAllowed catalogId="56" format="Photo" title="t" Icon={ImageIcon} heightClass="sr-media-iframe--photo" compact={false} />,
       )
       const frame = document.querySelector('iframe')!
       act(() => { vi.advanceTimersByTime(21000) })

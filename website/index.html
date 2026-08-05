@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 0.5.74">v0.5.74</span>
+        <span class="version-pill" aria-label="Version 0.5.75">v0.5.75</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -161,7 +161,7 @@
       <div class="container">
         <header class="section-head">
           <p class="eyebrow"><span class="dot"></span>What's inside</p>
-          <h2>Nine tools, one quiet workspace — and they work offline</h2>
+          <h2>Ten tools, one quiet workspace — and they work offline</h2>
           <p class="section-sub">Everything reads from the eBird and Macaulay Library exports you already have. No data entry, no busywork. Once your data has loaded, the tools keep working without a connection.</p>
         </header>
 
@@ -205,8 +205,12 @@
               Your complete history with any species. Sighting stats, breeding codes, the
               species you most often see it with, field notes, top locations (public eBird
               hotspots link to their hotspot page, wherever a location name appears in the app),
-              sightings-over-time graphs, a map of every observation, and your Macaulay
-              Library media, all in one view.
+              sightings-over-time graphs, and a map of every observation, all in one view.
+              A <strong>Recent Media</strong> section plays your most recent photo, audio
+              recording, and video of that species inline from the Macaulay Library, each with
+              its capture date, a link to the recording itself, and the checklist it came from.
+              If an embed is slow, blocked, or you are offline, it shows those same links in
+              place of a blank frame, and recovers on its own once you are back.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="species">
@@ -348,8 +352,11 @@
             <p>
               Every species you've recorded a breeding code for, laid out as a color-coded
               matrix across all eBird codes. Sort and filter by tier to see exactly where your
-              breeding evidence stands. On a phone the columns tighten to dot-width so more fit
-              at once, and you can pinch to zoom in on any part of the grid.
+              breeding evidence stands. An <strong>Unbounded</strong> toggle drops the table's
+              horizontal scroll constraint so a full row is visible at once rather than scrolling
+              within a fixed width. On a phone, in either view, the columns tighten to dot-width
+              so more fit at once, the species name stays fixed on the left as you scroll the
+              codes sideways, and you can pinch to zoom in on any part of the grid.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="breeding">
@@ -372,10 +379,11 @@
               last saw it, how long you've followed it, how many times, and each checklist
               it appears on, with its location and a map of everywhere that bird has been
               seen. If you've saved your Macaulay Library export too, each individual also
-              gathers its own photos, audio, and video — the assets whose own caption or
-              media note carries that same name tag — as inline players from the Macaulay
-              Library, each labeled with its date and checklist. Named birds also surface
-              per-species on Species Detail.
+              gathers its own photos, audio, and video as inline players from the Macaulay
+              Library, each labeled with its date and checklist. An asset's own caption or
+              media note wins if it carries a name tag; otherwise the species comment you
+              tagged is used, so the media from a tagged observation is attributed without
+              captioning every file. Named birds also surface per-species on Species Detail.
             </p>
             <p>
               Prefer no inline players? Turn on <strong>Disable embedded media</strong> in
@@ -620,7 +628,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v0.5.74 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v0.5.75 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

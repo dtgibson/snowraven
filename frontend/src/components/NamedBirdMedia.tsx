@@ -220,13 +220,20 @@ function NamedBirdMediaItem({ asset, birdName, open, embedAllowed, index }: {
             // No embeddable id, or offline → the fallback (never a broken frame).
             // Offline is keyed by `online`, so coming back online remounts the frame
             // fresh and re-attempts — event-driven recovery, no setState-in-effect.
-            <MediaFallback catalogId={asset.catalogId} format={asset.format} compact={asset.format === 'Audio'} />
+            // compact={false} on BOTH this and the MediaFrame below: `compact` existed
+            // only because the 116px audio tile had no room for a sentence. At 230px
+            // (v0.5.75) an icon floating in a tall empty box reads as broken, so audio
+            // takes the full fallback like photo/video. These are the TWO paths — the
+            // offline placeholder here and the give-up/failed overlay inside MediaFrame
+            // — and fixing one without the other gives the same tile a message in one
+            // failure mode and not the other.
+            <MediaFallback catalogId={asset.catalogId} format={asset.format} compact={false} />
           ) : wantEmbed ? (
             // Keyed on `online` so an offline→online flip remounts a FRESH frame with
             // clean latch state (the recovery path). The frame keeps its iframe
             // MOUNTED through a give-up timeout — the timeout only overlays a fallback,
             // so a late onLoad still swaps the real embed in.
-            <MediaFrame key={online ? 'online' : 'offline'} catalogId={asset.catalogId} format={asset.format} title={title} Icon={Icon} heightClass={heightClass} embedAllowed />
+            <MediaFrame key={online ? 'online' : 'offline'} catalogId={asset.catalogId} format={asset.format} title={title} Icon={Icon} heightClass={heightClass} embedAllowed compact={false} />
           ) : (
             // Open but not yet in view (or waiting to mount): the loading shimmer.
             <MediaShimmer Icon={Icon} />

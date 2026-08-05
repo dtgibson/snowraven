@@ -50,15 +50,22 @@ describe('computeNamedBirdMedia — matching (FR-01..FR-04)', () => {
     expect(map.get(namedBirdKey('Pete', 'Mallard'))?.map(a => a.catalogId)).toEqual(['11'])
   })
 
-  it('does NOT match a tag that appears only in observationDetails (the crux)', () => {
+  // REVERSED in v0.5.75. This used to assert map.size === 0 ("the crux"), which was
+  // exactly the defect: computeNamedBirds discovers an individual by parsing
+  // [name:…] out of this same field, so excluding it here meant the tag that CREATES
+  // a named bird could never attribute its media. Every one of the reporting user's
+  // 15 assets was tagged only here, with caption and mediaNotes empty.
+  it('DOES match a tag that appears only in observationDetails (the v0.5.75 fallback)', () => {
     const map = computeNamedBirdMedia([
       row({ catalogId: '12', caption: '', mediaNotes: '', observationDetails: '[name:Copied]' }),
     ])
-    expect(map.size).toBe(0)
+    expect(ids(map, namedBirdKey('Copied', 'Mallard'))).toEqual(['12'])
   })
 
-  it('a row with no [name:…] in caption+mediaNotes matches nothing', () => {
-    const map = computeNamedBirdMedia([row({ catalogId: '13', caption: 'nice light', mediaNotes: 'handheld' })])
+  it('a row with no [name:…] in caption, mediaNotes, OR observationDetails matches nothing', () => {
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '13', caption: 'nice light', mediaNotes: 'handheld', observationDetails: 'two birds, distant' }),
+    ])
     expect(map.size).toBe(0)
   })
 
@@ -101,6 +108,94 @@ describe('computeNamedBirdMedia — matching (FR-01..FR-04)', () => {
     ])
     expect(ids(map, namedBirdKey('A', 'Mallard')).sort()).toEqual(['50', '52'])
     expect(ids(map, namedBirdKey('B', 'Mallard'))).toEqual(['51'])
+  })
+})
+
+// ── The v0.5.75 precedence rule ───────────────────────────────────────────────
+//
+// Per row: the asset's OWN comment (caption + mediaNotes) is the authority. Only
+// when it names nobody does the row fall back to observationDetails (the eBird
+// species comment). The two sets are NEVER merged — that is the difference between
+// a caption CORRECTING a broader observation tag and merely adding to it, and it is
+// the property most at risk from a well-meaning future "why not both?" edit.
+describe('computeNamedBirdMedia — caption/observation precedence (v0.5.75)', () => {
+  it('the asset\'s own comment WINS: a conflicting observation tag is not consulted', () => {
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '70', caption: '[name:Pilgrim]', observationDetails: '[name:Winky]' }),
+    ])
+    // Precedence, not union: Winky must NOT appear at all.
+    expect(keysOf(map)).toEqual([namedBirdKey('Pilgrim', 'Mallard')])
+    expect(ids(map, namedBirdKey('Pilgrim', 'Mallard'))).toEqual(['70'])
+    expect(map.has(namedBirdKey('Winky', 'Mallard'))).toBe(false)
+  })
+
+  it('mediaNotes alone also outranks observationDetails', () => {
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '71', caption: '', mediaNotes: '[name:Pilgrim]', observationDetails: '[name:Winky]' }),
+    ])
+    expect(keysOf(map)).toEqual([namedBirdKey('Pilgrim', 'Mallard')])
+  })
+
+  it('falls back to observationDetails only when caption AND mediaNotes name nobody', () => {
+    // Non-empty but untagged per-asset text must still fall through — "has text" is
+    // not the trigger, "names someone" is.
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '72', caption: 'backlit, 400mm', mediaNotes: 'cropped', observationDetails: 'with [name:Winky]' }),
+    ])
+    expect(ids(map, namedBirdKey('Winky', 'Mallard'))).toEqual(['72'])
+  })
+
+  it('one tagged observation attributes ALL of its uncaptioned assets', () => {
+    // The reporting user's shape: several assets, one observation, tag only there.
+    const obs = 'foraging with [name:Winky]'
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '80', observationDetails: obs, date: '2024-06-01' }),
+      row({ catalogId: '81', observationDetails: obs, date: '2024-06-01', format: 'Audio' }),
+      row({ catalogId: '82', observationDetails: obs, date: '2024-06-01', format: 'Video' }),
+    ])
+    expect(ids(map, namedBirdKey('Winky', 'Mallard')).sort()).toEqual(['80', '81', '82'])
+  })
+
+  it('a TWO-name observation attributes each uncaptioned asset to BOTH individuals', () => {
+    // The honest superset when the data cannot say which bird an asset shows. The
+    // fallback must NOT be suppressed here — doing so would blank exactly the
+    // birders who tag the most.
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '90', observationDetails: '[name:Winky] and [name:Pilgrim] together' }),
+    ])
+    expect(keysOf(map)).toEqual([
+      namedBirdKey('Pilgrim', 'Mallard'),
+      namedBirdKey('Winky', 'Mallard'),
+    ].sort())
+    expect(ids(map, namedBirdKey('Winky', 'Mallard'))).toEqual(['90'])
+    expect(ids(map, namedBirdKey('Pilgrim', 'Mallard'))).toEqual(['90'])
+  })
+
+  it('a captioned asset opts OUT of its two-name observation entirely', () => {
+    // The birder's explicit override: caption the one asset you can attribute.
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '91', caption: '[name:Pilgrim]', observationDetails: '[name:Winky] and [name:Pilgrim]' }),
+      row({ catalogId: '92', observationDetails: '[name:Winky] and [name:Pilgrim]' }),
+    ])
+    // 91 is Pilgrim's only; 92 (uncaptioned) is still shared by both.
+    expect(ids(map, namedBirdKey('Pilgrim', 'Mallard')).sort()).toEqual(['91', '92'])
+    expect(ids(map, namedBirdKey('Winky', 'Mallard'))).toEqual(['92'])
+  })
+
+  it('the fallback is still species-scoped (no cross-attribution via observationDetails)', () => {
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '93', commonName: 'Mallard', observationDetails: '[name:Pete]' }),
+      row({ catalogId: '94', commonName: 'Canada Goose', observationDetails: '[name:Pete]' }),
+    ])
+    expect(ids(map, namedBirdKey('Pete', 'Mallard'))).toEqual(['93'])
+    expect(ids(map, namedBirdKey('Pete', 'Canada Goose'))).toEqual(['94'])
+  })
+
+  it('dedupes within a bird when the fallback names the same individual twice', () => {
+    const map = computeNamedBirdMedia([
+      row({ catalogId: '95', observationDetails: '[name:Winky] then [name:winky] again' }),
+    ])
+    expect(ids(map, namedBirdKey('Winky', 'Mallard'))).toEqual(['95'])
   })
 })
 

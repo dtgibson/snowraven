@@ -1,0 +1,57 @@
+# Change Brief — Named Birds Audio Tiles and Docs Sweep
+
+## What is changing
+
+Three parts in one run (Half 3 added at re-entry; Half 1 and Half 2 keep their numbering).
+
+**Half 1 — Named Birds audio tile height.** `MEDIA_FORMAT_META` (`frontend/src/lib/mediaEmbed.ts`) maps Audio to `.sr-media-iframe--audio`, which `globals.css:719/1343` sizes at 116px desktop / 130px phone. Under `.sr-media-frame`'s `overflow: hidden` that clips the Macaulay audio player's transport controls, so a named bird's audio is visible but not playable. Named Birds is the *only* consumer of the per-format classes (Species Detail's `RecentMediaEmbed` hardcodes `--recent`, 230/280px, for all three formats). Change is a height decision in `globals.css` plus, if the tile grows, the coupled `compact` fallback density in `NamedBirdMedia.tsx:223` (currently `asset.format === 'Audio'` → icon-only, no offline message).
+
+**Half 2 — docs and website corrections.** Audited `docs/HELP.md`, `README.md`, `website/`, `PRIVACY_POLICY.md`, `ACCESSIBILITY.md`, `CHANGELOG.md` against shipped 0.5.74. Twelve findings, listed in `## What done looks like`.
+
+**Half 3 — Named Birds media matching (added at re-entry).** `computeNamedBirdMedia` (`frontend/src/lib/namedBirdMedia.ts`) reads `[name:…]` tags from `caption` + `mediaNotes` only and excludes `observationDetails`, so it matches nothing for a birder who tags an individual the ordinary way, in the species comment. Verified on the user's own export: two named individuals, all 15 assets present, the tag on every one of them living only in `observationDetails`, with `caption` and `mediaNotes` empty on all 15. The fix is a per-row **precedence, not a union**: parse `caption` + `mediaNotes` (newline-joined, as today); if that yields any name, those are the row's names and `observationDetails` is not consulted for that row; only when it yields none does the row fall back to `observationDetails`. Precedence rather than union so a per-asset caption *corrects* a broader observation tag instead of being added to it. Nothing else in the function moves: the `namedBirdKey(name, row.commonName)` bucketing, the per-bird catalogId dedupe, the newest-first sort, and its purity all stand. `observationDetails` is already parsed into `MLExportRow` and already in `mlExportCache`, so the match stays fully offline and adds no network, no new column, and no new parse.
+
+**What the fallback means.** Every asset from a name-tagged observation that has no per-asset comment attributes to that name. For one named individual, one species, one checklist — the common case and the user's own — that is correct, not over-attribution: the tag is scoped to that observation and those assets are that observation's. It over-attributes only when a birder photographs a *different, untagged* bird of the same species on the same checklist; that asset then appears under the named individual. Acceptable, because the scope is one species on one checklist rather than the whole checklist, the birder has an explicit override the precedence rule honors (caption the asset), and the alternative is what ships today: a guaranteed empty state for everyone who tags the ordinary way. When one observation names two individuals, both get all of its uncaptioned assets — the honest superset when the data does not say which is which. Do **not** suppress the fallback on multi-name observations; that would blank exactly the birders who tag the most.
+
+**Explicitly NOT changing:** the `namedBirdKey` join and its parity test, `computeNamedBirds` (no new individuals are discovered — the matcher only attaches assets to keys that already exist), `parseNameTags` and its linear `{0,120}` bound, `mediaComments.ts`'s own `observationDetails` exclusion (see Decisions touched), the non-destructive frame/overlay contract, the `useOnline` remount recovery, the embedded-media eligibility gate, the initial-6 reveal cap, `MediaFrame`'s shared logic, and Species Detail's shipped `--recent` height.
+
+## Why now
+
+Half 1 is the explicit "On the Horizon" follow-on at `ROADMAP.md:143`, opened by the v0.5.71 live review that fixed the identical clipping on Species Detail and deliberately left Named Birds for a targeted pass. Half 2 is the user's direct request to confirm the documentation and public site are accurate. v0.5.74 (offline maps retired) swept its own surface cleanly, but the audit found real drift predating it, including four outright errors, one of which renders 28 literal `--` sequences in the shipped in-app Help.
+
+Half 3 came out of the live desktop preview before the deploy sign-off. Half 1 fixes an audio tile the user cannot see, because on their machine no media matches at all, so shipping the height on its own would ship a fix nobody can observe. The user chose to fold the matching repair into this release rather than defer it.
+
+## User-facing impact
+
+Yes, on all three parts.
+
+Half 1: a named bird's audio embeds become playable rather than a clipped preview, and Named Birds cards get taller wherever audio is present. Half 2: the in-app Help sidebar gains three entries that currently exist as content but are unreachable from the table of contents (Calendar, Using SnowRaven offline, Updating SnowRaven); Help prose stops showing stray `--`; the website's tool count and several feature descriptions become correct; the privacy policy stops claiming map glyphs and sprites are fetched from OpenFreeMap when they ship bundled and same-origin.
+
+Half 3: named individuals that showed "No media matched to this bird." now show their photos, audio, and video, for every birder who tags in the species comment rather than per asset. Nothing that matched before stops matching, because the asset's own comment still wins. On the user's own data this goes from zero matched assets to fifteen, which is also what makes Half 1's audio height observable at all.
+
+## Design pass
+
+**Needed** (already run and approved; not revisited).
+
+Surface: the Named Birds tab's expanded-card media grid (`.sr-media-grid`, three across on desktop, one column at ≤640). What should feel better: an audio tile whose controls are reachable, without the dense multi-item grid losing the scannability that made the compact per-format sizing deliberate in the first place. The real judgment is whether audio adopts Species Detail's uniform `--recent` height so all three formats align as matching tiles (consistent, but a bird with many audio assets grows a lot taller), or takes a smaller purpose-built height that clears the player chrome and keeps the grid dense. Coupled to that: whether the audio fallback stays `compact` (icon and link only) or gains its message at the new height, and what the phone-tier value becomes. That is look-and-feel on an existing surface, which is Designer territory.
+
+Half 3 is matching logic with **no visual change** — the same grid, tiles, empty state, and approved heights render, only with content where there was none — so it needs no further design work.
+
+## Decisions touched
+
+- **v0.5.71, Species Detail Recent Media (`DECISIONS.md:84`) — MODIFIED, not reversed.** Its Implications state Named Birds "keeps its shipped compact grid" and name the 116px clipping as "a possible follow-on." This run takes that follow-on. The underlying principle survives intact: resilience logic is shared, display height stays a per-caller choice.
+- **v0.5.66, Named Birds Media (`DECISIONS.md:166`) — MODIFIED, one clause reversed.** Its first decision matches a named bird's media from the asset's own `caption` + `mediaNotes` and **excludes** `observationDetails`, reasoning that the ML export copies the observation comment onto every asset from that observation. That reasoning is factually true, but it grouped `observationDetails` with the checklist comment, which is far broader: the observation comment is scoped to one species on one checklist. The exclusion is reversed **as a fallback only**. The decision's core survives and is strengthened into explicit precedence: the asset's own comment is the authority, the join is the shared `namedBirdKey`, and matching stays offline and pure. The non-destructive overlay half of v0.5.66 is untouched apart from the `compact` fallback density for audio.
+- **`mediaComments.ts`'s own exclusion — UNCHANGED, and now deliberately different.** The Multimedia tab's Media Comments section *lists comments*, where including the observation comment would repeat identical text across every asset from an observation. The Named Birds matcher answers a different question — which assets show this individual — for which a species-and-checklist-scoped tag is a legitimate signal. The two field selections are being split on purpose, so `CLAUDE.md`'s Bird-names rule ("read the asset's own comment, exclude `observationDetails`") must be rewritten to say why they differ, or a later change will quietly re-unify them.
+- **v0.5.72, Disable embedded media (`DECISIONS.md:31`) — CONSTRAINT, unchanged.** The fail-closed gate and `MediaFrame`-as-sole-iframe-constructor must survive any height work.
+- **v0.5.45 offline support (`DECISIONS.md:479`) — CORRECTION.** It recorded that the privacy policy "now enumerates every tile/style/glyph/sprite host." `BUNDLED_MAP_ASSETS` is `true` in shipped code (`mapStyle.ts:117`) and v0.5.74 confirms bundled glyphs and sprites, so `PRIVACY_POLICY.md:46` is now over-disclosing. Correcting the statement, not reversing the decision.
+
+## What done looks like
+
+Half 3: on the user's real data in the live desktop app, both named individuals show their matched media instead of "No media matched to this bird.", with Half 1's audio tiles playable in the same pass. A per-asset caption still wins over a conflicting observation tag on the same row. No named individual appears or disappears, and no asset lands under a same-named bird of a different species — the `namedBirdKey` parity test still passes byte-identical. New unit cases cover caption-wins, observation fallback when caption and media notes are empty, an observation naming two individuals, several assets on one tagged observation, and no tag anywhere. The rule is corrected wherever it is documented as caption-only: `docs/HELP.md:390`, `README.md:18`, `website/index.html:382`, and the `CLAUDE.md` Bird-names bullet.
+
+Half 1: a Named Birds audio embed's play control is fully visible and clickable at desktop and at ≤640, verified in the live desktop app against real data, with photo and video tiles unchanged and no layout shift between shimmer, player, and fallback.
+
+Half 2, the audit findings closed:
+- **Errors:** Help TOC restored to all 16 sections (`HelpDocs.tsx:7-25`); the 28 literal `--` in `docs/HELP.md` replaced per context, not blind-deleted; `docs/HELP.md:74` ML-export list adds Named Birds; `website/index.html:164` "Nine tools" corrected to ten.
+- **Stale:** `PRIVACY_POLICY.md:46` glyph/sprite clause; `ACCESSIBILITY.md:15` counties panel described pre-Completeness.
+- **Incomplete:** Breeding Codes "Unbounded" view in README and website; Species Detail Recent Media on the website; `ACCESSIBILITY.md` gains Use Textures (naming that it is off by default), the embedded-media switch, Calendar, and the Breeding Codes phone matrix.
+- **Out of scope, flagged:** `website/assets/shots/` is frozen at v0.5.23, 51 versions stale. Regenerating needs the synthetic-demo-data and Playwright toolchain in `website/tools/` against a running app, which is its own job rather than a ride-along on a copy sweep.

@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>SnowRaven — Named Birds audio tiles</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   SnowRaven design tokens — copied verbatim from frontend/src/globals.css
+   (:root and [data-theme="dark"]). Only the subset this mockup uses.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* The app's own type token. SnowRaven's design system locks the family
+     (design-system.md → Type), and the app declares it exactly this way:
+     a --font-sans custom property consumed via font-family: var(--font-sans). */
+  --sr-font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-accent-rgb: 39,116,72;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-error-border: #FECACA;
+
+  --sr-warning: #92400E;
+  --sr-warning-bg: #FFFBEB;
+  --sr-warning-subtle: #FDE68A;
+
+  /* Mockup-chrome only (never shipped): the annotation layer that marks the cut. */
+  --mk-rule: var(--sr-error);
+  --mk-ghost: rgba(211,31,31,0.07);
+}
+
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-accent-rgb: 52,211,153;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-error-border: #7F1D1D;
+
+  --sr-warning: #FDE68A;
+  --sr-warning-bg: #1C1002;
+  --sr-warning-subtle: #78350F;
+
+  --mk-ghost: rgba(248,113,113,0.10);
+}
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--sr-font-sans);
+  color: var(--sr-text);
+  line-height: 1.6;
+  /* Mockup chrome has atmosphere; the simulated app region below uses the flat
+     --sr-bg the app actually paints, so nothing here misrepresents the product. */
+  background:
+    radial-gradient(1100px 520px at 10% -10%, rgba(var(--sr-accent-rgb),0.09), transparent 62%),
+    radial-gradient(780px 440px at 94% 2%, rgba(var(--sr-accent-rgb),0.06), transparent 64%),
+    var(--sr-bg);
+  background-attachment: fixed;
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+h1, h2, h3, p, ul, ol, figure { margin: 0; }
+button { font: inherit; color: inherit; }
+a { color: var(--sr-accent); }
+
+:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Typography roles ──────────────────────────────────────────────────── */
+.display {
+  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.375rem);
+  font-weight: 700;
+  letter-spacing: -0.028em;
+  line-height: 1.08;
+}
+.h2 {
+  font-size: 1.3125rem;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+}
+.h3 { font-size: 1rem; font-weight: 700; letter-spacing: -0.005em; }
+.body { font-size: 0.9375rem; line-height: 1.62; color: var(--sr-text-muted); }
+.body strong { color: var(--sr-text); font-weight: 600; }
+.label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--sr-text-muted);
+}
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── Page header ───────────────────────────────────────────────────────── */
+.masthead { padding: 44px 0 30px; border-bottom: 1px solid var(--sr-border); }
+.masthead .kicker {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--sr-accent);
+  background: var(--sr-accent-bg);
+  border: 1px solid var(--sr-accent-border);
+  border-radius: 999px; padding: 4px 11px 4px 9px;
+  margin-bottom: 16px;
+}
+.masthead .lede { max-width: 62ch; margin-top: 14px; }
+
+/* ── Control bar ───────────────────────────────────────────────────────── */
+.controls {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--sr-bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--sr-border);
+  margin-top: 26px;
+}
+.controls-inner {
+  display: flex; flex-wrap: wrap; gap: 14px 22px;
+  align-items: center; padding: 11px 24px;
+  max-width: 1240px; margin: 0 auto;
+}
+.ctl-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ctl-group > .label { flex-shrink: 0; }
+.seg {
+  display: inline-flex; padding: 3px; gap: 3px;
+  background: var(--sr-surface-subtle);
+  border: 1px solid var(--sr-border);
+  border-radius: 9px;
+}
+.seg button {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 30px; padding: 0 11px;
+  border: 0; border-radius: 7px; background: transparent;
+  color: var(--sr-text-muted);
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  transition: background-color 140ms ease-out, color 140ms ease-out;
+}
+.seg button:hover { color: var(--sr-text); }
+.seg button[aria-pressed="true"] {
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  box-shadow: var(--sr-card-shadow);
+}
+.switchy {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 32px; padding: 0 13px 0 11px;
+  border: 1.5px solid var(--sr-border-medium);
+  border-radius: 8px; background: transparent;
+  font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  color: var(--sr-text);
+  transition: border-color 140ms ease-out, background-color 140ms ease-out, color 140ms ease-out;
+}
+.switchy[aria-pressed="true"] {
+  border-color: var(--sr-accent-border);
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+}
+
+/* ── Sections ──────────────────────────────────────────────────────────── */
+section { padding: 52px 0 8px; }
+.sec-head { max-width: 70ch; margin-bottom: 24px; }
+.sec-head .label { display: block; margin-bottom: 9px; }
+.sec-head .body { margin-top: 10px; }
+
+.rule-heading {
+  display: flex; align-items: baseline; gap: 14px;
+  margin: 40px 0 18px;
+}
+.rule-heading::after {
+  content: ""; flex: 1; height: 1px; background: var(--sr-border);
+}
+
+/* App-surface framing: everything inside is the real product, at real tokens. */
+/* A flat device frame, deliberately NOT elevated: the only card in here is the
+   app's own Named Birds card, and stacking two shadows would nest elevation. */
+.stage-shell {
+  border: 1px solid var(--sr-border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--sr-bg);
+}
+.stage-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  padding: 8px 14px;
+  background: var(--sr-surface-faint);
+  border-bottom: 1px solid var(--sr-border);
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.stage-bar .tag {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: none; color: var(--sr-text-gray);
+}
+.stage-pad { padding: 22px; }
+.stage {
+  margin: 0 auto;
+  transition: max-width 200ms ease-out;
+}
+.stage[data-view="desktop"] { max-width: 1160px; }
+.stage[data-view="wide"]    { max-width: 620px; }
+.stage[data-view="phone"]   { max-width: 390px; }
+/* The hero tiles are stages too (so they pick up the tier's heights), but they
+   are single tiles: cap them at the real tile width for the chosen tier. */
+.ab-tile[data-view="desktop"] { max-width: 346px; }
+.ab-tile[data-view="wide"]    { max-width: 576px; }
+.ab-tile[data-view="phone"]   { max-width: 346px; }
+
+/* ═══ The Named Birds card (frontend/src/components/NamedBirdRow.tsx) ═══ */
+.nb-card {
+  border: 1px solid var(--sr-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--sr-surface);
+  box-shadow: var(--sr-card-shadow);
+}
+.nb-head { padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+.nb-head .nb-name { font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.005em; }
+.nb-head .nb-sp { font-size: 0.8125rem; color: var(--sr-text-muted); }
+.nb-head .nb-sci { font-size: 0.71875rem; font-style: italic; color: var(--sr-text-gray); }
+.nb-head .nb-count {
+  margin-left: auto; font-size: 0.71875rem; color: var(--sr-text-gray); white-space: nowrap;
+}
+.nb-panel { border-top: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+.nb-quote {
+  margin: 12px 14px 0; padding: 8px 11px;
+  border-left: 3px solid var(--sr-accent-border);
+  background: var(--sr-quote-bg, var(--sr-surface-subtle));
+  border-radius: 0 7px 7px 0;
+  font-size: 0.78125rem; color: var(--sr-text-muted); line-height: 1.5;
+}
+.nb-omit {
+  margin: 12px 14px 0; font-size: 0.71875rem; font-style: italic;
+  color: var(--sr-text-gray);
+}
+.nb-media { padding: 12px 14px 14px; border-top: 1px solid var(--sr-border-subtle); }
+.nb-media-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.nb-media-head .marker {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.nb-media-head .count {
+  margin-left: auto; font-size: 0.6875rem; color: var(--sr-text-gray); white-space: nowrap;
+}
+
+/* ═══ Media grid + frame (frontend/src/globals.css .sr-media-*) ═══════════ */
+.sr-media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.stage[data-view="wide"]  .sr-media-grid,
+.stage[data-view="phone"] .sr-media-grid { grid-template-columns: 1fr; }
+
+.sr-media-item { min-width: 0; }
+
+.sr-media-frame {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--sr-border);
+  border-radius: 9px;
+  background: var(--sr-surface);
+  overflow: hidden;
+  container-type: inline-size;
+  transition: height 220ms ease-out;
+}
+
+/* Desktop tier (>640) — the shipped values, then the refinement. */
+.sr-media-frame.is-photo,
+.sr-media-frame.is-video { height: 230px; }
+.sr-media-frame.is-audio[data-mode="today"]   { height: 116px; }
+.sr-media-frame.is-audio[data-mode="refined"] { height: 230px; }
+
+/* Phone tier (≤640, one column). Simulated here with a stage attribute because
+   this page renders three viewports at once; the real rule is a media query. */
+.stage[data-view="wide"]  .sr-media-frame.is-photo,
+.stage[data-view="wide"]  .sr-media-frame.is-video,
+.stage[data-view="phone"] .sr-media-frame.is-photo,
+.stage[data-view="phone"] .sr-media-frame.is-video { height: 280px; }
+.stage[data-view="wide"]  .sr-media-frame.is-audio[data-mode="today"],
+.stage[data-view="phone"] .sr-media-frame.is-audio[data-mode="today"] { height: 130px; }
+.stage[data-view="wide"]  .sr-media-frame.is-audio[data-mode="refined"],
+.stage[data-view="phone"] .sr-media-frame.is-audio[data-mode="refined"] { height: 280px; }
+
+/* Meta row beneath every tile — identical in both modes and every state. */
+.sr-media-meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 8px; min-width: 0;
+}
+.sr-media-meta .fmt {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--sr-text-muted); flex-shrink: 0;
+}
+.sr-media-meta .date {
+  font-size: 0.75rem; font-weight: 600; color: var(--sr-text); white-space: nowrap;
+}
+.sr-media-meta .dot { font-size: 0.75rem; color: var(--sr-text-disabled); flex-shrink: 0; }
+.sr-media-meta a {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 0.75rem; font-weight: 600; color: var(--sr-accent);
+  text-decoration: none; white-space: nowrap;
+}
+.sr-media-meta a:hover { text-decoration: underline; }
+
+/* ═══ Simulated Macaulay Library player ═══════════════════════════════════
+   NOT a live embed (this file makes no network requests). The band heights
+   model the real player: a spectrogram that scales with tile width, a fixed
+   timeline preview strip, and a fixed transport row. See design-refinement.md
+   → Interaction Notes for the exact modelled numbers and their caveat.        */
+.ml-player {
+  position: absolute; inset: 0 0 auto 0;
+  display: flex; flex-direction: column;
+  background: var(--sr-surface);
+}
+.ml-spec {
+  height: clamp(104px, 34cqi, 168px);
+  flex: none;
+  position: relative;
+  background:
+    linear-gradient(180deg, var(--sr-surface-subtle), var(--sr-surface-faint));
+  border-bottom: 1px solid var(--sr-border-subtle);
+  overflow: hidden;
+}
+.ml-spec svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ml-spec .cursor {
+  position: absolute; top: 0; bottom: 0; left: 26%;
+  width: 1.5px; background: var(--sr-accent);
+}
+.ml-spec .badge {
+  position: absolute; left: 8px; top: 7px;
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-gray);
+  background: color-mix(in srgb, var(--sr-surface) 78%, transparent);
+  border-radius: 4px; padding: 2px 6px;
+}
+.ml-timeline {
+  height: 42px; flex: none;
+  position: relative;
+  padding: 7px 10px;
+  background: var(--sr-surface-faint);
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.ml-timeline .mini {
+  position: absolute; inset: 7px 10px;
+  border-radius: 3px; overflow: hidden;
+  background: var(--sr-surface-subtle);
+}
+.ml-timeline .mini svg { width: 100%; height: 100%; display: block; }
+.ml-timeline .window {
+  position: absolute; top: 5px; bottom: 5px; left: 16%; width: 30%;
+  border: 1.5px solid var(--sr-accent);
+  border-radius: 4px;
+  background: rgba(var(--sr-accent-rgb), 0.10);
+}
+.ml-transport {
+  height: 52px; flex: none;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 11px;
+  background: var(--sr-surface);
+}
+.ml-play {
+  width: 30px; height: 30px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%;
+  background: var(--sr-accent); color: var(--sr-on-accent);
+  cursor: pointer;
+  transition: background-color 140ms ease-out;
+}
+.ml-play:hover { background: var(--sr-accent-strong); }
+.ml-track {
+  flex: 1; min-width: 0; height: 4px; border-radius: 2px;
+  background: var(--sr-border-medium); position: relative;
+}
+.ml-track i { position: absolute; inset: 0 74% 0 0; border-radius: 2px; background: var(--sr-accent); }
+.ml-track b {
+  position: absolute; top: 50%; left: 26%;
+  width: 10px; height: 10px; margin: -5px 0 0 -5px;
+  border-radius: 50%; background: var(--sr-accent);
+  box-shadow: 0 1px 2px rgba(9,9,11,0.28);
+}
+.ml-time {
+  flex: none; font-size: 0.6875rem; font-weight: 600;
+  color: var(--sr-text-muted); font-variant-numeric: tabular-nums;
+}
+.ml-vol { flex: none; color: var(--sr-text-muted); display: inline-flex; }
+.ml-mark {
+  flex: none; font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--sr-text-gray);
+}
+.stage[data-view="phone"] .ml-mark { display: none; }
+
+/* Photo / video stand-ins. This file embeds no Macaulay media, so rather than
+   fake a photograph these are honest placeholders at the exact tile footprint:
+   the format icon, the asset id, and (for video) the real transport bar. */
+.ml-still {
+  position: absolute; inset: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 9px;
+  color: var(--sr-text-disabled);
+  background:
+    repeating-linear-gradient(135deg,
+      rgba(var(--sr-accent-rgb),0.055) 0 9px,
+      transparent 9px 18px),
+    var(--sr-surface-subtle);
+}
+.ml-still .cap {
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ml-vidbar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 40px;
+  display: flex; align-items: center; gap: 9px; padding: 0 11px;
+  background: linear-gradient(180deg, transparent, rgba(9,9,11,0.62));
+}
+.ml-vidbar .ml-play { width: 24px; height: 24px; }
+.ml-vidbar .ml-track { background: rgba(244,244,245,0.4); }
+.ml-vidbar .ml-time { color: #F4F4F5; }
+
+/* ═══ Loading / fallback / disabled states ═══════════════════════════════ */
+.sr-media-shimmer {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sr-text-disabled);
+  background: linear-gradient(100deg,
+    var(--sr-surface-subtle) 30%, var(--sr-surface-faint) 50%, var(--sr-surface-subtle) 70%);
+  background-size: 200% 100%;
+  animation: sr-media-shimmer-sweep 1.4s ease-in-out infinite;
+}
+@keyframes sr-media-shimmer-sweep {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+.sr-media-fallback {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px; padding: 10px 12px; text-align: center;
+  background: var(--sr-surface-subtle);
+}
+.sr-media-fallback.compact { gap: 6px; }
+.sr-media-fallback .msg {
+  font-size: 0.72rem; color: var(--sr-text-muted); line-height: 1.4;
+}
+.sr-media-fallback .pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; font-weight: 600; color: var(--sr-accent);
+  text-decoration: none;
+  border: 1.5px solid var(--sr-accent-border);
+  border-radius: 7px; padding: 5px 10px;
+  background: var(--sr-accent-bg);
+}
+.sr-media-fallback svg { color: var(--sr-text-muted); }
+
+.sr-media-disabled {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  padding: 24px; text-align: center;
+  color: var(--sr-text-muted); background: var(--sr-surface-faint);
+  font-size: 0.8125rem; font-weight: 600; line-height: 1.45;
+  animation: sr-media-disabled-settle 180ms ease-out both;
+}
+.sr-media-disabled .ring {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--sr-text-muted); background: var(--sr-surface);
+  border: 1px solid var(--sr-border-medium); border-radius: 50%;
+}
+@keyframes sr-media-disabled-settle {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══ Mockup annotation layer (never ships) ══════════════════════════════ */
+.annot-frame { position: relative; transition: padding-bottom 220ms ease-out; }
+.cutline {
+  position: absolute; left: -6px; right: -6px;
+  height: 0; border-top: 2px dashed var(--mk-rule);
+  pointer-events: none; z-index: 4;
+}
+.cutline span {
+  position: absolute; right: 0; top: -9px;
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.05em;
+  color: var(--sr-error); background: var(--sr-error-bg);
+  border: 1px solid var(--sr-error-border);
+  border-radius: 5px; padding: 1px 6px;
+  font-variant-numeric: tabular-nums;
+}
+/* Nothing is being cut: the rule marks the frame's edge, it is not a warning. */
+.cutline.ok { border-top-color: var(--sr-accent-border); border-top-style: solid; }
+.cutline.ok span {
+  color: var(--sr-accent); background: var(--sr-accent-bg);
+  border-color: var(--sr-accent-border);
+}
+/* "Reveal what's clipped": the frame keeps its real height but stops hiding
+   the overflow, and the region past the cut is ghosted. */
+.sr-media-frame.reveal { overflow: visible; }
+.sr-media-frame.reveal .ml-player { z-index: 2; }
+.sr-media-frame.reveal .below {
+  position: absolute; left: -1px; right: -1px; z-index: 1;
+  border: 1px dashed var(--sr-error-border);
+  border-top: 0; border-radius: 0 0 9px 9px;
+  background: var(--mk-ghost);
+  pointer-events: none;
+}
+.sr-media-frame:not(.reveal) .below { display: none; }
+
+.readout {
+  display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 10px; font-size: 0.75rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.readout .chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--sr-border); background: var(--sr-surface);
+  font-weight: 600;
+}
+.readout .chip.bad { color: var(--sr-error); border-color: var(--sr-error-border); background: var(--sr-error-bg); }
+.readout .chip.good { color: var(--sr-accent); border-color: var(--sr-accent-border); background: var(--sr-accent-bg); }
+
+/* ═══ Hero A/B ═══════════════════════════════════════════════════════════ */
+.hero-ab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.ab-col > .label { display: block; margin-bottom: 8px; }
+.ab-col .verdict { font-size: 0.8125rem; margin-top: 12px; line-height: 1.5; }
+.ab-col .verdict.no { color: var(--sr-error); font-weight: 600; }
+.ab-col .verdict.yes { color: var(--sr-accent); font-weight: 600; }
+.ab-tile { max-width: 346px; }
+
+/* ═══ States strip ═══════════════════════════════════════════════════════ */
+.states {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 18px;
+}
+.state-cap { margin-top: 9px; font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.45; }
+.state-cap b { color: var(--sr-text); font-weight: 600; }
+
+/* ═══ Decision list ══════════════════════════════════════════════════════ */
+.decisions { border-top: 1px solid var(--sr-border); margin-top: 8px; }
+.decision {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 6px 28px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--sr-border);
+}
+.decision dt { font-size: 0.8125rem; font-weight: 700; letter-spacing: -0.005em; }
+.decision dt .val {
+  display: block; margin-top: 5px;
+  font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em;
+  color: var(--sr-accent); font-variant-numeric: tabular-nums;
+}
+.decision dd { margin: 0; font-size: 0.875rem; color: var(--sr-text-muted); line-height: 1.6; }
+.decision dd strong { color: var(--sr-text); font-weight: 600; }
+
+.codebox {
+  margin-top: 16px; padding: 16px 18px;
+  border: 1px solid var(--sr-border); border-left: 3px solid var(--sr-accent-border);
+  border-radius: 0 10px 10px 0;
+  background: var(--sr-surface);
+  font-size: 0.8125rem; line-height: 1.7; color: var(--sr-text-muted);
+}
+.codebox code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78125rem; color: var(--sr-text);
+  background: var(--sr-surface-subtle);
+  border-radius: 4px; padding: 1px 5px;
+}
+.codebox p + p { margin-top: 9px; }
+
+.caveat {
+  margin-top: 22px; padding: 14px 16px;
+  border: 1px solid var(--sr-warning-subtle);
+  border-radius: 10px; background: var(--sr-warning-bg);
+  color: var(--sr-warning); font-size: 0.8125rem; line-height: 1.55;
+}
+[data-theme="dark"] .caveat { color: var(--sr-warning); }
+
+footer {
+  margin-top: 64px; padding: 26px 0 60px;
+  border-top: 1px solid var(--sr-border);
+  font-size: 0.75rem; color: var(--sr-text-gray);
+}
+
+/* ── Narrow viewport for the mockup page itself ─────────────────────────── */
+@media (max-width: 860px) {
+  .hero-ab { grid-template-columns: 1fr; gap: 34px; }
+  .decision { grid-template-columns: 1fr; gap: 10px; }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 0 16px; }
+  .controls-inner { padding: 11px 16px; }
+  .stage-pad { padding: 14px; }
+}
+
+/* ── Reduced motion: everything calms to near-instant ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    /* 0.01ms rather than 0: motion still "completes", so any animationend /
+       transitionend handler keeps firing while the movement is imperceptible. */
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ Masthead ══════════════════ -->
+<header class="masthead">
+  <div class="wrap">
+    <span class="kicker">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></svg>
+      Named Birds · design refinement
+    </span>
+    <h1 class="display">Give a named bird's audio<br>its controls back.</h1>
+    <p class="body lede">
+      A named individual's Macaulay Library audio sits in a 116px tile. The player is
+      taller than that, and the frame hides the overflow, so the play button and the
+      scrubber are cut off below the fold. You can see the recording. You cannot play it.
+    </p>
+  </div>
+</header>
+
+<!-- ══════════════════ Controls ══════════════════ -->
+<div class="controls">
+  <div class="controls-inner">
+    <div class="ctl-group">
+      <span class="label" id="lbl-view">Viewport</span>
+      <div class="seg" role="group" aria-labelledby="lbl-view">
+        <button type="button" data-view-btn="desktop" aria-pressed="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg>
+          Desktop
+        </button>
+        <button type="button" data-view-btn="wide" aria-pressed="false">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M12 18h.01"/></svg>
+          620px
+        </button>
+        <button type="button" data-view-btn="phone" aria-pressed="false">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>
+          390px
+        </button>
+      </div>
+    </div>
+
+    <div class="ctl-group">
+      <span class="label" id="lbl-mode">Grid</span>
+      <div class="seg" role="group" aria-labelledby="lbl-mode">
+        <button type="button" data-mode-btn="today" aria-pressed="false">Today</button>
+        <button type="button" data-mode-btn="refined" aria-pressed="true">Refined</button>
+      </div>
+    </div>
+
+    <button type="button" class="switchy" id="reveal" aria-pressed="false">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      Show what's clipped
+    </button>
+
+    <button type="button" class="switchy" id="theme" aria-pressed="false" style="margin-left:auto">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      Dark theme
+    </button>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- ══════════════════ 1. The hero A/B ══════════════════ -->
+  <section id="hero">
+    <div class="sec-head">
+      <span class="label">The decision, in one tile</span>
+      <h2 class="h2">116px against 230px, at the real desktop tile width.</h2>
+      <p class="body">
+        The same recording, the same tile width, two frame heights. Turn on
+        <strong>Show what's clipped</strong> in the bar above to see the part of the
+        player that the 116px frame hides.
+      </p>
+    </div>
+
+    <div class="hero-ab">
+      <div class="ab-col">
+        <span class="label" id="lab-today">Today &middot; 116px</span>
+        <div class="ab-tile stage" data-view="desktop" data-switch data-hero="today"></div>
+        <p class="verdict no">Transport row never renders. Nothing to click.</p>
+      </div>
+      <div class="ab-col">
+        <span class="label" id="lab-refined">Refined &middot; 230px</span>
+        <div class="ab-tile stage" data-view="desktop" data-switch data-hero="refined"></div>
+        <p class="verdict yes">Play, scrubber, and timeline all sit inside the frame.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 2. The full grid ══════════════════ -->
+  <section id="grid">
+    <div class="sec-head">
+      <span class="label">The whole card</span>
+      <h2 class="h2">Pilgrim, a Bewick's Wren, with six matched assets.</h2>
+      <p class="body">
+        Four audio, one photo, one video. Switch <strong>Grid</strong> between Today and
+        Refined above. Today's short audio tiles leave the rows ragged: a 116px tile
+        beside a 230px one drops its date and links 114px out of line with its
+        neighbours. Matching the heights is what makes the grid read as a grid.
+      </p>
+    </div>
+
+    <div class="stage-shell">
+      <div class="stage-bar">
+        <span>SnowRaven &middot; Named Birds</span>
+        <span class="tag" id="stage-tag">Desktop &middot; three across</span>
+      </div>
+      <div class="stage-pad">
+        <div class="stage" data-view="desktop" data-switch id="stage">
+          <article class="nb-card">
+            <div class="nb-head">
+              <span class="nb-name">Pilgrim</span>
+              <span class="nb-sp">Bewick's Wren</span>
+              <span class="nb-sci">Thryomanes bewickii</span>
+              <span class="nb-count num">9 sightings &middot; 1 mo. 19 days</span>
+            </div>
+            <div class="nb-panel">
+              <p class="nb-quote">
+                &ldquo;[name:Pilgrim] back on the same fence line by the propane tank. Sang
+                the three-note opener again, then the buzzy trill.&rdquo;
+              </p>
+              <p class="nb-omit">The sightings map sits here in the app. Left out so the media grid stays the focus.</p>
+
+              <div class="nb-media">
+                <div class="nb-media-head">
+                  <span class="marker">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                    Media of Pilgrim
+                  </span>
+                  <span class="count num">Showing 6 of 11</span>
+                </div>
+                <div class="sr-media-grid" id="grid-items"></div>
+                <div style="margin-top:12px">
+                  <button type="button" style="display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 14px;border-radius:8px;border:1.5px solid var(--sr-border-medium);background:transparent;color:var(--sr-accent);font-size:0.75rem;font-weight:600;cursor:pointer">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                    Show 5 more (of 11)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 3. Why the phone tier stays at 280 ══════════════════ -->
+  <section id="phone">
+    <div class="sec-head">
+      <span class="label">The phone tier, at or below 640px</span>
+      <h2 class="h2">One column means the tile gets wider, not narrower.</h2>
+      <p class="body">
+        The grid collapses to one column at 640px, so a tile can run the full width of the
+        panel. At the top of that tier a tile is <strong>wider than the desktop three-across
+        tile</strong>, and the spectrogram scales with width. That is why the phone value is
+        280px and not 230px: the player it has to hold is taller there, not shorter.
+        Set the viewport to <strong>620px</strong> above and watch the readout under the
+        hero tiles grow.
+      </p>
+    </div>
+
+    <div class="stage-shell">
+      <div class="stage-bar">
+        <span>At or below 640px &middot; one column</span>
+        <span class="tag">Audio 280px, matching photo and video</span>
+      </div>
+      <div class="stage-pad">
+        <div class="stage" data-view="phone">
+          <div class="sr-media-grid" id="phone-items"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ 4. States ══════════════════ -->
+  <section id="states">
+    <div class="sec-head">
+      <span class="label">Every state, one footprint</span>
+      <h2 class="h2">Nothing moves when the tile changes its mind.</h2>
+      <p class="body">
+        The frame carries the height, so the loading sweep, the live player, the offline
+        placeholder, and the disabled notice all occupy exactly the same box. The meta row
+        underneath never shifts. The one thing that does change is the placeholder's
+        density: at 116px there was no room for a sentence, so audio dropped it. At 230px
+        there is, and an icon alone in a tall box reads as unfinished.
+      </p>
+    </div>
+
+    <h3 class="h3 rule-heading"><span>Refined &middot; 230px</span></h3>
+    <div class="states" id="states-refined"></div>
+
+    <h3 class="h3 rule-heading"><span>Today &middot; 116px, for comparison</span></h3>
+    <div class="states" id="states-today"></div>
+  </section>
+
+  <!-- ══════════════════ 5. Decisions ══════════════════ -->
+  <section id="decisions">
+    <div class="sec-head">
+      <span class="label">What this settles</span>
+      <h2 class="h2">Three values, three reasons.</h2>
+    </div>
+
+    <dl class="decisions">
+      <div class="decision">
+        <dt>Audio tile, desktop<span class="val num">230px</span></dt>
+        <dd>
+          Species Detail proved this height in live review at the same grid and the same
+          tile width, so it is the one number we know clears the player chrome. A smaller
+          purpose-built height would be a guess, and a guess that lands a few pixels short
+          ships the same bug in a quieter form. It also
+          <strong>fixes the ragged rows</strong>: matching photo and video means every row
+          in the grid lines up, meta rows included.
+        </dd>
+      </div>
+      <div class="decision">
+        <dt>Audio tile, at or below 640px<span class="val num">280px</span></dt>
+        <dd>
+          One column, so nothing sits beside anything and uniformity buys nothing. Safety
+          does. A single-column tile can be <strong>wider</strong> than the desktop
+          three-across tile at the top of the tier, the spectrogram grows with width, and
+          280px is the value already proven at that width. If live review on a real phone
+          shows audio needs less, it is a one-line tune in the same rule.
+        </dd>
+      </div>
+      <div class="decision">
+        <dt>Offline and failed-load fallback<span class="val">Full, not compact</span></dt>
+        <dd>
+          The compact fallback exists <em>because</em> 116px had no room for a message.
+          At 230px an icon and a button floating in a tall empty box reads as broken rather
+          than as a considered offline state. Audio joins photo and video on the full
+          fallback: the sentence, the icon, and the link. The date, the checklist link,
+          and the Macaulay Library link sit outside the frame and never move either way.
+        </dd>
+      </div>
+      <div class="decision">
+        <dt>Photo and video<span class="val num">Unchanged</span></dt>
+        <dd>
+          230px desktop, 280px phone, exactly as shipped. Nothing about those two formats
+          was wrong.
+        </dd>
+      </div>
+    </dl>
+
+    <div class="codebox">
+      <p><strong>Two files.</strong></p>
+      <p>
+        <code>frontend/src/globals.css</code> — line 719, <code>.sr-media-iframe--audio</code>
+        goes from 116px to 230px; line 1343, the same class inside the 640px block goes from
+        130px to 280px. The class stays. Named Birds keeps the per-format classes rather than
+        borrowing <code>--recent</code>, so the two surfaces can still be tuned apart. Species
+        Detail's <code>--recent</code> is untouched.
+      </p>
+      <p>
+        <code>frontend/src/components/NamedBirdMedia.tsx</code> — <strong>two call sites,
+        not one</strong>. Line 223 passes <code>compact={asset.format === 'Audio'}</code> to
+        the offline placeholder and becomes <code>compact={false}</code>. Line 229 passes no
+        <code>compact</code> at all, and the shared frame defaults it to
+        <code>format === 'Audio'</code>, so the give-up overlay would stay compact unless
+        that call site also passes <code>compact={false}</code>. Miss the second one and the
+        offline state gets its message while the failed-load state quietly does not.
+      </p>
+      <p>
+        Optional, for The Engineer to weigh: with all four call sites now explicit, the
+        <code>compact = format === 'Audio'</code> default in <code>MediaEmbed.tsx</code>
+        is dead and is a trap for the next caller. Removing it is a clean-up, not part of
+        this change.
+      </p>
+    </div>
+
+    <p class="caveat">
+      The player in this mockup is a simulation. It makes no network request and no
+      Macaulay iframe is embedded here, so the band heights are a faithful model, not a
+      measurement: a spectrogram that scales with tile width, a 42px timeline strip, and a
+      52px transport row. Treat 230px and 280px as the values to build, and confirm the
+      play control on the live desktop app against real data before the ship.
+    </p>
+  </section>
+
+  <footer>
+    SnowRaven &middot; Named Birds audio tiles &middot; design refinement.
+    Tokens copied from <code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace">frontend/src/globals.css</code>;
+    both themes render from the same values the app ships.
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Content: one named individual's matched Macaulay assets ──────────────
+  // Realistic: eBird submission ids (S + digits), ML catalog ids (digits),
+  // month-first dates the way lib/formatDate.ts renders them.
+  var ASSETS = [
+    { format: 'Audio', date: 'Mar 14, 2026', checklist: 'S218904471', ml: '617829451', dur: '0:34', seed: 11 },
+    { format: 'Photo', date: 'Mar 14, 2026', checklist: 'S218904471', ml: '617829462', seed: 3 },
+    { format: 'Audio', date: 'Apr 2, 2026',  checklist: 'S220117338', ml: '621044803', dur: '1:12', seed: 27 },
+    { format: 'Audio', date: 'Apr 2, 2026',  checklist: 'S220117338', ml: '621044819', dur: '0:48', seed: 41 },
+    { format: 'Video', date: 'Apr 19, 2026', checklist: 'S221664902', ml: '624318770', dur: '0:22', seed: 8 },
+    { format: 'Audio', date: 'May 3, 2026',  checklist: 'S222840915', ml: '627590124', dur: '2:05', seed: 63 }
+  ];
+
+  var ICON = {
+    Audio: '<path d="M12 19v3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/>',
+    Photo: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    Video: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+    cloudOff: '<path d="m2 2 20 20"/><path d="M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193"/><path d="M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07"/>',
+    imageOff: '<line x1="2" x2="22" y1="2" y2="22"/><path d="M10.41 10.41a2 2 0 1 1-2.83-2.83"/><line x1="13.5" x2="6" y1="13.5" y2="21"/><line x1="18" x2="21" y1="12" y2="15"/><path d="M3.59 3.59A1.99 1.99 0 0 0 3 5v14a2 2 0 0 0 2 2h14c.55 0 1.052-.22 1.41-.59"/><path d="M21 15V5a2 2 0 0 0-2-2H9"/>',
+    ext: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    vol: '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5z"/><path d="M16 9a5 5 0 0 1 0 6"/>'
+  };
+
+  function svg(paths, size, opts) {
+    opts = opts || {};
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="' +
+      (opts.fill || 'none') + '" stroke="' + (opts.stroke || 'currentColor') +
+      '" stroke-width="' + (opts.sw || 2.2) +
+      '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  }
+
+  // Deterministic pseudo-random so each recording gets its own song shape but
+  // the page renders identically every time (no impure surprises on reload).
+  function rng(seed) {
+    var s = seed * 9301 + 49297;
+    return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  }
+
+  // A Bewick's-Wren-ish song: a couple of clear introductory notes, a buzzy
+  // trill, then a short warble. Drawn as frequency traces, not a photo.
+  function spectrogram(seed, dense) {
+    var r = rng(seed), out = '', i, j;
+    var phrases = dense ? 9 : 5;
+    var x = 4;
+    for (i = 0; i < phrases; i++) {
+      var kind = r();
+      var w = 4 + r() * 11;
+      if (kind < 0.34) {
+        // Clear whistle: a sweeping band.
+        var y0 = 22 + r() * 26, y1 = y0 + (r() * 26 - 13);
+        out += '<path d="M' + x + ' ' + y0 + ' C' + (x + w / 3) + ' ' + (y0 - 6) + ' ' +
+               (x + w * 0.7) + ' ' + (y1 + 5) + ' ' + (x + w) + ' ' + y1 +
+               '" stroke="rgba(var(--sr-accent-rgb),0.85)" stroke-width="2.4" fill="none" stroke-linecap="round"/>';
+      } else if (kind < 0.72) {
+        // Buzzy trill: a stack of short vertical strokes.
+        var n = 5 + Math.floor(r() * 7);
+        for (j = 0; j < n; j++) {
+          var tx = x + (w / n) * j;
+          var ty = 20 + r() * 18, th = 12 + r() * 22;
+          out += '<line x1="' + tx + '" y1="' + ty + '" x2="' + tx + '" y2="' + (ty + th) +
+                 '" stroke="rgba(var(--sr-accent-rgb),0.62)" stroke-width="1.5" stroke-linecap="round"/>';
+        }
+      } else {
+        // Warble: a wobbling trace.
+        var wy = 26 + r() * 22, d = 'M' + x + ' ' + wy;
+        for (j = 1; j <= 5; j++) {
+          d += ' L' + (x + (w / 5) * j) + ' ' + (wy + (r() * 20 - 10));
+        }
+        out += '<path d="' + d + '" stroke="rgba(var(--sr-accent-rgb),0.7)" stroke-width="1.9" fill="none" stroke-linecap="round"/>';
+      }
+      x += w + 2 + r() * 5;
+      if (x > 96) break;
+    }
+    return '<svg viewBox="0 0 100 78" preserveAspectRatio="none">' + out + '</svg>';
+  }
+
+  // No Macaulay media is embedded in this file, so photo and video are honest
+  // placeholders at the exact tile footprint rather than invented artwork.
+  function still(a) {
+    return svg(ICON[a.format], 30, { sw: 1.7 }) +
+      '<span class="cap">Macaulay ' + a.format.toLowerCase() + ' &middot; ML' + a.ml + '</span>';
+  }
+
+  function playerAudio(a) {
+    return '' +
+      '<div class="ml-player">' +
+        '<div class="ml-spec">' + spectrogram(a.seed, false) +
+          '<span class="badge">Spectrogram</span><span class="cursor"></span>' +
+        '</div>' +
+        '<div class="ml-timeline">' +
+          '<div class="mini">' + spectrogram(a.seed + 5, true) + '</div>' +
+          '<div class="window"></div>' +
+        '</div>' +
+        '<div class="ml-transport">' +
+          '<button type="button" class="ml-play" aria-label="Play the ' + a.date + ' recording of Pilgrim">' +
+            svg('<polygon points="7 4 20 12 7 20 7 4"/>', 13, { fill: 'currentColor', stroke: 'none' }) +
+          '</button>' +
+          '<span class="ml-track"><i></i><b></b></span>' +
+          '<span class="ml-time">0:09 / ' + a.dur + '</span>' +
+          '<span class="ml-vol">' + svg(ICON.vol, 14) + '</span>' +
+          '<span class="ml-mark">Macaulay</span>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function playerStill(a) {
+    var bar = a.format === 'Video'
+      ? '<div class="ml-vidbar">' +
+          '<button type="button" class="ml-play" aria-label="Play the ' + a.date + ' video of Pilgrim">' +
+            svg('<polygon points="7 4 20 12 7 20 7 4"/>', 11, { fill: 'currentColor', stroke: 'none' }) +
+          '</button>' +
+          '<span class="ml-track"><i></i><b></b></span>' +
+          '<span class="ml-time">0:06 / ' + a.dur + '</span>' +
+        '</div>'
+      : '';
+    return '<div class="ml-still">' + still(a) + bar + '</div>';
+  }
+
+  function fallback(a, compact, reason) {
+    var msg = reason === 'load-failed' ? "Media couldn't load" : 'Media unavailable offline';
+    return '<div class="sr-media-fallback' + (compact ? ' compact' : '') + '">' +
+      svg(ICON.cloudOff, compact ? 16 : 20) +
+      (compact ? '' : '<span class="msg">' + msg + '</span>') +
+      '<a class="pill" href="#" onclick="return false">View on Macaulay Library</a>' +
+      '</div>';
+  }
+
+  function shimmer(a) {
+    return '<div class="sr-media-shimmer">' + svg(ICON[a.format], 20) + '</div>';
+  }
+
+  function disabled() {
+    return '<div class="sr-media-disabled" role="status">' +
+      '<span class="ring">' + svg(ICON.imageOff, 18, { sw: 2 }) + '</span>' +
+      '<span>Embedded media is disabled in Settings.</span></div>';
+  }
+
+  function meta(a) {
+    return '<div class="sr-media-meta">' +
+      '<span class="fmt">' + svg(ICON[a.format], 12) + a.format + '</span>' +
+      '<span class="date">' + a.date + '</span>' +
+      '<span class="dot" aria-hidden="true">&middot;</span>' +
+      '<a href="#" onclick="return false">Macaulay Library</a>' +
+      '<span class="dot" aria-hidden="true">&middot;</span>' +
+      '<a href="#" onclick="return false">' + svg(ICON.ext, 10) + a.checklist + '</a>' +
+      '</div>';
+  }
+
+  // One tile. `state` ∈ player | shimmer | fallback | fallback-compact | disabled
+  function tile(a, mode, state, annotate) {
+    var cls = 'is-' + a.format.toLowerCase();
+    var inner;
+    if (state === 'shimmer') inner = shimmer(a);
+    else if (state === 'fallback') inner = fallback(a, false, 'load-failed');
+    else if (state === 'fallback-compact') inner = fallback(a, true, 'load-failed');
+    else if (state === 'disabled') inner = disabled();
+    else inner = (a.format === 'Audio') ? playerAudio(a) : playerStill(a);
+
+    var below = annotate ? '<div class="below" aria-hidden="true"></div>' : '';
+    var cut = annotate ? '<div class="cutline" aria-hidden="true"><span></span></div>' : '';
+
+    return '<div class="sr-media-item">' +
+      '<div class="' + (annotate ? 'annot-frame' : '') + '">' +
+        '<div class="sr-media-frame ' + cls + '" data-mode="' + mode + '">' + inner + below + '</div>' +
+        cut +
+      '</div>' +
+      meta(a) +
+      (annotate ? '<div class="readout" data-readout></div>' : '') +
+      '</div>';
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────
+  function renderGrid() {
+    var mode = document.querySelector('[data-mode-btn][aria-pressed="true"]').dataset.modeBtn;
+    document.getElementById('grid-items').innerHTML =
+      ASSETS.map(function (a) { return tile(a, mode, 'player', false); }).join('');
+  }
+
+  document.getElementById('phone-items').innerHTML =
+    [ASSETS[0], ASSETS[1], ASSETS[2]].map(function (a) { return tile(a, 'refined', 'player', false); }).join('');
+
+  // The SAME recording on both sides — only the frame height differs.
+  var heroAudio = ASSETS[0];
+  document.querySelector('[data-hero="today"]').innerHTML   = tile(heroAudio, 'today', 'player', true);
+  document.querySelector('[data-hero="refined"]').innerHTML = tile(heroAudio, 'refined', 'player', true);
+
+  var stateDefs = [
+    { state: 'shimmer',  cap: '<b>Loading.</b> The sweep sits in the frame while the embed mounts.' },
+    { state: 'player',   cap: '<b>Playing.</b> Spectrogram, timeline, transport, all inside the box.' },
+    { state: 'fallback', cap: '<b>Offline or failed.</b> Full density: icon, sentence, link out.' },
+    { state: 'disabled', cap: '<b>Turned off in Settings.</b> The one neutral notice, unchanged.' }
+  ];
+  document.getElementById('states-refined').innerHTML = stateDefs.map(function (d) {
+    return '<div>' + tile(heroAudio, 'refined', d.state, false) +
+      '<p class="state-cap">' + d.cap + '</p></div>';
+  }).join('');
+
+  document.getElementById('states-today').innerHTML = [
+    { state: 'player', cap: '<b>Playing.</b> Only the spectrogram fits. No controls.' },
+    { state: 'fallback-compact', cap: '<b>Offline or failed.</b> Compact: no room for the sentence.' }
+  ].map(function (d) {
+    return '<div>' + tile(heroAudio, 'today', d.state, false) +
+      '<p class="state-cap">' + d.cap + '</p></div>';
+  }).join('');
+
+  renderGrid();
+
+  // ── Measure: how much of the player the frame is hiding ─────────────────
+  function measure() {
+    document.querySelectorAll('[data-readout]').forEach(function (out) {
+      var item = out.closest('.sr-media-item');
+      var frame = item.querySelector('.sr-media-frame');
+      var player = item.querySelector('.ml-player');
+      if (!frame || !player) return;
+
+      var frameH = Math.round(frame.getBoundingClientRect().height);
+      var playerH = Math.round(player.getBoundingClientRect().height);
+      var hidden = Math.max(0, playerH - frameH);
+
+      var cut = item.querySelector('.cutline');
+      if (cut) {
+        cut.style.top = frameH + 'px';
+        // Only a frame that is actually cutting the player gets the alarm
+        // treatment; on a frame that fits, the rule just marks the edge.
+        cut.classList.toggle('ok', hidden === 0);
+        cut.querySelector('span').textContent = frameH + 'px frame';
+      }
+      // The ghost sits flush under the frame's padding box (frameH less its
+      // two 1px borders), so it starts exactly where the clip happens.
+      var below = item.querySelector('.below');
+      if (below) { below.style.top = (frameH - 2) + 'px'; below.style.height = hidden + 'px'; }
+
+      // While the clipped region is revealed, give the item room for it so the
+      // overflowing player never lands on top of the date and links.
+      var annot = item.querySelector('.annot-frame');
+      if (annot) {
+        annot.style.paddingBottom = frame.classList.contains('reveal') ? (hidden + 10) + 'px' : '0px';
+      }
+
+      out.innerHTML =
+        '<span class="chip">Player ' + playerH + 'px</span>' +
+        '<span class="chip">Frame ' + frameH + 'px</span>' +
+        (hidden > 0
+          ? '<span class="chip bad">' + hidden + 'px hidden, transport included</span>'
+          : '<span class="chip good">Fits, ' + (frameH - playerH) + 'px to spare</span>');
+    });
+  }
+  measure();
+  if (typeof ResizeObserver !== 'undefined') {
+    var ro = new ResizeObserver(measure);
+    document.querySelectorAll('[data-hero] .sr-media-frame').forEach(function (f) { ro.observe(f); });
+  }
+  window.addEventListener('resize', measure);
+
+  // ── Controls ────────────────────────────────────────────────────────────
+  var TAGS = {
+    desktop: 'Desktop · three across',
+    wide: '620px · top of the phone tier, one column',
+    phone: '390px · phone, one column'
+  };
+
+  document.querySelectorAll('[data-view-btn]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-view-btn]').forEach(function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+      var v = b.dataset.viewBtn;
+      // Every switchable stage moves together — the card grid AND the hero
+      // tiles — so the hero readout always reports the chosen tier's heights.
+      document.querySelectorAll('[data-switch]').forEach(function (s) { s.dataset.view = v; });
+      document.getElementById('stage-tag').textContent = TAGS[v];
+      // The hero labels name the tier's real values, not the desktop ones.
+      var phoneTier = v !== 'desktop';
+      document.getElementById('lab-today').innerHTML = 'Today · ' + (phoneTier ? '130px' : '116px');
+      document.getElementById('lab-refined').innerHTML = 'Refined · ' + (phoneTier ? '280px' : '230px');
+      requestAnimationFrame(measure);
+      setTimeout(measure, 260);
+    });
+  });
+
+  document.querySelectorAll('[data-mode-btn]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('[data-mode-btn]').forEach(function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+      renderGrid();
+    });
+  });
+
+  var revealBtn = document.getElementById('reveal');
+  revealBtn.addEventListener('click', function () {
+    var on = revealBtn.getAttribute('aria-pressed') !== 'true';
+    revealBtn.setAttribute('aria-pressed', String(on));
+    document.querySelectorAll('[data-hero] .sr-media-frame').forEach(function (f) {
+      f.classList.toggle('reveal', on);
+    });
+    measure();
+  });
+
+  var themeBtn = document.getElementById('theme');
+  themeBtn.addEventListener('click', function () {
+    var dark = document.documentElement.dataset.theme !== 'dark';
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    themeBtn.setAttribute('aria-pressed', String(dark));
+    themeBtn.lastChild.textContent = dark ? ' Light theme' : ' Dark theme';
+  });
+})();
+</script>
+</body>
+</html>

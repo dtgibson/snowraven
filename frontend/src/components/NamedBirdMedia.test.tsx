@@ -316,14 +316,102 @@ describe('NamedBirdMedia — safe ids (FR-18 / QA-20)', () => {
   })
 })
 
-describe('NamedBirdMedia — audio compact fallback', () => {
-  it('audio offline fallback drops the message line but keeps the link-out', () => {
+// ── Audio fallback density: BOTH failure modes, BOTH call sites ────────────────
+//
+// Audio used to render the COMPACT fallback (icon + link, no message) because its
+// 116px tile had no room for a sentence. v0.5.75 grew the tile to a full 230px, so
+// audio takes the FULL fallback like photo and video.
+//
+// The trap this guards: NamedBirdMedia reaches MediaFallback down TWO independent
+// paths — the offline placeholder it renders directly, and the give-up/failed
+// overlay MediaFrame renders internally — and MediaFrame USED TO default `compact`
+// to `format === 'Audio'` on its own. So passing compact={false} at only the first
+// call site would give the same audio tile a message when offline and no message
+// when the embed fails, which is worse than either behavior consistently. Each test
+// below drives ONE of those two paths; do not collapse them into one case.
+describe('NamedBirdMedia — audio takes the FULL fallback in both failure modes', () => {
+  it('OFFLINE path (direct MediaFallback call site): audio shows the message AND the link-out', () => {
     Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
-    render(<NamedBirdMedia embedAllowed birdName="Winky" assets={[asset({ catalogId: '90', format: 'Audio' })]} open hasML />)
-    // Compact audio fallback: no "Media unavailable offline" text, still a link-out.
-    expect(screen.queryByText('Media unavailable offline')).toBeNull()
-    const region = screen.getByRole('link', { name: /View Audio on Macaulay Library/i })
-    // The meta row still shows the format marker (CSS uppercases it; DOM text is "Audio").
-    expect(within(region.closest('.sr-media-item')!).getByText('Audio')).toBeTruthy()
+    render(<NamedBirdMedia embedAllowed birdName="Winky" assets={[asset({ catalogId: '90', format: 'Audio', date: '2024-06-08', checklistId: 'S9' })]} open hasML />)
+
+    // The message audio previously suppressed.
+    expect(screen.getByText('Media unavailable offline')).toBeTruthy()
+    const out = screen.getByRole('link', { name: /View Audio on Macaulay Library/i })
+    expect(out.getAttribute('href')).toBe('https://macaulaylibrary.org/asset/90')
+    // The meta row is outside the frame and unaffected by fallback density.
+    const item = out.closest<HTMLElement>('.sr-media-item')!
+    expect(within(item).getByText('Audio')).toBeTruthy()
+    expect(screen.getByText('Jun 8, 2024')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /open checklist S[0-9]+ on eBird/i }).getAttribute('href'))
+      .toBe('https://ebird.org/checklist/S9')
+  })
+
+  it('GIVE-UP path (MediaFrame overlay call site): audio shows the message AND keeps the iframe mounted', () => {
+    vi.useFakeTimers()
+    try {
+      render(<NamedBirdMedia embedAllowed birdName="Winky" assets={[asset({ catalogId: '91', format: 'Audio', date: '2024-06-08', checklistId: 'S9' })]} open hasML />)
+      const frame = document.querySelector('iframe')!
+
+      act(() => { vi.advanceTimersByTime(21000) })
+
+      // This is the assertion that fails if only the offline call site was fixed:
+      // MediaFrame's own `compact` would still default to true for Audio.
+      expect(screen.getByText("Media couldn't load")).toBeTruthy()
+      expect(screen.getByRole('link', { name: /View Audio on Macaulay Library/i }).getAttribute('href'))
+        .toBe('https://macaulaylibrary.org/asset/91')
+      // Non-destructive overlay: same iframe node, and a late load still recovers.
+      expect(document.querySelector('iframe')).toBe(frame)
+      act(() => { fireEvent.load(frame) })
+      expect(screen.queryByText("Media couldn't load")).toBeNull()
+      expect(document.querySelector('iframe')).toBe(frame)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('audio and photo now degrade identically — no format-dependent fallback density', () => {
+    Object.defineProperty(navigator, 'onLine', { value: false, configurable: true })
+    render(
+      <NamedBirdMedia
+        embedAllowed
+        birdName="Winky"
+        assets={[
+          asset({ catalogId: '92', format: 'Audio' }),
+          asset({ catalogId: '93', format: 'Photo' }),
+        ]}
+        open
+        hasML
+      />,
+    )
+    // One message per tile: audio is no longer the odd one out.
+    expect(screen.getAllByText('Media unavailable offline')).toHaveLength(2)
+  })
+})
+
+describe('NamedBirdMedia — per-format frame height classes', () => {
+  // The height lives on the FRAME as well as the iframe so the shimmer, the player,
+  // the fallback, and the disabled notice all occupy the identical box (no layout
+  // shift between states). Audio must carry its OWN class, not Species Detail's
+  // --recent: the two surfaces are numerically equal today but stay independently
+  // tunable (the v0.5.71 per-caller-height decision).
+  it('each format keeps its own height class on the frame', () => {
+    const { container } = render(
+      <NamedBirdMedia
+        embedAllowed
+        birdName="Winky"
+        assets={[
+          asset({ catalogId: '94', format: 'Audio' }),
+          asset({ catalogId: '95', format: 'Photo' }),
+          asset({ catalogId: '96', format: 'Video' }),
+        ]}
+        open
+        hasML
+      />,
+    )
+    expect(container.querySelector('.sr-media-frame.sr-media-iframe--audio')).toBeTruthy()
+    expect(container.querySelector('.sr-media-frame.sr-media-iframe--photo')).toBeTruthy()
+    expect(container.querySelector('.sr-media-frame.sr-media-iframe--video')).toBeTruthy()
+    // Named Birds tiles never borrow Species Detail's --recent height.
+    expect(container.querySelector('.sr-media-item .sr-media-iframe--recent')).toBeNull()
   })
 })

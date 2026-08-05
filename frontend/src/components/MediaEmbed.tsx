@@ -89,7 +89,7 @@ export function MediaFallback({ catalogId, format, compact, reason = 'offline' }
 // timeout and iframe onError NEVER unmount it, they only overlay a fallback. A late
 // onLoad clears the latches and reveals the real player. Remount it (a key on the
 // caller's online flag) to re-attempt after a reconnection — no reset effect needed.
-export function MediaFrame({ catalogId, format, title, Icon, heightClass, embedAllowed, compact = format === 'Audio' }: {
+export function MediaFrame({ catalogId, format, title, Icon, heightClass, embedAllowed, compact }: {
   catalogId: string
   format: MediaType
   title: string
@@ -99,9 +99,16 @@ export function MediaFrame({ catalogId, format, title, Icon, heightClass, embedA
    * preference allows an iframe before this component can construct one. */
   embedAllowed: boolean
   /** Whether the give-up/failed overlay uses the compact fallback (icon + link, no
-   *  message). Defaults to the audio compact preview; a full-height caller (Species
-   *  Detail) passes false so the offline message shows. */
-  compact?: boolean
+   *  message) rather than the full one (icon + message + link).
+   *  REQUIRED, deliberately — it used to default to `format === 'Audio'`, which was
+   *  invisible at the call site. Once Named Birds' audio tile grew to a full 230px
+   *  (v0.5.75) every caller passes false and the default was dead, but it would have
+   *  silently handed the next caller a message-less audio fallback at whatever height
+   *  they picked. Fallback density is a per-caller display choice — the same principle
+   *  that keeps the height classes per-caller — so the type system now makes each call
+   *  site say it. Pair it with the density the caller chose for its OFFLINE
+   *  MediaFallback: a tile whose two failure modes disagree is the bug this replaced. */
+  compact: boolean
 }) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)

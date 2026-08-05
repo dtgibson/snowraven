@@ -2,6 +2,22 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.75] - 2026-08-04
+
+### Fixed
+- **Named birds now find their media.** The Named Birds tab said "No media matched to this bird." for individuals you clearly had photos of. A media asset was only ever matched by a `[name:…]` tag in its *own* caption or media note, but most birders tag an individual once in the checklist's species comment, which is also where SnowRaven finds the named bird to begin with. So the very tag that created a named bird could never attribute that bird's media. The species comment is now used as a fallback: if an asset's own caption or media note names an individual, that still wins outright, and only when it names nobody does the species comment apply. Tag once in the species comment and that observation's photos, recordings, and video are attributed; caption an individual asset to override it. Nothing that matched before stops matching.
+- **A named bird's audio recordings can now actually be played.** On the Named Birds tab, an individual's audio was embedded in a tile shorter than the Macaulay player itself, so the transport row was cut off below the edge of the frame: you could see the recording was there, but there was no way to press play. Audio tiles now match the photo and video tiles (and the same players on Species Detail), which also lines up the rows in a card that mixes formats. Photo and video are unchanged.
+- **The in-app Help sidebar lists every section again.** Calendar, Using SnowRaven offline, and Updating SnowRaven were all present in the Help text but missing from the table of contents, so the only way to reach them was to scroll past everything else. All 16 sections are now listed.
+- **Stray `--` marks are gone from the Help text.** Around fifty of them had been left behind mid-sentence by an earlier punctuation pass.
+
+### Changed
+- **When a named bird's audio is offline or fails to load, it now explains itself.** Previously an audio tile showed only an icon and a link, with no message, because there was no room for one at the old height. It now shows the same "Media unavailable offline" or "Media couldn't load" wording that photo and video already showed. As before, the date, the checklist link, and the direct Macaulay Library link stay visible in every case.
+
+### Documentation
+- **The privacy policy no longer over-discloses.** It said the map's label fonts and icon sheet were fetched from OpenFreeMap. They ship inside the app and load from it directly, so those requests never leave your device. The map style and the tiles themselves are still fetched, and are still listed.
+- **The accessibility statement covers more of the app**, adding the Calendar's keyboard-operable day grid and its day dialog, the colorblind-friendly Use Textures switches (off by default) on the map and Calendar, the Breeding Codes matrix on a phone, and the Disable embedded media setting. The description of the map's "Counties in view" keyboard panel was updated for the Completeness metric it gained after that section was written.
+- **The Help text, README, and website caught up with the app**: the Breeding Codes "Unbounded" view, Species Detail's Recent Media section, Named Birds among the features that use your Macaulay Library export, and a corrected count of the tools in the app.
+
 ## [0.5.74] - 2026-08-04
 
 ### Removed
