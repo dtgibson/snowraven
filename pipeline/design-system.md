@@ -59,16 +59,20 @@ italic at 0.71875rem `--sr-text-gray`.
 - **Icons:** Lucide, 11–15px, stroke ~2.2, purposeful only.
 - **Maps:** `<SnowMap>`/`SightingsMap` wrappers only.
 - **Inline media (ML embeds):** Macaulay Library `.../asset/<id>/embed` iframe in
-  a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. Per-format
-  height (photo/video taller, audio compact — a modifier class, tokens only). Each
+  a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. Height is a
+  modifier class per surface, and each surface keeps its own classes so the two can
+  be tuned independently: Named Birds uses per-format `--photo`/`--video`/`--audio`,
+  Species Detail Recent Media one uniform `--recent`. **Audio is never a short tile
+  anywhere** — the Macaulay audio player needs the full height (currently 230px, 280px
+  ≤640, matching photo and video) or its transport controls clip under the frame's
+  `overflow:hidden` and the embed is visible but unplayable. Each
   item labels its capture date + a `ChecklistLink`; the media-type marker follows
   the app's own convention (uppercase muted micro-label + Lucide icon, NOT a
   colored chip — the green stays reserved for the actionable link). A bounded
   initial batch (~6) + a keyboard-operable "Show more" (`.sr-touch-target`), lazy-
   mounted; offline/failed degrades to a same-footprint placeholder that keeps the
   date + checklist + an `OutboundLink` to the single-asset ML URL, never a broken
-  frame. Established Species Detail Recent Media; extended to Named Birds
-  (named-birds-media feature) with per-format sizing + the offline placeholder.
+  frame — at full density, not an icon-only reduction, on every format.
   The app-wide disabled mode replaces only the player footprint with the shared
   neutral `EmbeddedMediaDisabled` presentation: exact copy “Embedded media is
   disabled in Settings.”, `role="status"` (never an alert), muted text on the

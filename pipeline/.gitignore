@@ -7,3 +7,4 @@ handoff.md
 */deployment-record.md
 # Weft: per-run files + run records (durable docs still commit)
 .qa-attempts
+.continuation-owed
