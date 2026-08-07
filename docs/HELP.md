@@ -176,13 +176,15 @@ Milestone pills mark every threshold from 10 to 3,000 species, showing the speci
 
 Checklist activity broken down by year, month, day of week, and start hour. Each breakdown shows count and percentage of total. The day-of-week view highlights weekend versus weekday birding patterns.
 
+A **Checklist duration** histogram shows how long your outings run: 15-minute bins for the first three hours, then hourly bins beyond that. A caption below the bars gives your average duration. Only checklists with a usable duration are counted (eBird caps a checklist at 24 hours), and when some of your checklists lack one, the caption also notes how many of them the bars cover.
+
 ### Geographic Stats
 
 A map of your most-visited locations alongside ranked lists of your top locations, counties, and states (shown by full name, e.g. Minnesota) by checklist count and species count. A top-location name that is a public eBird hotspot links to its hotspot page on eBird (personal locations stay plain); county and state entries link to their eBird region page. The map shows numbered markers for your top locations by checklists (green circles) and top locations by species (blue squares).
 
 ### Effort and Outings
 
-How you bird, measured. **Totals** lead the section: total time afield (also spelled out as days / hours / minutes), total distance, and total area covered when your data has it. **Key metrics** cover average duration, average distance, average area, species per hour, and species per mile, plus a protocol distribution and an average-by-protocol table. An **observer summary** shows your percent solo, average observers, and largest group. **Notable Outings** highlights your single checklists that were the longest (duration), farthest (distance), largest-area, biggest (most species), and most-individuals, each linking to eBird. Area-based stats appear only if your data includes area-covered checklists (the eBird "Area" protocol).
+How you bird, measured. **Totals** lead the section: total time afield (also spelled out as days / hours / minutes), total distance, and total area covered when your data has it. **Key metrics** cover average duration, average distance, average area, species per hour, and species per mile, plus a protocol distribution and an average-by-protocol table. An **observer summary** shows your percent solo, average observers, and largest group, and a **Lists by observer count** breakdown gives every distinct observer count its own bar. **Notable Outings** highlights your single checklists that were the longest (duration), farthest (distance), largest-area, biggest (most species), and most-individuals, each linking to eBird. Area-based stats appear only if your data includes area-covered checklists (the eBird "Area" protocol).
 
 ### Data Quality
 

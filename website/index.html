@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SnowRaven — Birding analytics and tools for your eBird workflow</title>
+  <title>SnowRaven: Self-hosted birding tools and data explorer</title>
   <meta name="description" content="SnowRaven turns your own eBird and Macaulay Library exports into a personal, local-first birding dashboard: weather and tides for your checklists, per-species history, life-list analytics, an interactive map, and more. Free and open, for macOS, Windows, and Raspberry Pi." />
   <meta name="color-scheme" content="light dark" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -11,7 +11,7 @@
 
   <!-- Open Graph / social -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="SnowRaven — Birding analytics and tools for your eBird workflow" />
+  <meta property="og:title" content="SnowRaven: Self-hosted birding tools and data explorer" />
   <meta property="og:description" content="A local-first birding dashboard built from your own eBird and Macaulay Library data. Weather and tides, per-species history, life-list analytics, and an interactive map. Free and open." />
   <meta property="og:url" content="https://snowraven.dtgibson.com/" />
   <meta property="og:image" content="https://snowraven.dtgibson.com/assets/shots/statistics.webp" />
@@ -128,9 +128,9 @@
             SnowRaven has no account, no analytics, no telemetry, and no server we operate.
             Your eBird backup, Macaulay Library export, settings, and API keys never leave
             your computer. When you ask for data, it talks directly to the services it
-            draws from: eBird and OpenWeather with your own keys, plus keyless sources —
-            OpenStreetMap, map tiles, NOAA tides, and the Cornell Lab sites that bird-link
-            icons and, while enabled, embedded Macaulay media load from. There is no SnowRaven server in the middle.
+            draws from: eBird and OpenWeather with your own keys, plus keyless sources
+            (OpenStreetMap, map tiles, NOAA tides, and the Cornell Lab sites that bird-link
+            icons and, while enabled, embedded Macaulay media load from). There is no SnowRaven server in the middle.
             An off-by-default <strong>Disable embedded media</strong> setting prevents those
             players and requests; direct media links still work when you choose to open them.
           </p>
@@ -161,7 +161,7 @@
       <div class="container">
         <header class="section-head">
           <p class="eyebrow"><span class="dot"></span>What's inside</p>
-          <h2>Ten tools, one quiet workspace — and they work offline</h2>
+          <h2>Ten tools, one quiet workspace. And they work offline</h2>
           <p class="section-sub">Everything reads from the eBird and Macaulay Library exports you already have. No data entry, no busywork. Once your data has loaded, the tools keep working without a connection.</p>
         </header>
 
@@ -180,10 +180,10 @@
               predicted, with the surrounding highs and lows. Copy weather and tide
               together in one click. You can also skip the checklist entirely: Current
               shows the live weather and tide for where you are, and Predict forecasts
-              both for a place and time you choose — about a week ahead for weather, and
-              much further for the tide. A weather backlog at the bottom of the tab lists
-              your recent checklists that still have no weather block — built from your own
-              backup, newest first — so you can work down the ones you missed instead of
+              both for a place and time you choose (about a week ahead for weather, and
+              much further for the tide). A weather backlog at the bottom of the tab lists
+              your recent checklists that still have no weather block (built from your own
+              backup, newest first) so you can work down the ones you missed instead of
               looking them up one at a time, with a Copy weather &amp; go action that copies a
               checklist's weather and opens its eBird comment page to paste.
             </p>
@@ -253,7 +253,7 @@
             <h3>Calendar</h3>
             <p>
               A year of your birding as twelve month grids, like a wall calendar's twelve
-              pages, each day carrying a number — the species you saw, the checklists you
+              pages, each day carrying a number: the species you saw, the checklists you
               submitted, or the total count of individual birds you recorded, your choice.
               Each day is shaded by how busy it was, so the shape of your year reads at a
               glance: busy migration weeks, quiet mid-summer, a big count-day spike.
@@ -261,7 +261,7 @@
               page across every year your data covers or fold them all into one combined grid,
               switch between the big month grids and a whole-year overview of shaded, dated
               thumbnails, turn on a colorblind-friendly texture mode, and click any day for
-              its checklists — each with its start time, location, and species count.
+              its checklists, each with its start time, location, and species count.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="calendar">
@@ -285,9 +285,9 @@
               from the map's own tiles, and can shade each county by how many species (or checklists) you've
               recorded there, drawn from your own loaded backup, with a legend, a popup per county,
               and a keyboard-accessible list of the counties in view. A third Completeness metric
-              shades each county by how complete your county list is — your countable species there
+              shades each county by how complete your county list is (your countable species there
               measured against everything ever reported to eBird for that county, on a fixed 0–100%
-              scale — with a per-county progress bar, your newest county species, and a short list of
+              scale), with a per-county progress bar, your newest county species, and a short list of
               targets you haven't recorded there yet. That one metric needs a connection and your own
               eBird API key (the app says so right at the control); lookups stay bounded to the
               counties you've birded in view and are cached on your device for 30 days, so fetched
@@ -324,8 +324,10 @@
             <p>
               Your life list as a media checklist: photo, audio, and video coverage for every
               species, so you can see at a glance what you still need to capture. Filter by sex
-              and age — pull up just your juveniles, or the males of a dimorphic species — with
+              and age (pull up just your juveniles, or the males of a dimorphic species) with
               counts and links straight to the matching media in your Macaulay Library.
+              An Unbounded toggle lets the full table scroll with the page instead of
+              inside a fixed-width box.
             </p>
           </div>
           <figure class="feature-media shot-slot" data-shot="multimedia">
@@ -366,7 +368,7 @@
             <h3>Named Birds</h3>
             <p>
               Give an individual bird a name in your eBird species comment with a
-              <code>[name:…]</code> tag — like <code>[name:Winky]</code> — and SnowRaven
+              <code>[name:…]</code> tag (like <code>[name:Winky]</code>), and SnowRaven
               gathers every sighting of that individual: its species, when you first and
               last saw it, how long you've followed it, how many times, and each checklist
               it appears on, with its location and a map of everywhere that bird has been
@@ -400,7 +402,7 @@
             <p>
               Your checklists as whole outings. Search every checklist comment and every
               species comment you've ever written, and browse a filterable list of all
-              your checklists — combine has and doesn't-have filters for comments, media,
+              your checklists: combine has and doesn't-have filters for comments, media,
               breeding codes, completeness, protocol, county, and dates. Pasted weather
               and tide blocks stay hidden (and out of search) until you ask for them.
             </p>
@@ -440,8 +442,8 @@
               <div class="cmp-row"><span class="cmp-name">Northern Cardinal</span><span class="cmp-a win">12</span><span class="cmp-b">8</span></div>
               <div class="cmp-row"><span class="cmp-name">Song Sparrow</span><span class="cmp-a">5</span><span class="cmp-b win">9</span></div>
               <div class="cmp-row"><span class="cmp-name">Osprey</span><span class="cmp-a win">3</span><span class="cmp-b">1</span></div>
-              <div class="cmp-row only"><span class="cmp-name">Scarlet Tanager</span><span class="cmp-a win">2</span><span class="cmp-b">—</span></div>
-              <div class="cmp-row only"><span class="cmp-name">Bobolink</span><span class="cmp-a">—</span><span class="cmp-b win">4</span></div>
+              <div class="cmp-row only"><span class="cmp-name">Scarlet Tanager</span><span class="cmp-a win">2</span><span class="cmp-b">–</span></div>
+              <div class="cmp-row only"><span class="cmp-name">Bobolink</span><span class="cmp-a">–</span><span class="cmp-b win">4</span></div>
             </div>
           </figure>
         </article>
@@ -456,14 +458,14 @@
             <p>
               Out in the field with no signal, SnowRaven keeps working from the data
               already loaded on your device. The maps and every analytical tab open
-              offline once they've loaded online once — your sightings, heatmap, atlas,
+              offline once they've loaded online once: your sightings, heatmap, atlas,
               labels, and taxonomically sorted names with their icons all draw, even on a
               first cold start of the day. A checklist's weather and tide you looked up
               earlier re-show, marked as the last loaded result.
             </p>
             <p>
-              SnowRaven is honest about the edges. Live lookups — current weather and tide,
-              place search, the Checklist Comparer, nearby-bird overlays, and app updates —
+              SnowRaven is honest about the edges. Live lookups (current weather and tide,
+              place search, the Checklist Comparer, nearby-bird overlays, and app updates)
               still need a connection; offline you see the last loaded result where one
               exists, or a plain note that you're offline. Only the vector street basemap
               works offline; satellite, topo, and trails need a connection.
@@ -501,15 +503,15 @@
           <ul class="platform-list">
             <li>
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M16.4 12.6c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .7 1 1.4 2 2.4 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.7-.9 2.3-1.9c.7-1 1-2 1-2.1 0 0-2-.8-2.1-3zM14.6 5.7c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-1 1.5-.8 2.4.9.1 1.7-.4 2.3-1.1z"/></svg>
-              <span>macOS — universal .dmg</span>
+              <span>macOS: universal .dmg</span>
             </li>
             <li>
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M3 5.5 10.5 4.4v7.1H3zM11.5 4.3 21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
-              <span>Windows — .exe installer</span>
+              <span>Windows: .exe installer</span>
             </li>
             <li>
               <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/><path d="M8 13h.01M12 13h.01M16 13h.01"/></svg>
-              <span>Raspberry Pi / Linux — self-host</span>
+              <span>Raspberry Pi / Linux: self-host</span>
             </li>
           </ul>
         </div>
@@ -559,12 +561,12 @@
             <p>Two free API keys, entered once in Settings:</p>
             <ul>
               <li>
-                <strong>eBird API key</strong> — free from
+                <strong>eBird API key</strong>, free from
                 <a href="https://ebird.org/api/keygen" target="_blank" rel="noopener">ebird.org/api/keygen</a>.
                 Powers weather lookups, hotspot and nearby-sighting data, and taxonomy and region lookups.
               </li>
               <li>
-                <strong>OpenWeather API key</strong> — free from
+                <strong>OpenWeather API key</strong>, free from
                 <a href="https://openweathermap.org" target="_blank" rel="noopener">openweathermap.org</a>,
                 subscribed to the One Call by Call plan.
               </li>
