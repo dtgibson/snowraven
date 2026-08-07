@@ -280,6 +280,104 @@ export function computeTemporal(checklists: ChecklistEntry[], filteredObs: Obser
   return { yearRows, monthRows, dowRows, hourRows }
 }
 
+// ── Checklist duration bins ─────────────────────────────────────────────────
+// Lower-inclusive half-open bins: 15-minute steps [0,15) … [165,180) for the
+// first three hours, then hourly [180,240), [240,300), … So a 15-minute
+// checklist lands in [15,30) and a 180-minute one in [180,240).
+
+const DURATION_FINE_BIN_MIN = 15
+const DURATION_FINE_BIN_COUNT = 12 // 12 × 15 min = the first 3 hours
+const DURATION_HOURLY_START_MIN = DURATION_FINE_BIN_COUNT * DURATION_FINE_BIN_MIN // 180
+// eBird caps a checklist's duration at 24 h, so anything outside [0, 1440] is a
+// corrupt or hostile cell (a CSV column shift can drop an ML catalog number
+// into "Duration (Min)"), not data. computeDurationBins treats out-of-range
+// durations as duration-less — without this guard the bin ladder's length is
+// arithmetic in the single largest value (gigabytes of bins and a render-time
+// crash from one bad row), and a negative value bins invisibly at a negative
+// index. Security-review remediation; the parser's NaN check stays as-is.
+const DURATION_SANE_MAX_MIN = 1440
+// Terminal bin: [1380, 1440], CLOSED at the cap (the standard terminal-bin
+// histogram convention) so an exactly-24h checklist stays visible without
+// minting a bin past the cap. 12 fine + 21 hourly = 33 bins, the structural
+// maximum of the ladder.
+const DURATION_MAX_BIN_INDEX =
+  DURATION_FINE_BIN_COUNT + (DURATION_SANE_MAX_MIN - DURATION_HOURLY_START_MIN) / 60 - 1 // 32
+
+function durationBinIndex(min: number): number {
+  if (min < DURATION_HOURLY_START_MIN) return Math.floor(min / DURATION_FINE_BIN_MIN)
+  return DURATION_FINE_BIN_COUNT + Math.floor((min - DURATION_HOURLY_START_MIN) / 60)
+}
+
+function durationBinBounds(i: number): { lo: number; hi: number } {
+  if (i < DURATION_FINE_BIN_COUNT) {
+    return { lo: i * DURATION_FINE_BIN_MIN, hi: (i + 1) * DURATION_FINE_BIN_MIN }
+  }
+  const lo = DURATION_HOURLY_START_MIN + (i - DURATION_FINE_BIN_COUNT) * 60
+  return { lo, hi: lo + 60 }
+}
+
+// Compact histogram-label form of a bin bound ("45m", "2h", "1h 45m") — a
+// label-density sibling of statsFormat's formatDuration, which spells full
+// units ("1 hr, 45 min") and would be noise at bar-label width. Bounds are
+// exact bin edges (whole minutes), so no rounding is needed here.
+function fmtDurationBound(min: number): string {
+  if (min < 60) return `${min}m`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+// "0-15m" / "45-60m" (shared minute unit), "3-4h" (shared whole-hour unit),
+// else full form on each side ("1h 45m-2h"). Hyphen ranges — never em dashes
+// (user-facing-copy convention).
+function durationBinLabel(lo: number, hi: number): string {
+  if (lo < 60 && hi <= 60) return `${lo}-${hi}m`
+  if (lo % 60 === 0 && hi % 60 === 0) return `${lo / 60}-${hi / 60}h`
+  return `${fmtDurationBound(lo)}-${fmtDurationBound(hi)}`
+}
+
+/**
+ * Checklist-duration histogram for Temporal Stats. Bins run from [0,15) up to
+ * and including the bin containing the longest in-range duration; zero-count
+ * bins inside that range are kept (honest shape), bins beyond it are omitted.
+ * Checklists with no duration OR a duration outside [0, DURATION_SANE_MAX_MIN]
+ * (eBird's own 24 h cap) are excluded from the bins, from `durationCount`
+ * coverage, AND from `avgDurationMin` — the ladder is then structurally
+ * bounded at 33 bins, so one corrupt cell can neither exhaust memory nor skew
+ * the caption. `avgDurationMin` is this block's OWN average over exactly the
+ * durations the bars show: it equals computeEffort's on sane data (a parity
+ * test locks that) but deliberately diverges when out-of-range values exist —
+ * computeEffort's shipped behavior is unchanged and still counts them.
+ */
+export function computeDurationBins(checklists: ChecklistEntry[]) {
+  const counts = new Map<number, number>()
+  let totalDurationMin = 0
+  let durationCount = 0
+  let maxIdx = -1
+  for (const c of checklists) {
+    // Range guard (security remediation): negative and >24h durations are
+    // duration-less here, same as null — see DURATION_SANE_MAX_MIN above.
+    if (c.duration === null || c.duration < 0 || c.duration > DURATION_SANE_MAX_MIN) continue
+    totalDurationMin += c.duration
+    durationCount++
+    // Math.min only bites for exactly 1440 (the closed terminal-bin edge).
+    const idx = Math.min(durationBinIndex(c.duration), DURATION_MAX_BIN_INDEX)
+    counts.set(idx, (counts.get(idx) ?? 0) + 1)
+    if (idx > maxIdx) maxIdx = idx
+  }
+  const bins: { label: string; value: number; lo: number; hi: number }[] = []
+  for (let i = 0; i <= maxIdx; i++) {
+    const { lo, hi } = durationBinBounds(i)
+    bins.push({ label: durationBinLabel(lo, hi), value: counts.get(i) ?? 0, lo, hi })
+  }
+  return {
+    bins,
+    durationCount,
+    totalCount: checklists.length,
+    avgDurationMin: durationCount > 0 ? totalDurationMin / durationCount : null,
+  }
+}
+
 /** Top locations / counties / states by checklist count and by species count. */
 export function computeGeo(checklists: ChecklistEntry[], filteredObs: ObservationEntry[]) {
   const locationMap = new Map<string, { locationId: string; name: string; count: number; species: Set<string>; lat: number | null; lng: number | null }>()

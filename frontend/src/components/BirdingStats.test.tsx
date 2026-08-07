@@ -283,3 +283,21 @@ describe('BirdingStats accessibility', () => {
     }
   })
 })
+
+describe('BirdingStats checklist duration block', () => {
+  // Temporal Stats duration histogram: fixture durations 15/30/45 land in
+  // [15,30)/[30,45)/[45,60); the in-range [0,15) zero bin still renders, nothing
+  // past the longest bin, and the caption shows the model's OWN average via
+  // formatDuration ((15+30+45)/3 = 30 min) — which equals Effort's on this
+  // all-in-range fixture. All fixture checklists carry a usable duration, so
+  // no coverage note.
+  it('renders the duration bins with zero-bin backfill and the average caption', async () => {
+    await renderComputed()
+    expect(screen.getByText('Checklist duration')).toBeTruthy()
+    expect(screen.getByText('0-15m')).toBeTruthy()     // zero-count bin inside the range
+    expect(screen.getByText('45-60m')).toBeTruthy()    // bin containing the longest (45)
+    expect(screen.queryByText('1h-1h 15m')).toBeNull() // no bin beyond the longest
+    expect(screen.getByText('30 min avg')).toBeTruthy()
+    expect(screen.queryByText(/have a usable duration/)).toBeNull()
+  })
+})

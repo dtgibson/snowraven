@@ -21,7 +21,7 @@ import { regionName } from '../lib/regionNames'
 import { BirdName } from './BirdName'
 import {
   filterObservations, computeChecklists, computeLifeList, computeTopSpecies, computeTotals,
-  computeAccumulation, computeTemporal, computeGeo, computeEffort, computeQuality,
+  computeAccumulation, computeTemporal, computeDurationBins, computeGeo, computeEffort, computeQuality,
   computeBreedingStats, computeMlStats, computeFunStats,
   formatPeriodLabel, MILESTONE_THRESHOLDS, KM_TO_MI, HA_TO_ACRE,
 } from '../lib/birdingStats'
@@ -271,6 +271,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   // Temporal histograms
   const temporal = useMemo(() => computeTemporal(checklists, filteredObs), [checklists, filteredObs])
 
+  // Checklist-duration histogram (Temporal Stats)
+  const durationBins = useMemo(() => computeDurationBins(checklists), [checklists])
+
   // Geographic stats
   const geo = useMemo(() => computeGeo(checklists, filteredObs), [checklists, filteredObs])
 
@@ -359,6 +362,11 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const maxDow = Math.max(...temporal.dowRows.map(r => r.value), 1)
   const maxHour = Math.max(...temporal.hourRows.map(r => r.value), 1)
   const totalHour = temporal.hourRows.reduce((s, r) => s + r.value, 0)
+  // Reduce, not a Math.max spread: the bins array is data-derived (the model
+  // bounds it at 33, but defense in depth — a spread over an unbounded array
+  // throws RangeError at ~1e5 elements). The other spreads here are over
+  // small fixed-length arrays and stay as-is.
+  const maxDurationBin = durationBins.bins.reduce((m, r) => Math.max(m, r.value), 1)
   // Jump-nav: base sections + Media (only with an ML export).
   const navSections = [
     ...NAV_SECTIONS,
@@ -780,6 +788,34 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             </div>
           </div>
         </div>
+
+        <Divider />
+        <SubLabel>Checklist duration</SubLabel>
+        {durationBins.durationCount > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {/* Zero-count bins inside the range keep their empty track (honest
+                shape); bins beyond the longest checklist are omitted by the
+                model. pctOf is the duration-bearing checklist count, matching
+                "By start hour"'s share-of-covered semantics. */}
+            {durationBins.bins.map(r => (
+              <BarRow key={r.label} label={r.label} value={r.value} max={maxDurationBin} labelWidth={82} color="var(--sr-graph-photo)" pctOf={durationBins.durationCount} />
+            ))}
+            <p style={{ fontSize: '0.65625rem', color: 'var(--sr-text-muted)', margin: '10px 0 0', lineHeight: 1.4 }}>
+              {/* The caption uses the MODEL's own average — computed over
+                  exactly the in-range durations the bars show — so it can
+                  never disagree with the bars. It matches Effort's average on
+                  sane data (parity-locked in tests); Effort's own tile is
+                  deliberately unchanged. Coverage counts usable (0-24h)
+                  durations, hence "usable". */}
+              {durationBins.avgDurationMin !== null ? `${formatDuration(durationBins.avgDurationMin)} avg` : ''}
+              {durationBins.durationCount < durationBins.totalCount
+                ? ` · ${fmt(durationBins.durationCount)} of ${fmt(durationBins.totalCount)} checklists have a usable duration`
+                : ''}
+            </p>
+          </div>
+        ) : (
+          <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: 0 }}>No duration data in this export.</p>
+        )}
       </SectionCard>
 
       {/* ── Section 4: Geographic Stats ────────────────────────────────────── */}
