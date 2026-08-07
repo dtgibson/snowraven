@@ -2,7 +2,7 @@
 // the Statistics page, computed entirely from the loaded eBird backup:
 //   • Avian American    — the 22 "American …" species, checked off as recorded
 //   • California Dreamer — the 7 "California …" species
-//   • Rainbow Warrior    — the earliest-first-seen bird whose name contains each
+//   • Rainbow Connection — the earliest-first-seen bird whose name contains each
 //                          rainbow color (red → violet)
 // Pure logic, no I/O, no `Date.now()` (backup dates are immutable). Names fold to
 // the parent via normalizeSpeciesName, so a subspecies entry still ticks its list.
@@ -130,7 +130,7 @@ export interface FrivolousListsData {
   crowRaven: NameListResult
   heronIsCarin: GroupedListResult
   bestOfTheCrest: GroupedListResult
-  rainbowWarrior: { rows: RainbowEntry[]; filled: number; total: number; complete: boolean }
+  rainbowConnection: { rows: RainbowEntry[]; filled: number; total: number; complete: boolean }
 }
 
 /** Names we never count: spuh ("… sp."), slash ("A/B"), or " x " hybrids. */
@@ -273,6 +273,6 @@ export function computeFrivolousLists(observations: ObservationEntry[]): Frivolo
     crowRaven: nameList(CROW_RAVEN),
     heronIsCarin: groupedList(HERON_IS_CARIN),
     bestOfTheCrest: groupedList(BEST_OF_THE_CREST),
-    rainbowWarrior: { rows, filled, total: RAINBOW_COLORS.length, complete: filled === RAINBOW_COLORS.length },
+    rainbowConnection: { rows, filled, total: RAINBOW_COLORS.length, complete: filled === RAINBOW_COLORS.length },
   }
 }
