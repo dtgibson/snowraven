@@ -710,7 +710,7 @@ export default function App() {
         </div>
         {!compactChrome() && (
           <p style={{ fontSize: '0.875rem', color: 'var(--sr-text-muted)', marginBottom: 28 }}>
-            Birding tools for your eBird workflow
+            Self-hosted birding tools and data explorer
           </p>
         )}
       </header>

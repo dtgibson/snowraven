@@ -62,13 +62,13 @@ describe('App.tsx wiring', () => {
 
   it('the tagline renders only outside compact chrome', () => {
     // Anchored to the tagline's own content: the guard and the <p> holding
-    // "Birding tools…" must be adjacent, so this can't pass vacuously off some
-    // OTHER element gaining the {!compactChrome() && ( pattern while the
+    // "Self-hosted birding…" must be adjacent, so this can't pass vacuously off
+    // some OTHER element gaining the {!compactChrome() && ( pattern while the
     // tagline goes unconditional.
     // (bounded window, not [^)]*: the <p>'s inline style contains var(--…) parens)
-    expect(app).toMatch(/\{!compactChrome\(\) && \([\s\S]{0,300}?Birding tools for your eBird workflow/)
+    expect(app).toMatch(/\{!compactChrome\(\) && \([\s\S]{0,300}?Self-hosted birding tools and data explorer/)
     // And the tagline never renders outside that guard (exactly one occurrence
     // of the copy, the guarded one).
-    expect(app.match(/Birding tools for your eBird workflow/g)).toHaveLength(1)
+    expect(app.match(/Self-hosted birding tools and data explorer/g)).toHaveLength(1)
   })
 })
