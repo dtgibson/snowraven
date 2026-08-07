@@ -155,6 +155,23 @@ describe('computeEffort', () => {
     expect(e.largestGroup?.n).toBe(3)
     expect(e.completeRatio).toBe(0.5)     // 1 of 2 complete
   })
+  it('keys observerRows by the actual count — no 5+ rollup', () => {
+    // Regression: the old model clamped `numObservers >= 5` into one key of 5,
+    // which would merge these into a single { n: 5, count: 3 } row.
+    const highRows = [
+      obs({ submissionId: 'S10', commonName: 'American Robin', date: '2024-02-01', numObservers: 6 }),
+      obs({ submissionId: 'S11', commonName: 'American Robin', date: '2024-02-02', numObservers: 8 }),
+      obs({ submissionId: 'S12', commonName: 'Blue Jay', date: '2024-02-03', numObservers: 8 }),
+      obs({ submissionId: 'S13', commonName: 'Blue Jay', date: '2024-02-04', numObservers: 2 }),
+    ]
+    const eh = computeEffort(computeChecklists(highRows))
+    expect(eh.observerRows).toEqual([
+      { n: 2, count: 1 },
+      { n: 6, count: 1 },
+      { n: 8, count: 2 },
+    ])
+    expect(eh.observerRows.find(r => r.n === 5)).toBeUndefined()
+  })
 })
 
 describe('computeBreedingStats', () => {

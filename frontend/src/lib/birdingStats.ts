@@ -415,8 +415,8 @@ export function computeEffort(checklists: ChecklistEntry[]) {
     if (c.speciesCount > biggestVal) { biggestVal = c.speciesCount; biggest = c }
     if (c.individualCount > mostIndivVal) { mostIndivVal = c.individualCount; mostIndiv = c }
     if (c.numObservers !== null) {
-      const key = c.numObservers >= 5 ? 5 : c.numObservers
-      observerDist.set(key, (observerDist.get(key) ?? 0) + 1)
+      // Every distinct observer count gets its own row (no 5+ rollup).
+      observerDist.set(c.numObservers, (observerDist.get(c.numObservers) ?? 0) + 1)
       observerSum += c.numObservers; observerCount++
       if (c.numObservers === 1) soloCount++
       else if (c.numObservers > 1) groupCount++

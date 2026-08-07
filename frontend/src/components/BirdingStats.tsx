@@ -1214,7 +1214,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                           dataKey="n"
                           tick={{ fontSize: '0.6875rem', fill: 'var(--sr-text-muted)' }}
                           tickLine={false} axisLine={false}
-                          tickFormatter={n => n === 5 ? '5+' : String(n)}
+                          tickFormatter={n => String(n)}
                         />
                         <YAxis tick={{ fontSize: '0.625rem', fill: 'var(--sr-text-muted)' }} tickLine={false} axisLine={false} />
                         <Tooltip
@@ -1222,7 +1222,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                           wrapperStyle={{ pointerEvents: 'auto' }}
                           contentStyle={{ background: 'var(--sr-surface)', border: '1px solid var(--sr-border)', borderRadius: 8, fontSize: '0.75rem' }}
                           formatter={(v) => [fmt(Number(v)), 'Lists']}
-                          labelFormatter={n => n === 5 ? '5+ observers' : `${n} observer${n === 1 ? '' : 's'}`}
+                          labelFormatter={n => `${n} observer${n === 1 ? '' : 's'}`}
                         />
                         <Bar dataKey="count" fill="var(--sr-accent)" radius={[3, 3, 0, 0]} />
                       </BarChart>
@@ -1250,7 +1250,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         return (
                           <div key={r.n} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                             <div style={{ width: 8, height: 8, borderRadius: '50%', background: obsPieColors[i % obsPieColors.length], flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{r.n === 5 ? '5+' : r.n} obs {opct}%</span>
+                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{r.n} obs {opct}%</span>
                           </div>
                         )
                       })}
