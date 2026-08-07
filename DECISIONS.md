@@ -4,6 +4,46 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## A histogram whose bin count derives from a data VALUE must bound its ladder structurally — 2026-08-06 (v0.5.78)
+
+**Decision:** Any statistics histogram whose bin count derives arithmetically from a data *value* (rather than from row count or distinct values) must bound its ladder structurally in the compute layer: a plausible-range guard on the input **plus** a hard clamp on the bin index, paired with reduce-not-spread for any `Math.max`/`Math.min` over a data-length array. `computeDurationBins` (`frontend/src/lib/birdingStats.ts`) is the reference implementation.
+
+**Why:** The new Checklist duration histogram drew a Medium in security review, empirically confirmed: the CSV parser admits any `parseInt`-able integer, so a single corrupt duration cell (`999999999` — e.g. an ML catalog number landing in the Duration column from a column shift) minted a ~16.7M-bin ladder, ~3 GB of heap, and a render-time `RangeError` from `Math.max(...spread)` that took the view down. The observer-count histogram this stat imitates was safe only because its size is bounded by distinct values in the file — a structurally different shape that must not be generalized from. The parser is the wrong home for the bound (it admits what the export contains); the compute layer owns it.
+
+**Remediation shipped (Tester re-verified, Auditor re-reviewed to PASSED):** a `[0, 1440]` range guard (eBird's own 24 h checklist cap; out-of-range and negative rows are treated as duration-less and surface honestly in the "N of M checklists have a usable duration" coverage note), a structural `DURATION_MAX_BIN_INDEX` clamp bounding the ladder at 33 bins even if the guard were bypassed, and the component max as a reduce. The crash-regression test runs the exact probe value in milliseconds versus ~2.5 s / ~3 GB on the pre-fix code.
+
+**Deliberate documented divergence — do not "fix":** with a corrupt out-of-range cell present, the Effort tile's average (`computeEffort`, byte-untouched, sums all non-null durations) can differ from the Temporal caption's average (in-range only). A parity test asserts equality on sane data; an exclusion test asserts the divergence on hostile data.
+
+**Implication:** promoted to `CLAUDE.md`. Future value-derived binning follows the same contract.
+
+---
+
+## Em-dash convention extended to every published prose surface — 2026-08-06 (v0.5.78)
+
+**Decision:** The v0.5.68 no-em-dash rule (app copy + `docs/HELP.md`) now also covers `README.md`, the website's user-facing prose, `PRIVACY_POLICY.md`, and `ACCESSIBILITY.md`. Same exclusions: provider-mandated attribution/credit strings stay verbatim, load-bearing dashes in parsing logic are untouched, and historical records (`DECISIONS.md`, `CHANGELOG.md`, pipeline archives) keep their written style. The website List Comparer mock's two placeholder cells became en dashes — the sanctioned empty-cell glyph, not prose punctuation.
+
+**Why:** the sweep found 124 em dashes across the four surfaces (README 46, ACCESSIBILITY.md 32, PRIVACY_POLICY.md 20, website/index.html 26), each replaced per context rather than blind-deleted, and the two published statements were verified meaning-identical hunk by hunk — a privacy policy or accessibility statement whose meaning drifts in a punctuation sweep is a liability, not a style fix. One informational string was polished in passing: the USGS proper noun now reads "USGS: The National Map".
+
+**Implication:** `CLAUDE.md`'s Documentation rule states the extended scope; `grep -c '—'` on all four files should stay 0.
+
+---
+
+## Self-hosted positioning adopted across the four descriptive surfaces — 2026-08-06 (v0.5.78)
+
+**Decision:** The app's tagline is now **"Self-hosted birding tools and data explorer"**, and the same self-hosted formulation carries across the four synchronized spots: the `App.tsx` tagline, `README.md` line 3's description, the website `<title>`/`og:title`, and the website footer. Build 1 (main-heading-selfhosted) scoped README line 3 out; build 5 (docs-website-sync-emdash) deliberately superseded that call so the formulation is written once and propagated (the v0.5.75 convention).
+
+**Why:** the old tagline ("Birding tools for your eBird workflow") undersold the product; the new copy leads with the self-hosted, local-first identity and names the data explorer — matching how the docs already describe the app. Descriptive, not promotional, per the website voice rule; the compact-iOS-chrome tagline guard and its test moved with the string, structure unchanged.
+
+**Implication:** a future rewording of the positioning touches all four spots in one edit.
+
+---
+
+## Two prior stats decisions touched, none reversed (duration in Temporal; Rainbow Connection) — 2026-08-06 (v0.5.78)
+
+**Decision:** Three notes for the record, all touches rather than reversals. (1) The Checklist duration histogram lives in **Temporal Stats** by explicit user direction — the 2026-05-24 "don't duplicate Effort content in Temporal without user confirmation" note stands; the user's saved idea *is* that confirmation, the distribution is new content, and only the small average caption overlaps the Effort tile. (2) The observer-count change *fulfills* the 2026-05-23 entry's recorded direction ("for as many observers as there are in the file") more faithfully — the "5+" rollup was an implementation cap on that intent, now removed and locked by a regression test proven to fail on the old clamp. (3) "Rainbow Warrior" → **"Rainbow Connection"** is a pure rename (label, internal result field, tests, `globals.css` comments, `HELP.md`); the v0.5.36 rainbow-matching entry is not reversed, historical records stay as written, and the `--sr-rainbow-*` token names stay — they encode colors, not the title.
+
+---
+
 ## The embed guard threaded for real, dev advisories cleared, and website screenshots regenerated behind a new `SR_DATA_DIR` — 2026-08-06 (v0.5.77)
 
 **Decision — three independent improvements in one release.**

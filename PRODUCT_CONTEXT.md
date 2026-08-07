@@ -5,6 +5,14 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Five-improvement Spool bundle: positioning, richer statistics, a rename, and a docs sweep (complete — August 2026, v0.5.78)
+
+Five queued improvements shipped as one release. The app's tagline now reads **"Self-hosted birding tools and data explorer"**, with the same formulation on the README description, the website title/og:title, and the website footer. On the Statistics tab, "Lists by observer count" shows every distinct observer count as its own bar, legend row, and donut slice (the old "5+" rollup is gone; the categorical axis renders only counts present in the data), and Temporal Stats gains a **Checklist duration** histogram — 15-minute bins for the first three hours, hourly bins after, with an average caption and an honest "N of M checklists have a usable duration" coverage note. The Frivolous Lists' rainbow collection is retitled **"Rainbow Connection"** (matching behavior unchanged). And the published docs caught up: HELP.md documents the new stats, the README's Multimedia entry names the "↔ Unbounded" toggle (closing the last v0.5.75 sweep gap), and em dashes were swept to zero across README, PRIVACY_POLICY.md, ACCESSIBILITY.md, and the website.
+
+- Duration binning is the pure `computeDurationBins` (`lib/birdingStats.ts`): range-guarded to [0, 1440] minutes with a structural 33-bin clamp, so one corrupt CSV cell can no longer build an unbounded bin ladder (security-reviewed, remediated, re-verified to PASSED). The Effort tile's average is deliberately untouched; the two averages can differ only when a corrupt out-of-range cell exists.
+- The observer-count change is locked by a regression test proven to fail on the old `>= 5` clamp.
+- No new data, providers, network calls, or settings anywhere in the bundle; everything outside the two stats is copy-only.
+
 ### Disable Embedded Media (complete — July 2026, v0.5.72)
 
 Settings now has an off-by-default **Disable embedded media** preference for
