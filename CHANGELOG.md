@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.76] - 2026-08-06
+
+### Fixed
+- **Macaulay Library media no longer shows a "Missing feature Cookies" error card.** The Cornell Lab recently put a bot check in front of the Macaulay Library, and that check cannot run inside an embedded player: it needs a browser cookie that no site is allowed to set from inside another site's page. Every photo, recording, and video embedded in SnowRaven turned into Cornell's error card instead. SnowRaven now notices when the check is up and shows its own card in place of the player, keeping the date, the checklist link, and a direct link to the asset on the Macaulay Library, where it opens and plays normally. When the Cornell Lab lifts the check, players come back on their own with nothing to update. This affects the Named Birds media and Species Detail's Recent Media, and is the same on the web app, the desktop apps, and iOS.
+
 ## [0.5.75] - 2026-08-04
 
 ### Fixed

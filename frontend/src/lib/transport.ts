@@ -140,6 +140,14 @@ class TauriTransport implements TransportAdapter {
       return getCountySpecies(params?.regionCode ?? '') as Promise<T>;
     }
 
+    // NOT in CACHED_GET_PATHS: lib/mlEmbedGate.ts owns this call's caching with
+    // a session-scoped single-flight probe, so a second 90 s layer would only
+    // shadow it (one caching layer per call).
+    if (path === '/media/embed-status') {
+      const { getEmbedStatus } = await import('./tauri/mediaService');
+      return getEmbedStatus(params?.catalogId ?? '') as Promise<T>;
+    }
+
     if (path === '/map/recent-obs') {
       const { getRecentObs } = await import('./tauri/mapService');
       const lat = parseFloat(params?.lat ?? '0');

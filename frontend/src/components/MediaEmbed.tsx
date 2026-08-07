@@ -19,6 +19,7 @@ import type { MediaType } from '../types'
 import { mlAssetUrl } from '../lib/mlCatalog'
 import { OutboundLink } from './OutboundLink'
 import { MEDIA_CATALOG_ID_RE, EMBED_GIVE_UP_MS } from '../lib/mediaEmbed'
+import { useMlEmbedGate } from '../lib/mlEmbedGate'
 
 export const EMBEDDED_MEDIA_DISABLED_MESSAGE = 'Embedded media is disabled in Settings.'
 
@@ -51,10 +52,12 @@ export function MediaFallback({ catalogId, format, compact, reason = 'offline' }
   format: MediaType
   compact: boolean
   /** Why the embed isn't showing — drives the placeholder message. */
-  reason?: 'offline' | 'load-failed'
+  reason?: 'offline' | 'load-failed' | 'blocked'
 }) {
   const canLink = MEDIA_CATALOG_ID_RE.test(catalogId)
-  const message = reason === 'load-failed' ? "Media couldn't load" : 'Media unavailable offline'
+  const message = reason === 'blocked'
+    ? "Media can't play here right now"
+    : reason === 'load-failed' ? "Media couldn't load" : 'Media unavailable offline'
   return (
     <div style={{
       height: '100%', width: '100%', display: 'flex', flexDirection: 'column',
@@ -114,20 +117,34 @@ export function MediaFrame({ catalogId, format, title, Icon, heightClass, embedA
   const [failed, setFailed] = useState(false)
   const [gaveUp, setGaveUp] = useState(false)
 
+  // Cornell's bot check in front of macaulaylibrary.org cannot complete inside a
+  // cross-site iframe, so a mounted player would render THEIR error card. That
+  // card is a successful HTTP 200 load, so onError and the give-up timer below
+  // both stay silent — the only way to know is the out-of-band probe. When it is
+  // up we show our own fallback (local metadata + link-out) and never mount the
+  // frame. Empty id when embeds are off, so a disabled surface makes no call.
+  const gated = useMlEmbedGate(embedAllowed ? catalogId : '')
+
   // Give-up timer: if nothing loads within the deadline, SHOW the fallback overlay
   // (non-destructive). Cleared once loaded. A plain timer id in an effect, never in
   // render (no Date.now() in render).
   useEffect(() => {
-    if (!embedAllowed || loaded) return
+    if (!embedAllowed || loaded || gated) return
     const t = setTimeout(() => setGaveUp(true), EMBED_GIVE_UP_MS)
     return () => clearTimeout(t)
-  }, [embedAllowed, loaded])
+  }, [embedAllowed, loaded, gated])
 
   // Overlay the fallback while giving-up/broken AND not yet loaded, so a late load
   // makes it disappear. The iframe underneath is always mounted and loading.
   const showFallbackOverlay = (failed || gaveUp) && !loaded
 
   if (!embedAllowed) return null
+
+  // Gated: our own card instead of Cornell's. No iframe is mounted at all, so we
+  // are not hammering a gate they put up deliberately.
+  if (gated) {
+    return <MediaFallback catalogId={catalogId} format={format} compact={compact} reason="blocked" />
+  }
 
   return (
     <>

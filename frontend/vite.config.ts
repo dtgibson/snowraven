@@ -37,6 +37,7 @@ export default defineConfig({
       '/taxonomy': 'http://localhost:1620',
       '/settings': 'http://localhost:1620',
       '/map': 'http://localhost:1620',
+      '/media': 'http://localhost:1620',
       '/stats': 'http://localhost:1620',
     },
   },

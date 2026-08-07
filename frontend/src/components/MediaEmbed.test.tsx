@@ -4,10 +4,25 @@
 // NamedBirdMedia.test.tsx exercises these through that component; this locks the
 // primitives directly so either surface's wiring can be refactored without losing
 // the give-up / offline / late-load / safe-id guarantees.
-import { describe, it, expect, afterEach, vi } from 'vitest'
-import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest'
+import { render, screen, cleanup, fireEvent, act, waitFor } from '@testing-library/react'
 import { Image as ImageIcon } from 'lucide-react'
 import { MediaFrame, MediaFallback } from './MediaEmbed'
+import { resetEmbedGateForTests } from '../lib/mlEmbedGate'
+
+const transportGet = vi.fn()
+vi.mock('../lib/transport', () => ({
+  transport: { get: (...args: unknown[]) => transportGet(...args) },
+}))
+
+beforeEach(() => {
+  resetEmbedGateForTests()
+  transportGet.mockReset()
+  // Default: the gate probe never settles, so these tests see the pre-probe
+  // state (not gated → the real frame mounts) with no stray async re-render.
+  // The gate's own behavior is asserted in the bot-gate block below.
+  transportGet.mockReturnValue(new Promise(() => {}))
+})
 
 afterEach(() => cleanup())
 
@@ -92,6 +107,69 @@ describe('MediaFrame — non-destructive give-up + late-load recovery', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+// Cornell's bot check in front of macaulaylibrary.org cannot complete inside a
+// cross-site iframe, so a mounted player renders THEIR "Missing feature Cookies"
+// card. That card is a successful HTTP 200 load, so neither onError nor the
+// give-up timer above can catch it — only the out-of-band probe can.
+describe('MediaFrame — Cornell bot gate', () => {
+  const frameProps = {
+    format: 'Photo' as const,
+    title: 't',
+    Icon: ImageIcon,
+    heightClass: 'sr-media-iframe--photo',
+    compact: false,
+  }
+
+  it('shows our own card and mounts NO iframe when the gate is up', async () => {
+    transportGet.mockResolvedValue({ gated: true })
+    render(<MediaFrame embedAllowed catalogId="662004247" {...frameProps} />)
+
+    await waitFor(() => expect(screen.getByText("Media can't play here right now")).toBeTruthy())
+    // The whole point: no frame is mounted, so we are not hammering a gate
+    // Cornell put up deliberately, and no foreign error card reaches the user.
+    expect(document.querySelector('iframe')).toBeNull()
+    expect(screen.getByRole('link', { name: /View Photo on Macaulay Library/i }).getAttribute('href'))
+      .toBe('https://macaulaylibrary.org/asset/662004247')
+  })
+
+  it('mounts the real frame when the gate is open', async () => {
+    transportGet.mockResolvedValue({ gated: false })
+    render(<MediaFrame embedAllowed catalogId="662004247" {...frameProps} />)
+
+    await waitFor(() => expect(transportGet).toHaveBeenCalled())
+    expect(document.querySelector('iframe')).toBeTruthy()
+    expect(screen.queryByText("Media can't play here right now")).toBeNull()
+  })
+
+  // Fails open: an implementation that treated a failed probe as "blocked" would
+  // blank every tile the moment the probe route erred or the device went offline.
+  it('mounts the real frame when the probe fails', async () => {
+    transportGet.mockRejectedValue(new Error('offline'))
+    render(<MediaFrame embedAllowed catalogId="662004247" {...frameProps} />)
+
+    await waitFor(() => expect(transportGet).toHaveBeenCalled())
+    expect(document.querySelector('iframe')).toBeTruthy()
+    expect(screen.queryByText("Media can't play here right now")).toBeNull()
+  })
+
+  it('probes with the catalog id it is about to embed', async () => {
+    transportGet.mockResolvedValue({ gated: false })
+    render(<MediaFrame embedAllowed catalogId="662004247" {...frameProps} />)
+
+    await waitFor(() => expect(transportGet).toHaveBeenCalledWith(
+      '/media/embed-status', { catalogId: '662004247' },
+    ))
+  })
+
+  it('makes no probe call when embedded media is switched off', async () => {
+    transportGet.mockResolvedValue({ gated: true })
+    render(<MediaFrame embedAllowed={false} catalogId="662004247" {...frameProps} />)
+
+    await act(async () => { await Promise.resolve() })
+    expect(transportGet).not.toHaveBeenCalled()
   })
 })
 
