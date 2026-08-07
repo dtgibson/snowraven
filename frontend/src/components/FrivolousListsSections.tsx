@@ -1,7 +1,7 @@
 // The Frivolous Lists section — eight playful, self-completing collections at the
 // bottom of the Statistics page (Avian American, California Dreamer, Phoebe Phanatic,
 // Scrub Jay All Day, Crow Pro / Raven Maven, the grouped Heron is Carin' and Best of
-// the Crest, and Rainbow Warrior). Pure presentation over computeFrivolousLists; species names render
+// the Crest, and Rainbow Connection). Pure presentation over computeFrivolousLists; species names render
 // through BirdName, the Rainbow first-sighting dates through ChecklistLink. Kept
 // out of BirdingStats.tsx to keep that file manageable (the MediaStatsSections
 // pattern). No charts here, so no recharts test caveat applies.
@@ -132,7 +132,7 @@ function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies, isHo
   return (
     <div>
       <div style={HEAD_ROW}>
-        <SubLabel>Rainbow Warrior</SubLabel>
+        <SubLabel>Rainbow Connection</SubLabel>
         <span style={PROGRESS} aria-label={`${filled} of ${rows.length} colors found`}>
           {filled} / {rows.length}
         </span>
@@ -199,7 +199,7 @@ export function FrivolousListsSections({ observations, codeFor, hasEntryFor, onO
       <Divider />
       <GroupedNameList title="Best of the Crest" list={data.bestOfTheCrest} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
       <Divider />
-      <RainbowList rows={data.rainbowWarrior.rows} complete={data.rainbowWarrior.complete} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} isHotspot={isHotspot} />
+      <RainbowList rows={data.rainbowConnection.rows} complete={data.rainbowConnection.complete} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} isHotspot={isHotspot} />
     </>
   )
 }

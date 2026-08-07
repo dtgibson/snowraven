@@ -133,11 +133,11 @@ describe('computeFrivolousLists — grouped lists (v0.5.39)', () => {
   })
 })
 
-describe('computeFrivolousLists — Rainbow Warrior', () => {
+describe('computeFrivolousLists — Rainbow Connection', () => {
   it('returns seven rows in spectrum order', () => {
     const data = computeFrivolousLists([])
-    expect(data.rainbowWarrior.rows.map(r => r.color)).toEqual([...RAINBOW_COLORS])
-    expect(data.rainbowWarrior.total).toBe(7)
+    expect(data.rainbowConnection.rows.map(r => r.color)).toEqual([...RAINBOW_COLORS])
+    expect(data.rainbowConnection.total).toBe(7)
   })
 
   it('matches a color only as a whole word', () => {
@@ -147,7 +147,7 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'American Redstart', date: '2019-01-03' }), // NOT red
       obs({ commonName: 'Red-tailed Hawk', date: '2019-02-01' }),   // red ✓
     ])
-    const red = data.rainbowWarrior.rows.find(r => r.color === 'red')!
+    const red = data.rainbowConnection.rows.find(r => r.color === 'red')!
     expect(red.bird?.commonName).toBe('Red-tailed Hawk')
   })
 
@@ -157,7 +157,7 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Red-tailed Hawk', date: '2018-05-01', location: 'Ridge' }),     // earlier
       obs({ commonName: 'Red Crossbill', date: '2020-12-01', location: 'Pines' }),
     ])
-    const red = data.rainbowWarrior.rows.find(r => r.color === 'red')!
+    const red = data.rainbowConnection.rows.find(r => r.color === 'red')!
     expect(red.bird?.commonName).toBe('Red-tailed Hawk')
     expect(red.bird?.date).toBe('2018-05-01')
     expect(red.bird?.location).toBe('Ridge')
@@ -168,7 +168,7 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Blue Jay', date: '2021-06-01', submissionId: 'S900' }),
       obs({ commonName: 'Blue Jay', date: '2017-01-09', submissionId: 'S100', location: 'Backyard' }),
     ])
-    const blue = data.rainbowWarrior.rows.find(r => r.color === 'blue')!
+    const blue = data.rainbowConnection.rows.find(r => r.color === 'blue')!
     expect(blue.bird?.date).toBe('2017-01-09')
     expect(blue.bird?.location).toBe('Backyard')
     expect(blue.bird?.submissionId).toBe('S100')
@@ -178,8 +178,8 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
     const data = computeFrivolousLists([
       obs({ commonName: 'Violet-green Swallow', date: '2019-04-01' }),
     ])
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'violet')!.bird?.commonName).toBe('Violet-green Swallow')
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Violet-green Swallow')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'violet')!.bird?.commonName).toBe('Violet-green Swallow')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Violet-green Swallow')
   })
 
   it('avoids doubling a bird across colors when a distinct alternative exists', () => {
@@ -188,8 +188,8 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Green Heron', date: '2019-06-01' }),          // matches green only
     ])
     // Even though the Swallow was seen first, green takes the Heron so violet keeps the Swallow — no double.
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'violet')!.bird?.commonName).toBe('Violet-green Swallow')
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Green Heron')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'violet')!.bird?.commonName).toBe('Violet-green Swallow')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Green Heron')
   })
 
   it('resolves a multi-color contest to distinct birds where possible', () => {
@@ -198,9 +198,9 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Green Heron', date: '2020-01-01' }),          // green only
       obs({ commonName: 'Blue Jay', date: '2019-01-01' }),             // blue only
     ])
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Green Heron')
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'violet')!.bird?.commonName).toBe('Violet-green Swallow')
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'blue')!.bird?.commonName).toBe('Blue Jay')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Green Heron')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'violet')!.bird?.commonName).toBe('Violet-green Swallow')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'blue')!.bird?.commonName).toBe('Blue Jay')
   })
 
   it('gives a higher-priority color its earliest bird when distinctness still holds', () => {
@@ -211,8 +211,8 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
     ])
     // yellow (higher in the spectrum) keeps its earliest (the Vireo); green takes the
     // Heron — both distinct. Plain max-matching would bump yellow onto the later Warbler.
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'yellow')!.bird?.commonName).toBe('Yellow-green Vireo')
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Green Heron')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'yellow')!.bird?.commonName).toBe('Yellow-green Vireo')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Green Heron')
   })
 
   it('is deterministic under input reordering when two species tie on date and submission id', () => {
@@ -221,7 +221,7 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Blue Jay', date: '2024-03-04', submissionId: 'S7' }),
     ]
     const blueOf = (rs: typeof rows) =>
-      computeFrivolousLists(rs).rainbowWarrior.rows.find(r => r.color === 'blue')!.bird?.commonName
+      computeFrivolousLists(rs).rainbowConnection.rows.find(r => r.color === 'blue')!.bird?.commonName
     expect(blueOf(rows)).toBe(blueOf([...rows].reverse()))
   })
 
@@ -231,9 +231,9 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Green-winged Teal', date: '2019-02-01' }),      // green
       obs({ commonName: 'Orange-crowned Warbler', date: '2019-03-01' }), // orange
     ])
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'yellow')!.bird).toBeNull()
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Green-winged Teal')
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'orange')!.bird?.commonName).toBe('Orange-crowned Warbler')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'yellow')!.bird).toBeNull()
+    expect(data.rainbowConnection.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Green-winged Teal')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'orange')!.bird?.commonName).toBe('Orange-crowned Warbler')
   })
 
   it('assigns two species that match the same two colors to distinct colors', () => {
@@ -241,8 +241,8 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Blue-and-yellow Macaw', date: '2019-01-01' }),  // blue + yellow
       obs({ commonName: 'Yellow-and-blue Conure', date: '2019-02-01' }), // blue + yellow
     ])
-    const blue = data.rainbowWarrior.rows.find(r => r.color === 'blue')!.bird?.commonName
-    const yellow = data.rainbowWarrior.rows.find(r => r.color === 'yellow')!.bird?.commonName
+    const blue = data.rainbowConnection.rows.find(r => r.color === 'blue')!.bird?.commonName
+    const yellow = data.rainbowConnection.rows.find(r => r.color === 'yellow')!.bird?.commonName
     expect(blue).not.toBe(yellow)
     expect([blue, yellow].sort()).toEqual(['Blue-and-yellow Macaw', 'Yellow-and-blue Conure'])
   })
@@ -255,17 +255,17 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
     // Three fillable colors (yellow, green, violet) but only two species — one color
     // must double. green's earliest is the Vireo (S1 < S3); it shows the Vireo (a double
     // with yellow) rather than relocating the double onto violet via the later Swallow.
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'yellow')!.bird?.commonName).toBe('Yellow-green Vireo')
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Yellow-green Vireo')
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'violet')!.bird?.commonName).toBe('Violet-green Swallow')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'yellow')!.bird?.commonName).toBe('Yellow-green Vireo')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'green')!.bird?.commonName).toBe('Yellow-green Vireo')
+    expect(data.rainbowConnection.rows.find(r => r.color === 'violet')!.bird?.commonName).toBe('Violet-green Swallow')
   })
 
   it('leaves a color empty when no recorded bird matches', () => {
     const data = computeFrivolousLists([
       obs({ commonName: 'Red-tailed Hawk', date: '2019-01-01' }),
     ])
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'indigo')!.bird).toBeNull()
-    expect(data.rainbowWarrior.complete).toBe(false)
+    expect(data.rainbowConnection.rows.find(r => r.color === 'indigo')!.bird).toBeNull()
+    expect(data.rainbowConnection.complete).toBe(false)
   })
 
   it('is complete when all seven colors are filled', () => {
@@ -278,8 +278,8 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Indigo Bunting', date: '2019-01-06' }),
       obs({ commonName: 'Violet-green Swallow', date: '2019-01-07' }),
     ])
-    expect(data.rainbowWarrior.filled).toBe(7)
-    expect(data.rainbowWarrior.complete).toBe(true)
+    expect(data.rainbowConnection.filled).toBe(7)
+    expect(data.rainbowConnection.complete).toBe(true)
   })
 
   it('breaks earliest-date ties deterministically by lowest submission id', () => {
@@ -291,8 +291,8 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Red-tailed Hawk', date: '2019-01-01', submissionId: 'S1' }),
       obs({ commonName: 'Red Knot', date: '2019-01-01', submissionId: 'S2' }),
     ])
-    expect(forward.rainbowWarrior.rows.find(r => r.color === 'red')!.bird?.submissionId).toBe('S1')
-    expect(reverse.rainbowWarrior.rows.find(r => r.color === 'red')!.bird?.submissionId).toBe('S1')
+    expect(forward.rainbowConnection.rows.find(r => r.color === 'red')!.bird?.submissionId).toBe('S1')
+    expect(reverse.rainbowConnection.rows.find(r => r.color === 'red')!.bird?.submissionId).toBe('S1')
   })
 
   it('excludes spuh, slash, and " x " hybrid names from color matching', () => {
@@ -301,7 +301,7 @@ describe('computeFrivolousLists — Rainbow Warrior', () => {
       obs({ commonName: 'Blue-winged/Cinnamon Teal', date: '2019-01-02' }),
       obs({ commonName: 'Mallard x American Black Duck', date: '2019-01-03' }),
     ])
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'green')!.bird).toBeNull()
-    expect(data.rainbowWarrior.rows.find(r => r.color === 'blue')!.bird).toBeNull()
+    expect(data.rainbowConnection.rows.find(r => r.color === 'green')!.bird).toBeNull()
+    expect(data.rainbowConnection.rows.find(r => r.color === 'blue')!.bird).toBeNull()
   })
 })

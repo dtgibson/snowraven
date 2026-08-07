@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.78] - 2026-08-06
+
+### Added
+- **Checklist duration, charted.** The Statistics tab's Temporal Stats section gains a "Checklist duration" histogram: your checklists grouped in 15-minute steps for the first three hours and by the hour beyond that, with the average duration alongside. Only checklists that carry a usable duration are counted, and a note says how many that is.
+
+### Changed
+- **Every observer count gets its own bar.** The Statistics "Lists by observer count" chart no longer folds everything at five or more observers into one "5+" bucket: each distinct observer count in your data now shows its own frequency.
+- **A new main heading.** The heading under the SnowRaven title now reads "Self-hosted birding tools and data explorer" (previously "Birding tools for your eBird workflow"), and the website's title and footer match.
+- **Rainbow Warrior is now Rainbow Connection.** The rainbow-colors collection in the Statistics tab's Frivolous Lists carries its new name everywhere it appears; nothing about how it works changed.
+
+### Documentation
+- **The published pages caught up with the app.** The in-app Help documents the new duration histogram and the finer observer-count chart; the README's Multimedia entry now mentions the tab's "Unbounded" view (the last gap from the v0.5.75 sweep) and its description line adopts the new self-hosted wording.
+- **Em dashes are gone from every published surface.** The README, the website, the privacy policy, and the accessibility statement were swept clean of them (124 replaced with plainer punctuation, sentence by sentence, meaning unchanged), extending the v0.5.68 in-app sweep to everything SnowRaven publishes. Provider-required attribution strings are left exactly as their owners wrote them.
+
 ## [0.5.77] - 2026-08-06
 
 ### Internal

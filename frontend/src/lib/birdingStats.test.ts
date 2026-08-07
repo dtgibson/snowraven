@@ -3,7 +3,7 @@ import type { ObservationEntry } from '../types'
 import {
   filterObservations, computeChecklists, computeLifeList, computeTopSpecies,
   computeTotals, computeEffort, computeBreedingStats, computeTemporal, computeFunStats,
-  computeQuality, computeGeo, KM_TO_MI, HA_TO_ACRE,
+  computeQuality, computeGeo, computeDurationBins, KM_TO_MI, HA_TO_ACRE,
 } from './birdingStats'
 
 // Concise fixture builder — fills required ObservationEntry fields with sensible
@@ -155,6 +155,23 @@ describe('computeEffort', () => {
     expect(e.largestGroup?.n).toBe(3)
     expect(e.completeRatio).toBe(0.5)     // 1 of 2 complete
   })
+  it('keys observerRows by the actual count — no 5+ rollup', () => {
+    // Regression: the old model clamped `numObservers >= 5` into one key of 5,
+    // which would merge these into a single { n: 5, count: 3 } row.
+    const highRows = [
+      obs({ submissionId: 'S10', commonName: 'American Robin', date: '2024-02-01', numObservers: 6 }),
+      obs({ submissionId: 'S11', commonName: 'American Robin', date: '2024-02-02', numObservers: 8 }),
+      obs({ submissionId: 'S12', commonName: 'Blue Jay', date: '2024-02-03', numObservers: 8 }),
+      obs({ submissionId: 'S13', commonName: 'Blue Jay', date: '2024-02-04', numObservers: 2 }),
+    ]
+    const eh = computeEffort(computeChecklists(highRows))
+    expect(eh.observerRows).toEqual([
+      { n: 2, count: 1 },
+      { n: 6, count: 1 },
+      { n: 8, count: 2 },
+    ])
+    expect(eh.observerRows.find(r => r.n === 5)).toBeUndefined()
+  })
 })
 
 describe('computeBreedingStats', () => {
@@ -182,6 +199,125 @@ describe('computeTemporal', () => {
     expect(t.hourRows).toHaveLength(24)
     expect(t.yearRows[0].label).toBe('2024')
     expect(t.hourRows[6].value).toBe(1) // 6:30 AM → hour 6
+  })
+})
+
+describe('computeDurationBins', () => {
+  // Bins are lower-inclusive half-open: 15-minute steps [0,15) … [165,180) for
+  // the first three hours, hourly [180,240), [240,300), … from there.
+  it('lands boundary durations in the lower-inclusive bin', () => {
+    const rows = [
+      obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01', duration: 14 }),
+      obs({ submissionId: 'S2', commonName: 'American Robin', date: '2024-01-02', duration: 15 }),
+      obs({ submissionId: 'S3', commonName: 'American Robin', date: '2024-01-03', duration: 180 }),
+    ]
+    const d = computeDurationBins(computeChecklists(rows))
+    const byLabel = new Map(d.bins.map(b => [b.label, b.value]))
+    expect(byLabel.get('0-15m')).toBe(1)   // 14 → [0,15)
+    expect(byLabel.get('15-30m')).toBe(1)  // 15 → [15,30), NOT [0,15)
+    expect(byLabel.get('3-4h')).toBe(1)    // 180 → [180,240), NOT [165,180)
+  })
+
+  it('keeps zero-count bins inside the range and cuts after the longest bin', () => {
+    const rows = [
+      obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01', duration: 5 }),
+      obs({ submissionId: 'S2', commonName: 'American Robin', date: '2024-01-02', duration: 65 }),
+    ]
+    const d = computeDurationBins(computeChecklists(rows))
+    expect(d.bins.map(b => b.label)).toEqual(['0-15m', '15-30m', '30-45m', '45-60m', '1h-1h 15m'])
+    expect(d.bins.map(b => b.value)).toEqual([1, 0, 0, 0, 1])
+  })
+
+  it('hands off to hourly bins at 3h with the full label ladder', () => {
+    const rows = [obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01', duration: 250 })]
+    const d = computeDurationBins(computeChecklists(rows))
+    expect(d.bins.map(b => b.label)).toEqual([
+      '0-15m', '15-30m', '30-45m', '45-60m',
+      '1h-1h 15m', '1h 15m-1h 30m', '1h 30m-1h 45m', '1h 45m-2h',
+      '2h-2h 15m', '2h 15m-2h 30m', '2h 30m-2h 45m', '2h 45m-3h',
+      '3-4h', '4-5h',
+    ])
+    expect(d.bins[13].value).toBe(1) // 250 → [240,300)
+    expect(d.bins[13].lo).toBe(240)
+    expect(d.bins[13].hi).toBe(300)
+  })
+
+  it('excludes null durations from bins and the average, tracking coverage', () => {
+    const rows = [
+      obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01', duration: 60 }),
+      obs({ submissionId: 'S2', commonName: 'American Robin', date: '2024-01-02', duration: 120 }),
+      obs({ submissionId: 'S3', commonName: 'Mallard', date: '2024-01-05' }), // no duration
+    ]
+    const cks = computeChecklists(rows)
+    const d = computeDurationBins(cks)
+    expect(d.durationCount).toBe(2)
+    expect(d.totalCount).toBe(3)
+    expect(d.bins.reduce((s, b) => s + b.value, 0)).toBe(2) // the null row binned nowhere
+    expect(d.avgDurationMin).toBe(90)
+    // Parity lock on SANE (in-range) data: the block's average is the SAME
+    // number Effort reports — the two formulas must agree wherever both count
+    // the same durations. (Out-of-range values deliberately diverge; see the
+    // range-guard tests below.)
+    expect(d.avgDurationMin).toBe(computeEffort(cks).avgDurationMin)
+  })
+
+  it('returns no bins and a null average when nothing has a duration', () => {
+    const rows = [obs({ submissionId: 'S1', commonName: 'Mallard', date: '2024-01-05' })]
+    const d = computeDurationBins(computeChecklists(rows))
+    expect(d.bins).toEqual([])
+    expect(d.durationCount).toBe(0)
+    expect(d.totalCount).toBe(1)
+    expect(d.avgDurationMin).toBeNull()
+  })
+
+  // ── Range guard (security remediation) ────────────────────────────────────
+  // A duration outside [0, 1440] (eBird's own 24 h cap) is a corrupt or
+  // hostile cell, not data: it is treated as duration-less — excluded from the
+  // bins, from durationCount coverage, and from the average — so the ladder is
+  // structurally bounded at 33 bins. computeEffort's shipped behavior is
+  // deliberately UNCHANGED and still counts such values.
+
+  it('excludes out-of-range and negative durations from bins, coverage, and the average — while computeEffort still counts them', () => {
+    const rows = [
+      obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01', duration: 60 }),
+      obs({ submissionId: 'S2', commonName: 'American Robin', date: '2024-01-02', duration: 120 }),
+      obs({ submissionId: 'S3', commonName: 'American Robin', date: '2024-01-03', duration: 999999999 }), // corrupt cell (e.g. column-shifted ML catalog number)
+      obs({ submissionId: 'S4', commonName: 'American Robin', date: '2024-01-04', duration: -30 }),       // negative — previously binned invisibly at a negative index
+    ]
+    const cks = computeChecklists(rows)
+    const d = computeDurationBins(cks)
+    expect(d.bins.length).toBeLessThanOrEqual(33)            // structurally bounded
+    expect(d.bins.reduce((s, b) => s + b.value, 0)).toBe(2)  // only the two sane rows binned
+    expect(d.durationCount).toBe(2)                          // excluded from coverage
+    expect(d.totalCount).toBe(4)
+    expect(d.avgDurationMin).toBe(90)                        // (60 + 120) / 2 — excluded from the average
+    // computeEffort is untouched: it still sums every non-null duration.
+    const e = computeEffort(cks)
+    expect(e.durationCount).toBe(4)
+    expect(e.avgDurationMin).toBe((60 + 120 + 999999999 - 30) / 4)
+  })
+
+  it('keeps an exactly-24h checklist visible in the closed terminal bin and excludes just past it', () => {
+    const rows = [
+      obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01', duration: 1440 }), // eBird-legal cap → terminal [1380,1440] bin
+      obs({ submissionId: 'S2', commonName: 'American Robin', date: '2024-01-02', duration: 1441 }), // past the cap → excluded
+    ]
+    const d = computeDurationBins(computeChecklists(rows))
+    expect(d.bins.length).toBe(33) // 12 fine + 21 hourly — the structural maximum
+    expect(d.bins[32].label).toBe('23-24h')
+    expect(d.bins[32].value).toBe(1)
+    expect(d.durationCount).toBe(1)
+    expect(d.avgDurationMin).toBe(1440)
+  })
+
+  it('does not throw and stays bounded on a hostile single-cell duration (crash regression)', () => {
+    const rows = [obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01', duration: 999999999 })]
+    let d!: ReturnType<typeof computeDurationBins>
+    expect(() => { d = computeDurationBins(computeChecklists(rows)) }).not.toThrow()
+    expect(d.bins.length).toBeLessThanOrEqual(33)
+    expect(d.durationCount).toBe(0)
+    expect(d.totalCount).toBe(1)
+    expect(d.avgDurationMin).toBeNull()
   })
 })
 
