@@ -4,6 +4,14 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Every release ships to ALL available platforms — iOS TestFlight included — 2026-08-07 (v0.5.78)
+
+**Decision:** A release is not complete until it has shipped to every platform the app currently supports: the `release.sh` assembler (notarized universal macOS + signed Windows installer + `latest.json` + website) **and** an iOS TestFlight build of the same version (build 1, incrementing only for iOS-only follow-ups). User direction at the v0.5.78 ship, which initially went out desktop/web-only.
+
+**Why:** iOS TestFlight builds had been selective catch-ups (0.5.71, 0.5.73), so TestFlight testers drifted versions behind the desktop app with no signal about what they were missing. The user's standing rule ends the drift: one version, all platforms, every time.
+
+**Consequence:** The deploy stage of every lane now ends with the iOS TestFlight recipe (CLAUDE.md "iOS release" section) after `release.sh` verifies — including bundled Spool releases. An iOS-asset-only change still ships as an iOS build-number increment without a desktop release, unchanged.
+
 ## A histogram whose bin count derives from a data VALUE must bound its ladder structurally — 2026-08-06 (v0.5.78)
 
 **Decision:** Any statistics histogram whose bin count derives arithmetically from a data *value* (rather than from row count or distinct values) must bound its ladder structurally in the compute layer: a plausible-range guard on the input **plus** a hard clamp on the bin index, paired with reduce-not-spread for any `Math.max`/`Math.min` over a data-length array. `computeDurationBins` (`frontend/src/lib/birdingStats.ts`) is the reference implementation.
