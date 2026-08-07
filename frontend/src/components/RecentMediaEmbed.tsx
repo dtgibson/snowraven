@@ -45,7 +45,12 @@ export function RecentMediaEmbed({ id, type, species, date, checklistId, embedAl
         ) : !validId || !online ? (
           <MediaFallback catalogId={id} format={type} compact={false} />
         ) : (
-          <MediaFrame key={online ? 'online' : 'offline'} catalogId={id} format={type} title={title} Icon={Icon} heightClass={heightClass} embedAllowed compact={false} />
+          // `embedAllowed={embedAllowed}` — forward the hydrated preference rather
+          // than the JSX shorthand (a hardcoded true). The branch above already
+          // gates, so this changes nothing that renders; it keeps MediaFrame's own
+          // defense-in-depth guard (and its `useMlEmbedGate(embedAllowed ? …)`
+          // suppression) answering the real preference instead of a literal.
+          <MediaFrame key={online ? 'online' : 'offline'} catalogId={id} format={type} title={title} Icon={Icon} heightClass={heightClass} embedAllowed={embedAllowed} compact={false} />
         )}
       </div>
 

@@ -23,11 +23,12 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 
+# Repo-root data/ dir — the established convention, NOT backend/data/. Shared
+# via datadir.py so the SR_DATA_DIR override reaches every data/ consumer.
+from datadir import DATA_DIR
+
 router = APIRouter()
 
-# Repo-root data/ dir — the established convention (mapdefaults.py:9),
-# NOT backend/data/.
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 SETTINGS_DIR = DATA_DIR / "settings"
 
 # NFR-12/QA-39: shape-validate the key before it touches a path — blocks

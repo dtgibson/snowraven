@@ -233,7 +233,13 @@ function NamedBirdMediaItem({ asset, birdName, open, embedAllowed, index }: {
             // clean latch state (the recovery path). The frame keeps its iframe
             // MOUNTED through a give-up timeout — the timeout only overlays a fallback,
             // so a late onLoad still swaps the real embed in.
-            <MediaFrame key={online ? 'online' : 'offline'} catalogId={asset.catalogId} format={asset.format} title={title} Icon={Icon} heightClass={heightClass} embedAllowed compact={false} />
+            // `embedAllowed={embedAllowed}` — forward the hydrated preference rather
+            // than the JSX shorthand (a hardcoded true). The `embedAllowed &&` wrapper
+            // above already gates, so this changes nothing that renders; it keeps
+            // MediaFrame's own defense-in-depth guard (and its
+            // `useMlEmbedGate(embedAllowed ? …)` suppression) answering the real
+            // preference instead of a literal.
+            <MediaFrame key={online ? 'online' : 'offline'} catalogId={asset.catalogId} format={asset.format} title={title} Icon={Icon} heightClass={heightClass} embedAllowed={embedAllowed} compact={false} />
           ) : (
             // Open but not yet in view (or waiting to mount): the loading shimmer.
             <MediaShimmer Icon={Icon} />

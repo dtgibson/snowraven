@@ -22,19 +22,32 @@ npx playwright install chromium
    ```
 
 2. **Run SnowRaven against the demo data — not your real data.** Build the frontend so
-   the backend serves it (`cd ../../frontend && npm run build`), then load the demo files.
-   The safest no-source-change way is to temporarily set your real data aside:
+   the backend serves it, then start the backend with `SR_DATA_DIR` pointed at the
+   demo dataset:
 
    ```
-   mv ../../data ../../data.real
-   mkdir ../../data && cp demo-data/* ../../data/
-   (cd ../../backend && .venv/bin/uvicorn main:app --port 1620)
-   #  ... run the capture (step 3) ...
-   rm -rf ../../data && mv ../../data.real ../../data     # ALWAYS restore
+   (cd ../../frontend && npm run build)
+   DEMO="$PWD/demo-data"
+   (cd ../../backend && SR_DATA_DIR="$DEMO" .venv/bin/uvicorn main:app --port 1620)
    ```
 
-   Never leave your real data set aside. (If the backend grows an `SR_DATA_DIR`
-   environment override, point that at `./demo-data` and skip the swap entirely.)
+   Capture the path into `DEMO` first: `$PWD` has to be read here in
+   `website/tools/`, before the `cd`, and an environment prefix cannot be applied
+   to a subshell (`VAR=x (cd … && …)` is a syntax error in both bash and zsh), so
+   the assignment goes inside the parentheses.
+
+   `SR_DATA_DIR` (see `backend/datadir.py`) overrides the data directory for every
+   backend route that reads it — uploads/status, the generic settings store, map
+   defaults, and the taxonomy disk cache. **Your real `data/` is never moved, copied,
+   or touched.** Earlier versions of this file told you to `mv ../../data
+   ../../data.real` and move it back afterwards; do not do that. A crash or an
+   interrupted capture between the two commands leaves your real eBird export
+   stranded under a name nothing looks for.
+
+   Sanity-check before capturing: the app should show the demo birder's data (a few
+   hundred species at northeast-US public hotspots), not yours. If you see your own
+   sightings, `SR_DATA_DIR` did not take — stop and fix that first, because the
+   published screenshots would otherwise contain your real locations.
 
 3. **Capture** (drives the app with Playwright; the live Weather + Tide shot uses a real
    **public** coastal eBird checklist so a tide shows — override with `CHECKLIST=...` if

@@ -6,9 +6,12 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
+# Repo-root data/ dir, honoring the SR_DATA_DIR override. Shared by every
+# router that touches data/ so an override can never apply to only some of them.
+from datadir import DATA_DIR
+
 router = APIRouter()
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 EBIRD_FILE = DATA_DIR / "ebird-backup.csv"
 ML_FILE = DATA_DIR / "ml-export.csv"
 META_FILE = DATA_DIR / "metadata.json"

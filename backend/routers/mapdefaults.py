@@ -1,12 +1,13 @@
 import json
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, field_validator
 
+# Repo-root data/ dir, honoring the SR_DATA_DIR override (see datadir.py).
+from datadir import DATA_DIR
+
 router = APIRouter()
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 MAP_DEFAULTS_FILE = DATA_DIR / "map-defaults.json"
 
 

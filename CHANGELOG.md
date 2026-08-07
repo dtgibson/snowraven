@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.77] - 2026-08-06
+
+### Internal
+- **The "Disable embedded media" setting now has its second safety net actually connected.** The setting already worked, and still does: nothing about what you see changes in this release. The media player component carries its own independent check of the setting, on top of the check the surrounding page does, so that a future change to one cannot quietly re-enable players the other has switched off. That inner check was being handed a fixed "allowed" value instead of your real setting, which made it a formality rather than a safeguard. It is now given the real value on both the Named Birds media and Species Detail's Recent Media, and each is covered by its own test so neither can drift back on its own.
+- **Dependency housekeeping.** Three advisories in the build-time toolchain (`brace-expansion`, `postcss`, `undici`) were cleared with a non-breaking update. These are development tools only, never shipped inside the app, and the app itself is unchanged by it.
+
+### Documentation
+- **The screenshots on the SnowRaven website are current again.** They had been frozen since v0.5.23 while the site's version label kept moving, so the page advertised a version it did not depict: 53 releases of drift, and two tabs (Calendar and Named Birds) that did not exist when the pictures were taken and had never been shown at all. Every screenshot has been retaken from the current app, and Calendar and Named Birds now have their own. As always, they are generated from a made-up demo birder's data, never anyone's real sightings.
+
 ## [0.5.76] - 2026-08-06
 
 ### Fixed

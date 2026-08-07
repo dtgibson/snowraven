@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter
 from pydantic import BaseModel
 
+from datadir import DATA_DIR
 from http_client import get_client
 
 router = APIRouter()
@@ -48,7 +49,7 @@ _load_lock = asyncio.Lock()
 # mapdefaults.py convention), else the committed bundled snapshot under
 # backend/staticdata/ (the tide_stations.py convention). The snapshot carries the
 # already-derived 5-map bundle — copied in directly, NOT re-derived.
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+# DATA_DIR (imported above) honors the SR_DATA_DIR override — see datadir.py.
 _DISK = DATA_DIR / "taxonomy.json"
 _STATIC = Path(__file__).resolve().parent.parent / "staticdata" / "ebird_taxonomy.json"
 
