@@ -76,6 +76,8 @@ This project uses the Weft framework. Run /new-feature to start a new feature.
 
 - **A histogram whose bin count derives arithmetically from a data VALUE (not from row count or distinct values) must bound its ladder structurally in the compute layer (v0.5.78).** The CSV parser admits any `parseInt`-able integer, so one corrupt cell can otherwise mint millions of bins (~3 GB heap and a render-time `RangeError` from a `Math.max(...spread)` — the checklist-duration Medium, empirically confirmed). `computeDurationBins` (`lib/birdingStats.ts`) is the reference: a plausible-range input guard (`[0, 1440]`, eBird's 24 h checklist cap — out-of-range rows fall into the honest "N of M have a usable duration" coverage note) PLUS a structural `DURATION_MAX_BIN_INDEX` clamp so the ladder is bounded even if the guard is bypassed. Pair it with reduce-not-spread for any `Math.max`/`Math.min` over a data-length array (bounded spreads over fixed-size arrays are fine). A histogram bounded by distinct values (the observer-count chart) is a different, inherently bounded shape — do not generalize from it.
 
+- **A displayed whole-percent share for a NONZERO count must never render a bare rounded "0%" (v0.5.79).** Route share display through `fmtSharePct(count, total)` (`lib/statsFormat.ts`) — "<1%" for a nonzero share that rounds to zero, honest "0%" only for a truly zero count — never raw `Math.round(count/total*100)`.
+
 ### Running locally
 ```
 # Backend

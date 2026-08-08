@@ -4,6 +4,30 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## A nonzero share never renders as a rounded "0%" — percent display routes through `fmtSharePct` — 2026-08-08 (v0.5.79)
+
+**Decision:** A displayed whole-percent share for a NONZERO count must never render a bare rounded "0%". Share display routes through the pure `fmtSharePct(count, total)` (`frontend/src/lib/statsFormat.ts`, unit-tested): a nonzero share that rounds to zero shows "<1%"; an honest "0%" appears only for a genuinely zero count (or an empty total). Applied to the Statistics "Lists by observer count" legend, whose rows now lead with the exact checklist count — "{n} obs · {count} lists ({share})" — so the exact numbers read at a glance instead of only in the click tooltip.
+
+**Why:** The Spool idea behind the run: on a 99%-solo dataset every rare group size rendered as an invisible sliver bar labeled "0%" — a real count displayed as nothing. Same honest-stats posture as the v0.5.78 duration histogram's coverage note. Display-only: `computeEffort`/`observerRows` are untouched, no binning introduced, and the v0.5.78 no-rollup regression test stays green.
+
+**Deliberately skipped:** count labels on/above the bars — with many distinct observer counts the labels would collide over thin bars, and the legend now carries the exact numbers. Pre-existing `Math.round` percent sites elsewhere (e.g. the "% solo" caption) have the same latent zero-collapse; sweeping them through `fmtSharePct` is tracked on the roadmap (On the Horizon), not done here.
+
+**Implication:** promoted to `CLAUDE.md` (one line). New whole-percent share displays use `fmtSharePct`, never raw `Math.round(count/total*100)`.
+
+---
+
+## The eBird personal export carries NO GPS-track indicator — the GPS-track-coverage stat is not buildable — 2026-08-08 (gps-track-coverage-stat, investigated, not built)
+
+**Finding:** The queued idea "show what percentage of lists have GPS track data" cannot be computed from any data SnowRaven has: MyEBirdData.csv contains no column, flag, or derivable signal indicating whether a checklist carries an eBird-mobile GPS track. Verified against the complete recognized column set in `frontend/src/lib/parseEbirdObservations.ts` and the 23-column export header in `website/tools/gen-demo-data.mjs`; eBird stores mobile tracks server-side only and exposes them through no export the app ingests. The run was abandoned at Stage 1 and the idea returned to the inbox with this finding.
+
+**Rejected proxy:** shipping a Traveling-protocol / recorded-distance share under a "GPS track coverage" label. A Traveling checklist with a distance proves a distance was entered, not that a track exists — a stat may not borrow the name of the thing it merely approximates (the same honest-stats posture as the duration histogram's coverage note).
+
+**Honest computable alternatives (noted for the user, unscheduled):** % of Traveling checklists with a recorded distance; % of checklists with a start time; % complete checklists. NOT viable: "% with precise coordinates" — every export row carries a location lat/lng, so it would read ~100% for everyone.
+
+**Implication:** a proposed statistic is scoped against the export's actual column set before a run is committed; when the data does not exist, the answer is "not buildable" plus honest alternatives — never a relabeled proxy.
+
+---
+
 ## Every release ships to ALL available platforms — iOS TestFlight included — 2026-08-07 (v0.5.78)
 
 **Decision:** A release is not complete until it has shipped to every platform the app currently supports: the `release.sh` assembler (notarized universal macOS + signed Windows installer + `latest.json` + website) **and** an iOS TestFlight build of the same version (build 1, incrementing only for iOS-only follow-ups). User direction at the v0.5.78 ship, which initially went out desktop/web-only.
