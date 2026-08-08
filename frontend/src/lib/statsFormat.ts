@@ -5,6 +5,16 @@ export function fmt(n: number, decimals = 0): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: decimals })
 }
 
+// Whole-number percent share for a legend row, with the zero-collapse fixed:
+// a NONZERO count never renders a bare "0%" — a share under half a percent
+// reads "<1%" so rare rows stay visibly nonzero (the observer-count legend on
+// a 99%-solo dataset). A genuinely zero count (or empty total) is an honest "0%".
+export function fmtSharePct(count: number, total: number): string {
+  if (total <= 0 || count <= 0) return '0%'
+  const pct = Math.round(count / total * 100)
+  return pct === 0 ? '<1%' : `${pct}%`
+}
+
 export function sectionSlug(title: string): string {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
 }

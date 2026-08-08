@@ -32,7 +32,7 @@ import { formatDate as fmtDate } from '../lib/formatDate'
 import type { ObservationEntry, ChecklistEntry } from '../types'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
-import { fmt, sectionSlug, formatDuration, mlCatalogUrl } from '../lib/statsFormat'
+import { fmt, fmtSharePct, sectionSlug, formatDuration, mlCatalogUrl } from '../lib/statsFormat'
 import { fitToPins } from '../lib/fitBounds'
 import { SectionCard, StatCell, BarRow, Divider, SubLabel, RankIcon } from './statsPrimitives'
 import { computeMediaStats } from '../lib/mediaStats'
@@ -1280,16 +1280,18 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         </Pie>
                       </PieChart>
                     </div>
+                    {/* Count-first legend: the exact list count per group size is
+                        readable here without the click tooltip, and a rare size
+                        never shows a bare rounded "0%" (fmtSharePct → "<1%"). */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 6 }}>
-                      {effort.observerRows.map((r, i) => {
-                        const opct = totalObs > 0 ? Math.round(r.count / totalObs * 100) : 0
-                        return (
-                          <div key={r.n} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: '50%', background: obsPieColors[i % obsPieColors.length], flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>{r.n} obs {opct}%</span>
-                          </div>
-                        )
-                      })}
+                      {effort.observerRows.map((r, i) => (
+                        <div key={r.n} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: obsPieColors[i % obsPieColors.length], flexShrink: 0 }} />
+                          <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>
+                            {r.n} obs · {fmt(r.count)} list{r.count === 1 ? '' : 's'} ({fmtSharePct(r.count, totalObs)})
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
