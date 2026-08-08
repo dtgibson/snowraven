@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.79] - 2026-08-08
+
+### Changed
+- **Exact counts in the observer-count legend.** In the Statistics tab, the "Lists by observer count" legend now leads every row with its exact checklist count, in the form "{n} obs · {count} lists ({share})". A tiny nonzero share now reads "<1%" instead of rounding down to a bare "0%". The in-app Help's Effort description was updated to match. (Shipped as a Spool bundle of 1 build.)
+
 ## [0.5.78] - 2026-08-06
 
 ### Added
