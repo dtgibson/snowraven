@@ -284,6 +284,22 @@ describe('BirdingStats accessibility', () => {
   })
 })
 
+describe('BirdingStats observer-count legend', () => {
+  // group-size-exact-counts: every observer-count row's exact list count is
+  // readable in the legend (count-first, "N obs · N lists (P%)") without the
+  // click tooltip. Fixture: one checklist each at 1, 2, and 3 observers →
+  // three rows, each with singular "1 list" and a 33% share. The "<1%"
+  // zero-collapse fix is unit-tested at the source (fmtSharePct in
+  // statsFormat.test.ts); this locks the legend wiring to it.
+  it('shows the exact list count and share for every observer-count row', async () => {
+    await renderComputed()
+    expect(screen.getByText('Lists by observer count')).toBeTruthy()
+    expect(screen.getByText('1 obs · 1 list (33%)')).toBeTruthy()
+    expect(screen.getByText('2 obs · 1 list (33%)')).toBeTruthy()
+    expect(screen.getByText('3 obs · 1 list (33%)')).toBeTruthy()
+  })
+})
+
 describe('BirdingStats checklist duration block', () => {
   // Temporal Stats duration histogram: fixture durations 15/30/45 land in
   // [15,30)/[30,45)/[45,60); the in-range [0,15) zero bin still renders, nothing

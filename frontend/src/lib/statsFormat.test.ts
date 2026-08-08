@@ -1,5 +1,30 @@
 import { describe, it, expect } from 'vitest'
-import { formatSpanLength, mlCatalogUrl, ML_CATALOG_BASE } from './statsFormat'
+import { fmtSharePct, formatSpanLength, mlCatalogUrl, ML_CATALOG_BASE } from './statsFormat'
+
+// group-size-exact-counts: a nonzero share must never collapse to a bare "0%"
+// (the observer-count legend on a 99%-solo dataset rendered every rare group
+// size as "0%" under plain Math.round).
+describe('fmtSharePct', () => {
+  it('rounds normal shares to a whole percent', () => {
+    expect(fmtSharePct(99, 100)).toBe('99%')
+    expect(fmtSharePct(1, 3)).toBe('33%')
+    expect(fmtSharePct(100, 100)).toBe('100%')
+  })
+  it('renders a nonzero share that rounds to zero as "<1%", never "0%"', () => {
+    expect(fmtSharePct(1, 1000)).toBe('<1%')   // 0.1%
+    expect(fmtSharePct(4, 1000)).toBe('<1%')   // 0.4%
+    expect(fmtSharePct(1, 250)).toBe('<1%')    // 0.4%
+  })
+  it('keeps shares at or above half a percent as a rounded whole percent', () => {
+    expect(fmtSharePct(5, 1000)).toBe('1%')    // 0.5% rounds up
+    expect(fmtSharePct(14, 1000)).toBe('1%')   // 1.4%
+  })
+  it('is an honest "0%" only for a genuinely zero count or empty total', () => {
+    expect(fmtSharePct(0, 100)).toBe('0%')
+    expect(fmtSharePct(0, 0)).toBe('0%')
+    expect(fmtSharePct(5, 0)).toBe('0%')
+  })
+})
 
 describe('formatSpanLength', () => {
   it('uses days under two months', () => {
