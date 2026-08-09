@@ -1153,6 +1153,65 @@ h1, h2, h3, h4, h5, h6 {
   padding-right: env(safe-area-inset-right, 0px);
 }
 
+/* Help overlay panel. Same lift as the fullscreen map panel above, for the same
+   reason: the positioning used to be inline in HelpDocs.tsx, and an inline
+   `inset: 0` is specificity 1,0,0, so no class rule could ever add the iOS
+   safe-area inset. Values are byte-identical to the old inline
+   `position:fixed; inset:0; zIndex:1200`, so desktop and web render exactly as
+   before. The background, the flex column, and overflow stay inline (colors are
+   tokens; only the layout that has to be reachable from here was lifted).
+   Deliberately its OWN rule rather than a shared inset utility: the two panels
+   have only this three-line inset block in common — the map panel also needs
+   height:100dvh (its inner column resolves height:100% against it) and carries a
+   landscape coupling where the sidebar overlay reaches the padded edge through
+   .sr-map-content, neither of which Help has. A shared utility would still need a
+   per-overlay positioning class, so it would buy one shared block at the cost of
+   a second class name on the element. Revisit at a third overlay, not at two. */
+.sr-help-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+/* iOS safe areas for the Help overlay (the Dynamic Island fix). position:fixed is
+   viewport-relative, so the panel escapes the `.sr-ios-app body` padding that
+   protects every in-flow surface: its 52px header row — the book icon and the
+   "SnowRaven Documentation" title — rendered under the status bar and the Island.
+   Padding rather than a smaller box: Tailwind preflight sets box-sizing:border-box
+   globally, so the panel still fills the viewport and only its content box moves
+   inward; the surface color still paints edge to edge behind the status bar.
+   GATED on .sr-ios-app for the same reason as the body rule and the map panel:
+   index.html ships viewport-fit=cover to browsers too, so a bare env() here would
+   change the shipped web rendering in iOS Safari (QA round-1 finding). Desktop and
+   web never carry the class, so both stay byte-identical.
+   Left/right mirror the body rule so landscape clears the sensor housing in either
+   rotation. Bottom is deliberately omitted, exactly as in the body rule: there is
+   no bottom-pinned control here, the content column already carries 80px of bottom
+   padding and the TOC nav 32px, both clearing the ~34px home indicator, and a
+   padding-bottom would shrink the scrollport and leave a dead band under it. */
+.sr-ios-app .sr-help-panel {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Help overlay TOC height cap — lifted out of HelpDocs.tsx's inline style (same
+   value, so desktop and web are unchanged) so the iOS rule below can reach it.
+   The nav is position:sticky inside the overlay body, and the body scrollport is
+   the panel minus its 52px header, so an uncapped nav over-extends past the
+   scrollport and its last entries become unreachable. On iOS the panel's content
+   box is ALSO shorter by the top inset, so the cap has to subtract it too — above
+   640px (iPad, where the inset is typically 24px) the un-subtracted cap
+   over-extends by exactly that much. Below 640px the phone tier stacks the nav
+   static and drops the cap entirely (max-height: none !important). */
+.sr-help-toc {
+  max-height: calc(100vh - 52px);
+}
+
+.sr-ios-app .sr-help-toc {
+  max-height: calc(100vh - 52px - env(safe-area-inset-top, 0px));
+}
+
 /* Leaf utilities — attach to the specific child that needs them. */
 .sr-min0 { min-width: 0; }
 .sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
