@@ -519,8 +519,15 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
 
         {/* Right-hand cluster. display/flex-wrap/gap are lifted to .sr-wrap-flex so
             the count and the two buttons WRAP instead of overflowing at 320px and at
-            200% text scale; only flexShrink stays inline. */}
-        <div className="sr-wrap-flex" style={{ '--sr-wrap-gap': '8px', flexShrink: 0 } as React.CSSProperties}>
+            200% text scale.
+            The class alone was NOT enough and shipped inert from v0.5.81: flexShrink: 0
+            pins the cluster at its max-content width even once the parent row has
+            wrapped it onto its own line, so nothing ever narrows it and the computed
+            flex-wrap: wrap never engages (measured live at 475px in a 296px box).
+            maxWidth: '100%' is what makes the class bind — it caps the cluster at the
+            row's content box while keeping the do-not-get-squeezed intent of
+            flexShrink: 0 (the same pairing .sr-scroll-x already uses). */}
+        <div className="sr-wrap-flex" style={{ '--sr-wrap-gap': '8px', flexShrink: 0, maxWidth: '100%' } as React.CSSProperties}>
           <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
           {/* The two presentation controls read as one group rather than as more
               filters. Same shipped ghostBtn() styling, so they are visually a pair. */}

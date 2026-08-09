@@ -806,8 +806,16 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
           </div>
         </div>
 
-        {/* Right controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {/* Right controls. display/align-items/gap are lifted to .sr-wrap-flex so
+            the count and the view button WRAP instead of pushing page horizontal
+            scroll at 320px and 200% text scale. The class ALONE is inert here:
+            flexShrink: 0 pins the cluster at its max-content width even once the
+            parent row has wrapped it onto its own line, so nothing ever narrows
+            it and a flex container that is never narrowed has no reason to break
+            a line. maxWidth: '100%' is what makes the class bind — it caps the
+            cluster at the row's content box while keeping the do-not-get-squeezed
+            intent of flexShrink: 0 (the same pairing .sr-scroll-x already uses). */}
+        <div className="sr-wrap-flex" style={{ '--sr-wrap-gap': '8px', flexShrink: 0, maxWidth: '100%' } as React.CSSProperties}>
           <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
           <button tabIndex={0}
             style={ghostBtn(wideMode)}
