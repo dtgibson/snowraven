@@ -146,7 +146,11 @@ function AddressSearch({ onLocate }: { onLocate: (lat: number, lng: number) => v
   return (
     <div style={{ marginBottom: 8 }}>
       <div style={{ display: 'flex', gap: 6 }}>
+        {/* .sr-input-16 sits on the <input> ITSELF (not the flex wrapper) so it
+            out-ranks the inline fontSize below — the phone-tier iOS focus-zoom
+            guard is inert anywhere else. Same on all nine sidebar controls. */}
         <input
+          className="sr-input-16"
           type="text"
           placeholder="Search by place name"
           aria-label="Search by place name"
@@ -1027,9 +1031,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       </button>
       {geoError && <div role="alert" style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
       <div style={{ display: 'flex', gap: 6 }}>
-        <input type="number" placeholder="Latitude" aria-label="Latitude" value={lat} onChange={e => { setLat(e.target.value); setDetectedLocation(null) }}
+        <input className="sr-input-16" type="number" placeholder="Latitude" aria-label="Latitude" value={lat} onChange={e => { setLat(e.target.value); setDetectedLocation(null) }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0 }} />
-        <input type="number" placeholder="Longitude" aria-label="Longitude" value={lng} onChange={e => { setLng(e.target.value); setDetectedLocation(null) }}
+        <input className="sr-input-16" type="number" placeholder="Longitude" aria-label="Longitude" value={lng} onChange={e => { setLng(e.target.value); setDetectedLocation(null) }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0 }} />
       </div>
       <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
@@ -1373,7 +1377,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {/* Species */}
               <div style={{ marginBottom: 12 }}>
                 <SidebarLabel>Species</SidebarLabel>
-                <select aria-label="Species" value={speciesFilter} onChange={e => setSpeciesFilter(e.target.value)} style={SELECT_STYLE}>
+                <select className="sr-input-16" aria-label="Species" value={speciesFilter} onChange={e => setSpeciesFilter(e.target.value)} style={SELECT_STYLE}>
                   <option value="">All species</option>
                   {allSpecies.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -1382,9 +1386,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <div style={{ marginBottom: 12 }}>
                 <SidebarLabel>Date Range</SidebarLabel>
                 <div className="sr-field-row">
-                  <input type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  <input className="sr-input-16" type="date" aria-label="From date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
                     style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0, boxSizing: 'border-box' }} />
-                  <input type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  <input className="sr-input-16" type="date" aria-label="To date" value={dateTo} onChange={e => setDateTo(e.target.value)}
                     style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0, boxSizing: 'border-box' }} />
                 </div>
               </div>
@@ -1392,7 +1396,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {allCounties.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
                   <SidebarLabel>County</SidebarLabel>
-                  <select aria-label="County" value={countyFilter} onChange={e => setCountyFilter(e.target.value)} style={SELECT_STYLE}>
+                  <select className="sr-input-16" aria-label="County" value={countyFilter} onChange={e => setCountyFilter(e.target.value)} style={SELECT_STYLE}>
                     <option value="">All counties</option>
                     {allCounties.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -1416,7 +1420,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {phase.tag === 'ready' && phase.hasML && (
                 <div>
                   <SidebarLabel>Media</SidebarLabel>
-                  <select aria-label="Media" value={mediaFilter} onChange={e => setMediaFilter(e.target.value as MediaFilter)} style={SELECT_STYLE}>
+                  <select className="sr-input-16" aria-label="Media" value={mediaFilter} onChange={e => setMediaFilter(e.target.value as MediaFilter)} style={SELECT_STYLE}>
                     <option value="any">Any</option>
                     <option value="photo">Has Photo</option>
                     <option value="audio">Has Audio</option>
@@ -1733,7 +1737,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           <div style={{ fontSize: '0.71875rem', color: 'var(--sr-text-muted)', marginBottom: 8, lineHeight: 1.45 }}>
             Upload an ML export in Settings to auto-derive targets, or select species manually.
           </div>
-          <input type="text" placeholder="Search species…" value={targetSearch}
+          <input className="sr-input-16" type="text" placeholder="Search species…" value={targetSearch}
             onChange={e => setTargetSearch(e.target.value)}
             style={{ width: '100%', height: 32, padding: '0 10px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', outline: 'none', boxSizing: 'border-box', marginBottom: 6 }}
           />
