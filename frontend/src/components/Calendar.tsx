@@ -121,10 +121,16 @@ function Switch({ label, checked, onChange, small, disabled }: {
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : 0}
       onClick={() => { if (!disabled) onChange() }}
+      // fontSize sits on the BUTTON, not on the label span below, so the shared
+      // .sr-ctl-row phone-tier rule (globals.css) can reach it: a size declared on
+      // a nested span wins over any class on an ancestor, and the label would
+      // otherwise stay small beside the strip's other controls. The span inherits
+      // it, so desktop rendering is unchanged.
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 8,
         background: 'none', border: 'none', padding: 0, margin: 0,
         cursor: disabled ? 'default' : 'pointer', fontFamily: 'inherit',
+        fontSize: small ? '0.71875rem' : '0.75rem',
         pointerEvents: disabled ? 'none' : 'auto',
       }}
     >
@@ -139,7 +145,7 @@ function Switch({ label, checked, onChange, small, disabled }: {
           boxShadow: 'var(--sr-switch-thumb-shadow)', transition: 'left 0.12s',
         }} />
       </span>
-      <span style={{ fontSize: small ? '0.71875rem' : '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>{label}</span>
+      <span style={{ fontWeight: 600, color: 'var(--sr-text)' }}>{label}</span>
     </button>
   )
 }
@@ -939,8 +945,11 @@ export function Calendar({ onGoToSettings, filesVersion }: {
         </div>
       </div>
 
-      {/* Control strip */}
-      <div role="region" aria-label="Calendar controls" style={{ display: 'flex', flexDirection: 'column', background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border-subtle)', borderRadius: 10, marginBottom: 18 }}>
+      {/* Control strip. .sr-ctl-row spans BOTH rows of the strip so the SegControls,
+          the year buttons and the switches share one phone-tier text size with the
+          .sr-input-16 combobox (globals.css); the uppercase SHOW / SPECIES / YEAR /
+          VIEW labels are spans and stay smaller by design. */}
+      <div className="sr-ctl-row" role="region" aria-label="Calendar controls" style={{ display: 'flex', flexDirection: 'column', background: 'var(--sr-surface-faint)', border: '1px solid var(--sr-border-subtle)', borderRadius: 10, marginBottom: 18 }}>
         <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '16px 14px', padding: '12px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={ctrlLabelStyle}>Show</span>

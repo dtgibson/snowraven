@@ -606,8 +606,12 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         gap: 12, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap',
       }}>
-        {/* Filter pills */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* Filter pills. .sr-ctl-row gives every interactive control in this block
+            ONE phone-tier text size (globals.css), so the pills/sort toggles/switches
+            can't read smaller than the .sr-input-16 selects and date inputs beside
+            them. Deliberately NOT on the right-hand cluster below: the count is
+            static text and the wide-mode button is a view control, not a filter. */}
+        <div className="sr-ctl-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <button tabIndex={0} aria-pressed={isFilterClear} style={pillStyle(isFilterClear ? 'positive' : 'none')} onClick={() => { setFilter(MEDIA_FILTER_CLEAR); setFilterHasMedia(false); setFilterIsTarget(false); setSexFilter(null); setAgeFilter(null) }}>All</button>
           <button tabIndex={0} aria-pressed={filterHasMedia} style={pillStyle(filterHasMedia ? 'positive' : 'none')} onClick={() => setFilterHasMedia(v => !v)}>Has media</button>
           <button tabIndex={0}

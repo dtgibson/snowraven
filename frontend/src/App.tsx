@@ -1250,7 +1250,11 @@ export default function App() {
         aria-label="Map Explorer"
         className={
           mapFullscreen
-            ? undefined
+            ? // Fullscreen positioning lives in globals.css, NOT inline: an
+              // inline `inset: 0` (specificity 1,0,0) can't be overridden, so
+              // the iOS safe-area inset that keeps the map view-mode pills
+              // clear of the status bar / Dynamic Island had nowhere to hang.
+              'sr-map-fullscreen-panel'
             : compactChrome()
             ? // iOS: size the panel to the visible viewport under the compact
               // chrome so the map + FAB cluster are above the fold on open
@@ -1262,9 +1266,7 @@ export default function App() {
           display: activeTab === 'map-explorer' ? 'flex' : 'none',
           flexDirection: 'column',
           overflow: 'hidden',
-          ...(mapFullscreen
-            ? { position: 'fixed', inset: 0, height: '100dvh', zIndex: 1200, background: 'var(--sr-bg)' }
-            : {}),
+          ...(mapFullscreen ? { background: 'var(--sr-bg)' } : {}),
         }}
       >
         {mountedTabs.has('map-explorer') && (

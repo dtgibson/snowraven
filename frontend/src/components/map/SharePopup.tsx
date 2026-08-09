@@ -13,8 +13,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Popup, useMap } from 'react-map-gl/maplibre'
 import { AlertTriangle, Check, Copy, MapPin } from 'lucide-react'
 import { copyText } from '../../lib/clipboard'
-import { buildSharePayload, formatCoordinate } from '../../lib/shareLocation'
-import { useShareCopyMode } from '../../lib/shareCopyPreference'
+import {
+  buildSharePayload, formatCoordinate, selectedParts, shareCopyLabel, shareModeLine,
+  SHARE_EMPTY_POPUP,
+} from '../../lib/shareLocation'
+import { useShareCopySelection } from '../../lib/shareCopyPreference'
 
 /** How long the "Copied" confirmation stays before the button settles back. */
 const COPIED_MS = 2000
@@ -57,9 +60,10 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
   onClose: () => void
 }) {
   const map = useMap().current
-  const mode = useShareCopyMode()
+  const selection = useShareCopySelection()
+  const on = useMemo(() => selectedParts(selection), [selection])
   const coord = useMemo(() => formatCoordinate(lat, lng), [lat, lng])
-  const payload = useMemo(() => buildSharePayload(lat, lng, mode), [lat, lng, mode])
+  const payload = useMemo(() => buildSharePayload(lat, lng, selection), [lat, lng, selection])
 
   const [copied, setCopied] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -171,12 +175,10 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
     announce(MSG_SELECTED)
   }
 
-  const copyLabel = copied
-    ? 'Copied'
-    : mode === 'coords-only' ? 'Copy coordinates' : 'Copy coordinates and links'
-  const modeLine = mode === 'coords-only'
-    ? 'Coordinates only.'
-    : 'With Google Maps and Apple Maps links.'
+  // Both generated from the parts table, never a lookup over the eight states.
+  // Neither is called when nothing is selected: n === 0 is a STRUCTURAL change
+  // below (a sentence in place of the control), not a ninth string.
+  const buttonLabel = copied ? 'Copied' : shareCopyLabel(on)
 
   return (
     <Popup
@@ -212,21 +214,33 @@ export function SharePopup({ lat, lng, compact, offset, onClose }: {
       <div ref={bodyRef} className={compact ? 'sr-share-pop-body' : 'sr-share-pop-body sr-map-popup-body'}>
         <p className="sr-share-coord">{coord}</p>
 
-        <button
-          type="button"
-          className="sr-share-copy-btn sr-touch-target"
-          data-state={copied ? 'done' : undefined}
-          onClick={() => { void doCopy() }}
-        >
-          {copied
-            ? <Check size={13} strokeWidth={2.6} aria-hidden />
-            : <Copy size={13} strokeWidth={2.2} aria-hidden />}
-          <span>{copyLabel}</span>
-        </button>
+        {on.length === 0 ? (
+          /* The copy control is REPLACED by a sentence, never left as a dead
+             disabled button: no control that looks pressable may put an empty
+             string on the clipboard, and a greyed control invites a press that
+             explains nothing. The coordinate above still renders, so the pin
+             shows the spot and the text stays selectable by hand. */
+          <p className="sr-share-none">{SHARE_EMPTY_POPUP}</p>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="sr-share-copy-btn sr-touch-target"
+              data-state={copied ? 'done' : undefined}
+              onClick={() => { void doCopy() }}
+            >
+              {copied
+                ? <Check size={13} strokeWidth={2.6} aria-hidden />
+                : <Copy size={13} strokeWidth={2.2} aria-hidden />}
+              <span>{buttonLabel}</span>
+            </button>
 
-        {/* FR-30 — the active mode is evident BEFORE the press, so a
-            coordinates-only copy is never a surprise. */}
-        <p className="sr-share-mode-line">{modeLine}</p>
+            {/* FR-30 — what the press produces is evident BEFORE it, so a
+                partial copy is never a surprise. This names every part in full,
+                which is what makes the button's collapsed "map links" safe. */}
+            <p className="sr-share-mode-line">{shareModeLine(on)}</p>
+          </>
+        )}
 
         {failed && (
           <div className="sr-share-fail">

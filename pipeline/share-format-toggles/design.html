@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SnowRaven — Share format toggles (design refinement)</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOKENS. Copied verbatim from frontend/src/globals.css so the mockup cannot
+   drift from the shipped palette. Both themes, as the repo rule requires.
+   No new token is minted by this refinement.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  /* The spec page's own display face. Deliberately NOT the app face: a serif
+     separates designer commentary from rendered product, and needs no webfont. */
+  --font-doc: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Hoefler Text', Georgia, serif;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  --sr-share-pin: #B4341F;
+  --sr-share-pin-ink: #FFFFFF;
+
+  /* Spec-page chrome only. Never shipped; kept token-driven so this page
+     obeys the same rule it documents. */
+  --sr-doc-bg: #F4F3F0;
+  --sr-doc-panel: #FFFFFF;
+  --sr-doc-ink: #1A1A17;
+  --sr-doc-ink-soft: #57574F;
+  --sr-doc-rule: #DEDCD4;
+  --sr-doc-mark: #E8F5EE;
+  --sr-doc-map: #EAF0EA;
+  --sr-doc-map-2: #DEE8DF;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  --sr-share-pin: #B4341F;
+  --sr-share-pin-ink: #FFFFFF;
+
+  --sr-doc-bg: #131318;
+  --sr-doc-panel: #1B1B21;
+  --sr-doc-ink: #EDEDE8;
+  --sr-doc-ink-soft: #A6A69C;
+  --sr-doc-rule: #2E2E36;
+  --sr-doc-mark: #052E16;
+  --sr-doc-map: #1D241E;
+  --sr-doc-map-2: #242D26;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPEC-PAGE CHROME
+   ═══════════════════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; }
+html { background: var(--sr-doc-bg); }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--sr-doc-ink);
+  background:
+    radial-gradient(1100px 520px at 12% -8%, color-mix(in srgb, var(--sr-accent) 9%, transparent), transparent 62%),
+    radial-gradient(820px 460px at 96% 4%, color-mix(in srgb, var(--sr-share-pin) 7%, transparent), transparent 58%),
+    var(--sr-doc-bg);
+  background-attachment: fixed;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px 96px; }
+
+.masthead { padding: 56px 0 34px; border-bottom: 1px solid var(--sr-doc-rule); }
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.13em;
+  text-transform: uppercase; color: var(--sr-accent); margin: 0 0 14px;
+}
+h1 {
+  font-family: var(--font-doc);
+  font-size: clamp(2.1rem, 5.4vw, 3.4rem);
+  line-height: 1.04; letter-spacing: -0.022em; font-weight: 400;
+  margin: 0 0 16px; max-width: 20ch; color: var(--sr-doc-ink);
+}
+.standfirst {
+  font-family: var(--font-doc);
+  font-size: 1.15rem; line-height: 1.62; color: var(--sr-doc-ink-soft);
+  margin: 0; max-width: 62ch;
+}
+.masthead-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+
+.themebtn {
+  font-family: var(--font-sans); font-size: 0.75rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 40px; padding: 0 15px; border-radius: 999px;
+  border: 1px solid var(--sr-doc-rule); background: var(--sr-doc-panel);
+  color: var(--sr-doc-ink); cursor: pointer;
+  transition: border-color 160ms ease-out, background 160ms ease-out;
+}
+.themebtn:hover { border-color: var(--sr-accent); }
+.themebtn:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+section { padding-top: 58px; }
+h2 {
+  font-family: var(--font-doc); font-weight: 400;
+  font-size: clamp(1.5rem, 2.9vw, 2.05rem); line-height: 1.16; letter-spacing: -0.015em;
+  margin: 0 0 6px; color: var(--sr-doc-ink);
+}
+.secnum {
+  font-family: var(--font-sans); font-size: 0.625rem; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--sr-doc-ink-soft); margin: 0 0 10px;
+}
+.lede { font-family: var(--font-doc); font-size: 1.02rem; line-height: 1.66; color: var(--sr-doc-ink-soft); margin: 0 0 26px; max-width: 68ch; }
+.note { font-size: 0.8125rem; line-height: 1.6; color: var(--sr-doc-ink-soft); margin: 14px 0 0; max-width: 74ch; }
+.note strong { color: var(--sr-doc-ink); font-weight: 600; }
+code.k {
+  font-family: var(--font-mono); font-size: 0.86em;
+  background: var(--sr-doc-mark); color: var(--sr-accent);
+  padding: 0.1em 0.38em; border-radius: 4px;
+}
+
+.panel {
+  background: var(--sr-doc-panel); border: 1px solid var(--sr-doc-rule);
+  border-radius: 14px; padding: 22px;
+}
+.ruleblock { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+.rulehead {
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--sr-accent); margin: 0 0 12px;
+}
+/* A five-column table cannot fit 320px. Contained horizontal scroll, the same
+   answer .sr-scroll-x gives the app's wide tables: the wrapper scrolls, the
+   page never does. */
+.tscroll { overflow-x: auto; min-width: 0; position: relative; }
+table.parts { width: 100%; min-width: 340px; border-collapse: collapse; font-size: 0.8125rem; }
+table.parts th {
+  text-align: left; font-weight: 700; font-size: 0.625rem; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--sr-doc-ink-soft);
+  padding: 0 10px 8px 0; border-bottom: 1px solid var(--sr-doc-rule);
+}
+table.parts td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--sr-doc-rule); vertical-align: top; color: var(--sr-doc-ink); }
+table.parts td:first-child { font-family: var(--font-mono); font-size: 0.75rem; color: var(--sr-accent); }
+pre.fn {
+  margin: 0; padding: 16px; border-radius: 10px; overflow-x: auto;
+  background: var(--sr-doc-bg); border: 1px solid var(--sr-doc-rule);
+  font-family: var(--font-mono); font-size: 0.75rem; line-height: 1.72; color: var(--sr-doc-ink);
+}
+pre.fn b { color: var(--sr-accent); font-weight: 600; }
+
+.matrix { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+.cell { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.celltag {
+  display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap;
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--sr-doc-ink-soft);
+}
+.bits { font-family: var(--font-mono); letter-spacing: 0.05em; color: var(--sr-accent); }
+.flag {
+  font-size: 0.5625rem; letter-spacing: 0.08em; padding: 2px 7px; border-radius: 999px;
+  background: var(--sr-doc-mark); color: var(--sr-accent); font-weight: 700;
+}
+.flag.warn { background: color-mix(in srgb, var(--sr-share-pin) 14%, transparent); color: var(--sr-share-pin); }
+[data-theme="dark"] .flag.warn { color: #F09884; }
+
+.mapbed {
+  border-radius: 12px; padding: 20px 14px 26px;
+  background:
+    linear-gradient(180deg, var(--sr-doc-map) 0%, var(--sr-doc-map-2) 100%);
+  border: 1px solid var(--sr-doc-rule);
+  display: flex; justify-content: center;
+}
+.forcedark { color-scheme: dark; }
+
+/* overflow-x contains the fixed 320px phone specimens: a specimen must stay
+   exactly 320px to be honest, so it is the container that scrolls, never the
+   page. Same posture as .sr-scroll-x in globals.css. */
+.frames { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; overflow-x: auto; min-width: 0; padding-bottom: 4px; }
+.frame { border: 1px solid var(--sr-doc-rule); border-radius: 14px; overflow: hidden; background: var(--sr-bg); }
+.framecap {
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--sr-doc-ink-soft); margin: 0 0 9px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   APP FRAGMENTS. Real SnowRaven surfaces.
+
+   `--root` is a scoped stand-in for the app's root font size so a fragment can
+   be shown at 200% in-app text scale on THIS page (--sr-text-scale multiplies
+   the root font size in the real app). It is inherited, so every descendant
+   computes from the same base no matter how deep it sits: identical semantics
+   to rem, scoped to one demo. Map furniture (popup width, track geometry) stays
+   px because it is px in the app.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.sr-app {
+  --root: calc(16px * var(--scale, 1));
+  font-family: var(--font-sans);
+  font-size: var(--root);
+  line-height: 1.55;
+  color: var(--sr-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Settings card ────────────────────────────────────────────────────────── */
+.sr-card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  box-shadow: var(--sr-card-shadow);
+  overflow: hidden;
+}
+.sr-sec-head {
+  padding: calc(var(--root) * 0.6) calc(var(--root) * 1);
+  font-size: calc(var(--root) * 0.6875);
+  font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--sr-text-muted);
+  background: var(--sr-surface-faint);
+  border-bottom: 1px solid var(--sr-border);
+}
+.sr-share-row { padding: calc(var(--root) * 0.875) calc(var(--root) * 1); }
+.sr-share-title {
+  font-size: calc(var(--root) * 0.84375); font-weight: 600;
+  color: var(--sr-text); margin: 0 0 calc(var(--root) * 0.25);
+}
+.sr-share-desc {
+  font-size: calc(var(--root) * 0.75); line-height: 1.5;
+  color: var(--sr-text-muted); margin: 0 0 calc(var(--root) * 0.5);
+}
+
+/* Shared responsive vocabulary, verbatim from globals.css. */
+.sr-action-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
+.sr-min0 { min-width: 0; }
+.sr-touch-target { display: inline-flex; align-items: center; justify-content: center; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* NEW: the three part rows. Hairline-separated, no box, so nothing nests a card
+   inside a card. Layout lives in the class, never inline. */
+.sr-share-part {
+  padding: calc(var(--root) * 0.3125) 0;
+  border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-share-part:first-of-type { border-top: 0; }
+.sr-share-part-label {
+  font-size: calc(var(--root) * 0.8125); font-weight: 500; color: var(--sr-text);
+  overflow-wrap: anywhere;
+}
+
+/* Shared ToggleSwitch, `bare` variant. Thumb via --sr-switch-thumb and its own
+   shadow token; never an inline white or --sr-on-accent. */
+.sw {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 7px; border-radius: 999px;
+  border: none; background: none; cursor: pointer;
+  font-family: inherit; font-size: calc(var(--root) * 0.75); font-weight: 500;
+  color: var(--sr-text-muted); white-space: nowrap;
+}
+.sw:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; border-radius: 999px; }
+.sw-track {
+  width: 36px; height: 20px; border-radius: 10px; flex-shrink: 0; position: relative;
+  background: var(--sr-gray-400);
+  transition: background 180ms ease-out;
+}
+.sw[aria-checked="true"] .sw-track { background: var(--sr-accent); }
+.sw-knob {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--sr-switch-thumb);
+  box-shadow: var(--sr-switch-thumb-shadow);
+  position: absolute; top: 2px; left: 2px;
+  transition: left 180ms ease-out;
+}
+.sw[aria-checked="true"] .sw-knob { left: 18px; }
+
+.sr-share-example-label {
+  display: flex; align-items: center; gap: 7px;
+  margin: calc(var(--root) * 0.75) 0 calc(var(--root) * 0.3125);
+  font-size: calc(var(--root) * 0.625);
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sr-text-muted);
+}
+/* Unchanged from globals.css. pre-wrap + overflow-wrap:anywhere is the property
+   that keeps a 45-character URL inside a 320px phone with no page scroll. */
+.sr-share-example {
+  margin: 0; padding: 8px 9px;
+  background: var(--sr-surface-subtle);
+  border: 1px solid var(--sr-border); border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: calc(var(--root) * 0.6875); line-height: 1.65;
+  color: var(--sr-text);
+  white-space: pre-wrap; overflow-wrap: anywhere; user-select: text;
+}
+/* NEW: the manifest caption, and the all-off sentence that takes the example's
+   place. Same slot, same muted register. No error color, no icon, no border. */
+.sr-share-manifest {
+  margin: calc(var(--root) * 0.375) 0 0;
+  font-size: calc(var(--root) * 0.6875); line-height: 1.5;
+  color: var(--sr-text-muted);
+}
+.sr-share-empty {
+  margin: 0; padding: 8px 9px;
+  background: var(--sr-surface-subtle);
+  border: 1px dashed var(--sr-border-medium); border-radius: 6px;
+  font-size: calc(var(--root) * 0.6875); line-height: 1.55;
+  color: var(--sr-text-muted);
+}
+
+/* ── Share popup ──────────────────────────────────────────────────────────── */
+.sr-share-popup {
+  width: 268px; max-width: 100%;
+  padding: 11px 13px 12px; text-align: left;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.14);
+  position: relative;
+  transform-origin: bottom center;
+  animation: sr-share-pop-in 170ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-share-popup::after {
+  content: ''; position: absolute; bottom: -7px; left: 50%; margin-left: -7px;
+  width: 0; height: 0;
+  border-left: 7px solid transparent; border-right: 7px solid transparent;
+  border-top: 7px solid var(--sr-surface);
+  filter: drop-shadow(0 1px 0 var(--sr-border));
+}
+@keyframes sr-share-pop-in {
+  from { opacity: 0; transform: scale(0.94) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.sr-share-popup--compact { width: 224px; padding: 9px 10px 10px; }
+.sr-share-pop-head {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 26px 7px 0;
+  font-size: calc(var(--root) * 0.625);
+  font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--sr-text-muted);
+}
+.sr-share-close {
+  position: absolute; top: 3px; right: 5px;
+  width: 22px; height: 22px; border: 0; background: none;
+  color: var(--sr-text-muted); font-size: 16px; line-height: 1;
+  cursor: pointer; border-radius: 4px;
+}
+.sr-share-close:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 1px; }
+.sr-share-coord {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: calc(var(--root) * 0.875); font-weight: 600;
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+  color: var(--sr-text); word-break: keep-all; user-select: text;
+}
+.sr-share-popup--compact .sr-share-coord { font-size: calc(var(--root) * 0.8125); margin-bottom: 8px; }
+.sr-share-copy-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; min-height: 32px; padding: 6px 12px;
+  background: var(--sr-accent); color: var(--sr-on-accent);
+  border: 1.5px solid var(--sr-accent); border-radius: 6px;
+  font: inherit; font-size: calc(var(--root) * 0.75); font-weight: 600;
+  cursor: pointer; text-align: center;
+  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-share-copy-btn:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.sr-share-popup--compact .sr-share-copy-btn { min-height: 30px; font-size: calc(var(--root) * 0.71875); }
+.sr-share-copy-btn svg { flex: none; }
+.sr-share-copy-btn[data-state="done"] {
+  background: var(--sr-accent-bg); color: var(--sr-accent); border-color: var(--sr-accent-border);
+}
+.sr-share-mode-line {
+  margin: 6px 0 0;
+  font-size: calc(var(--root) * 0.625); line-height: 1.45;
+  color: var(--sr-text-muted); text-align: center;
+}
+/* NEW: replaces the copy control when nothing is selected. A sentence, never a
+   dead disabled button, because no control that looks pressable may put an
+   empty string on the clipboard. */
+.sr-share-none {
+  margin: 0;
+  font-size: calc(var(--root) * 0.6875); line-height: 1.5;
+  color: var(--sr-text-muted); text-align: center;
+  padding: 7px 4px;
+  border-top: 1px dashed var(--sr-border-medium);
+  border-bottom: 1px dashed var(--sr-border-medium);
+}
+
+/* Phone tier. Verbatim posture from globals.css: the ≤640 rules that raise a
+   dense control toward ~44px and lift form text to 16px. */
+@media (max-width: 640px) {
+  .sr-touch-target { min-height: 2.75rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sr-share-popup { animation: none; }
+  .sw-track, .sw-knob, .sr-share-copy-btn, .themebtn { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">SnowRaven · Improve lane · design refinement</p>
+  <div class="masthead-bar">
+    <div>
+      <h1>Three switches, eight payloads, one sentence that writes itself.</h1>
+      <p class="standfirst">
+        The Sharing preference stops being a two way choice and becomes three independent
+        switches. Eight combinations follow, and with them the temptation to hand write eight
+        button labels and eight mode lines. This refinement replaces all of that with one part
+        table and two small functions, so a fourth destination costs one row and no new copy.
+      </p>
+    </div>
+    <button class="themebtn" id="themebtn" type="button" aria-pressed="false">
+      <span aria-hidden="true">◐</span><span id="themelabel">Dark theme</span>
+    </button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="rule">
+  <p class="secnum">01 / The generating rule</p>
+  <h2>One table. Two functions. No lookup of combinations.</h2>
+  <p class="lede">
+    Every string on every surface is derived from the ordered part table below. Nothing in the
+    codebase should ever enumerate a combination. The mockup that follows is rendered by these
+    exact functions, running in this page, so the eight states are checkable rather than claimed.
+  </p>
+
+  <div class="panel ruleblock">
+    <div>
+      <p class="rulehead">SHARE_PARTS — the single source, in payload order</p>
+      <div class="tscroll">
+      <table class="parts">
+        <thead>
+          <tr><th>key</th><th>label</th><th>noun</th><th>qualifier</th><th>family</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>coords</td><td>Coordinates</td><td>coordinates</td><td>none</td><td>none</td></tr>
+          <tr><td>google</td><td>Google Maps link</td><td>Google Maps link</td><td>Google Maps</td><td>link</td></tr>
+          <tr><td>apple</td><td>Apple Maps link</td><td>Apple Maps link</td><td>Apple Maps</td><td>link</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">
+        <strong>label</strong> is the visible switch text, which starts its own row.
+        <strong>noun</strong> is the manifest form, which sits mid sentence after a colon. They are
+        separate columns rather than one string plus a lowercasing call, because “lowercase unless
+        it is a proper noun” is not derivable from a string: the trick reads correctly on today's
+        three and silently produces <code class="k">Bing maps link</code> on the fourth.
+        <strong>qualifier</strong> and <strong>family</strong> exist only so the button can say
+        <code class="k">map links</code> instead of naming both providers. Adding a destination is
+        one row here and nothing else.
+      </p>
+    </div>
+
+    <div>
+      <p class="rulehead">The two functions</p>
+      <pre class="fn"><b>copyLabel</b>(on)   // the popup button
+  = 'Copy ' + phrase(on)
+
+<b>phrase</b>(on)
+  group the on-parts by family, order preserved
+  a family with ALL members on   -> 'map links'
+  a family partly on             -> list(qualifiers) + ' link(s)'
+  no family                      -> the part's noun
+  join the groups with ' and '
+  (if a group already contains ' and ', join with ', and ')
+
+<b>modeLine</b>(on)   // the popup line, and the Settings manifest
+  = countWord(n) + (n === 1 ? ' line: ' : ' lines: ')
+  + on.map(p =&gt; p.noun).join(', ') + '.'
+
+<b>n === 0</b> is not a ninth string. It is a different
+structure: the button is replaced by a sentence, and
+the example block is replaced by a sentence.</pre>
+      <p class="note">
+        The two functions answer two different questions, which is why neither is redundant.
+        <strong>copyLabel</strong> says what the press produces. <strong>modeLine</strong> says what
+        it looks like when pasted, which is the one thing a short button cannot carry and the reason
+        a collapsed <code class="k">map links</code> is safe.
+      </p>
+    </div>
+  </div>
+
+  <p class="note">
+    <strong>The Settings sub labels do not grow at all.</strong> The brief counts three surfaces
+    reaching eight states; the third one is a false alarm. Each switch describes only its own line,
+    so there are three descriptions, permanently. The live example does the work a combined
+    description would have tried to do, and does it better because it is the literal payload.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="live">
+  <p class="secnum">02 / Working card</p>
+  <h2>Flip them. Everything below the switches is generated.</h2>
+  <p class="lede">
+    The real card, live. Watch the example, the manifest sentence and the popup change together.
+    Turn all three off to reach the state the brief spends most of its argument on.
+  </p>
+
+  <div class="frames">
+    <div style="flex: 1 1 380px; min-width: 0;">
+      <p class="framecap">Settings › Sharing</p>
+      <div class="sr-app">
+        <div class="sr-card">
+          <div class="sr-sec-head">Sharing</div>
+          <div class="sr-share-row" id="live-card"></div>
+        </div>
+      </div>
+    </div>
+    <div style="flex: 0 1 340px; min-width: 0;">
+      <p class="framecap">The share pin popup, full density</p>
+      <div class="mapbed">
+        <div class="sr-app" id="live-pop"></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">
+    The example block and the empty sentence swap with <strong>no transition</strong>. That is
+    deliberate, not an omission. The whole safety argument for allowing all three off is that the
+    consequence appears the instant the last switch flips; a fade would delay exactly the
+    information the design depends on being immediate, and animating a text block on every flip is
+    decoration, not explanation.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="states">
+  <p class="secnum">03 / All eight states, Settings</p>
+  <h2>Every combination, rendered by the rule.</h2>
+  <p class="lede">
+    Read the switch positions, then the manifest sentence under the example. Nothing here was
+    typed by hand; each card is <code class="k">modeLine(on)</code> over the same part table.
+  </p>
+  <div class="matrix" id="matrix-settings"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="popups">
+  <p class="secnum">04 / All eight states, popup</p>
+  <h2>The button label, and the state where there is no button.</h2>
+  <p class="lede">
+    Seven states carry a copy control. The eighth carries a sentence. The coordinate readout is
+    payload independent, so it is present in all eight: the pin still shows the spot, and the text
+    stays selectable by hand.
+  </p>
+  <div class="matrix" id="matrix-popups"></div>
+  <p class="note">
+    <strong>Longest label is 37 characters</strong> (<code class="k">Copy coordinates and Google Maps
+    link</code>), which fits the 224px compact popup in two lines and the 268px full popup in one to
+    two. That bound is what the family collapse buys: the uncollapsed serial list would have run to
+    54 characters and three lines inside a card map popup.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="darkstrip">
+  <p class="secnum">05 / Dark</p>
+  <h2>Both themes, side by side.</h2>
+  <p class="lede">
+    Every value is an existing <code class="k">--sr-*</code> token. No token is minted by this
+    refinement, and nothing here paints text on a fill, so no on-fill pair is needed. The switch
+    thumb is <code class="k">--sr-switch-thumb</code> with <code class="k">--sr-switch-thumb-shadow</code>
+    in both themes, unchanged.
+  </p>
+  <div class="frames">
+    <div style="flex: 1 1 320px; min-width: 0;">
+      <p class="framecap">Light</p>
+      <div class="sr-app" id="dark-light"></div>
+    </div>
+    <div class="forcedark" data-theme="dark" style="flex: 1 1 320px; min-width: 0; background: var(--sr-bg); border-radius: 14px; padding: 16px; border: 1px solid var(--sr-doc-rule);">
+      <p class="framecap" style="color: var(--sr-text-muted);">Dark</p>
+      <div class="sr-app" id="dark-dark"></div>
+    </div>
+  </div>
+  <div class="frames" style="margin-top: 22px;">
+    <div style="flex: 1 1 300px; min-width: 0;">
+      <p class="framecap">Light · all three off</p>
+      <div class="mapbed"><div class="sr-app" id="dark-pop-light"></div></div>
+    </div>
+    <div class="forcedark" data-theme="dark" style="flex: 1 1 300px; min-width: 0;">
+      <p class="framecap" style="color: var(--sr-doc-ink-soft);">Dark · all three off</p>
+      <div class="mapbed"><div class="sr-app" id="dark-pop-dark"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="migration">
+  <p class="secnum">06 / Migration</p>
+  <h2>What the first launch after the upgrade looks like.</h2>
+  <p class="lede">
+    Nobody is told anything. There is no notice, no dialog, no changelog card. The only correct
+    outcome is switch positions that already match what the person chose before, and these are the
+    two states that must be exactly right.
+  </p>
+  <div class="matrix" id="matrix-migration"></div>
+  <p class="note">
+    A stored value the normalizer does not recognise, including anything written by a future build
+    and read by this one, lands on all three on. That is today's default and today's superset, so a
+    failed read never silently removes something the person was copying.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="phone">
+  <p class="secnum">07 / 320px and 200% text scale</p>
+  <h2>The hard case: a narrow phone with doubled text.</h2>
+  <p class="lede">
+    Three switch rows, a multi line payload holding a 45 character URL, and a manifest sentence, in
+    one card, at 320px. Then the same card with the in app text scale at 200%, which is where a
+    fixed width example block would break.
+  </p>
+  <div class="frames">
+    <div>
+      <p class="framecap">320 × 100%</p>
+      <div class="frame" style="width: 320px;">
+        <div class="sr-app" style="--scale: 1;" id="phone-100"></div>
+      </div>
+    </div>
+    <div>
+      <p class="framecap">320 × 200% text scale</p>
+      <div class="frame" style="width: 320px;">
+        <div class="sr-app" style="--scale: 2;" id="phone-200"></div>
+      </div>
+    </div>
+    <div>
+      <p class="framecap">320 × 200% · all three off</p>
+      <div class="frame" style="width: 320px;">
+        <div class="sr-app" style="--scale: 2;" id="phone-200-off"></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">
+    <strong>No horizontal page scroll at either scale.</strong> The example block already carries
+    <code class="k">white-space: pre-wrap</code> and <code class="k">overflow-wrap: anywhere</code>
+    from globals.css, so the Google Maps URL wraps inside the block instead of widening the page.
+    The switch rows use <code class="k">.sr-action-row</code>, which wraps the trailing switch onto
+    its own line only when the label genuinely runs out of room, so a phone at 100% keeps the
+    compact one line form and only the doubled scale stacks. Every size on this page is rem derived,
+    so nothing was converted to px to make the narrow case fit.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="a11y">
+  <p class="secnum">08 / Accessibility decisions</p>
+  <h2>Two calls worth stating out loud.</h2>
+  <div class="panel" style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));">
+    <div>
+      <p class="rulehead">Names that stand alone</p>
+      <p class="note" style="margin-top: 0;">
+        A screen reader user landing on the second switch hears its name with no row context, so
+        “Google Maps link” alone is ambiguous. Each switch leads with the visible text, then says
+        what it does, generated from the same table:
+      </p>
+      <pre class="fn" style="margin-top: 12px;">'Coordinates. Include the coordinate pair
+ when copying a location.'
+
+'Google Maps link. Include a Google Maps link
+ when copying a location.'
+
+'Apple Maps link. Include an Apple Maps link
+ when copying a location.'</pre>
+      <p class="note">
+        Leading with the visible string satisfies Label in Name, and the repo already uses exactly
+        this <code class="k">label + '. ' + aside</code> formula on the row this replaces.
+      </p>
+    </div>
+    <div>
+      <p class="rulehead">The live region: yes, but not the block</p>
+      <p class="note" style="margin-top: 0;">
+        The example is a payload. Reading a coordinate pair and two full URLs aloud on every switch
+        flip would be punishing, so the <code class="k">&lt;pre&gt;</code> is <strong>not</strong> a
+        live region. Silence is worse though: the switch announces its own on and off, which confirms
+        the control but never the consequence, and the all off consequence is the one that must not
+        be discovered later on a map.
+      </p>
+      <p class="note">
+        So a visually hidden <code class="k">role="status"</code> region announces the
+        <strong>manifest sentence</strong>, which is short, already generated, and is the exact
+        string a sighted user watches change. It renders no child until the first user change, so it
+        never speaks on mount, and each announcement is a sequence keyed child node per the v0.5.80
+        convention. Honest caveat: with three switches every flip changes the string, so a
+        consecutive repeat is not reachable today. The key stays because it costs one integer, this
+        repo has already shipped that bug once, and a fourth destination or a reset control makes it
+        reachable.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section id="copy">
+  <p class="secnum">09 / The all-off copy</p>
+  <h2>A consequence, not a scolding.</h2>
+  <div class="panel">
+    <div class="ruleblock">
+      <div>
+        <p class="rulehead">Settings, in place of the example</p>
+        <p style="font-family: var(--font-doc); font-size: 1.18rem; line-height: 1.55; margin: 0 0 12px; color: var(--sr-doc-ink);">
+          “Nothing to copy. The share pin will still show the coordinates on the map.”
+        </p>
+        <p class="note" style="margin-top: 0;">
+          States the outcome, then hands back the thing that still works. No imperative, no warning
+          color, no alert icon. It sits in the example's own slot on the same subtle surface, with a
+          dashed border rather than a solid one, so it reads as an empty container and not a
+          message about a problem.
+        </p>
+      </div>
+      <div>
+        <p class="rulehead">Popup, in place of the copy control</p>
+        <p style="font-family: var(--font-doc); font-size: 1.18rem; line-height: 1.55; margin: 0 0 12px; color: var(--sr-doc-ink);">
+          “Nothing is selected to copy. Choose what to copy in Settings under Sharing.”
+        </p>
+        <p class="note" style="margin-top: 0;">
+          The second sentence is an imperative because it is wayfinding, which is the one place an
+          imperative is a service. A disabled button was rejected: no control that looks pressable
+          may put an empty string on the clipboard, and a greyed control invites a press that
+          explains nothing.
+        </p>
+      </div>
+    </div>
+    <p class="note">
+      No em dashes anywhere in shipped copy: switch labels, manifest sentences, empty states, helper
+      text and every <code class="k">aria-label</code>. Periods and colons carry the joins.
+    </p>
+  </div>
+</section>
+
+</div>
+
+<script>
+'use strict';
+
+/* ════════════════════════════════════════════════════════════════════════════
+   THE RULE. This is the whole of it, and it is what renders every state on this
+   page. Port these three functions and the table; do not port a state list.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* `label` is the switch's visible text (sentence case, it starts its own row).
+   `noun` is the manifest form, which sits mid sentence after a colon: identical
+   for the two proper nouns, lowercase for coordinates. Two columns rather than
+   one lowercasing trick, because "lowercase unless it is a proper noun" is not
+   derivable from a string and would have silently produced "Bing maps link". */
+var SHARE_PARTS = [
+  { key: 'coords', label: 'Coordinates',      noun: 'coordinates',
+    qualifier: null,          family: null,   aside: 'the coordinate pair' },
+  { key: 'google', label: 'Google Maps link', noun: 'Google Maps link',
+    qualifier: 'Google Maps', family: 'link', aside: 'a Google Maps link' },
+  { key: 'apple',  label: 'Apple Maps link',  noun: 'Apple Maps link',
+    qualifier: 'Apple Maps',  family: 'link', aside: 'an Apple Maps link' }
+];
+
+/* Runs past today's three on purpose: a fourth destination would otherwise mix a
+   digit into a sentence of word forms ("4 lines: ..."). Beyond the ladder it
+   degrades to the digit, which is correct if inelegant. */
+var COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six'];
+function countWord(n) {
+  var w = COUNT_WORDS[n] || String(n);
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
+function listPhrase(items) {
+  if (items.length === 0) return '';
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return items[0] + ' and ' + items[1];
+  return items.slice(0, -1).join(', ') + ', and ' + items[items.length - 1];
+}
+
+/* Groups the on-parts by family, preserving payload order. A family with every
+   member on collapses to its class noun, which is the only reason the all-on
+   button stays short. */
+function phrase(on) {
+  var groups = [];
+  var seen = {};
+  on.forEach(function (p) {
+    if (!p.family) { groups.push(p.noun); return; }
+    if (seen[p.family]) return;
+    seen[p.family] = true;
+    var members = SHARE_PARTS.filter(function (q) { return q.family === p.family; });
+    var onMembers = on.filter(function (q) { return q.family === p.family; });
+    if (onMembers.length === members.length) {
+      groups.push('map ' + p.family + 's');
+    } else {
+      groups.push(listPhrase(onMembers.map(function (q) { return q.qualifier; })) +
+                  ' ' + p.family + (onMembers.length > 1 ? 's' : ''));
+    }
+  });
+  var compound = groups.some(function (g) { return g.indexOf(' and ') !== -1; });
+  if (groups.length === 2 && compound) return groups[0] + ', and ' + groups[1];
+  return listPhrase(groups);
+}
+
+function copyLabel(on) { return 'Copy ' + phrase(on); }
+
+function modeLine(on) {
+  var n = on.length;
+  return countWord(n) + (n === 1 ? ' line: ' : ' lines: ') +
+         on.map(function (p) { return p.noun; }).join(', ') + '.';
+}
+
+function switchName(p) {
+  return p.label + '. Include ' + p.aside + ' when copying a location.';
+}
+
+var EMPTY_SETTINGS = 'Nothing to copy. The share pin will still show the coordinates on the map.';
+var EMPTY_POPUP = 'Nothing is selected to copy. Choose what to copy in Settings under Sharing.';
+
+/* ── Payload, matching lib/shareLocation.ts exactly ───────────────────────── */
+var LAT = 38.54321, LNG = -121.98765;
+var COORD = '38.54321, -121.98765';
+var PAIR = '38.54321,-121.98765';
+function payloadLines(state) {
+  var out = [];
+  if (state.coords) out.push(COORD);
+  if (state.google) out.push('Google Maps: https://maps.google.com/?q=' + PAIR);
+  if (state.apple)  out.push('Apple Maps: https://maps.apple.com/?q=' + PAIR);
+  return out;
+}
+function onParts(state) {
+  return SHARE_PARTS.filter(function (p) { return state[p.key]; });
+}
+
+/* ── Rendering ───────────────────────────────────────────────────────────── */
+function el(tag, cls, text) {
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+var COPY_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+var PIN_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>';
+var SMALL_COPY_ICON = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+
+/* The Settings row. `interactive` wires the switches and the live region; the
+   static matrix cards pass false so eight of them do not fight for focus. */
+function renderSettingsRow(host, state, interactive, onChange) {
+  host.textContent = '';
+  var on = onParts(state);
+
+  host.appendChild(el('div', 'sr-share-title', 'Copying a location'));
+  var desc = el('p', 'sr-share-desc',
+    'What gets copied when you copy a location from a map pin. Coordinates are decimal degrees to five places, latitude first.');
+  host.appendChild(desc);
+
+  SHARE_PARTS.forEach(function (p) {
+    var row = el('div', 'sr-share-part sr-action-row');
+    row.appendChild(el('span', 'sr-share-part-label sr-min0', p.label));
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'sw sr-touch-target';
+    btn.setAttribute('role', 'switch');
+    btn.setAttribute('aria-checked', state[p.key] ? 'true' : 'false');
+    btn.setAttribute('aria-label', switchName(p));
+    btn.setAttribute('tabindex', interactive ? '0' : '-1');
+    var track = el('span', 'sw-track');
+    track.appendChild(el('span', 'sw-knob'));
+    btn.appendChild(track);
+    if (interactive) {
+      btn.addEventListener('click', function () {
+        state[p.key] = !state[p.key];
+        onChange();
+      });
+    }
+    row.appendChild(btn);
+    host.appendChild(row);
+  });
+
+  var lbl = el('div', 'sr-share-example-label');
+  lbl.innerHTML = SMALL_COPY_ICON;
+  lbl.appendChild(document.createTextNode('Example'));
+  host.appendChild(lbl);
+
+  if (on.length === 0) {
+    host.appendChild(el('p', 'sr-share-empty', EMPTY_SETTINGS));
+  } else {
+    host.appendChild(el('pre', 'sr-share-example', payloadLines(state).join('\n')));
+    host.appendChild(el('p', 'sr-share-manifest', modeLine(on)));
+  }
+
+  /* Rendered from the start, child only. Never speaks on mount. */
+  var live = el('span', 'sr-only');
+  live.setAttribute('role', 'status');
+  live.setAttribute('aria-live', 'polite');
+  live.dataset.region = '1';
+  host.appendChild(live);
+}
+
+function announce(host, text, seq) {
+  var live = host.querySelector('[data-region]');
+  if (!live) return;
+  live.textContent = '';
+  var child = el('span', null, text);
+  child.setAttribute('data-seq', String(seq));
+  live.appendChild(child);
+}
+
+function renderPopup(host, state, compact) {
+  host.textContent = '';
+  var on = onParts(state);
+
+  var pop = el('div', 'sr-share-popup' + (compact ? ' sr-share-popup--compact' : ''));
+
+  var close = el('button', 'sr-share-close', '×');
+  close.type = 'button';
+  close.setAttribute('aria-label', 'Close and remove the pin');
+  close.setAttribute('tabindex', '-1');
+  pop.appendChild(close);
+
+  var head = el('div', 'sr-share-pop-head');
+  head.innerHTML = PIN_ICON;
+  head.appendChild(document.createTextNode('Share location'));
+  pop.appendChild(head);
+
+  pop.appendChild(el('p', 'sr-share-coord', COORD));
+
+  if (on.length === 0) {
+    pop.appendChild(el('p', 'sr-share-none', EMPTY_POPUP));
+  } else {
+    var btn = el('button', 'sr-share-copy-btn sr-touch-target');
+    btn.type = 'button';
+    btn.setAttribute('tabindex', '-1');
+    btn.innerHTML = COPY_ICON;
+    btn.appendChild(el('span', null, copyLabel(on)));
+    pop.appendChild(btn);
+    pop.appendChild(el('p', 'sr-share-mode-line', modeLine(on)));
+  }
+
+  host.appendChild(pop);
+}
+
+/* ── Section 02: the working card ────────────────────────────────────────── */
+var liveState = { coords: true, google: true, apple: true };
+var liveSeq = 0;
+var liveCard = document.getElementById('live-card');
+var livePop = document.getElementById('live-pop');
+
+function paintLive(announceIt) {
+  renderSettingsRow(liveCard, liveState, true, function () { paintLive(true); });
+  renderPopup(livePop, liveState, false);
+  if (announceIt) {
+    liveSeq += 1;
+    var on = onParts(liveState);
+    announce(liveCard, on.length === 0 ? EMPTY_SETTINGS : modeLine(on), liveSeq);
+  }
+}
+paintLive(false);
+
+/* ── Sections 03 and 04: all eight, in a stable order ────────────────────── */
+var ALL_STATES = [
+  { coords: true,  google: true,  apple: true  },
+  { coords: true,  google: true,  apple: false },
+  { coords: true,  google: false, apple: true  },
+  { coords: true,  google: false, apple: false },
+  { coords: false, google: true,  apple: true  },
+  { coords: false, google: true,  apple: false },
+  { coords: false, google: false, apple: true  },
+  { coords: false, google: false, apple: false }
+];
+function bits(s) {
+  return (s.coords ? 'C' : '·') + (s.google ? 'G' : '·') + (s.apple ? 'A' : '·');
+}
+function tagFor(s, extra) {
+  var tag = el('div', 'celltag');
+  tag.appendChild(el('span', 'bits', bits(s)));
+  var n = onParts(s).length;
+  tag.appendChild(el('span', null, n === 0 ? 'nothing selected' : n + (n === 1 ? ' line' : ' lines')));
+  if (extra) {
+    var f = el('span', 'flag' + (extra.warn ? ' warn' : ''), extra.text);
+    tag.appendChild(f);
+  }
+  return tag;
+}
+
+var mSettings = document.getElementById('matrix-settings');
+ALL_STATES.forEach(function (s) {
+  var cell = el('div', 'cell');
+  cell.appendChild(tagFor(s, s.coords || s.google || s.apple ? null : { text: 'empty state', warn: true }));
+  var app = el('div', 'sr-app');
+  var card = el('div', 'sr-card');
+  var head = el('div', 'sr-sec-head', 'Sharing');
+  var row = el('div', 'sr-share-row');
+  card.appendChild(head); card.appendChild(row); app.appendChild(card); cell.appendChild(app);
+  mSettings.appendChild(cell);
+  renderSettingsRow(row, s, false, function () {});
+});
+
+var mPop = document.getElementById('matrix-popups');
+ALL_STATES.forEach(function (s, i) {
+  var cell = el('div', 'cell');
+  var on = onParts(s);
+  cell.appendChild(tagFor(s, on.length === 0
+    ? { text: 'no copy control', warn: true }
+    : { text: copyLabel(on).length + ' chars' }));
+  var bed = el('div', 'mapbed');
+  var app = el('div', 'sr-app');
+  bed.appendChild(app); cell.appendChild(bed);
+  mPop.appendChild(cell);
+  /* Alternate densities so both the 268px and the 224px popup are shown against
+     every label length rather than only the convenient ones. */
+  renderPopup(app, s, i % 2 === 1);
+});
+
+/* ── Section 05: dark strip ──────────────────────────────────────────────── */
+var strip = { coords: true, google: true, apple: true };
+var off = { coords: false, google: false, apple: false };
+[['dark-light', strip], ['dark-dark', strip]].forEach(function (pair) {
+  var host = document.getElementById(pair[0]);
+  var card = el('div', 'sr-card');
+  card.appendChild(el('div', 'sr-sec-head', 'Sharing'));
+  var row = el('div', 'sr-share-row');
+  card.appendChild(row); host.appendChild(card);
+  renderSettingsRow(row, pair[1], false, function () {});
+});
+renderPopup(document.getElementById('dark-pop-light'), off, false);
+renderPopup(document.getElementById('dark-pop-dark'), off, true);
+
+/* ── Section 06: migration ───────────────────────────────────────────────── */
+var mMig = document.getElementById('matrix-migration');
+[
+  { state: { coords: true, google: false, apple: false }, tag: "stored 'coords-only'" },
+  { state: { coords: true, google: true,  apple: true  }, tag: "stored 'coords-and-links', absent, or unreadable" }
+].forEach(function (m) {
+  var cell = el('div', 'cell');
+  var tag = el('div', 'celltag');
+  tag.appendChild(el('span', 'bits', bits(m.state)));
+  tag.appendChild(el('span', null, m.tag));
+  cell.appendChild(tag);
+  var app = el('div', 'sr-app');
+  var card = el('div', 'sr-card');
+  card.appendChild(el('div', 'sr-sec-head', 'Sharing'));
+  var row = el('div', 'sr-share-row');
+  card.appendChild(row); app.appendChild(card); cell.appendChild(app);
+  var bed = el('div', 'mapbed');
+  bed.style.marginTop = '4px';
+  var papp = el('div', 'sr-app');
+  bed.appendChild(papp); cell.appendChild(bed);
+  mMig.appendChild(cell);
+  renderSettingsRow(row, m.state, false, function () {});
+  renderPopup(papp, m.state, false);
+});
+
+/* ── Section 07: phone frames ────────────────────────────────────────────── */
+[['phone-100', { coords: true, google: true, apple: true }],
+ ['phone-200', { coords: true, google: true, apple: true }],
+ ['phone-200-off', { coords: false, google: false, apple: false }]].forEach(function (pair) {
+  var host = document.getElementById(pair[0]);
+  var card = el('div', 'sr-card');
+  card.style.border = '0';
+  card.style.borderRadius = '0';
+  card.style.boxShadow = 'none';
+  card.appendChild(el('div', 'sr-sec-head', 'Sharing'));
+  var row = el('div', 'sr-share-row');
+  card.appendChild(row); host.appendChild(card);
+  renderSettingsRow(row, pair[1], false, function () {});
+});
+
+/* ── Theme toggle ────────────────────────────────────────────────────────── */
+var themebtn = document.getElementById('themebtn');
+var themelabel = document.getElementById('themelabel');
+themebtn.addEventListener('click', function () {
+  var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+  themebtn.setAttribute('aria-pressed', dark ? 'false' : 'true');
+  themelabel.textContent = dark ? 'Dark theme' : 'Light theme';
+});
+</script>
+</body>
+</html>

@@ -471,8 +471,9 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   return (
     <div ref={rootRef} style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 
-      {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
+      {/* Toolbar. .sr-ctl-row keeps the two switches at the same phone-tier size as
+          the .sr-input-16 combobox directly beneath them (globals.css). */}
+      <div className="sr-ctl-row" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
         <ToggleSwitch label="Show sp./slash" checked={showSpuh} onChange={handleToggleSpuh} />
         <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
@@ -493,9 +494,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
         />
       </div>
 
-      {/* Filter controls row */}
+      {/* Filter controls row. .sr-ctl-row keeps the Clear filter button at the same
+          phone-tier size as the .sr-input-16 county select and date inputs. */}
       {counties.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap', flexShrink: 0 }}>
+        <div className="sr-ctl-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap', flexShrink: 0 }}>
           {/* County dropdown */}
           <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
             <MapPin size={12} strokeWidth={2} style={{

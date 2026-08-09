@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Loader2, MapPin, Calendar } from 'lucide-react'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { AlertCircle, Loader2, MapPin, Calendar, Pin } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { formatDate as formatDateLabel } from '../lib/formatDate'
@@ -72,6 +72,11 @@ const CATEGORY_META: { key: BreedingCategory; label: string }[] = [
   { key: 'possible',  label: 'Possible' },
 ]
 
+// Shown while the code labels are pinned. Names the shipped view control by its
+// shipped label ("Unbounded"), never a synonym, so the sentence and the button
+// agree. No em dashes (standing copy rule).
+const PIN_NOTE = 'Code labels stay at the top while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.'
+
 function ghostBtn(active = false): React.CSSProperties {
   return {
     height: 28,
@@ -94,10 +99,58 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
   const [categoryFilter, setCategoryFilter] = useState<Set<BreedingCategory>>(new Set())
   const [sort, setSort] = useState<BreedingSortState>({ column: 'name', dir: 'asc', nameSortMode: 'az' })
   const [wideMode, setWideMode] = useState(false)
+  // Pinned code labels — opt-in, session-only (plain useState, matching wideMode
+  // right beside it: no storage seam, no localStorage, nothing persisted).
+  const [pinned, setPinned] = useState(false)
+  // The view the user pinned FROM, so unpinning restores it and the round trip
+  // leaves no residue. null whenever nothing is pinned.
+  const [viewBeforePin, setViewBeforePin] = useState<boolean | null>(null)
+  // Key of the live region's message node. React bails out when a text node
+  // reconciles to an identical string, so a repeat announcement needs a real node
+  // replacement, never an invisible character appended to the text (v0.5.80).
+  const [pinSeq, setPinSeq] = useState(0)
+  const pinDescId = useId()
   const [taxonMap, setTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
+
+  // The invariant: `pinned` is never true while `wideMode` is false. Pinning is
+  // only offered in Unbounded, where the scrollport is the PAGE and a sticky
+  // header costs nothing but its own ~40px band; Normal view would need a
+  // capped-height inner box, which has no workable height unit at 200% in-app
+  // text scale. The control is still present and enabled in Normal and reaches
+  // the working behavior in ONE press, so nothing is disabled, hidden, or dead.
+  //
+  // Both handlers are plain event handlers computing the next state directly. No
+  // effect mirrors one piece of state onto another (which would be ambiguous
+  // about which one wins, and an extra render).
+  function togglePin() {
+    if (pinned) {
+      // Unpin restores the view pinning switched away from.
+      setPinned(false)
+      if (viewBeforePin !== null) setWideMode(viewBeforePin)
+      setViewBeforePin(null)
+    } else {
+      setViewBeforePin(wideMode)
+      setWideMode(true)
+      setPinned(true)
+      // Advance only on pin: unpinning needs no announcement of its own, since
+      // the aria-pressed transition IS the announcement and the note leaves.
+      setPinSeq(s => s + 1)
+    }
+  }
+
+  function toggleView() {
+    const next = !wideMode
+    setWideMode(next)
+    if (!next && pinned) {
+      // Normal cannot pin, so the pin clears and the pill visibly un-presses in
+      // the same row. There is no view to restore afterwards.
+      setPinned(false)
+      setViewBeforePin(null)
+    }
+  }
 
   const fetchTaxonCodes = async (entries: BreedingEntry[]) => {
     try {
@@ -270,7 +323,11 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         gap: 12, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap',
       }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* .sr-ctl-row: one phone-tier text size for every control in the filter
+            block (globals.css), so the code pills and the A–Z/Taxonomic toggle can't
+            read smaller than the .sr-input-16 county select and date inputs. The
+            right-hand count + Table view cluster is deliberately outside it. */}
+        <div className="sr-ctl-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <button tabIndex={0}
             aria-pressed={filter.size === 0 && categoryFilter.size === 0}
             style={{
@@ -460,15 +517,49 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        {/* Right-hand cluster. display/flex-wrap/gap are lifted to .sr-wrap-flex so
+            the count and the two buttons WRAP instead of overflowing at 320px and at
+            200% text scale; only flexShrink stays inline. */}
+        <div className="sr-wrap-flex" style={{ '--sr-wrap-gap': '8px', flexShrink: 0 } as React.CSSProperties}>
           <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
-          <button tabIndex={0}
-            style={ghostBtn(wideMode)}
-            onClick={() => setWideMode(w => !w)}
-            title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
-          >
-            {wideMode ? '↔ Normal' : '↔ Unbounded'}
-          </button>
+          {/* The two presentation controls read as one group rather than as more
+              filters. Same shipped ghostBtn() styling, so they are visually a pair. */}
+          <div role="group" aria-label="Table view" className="sr-wrap-flex" style={{ '--sr-wrap-gap': '6px' } as React.CSSProperties}>
+            <button tabIndex={0}
+              type="button"
+              className="sr-touch-target"
+              // The accessible name is the button's own text and nothing else:
+              // there is deliberately NO aria-label, so the visible label and the
+              // accessible name cannot drift apart. The consequence of pressing it
+              // rides on aria-describedby, a DESCRIPTION not a name, which keeps
+              // WCAG 2.5.3 Label in Name trivially satisfied.
+              aria-pressed={pinned}
+              aria-describedby={pinDescId}
+              style={{ ...ghostBtn(pinned), gap: 5 }}
+              onClick={togglePin}
+            >
+              <Pin size={12} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0 }} />
+              Pin code labels
+            </button>
+            {/* .sr-touch-target on the SHIPPED toggle too: the two are now a visual
+                group, and at ≤640 a 2.75rem pill beside this button's inline 28px
+                would read as a rendering error. The class sets min-height, which
+                clamps the inline height only on the phone tier, so desktop density
+                is untouched. */}
+            <button tabIndex={0}
+              type="button"
+              className="sr-touch-target"
+              style={ghostBtn(wideMode)}
+              onClick={toggleView}
+              title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
+            >
+              {wideMode ? '↔ Normal' : '↔ Unbounded'}
+            </button>
+          </div>
+          {/* Persistent description target. It sits in the control row, never inside
+              the horizontally scrolled table (where an absolutely positioned .sr-only
+              span can extend document.scrollWidth on a phone). */}
+          <span className="sr-only" id={pinDescId}>Pinning uses the Unbounded view.</span>
         </div>
       </div>
 
@@ -493,6 +584,18 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         </div>
       )}
 
+      {/* The live region is rendered from the START and never mounts alongside its
+          message: assistive tech reports CHANGES to a region that already exists, so
+          a region that appears together with its text can go unannounced. The
+          wrapper is chromeless and collapses to nothing when empty; the note is its
+          key={pinSeq} child, so each pin is a real node replacement (an addition in
+          aria-live terms) while the region's textContent stays exactly the message.
+          Padding the string with an invisible character to force a diff is the wrong
+          fix: it makes every textContent assertion quietly false. */}
+      <div className="sr-bc-pinstatus" role="status">
+        {pinned ? <p key={pinSeq} className="sr-bc-pinnote sr-bc-pinnote--enter">{PIN_NOTE}</p> : null}
+      </div>
+
       <BreedingCodeTable
         entries={categoryFilteredEntries}
         codesPresent={codesPresent}
@@ -502,6 +605,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         taxonMap={taxonMap}
         taxonOrders={taxonOrders}
         wideMode={wideMode}
+        pinned={pinned}
         onOpenSpecies={onOpenSpecies}
       />
     </div>

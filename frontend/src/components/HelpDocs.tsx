@@ -318,8 +318,12 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
       role="dialog"
       aria-modal="true"
       aria-label="SnowRaven Documentation"
+      // Positioning lives in globals.css, NOT inline: an inline `inset: 0`
+      // (specificity 1,0,0) can't be overridden, so the iOS safe-area inset that
+      // keeps the header's icon and title clear of the status bar / Dynamic
+      // Island had nowhere to hang.
+      className="sr-help-panel"
       style={{
-        position: 'fixed', inset: 0, zIndex: 1200,
         background: 'var(--sr-surface)',
         display: 'flex', flexDirection: 'column',
         overflow: 'hidden',
@@ -372,10 +376,13 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
         }}>
 
           {/* TOC Sidebar */}
+          {/* The height cap lives in globals.css alongside the panel's iOS inset:
+              on iOS the scrollport is also shorter by the top safe-area inset, and
+              an inline max-height could not be adjusted for it. */}
           <nav className="sr-help-toc" aria-label="Documentation contents" style={{
             width: 200, flexShrink: 0, padding: '32px 0',
             position: 'sticky', top: 0,
-            maxHeight: 'calc(100vh - 52px)', overflowY: 'auto',
+            overflowY: 'auto',
           }}>
             <div style={{
               fontSize: '0.65625rem', fontWeight: 700, letterSpacing: '0.08em',

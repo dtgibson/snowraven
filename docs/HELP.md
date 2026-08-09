@@ -302,13 +302,13 @@ Google Maps: https://maps.google.com/?q=38.54321,-121.98765
 Apple Maps: https://maps.apple.com/?q=38.54321,-121.98765
 ```
 
-Paste that into a text message and the two links are tappable, opening the exact spot in whichever maps app the person you sent it to prefers. The coordinate line on its own also works: paste it straight into a Google Maps or Apple Maps search box and it finds the spot. If you would rather send just that one line, choose **Copy coordinates only** in Settings under Sharing.
+Paste that into a text message and the two links are tappable, opening the exact spot in whichever maps app the person you sent it to prefers. The coordinate line on its own also works: paste it straight into a Google Maps or Apple Maps search box and it finds the spot. Settings under Sharing has a switch for each of the three lines, so you can send any combination you like: just the coordinates, just one map link, coordinates plus one link, and so on. The button says what it will copy before you press it, and a line underneath spells out the lines you will get. With all three switched off there is no copy button at all: the popup still shows the coordinates on screen and points you back to Settings.
 
 If the clipboard write is refused (this can happen in some browsers), the popup says so and shows the full text with a **Select all** button, so you can copy it by hand. It never claims a copy that did not happen.
 
 **Where it works.** The share pin is on Map Explorer's My Sightings view, Species Detail's Sighting Locations map (both Pins and Heatmap), the Statistics Geographic Stats map, and the per-individual map on a Named Birds card. On Hotspots, Nearby Lifers, and Media Targets, right-click and long-press are already taken by the search center, so instead the **search center pin itself** is clickable: click it (or reach it with the keyboard) and the same copy popup opens. Dropping and dragging that pin behaves exactly as it always has.
 
-**Closing.** Press **Esc**, or the popup's close button, to remove the pin and the popup together. The pin is not saved anywhere: it disappears when you leave the tab, and nothing about it is written to disk.
+**Closing.** Press **Esc**, or the popup's close button, to remove the pin and the popup together. Switching to a different map view clears it too. The pin is not saved anywhere: it is per-session, resetting on relaunch, and nothing about it is written to disk.
 
 **Nothing is sent anywhere.** The coordinates are already on your device and the two links are assembled locally as plain text. No shortener, no geocoder, no lookup of any kind, so the whole thing works with no connection.
 
@@ -405,6 +405,10 @@ Multiple pills can be active simultaneously. The table shows only species that h
 
 The Unbounded toggle removes the table's horizontal scroll constraint for easier reading on narrow screens.
 
+Pin code labels keeps the row of code headings (NB, FL, CF, and so on) visible at the top of the screen while you scroll down the species list, so you can always tell which column a circle sits in. It is off by default, and the choice is per-session, resetting on relaunch.
+
+Pinning uses the Unbounded view, so pressing Pin code labels from the normal view switches to Unbounded and pins in one press. Pressing it again unpins and puts you back in the view you started from. Switching back to Normal yourself also clears the pin. While the labels are pinned, a short note above the table says so. Nothing else changes: the table keeps its full height and the page still scrolls as one, with the legend after the last species.
+
 On a phone, in both the normal and Unbounded views, the code columns tighten to the width of their dots so far more of them fit on screen at once, thin vertical rules separate the columns so a row reads clearly across, and the species-name column stays fixed on the left as you scroll the codes sideways. You can pinch to zoom in on any part of the matrix using your device's normal gesture. The table scrolls as part of the page, with the legend at the end after the last species.
 
 ---
@@ -488,12 +492,17 @@ Set your color scheme: System (follows your operating system preference), Light,
 
 ### Sharing
 
-**Copying a location.** Chooses what lands on the clipboard when you copy a location from a map pin (see "Copying a location from a map" under Map Explorer). Two options:
+**Copying a location.** Chooses what lands on the clipboard when you copy a location from a map pin (see "Copying a location from a map" under Map Explorer). Three independent switches, one per line of the copied block:
 
-- **Copy coordinates and map links** (the default): three lines, the coordinates followed by a Google Maps link and an Apple Maps link.
-- **Copy coordinates only**: one line, the coordinate pair and nothing else.
+- **Coordinates**: the coordinate pair.
+- **Google Maps link**: a link that opens the spot in Google Maps.
+- **Apple Maps link**: a link that opens the spot in Apple Maps.
 
-Coordinates are decimal degrees to five places, latitude first, which is about a metre of precision and matches what eBird shows. An example of the exact text you will get is shown below the two options. Your choice is remembered across sessions and takes effect immediately, including for a share popup you already have open.
+Any combination works, and each line keeps its place in the same order whichever ones you turn on, so a block never has a gap in it. Coordinates are decimal degrees to five places, latitude first, which is about a metre of precision and matches what eBird shows. An example of the exact text you will get is shown below the switches, along with a sentence naming the lines it contains.
+
+If you turn all three off, nothing is left to copy: the example says so, and the map popup shows the coordinates on screen with a note pointing back here instead of a copy button. The pin still marks the spot, and you can select that coordinate text by hand.
+
+Your choice is remembered across sessions and takes effect immediately, including for a share popup you already have open. If you had chosen "Copy coordinates only" in an earlier version, you will find Coordinates on and both map links off, which is the same thing said three ways.
 
 ### API Keys
 

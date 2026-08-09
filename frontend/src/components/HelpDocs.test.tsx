@@ -17,6 +17,19 @@ describe('HelpDocs accessibility (F006/F039/F040/F060/F078)', () => {
     expect(container.querySelector('.sr-help-toc')).toBeTruthy()
   })
 
+  it('positions the overlay through .sr-help-panel, not an inline style (helpdocs-safe-area)', () => {
+    // The DOM half of the lift: iosChrome.test.ts proves the rule exists and is
+    // .sr-ios-app-gated, this proves the element actually carries the class and
+    // has no inline positioning left to out-specify it. The iOS safe-area inset
+    // that keeps the header clear of the Dynamic Island hangs off both halves.
+    render(<HelpDocs onClose={vi.fn()} />)
+    const overlay = document.getElementById('sr-help-overlay')!
+    expect(overlay.classList.contains('sr-help-panel')).toBe(true)
+    expect(overlay.style.position).toBe('')
+    expect(overlay.style.inset).toBe('')
+    expect(overlay.style.zIndex).toBe('')
+  })
+
   it('restores focus to the opener when the overlay unmounts (F039/F040)', () => {
     const opener = document.createElement('button')
     opener.textContent = 'Open help'

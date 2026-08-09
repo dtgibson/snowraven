@@ -1,0 +1,1053 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven design refinement: Breeding Codes pinned labels</title>
+<style>
+/* ============================================================================
+   SnowRaven — Breeding Codes "Pin code labels" design refinement
+   ----------------------------------------------------------------------------
+   The app specimens below reproduce the shipped --sr-* tokens verbatim from
+   frontend/src/globals.css (:root + [data-theme="dark"]). Nothing here invents
+   a color. The ONE new token this refinement proposes is --sr-sticky-shadow,
+   declared in both themes and marked NEW below.
+   ========================================================================== */
+
+/* ---- Shipped app tokens (light) ---------------------------------------- */
+:root {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-tier-4: #3B0764;
+  --sr-tier-3: #6B21A8;
+  --sr-tier-2: #9333EA;
+  --sr-tier-1: #C084FC;
+  --sr-tier-1-text: #3B0764;
+  --sr-tier-2-text: #FFFFFF;
+  --sr-tier-3-text: #FFFFFF;
+  --sr-tier-4-text: #FFFFFF;
+  --sr-tier-1-fg: #7C3AED;
+  --sr-tier-2-fg: #8429D8;
+  --sr-tier-3-fg: #6B21A8;
+  --sr-tier-4-fg: #3B0764;
+  --sr-tier-4-rgb: 59,7,100;
+  --sr-tier-3-rgb: 107,33,168;
+  --sr-tier-2-rgb: 147,51,234;
+  --sr-tier-1-rgb: 192,132,252;
+  /* NEW — the pinned header's boundary haze. Tinted with the app's own ink
+     (#0F1117), never pure black. Full-value shadow token, same convention as
+     --sr-card-shadow / --sr-switch-thumb-shadow. */
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ---- Shipped app tokens (dark) ----------------------------------------- */
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-tier-4: #6B21A8;
+  --sr-tier-3: #7C3AED;
+  --sr-tier-2: #A855F7;
+  --sr-tier-1: #C084FC;
+  --sr-tier-1-text: #1A0030;
+  --sr-tier-2-text: #1A0030;
+  --sr-tier-3-text: #FFFFFF;
+  --sr-tier-4-text: #FFFFFF;
+  --sr-tier-1-fg: #C084FC;
+  --sr-tier-2-fg: #BD80FA;
+  --sr-tier-3-fg: #A78BFA;
+  --sr-tier-4-fg: #C795F5;
+  --sr-tier-4-rgb: 107,33,168;
+  --sr-tier-3-rgb: 124,58,237;
+  --sr-tier-2-rgb: 168,85,247;
+  --sr-tier-1-rgb: 192,132,252;
+  /* NEW — deeper in dark, where a light haze would be invisible. Tinted ink. */
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
+}
+
+/* ---- Spec-document chrome (not the app) -------------------------------- */
+:root {
+  --doc-bg: #F4F5F7;
+  --doc-panel: #FFFFFF;
+  --doc-ink: #16181D;
+  --doc-ink-soft: #575C68;
+  --doc-line: #DEE1E7;
+  --doc-mark: #277448;
+  --doc-mark-soft: #E8F5EE;
+  --doc-warn-soft: #FBF1E6;
+  --doc-warn-line: #D9A66B;
+  --doc-warn-ink: #7A4E15;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --doc-bg: #0C0D11;
+    --doc-panel: #15171C;
+    --doc-ink: #ECEEF2;
+    --doc-ink-soft: #9AA0AC;
+    --doc-line: #262A32;
+    --doc-mark: #34D399;
+    --doc-mark-soft: #08251A;
+    --doc-warn-soft: #241B0F;
+    --doc-warn-line: #7A5A2C;
+    --doc-warn-ink: #D9B681;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--doc-bg);
+  color: var(--doc-ink);
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.doc { max-width: 62rem; margin-inline: auto; padding: 2.5rem 1.25rem 5rem; }
+
+/* Three typographic roles with real size + weight contrast. */
+.doc-title { font-size: 2.125rem; font-weight: 800; letter-spacing: -0.028em; line-height: 1.1; margin: 0 0 0.5rem; }
+.doc-kicker { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--doc-mark); margin: 0 0 0.75rem; }
+.doc-lede { font-size: 1.0625rem; line-height: 1.55; color: var(--doc-ink-soft); margin: 0 0 2.25rem; max-width: 46rem; }
+
+h2 { font-size: 1.375rem; font-weight: 750; letter-spacing: -0.018em; margin: 3rem 0 0.25rem; }
+h3 { font-size: 1rem; font-weight: 700; letter-spacing: -0.008em; margin: 2rem 0 0.4rem; }
+h4 { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--doc-ink-soft); margin: 1.5rem 0 0.5rem; }
+p { margin: 0 0 0.9rem; max-width: 46rem; }
+ul { margin: 0 0 0.9rem; padding-left: 1.15rem; max-width: 46rem; }
+li { margin-bottom: 0.35rem; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; background: var(--doc-mark-soft); color: var(--doc-mark); padding: 0.1em 0.35em; border-radius: 4px; }
+strong { font-weight: 700; }
+
+.rule { height: 1px; background: var(--doc-line); border: 0; margin: 2.5rem 0 0; }
+
+.callout {
+  background: var(--doc-panel);
+  border: 1px solid var(--doc-line);
+  border-left: 3px solid var(--doc-mark);
+  border-radius: 0 10px 10px 0;
+  padding: 1rem 1.15rem;
+  margin: 1.25rem 0 1.5rem;
+  max-width: 46rem;
+}
+.callout p:last-child { margin-bottom: 0; }
+.callout--warn { border-left-color: var(--doc-warn-line); background: var(--doc-warn-soft); color: var(--doc-warn-ink); }
+.callout--warn code { background: transparent; color: inherit; font-weight: 600; }
+
+.verdict {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: var(--doc-mark-soft); color: var(--doc-mark);
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.3rem 0.65rem; border-radius: 999px; margin-bottom: 0.75rem;
+}
+
+table.doc-table { border-collapse: collapse; width: 100%; max-width: 46rem; font-size: 0.8125rem; margin: 0.75rem 0 1.5rem; }
+table.doc-table th, table.doc-table td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--doc-line); vertical-align: top; }
+table.doc-table th { font-weight: 700; font-size: 0.6875rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--doc-ink-soft); }
+.doc-scroll { overflow-x: auto; max-width: 100%; }
+
+/* ============================================================================
+   Specimen framing
+   ========================================================================== */
+.spec { margin: 1.25rem 0 0; }
+.spec-label {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--doc-ink-soft); margin: 0 0 0.4rem;
+}
+.spec-note { font-size: 0.8125rem; color: var(--doc-ink-soft); margin: 0.5rem 0 0; max-width: 46rem; }
+
+/* The viewport stand-in. In the real app the scrollport for a pinned header is
+   the PAGE itself; a spec page cannot lend out its own page scroll, so each
+   specimen gets a box that plays the part of the browser viewport. Sticky
+   behaves inside it exactly as it does against the page. */
+.viewport-frame {
+  height: 26rem;
+  overflow: auto;
+  border: 1px solid var(--doc-line);
+  border-radius: 12px;
+  background: var(--sr-bg);
+  position: relative;
+}
+.viewport-frame::-webkit-scrollbar { width: 10px; height: 10px; }
+.viewport-frame::-webkit-scrollbar-thumb { background: var(--doc-line); border-radius: 999px; }
+
+.frame-caption {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  font-size: 0.6875rem; color: var(--doc-ink-soft);
+  padding: 0.4rem 0.1rem 0; flex-wrap: wrap;
+}
+
+/* ============================================================================
+   The app surface (mirrors the shipped DOM + class contracts)
+   ========================================================================== */
+.app { background: var(--sr-bg); color: var(--sr-text); font-family: var(--font-sans); min-height: 100%; }
+.sr-panel { max-width: 1280px; margin-inline: auto; padding: 1rem 1.25rem 1.75rem; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* --- control row --- */
+.bc-controls {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px; margin-bottom: 14px; flex-shrink: 0; flex-wrap: wrap;
+}
+.bc-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
+/* .sr-wrap-flex — shipped utility: lift display + flex-wrap here, gap via
+   --sr-wrap-gap. Used for the right cluster so it never overflows at 320px. */
+.sr-wrap-flex { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sr-wrap-gap, 8px); }
+
+.bc-count { font-size: 0.75rem; color: var(--sr-text-muted); }
+
+.bc-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px; border-radius: 6px;
+  font-size: 0.75rem; font-weight: 500; font-family: inherit;
+  cursor: pointer; border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface); color: var(--sr-text-muted);
+  white-space: nowrap;
+}
+.bc-pill--all { border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent); }
+.bc-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+
+/* ghostBtn() — the shipped view-toggle styling, reused by the new pin control
+   so the two read as one group. */
+.bc-ghost {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  height: 28px; padding: 0 10px; border-radius: 6px;
+  font-size: 0.6875rem; font-weight: 500; font-family: inherit;
+  cursor: pointer; border: 1.5px solid var(--sr-border);
+  background: none; color: var(--sr-text-muted); white-space: nowrap;
+}
+.bc-ghost[aria-pressed="true"], .bc-ghost.is-on {
+  border-color: var(--sr-accent-border); background: var(--sr-accent-bg); color: var(--sr-accent);
+}
+.bc-viewgroup { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.bc-ghost svg { flex-shrink: 0; }
+
+/* --- the pinned-state note ---
+   The role="status" region is a chromeless wrapper that is ALWAYS rendered, so
+   it collapses to nothing when empty. The visible note is its keyed child, so a
+   repeated press replaces a real node and announces every time (v0.5.80). */
+.bc-pinstatus { display: block; }
+.bc-pinnote {
+  margin: 0 0 8px; padding: 7px 12px;
+  background: var(--sr-surface-faint);
+  border: 1px solid var(--sr-border-subtle);
+  border-radius: 6px;
+  font-size: 0.71875rem; line-height: 1.45;
+  color: var(--sr-text-muted);
+}
+@keyframes bc-note-in { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: none; } }
+.bc-pinnote--enter { animation: bc-note-in 160ms ease-out both; }
+@media (prefers-reduced-motion: reduce) { .bc-pinnote--enter { animation: none; } }
+
+/* --- the matrix card --- */
+.bc-card {
+  border: 1px solid var(--sr-border); border-radius: 10px;
+  background: var(--sr-surface); display: flex; flex-direction: column; min-width: 0;
+}
+/* .sr-bc-card — applied ONLY in Unbounded (wideMode). */
+.sr-bc-card { width: max-content; }
+/* Normal view's scrollport: the wrapper. This is precisely why a pinned header
+   in Normal would need a capped height. */
+.bc-scroll--normal { overflow-x: auto; min-width: 0; position: relative; }
+
+.sr-bc-matrix { border-collapse: separate; border-spacing: 0; width: 100%; min-width: max-content; }
+
+.sr-bc-matrix thead th {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  user-select: none; background: var(--sr-bg);
+  /* Lifted OFF the inline thBase so the pinned rule can override it by
+     specificity instead of fighting an inline style (1,0,0). */
+  box-shadow: inset 0 -1px 0 var(--sr-border);
+}
+
+/* THE PIN. Sticky on each <th> individually, never on <thead>/<tr>: WKWebView
+   and older Safari honor sticky on cells only. */
+.sr-bc-matrix--pinned thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  box-shadow: inset 0 -1px 0 var(--sr-border-medium), var(--sr-sticky-shadow);
+}
+/* Keyboard focus must not land under the pinned band (WCAG 2.4.11), the
+   vertical twin of the shipped scrollPaddingLeft. scroll-margin lives on the
+   target, so no class on <html> and no scroll listener is needed. */
+.sr-bc-matrix--pinned tbody th,
+.sr-bc-matrix--pinned tbody td { scroll-margin-top: 3rem; }
+/* iOS app only, mirroring .sr-ios-app body's padding-top. Web stays untouched. */
+.sr-ios-app .sr-bc-matrix--pinned thead th { top: env(safe-area-inset-top, 0px); }
+.sr-ios-app .sr-bc-matrix--pinned tbody th,
+.sr-ios-app .sr-bc-matrix--pinned tbody td { scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px)); }
+
+.sr-bc-code-col { width: 44px; min-width: 44px; border-right: 1px solid var(--sr-border-subtle); }
+.sr-bc-code-col:last-child { border-right: none; }
+.sr-bc-name-col { border-right: 1px solid var(--sr-border-subtle); }
+
+th.sr-bc-name-col {
+  text-align: left; padding: 10px 12px;
+  width: clamp(7.5rem, 40vw, 220px); min-width: clamp(7.5rem, 40vw, 220px);
+}
+/* Normal view keeps the shipped horizontal-only freeze on the corner. */
+.bc-scroll--normal thead th.sr-bc-name-col {
+  position: sticky; left: 0; z-index: 3;
+  box-shadow: inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border);
+}
+th.sr-bc-code-col { text-align: center; padding: 10px 0; }
+
+.bc-sortbtn {
+  display: inline-flex; align-items: center; justify-content: center; width: 100%;
+  font: inherit; letter-spacing: inherit; text-transform: inherit;
+  color: var(--sr-text-muted); background: none; border: none; padding: 0; cursor: pointer;
+}
+.bc-sortbtn--start { justify-content: flex-start; }
+.bc-sortbtn--active { color: var(--sr-text); }
+.bc-sortarrow { font-size: 0.625rem; color: var(--sr-accent); margin-left: 2px; }
+
+tbody th.sr-bc-name-col {
+  padding: 9px 12px; text-align: left; font-weight: normal;
+  background: var(--sr-surface); border-top: 1px solid var(--sr-border-subtle);
+  vertical-align: middle;
+  width: clamp(7.5rem, 40vw, 220px); min-width: clamp(7.5rem, 40vw, 220px); max-width: clamp(7.5rem, 40vw, 220px);
+}
+.bc-scroll--normal tbody th.sr-bc-name-col {
+  position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--sr-border);
+}
+tbody td.sr-bc-code-col {
+  text-align: center; vertical-align: middle; padding: 6px 0;
+  background: var(--sr-surface); border-top: 1px solid var(--sr-border-subtle);
+}
+
+.bc-name { font-size: 0.84375rem; color: var(--sr-text); line-height: 1.3; }
+.bc-name-link { color: var(--sr-accent); text-decoration: none; cursor: pointer; }
+.bc-sci { display: block; font-style: italic; font-size: 0.71875rem; color: var(--sr-text-gray); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.bc-count-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: -0.3px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+.bc-legend {
+  background: var(--sr-surface-faint); border-top: 1px solid var(--sr-border-subtle);
+  padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 16px; flex-shrink: 0;
+  border-radius: 0 0 9px 9px;
+}
+.bc-legend-group { display: flex; align-items: flex-start; gap: 6px; }
+.bc-legend-dot { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; margin-top: 1px; }
+.bc-legend-body { font-size: 0.6875rem; color: var(--sr-text-muted); min-width: 0; }
+.bc-legend-title { font-weight: 600; }
+.bc-legend-codes { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 3px; }
+.bc-legend-codes span { white-space: nowrap; }
+.bc-legend-codes b { font-weight: 700; }
+
+/* ============================================================================
+   Phone specimen — mirrors the shipped @media (max-width: 640px) block,
+   scoped to the pane because the spec page's own viewport is not 320px wide.
+   ========================================================================== */
+.pane--phone { width: 320px; }
+.pane--phone .sr-panel { padding: 12px 12px 16px; }
+.pane--phone .sr-bc-code-col { width: 30px; min-width: 30px; }
+.pane--phone .sr-bc-matrix { table-layout: fixed; width: max-content; min-width: 0; }
+.pane--phone .sr-bc-card { width: min-content; }
+.pane--phone th.sr-bc-code-col > .bc-sortbtn { font-size: 0.625rem; letter-spacing: 0; }
+.pane--phone .bc-touch { min-height: 2.75rem; }
+.pane--phone .bc-legend { border-radius: 0; }
+
+.phone-frame {
+  width: 320px; height: 30rem; overflow: auto; flex-shrink: 0;
+  border: 1px solid var(--doc-line); border-radius: 14px; background: var(--sr-bg);
+}
+.phone-row { display: flex; gap: 1.25rem; flex-wrap: wrap; }
+
+/* ============================================================================
+   Screen-budget figure (the load-bearing argument)
+   ========================================================================== */
+.budget { display: flex; gap: 1.75rem; flex-wrap: wrap; margin: 1.25rem 0 0.5rem; }
+.budget-col { width: 13rem; }
+.budget-screen {
+  height: 20rem; border: 1px solid var(--doc-line); border-radius: 10px;
+  background: var(--doc-panel); overflow: hidden; display: flex; flex-direction: column;
+  position: relative;
+}
+.budget-band { flex-shrink: 0; font-size: 0.625rem; display: flex; align-items: center; padding: 0 0.5rem; }
+.budget-band--head { background: var(--doc-mark-soft); color: var(--doc-mark); font-weight: 700; border-bottom: 1px solid var(--doc-mark); }
+.budget-band--chrome { background: var(--doc-line); color: var(--doc-ink-soft); }
+.budget-rows { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.budget-row { border-bottom: 1px solid var(--doc-line); flex-shrink: 0; }
+.budget-box { border: 2px solid var(--doc-warn-line); background: var(--doc-warn-soft); display: flex; flex-direction: column; overflow: hidden; }
+.budget-box-head { background: var(--doc-warn-line); color: var(--doc-panel); font-size: 0.625rem; font-weight: 700; padding: 0 0.4rem; flex-shrink: 0; }
+.budget-legend { font-size: 0.75rem; color: var(--doc-ink-soft); margin-top: 0.6rem; line-height: 1.45; }
+.budget-figure { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; color: var(--doc-ink); display: block; }
+
+/* ============================================================================
+   Control-row state gallery
+   ========================================================================== */
+.states { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 1rem; }
+.state-cell { }
+.state-cell .app { background: var(--sr-bg); padding: 0.9rem 1rem; border: 1px solid var(--doc-line); border-radius: 10px; min-height: 0; }
+.state-caption { font-size: 0.75rem; color: var(--doc-ink-soft); margin: 0.45rem 0 0; max-width: 18rem; }
+
+.toolbar { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-bottom: 0.6rem; }
+.tb-btn {
+  font: inherit; font-size: 0.75rem; font-weight: 600;
+  padding: 0.35rem 0.7rem; border-radius: 7px; cursor: pointer;
+  border: 1px solid var(--doc-line); background: var(--doc-panel); color: var(--doc-ink);
+}
+.tb-btn[aria-pressed="true"] { background: var(--doc-mark-soft); border-color: var(--doc-mark); color: var(--doc-mark); }
+.tb-hint { font-size: 0.75rem; color: var(--doc-ink-soft); }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <p class="doc-kicker">SnowRaven &middot; Improve lane &middot; Stage 2 design refinement</p>
+  <h1 class="doc-title">Pin code labels</h1>
+  <p class="doc-lede">
+    An opt-in control on the Breeding Codes tab that keeps the code header row visible while
+    the species matrix scrolls, so a circle partway down a long list still has an identifiable
+    column. Default off, session only, and byte-identical for anyone who never turns it on.
+  </p>
+
+  <!-- ==================================================================== -->
+  <h2>The open call</h2>
+  <p class="verdict">Decided &middot; pinning is offered where it is free</p>
+
+  <p>
+    The two views differ structurally. In <strong>Unbounded</strong> nothing between the
+    <code>&lt;th&gt;</code> and the document sets <code>overflow</code>, so
+    <code>position: sticky; top: 0</code> anchors to the page and the table keeps its full
+    natural height. Pinning there costs a fixed header band and nothing else. In
+    <strong>Normal</strong> the <code>overflow-x: auto</code> wrapper is the scrollport, so a
+    pinned header requires a capped-height inner box, which is the shape live-tested and
+    reverted in v0.5.69.
+  </p>
+  <p>
+    The brief left it open whether to offer pinning in Normal anyway, since an opt-in a user
+    chooses is a different thing from a default imposed on them. That argument is real, and it
+    is not what settles this. What settles it is a hard requirement:
+    <strong>the surface must hold at 320px and at 200% in-app text scale</strong>, and a
+    capped-height box cannot.
+  </p>
+
+  <div class="callout callout--warn">
+    <p><strong>The capped box has no viable height at 200% text scale.</strong> Size the cap in
+      viewport units and it stays put while every row doubles, leaving about five rows in a
+      box you scroll separately from the page. Size it in <code>rem</code> and at 200% it grows
+      taller than the phone viewport, which puts the top of the scrollport, and therefore the
+      pinned header, off-screen. The feature would silently stop working in the exact
+      configuration it was measured against. <code>min(rem, dvh)</code> collapses back to the
+      first case.</p>
+  </div>
+
+  <p>
+    So Normal view is not offered a mechanism that cannot survive its own acceptance criteria.
+    Pinning is offered in Unbounded, where it costs a fixed band, and the control reaches that
+    view for the user in one press rather than sitting inert.
+  </p>
+
+  <h3>The screen budget, at 200% text scale on a 375&times;667 phone</h3>
+  <div class="budget">
+    <div class="budget-col">
+      <div class="budget-screen" aria-hidden="true">
+        <div class="budget-band budget-band--chrome" style="height: 2.2rem;">controls</div>
+        <div class="budget-box" style="height: 12rem;">
+          <div class="budget-box-head" style="height: 1.2rem; line-height: 1.2rem;">NY FY CF FL &hellip;</div>
+          <div class="budget-rows">
+            <div class="budget-row" style="height: 2rem;"></div>
+            <div class="budget-row" style="height: 2rem;"></div>
+            <div class="budget-row" style="height: 2rem;"></div>
+            <div class="budget-row" style="height: 2rem;"></div>
+            <div class="budget-row" style="height: 2rem;"></div>
+          </div>
+        </div>
+        <div class="budget-band budget-band--chrome" style="height: 2.4rem;">legend</div>
+      </div>
+      <p class="budget-legend">
+        <span class="budget-figure">~5 rows</span>
+        Normal plus a capped box. The box takes about 60% of the screen and scrolls
+        independently of the page, with the legend stranded below it.
+      </p>
+    </div>
+    <div class="budget-col">
+      <div class="budget-screen" aria-hidden="true">
+        <div class="budget-band budget-band--head" style="height: 1.2rem;">NY FY CF FL &hellip;</div>
+        <div class="budget-rows">
+          <div class="budget-row" style="height: 2rem;"></div>
+          <div class="budget-row" style="height: 2rem;"></div>
+          <div class="budget-row" style="height: 2rem;"></div>
+          <div class="budget-row" style="height: 2rem;"></div>
+          <div class="budget-row" style="height: 2rem;"></div>
+          <div class="budget-row" style="height: 2rem;"></div>
+          <div class="budget-row" style="height: 2rem;"></div>
+          <div class="budget-row" style="height: 2rem;"></div>
+          <div class="budget-row" style="height: 2rem;"></div>
+        </div>
+      </div>
+      <p class="budget-legend">
+        <span class="budget-figure">~9 rows</span>
+        Unbounded plus a pinned header. The band costs about 6% of the screen, the page
+        scrolls as one, and the legend still follows the last row.
+      </p>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <!-- ==================================================================== -->
+  <h2>How the control behaves</h2>
+
+  <p>
+    One pill, <strong>Pin code labels</strong>, sits immediately left of the shipped
+    <code>&#8596; Unbounded</code> button inside a <code>role="group"</code> named
+    <em>Table view</em>, so the two read as related presentation controls rather than a
+    filter. The invariant is simple and it is what makes the control honest:
+  </p>
+
+  <div class="callout">
+    <p><strong>Pinned implies Unbounded.</strong> Pressing Pin from Normal moves the table to
+      Unbounded and pins it, in one press. Pressing Pin again returns the view the user came
+      from and unpins, so the round trip leaves no residue. Pressing
+      <code>&#8596; Normal</code> while pinned clears the pin, because Normal cannot pin, and
+      the pill visibly un-presses in the same row.</p>
+  </div>
+
+  <p>
+    That is the answer to "no dead control, no wall." Nothing is removed from Normal view, it
+    renders exactly as it ships today. The pin control is enabled there and does the whole job.
+    Because the change is instantly reversible and non-destructive, the cost is made legible
+    <em>at</em> commit rather than guarded behind a warning: the view toggle beside it flips in
+    place, a status note names what happened, and one more press undoes it. A permanent line of
+    explanatory text in an already dense row would tax the large majority who never pin.
+  </p>
+
+  <h4>Live specimen</h4>
+  <p class="spec-note" style="margin-bottom:0.75rem;">
+    Both controls work. Scroll the frame with pinning on to feel the band hold. Start in Normal
+    and press Pin to see the one-press path, then press Pin again to see the round trip.
+  </p>
+
+  <div class="toolbar">
+    <button class="tb-btn" type="button" id="tb-theme" aria-pressed="false">Dark theme</button>
+    <button class="tb-btn" type="button" id="tb-reset">Reset specimen</button>
+    <span class="tb-hint" id="tb-state"></span>
+  </div>
+
+  <div class="spec">
+    <div class="viewport-frame" id="live-frame"></div>
+    <div class="frame-caption">
+      <span>This box stands in for the browser viewport. In the app the scrollport is the page itself.</span>
+      <span id="live-mode"></span>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <!-- ==================================================================== -->
+  <h2>The pinned header</h2>
+
+  <h3>Boundary</h3>
+  <p>
+    Unpinned, the header keeps its shipped hairline, <code>inset 0 -1px 0 var(--sr-border)</code>.
+    Pinned, two things change together: the hairline steps up to
+    <code>var(--sr-border-medium)</code>, and a soft haze is added beneath it so rows read as
+    passing under the band rather than smearing into it.
+  </p>
+  <p>
+    The haze is the one new token, <strong><code>--sr-sticky-shadow</code></strong>, declared in
+    both themes and tinted with the app's own ink rather than pure black:
+    <code>0 3px 6px -2px rgba(15,17,23,0.12)</code> in light and
+    <code>0 3px 8px -2px rgba(2,2,4,0.60)</code> in dark, where a light haze would be invisible
+    against <code>--sr-bg</code>. It is a full-value shadow token, the same convention as
+    <code>--sr-card-shadow</code> and <code>--sr-switch-thumb-shadow</code>.
+  </p>
+  <p>
+    The header band stays <code>--sr-bg</code>, which is already the shipped value and already
+    opaque, so rows cannot show through. It also means the floating band matches the page
+    behind it laterally while contrasting against the <code>--sr-surface</code> rows sliding
+    beneath, which is where the boundary needs to read.
+  </p>
+  <div class="callout">
+    <p><strong>On contrast, stated plainly.</strong> <code>--sr-border-medium</code> is about
+      1.65:1 against <code>--sr-bg</code> in light. It is not claimed as a WCAG 1.4.11 pass and
+      does not need to be: the header is identified by its text, and the pinned state is carried
+      by the pill's <code>aria-pressed</code> and its visible pressed styling. The line and haze
+      are visual reinforcement, not the sole means of identifying a component or its state.
+      Pushing the line to a 3:1 value would read as a rule rather than a hairline and would
+      break the tab's quiet-utility register.</p>
+  </div>
+
+  <h3>Sticky mechanics</h3>
+  <ul>
+    <li><code>position: sticky</code> goes on each <code>&lt;th&gt;</code> individually, never on
+      <code>&lt;thead&gt;</code> or <code>&lt;tr&gt;</code>. WKWebView and older Safari honor
+      sticky on cells only, and this ships in WKWebView on both macOS and iOS.</li>
+    <li><code>border-collapse: separate</code> is already set inline on the table and is required
+      for sticky table headers. Nothing to change.</li>
+    <li>The pinned rules live in <code>globals.css</code> under
+      <code>.sr-bc-matrix--pinned</code>, not inline, because the iOS variant must override
+      <code>top</code> under the <code>.sr-ios-app</code> gate and a React inline style at
+      specificity 1,0,0 is unreachable from a stylesheet. The shipped
+      <code>thBase.boxShadow</code> moves out of the inline object into
+      <code>.sr-bc-matrix thead th</code> for the same reason.</li>
+    <li><code>top: 0</code> is correct on desktop and web. Under <code>.sr-ios-app</code> it
+      becomes <code>env(safe-area-inset-top, 0px)</code>, mirroring
+      <code>.sr-ios-app body</code>'s <code>padding-top</code>. Without it the band would pin
+      into the notch on a notched iPhone.</li>
+    <li><code>scroll-margin-top: 3rem</code> on the pinned table's body cells keeps keyboard
+      focus from landing under the band (WCAG 2.4.11), the vertical twin of the shipped
+      <code>scrollPaddingLeft</code>. It sits on the target, so no class on <code>&lt;html&gt;</code>
+      and no scroll listener is needed. 3rem clears the band at both 100% and 200% text scale.</li>
+    <li><code>z-index: 3</code> on every pinned header cell. In Unbounded the body name cells
+      carry no <code>z-index</code>, so there is no intersection to arbitrate and all header
+      cells can share one layer.</li>
+  </ul>
+
+  <h3>The top-left corner, both axes, both views</h3>
+  <p>
+    Because pinning is offered only in Unbounded, and Unbounded is exactly the view that drops
+    the horizontal name-column freeze, the corner cell is never sticky on both axes at once.
+    That is not a happy accident, it is a second argument for the call.
+  </p>
+  <div class="doc-scroll">
+  <table class="doc-table">
+    <thead>
+      <tr><th>View</th><th>Pin</th><th>Corner, vertical</th><th>Corner, horizontal</th><th>Code header cells</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Normal</td><td>not offered</td>
+        <td>scrolls with the page</td>
+        <td><strong>sticky <code>left: 0</code></strong>, shipped, unchanged</td>
+        <td>scroll with the page</td>
+      </tr>
+      <tr>
+        <td>Unbounded</td><td>off</td>
+        <td>scrolls with the page</td>
+        <td>free, shipped, unchanged</td>
+        <td>scroll with the page</td>
+      </tr>
+      <tr>
+        <td>Unbounded</td><td>on</td>
+        <td><strong>sticky <code>top</code></strong></td>
+        <td>free, scrolls with the page</td>
+        <td><strong>sticky <code>top</code></strong>, identical to the corner</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>
+    Stated the other way: with pinning on, the corner cell is an ordinary member of the pinned
+    header row. It holds vertically and travels horizontally with everything else. Scrolling
+    right in Unbounded carries the species names off screen, which is the shipped Unbounded
+    behavior and is deliberately left alone here. Adding a left freeze to Unbounded is a
+    plausible follow-on and is out of this brief's scope.
+  </p>
+
+  <hr class="rule">
+
+  <!-- ==================================================================== -->
+  <h2>320px phone, Unbounded and pinned</h2>
+  <p>
+    Both frames are 320px wide with the shipped <code>@media (max-width: 640px)</code> contracts
+    applied: 30px dot-width code columns, 0.625rem headers,
+    <code>table-layout: fixed; width: max-content</code> on the table inside a
+    <code>width: min-content</code> card, and <code>min-height: 2.75rem</code> on both view-group
+    buttons. Scroll either frame down to watch the band hold, and sideways to confirm the
+    columns stay aligned under it.
+  </p>
+  <div class="phone-row">
+    <div>
+      <p class="spec-label">Light</p>
+      <div class="phone-frame" id="phone-light"></div>
+    </div>
+    <div>
+      <p class="spec-label">Dark</p>
+      <div class="phone-frame" id="phone-dark"></div>
+    </div>
+  </div>
+  <p class="spec-note">
+    The band costs one row of height at any text scale. That is the whole cost of the feature
+    on a phone, and it is why this is the only shape worth shipping.
+  </p>
+
+  <hr class="rule">
+
+  <!-- ==================================================================== -->
+  <h2>Control states</h2>
+  <div class="states" id="state-gallery"></div>
+
+  <p style="margin-top:1.5rem;">
+    The pill uses the shipped <code>ghostBtn()</code> styling, accent-tinted when pressed, with
+    a 12px Lucide <code>Pin</code> glyph marked <code>aria-hidden</code>. The glyph earns its
+    place: it is the one non-text marker in a right-hand cluster whose other member is
+    <code>&#8596;</code>, and it makes the control findable in a row that already holds twenty
+    text pills.
+  </p>
+  <p>
+    <strong>Accessible name:</strong> <code>Pin code labels</code>, and nothing else. It is the
+    button's own text content, with no <code>aria-label</code> anywhere, so the visible label and
+    the accessible name cannot drift apart. <code>aria-pressed</code> carries the state, per the
+    repo's segmented and pill convention. The consequence a sighted user learns from the flipping
+    view toggle is carried for screen readers by <code>aria-describedby</code> pointing at a
+    persistent <code>.sr-only</code> span reading
+    <em>Pinning uses the Unbounded view.</em> A description, not a name, so
+    WCAG 2.5.3 stays trivially satisfied.
+  </p>
+
+  <h3>Status note</h3>
+  <p>
+    While pinned, one muted line sits directly above the card, in the same geometry as the
+    shipped filter strip but on the neutral <code>--sr-surface-faint</code> rather than the
+    accent tint, since the accent is already spent on the pressed pill and pinning is not a
+    filter:
+  </p>
+  <div class="app" style="border:1px solid var(--doc-line); border-radius:10px; padding:0.9rem; max-width:46rem;">
+    <p class="bc-pinnote" style="margin:0;">Code labels stay at the top while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.</p>
+  </div>
+  <p style="margin-top:0.9rem;">
+    The element is a <code>role="status"</code> region that is rendered from the start and
+    carries its message in a <code>key={seq}</code> child, so pressing Pin repeatedly announces
+    every time rather than only the first. Unpinning needs no announcement of its own, the
+    button's <code>aria-pressed</code> transition is the announcement, and the note simply
+    leaves.
+  </p>
+
+  <hr class="rule">
+
+  <!-- ==================================================================== -->
+  <h2>Motion</h2>
+  <p>
+    Almost none, deliberately. A sticky header is continuous positioning, not a transition, and
+    the honest answer is that there is nothing to animate. Fading the boundary in only once the
+    band is actually overlapping content would need a scroll observer, which this repo avoids as
+    a pattern and which would buy a detail nobody is looking for.
+  </p>
+  <div class="doc-scroll">
+  <table class="doc-table">
+    <thead><tr><th>Interaction</th><th>Easing</th><th>Duration</th><th>Origin</th><th>Reduced motion</th><th>Implemented by</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Status note enters on pin</td>
+        <td><code>ease-out</code></td><td>160ms</td>
+        <td>2px rise from above, reading as growth out of the control row</td>
+        <td>Instant, <code>animation: none</code></td>
+        <td>CSS keyframe</td>
+      </tr>
+      <tr>
+        <td>Pinned header band</td>
+        <td colspan="4">No motion. Sticky positioning, and the boundary is present for as long as the pin is on.</td>
+        <td>CSS</td>
+      </tr>
+      <tr>
+        <td>Pin pill pressed state</td>
+        <td colspan="4">No transition, matching every other pill in this control row, none of which transition today. Consistency beats novelty in a dense strip.</td>
+        <td>CSS</td>
+      </tr>
+      <tr>
+        <td>View change on pin</td>
+        <td colspan="4">No motion. The table relayouts instantly, as it does on the shipped view toggle.</td>
+        <td>None</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <p>
+    One standing caution for the build: do not pair the pinned header with
+    <code>scroll-behavior: smooth</code> anywhere on the page. A smoothed scroll under a fixed
+    band reads as the band drifting, which is the one way this can be made to look broken.
+  </p>
+
+</div>
+
+<script>
+/* ==========================================================================
+   Specimen data. Real eBird display codes and labels from lib/breedingCodes.ts,
+   real species, plausible sparse counts of the kind a real backup produces.
+   ========================================================================== */
+const CODES = [
+  { code: 'NY', label: 'Nest with Young',            tier: 4 },
+  { code: 'FY', label: 'Feeding Young',              tier: 4 },
+  { code: 'CF', label: 'Carrying Food',              tier: 4 },
+  { code: 'FL', label: 'Recently Fledged Young',     tier: 4 },
+  { code: 'ON', label: 'Occupied Nest',              tier: 4 },
+  { code: 'UN', label: 'Used Nest',                  tier: 4 },
+  { code: 'NB', label: 'Nest Building',              tier: 3 },
+  { code: 'CN', label: 'Carrying Nesting Material',  tier: 3 },
+  { code: 'A',  label: 'Agitated Behavior',          tier: 2 },
+  { code: 'C',  label: 'Courtship/Display/Copul.',   tier: 2 },
+  { code: 'T',  label: 'Territorial Defense',        tier: 2 },
+  { code: 'P',  label: 'Pair in Suitable Habitat',   tier: 2 },
+  { code: 'M',  label: 'Multiple (7+) Singing',      tier: 2 },
+  { code: 'S7', label: 'Singing Bird 7+ Days',       tier: 2 },
+  { code: 'S',  label: 'Singing Bird',               tier: 1 },
+  { code: 'H',  label: 'In Appropriate Habitat',     tier: 1 },
+];
+
+const TIER_LABELS = { 4: 'Confirmed', 3: 'Confirmed (also)', 2: 'Probable', 1: 'Possible' };
+
+const SPECIES = [
+  ['Acorn Woodpecker',          'Melanerpes formicivorus', { ON: 4, FL: 2, CF: 1, H: 9, P: 3 }],
+  ['American Robin',            'Turdus migratorius',      { NY: 2, FL: 6, CF: 5, NB: 3, S: 14, H: 21, T: 2 }],
+  ["Anna's Hummingbird",        'Calypte anna',            { NB: 2, ON: 1, C: 4, H: 33, S: 8 }],
+  ['Barn Swallow',              'Hirundo rustica',         { ON: 3, NY: 1, CN: 2, FL: 4, H: 12 }],
+  ["Bewick's Wren",             'Thryomanes bewickii',     { CF: 3, FL: 2, S: 19, S7: 4, T: 1, H: 16 }],
+  ['Black Phoebe',             'Sayornis nigricans',       { ON: 5, NY: 2, FL: 7, CF: 4, CN: 1, H: 24 }],
+  ['Bushtit',                   'Psaltriparus minimus',    { NB: 4, ON: 2, FL: 3, CN: 2, H: 18 }],
+  ['California Scrub-Jay',      'Aphelocoma californica',  { CF: 6, FL: 5, A: 3, H: 27, P: 2 }],
+  ['California Towhee',         'Melozone crissalis',      { FL: 4, CF: 2, P: 6, S: 11, H: 22 }],
+  ['Chestnut-backed Chickadee', 'Poecile rufescens',       { UN: 1, CF: 2, FL: 1, H: 7, S: 4 }],
+  ['Cliff Swallow',             'Petrochelidon pyrrhonota',{ ON: 8, NY: 3, CN: 5, H: 6 }],
+  ['Dark-eyed Junco',           'Junco hyemalis',          { FL: 3, CF: 2, S: 16, S7: 2, H: 29 }],
+  ['House Finch',               'Haemorhous mexicanus',    { NB: 2, FY: 4, FL: 6, S: 12, H: 38, P: 5 }],
+  ["Hutton's Vireo",            'Vireo huttoni',           { S: 6, T: 1, H: 9 }],
+  ['Lesser Goldfinch',          'Spinus psaltria',         { CN: 1, FY: 2, S: 9, H: 25, P: 3 }],
+  ['Mourning Dove',             'Zenaida macroura',        { ON: 2, NB: 1, C: 3, H: 31, P: 4 }],
+  ['Northern Mockingbird',      'Mimus polyglottos',       { NY: 1, FL: 2, T: 4, S: 13, S7: 3, H: 15 }],
+  ["Nuttall's Woodpecker",      'Dryobates nuttallii',     { ON: 2, CF: 3, FL: 1, H: 11, M: 1 }],
+  ['Oak Titmouse',              'Baeolophus inornatus',    { UN: 1, CF: 4, FL: 2, S: 7, H: 14 }],
+  ['Red-shouldered Hawk',       'Buteo lineatus',          { ON: 1, A: 2, C: 1, H: 8 }],
+  ['Song Sparrow',              'Melospiza melodia',       { CF: 5, FL: 4, S: 22, S7: 6, M: 2, T: 3, H: 30 }],
+  ['Spotted Towhee',            'Pipilo maculatus',        { CF: 2, FL: 3, S: 15, T: 1, H: 19 }],
+  ['Western Bluebird',          'Sialia mexicana',         { ON: 6, NY: 3, FY: 5, FL: 4, CN: 2, P: 7, H: 10 }],
+  ['Wrentit',                   'Chamaea fasciata',        { S: 11, S7: 3, P: 2, H: 13 }],
+];
+
+/* Lucide Pin, 12px, stroke 2.2 — the app's icon posture. */
+const PIN_SVG = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
+
+const PIN_NOTE = 'Code labels stay at the top while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.';
+
+let uid = 0;
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+/* --- the control row's right-hand cluster ------------------------------- */
+function viewGroupHtml(opts) {
+  const id = 'pindesc-' + (++uid);
+  const touch = opts.phone ? ' bc-touch' : '';
+  return `
+    <div class="sr-wrap-flex" style="--sr-wrap-gap:8px; flex-shrink:0;">
+      <span class="bc-count" aria-live="polite">24 species</span>
+      <div class="bc-viewgroup" role="group" aria-label="Table view">
+        <button type="button" tabindex="0" class="bc-ghost bc-pin${touch}"
+                aria-pressed="${opts.pinned}" aria-describedby="${id}"
+                data-act="pin">${PIN_SVG}Pin code labels</button>
+        <button type="button" tabindex="0" class="bc-ghost bc-view${touch}${opts.wide ? ' is-on' : ''}"
+                data-act="view"
+                title="${opts.wide ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}"
+        >${opts.wide ? '↔ Normal' : '↔ Unbounded'}</button>
+      </div>
+      <span class="sr-only" id="${id}">Pinning uses the Unbounded view.</span>
+    </div>`;
+}
+
+function filtersHtml() {
+  const shown = ['NY', 'FL', 'CF', 'NB', 'S'];
+  const pills = shown.map(c => {
+    const d = CODES.find(x => x.code === c);
+    return `<button type="button" tabindex="0" class="bc-pill" aria-pressed="false"
+              aria-label="${esc(d.label)} (${d.code})">
+              <span class="bc-dot" style="background:var(--sr-tier-${d.tier});"></span>
+              <span style="font-weight:700;">${d.code}</span>
+              <span>${esc(d.label)}</span>
+            </button>`;
+  }).join('');
+  return `<div class="bc-filters">
+      <button type="button" tabindex="0" class="bc-pill bc-pill--all" aria-pressed="true">All</button>
+      <button type="button" tabindex="0" class="bc-pill" aria-pressed="false">Confirmed</button>
+      <button type="button" tabindex="0" class="bc-pill" aria-pressed="false">Probable</button>
+      ${pills}
+    </div>`;
+}
+
+/* --- the matrix --------------------------------------------------------- */
+function matrixHtml(pinned) {
+  const head = CODES.map(d =>
+    `<th scope="col" class="sr-bc-code-col" aria-sort="none" title="${esc(d.label)}">
+       <button type="button" tabindex="0" class="bc-sortbtn" aria-label="Sort by ${esc(d.label)} (${d.code})">${d.code}</button>
+     </th>`).join('');
+
+  const body = SPECIES.map(([name, sci, counts]) => {
+    const cells = CODES.map(d => {
+      const n = counts[d.code] || 0;
+      if (!n) return '<td class="sr-bc-code-col"></td>';
+      const cat = d.tier >= 3 ? 'Confirmed' : d.tier === 2 ? 'Probable' : 'Possible';
+      return `<td class="sr-bc-code-col"><div class="bc-count-dot"
+                style="background:var(--sr-tier-${d.tier}); color:var(--sr-tier-${d.tier}-text);"
+              >${n}<span class="sr-only">, ${cat}</span></div></td>`;
+    }).join('');
+    return `<tr>
+        <th scope="row" class="sr-bc-name-col">
+          <span class="bc-name"><a class="bc-name-link" href="#" onclick="return false;">${esc(name)}</a></span>
+          <span class="bc-sci">${esc(sci)}</span>
+        </th>${cells}
+      </tr>`;
+  }).join('');
+
+  return `<table class="sr-bc-matrix${pinned ? ' sr-bc-matrix--pinned' : ''}">
+      <thead><tr>
+        <th scope="col" class="sr-bc-name-col" aria-sort="ascending">
+          <button type="button" tabindex="0" class="bc-sortbtn bc-sortbtn--start bc-sortbtn--active">Species<span class="bc-sortarrow">↑</span></button>
+        </th>${head}
+      </tr></thead>
+      <tbody>${body}</tbody>
+    </table>`;
+}
+
+function legendHtml() {
+  return `<div class="bc-legend">` + [4, 3, 2, 1].map(tier => {
+    const codes = CODES.filter(d => d.tier === tier);
+    return `<div class="bc-legend-group">
+        <div class="bc-legend-dot" style="background:var(--sr-tier-${tier});"></div>
+        <div class="bc-legend-body">
+          <span class="bc-legend-title">${TIER_LABELS[tier]}</span>
+          <span class="bc-legend-codes">${codes.map(d => `<span><b>${d.code}</b> ${esc(d.label)}</span>`).join('')}</span>
+        </div>
+      </div>`;
+  }).join('') + `</div>`;
+}
+
+/* --- a whole tab specimen ----------------------------------------------- */
+function paneHtml(state) {
+  const note = `<div class="bc-pinstatus" role="status">${
+    state.pinned ? `<p class="bc-pinnote${state.animate ? ' bc-pinnote--enter' : ''}">${PIN_NOTE}</p>` : ''
+  }</div>`;
+  return `
+    <div class="sr-panel">
+      <div class="bc-controls">
+        ${filtersHtml()}
+        ${viewGroupHtml({ pinned: state.pinned, wide: state.wide, phone: state.phone })}
+      </div>
+      ${note}
+      <div class="bc-card${state.wide ? ' sr-bc-card' : ''}">
+        <div class="${state.wide ? 'bc-scroll' : 'bc-scroll bc-scroll--normal'}">
+          ${matrixHtml(state.pinned && state.wide)}
+        </div>
+        ${legendHtml()}
+      </div>
+    </div>`;
+}
+
+function renderPane(host, state) {
+  host.innerHTML = `<div class="app${state.phone ? ' pane--phone' : ''}" ${state.theme === 'dark' ? 'data-theme="dark"' : ''}>${paneHtml(state)}</div>`;
+}
+
+/* ==========================================================================
+   Live specimen — the real state machine, including the invariant.
+   ========================================================================== */
+const live = { wide: false, pinned: false, viewBeforePin: null, theme: 'light', animate: false, phone: false };
+const frame = document.getElementById('live-frame');
+const modeOut = document.getElementById('live-mode');
+const stateOut = document.getElementById('tb-state');
+
+function paintLive() {
+  renderPane(frame, live);
+  modeOut.textContent = (live.wide ? '↔ Unbounded' : 'Normal') + ' · ' + (live.pinned ? 'pinned' : 'not pinned');
+  stateOut.textContent = live.pinned
+    ? 'Pinned. Pressing Pin again returns ' + (live.viewBeforePin ? 'Unbounded' : 'Normal') + '.'
+    : 'Not pinned.';
+  live.animate = false;
+}
+
+function togglePin() {
+  if (live.pinned) {
+    live.pinned = false;
+    if (live.viewBeforePin !== null) live.wide = live.viewBeforePin;
+    live.viewBeforePin = null;
+  } else {
+    live.viewBeforePin = live.wide;
+    live.wide = true;          // the invariant: pinned implies Unbounded
+    live.pinned = true;
+    live.animate = true;
+  }
+  paintLive();
+}
+
+function toggleView() {
+  const next = !live.wide;
+  live.wide = next;
+  if (!next && live.pinned) {  // Normal cannot pin, so the pin clears, visibly
+    live.pinned = false;
+    live.viewBeforePin = null;
+  }
+  paintLive();
+}
+
+frame.addEventListener('click', e => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  if (btn.dataset.act === 'pin') togglePin();
+  if (btn.dataset.act === 'view') toggleView();
+});
+
+const themeBtn = document.getElementById('tb-theme');
+themeBtn.addEventListener('click', () => {
+  live.theme = live.theme === 'dark' ? 'light' : 'dark';
+  themeBtn.setAttribute('aria-pressed', String(live.theme === 'dark'));
+  themeBtn.textContent = live.theme === 'dark' ? 'Light theme' : 'Dark theme';
+  paintLive();
+});
+document.getElementById('tb-reset').addEventListener('click', () => {
+  live.wide = false; live.pinned = false; live.viewBeforePin = null; live.animate = false;
+  frame.scrollTop = 0; frame.scrollLeft = 0;
+  paintLive();
+});
+
+paintLive();
+
+/* ==========================================================================
+   Phone specimens — 320px, Unbounded, pinned, both themes.
+   ========================================================================== */
+renderPane(document.getElementById('phone-light'), { wide: true, pinned: true, theme: 'light', phone: true });
+renderPane(document.getElementById('phone-dark'),  { wide: true, pinned: true, theme: 'dark',  phone: true });
+
+/* ==========================================================================
+   Control-state gallery.
+   ========================================================================== */
+const STATES = [
+  { theme: 'light', pinned: false, wide: false, caption: 'Default. Normal view, pin off. This is what every user sees who never touches the control, and the table below it is byte-identical to today.' },
+  { theme: 'light', pinned: true,  wide: true,  caption: 'Pinned. The pill is accent-tinted and pressed, and the view toggle beside it has flipped to ↔ Normal, which is the visible evidence of what the press did.' },
+  { theme: 'dark',  pinned: false, wide: true,  caption: 'Unbounded, pin off. Pressing Pin here changes nothing but the pin, since the view is already right.' },
+  { theme: 'dark',  pinned: true,  wide: true,  caption: 'Pinned, dark. The accent tint carries the pressed state on --sr-accent-bg, the same treatment as the shipped view toggle.' },
+];
+
+document.getElementById('state-gallery').innerHTML = STATES.map(s => `
+  <div class="state-cell">
+    <div class="app" ${s.theme === 'dark' ? 'data-theme="dark"' : ''}>
+      ${viewGroupHtml({ pinned: s.pinned, wide: s.wide, phone: false })}
+    </div>
+    <p class="state-caption">${s.caption}</p>
+  </div>`).join('');
+</script>
+</body>
+</html>

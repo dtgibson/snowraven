@@ -622,8 +622,11 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
             sub="every outing, filterable"
           />
 
-          {/* Filters — three labeled rows (design-spec) */}
-          <div style={{
+          {/* Filters — three labeled rows (design-spec). .sr-ctl-row sizes every
+              interactive control in all three rows to one phone-tier size
+              (globals.css); the uppercase row labels are spans and stay smaller
+              by design. */}
+          <div className="sr-ctl-row" style={{
             display: 'flex', flexDirection: 'column', gap: 9,
             padding: '12px 18px', borderBottom: '1px solid var(--sr-border-subtle)',
             background: 'var(--sr-surface-faint)',

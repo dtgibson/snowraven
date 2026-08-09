@@ -13,6 +13,11 @@ interface Props {
   taxonMap: Record<string, string>
   taxonOrders: Record<string, number>
   wideMode: boolean
+  /** Opt-in pinned code labels. Required, not defaulted: this component RENDERS
+   *  the pinned state, so the call site must answer for it (the same discipline
+   *  as MediaFrame's `compact`). `pinned && wideMode` is the gate — Normal view
+   *  can never pin, so a stray `pinned` there is inert rather than broken. */
+  pinned: boolean
   onOpenSpecies?: (commonName: string) => void
 }
 
@@ -45,8 +50,16 @@ const TIER_TEXT_COLORS: Record<1 | 2 | 3 | 4, string> = {
 // name cell, and the scrollPaddingLeft stay perfectly aligned.
 const NAME_COL_WIDTH = 'clamp(7.5rem, 40vw, 220px)'
 
-export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, taxonMap, taxonOrders, wideMode, onOpenSpecies }: Props) {
+export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, filter, taxonMap, taxonOrders, wideMode, pinned, onOpenSpecies }: Props) {
   const [hoveredRow, setHoveredRow] = useState<string | null>(null)
+
+  // Pinning is offered in Unbounded ONLY. In Normal the overflow-x:auto wrapper is
+  // the scrollport, so a sticky header there would need a capped-height inner box —
+  // and at 200% in-app text scale no height unit works (dvh leaves ~5 rows; rem
+  // exceeds the viewport, putting the scrollport's top and the header off-screen).
+  // BreedingCodeList's state machine enforces `pinned implies Unbounded`; this is
+  // the second, local guard, so the component is honest on its own.
+  const pinnedNow = pinned && wideMode
 
   const filtered = filter.size === 0
     ? entries
@@ -99,12 +112,30 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     tierGroups.get(def.tier)!.push(code)
   }
 
-  // No vertical (top) freeze: the header row scrolls away with the page (the user
-  // chose natural page scroll over a capped-height frozen-header data-grid). position
-  // is kept 'sticky' only so the CORNER can carry its horizontal left:0 name-column
-  // freeze (added in the corner's own style block); with no `top` the code headers
-  // have no vertical anchor and scroll normally. The bottom-border boxShadow is the
-  // header's divider from the first row.
+  // By DEFAULT there is no vertical (top) freeze: the header row scrolls away with
+  // the page (the user chose natural page scroll over a capped-height frozen-header
+  // data-grid). position is kept 'sticky' only so the CORNER can carry its horizontal
+  // left:0 name-column freeze (added in the corner's own style block); with no `top`
+  // the code headers have no vertical anchor and scroll normally.
+  //
+  // The header's divider from the first row (the bottom-border boxShadow) is LIFTED
+  // to `.sr-bc-matrix thead th` in globals.css — same value, so unpinned rendering is
+  // byte-identical. It cannot stay here: the opt-in `.sr-bc-matrix--pinned` rule has
+  // to override it, and a React inline style is specificity 1,0,0, unreachable from a
+  // stylesheet. Everything the pinned band needs (sticky, top, the iOS
+  // safe-area-inset top, scroll-margin-top) lives in that stylesheet for the same
+  // reason — an inline `top: 0` could never be re-pointed by the .sr-ios-app gate,
+  // and the band would pin into the notch.
+  //
+  // Keeping keyboard focus clear of the band (WCAG 2.2 SC 2.4.11) is done there
+  // too, by `scroll-margin-top` on the pinned body cells AND their focusable
+  // DESCENDANTS. The descendants are the operative half: focus goes to the
+  // <button> BirdName renders inside the cell, not to the cell, and scroll-margin
+  // applies to the element scrolled into view and does not inherit — so a rule on
+  // the cells alone is inert. This is the vertical counterpart of, but NOT the
+  // same property as, the wrapper's scrollPaddingLeft below: scroll-padding goes
+  // on a scrollport, scroll-margin goes on a focus target, and in Unbounded the
+  // scrollport is the page rather than any element this component owns.
   const thBase: React.CSSProperties = {
     fontSize: '0.6875rem',
     fontWeight: 600,
@@ -112,7 +143,6 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
     textTransform: 'uppercase',
     userSelect: 'none',
     background: 'var(--sr-bg)',
-    boxShadow: 'inset 0 -1px 0 var(--sr-border)',
   }
 
   // Sortable headers are real <button>s inside the <th> so screen readers
@@ -167,7 +197,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
           No vertical max-height / inner scroll box (the user chose natural page
           scroll over a capped frozen-header data-grid). */}
       {/* scrollPaddingLeft keeps a focused cell from landing under the sticky
-          first column when keyboard focus scrolls it horizontally (WCAG 2.4.11). */}
+          first column when keyboard focus scrolls it horizontally (WCAG 2.2 SC 2.4.11). */}
       {/* position:relative scopes the cells' absolutely-positioned .sr-only
           screen-reader spans to THIS scroll container, so they're clipped with
           the table instead of escaping to the page and forcing horizontal page
@@ -188,8 +218,14 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
             max-element cap (~500,000px). Under `fixed`, `width: max-content` resolves
             to the sum of the declared column widths (~540px) — definite and
             non-circular. Per the standing convention (inline beats a media query),
-            these widths live on the class so the ≤640 rule can override them. */}
-        <table className="sr-bc-matrix" style={{
+            these widths live on the class so the ≤640 rule can override them.
+
+            .sr-bc-matrix--pinned is the opt-in pinned-code-labels modifier. It is
+            added ONLY in Unbounded (see pinnedNow above); with it absent the whole
+            pinned rule block in globals.css is inert and the table renders exactly
+            as it ships. borderCollapse:'separate' below is already required for
+            sticky table headers, so nothing changes there. */}
+        <table className={pinnedNow ? 'sr-bc-matrix sr-bc-matrix--pinned' : 'sr-bc-matrix'} style={{
           borderCollapse: 'separate',
           borderSpacing: 0,
         }}>
@@ -197,10 +233,15 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
             <tr>
               {/* The corner (species-name header) keeps the HORIZONTAL name-column
                   freeze only: sticky left:0 in Normal so the name column stays put
-                  while the codes scroll sideways (wideMode drops it, as before). No
-                  vertical freeze — the header scrolls away with the page. zIndex 3
-                  keeps it above the sticky name body cells (1) during a sideways
-                  scroll. */}
+                  while the codes scroll sideways (wideMode drops it, as before).
+                  zIndex 3 keeps it above the sticky name body cells (1) during a
+                  sideways scroll. No vertical freeze is set here in either mode:
+                  unpinned, the header scrolls away with the page; pinned (Unbounded
+                  only), the corner is an ORDINARY member of the pinned header row
+                  and picks up sticky/top from .sr-bc-matrix--pinned like every other
+                  header cell — it holds vertically and travels horizontally with the
+                  rest, which is the shipped Unbounded behavior. Because Unbounded
+                  drops the left freeze, the corner is never sticky on both axes. */}
               <th
                 scope="col"
                 className="sr-bc-name-col"
@@ -230,8 +271,9 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     // Width + column separator live in .sr-bc-code-col
                     // (globals.css): 44px base narrowing to ~30px at the ≤640
                     // phone tier (an inline width can't be reached by a media
-                    // query). No sticky/zIndex — the code headers scroll away
-                    // normally with the page.
+                    // query). No inline sticky/top/zIndex: unpinned the code
+                    // headers scroll away normally with the page, and the pinned
+                    // opt-in comes from .sr-bc-matrix--pinned in the stylesheet.
                     style={{
                       ...thBase,
                       textAlign: 'center',

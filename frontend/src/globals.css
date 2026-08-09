@@ -113,6 +113,15 @@
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
 
+  /* Sticky-surface haze — the soft drop under a pinned/floating band (today the
+     Breeding Codes pinned header), so rows read as passing UNDER it rather than
+     smearing into it. A full-value shadow token, the same convention as
+     --sr-card-shadow and --sr-switch-thumb-shadow. Tinted with the app's own ink
+     rather than pure black. Named generically so a future sticky surface reuses
+     it; the dark value is a SEPARATE, deeper haze (see [data-theme="dark"]) —
+     a light haze is invisible against the near-black --sr-bg. */
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+
   /* Switch (on/off toggle) thumb — theme-neutral white knob, IDENTICAL in both themes
      (a white knob reads correctly on the accent/gray-400 track in light AND dark; the
      --sr-gray-400 off-track above is contrast-tuned against this white). The knob carries
@@ -340,6 +349,13 @@
 
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+  /* Sticky-surface haze — deliberately NOT the :root value. --sr-bg is #09090B
+     here, so the light 12% haze would be invisible; the dark theme needs a
+     deeper, wider one to read at all. (The "same as :root by design" trap from
+     the milestone-badge post-mortem cuts both ways: this token carries no text,
+     so there is no AA question, but it does have to be visible.) */
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
 
   /* Switch thumb — same white knob + shadow as :root by design (theme-neutral control
      chrome, carries no text; --sr-gray-400 off-track is contrast-tuned against this white). */
@@ -932,6 +948,138 @@ h1, h2, h3, h4, h5, h6 {
    never carries this class, so it is unaffected. */
 .sr-bc-card { width: max-content; }
 
+/* The header row's bottom hairline, lifted OFF BreedingCodeTable.tsx's inline
+   thBase.boxShadow. The value is byte-identical to the old inline one, so the
+   shipped (unpinned) header renders exactly as before in both views. It HAS to
+   be a class: the pinned rule below must override it, and a React inline style
+   is specificity 1,0,0 — unreachable from the stylesheet. The Normal-view corner
+   cell keeps its OWN inline boxShadow (hairline + the name-column's 1px right
+   edge) and so is untouched by either rule. */
+.sr-bc-matrix thead th { box-shadow: inset 0 -1px 0 var(--sr-border); }
+
+/* PINNED code labels (opt-in; Unbounded view only — BreedingCodeTable.tsx adds
+   the modifier only when `pinned && wideMode`). The default remains the shipped
+   natural full-height page-scrolling table: with the modifier absent this whole
+   block is inert.
+
+   Why Unbounded only: in Normal view the `overflow-x: auto` wrapper IS the
+   scrollport, so a sticky header there would need a capped-height inner box —
+   and at 200% in-app text scale no height unit works (a dvh cap leaves ~5 rows,
+   a rem cap exceeds the viewport so the scrollport's top, and with it the
+   header, sits off-screen). In Unbounded neither the card nor the wrapper sets
+   overflow, so the scrollport is the PAGE: `top: 0` anchors to the viewport and
+   the table keeps its full natural height. See the pin state machine in
+   BreedingCodeList.tsx, which enforces `pinned implies Unbounded`.
+
+   position: sticky sits on each <th> INDIVIDUALLY, never on <thead>/<tr>:
+   WKWebView and older Safari honor sticky on cells only, and this ships in
+   WKWebView on macOS and iOS. `border-collapse: separate` (already set inline on
+   the table) is likewise required for sticky table headers.
+
+   Equal specificity to the base rule above (0,1,2), so SOURCE ORDER decides —
+   this block must stay after it.
+
+   z-index 3 on every pinned header cell: Unbounded drops the horizontal
+   name-column freeze, so the body name cells carry no z-index, there is no
+   both-axes corner to arbitrate, and all header cells share one layer.
+
+   The band's background is the shipped --sr-bg (opaque, so rows cannot show
+   through) and the hairline steps --sr-border → --sr-border-medium plus the
+   --sr-sticky-shadow haze, so rows read as passing under the band. That pair is
+   visual reinforcement, NOT the sole means of identifying the state: the header
+   is identified by its text and the state by the pill's aria-pressed, so the
+   ~1.65:1 hairline is deliberate and is not claimed as a WCAG 1.4.11 pass. */
+.sr-bc-matrix--pinned thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  box-shadow: inset 0 -1px 0 var(--sr-border-medium), var(--sr-sticky-shadow);
+}
+
+/* Keyboard focus must not land under the pinned band (WCAG 2.2 SC 2.4.11).
+   3rem clears the band at both 100% and 200% in-app text scale.
+
+   THE DESCENDANT SELECTORS ARE THE POINT, not defensive noise. `scroll-margin`
+   applies to the element being scrolled INTO VIEW, and it does NOT inherit. The
+   focusables in the body are not the cells: BirdName renders a
+   <button class="sr-birdname-link"> inside each row-header cell, with the
+   SpeciesLinks anchors beside it. A rule on the cells alone therefore computes
+   0px on every element that can actually take focus and never participates in
+   the scroll — measured, not reasoned: reverse-tabbing the species list landed
+   focused controls fully under the band at both text scales
+   (pipeline/breeding-code-pinned-labels/focus-obscured-probe.mjs).
+   The `*` covers present and future focusables without enumerating them.
+
+   Why NOT `scroll-padding-top` on the scrollport, which is the other half of the
+   pair and equally effective here (both measured at zero occurrences): in
+   Unbounded the scrollport is the PAGE, so that rule would have to live on the
+   root. Deferred tabs stay MOUNTED when hidden (App.tsx's mountedTabs only ever
+   grows and the panel hides with display:none), so a pinned-and-then-left tab
+   would leave a document-wide scroll-padding on every other tab. A
+   :root:has(.sr-bc-matrix--pinned) form has the same leak, since display:none
+   does not remove the table from the DOM. Keeping the rule inside this table's
+   own subtree cannot reach another tab, and needs no class on <html>, no effect,
+   and no scroll listener.
+
+   The HORIZONTAL axis is genuinely different and is correctly the other
+   property: in Normal view the overflow-x wrapper IS a real scrollport, so
+   BreedingCodeTable.tsx sets scrollPaddingLeft on it. scroll-padding goes on the
+   scrollport; scroll-margin goes on the focus target. */
+.sr-bc-matrix--pinned tbody th,
+.sr-bc-matrix--pinned tbody td,
+.sr-bc-matrix--pinned tbody th *,
+.sr-bc-matrix--pinned tbody td * { scroll-margin-top: 3rem; }
+
+/* iOS app only, mirroring `.sr-ios-app body`'s padding-top. A sticky element
+   resolves `top` against its SCROLLPORT (here the viewport), which sits ABOVE
+   the body's safe-area padding — so without this the band pins into the notch /
+   Dynamic Island on a notched iPhone. Gated on .sr-ios-app for the same reason
+   as the body rule and .sr-map-fullscreen-panel: index.html ships
+   viewport-fit=cover to browsers too, so a bare env() here would change the
+   shipped web rendering in iOS Safari. Desktop and web never carry the class. */
+.sr-ios-app .sr-bc-matrix--pinned thead th { top: env(safe-area-inset-top, 0px); }
+/* The focus twin, on the same four selectors as the base rule above (the cells
+   AND their focusable descendants) with the inset composed in, because on iOS
+   the band sits that much lower. */
+.sr-ios-app .sr-bc-matrix--pinned tbody th,
+.sr-ios-app .sr-bc-matrix--pinned tbody td,
+.sr-ios-app .sr-bc-matrix--pinned tbody th *,
+.sr-ios-app .sr-bc-matrix--pinned tbody td * {
+  scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
+}
+
+/* The pinned-state note. .sr-bc-pinstatus is a CHROMELESS wrapper that is always
+   rendered (it is the role="status" region — a live region has to exist before
+   its content changes, or the first change is not announced) and collapses to
+   nothing when empty: no padding, no margin, no border. All the visible geometry
+   is on the note itself, which is the region's keyed child. */
+.sr-bc-pinstatus { display: block; }
+
+/* Same geometry as the shipped filter strip (7px 12px, radius 6, 8px below) but
+   on neutral surface-faint rather than the accent tint: the accent is already
+   spent on the pressed pill, and pinning is not a filter. */
+.sr-bc-pinnote {
+  margin: 0 0 8px;
+  padding: 7px 12px;
+  background: var(--sr-surface-faint);
+  border: 1px solid var(--sr-border-subtle);
+  border-radius: 6px;
+  font-size: 0.71875rem;
+  line-height: 1.45;
+  color: var(--sr-text-muted);
+}
+
+/* Enters on pin: a 2px rise out of the control row that triggered it. The band
+   itself gets NO motion — sticky is continuous positioning, not a transition. */
+@keyframes sr-bc-note-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: none; }
+}
+.sr-bc-pinnote--enter { animation: sr-bc-note-in 160ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .sr-bc-pinnote--enter { animation: none; }
+}
+
 /* Map Explorer (non-fullscreen) panel height. Replaces the inline
    calc(100vh - 178px) magic number: dvh tracks the mobile browser toolbar, the
    offset (app chrome) shrinks on phones, and a min-height keeps the map usable
@@ -963,6 +1111,105 @@ h1, h2, h3, h4, h5, h6 {
 .sr-map-explorer-panel.sr-map-panel-ios {
   height: calc(100dvh - 112px - env(safe-area-inset-top, 0px));
   min-height: 300px;
+}
+
+/* Map Explorer FULLSCREEN panel. The positioning is lifted out of App.tsx's
+   inline style; the values are byte-identical to the old inline
+   `position:fixed; inset:0; height:100dvh; zIndex:1200`, so desktop and web
+   fullscreen render exactly as before. It HAS to be a class: an inline
+   `inset: 0` is specificity 1,0,0, so no class rule could ever add the iOS
+   safe-area inset below (the repo's lift-layout-to-a-class convention). Only
+   the background stays inline, as a token. */
+.sr-map-fullscreen-panel {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  z-index: 1200;
+}
+
+/* iOS safe areas for the fullscreen panel (the Dynamic Island fix). Because the
+   panel is position:fixed it is viewport-relative and escapes the
+   `.sr-ios-app body` padding that protects every in-flow surface, so the map
+   view-mode pills — the panel's first child — rendered under the status bar and
+   the Dynamic Island. Padding rather than a smaller box: Tailwind preflight sets
+   box-sizing:border-box globally, so the panel still measures exactly 100dvh and
+   only its content box moves inward.
+   GATED on .sr-ios-app for the same reason as the body rule above: index.html
+   ships viewport-fit=cover to browsers too, so a bare env() here would change the
+   shipped web rendering in iOS Safari (QA round-1 finding). Desktop and web never
+   carry the class, so both stay byte-identical.
+   Left/right mirror the body rule so landscape clears the sensor housing in
+   either rotation. Bottom is deliberately omitted, exactly as in the body rule:
+   the map canvas is meant to bleed to the home indicator, and
+   `.sr-ios-app .sr-map-fab-cluster` already insets the floating controls.
+   Because the inset now applies to the whole panel, the .sr-map-ios-fullscreen
+   sidebar-overlay rule further down must NOT re-apply its own padding-left, or
+   it would double-inset in landscape. The overlay reaches the padded edge
+   through .sr-map-content, NOT through this panel directly — see that rule's
+   comment for the mechanism. */
+.sr-ios-app .sr-map-fullscreen-panel {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Help overlay panel. Same lift as the fullscreen map panel above, for the same
+   reason: the positioning used to be inline in HelpDocs.tsx, and an inline
+   `inset: 0` is specificity 1,0,0, so no class rule could ever add the iOS
+   safe-area inset. Values are byte-identical to the old inline
+   `position:fixed; inset:0; zIndex:1200`, so desktop and web render exactly as
+   before. The background, the flex column, and overflow stay inline (colors are
+   tokens; only the layout that has to be reachable from here was lifted).
+   Deliberately its OWN rule rather than a shared inset utility: the two panels
+   have only this three-line inset block in common — the map panel also needs
+   height:100dvh (its inner column resolves height:100% against it) and carries a
+   landscape coupling where the sidebar overlay reaches the padded edge through
+   .sr-map-content, neither of which Help has. A shared utility would still need a
+   per-overlay positioning class, so it would buy one shared block at the cost of
+   a second class name on the element. Revisit at a third overlay, not at two. */
+.sr-help-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+/* iOS safe areas for the Help overlay (the Dynamic Island fix). position:fixed is
+   viewport-relative, so the panel escapes the `.sr-ios-app body` padding that
+   protects every in-flow surface: its 52px header row — the book icon and the
+   "SnowRaven Documentation" title — rendered under the status bar and the Island.
+   Padding rather than a smaller box: Tailwind preflight sets box-sizing:border-box
+   globally, so the panel still fills the viewport and only its content box moves
+   inward; the surface color still paints edge to edge behind the status bar.
+   GATED on .sr-ios-app for the same reason as the body rule and the map panel:
+   index.html ships viewport-fit=cover to browsers too, so a bare env() here would
+   change the shipped web rendering in iOS Safari (QA round-1 finding). Desktop and
+   web never carry the class, so both stay byte-identical.
+   Left/right mirror the body rule so landscape clears the sensor housing in either
+   rotation. Bottom is deliberately omitted, exactly as in the body rule: there is
+   no bottom-pinned control here, the content column already carries 80px of bottom
+   padding and the TOC nav 32px, both clearing the ~34px home indicator, and a
+   padding-bottom would shrink the scrollport and leave a dead band under it. */
+.sr-ios-app .sr-help-panel {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Help overlay TOC height cap — lifted out of HelpDocs.tsx's inline style (same
+   value, so desktop and web are unchanged) so the iOS rule below can reach it.
+   The nav is position:sticky inside the overlay body, and the body scrollport is
+   the panel minus its 52px header, so an uncapped nav over-extends past the
+   scrollport and its last entries become unreachable. On iOS the panel's content
+   box is ALSO shorter by the top inset, so the cap has to subtract it too — above
+   640px (iPad, where the inset is typically 24px) the un-subtracted cap
+   over-extends by exactly that much. Below 640px the phone tier stacks the nav
+   static and drops the cap entirely (max-height: none !important). */
+.sr-help-toc {
+  max-height: calc(100vh - 52px);
+}
+
+.sr-ios-app .sr-help-toc {
+  max-height: calc(100vh - 52px - env(safe-area-inset-top, 0px));
 }
 
 /* Leaf utilities — attach to the specific child that needs them. */
@@ -1354,6 +1601,21 @@ h1, h2, h3, h4, h5, h6 {
   text-align: center;
 }
 
+/* REPLACES the copy control when nothing is selected. A sentence, never a dead
+   disabled button: no control that looks pressable may put an empty string on
+   the clipboard, and a greyed control invites a press that explains nothing.
+   Dashed rules top and bottom so the slot still reads as the action area. */
+.sr-share-none {
+  margin: 0;
+  padding: 7px 4px;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--sr-text-muted);
+  text-align: center;
+  border-top: 1px dashed var(--sr-border-medium);
+  border-bottom: 1px dashed var(--sr-border-medium);
+}
+
 .sr-share-fail {
   margin-top: 10px;
   animation: sr-share-fail-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -1423,8 +1685,28 @@ h1, h2, h3, h4, h5, h6 {
 }
 .sr-share-popup--compact .sr-share-payload { max-height: 4.75rem; font-size: 0.625rem; }
 
-/* The Settings "Sharing" example: the exact payload for the selected mode, built
-   by the same buildSharePayload the popup uses. No cap — it is three short lines. */
+/* The three part rows in Settings › Sharing. Hairline-separated and in NO box of
+   their own: the Settings card is already the container, and a bordered group
+   here would be a card inside a card. The adjacent-sibling selector (rather than
+   :first-of-type) gives rows two and three the rule and row one none, and stays
+   correct however many rows the parts table grows to. Layout lives here, never
+   inline, so it can respond. */
+.sr-share-part {
+  padding: 0.3125rem 0;
+}
+.sr-share-part + .sr-share-part {
+  border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-share-part-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--sr-text);
+  overflow-wrap: anywhere;
+}
+
+/* The Settings "Sharing" example: the exact payload for the current selection,
+   built by the same buildSharePayload the popup uses. No cap — at most a few
+   short lines. */
 .sr-share-example {
   margin: 0;
   padding: 8px 9px;
@@ -1448,6 +1730,28 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  color: var(--sr-text-muted);
+}
+/* The caption under the example: which lines, named in full. The one thing the
+   collapsed "map links" on the popup button cannot carry. */
+.sr-share-manifest {
+  margin: 0.375rem 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--sr-text-muted);
+}
+/* Takes the example's place when nothing is selected. Same slot, same muted
+   register, DASHED edge so it reads as an empty container rather than a message
+   about a problem. No error token, no icon: this is a configuration the person
+   deliberately chose. */
+.sr-share-empty {
+  margin: 0;
+  padding: 8px 9px;
+  background: var(--sr-surface-subtle);
+  border: 1px dashed var(--sr-border-medium);
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  line-height: 1.55;
   color: var(--sr-text-muted);
 }
 
@@ -1627,12 +1931,38 @@ select:focus-visible {
      hover-only title never fires (base rule hides them). */
   .sr-media-count { display: inline; }
 
-  /* iOS focus-zoom guard — 16px is the iOS threshold (an absolute px value), so
-     a px font-size is correct here; scoped to the phone tier only. !important so it
-     beats an inline sub-16px font-size on the same element (React inline styles are
-     specificity 1,0,0 and otherwise win — the guard was inert wherever a control also
-     set an inline fontSize, e.g. the SpeciesCombobox input and WeatherForecastPanel). */
-  .sr-input-16 { font-size: 16px !important; }
+  /* ONE phone-tier text size for every interactive filter control
+     (fix: mobile-filter-text-size).
+     Two selectors, one declaration, deliberately — the guarded form controls and
+     the pills/sort-toggles/switches beside them must resolve to the SAME formula
+     or they mismatch in one direction or the other:
+
+       max(16px, 0.75rem)
+         · 16px is the iOS focus-zoom threshold, an ABSOLUTE px value, so a px
+           font-size is correct here (the sanctioned exception) — anything below
+           it re-opens the focus zoom this guard exists to prevent.
+         · 0.75rem is the app's control text size, and rem tracks the root
+           calc(100% * var(--sr-text-scale)), so it grows with in-app text scale.
+         · max() of the two: both sides land on 16px up to ~133% scale and on
+           0.75rem above it. They are never different from each other, at any
+           scale. The old flat `16px` here was the inversion bug — at 200% the
+           neighbours reached 24px while the form controls stayed pinned at 16px,
+           making the FORM CONTROLS the small ones for exactly the user who
+           enlarged their text.
+
+     !important on both because the thing each must beat is an inline fontSize
+     (React inline styles are specificity 1,0,0 and otherwise win — .sr-input-16
+     was silently inert on ~25 inputs until v0.5.61 for precisely this reason).
+
+     .sr-ctl-row is a CONTAINER hook, not an element one: filter-row membership is
+     conditional (the county select only mounts once counties resolve, the non-bird
+     toggle only with an eBird backbone) and the row is one wrapping flex container,
+     so there is no stable per-element subset to enumerate. It sizes interactive
+     DESCENDANTS only — never the container itself (which would cascade an
+     unrequested size onto every unstyled span inside it) and never the uppercase
+     section labels, which are spans and stay deliberately smaller. */
+  .sr-input-16,
+  .sr-ctl-row :is(button, select, input) { font-size: max(16px, 0.75rem) !important; }
 
   /* Breeding Codes matrix on a phone: narrow each code column from 44px to ~30px
      (the 28px count dot + ~1px breathing room each side), roughly halving the
@@ -1765,11 +2095,22 @@ select:focus-visible {
   width: min(282px, 90vw);
   z-index: 1200;
   overflow-y: auto;
-  /* The fullscreen panel is position:fixed inset:0 (bypasses the body's
-     safe-area padding) and the overlay is pinned left:0 — pad its content
-     clear of the sensor housing in landscape (QA round-1 finding). This block
-     only applies on iOS builds, so no .sr-ios-app gate is needed here. */
-  padding-left: env(safe-area-inset-left, 0px);
+  /* No padding-left here any more. This overlay used to carry its own
+     env(safe-area-inset-left) because the fullscreen panel was position:fixed
+     inset:0 and bypassed the body's safe-area padding (QA round-1 finding).
+     `.sr-ios-app .sr-map-fullscreen-panel` now pads the whole panel, so
+     re-adding it here would double the inset in landscape.
+     The mechanism, precisely: an absolutely positioned box resolves against its
+     containing block's PADDING box, so if the fixed panel were the containing
+     block this left:0 would land back at the physical viewport edge and the
+     removal would UNDER-inset the sidebar. It doesn't, because the containing
+     block is .sr-map-content (position: relative, above) — an in-flow
+     descendant that the panel's padding has already displaced inward, and which
+     has no padding of its own. left:0 therefore lands on the padded edge.
+     That makes .sr-map-content's `position: relative` load-bearing for the
+     landscape inset; mapIosFullscreen.test.ts asserts it.
+     The two classes are applied by the same state (isIOS() && mapFullscreen),
+     so the cover is exact. */
 }
 
 .sr-map-ios-fullscreen .sr-map-sidebar-overlay.sr-map-sidebar-hidden {

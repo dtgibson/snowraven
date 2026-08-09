@@ -250,7 +250,12 @@ describe('Settings — iOS wirings (FR-12/FR-13, supportsAppRelaunch)', () => {
       const btn = screen.getByRole('button', { name: 'Rebuild caches' })
       fireEvent.click(btn)
       await waitFor(() => {
-        expect(screen.getByRole('status').textContent).toMatch(/Caches cleared\. Close and reopen/i)
+        // Targets the region carrying the message rather than "the page's one
+        // status region": Settings hosts several live regions (the Sharing row
+        // added another), so a bare getByRole('status') was only ever
+        // unambiguous by accident.
+        const status = screen.getByText(/Caches cleared\. Close and reopen/i)
+        expect(status.getAttribute('role')).toBe('status')
       })
       // Not stranded: the button is enabled again, and the desktop-only
       // process plugin was never touched.
