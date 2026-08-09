@@ -29,6 +29,7 @@ never promotional.
 - **County choropleth ramp:** `--sr-county-{1..10}` (+ `-rgb` triplets) — a sequential single-hue green ramp (light `#C3E8D1` → deep `#1A5C38`, geometric-luminance-spaced so every adjacent step stays legible, deepening toward `--sr-accent-strong`) for a magnitude choropleth drawn on a map (Map Explorer county shading). Use THIS ramp — not the purple `--sr-tier` breeding ramp — for any new map magnitude choropleth, so it reads as "how many" and stays visually distinct from the breeding-atlas overlay when both are on. The ten steps serve BOTH tier mappings — quantile classes for count metrics and fixed 0–100% bands for absolute-scale metrics (Completeness) — and the same steps drive the Use Textures density hatch and the popup progress-bar fill (each county's bar filled with its own band token). Declared IDENTICALLY in both themes because the map canvas is the always-light Positron basemap regardless of app theme (same posture as the map-pin / rank / milestone on-map tokens; theme-flipping would wash the fills out over a light base). On-map fills use the solid color at `fill-opacity ~0.85`; the unrecorded tier is outline-only (`fill-opacity 0`, still hit-tested). Legend swatches use the solid color with a `--sr-border-medium` ring; legend text uses the theme-flipping `--sr-text` / `--sr-text-muted` (AA). There is no on-fill map text, so no on-fill text pair is minted.
 - **Calendar day-shade ramp (text-bearing):** `--sr-cal-{1..5}` (+ `-rgb`) with one white on-cell number `--sr-cal-fg` (`#FFFFFF`) — a sequential deep-green ramp (`#357E56 → #0C271A`) sized so the single on-fill number clears WCAG AA (≥4.5:1) on EVERY tier. Use THIS ramp — not the fill-only county ramp — whenever a shade cell CARRIES TEXT ON THE FILL: a fill-only ramp can't guarantee on-fill text contrast at every step (a mid ramp fill is a dead zone for any single text color), so a text-bearing surface gets its own ramp with a locked class count (here 5, forced by the AA + adjacency math) and one re-tuned on-fill text token. Declared IDENTICALLY in both themes (same posture as the county / map-pin / milestone on-surface tokens; theme-flipping would break the on-fill contrast guarantee). The steps also drive the colorblind crosshatch companion — a DOM CSS `repeating-linear-gradient` (`calHatchCss` over the `-rgb` tokens; the DOM analogue of the map's MapLibre-sprite hatch, reusing only the pure monotonic density shape). Guard the pair with a parse-the-tokens test asserting on-fill text ≥4.5:1 on every tier in both themes (the county ramp's contrast test omits this because it has no on-fill text).
 - **Share pin:** `--sr-share-pin` (#B4341F) + `--sr-share-pin-ink` (#FFFFFF) — the transient user-planted map pin. Declared IDENTICALLY in both themes (map-anchored: only ever drawn on the always-light Positron basemap, same posture as `--sr-map-pin-*` / `--sr-rank-pin-*` / the county ramp; theme-flipping would wash it out over a light base). 5.38:1 on Positron land, 6.08:1 for the ink notch — both clear the 3:1 WCAG 1.4.11 bar for a non-text graphic with the margin that keeps it legible over satellite too. No text is painted on the fill, so no on-fill text pair is minted.
+- **Sticky band haze:** `--sr-sticky-shadow` — the soft drop shadow under a header that has pinned over content scrolling beneath it, paired with an inset `--sr-border-medium` bottom line. A full-value shadow token (same convention as `--sr-card-shadow`), and one of the tokens that is NOT theme-identical: dark gets its own deeper value, because a light 12% haze is invisible against `--sr-bg` `#09090B`. Both values are tinted with the app's own ink, never pure black. The band's boundary is visual reinforcement only, not the means of identifying the component or its state (the header is identified by its text, the pinned state by the control's `aria-pressed` and its visible pressed styling), so it is deliberately a hairline at about 1.65:1 rather than a 3:1 rule that would read as a divider and break the register.
 - **Rule:** every color via `var(--sr-*)`; new tokens go in BOTH themes before
   use; rgba alphas via the `-rgb` triplet pattern. **Before minting a new map
   color, check it is free on EVERY surface it will appear on** — the accent is
@@ -57,7 +58,27 @@ italic at 0.71875rem `--sr-text-gray`.
   tokenized negative tint, `Set` multi-select or tri-state; county/protocol via
   native `<select>`; paired native date inputs; accent filter-strip banner with
   "Clear filter". Cycling tri-state pill (one pill, off→has→no) is the approved
-  evolution when categories are many (checklists-tab decisions.md).
+  evolution when categories are many (checklists-tab decisions.md). **On a phone
+  every interactive control in a filter block reads at ONE size** — put `.sr-ctl-row`
+  on the block and its buttons, selects and inputs share the iOS-safe scale-tracking
+  size, so a pill never sits at 12px beside a 16px select and the relationship cannot
+  invert at large text scale. The deliberately smaller uppercase section labels are
+  spans and stay outside it by design; so does a trailing count-and-view cluster,
+  which is not a filter.
+- **A preference whose copy multiplies:** when N independent switches mean 2^N
+  labels, generate every string from ONE ordered manifest plus pure functions —
+  the switch labels, their accessible names, the primary button, and the sentence
+  naming what the action will produce — so a new option is one row and no new copy.
+  Keep the manifest noun its own column, never the visible label lowercased. A
+  button may collapse a complete family to a short collective ("map links") to stay
+  inside a compact container ONLY when the line directly below always spells out
+  which; state the character ceiling that collapse serves and keep a test on it.
+  The all-off state is structural, not a further string: replace the live example
+  with a sentence and **replace the primary control with a sentence rather than
+  disabling it** — no control that looks pressable may put an empty string on the
+  clipboard. The consequence must appear at the instant the last switch flips, in
+  the same block and with zero animation, so it is never discovered later on the
+  surface the preference governs.
 - **Quoted comments:** `--sr-quote-bg` block, 3px `--sr-accent-border` left edge.
 - **Bird names:** ALWAYS `<BirdName>` (link gated on hasEntry, favicons via
   taxon codes).
@@ -127,7 +148,22 @@ italic at 0.71875rem `--sr-text-gray`.
   full-height, page-scrolling table with any legend in normal flow after the last
   row — NOT a frozen-header / capped-height data-grid (pure CSS can't combine a
   page-frozen header + an unbounded table + contained horizontal scroll, so a
-  frozen header forces a capped box; the natural table is preferred). To make the
+  frozen header forces a capped box; the natural table is the default). **A pinned
+  header is offered only where it is FREE** — i.e. in an uncapped / "unbounded"
+  view whose scrollport is the page, so a `position: sticky; top: 0` header anchors
+  to the viewport and the table keeps its full natural height. Never offer it where
+  it would force the capped box: at 200% text scale a capped box has no viable
+  height unit (a `dvh` cap leaves a handful of rows with the legend stranded, a
+  `rem` cap exceeds the viewport and puts the scrollport's top — and the pinned
+  header with it — off screen). Make the mode opt-in, default off, session-only,
+  and reachable in one press from either view under a **"pinned implies unbounded"**
+  invariant, with the round trip leaving no residue; a muted status note names what
+  the press did. `position: sticky` goes on each `<th>` individually, never on
+  `<thead>`/`<tr>` (WKWebView honors sticky on cells only), `border-collapse:
+  separate` is required, and the pinned CSS must live in the stylesheet rather than
+  inline so the iOS variant can re-point `top` to `env(safe-area-inset-top)` under
+  the `.sr-ios-app` gate. Guard keyboard focus from the band with `scroll-margin-top`
+  on the focusable DESCENDANTS of the cells, not on the cells. To make the
   phone column widths AUTHORITATIVE — so the narrowing holds even in an uncapped /
   "unbounded" wide view (under the default `table-layout: auto` a cell width is
   only a floor a wide table grows past) — put `table-layout: fixed` on the
@@ -142,7 +178,12 @@ italic at 0.71875rem `--sr-text-gray`.
 ## Accessibility commitments
 Every `<button>` gets explicit `tabIndex={0}` (WKWebView Tab behavior); toggles
 are `role="switch"`; live counts `aria-live="polite"`; visible focus states;
-WCAG resize via in-app Text Size; reduced-motion honored for scrolls.
+WCAG resize via in-app Text Size; reduced-motion honored for scrolls. A full-screen
+overlay (or any pinned band) needs its own iOS safe-area inset — it does not inherit
+the body's, so design it expecting a top inset that the status bar, Dynamic Island,
+and landscape sensor housing occupy, and expect any viewport-height cap inside it to
+be short by exactly that inset. Where a sticky band can cover a focused control, the
+focus guard belongs on the focusable itself, not on its container.
 
 ## References
 brand.md (founding visual identity, #2D8653, dtgibson.com reference);
