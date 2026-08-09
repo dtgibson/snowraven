@@ -965,6 +965,46 @@ h1, h2, h3, h4, h5, h6 {
   min-height: 300px;
 }
 
+/* Map Explorer FULLSCREEN panel. The positioning is lifted out of App.tsx's
+   inline style; the values are byte-identical to the old inline
+   `position:fixed; inset:0; height:100dvh; zIndex:1200`, so desktop and web
+   fullscreen render exactly as before. It HAS to be a class: an inline
+   `inset: 0` is specificity 1,0,0, so no class rule could ever add the iOS
+   safe-area inset below (the repo's lift-layout-to-a-class convention). Only
+   the background stays inline, as a token. */
+.sr-map-fullscreen-panel {
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  z-index: 1200;
+}
+
+/* iOS safe areas for the fullscreen panel (the Dynamic Island fix). Because the
+   panel is position:fixed it is viewport-relative and escapes the
+   `.sr-ios-app body` padding that protects every in-flow surface, so the map
+   view-mode pills — the panel's first child — rendered under the status bar and
+   the Dynamic Island. Padding rather than a smaller box: Tailwind preflight sets
+   box-sizing:border-box globally, so the panel still measures exactly 100dvh and
+   only its content box moves inward.
+   GATED on .sr-ios-app for the same reason as the body rule above: index.html
+   ships viewport-fit=cover to browsers too, so a bare env() here would change the
+   shipped web rendering in iOS Safari (QA round-1 finding). Desktop and web never
+   carry the class, so both stay byte-identical.
+   Left/right mirror the body rule so landscape clears the sensor housing in
+   either rotation. Bottom is deliberately omitted, exactly as in the body rule:
+   the map canvas is meant to bleed to the home indicator, and
+   `.sr-ios-app .sr-map-fab-cluster` already insets the floating controls.
+   Because the inset now applies to the whole panel, the .sr-map-ios-fullscreen
+   sidebar-overlay rule further down must NOT re-apply its own padding-left, or
+   it would double-inset in landscape. The overlay reaches the padded edge
+   through .sr-map-content, NOT through this panel directly — see that rule's
+   comment for the mechanism. */
+.sr-ios-app .sr-map-fullscreen-panel {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
 /* Leaf utilities — attach to the specific child that needs them. */
 .sr-min0 { min-width: 0; }
 .sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1765,11 +1805,22 @@ select:focus-visible {
   width: min(282px, 90vw);
   z-index: 1200;
   overflow-y: auto;
-  /* The fullscreen panel is position:fixed inset:0 (bypasses the body's
-     safe-area padding) and the overlay is pinned left:0 — pad its content
-     clear of the sensor housing in landscape (QA round-1 finding). This block
-     only applies on iOS builds, so no .sr-ios-app gate is needed here. */
-  padding-left: env(safe-area-inset-left, 0px);
+  /* No padding-left here any more. This overlay used to carry its own
+     env(safe-area-inset-left) because the fullscreen panel was position:fixed
+     inset:0 and bypassed the body's safe-area padding (QA round-1 finding).
+     `.sr-ios-app .sr-map-fullscreen-panel` now pads the whole panel, so
+     re-adding it here would double the inset in landscape.
+     The mechanism, precisely: an absolutely positioned box resolves against its
+     containing block's PADDING box, so if the fixed panel were the containing
+     block this left:0 would land back at the physical viewport edge and the
+     removal would UNDER-inset the sidebar. It doesn't, because the containing
+     block is .sr-map-content (position: relative, above) — an in-flow
+     descendant that the panel's padding has already displaced inward, and which
+     has no padding of its own. left:0 therefore lands on the padded edge.
+     That makes .sr-map-content's `position: relative` load-bearing for the
+     landscape inset; mapIosFullscreen.test.ts asserts it.
+     The two classes are applied by the same state (isIOS() && mapFullscreen),
+     so the cover is exact. */
 }
 
 .sr-map-ios-fullscreen .sr-map-sidebar-overlay.sr-map-sidebar-hidden {
