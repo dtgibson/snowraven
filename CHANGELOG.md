@@ -2,6 +2,18 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.82] - 2026-08-09
+
+Three phone fixes in one release, each of them repair of something that was already meant to work. (Shipped as a Spool bundle of 3 builds.)
+
+### Fixed
+- **Tapping a Map Explorer filter no longer zooms the page on an iPhone.** Nine controls in the map's filter panel (the place-name search, the latitude and longitude fields, the Species, County and Media filters, the two Date Range fields, and the target species search) rendered just small enough that iOS zoomed the whole page in whenever you tapped one, leaving you to pinch back out afterwards. Every other tab in the app already behaved; the map panel was the one place the guard had never been applied. The Date Range pair now stacks one above the other on a phone so both dates stay readable at the larger size. Nothing changes on a tablet or a desktop, at any text size.
+- **The Multimedia and Breeding Codes tabs no longer scroll sideways on a small phone.** At the narrowest screen width with the text size turned up, the species count and the view buttons at the top right of each tab held their full width and pushed the whole page sideways. They now wrap onto a second line and stay inside the screen. On Breeding Codes this also brings back the "↔ Unbounded" button, which had been pushed entirely off the side of the screen with no way to reach it at that size. A few other dense spots can still scroll sideways a little at that combination of settings; those are separate and unchanged here.
+- **The "Skip to main content" link no longer opens under the Dynamic Island.** On an iPhone, the first press of the Tab key revealed the link at the physical top of the screen, behind the status bar and camera housing, so most of it sat under opaque hardware. It now clears them, and clears the sensor housing in landscape too. This was the last control in the app still positioned against the physical screen edge rather than the usable area.
+
+### Documentation
+- The in-app Help's note about how the interface behaves on a phone now mentions that a few dense spots can still scroll sideways at the narrowest width with the largest text size, rather than claiming everything wraps.
+
 ## [0.5.81] - 2026-08-09
 
 Five improvements in one release, most of them about making SnowRaven comfortable on a phone. (Shipped as a Spool bundle of 5 builds.)
