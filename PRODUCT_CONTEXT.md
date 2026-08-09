@@ -5,6 +5,16 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Three-fix Spool bundle: the phone repairs (complete — August 2026, v0.5.82)
+
+Three queued fixes shipped as one release, each repair of something already meant to work. Frontend and CSS only: no new data, providers, network calls, backend routes, settings, or accessible-name changes, and nothing above 640px changes on any of them.
+
+- **The Map Explorer's filter controls no longer trigger iOS focus zoom.** Its nine form controls (place-name search, latitude, longitude, the Species / County / Media filters, both Date Range fields, and the target species search) now carry the app-wide `.sr-input-16` guard on the element itself, the one place the v0.5.61 sweep had missed. The Date Range pair stacks through the whole phone tier, scoped to the map sidebar, because at 16px the two native date inputs no longer fit side by side in a 282px sidebar.
+- **The count-and-view cluster on Multimedia and Breeding Codes wraps instead of leaking page horizontal scroll.** At the narrowest width with the largest text size it had held its full width and pushed the page sideways; on Breeding Codes that had put `↔ Unbounded` entirely off-screen and unreachable. Breeding Codes also wraps its cluster to two lines at 320px at normal text size, a deliberate visible change.
+- **The "Skip to main content" link clears the Dynamic Island.** As the app's first tab stop it revealed 16px from the physical top, behind the status bar and camera housing; it now takes the iOS safe-area inset on focus (and clears the sensor housing in landscape), completing the `position: fixed` safe-area family.
+
+The in-app Help's phone-behavior note now says a few dense spots can still scroll sideways at the narrowest width with the largest text size, rather than claiming everything wraps.
+
 ### Five-improvement Spool bundle: phone comfort, a pinnable matrix header, and per-part sharing (complete — August 2026, v0.5.81)
 
 Five queued builds shipped as one release, four of them about the app being comfortable on a phone.
