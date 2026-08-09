@@ -302,7 +302,7 @@ Google Maps: https://maps.google.com/?q=38.54321,-121.98765
 Apple Maps: https://maps.apple.com/?q=38.54321,-121.98765
 ```
 
-Paste that into a text message and the two links are tappable, opening the exact spot in whichever maps app the person you sent it to prefers. The coordinate line on its own also works: paste it straight into a Google Maps or Apple Maps search box and it finds the spot. If you would rather send just that one line, choose **Copy coordinates only** in Settings under Sharing.
+Paste that into a text message and the two links are tappable, opening the exact spot in whichever maps app the person you sent it to prefers. The coordinate line on its own also works: paste it straight into a Google Maps or Apple Maps search box and it finds the spot. Settings under Sharing has a switch for each of the three lines, so you can send any combination you like: just the coordinates, just one map link, coordinates plus one link, and so on. The button says what it will copy before you press it, and a line underneath spells out the lines you will get. With all three switched off there is no copy button at all: the popup still shows the coordinates on screen and points you back to Settings.
 
 If the clipboard write is refused (this can happen in some browsers), the popup says so and shows the full text with a **Select all** button, so you can copy it by hand. It never claims a copy that did not happen.
 
@@ -492,12 +492,17 @@ Set your color scheme: System (follows your operating system preference), Light,
 
 ### Sharing
 
-**Copying a location.** Chooses what lands on the clipboard when you copy a location from a map pin (see "Copying a location from a map" under Map Explorer). Two options:
+**Copying a location.** Chooses what lands on the clipboard when you copy a location from a map pin (see "Copying a location from a map" under Map Explorer). Three independent switches, one per line of the copied block:
 
-- **Copy coordinates and map links** (the default): three lines, the coordinates followed by a Google Maps link and an Apple Maps link.
-- **Copy coordinates only**: one line, the coordinate pair and nothing else.
+- **Coordinates**: the coordinate pair.
+- **Google Maps link**: a link that opens the spot in Google Maps.
+- **Apple Maps link**: a link that opens the spot in Apple Maps.
 
-Coordinates are decimal degrees to five places, latitude first, which is about a metre of precision and matches what eBird shows. An example of the exact text you will get is shown below the two options. Your choice is remembered across sessions and takes effect immediately, including for a share popup you already have open.
+Any combination works, and each line keeps its place in the same order whichever ones you turn on, so a block never has a gap in it. Coordinates are decimal degrees to five places, latitude first, which is about a metre of precision and matches what eBird shows. An example of the exact text you will get is shown below the switches, along with a sentence naming the lines it contains.
+
+If you turn all three off, nothing is left to copy: the example says so, and the map popup shows the coordinates on screen with a note pointing back here instead of a copy button. The pin still marks the spot, and you can select that coordinate text by hand.
+
+Your choice is remembered across sessions and takes effect immediately, including for a share popup you already have open. If you had chosen "Copy coordinates only" in an earlier version, you will find Coordinates on and both map links off, which is the same thing said three ways.
 
 ### API Keys
 

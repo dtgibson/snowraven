@@ -34,7 +34,7 @@ vi.mock('react-map-gl/maplibre', () => ({
 }))
 
 import { SharePopup } from './SharePopup'
-import { setShareCopyMode } from '../../lib/shareCopyPreference'
+import { setShareCopySelection } from '../../lib/shareCopyPreference'
 
 beforeEach(() => {
   copyText.mockReset().mockResolvedValue(true)
@@ -44,16 +44,26 @@ beforeEach(() => {
   mapBox.height = 220   // the Named Birds card map (.sr-named-map)
   mapBox.pinY = 110     // worst case: dead centre, least room on either side
   // Every case starts from the default mode; the store is module-level.
-  setShareCopyMode('coords-and-links')
+  setShareCopySelection(ALL_ON)
 })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 const LAT = 38.54321
 const LNG = -121.98765
-const THREE_LINE =
-  '38.54321, -121.98765\n'
-  + 'Google Maps: https://maps.google.com/?q=38.54321,-121.98765\n'
-  + 'Apple Maps: https://maps.apple.com/?q=38.54321,-121.98765'
+const COORD_LINE = '38.54321, -121.98765'
+const GOOGLE_LINE = 'Google Maps: https://maps.google.com/?q=38.54321,-121.98765'
+const APPLE_LINE = 'Apple Maps: https://maps.apple.com/?q=38.54321,-121.98765'
+const THREE_LINE = [COORD_LINE, GOOGLE_LINE, APPLE_LINE].join('\n')
+
+const ALL_ON = { coords: true, google: true, apple: true }
+const COORDS_ONLY = { coords: true, google: false, apple: false }
+const LINKS_ONLY = { coords: false, google: true, apple: true }
+const ALL_OFF = { coords: false, google: false, apple: false }
+
+/** The generated button label for the default selection. Generated, not typed
+ *  here: it is asserted against the rule's own output in shareLocation.test.ts. */
+const ALL_ON_LABEL = 'Copy coordinates and map links'
+const EMPTY_SENTENCE = 'Nothing is selected to copy. Choose what to copy in Settings under Sharing.'
 
 function mount(overrides: Partial<React.ComponentProps<typeof SharePopup>> = {}) {
   const onClose = overrides.onClose ?? vi.fn()
@@ -65,14 +75,17 @@ describe('SharePopup contents (FR-08 / FR-30)', () => {
   it('shows the coordinates as text, a copy control, and a close control', () => {
     mount()
     expect(screen.getByText('38.54321, -121.98765')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Copy coordinates and links' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: ALL_ON_LABEL })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Close and remove the pin' })).toBeTruthy()
   })
 
-  it('names the ACTIVE mode on the button and in the mode line, before any press (QA-36)', () => {
+  it('names the ACTIVE selection on the button and in the mode line, before any press (QA-36)', () => {
     mount()
-    expect(screen.getByRole('button', { name: 'Copy coordinates and links' })).toBeTruthy()
-    expect(screen.getByText('With Google Maps and Apple Maps links.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: ALL_ON_LABEL })).toBeTruthy()
+    // The button may collapse a complete family to "map links"; the line below
+    // it always spells out which links they are, which is what makes the
+    // collapse safe.
+    expect(screen.getByText('Three lines: coordinates, Google Maps link, Apple Maps link.')).toBeTruthy()
   })
 
   it('renders the live region from the start, empty, so its later text is announced', () => {
@@ -95,7 +108,7 @@ describe('SharePopup contents (FR-08 / FR-30)', () => {
 describe('copy success (FR-25 / FR-26 / FR-27, QA-33)', () => {
   it('writes the exact three-line payload through the clipboard SEAM', async () => {
     mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
     await waitFor(() => expect(copyText).toHaveBeenCalledTimes(1))
     expect(copyText).toHaveBeenCalledWith(THREE_LINE)
   })
@@ -103,14 +116,14 @@ describe('copy success (FR-25 / FR-26 / FR-27, QA-33)', () => {
   it('shows a Copied confirmation, announces it, and settles back after about two seconds', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const { container } = render(<SharePopup lat={LAT} lng={LNG} compact={false} offset={35} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeTruthy())
     expect(container.querySelector('[role="status"]')!.textContent)
       .toBe('Location copied to the clipboard.')
 
     await act(async () => { vi.advanceTimersByTime(2100) })
-    expect(screen.getByRole('button', { name: 'Copy coordinates and links' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: ALL_ON_LABEL })).toBeTruthy()
   })
 
   it('announces EVERY copy, including a repeat of the IDENTICAL message (QA-33)', async () => {
@@ -126,7 +139,7 @@ describe('copy success (FR-25 / FR-26 / FR-27, QA-33)', () => {
     const observer = new MutationObserver(records => { mutations += records.length })
     observer.observe(region, { childList: true, characterData: true, subtree: true })
 
-    const btn = screen.getByRole('button', { name: 'Copy coordinates and links' })
+    const btn = screen.getByRole('button', { name: ALL_ON_LABEL })
 
     fireEvent.click(btn)
     await waitFor(() => expect(mutations).toBeGreaterThan(0))
@@ -146,7 +159,7 @@ describe('copy success (FR-25 / FR-26 / FR-27, QA-33)', () => {
   it('keeps the ONE live region mounted throughout, never remounting it with its text', async () => {
     const { container } = render(<SharePopup lat={LAT} lng={LNG} compact={false} offset={35} onClose={vi.fn()} />)
     const region = container.querySelector('[role="status"]')!
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
     await waitFor(() => expect(region.textContent).toBe('Location copied to the clipboard.'))
     // Same node object, still in the document: the region pre-existed its text.
     expect(container.querySelector('[role="status"]')).toBe(region)
@@ -155,7 +168,7 @@ describe('copy success (FR-25 / FR-26 / FR-27, QA-33)', () => {
 
   it('never shows the failure block on a successful copy', async () => {
     mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Copied' })).toBeTruthy())
     expect(screen.queryByText('Text to copy')).toBeNull()
   })
@@ -165,7 +178,7 @@ describe('copy failure (FR-28, QA-34)', () => {
   it('is honest: no success claim, an explicit message, and the FULL payload revealed', async () => {
     copyText.mockResolvedValue(false)
     const { container } = render(<SharePopup lat={LAT} lng={LNG} compact={false} offset={35} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
 
     await waitFor(() => expect(
       screen.getByText('Could not copy automatically. Select the text below and copy it.'),
@@ -173,7 +186,7 @@ describe('copy failure (FR-28, QA-34)', () => {
 
     // The button never claims success.
     expect(screen.queryByRole('button', { name: 'Copied' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Copy coordinates and links' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: ALL_ON_LABEL })).toBeTruthy()
 
     // The complete payload, verbatim, selectable.
     const pre = container.querySelector('pre.sr-share-payload')!
@@ -186,7 +199,7 @@ describe('copy failure (FR-28, QA-34)', () => {
   it('offers Select all, which uses the Selection API and makes NO clipboard call', async () => {
     copyText.mockResolvedValue(false)
     const { container } = render(<SharePopup lat={LAT} lng={LNG} compact={false} offset={35} onClose={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Select all' })).toBeTruthy())
 
     copyText.mockClear()
@@ -199,29 +212,110 @@ describe('copy failure (FR-28, QA-34)', () => {
   })
 })
 
-describe('the mode in effect at press time (FR-29 / FR-36, QA-35)', () => {
+describe('the selection in effect at press time (FR-29 / FR-36, QA-35)', () => {
   it('a preference change relabels an ALREADY-OPEN popup and changes what the next press copies', async () => {
     mount()
-    expect(screen.getByRole('button', { name: 'Copy coordinates and links' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: ALL_ON_LABEL })).toBeTruthy()
 
-    act(() => { setShareCopyMode('coords-only') })
+    act(() => { setShareCopySelection(COORDS_ONLY) })
 
     expect(screen.getByRole('button', { name: 'Copy coordinates' })).toBeTruthy()
-    expect(screen.getByText('Coordinates only.')).toBeTruthy()
+    expect(screen.getByText('One line: coordinates.')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates' }))
     await waitFor(() => expect(copyText).toHaveBeenCalledTimes(1))
-    expect(copyText).toHaveBeenCalledWith('38.54321, -121.98765')
+    expect(copyText).toHaveBeenCalledWith(COORD_LINE)
   })
 
-  it('a mode change clears a stale failure block, whose payload would be the wrong text', async () => {
+  it('copies EXACTLY the selected lines for a partial selection, with no blank line', async () => {
+    // The elided-middle case: coordinates off, both links on. Rejects a builder
+    // that keeps a fixed three-slot template.
+    mount()
+    act(() => { setShareCopySelection(LINKS_ONLY) })
+
+    expect(screen.getByRole('button', { name: 'Copy map links' })).toBeTruthy()
+    expect(screen.getByText('Two lines: Google Maps link, Apple Maps link.')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy map links' }))
+    await waitFor(() => expect(copyText).toHaveBeenCalledTimes(1))
+    expect(copyText).toHaveBeenCalledWith(`${GOOGLE_LINE}\n${APPLE_LINE}`)
+  })
+
+  it('still shows the COORDINATE on screen for every selection, payload independent', () => {
+    // .sr-share-coord renders formatCoordinate regardless, so the pin shows the
+    // spot and the text stays selectable by hand even with nothing selected.
+    mount()
+    for (const selection of [COORDS_ONLY, LINKS_ONLY, ALL_OFF, ALL_ON]) {
+      act(() => { setShareCopySelection(selection) })
+      expect(screen.getByText(COORD_LINE)).toBeTruthy()
+    }
+  })
+
+  it('a selection change clears a stale failure block, whose payload would be the wrong text', async () => {
     copyText.mockResolvedValue(false)
     mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
     await waitFor(() => expect(screen.getByText('Text to copy')).toBeTruthy())
 
-    act(() => { setShareCopyMode('coords-only') })
+    act(() => { setShareCopySelection(COORDS_ONLY) })
     expect(screen.queryByText('Text to copy')).toBeNull()
+  })
+})
+
+describe('nothing selected: the control is REPLACED, not disabled', () => {
+  function mountAllOff(compact = false) {
+    setShareCopySelection(ALL_OFF)
+    return render(<SharePopup lat={LAT} lng={LNG} compact={compact} offset={35} onClose={vi.fn()} />)
+  }
+
+  it('offers NO pressable copy control at all, not a disabled one', () => {
+    // The binding rule: no control that looks pressable may put an empty string
+    // on the clipboard. Rejects `copyLabel([]) === 'Copy '` plus a disabled
+    // attribute, and rejects leaving the button enabled over an empty payload.
+    const { container } = mountAllOff()
+    expect(container.querySelector('.sr-share-copy-btn')).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Copy/ })).toBeNull()
+    // The only remaining button is the close control.
+    const buttons = screen.getAllByRole('button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0].getAttribute('aria-label')).toBe('Close and remove the pin')
+  })
+
+  it('puts a sentence in the control\'s place, pointing at Settings', () => {
+    const { container } = mountAllOff()
+    expect(container.querySelector('.sr-share-none')!.textContent).toBe(EMPTY_SENTENCE)
+    expect(container.querySelector('.sr-share-mode-line')).toBeNull()
+    expect(EMPTY_SENTENCE).not.toContain('—')
+  })
+
+  it('still shows the coordinate, so the pin has not become useless', () => {
+    mountAllOff()
+    expect(screen.getByText(COORD_LINE)).toBeTruthy()
+  })
+
+  it('keeps the sentence at BOTH densities: compact reduces size, never meaning', () => {
+    const { container } = mountAllOff(true)
+    expect(container.querySelector('.sr-share-none')!.textContent).toBe(EMPTY_SENTENCE)
+    expect(screen.getByText(COORD_LINE)).toBeTruthy()
+  })
+
+  it('brings the control straight back when a part is turned on again', () => {
+    mountAllOff()
+    act(() => { setShareCopySelection(COORDS_ONLY) })
+    expect(screen.getByRole('button', { name: 'Copy coordinates' })).toBeTruthy()
+    expect(screen.queryByText(EMPTY_SENTENCE)).toBeNull()
+  })
+
+  it('drops a stale failure block when the last part is turned off', async () => {
+    // Its revealed payload would be text the popup no longer copies.
+    copyText.mockResolvedValue(false)
+    const { container } = render(<SharePopup lat={LAT} lng={LNG} compact={false} offset={35} onClose={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
+    await waitFor(() => expect(screen.getByText('Text to copy')).toBeTruthy())
+
+    act(() => { setShareCopySelection(ALL_OFF) })
+    expect(screen.queryByText('Text to copy')).toBeNull()
+    expect(container.querySelector('pre.sr-share-payload')).toBeNull()
   })
 })
 
@@ -259,10 +353,10 @@ describe('compact density (D-07)', () => {
     const { container } = render(<SharePopup lat={LAT} lng={LNG} compact offset={30} onClose={vi.fn()} />)
     expect(popupProps.at(-1)!.className).toContain('sr-share-popup--compact')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
     await waitFor(() => expect(screen.getByText('Text to copy')).toBeTruthy())
 
-    expect(screen.getByText('With Google Maps and Apple Maps links.')).toBeTruthy()
+    expect(screen.getByText('Three lines: coordinates, Google Maps link, Apple Maps link.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Select all' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Close and remove the pin' })).toBeTruthy()
     expect(container.querySelector('pre.sr-share-payload')!.textContent).toBe(THREE_LINE)
@@ -322,13 +416,13 @@ describe('the compact scroll cap fits the map it is in (NFR-06)', () => {
   it('keeps the failure block and Select all INSIDE that capped, scrollable body', async () => {
     copyText.mockResolvedValue(false)
     const { container } = mountCompact()
-    fireEvent.click(screen.getByRole('button', { name: 'Copy coordinates and links' }))
+    fireEvent.click(screen.getByRole('button', { name: ALL_ON_LABEL }))
     await waitFor(() => expect(screen.getByRole('button', { name: 'Select all' })).toBeTruthy())
 
     const body = container.querySelector('.sr-share-pop-body')!
     // Reachable by scrolling rather than clipped away by the map's overflow.
     expect(body.contains(screen.getByRole('button', { name: 'Select all' }))).toBe(true)
     expect(body.contains(container.querySelector('pre.sr-share-payload')!)).toBe(true)
-    expect(body.contains(screen.getByRole('button', { name: 'Copy coordinates and links' }))).toBe(true)
+    expect(body.contains(screen.getByRole('button', { name: ALL_ON_LABEL }))).toBe(true)
   })
 })

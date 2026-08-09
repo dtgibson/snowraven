@@ -1542,6 +1542,21 @@ h1, h2, h3, h4, h5, h6 {
   text-align: center;
 }
 
+/* REPLACES the copy control when nothing is selected. A sentence, never a dead
+   disabled button: no control that looks pressable may put an empty string on
+   the clipboard, and a greyed control invites a press that explains nothing.
+   Dashed rules top and bottom so the slot still reads as the action area. */
+.sr-share-none {
+  margin: 0;
+  padding: 7px 4px;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--sr-text-muted);
+  text-align: center;
+  border-top: 1px dashed var(--sr-border-medium);
+  border-bottom: 1px dashed var(--sr-border-medium);
+}
+
 .sr-share-fail {
   margin-top: 10px;
   animation: sr-share-fail-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -1611,8 +1626,28 @@ h1, h2, h3, h4, h5, h6 {
 }
 .sr-share-popup--compact .sr-share-payload { max-height: 4.75rem; font-size: 0.625rem; }
 
-/* The Settings "Sharing" example: the exact payload for the selected mode, built
-   by the same buildSharePayload the popup uses. No cap — it is three short lines. */
+/* The three part rows in Settings › Sharing. Hairline-separated and in NO box of
+   their own: the Settings card is already the container, and a bordered group
+   here would be a card inside a card. The adjacent-sibling selector (rather than
+   :first-of-type) gives rows two and three the rule and row one none, and stays
+   correct however many rows the parts table grows to. Layout lives here, never
+   inline, so it can respond. */
+.sr-share-part {
+  padding: 0.3125rem 0;
+}
+.sr-share-part + .sr-share-part {
+  border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-share-part-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--sr-text);
+  overflow-wrap: anywhere;
+}
+
+/* The Settings "Sharing" example: the exact payload for the current selection,
+   built by the same buildSharePayload the popup uses. No cap — at most a few
+   short lines. */
 .sr-share-example {
   margin: 0;
   padding: 8px 9px;
@@ -1636,6 +1671,28 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  color: var(--sr-text-muted);
+}
+/* The caption under the example: which lines, named in full. The one thing the
+   collapsed "map links" on the popup button cannot carry. */
+.sr-share-manifest {
+  margin: 0.375rem 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: var(--sr-text-muted);
+}
+/* Takes the example's place when nothing is selected. Same slot, same muted
+   register, DASHED edge so it reads as an empty container rather than a message
+   about a problem. No error token, no icon: this is a configuration the person
+   deliberately chose. */
+.sr-share-empty {
+  margin: 0;
+  padding: 8px 9px;
+  background: var(--sr-surface-subtle);
+  border: 1px dashed var(--sr-border-medium);
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  line-height: 1.55;
   color: var(--sr-text-muted);
 }
 

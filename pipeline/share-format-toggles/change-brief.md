@@ -1,0 +1,42 @@
+# Change Brief — Share Format Toggles
+
+## What is changing
+
+The v0.5.80 Sharing preference becomes three independent switches (Coordinates, Google Maps, Apple Maps) in place of the two-way radio group, so any combination is reachable. The payload keeps a **fixed order** (coordinates, Google, Apple) regardless of which are on, single-newline separators, no trailing newline; it is built as a present-lines array joined with `\n`, so an elided middle element leaves no blank line and each label stays attached to its own line (`Apple Maps: https://…` alone is self-describing). A bare-URL-without-label variant is a separate preference and is out of scope.
+
+**All three off is allowed** — it is what the user literally asked for, and every other new combination (Google-only, Apple-only, coords+one) is useful. Its cost is real but bounded by three things: the live example shows the empty state at the instant the last switch flips, in the same block, so it is never discovered later on a map; the popup's on-screen coordinate readout is independent of the payload (`sr-share-coord` renders `formatCoordinate` regardless of mode), so the pin still shows the spot and stays hand-selectable; and the copy control is **replaced by** a plain sentence pointing at Settings rather than left as a dead disabled button. Binding rule: no control that looks pressable may put an empty string on the clipboard. Rejected: making coordinates non-optional (fails the request literally, and blocks the Apple-only case the user asked for); refusing the last switch-off (a switch that will not move is a mystery found only by hitting it, and still contradicts "any combination").
+
+## Why now
+
+A saved idea from the user's inbox, arriving one release after the v0.5.80 pin-share ship, while the surface is fresh. The v0.5.80 setting answered "how much" with two rungs; the user wants the three parts addressable independently, which the existing payload builder already decomposes cleanly.
+
+## User-facing impact
+
+Yes, and migration is the defect risk. The stored key is `shareCopyMode` (`lib/shareCopyPreference.ts`), today the literal `'coords-and-links' | 'coords-only'`, with `normalizeShareCopyMode` mapping anything unrecognized to the default. **Keep the same key** and widen the value to `{coords, google, apple}` booleans: the web/Pi kv store persists any JSON value verbatim (`backend/routers/settingskv.py` docstring) and `TauriStorage` writes JSON, so no transport change is needed. The normalizer must branch on the two legacy literals explicitly: `'coords-only'` → coords only, `'coords-and-links'` → all three, absent/malformed/unknown → all three (today's default, unchanged). Without that branch a user who chose "Copy coordinates only" silently gets links back on first launch, which is the defect to prevent and needs a unit test per literal. Rollback is safe: a v0.5.80 build reading the new object falls through to the default (the superset), no crash.
+
+## Design pass
+
+**Needed.** Surfaces refined: the Settings "Copying a location" row and the share popup's label and mode line. Three switch rows plus a live `<pre>` example in one card, with a meaningful empty state, is a real layout problem at 320px and 200% text scale. Copy is the larger half: the popup's button label (today "Copy coordinates and links" / "Copy coordinates") and its mode line (today "With Google Maps and Apple Maps links." / "Coordinates only.") each grow from 2 states to 8. Eight hand-written strings is the wrong answer; the Designer should find the rule that generates them, plus the all-off wording in both places.
+
+## Decisions touched
+
+- **v0.5.80 pin-share, sub-decision 1** — "the default payload is three lines; the coordinates-only mode exists for the most compact share." Touched, not reversed: that mode becomes one of eight combinations. Sub-decision 2's no-shortener exclusion and ratified link forms are **untouched** and must not be re-opened; this only elides whole lines from the existing block.
+- **v0.5.80 sub-decision 2** also records: "A single-link default with the second behind the setting was offered explicitly and declined." Name it so this does not read as a silent reversal. The user declined a *single-link default*; this is the complement, choosing each part explicitly.
+- **v0.5.80 correction, "no outbound request" carry-forward** — "the preference persists through the existing same-origin storage seam, carrying only **the mode literal** and never a coordinate." The value stops being a literal; the conclusion is unchanged, the sentence needs rewording in the same edit.
+- **`docs/HELP.md`** — line 305 "If you would rather send just that one line, choose **Copy coordinates only** in Settings under Sharing." becomes false. Lines 495-500 "Two options:", "**Copy coordinates and map links** (the default): three lines…", "**Copy coordinates only**: one line, the coordinate pair and nothing else.", "An example of the exact text you will get is shown below the two options." all become false. The example block at 299-303 stays true as the all-on default.
+- **`README.md`** — line 25 "A **Sharing** section chooses what a map pin copies: coordinates and map links (the default) or coordinates only, with a live example of the exact text." becomes false; line 16 "Settings can switch to coordinates only." becomes incomplete.
+- **`website/index.html`** — line ~316 "Settings can switch to coordinates only." becomes incomplete; version pill and footer move with the patch bump.
+- **`PRIVACY_POLICY.md`** — checked limb by limb against the v0.5.76 rule: **no change**. No new host, no new request, no coordinate persisted; only the preference value's shape changes on same-origin storage-seam traffic already covered.
+- **`ACCESSIBILITY.md`** — checked: **no change**. Its only share-adjacent sentence (line 83) is about the search-center pin's pointer-only gesture and stays true. This is a further reason to replace the all-off copy control with a sentence rather than disable it.
+
+## Scope / files (verified)
+
+**Will change:** `frontend/src/lib/shareLocation.ts` (the mode type and `buildSharePayload`), `frontend/src/lib/shareCopyPreference.ts` (key value shape, normalizer, default, setter), `frontend/src/components/Settings.tsx` (`ShareCopyRow`, `SHARE_COPY_OPTIONS`, `btnStyle`, the `RadioGroup` use at line 744, the live example), `frontend/src/components/map/SharePopup.tsx` (`copyLabel`, `modeLine`, the payload memo), plus tests `shareLocation.test.ts`, `shareCopyPreference.test.ts`, `settingsSharing.test.tsx`, `SharePopup.test.tsx`. Docs: `docs/HELP.md`, `README.md`, `website/index.html`, `CHANGELOG.md`, `DECISIONS.md`, version bump in `frontend/package.json` + `src-tauri/tauri.conf.json`.
+
+**Will not change:** `SharePin.tsx` (holds lat/lng, never reads the mode), all five host maps, `lib/storage.ts`, the backend (`settingskv.py` already stores objects verbatim), `PRIVACY_POLICY.md`, `ACCESSIBILITY.md`. `RadioGroup` stays (three other Settings rows use it). `entryChunk.test.ts` must stay green unchanged: both modules remain map-free and on App's static graph.
+
+**Binding constraints:** persistence through the `storage` seam only, never raw `localStorage`; the shared `ToggleSwitch` (`bare` variant, `.sr-touch-target`) and the `--sr-switch-thumb` convention; `.sr-*` tokens only; no em dashes in user-facing copy or published prose; holds at 320px and 200% in-app text scale; ~44px targets on the ≤640 tier; and **fully offline, no lookup of any kind** — reaffirmed by the user declining an address-lookup option in the build immediately before this one.
+
+## What done looks like
+
+All eight combinations are reachable from three independent switches, and the copied block keeps the fixed coordinates/Google/Apple order with no blank line where an element is elided and no trailing newline. A user who had chosen "Copy coordinates only" still copies exactly one line on first launch after upgrading, and a user who never touched the setting still copies three, each locked by its own unit test. With all three off, Settings says so in the example at the moment it happens, the popup still shows the coordinate on screen, and nothing offers a copy that would blank the clipboard. Full suite green (including `entryChunk.test.ts`), `npm run build` clean, and HELP, README, and the website updated in the same commit with each sentence checked against the shipped code.

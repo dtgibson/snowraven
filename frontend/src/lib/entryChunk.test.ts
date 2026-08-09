@@ -90,7 +90,7 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
 
   it('the Pin Share map-coupled files are only reachable through a lazy map tab (NFR-10)', () => {
     // Settings.tsx IS on App.tsx's static graph and imports lib/shareCopyPreference,
-    // which re-exports ShareCopyMode from lib/shareLocation — so BOTH of those
+    // which re-exports ShareCopySelection from lib/shareLocation — so BOTH of those
     // lib modules must stay map-free, and these three components must stay off
     // the entry graph. If either lib module ever imports a map type (or an
     // `import type` a later refactor promotes to a value import), the ~1 MB

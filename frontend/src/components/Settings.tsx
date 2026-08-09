@@ -18,9 +18,11 @@ import { clearEbirdObservationsCache } from '../lib/observationsCache'
 import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
 import { invalidateHotspotSet } from '../lib/hotspotSet'
-import { buildSharePayload } from '../lib/shareLocation'
-import type { ShareCopyMode } from '../lib/shareLocation'
-import { useShareCopyMode, setShareCopyMode } from '../lib/shareCopyPreference'
+import {
+  buildSharePayload, selectedParts, shareModeLine, sharePartName,
+  SHARE_PARTS, SHARE_EMPTY_SETTINGS,
+} from '../lib/shareLocation'
+import { useShareCopySelection, toggleShareCopyPart } from '../lib/shareCopyPreference'
 import { OutboundLink } from './OutboundLink'
 import { ToggleSwitch } from './ui/ToggleSwitch'
 
@@ -707,31 +709,31 @@ function DateFormatRow({ onDateFormatChange }: { onDateFormatChange?: () => void
 const SHARE_EXAMPLE_LAT = 38.54321
 const SHARE_EXAMPLE_LNG = -121.98765
 
-const SHARE_COPY_OPTIONS: { key: ShareCopyMode; label: string; sub: string }[] = [
-  { key: 'coords-and-links', label: 'Copy coordinates and map links', sub: 'Three lines, with Google Maps and Apple Maps' },
-  { key: 'coords-only',      label: 'Copy coordinates only',          sub: 'One line, nothing else' },
-]
-
 function ShareCopyRow() {
   // Reads the shared store rather than holding local state, so a change here
   // reaches a share popup that is already open on a map tab (FR-36). It hydrates
   // TO THE DEFAULT and gates nothing: unlike the embedded-media preference there
   // is no unsafe pre-hydration state to guard against (FR-34).
-  const mode = useShareCopyMode()
-  const example = buildSharePayload(SHARE_EXAMPLE_LAT, SHARE_EXAMPLE_LNG, mode)
+  const selection = useShareCopySelection()
+  const on = selectedParts(selection)
+  const example = buildSharePayload(SHARE_EXAMPLE_LAT, SHARE_EXAMPLE_LNG, selection)
 
-  function btnStyle(key: ShareCopyMode): React.CSSProperties {
-    const active = mode === key
-    return {
-      flex: '1 1 190px', minHeight: 48, padding: '7px 10px',
-      border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
-      background: active ? 'var(--sr-accent-bg)' : 'var(--sr-surface-subtle)',
-      color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
-      fontSize: '0.8125rem', fontWeight: active ? 600 : 500, fontFamily: 'inherit',
-      cursor: 'pointer', borderRadius: 6, textAlign: 'left',
-      transition: 'background 0.12s, color 0.12s, border-color 0.12s',
-    }
-  }
+  // The example is a PAYLOAD: reading a coordinate pair and two full URLs aloud
+  // on every flip would be punishing, so the <pre> is not a live region. Silence
+  // is also wrong — the switch announces its own on and off, which confirms the
+  // control but never the consequence, and the all-off consequence is the one
+  // that must not be discovered later on a map. So this announces the MANIFEST
+  // SENTENCE: short, already generated, and the exact string a sighted user
+  // watches change.
+  //
+  // Sequence-keyed child per the v0.5.80 convention: aria-live fires on DOM
+  // mutation, and React bails out reconciling a text node to an identical
+  // string, so a repeat would be silent while every textContent assertion stayed
+  // green. With three switches every flip changes the string, so a consecutive
+  // identical announcement is unreachable today; the key costs one integer, this
+  // repo has shipped that exact bug once, and a fourth destination makes it
+  // reachable again.
+  const [announcement, setAnnouncement] = useState<{ text: string; seq: number }>({ text: '', seq: 0 })
 
   return (
     <div style={{ padding: '14px 16px' }}>
@@ -741,33 +743,52 @@ function ShareCopyRow() {
       <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
         What gets copied when you copy a location from a map pin. Coordinates are decimal degrees to five places, latitude first.
       </p>
-      <RadioGroup
-        label="Copying a location"
-        value={mode}
-        onChange={setShareCopyMode}
-        options={SHARE_COPY_OPTIONS.map(({ key, label, sub }) => ({
-          key,
-          // Leads with what is on screen, then the sub-line (WCAG 2.5.3).
-          ariaLabel: `${label}. ${sub}`,
-          style: btnStyle(key),
-          children: (
-            <>
-              <span style={{ display: 'block' }}>{label}</span>
-              <span style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 400, marginTop: 2 }}>
-                {sub}
-              </span>
-            </>
-          ),
-        }))}
-      />
-      {/* "Copy coordinates and map links" describes a payload; this IS the
-          payload, built by the same buildSharePayload the popup uses. Same
-          pattern the Weather tab already established. */}
+
+      {/* Three independent switches, in payload order, generated from the parts
+          table — so a fourth destination is one row there and nothing here. No
+          per-row description: three sub-lines would triple the card height to
+          explain what the live example already shows literally, and each switch
+          describes only its own line. */}
+      {SHARE_PARTS.map(part => (
+        <div key={part.key} className="sr-share-part sr-action-row">
+          <span className="sr-share-part-label sr-min0">{part.label}</span>
+          <ToggleSwitch
+            bare
+            labelVisible={false}
+            label={sharePartName(part)}
+            checked={selection[part.key]}
+            onChange={() => {
+              // The flip is computed ONCE, in the store, and the announcement is
+              // derived from what it returned.
+              const nextOn = selectedParts(toggleShareCopyPart(part.key))
+              const text = nextOn.length === 0 ? SHARE_EMPTY_SETTINGS : shareModeLine(nextOn)
+              setAnnouncement(a => ({ text, seq: a.seq + 1 }))
+            }}
+          />
+        </div>
+      ))}
+
+      {/* The switch labels describe a payload; this IS the payload, built by the
+          same buildSharePayload the popup uses. Same pattern the Weather tab
+          already established. The swap to the all-off sentence is deliberately
+          NOT animated: the entire safety argument for permitting all three off is
+          that the consequence appears at the instant the last switch flips. */}
       <div className="sr-share-example-label">
         <Copy size={11} strokeWidth={2.2} aria-hidden />
         Example
       </div>
-      <pre className="sr-share-example">{example}</pre>
+      {on.length === 0 ? (
+        <p className="sr-share-empty">{SHARE_EMPTY_SETTINGS}</p>
+      ) : (
+        <>
+          <pre className="sr-share-example">{example}</pre>
+          <p className="sr-share-manifest">{shareModeLine(on)}</p>
+        </>
+      )}
+
+      <span role="status" aria-live="polite" className="sr-only">
+        {announcement.text ? <span key={announcement.seq}>{announcement.text}</span> : null}
+      </span>
     </div>
   )
 }
