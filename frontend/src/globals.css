@@ -113,6 +113,15 @@
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
 
+  /* Sticky-surface haze — the soft drop under a pinned/floating band (today the
+     Breeding Codes pinned header), so rows read as passing UNDER it rather than
+     smearing into it. A full-value shadow token, the same convention as
+     --sr-card-shadow and --sr-switch-thumb-shadow. Tinted with the app's own ink
+     rather than pure black. Named generically so a future sticky surface reuses
+     it; the dark value is a SEPARATE, deeper haze (see [data-theme="dark"]) —
+     a light haze is invisible against the near-black --sr-bg. */
+  --sr-sticky-shadow: 0 3px 6px -2px rgba(15,17,23,0.12);
+
   /* Switch (on/off toggle) thumb — theme-neutral white knob, IDENTICAL in both themes
      (a white knob reads correctly on the accent/gray-400 track in light AND dark; the
      --sr-gray-400 off-track above is contrast-tuned against this white). The knob carries
@@ -340,6 +349,13 @@
 
   /* Shadow */
   --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+
+  /* Sticky-surface haze — deliberately NOT the :root value. --sr-bg is #09090B
+     here, so the light 12% haze would be invisible; the dark theme needs a
+     deeper, wider one to read at all. (The "same as :root by design" trap from
+     the milestone-badge post-mortem cuts both ways: this token carries no text,
+     so there is no AA question, but it does have to be visible.) */
+  --sr-sticky-shadow: 0 3px 8px -2px rgba(2,2,4,0.60);
 
   /* Switch thumb — same white knob + shadow as :root by design (theme-neutral control
      chrome, carries no text; --sr-gray-400 off-track is contrast-tuned against this white). */
@@ -931,6 +947,138 @@ h1, h2, h3, h4, h5, h6 {
    (width:min-content) lives in the @media (max-width:640px) block below. Normal mode
    never carries this class, so it is unaffected. */
 .sr-bc-card { width: max-content; }
+
+/* The header row's bottom hairline, lifted OFF BreedingCodeTable.tsx's inline
+   thBase.boxShadow. The value is byte-identical to the old inline one, so the
+   shipped (unpinned) header renders exactly as before in both views. It HAS to
+   be a class: the pinned rule below must override it, and a React inline style
+   is specificity 1,0,0 — unreachable from the stylesheet. The Normal-view corner
+   cell keeps its OWN inline boxShadow (hairline + the name-column's 1px right
+   edge) and so is untouched by either rule. */
+.sr-bc-matrix thead th { box-shadow: inset 0 -1px 0 var(--sr-border); }
+
+/* PINNED code labels (opt-in; Unbounded view only — BreedingCodeTable.tsx adds
+   the modifier only when `pinned && wideMode`). The default remains the shipped
+   natural full-height page-scrolling table: with the modifier absent this whole
+   block is inert.
+
+   Why Unbounded only: in Normal view the `overflow-x: auto` wrapper IS the
+   scrollport, so a sticky header there would need a capped-height inner box —
+   and at 200% in-app text scale no height unit works (a dvh cap leaves ~5 rows,
+   a rem cap exceeds the viewport so the scrollport's top, and with it the
+   header, sits off-screen). In Unbounded neither the card nor the wrapper sets
+   overflow, so the scrollport is the PAGE: `top: 0` anchors to the viewport and
+   the table keeps its full natural height. See the pin state machine in
+   BreedingCodeList.tsx, which enforces `pinned implies Unbounded`.
+
+   position: sticky sits on each <th> INDIVIDUALLY, never on <thead>/<tr>:
+   WKWebView and older Safari honor sticky on cells only, and this ships in
+   WKWebView on macOS and iOS. `border-collapse: separate` (already set inline on
+   the table) is likewise required for sticky table headers.
+
+   Equal specificity to the base rule above (0,1,2), so SOURCE ORDER decides —
+   this block must stay after it.
+
+   z-index 3 on every pinned header cell: Unbounded drops the horizontal
+   name-column freeze, so the body name cells carry no z-index, there is no
+   both-axes corner to arbitrate, and all header cells share one layer.
+
+   The band's background is the shipped --sr-bg (opaque, so rows cannot show
+   through) and the hairline steps --sr-border → --sr-border-medium plus the
+   --sr-sticky-shadow haze, so rows read as passing under the band. That pair is
+   visual reinforcement, NOT the sole means of identifying the state: the header
+   is identified by its text and the state by the pill's aria-pressed, so the
+   ~1.65:1 hairline is deliberate and is not claimed as a WCAG 1.4.11 pass. */
+.sr-bc-matrix--pinned thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  box-shadow: inset 0 -1px 0 var(--sr-border-medium), var(--sr-sticky-shadow);
+}
+
+/* Keyboard focus must not land under the pinned band (WCAG 2.2 SC 2.4.11).
+   3rem clears the band at both 100% and 200% in-app text scale.
+
+   THE DESCENDANT SELECTORS ARE THE POINT, not defensive noise. `scroll-margin`
+   applies to the element being scrolled INTO VIEW, and it does NOT inherit. The
+   focusables in the body are not the cells: BirdName renders a
+   <button class="sr-birdname-link"> inside each row-header cell, with the
+   SpeciesLinks anchors beside it. A rule on the cells alone therefore computes
+   0px on every element that can actually take focus and never participates in
+   the scroll — measured, not reasoned: reverse-tabbing the species list landed
+   focused controls fully under the band at both text scales
+   (pipeline/breeding-code-pinned-labels/focus-obscured-probe.mjs).
+   The `*` covers present and future focusables without enumerating them.
+
+   Why NOT `scroll-padding-top` on the scrollport, which is the other half of the
+   pair and equally effective here (both measured at zero occurrences): in
+   Unbounded the scrollport is the PAGE, so that rule would have to live on the
+   root. Deferred tabs stay MOUNTED when hidden (App.tsx's mountedTabs only ever
+   grows and the panel hides with display:none), so a pinned-and-then-left tab
+   would leave a document-wide scroll-padding on every other tab. A
+   :root:has(.sr-bc-matrix--pinned) form has the same leak, since display:none
+   does not remove the table from the DOM. Keeping the rule inside this table's
+   own subtree cannot reach another tab, and needs no class on <html>, no effect,
+   and no scroll listener.
+
+   The HORIZONTAL axis is genuinely different and is correctly the other
+   property: in Normal view the overflow-x wrapper IS a real scrollport, so
+   BreedingCodeTable.tsx sets scrollPaddingLeft on it. scroll-padding goes on the
+   scrollport; scroll-margin goes on the focus target. */
+.sr-bc-matrix--pinned tbody th,
+.sr-bc-matrix--pinned tbody td,
+.sr-bc-matrix--pinned tbody th *,
+.sr-bc-matrix--pinned tbody td * { scroll-margin-top: 3rem; }
+
+/* iOS app only, mirroring `.sr-ios-app body`'s padding-top. A sticky element
+   resolves `top` against its SCROLLPORT (here the viewport), which sits ABOVE
+   the body's safe-area padding — so without this the band pins into the notch /
+   Dynamic Island on a notched iPhone. Gated on .sr-ios-app for the same reason
+   as the body rule and .sr-map-fullscreen-panel: index.html ships
+   viewport-fit=cover to browsers too, so a bare env() here would change the
+   shipped web rendering in iOS Safari. Desktop and web never carry the class. */
+.sr-ios-app .sr-bc-matrix--pinned thead th { top: env(safe-area-inset-top, 0px); }
+/* The focus twin, on the same four selectors as the base rule above (the cells
+   AND their focusable descendants) with the inset composed in, because on iOS
+   the band sits that much lower. */
+.sr-ios-app .sr-bc-matrix--pinned tbody th,
+.sr-ios-app .sr-bc-matrix--pinned tbody td,
+.sr-ios-app .sr-bc-matrix--pinned tbody th *,
+.sr-ios-app .sr-bc-matrix--pinned tbody td * {
+  scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
+}
+
+/* The pinned-state note. .sr-bc-pinstatus is a CHROMELESS wrapper that is always
+   rendered (it is the role="status" region — a live region has to exist before
+   its content changes, or the first change is not announced) and collapses to
+   nothing when empty: no padding, no margin, no border. All the visible geometry
+   is on the note itself, which is the region's keyed child. */
+.sr-bc-pinstatus { display: block; }
+
+/* Same geometry as the shipped filter strip (7px 12px, radius 6, 8px below) but
+   on neutral surface-faint rather than the accent tint: the accent is already
+   spent on the pressed pill, and pinning is not a filter. */
+.sr-bc-pinnote {
+  margin: 0 0 8px;
+  padding: 7px 12px;
+  background: var(--sr-surface-faint);
+  border: 1px solid var(--sr-border-subtle);
+  border-radius: 6px;
+  font-size: 0.71875rem;
+  line-height: 1.45;
+  color: var(--sr-text-muted);
+}
+
+/* Enters on pin: a 2px rise out of the control row that triggered it. The band
+   itself gets NO motion — sticky is continuous positioning, not a transition. */
+@keyframes sr-bc-note-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to   { opacity: 1; transform: none; }
+}
+.sr-bc-pinnote--enter { animation: sr-bc-note-in 160ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .sr-bc-pinnote--enter { animation: none; }
+}
 
 /* Map Explorer (non-fullscreen) panel height. Replaces the inline
    calc(100vh - 178px) magic number: dvh tracks the mobile browser toolbar, the

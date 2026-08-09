@@ -29,6 +29,7 @@ function renderTable(over: Partial<React.ComponentProps<typeof BreedingCodeTable
       taxonMap={over.taxonMap ?? {}}
       taxonOrders={over.taxonOrders ?? {}}
       wideMode={over.wideMode ?? false}
+      pinned={over.pinned ?? false}
       onOpenSpecies={over.onOpenSpecies}
     />
   )
@@ -169,6 +170,7 @@ describe('BreedingCodeTable mobile column narrowing (mobile-wide-tables)', () =>
         taxonMap={{}}
         taxonOrders={{}}
         wideMode={true}
+        pinned={false}
         onOpenSpecies={undefined}
       />
     )
@@ -239,6 +241,7 @@ describe('BreedingCodeTable column separators + horizontal-sticky name column (m
         taxonMap={{}}
         taxonOrders={{}}
         wideMode={true}
+        pinned={false}
         onOpenSpecies={undefined}
       />
     )
@@ -281,6 +284,7 @@ describe('BreedingCodeTable column separators + horizontal-sticky name column (m
         taxonMap={{}}
         taxonOrders={{}}
         wideMode={true}
+        pinned={false}
         onOpenSpecies={undefined}
       />
     )
@@ -395,5 +399,104 @@ describe('BreedingCodeTable matrix table-layout hook (unbounded-column-narrowing
     // not carry .sr-bc-card — the ≤640 min-content rule must not reach Normal mode.
     expect(c.classList.contains('sr-bc-card')).toBe(false)
     expect(c.style.width).toBe('')
+  })
+})
+
+describe('BreedingCodeTable pinned code labels (breeding-code-pinned-labels)', () => {
+  // The pinned band is pure CSS (.sr-bc-matrix--pinned in globals.css) and jsdom has
+  // no layout engine, so these assert the CLASS HOOK and — just as load-bearing —
+  // the ABSENCE of the inline styles that would make the stylesheet unreachable. The
+  // stylesheet's own rules are guarded in lib/breedingCodePinnedCss.test.ts; the
+  // visible pinning is confirmed live.
+
+  const table = (c: HTMLElement) => c.querySelector('table') as HTMLElement
+
+  it('renders the shipped default unchanged when pinned is false, in BOTH views', () => {
+    // Rejects: adding sticky/top or the modifier unconditionally. The promise of
+    // this feature is that anyone who never turns it on sees today's table.
+    for (const wideMode of [false, true]) {
+      const { container, unmount } = renderTable({ wideMode, pinned: false, codesPresent: ['NB', 'FL'] })
+      expect(table(container).classList.contains('sr-bc-matrix--pinned')).toBe(false)
+      for (const name of [/^NB/, /^FL/]) {
+        const th = screen.getByRole('columnheader', { name }) as HTMLElement
+        expect(th.style.position).toBe('')
+        expect(th.style.top).toBe('')
+      }
+      unmount()
+    }
+  })
+
+  it('applies .sr-bc-matrix--pinned when pinned in Unbounded', () => {
+    const { container } = renderTable({ wideMode: true, pinned: true })
+    const t = table(container)
+    // Both classes: the modifier layers on top of the base width rules, it does not
+    // replace them (dropping .sr-bc-matrix would lose the ≤640 fixed-layout narrowing).
+    expect(t.classList.contains('sr-bc-matrix')).toBe(true)
+    expect(t.classList.contains('sr-bc-matrix--pinned')).toBe(true)
+  })
+
+  it('refuses to pin in Normal view even when asked to (pinned implies Unbounded)', () => {
+    // Rejects the wrong implementation `className={pinned ? ... }` with no wideMode
+    // gate. In Normal the overflow-x:auto wrapper is the scrollport, so a sticky
+    // header there would need a capped-height box — the shape the user rejected in
+    // v0.5.69, and one with no workable height unit at 200% text scale. The list's
+    // state machine already prevents this pairing; the component refuses it too, so
+    // the guarantee does not depend on a caller getting it right.
+    const { container } = renderTable({ wideMode: false, pinned: true })
+    expect(table(container).classList.contains('sr-bc-matrix--pinned')).toBe(false)
+  })
+
+  it('lifts the header hairline OFF the inline style so the pinned rule can override it', () => {
+    // Rejects keeping boxShadow in thBase. A React inline style is specificity 1,0,0,
+    // so .sr-bc-matrix--pinned could never step the hairline up to --sr-border-medium
+    // or add the haze — the band would ship with no visible boundary and rows would
+    // smear into it. The value itself did not change; it moved to
+    // `.sr-bc-matrix thead th`, so the unpinned header is byte-identical.
+    renderTable({ codesPresent: ['NB', 'FL'], wideMode: true, pinned: true })
+    for (const name of [/^NB/, /^FL/]) {
+      expect((screen.getByRole('columnheader', { name }) as HTMLElement).style.boxShadow).toBe('')
+    }
+    expect((screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement).style.boxShadow).toBe('')
+  })
+
+  it('keeps the Normal-view corner\'s own inline hairline + name-column edge (untouched by the lift)', () => {
+    // The lift must not disturb the one header cell that legitimately keeps an inline
+    // boxShadow: the Normal corner combines the hairline with the frozen name
+    // column's 1px right edge. Losing it would drop the name column's divider.
+    renderTable({ codesPresent: ['NB'], wideMode: false, pinned: false })
+    const corner = screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement
+    expect(corner.style.boxShadow).toContain('inset 0 -1px 0 var(--sr-border)')
+    expect(corner.style.boxShadow).toContain('1px 0 0 var(--sr-border)')
+  })
+
+  it('sets NO inline position/top/zIndex on the pinned header cells (the sticky lives in the stylesheet)', () => {
+    // Rejects implementing the pin as an inline `position:sticky; top:0`. That would
+    // work on desktop and be unreachable by the `.sr-ios-app` gate, so on a notched
+    // iPhone the band would pin under the status bar / Dynamic Island — invisible
+    // everywhere the developer looks.
+    renderTable({ codesPresent: ['NB', 'FL'], wideMode: true, pinned: true })
+    for (const name of [/^NB/, /^FL/, /Species/]) {
+      const th = screen.getByRole('columnheader', { name }) as HTMLElement
+      expect(th.style.position).toBe('')
+      expect(th.style.top).toBe('')
+      expect(th.style.zIndex).toBe('')
+    }
+  })
+
+  it('keeps borderCollapse separate while pinned (sticky table headers require it)', () => {
+    const { container } = renderTable({ wideMode: true, pinned: true })
+    expect(table(container).style.borderCollapse).toBe('separate')
+  })
+
+  it('does not add a capped-height inner scroll box in either state', () => {
+    // The v0.5.69 decision holds: no maxHeight, no both-axes overflow, at any setting.
+    for (const [wideMode, pinned] of [[false, false], [true, false], [true, true]] as const) {
+      const { container, unmount } = renderTable({ wideMode, pinned })
+      const wrapper = table(container).parentElement as HTMLElement
+      expect(wrapper.style.maxHeight).toBe('')
+      expect(wrapper.style.overflow).toBe('')
+      expect(wrapper.style.overflowY).toBe('')
+      unmount()
+    }
   })
 })

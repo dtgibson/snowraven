@@ -308,7 +308,7 @@ If the clipboard write is refused (this can happen in some browsers), the popup 
 
 **Where it works.** The share pin is on Map Explorer's My Sightings view, Species Detail's Sighting Locations map (both Pins and Heatmap), the Statistics Geographic Stats map, and the per-individual map on a Named Birds card. On Hotspots, Nearby Lifers, and Media Targets, right-click and long-press are already taken by the search center, so instead the **search center pin itself** is clickable: click it (or reach it with the keyboard) and the same copy popup opens. Dropping and dragging that pin behaves exactly as it always has.
 
-**Closing.** Press **Esc**, or the popup's close button, to remove the pin and the popup together. The pin is not saved anywhere: it disappears when you leave the tab, and nothing about it is written to disk.
+**Closing.** Press **Esc**, or the popup's close button, to remove the pin and the popup together. Switching to a different map view clears it too. The pin is not saved anywhere: it is per-session, resetting on relaunch, and nothing about it is written to disk.
 
 **Nothing is sent anywhere.** The coordinates are already on your device and the two links are assembled locally as plain text. No shortener, no geocoder, no lookup of any kind, so the whole thing works with no connection.
 
@@ -404,6 +404,10 @@ The filter row above the table includes:
 Multiple pills can be active simultaneously. The table shows only species that have at least one observation for every active selection.
 
 The Unbounded toggle removes the table's horizontal scroll constraint for easier reading on narrow screens.
+
+Pin code labels keeps the row of code headings (NB, FL, CF, and so on) visible at the top of the screen while you scroll down the species list, so you can always tell which column a circle sits in. It is off by default, and the choice is per-session, resetting on relaunch.
+
+Pinning uses the Unbounded view, so pressing Pin code labels from the normal view switches to Unbounded and pins in one press. Pressing it again unpins and puts you back in the view you started from. Switching back to Normal yourself also clears the pin. While the labels are pinned, a short note above the table says so. Nothing else changes: the table keeps its full height and the page still scrolls as one, with the legend after the last species.
 
 On a phone, in both the normal and Unbounded views, the code columns tighten to the width of their dots so far more of them fit on screen at once, thin vertical rules separate the columns so a row reads clearly across, and the species-name column stays fixed on the left as you scroll the codes sideways. You can pinch to zoom in on any part of the matrix using your device's normal gesture. The table scrolls as part of the page, with the legend at the end after the last species.
 
