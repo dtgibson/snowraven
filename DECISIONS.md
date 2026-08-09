@@ -4,6 +4,62 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Pin Share: short canonical map URLs (never a shortener), and the gesture collision resolved by extending the existing center pin — 2026-08-08 (v0.5.80)
+
+**Decision:** Drop a transient pin on a birding map with right-click or long-press and copy that spot as a share-ready block. Four sub-decisions are settled and should not be re-opened:
+
+1. **No third-party URL shortener. A permanent exclusion, not a deferral.** The user asked for "shortened" links; the delivery is short canonical coordinate URLs (`https://maps.google.com/?q=<lat>,<lng>`, 45 chars; `https://maps.apple.com/?q=<lat>,<lng>`, 44 chars), built locally. A shortener would send the user's exact coordinate to an outside company that logs it and mint a permanent public URL resolving to it — for a birding app that means nest sites, stakeouts, and suppressed rare-bird locations leaving the device. It would force a `PRIVACY_POLICY.md` entry breaking a policy that asserts nothing is collected, make the feature's central action fail offline, and make every shared link depend on a third party staying alive (the exact failure mode SnowRaven was founded to escape). Google's own `maps.app.goo.gl` links can only be minted from inside Google's infrastructure, so "use theirs" was never available either. **What the user gives up:** links are short, not tiny, and the default payload is three lines; the coordinates-only mode exists for the most compact share.
+2. **The link forms are ratified, with the alternatives on the record.** Rejected: Google's `api=1` form (19 chars longer, no benefit); `maps.app.goo.gl` / `maps.apple/p` short links (both require calling the vendor with the coordinate); a bare `geo:` URI (23 chars, but most messaging apps do not linkify it, defeating the purpose); dropping `https://` (saves 8 chars, linkification becomes app-dependent and fragile); four decimal places (saves 2 chars, costs ~10 m and diverges from what eBird shows). A single-link default with the second behind the setting was offered explicitly and declined.
+3. **The gesture collision is resolved by extension, not competition.** On the Map Explorer's Hotspots / Nearby Lifers / Media Targets views (`isCenterView`), right-click and long-press already drop the v0.5.43 search center. Rather than a second pin, a modifier key (which touch cannot express), or a mode toggle (a control on every map), the *existing* center pin gains the copy action. One gesture, one mental model. **Accepted consequence:** on those views the drop still re-runs the search — not new behavior, and better than either alternative. The Weather tab's Predict picker map is excluded entirely; a second pin concept on a small dedicated picker map would confuse rather than help.
+4. **The pin is transient and session-scoped, and copy is always an explicit press.** No saved/named/listed pins, no history, no persistence across relaunch — following the v0.5.43 center pin, Point Size, and the shading state. Auto-copying on drop would silently overwrite the clipboard on a gesture the user may have made by accident, which on the search views also re-runs a search.
+
+**Also decided:** the keyboard route (a visible corner map tool planting the pin at the view center) is the *primary* route, not a hidden fallback — a right-click-only feature has near-zero discoverability, and making the accessible route the main one serves both audiences with one control. The preference deliberately does **not** use the `useEmbeddedMediaPreference` hydration-gating pattern: that pattern exists to keep an unsafe pre-hydration state closed, and there is no unsafe state here, so the preference hydrates to its default and gates nothing. One new token pair (`--sr-share-pin` / `--sr-share-pin-ink`, theme-identical, map-anchored) because no existing map color is free on all five surfaces — shape (a planted flag) carries the distinction instead.
+
+**Accepted bounded residual, not a defect:** on the 220px Named Birds card map, with the pin dead centre and the failure block revealed, roughly 8px of the compact popup can fall outside the card (an 88px popup against 80px of room), widening to roughly 18px at 200% text scale. The geometry is genuinely impossible at that size; all content stays reachable by scrolling inside the capped body, and a test pins that the failure block, the payload, and `Select all` remain inside it. Deliberately chosen over dropping the body below a 44px touch target, which would make the copy control unusable. Every other pin position has slack. Recorded rather than roadmapped — it is a tradeoff, not a backlog item.
+
+**Implication:** four conventions promoted to `CLAUDE.md` (capture-phase Escape for in-map overlays, `display: contents` for portaling into an existing flex row, the keyed-child live region, and the px-container/rem-cap mismatch), plus an amendment to the existing required-`compact` rule.
+
+---
+
+## The Pin Share "no outbound request" claim, stated accurately — 2026-08-08 (v0.5.80)
+
+**Correction.** The strategic brief's Key Decision 9 and its matching success criterion say the feature "adds no outbound request" and that "nothing new appears in a network log." The Auditor was asked to verify rather than accept it. **The privacy conclusion is correct; the wording is not literally exact.**
+
+- **Desktop (Tauri) is literally request-free** — `TauriStorage` reads and writes `AppLocalData/data/settings.json` through `tauri-plugin-fs`, no socket involved.
+- **Web/Pi is not.** `hydrateOnce()` runs on first subscribe (the moment any share popup opens, or the Settings Sharing row mounts) and issues `GET /settings/shareCopyMode`; `setShareCopyMode()` issues `POST /settings/shareCopyMode`. Both appear in a network log.
+
+**Why no `PRIVACY_POLICY.md` change is nonetheless required** — checked limb by limb against the v0.5.76 rule ("a change that alters which component makes a third-party request is a policy change even when the host is unchanged"), because that rule is precisely what makes it easy to conclude wrongly: no third party (the user's own backend, same origin, already contacted for every other preference); **no coordinate transmitted** (the pin's lat/lng live in `SharePin`'s component-local `useState` and reach the storage seam nowhere — `setShareCopyMode` receives only a `ShareCopyMode` literal from the Settings radio group); no change to who talks to whom; and offline-safe (a failed call leaves the default in place, and the mode applies in-session before persisting).
+
+**The accurate carry-forward formulation, to be used instead of the imprecise one:** *the share action itself is pure local string work and issues no request on either transport; the preference persists through the existing same-origin storage seam, carrying only the mode literal and never a coordinate.*
+
+The published prose is accurate as written and needed no change — `README.md` ("no coordinate ever leaves your device"), `docs/HELP.md` ("no shortener, no geocoder, no lookup of any kind"), and `website/index.html` are all true statements scoped to the share block and the coordinate.
+
+**Implication:** recorded so "this feature makes no requests at all" is never cited as precedent from Decision 9. A zero-request claim is scoped to the mechanism it actually describes, and verified per transport — desktop and web/Pi can differ.
+
+---
+
+## Maplibre already suppresses the browser context menu over markers — the `onContextMenu` handlers are defense in depth, not the mechanism — 2026-08-08 (v0.5.80)
+
+**Correction.** The Engineer believed the two `onContextMenu={e => e.preventDefault()}` handlers added on the share pin were what suppressed the browser's context menu over map markers. They are not. Maplibre appends every `Marker` into the map's **canvas container**, whose own contextmenu handler ends with `this._map.listens("contextmenu") && e.preventDefault()` — so the menu is already suppressed for every marker as soon as any surface registers a `contextmenu` listener, which the drop gesture does.
+
+**Why it matters:** the handlers are genuinely redundant and were kept as defense in depth, which is fine. The hazard is the inverse reasoning — a later change that removes or bypasses maplibre's own listener registration (or stops binding `contextmenu` on a surface) believing the two React handlers cover it. They cover only their own two elements; every other marker on every map relies on maplibre's behavior.
+
+**Implication:** context-menu suppression over map markers is maplibre's, conditional on a registered `contextmenu` listener. Do not treat a local `onContextMenu` handler as the app's mechanism for it.
+
+---
+
+## Two Pin Share defects a green test suite hid: a live region that never re-announces, and a rem cap in a px container — 2026-08-08 (v0.5.80)
+
+**Post-mortem.** Both were found at the first QA gate (needs-fix), both were invisible to a passing suite, and both were fixed and independently re-verified by reverting each fix and confirming the suite failed before restoring it byte-identically.
+
+**1. A live region whose text is set to the same string does not announce.** `aria-live` fires on DOM *mutation*, and React bails out when reconciling a text node to an identical string — so pressing Copy twice announced once, while the visible confirmation re-rendered both times and every `textContent` assertion stayed green. The repo's existing rule ("render the region from the start, only change its text") is necessary but **not sufficient**. The shipped fix puts the message in a **sequence-keyed child node** whose key advances per announcement, making each one a real node replacement while the region's `textContent` stays exactly the message. The append-an-invisible-character trick was rejected: it makes every `textContent` assertion quietly false. This is a real WCAG failure mode against a published AA statement, which is what earns it a `CLAUDE.md` line.
+
+**2. A `rem` cap inside a fixed-`px` container moves the wrong way under text scale.** The compact popup body was capped at `9.5rem`, unrelated to the room actually available and *doubling* at 200% in-app text scale — `--sr-text-scale` multiplies the root font size while a `height: 220px` card map does not follow. The fix measures the container: the cap is computed from geometry and written as a px custom property from a ref side effect (no `setState`), with a floor at the touch-target size. Where the constraint is the *viewport* rather than a container, the existing `.sr-map-popup-body` (`min(60dvh, 26rem)`) remains correct.
+
+**Implication:** both promoted to `CLAUDE.md`. A live region needs a test that presses the same control twice and counts DOM mutations; a cap must measure whatever actually bounds it.
+
+---
+
 ## A nonzero share never renders as a rounded "0%" — percent display routes through `fmtSharePct` — 2026-08-08 (v0.5.79)
 
 **Decision:** A displayed whole-percent share for a NONZERO count must never render a bare rounded "0%". Share display routes through the pure `fmtSharePct(count, total)` (`frontend/src/lib/statsFormat.ts`, unit-tested): a nonzero share that rounds to zero shows "<1%"; an honest "0%" appears only for a genuinely zero count (or an empty total). Applied to the Statistics "Lists by observer count" legend, whose rows now lead with the exact checklist count — "{n} obs · {count} lists ({share})" — so the exact numbers read at a glance instead of only in the click tooltip.

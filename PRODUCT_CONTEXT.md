@@ -5,6 +5,17 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Pin Share — copy a map location as a share-ready block (complete — August 2026, v0.5.80)
+
+Right-click (desktop) or long-press (touch) anywhere on a birding map drops a transient share pin and opens a popup showing that spot's coordinates, with one press to copy a share-ready block to the clipboard: in the default mode a labeled coordinate line (decimal degrees to five places, `38.54321, -121.98765`) plus short canonical `maps.google.com/?q=` and `maps.apple.com/?q=` links; in the alternate mode the coordinate line alone. The coordinate line is independently actionable — pasted into any maps search box it finds the spot — which is what makes coordinates-only a real choice rather than a degraded one. Live on the Map Explorer's My Sightings view, Species Detail (both the pins and heatmap branches), the Statistics map, and the Named Birds card maps; on the Map Explorer's Hotspots, Nearby Lifers, and Media Targets views the drop gesture is already the v0.5.43 search-center pin, so **that existing pin gains the copy action** rather than a second pin or a competing gesture being introduced. The pin is draggable to fine-tune, session-scoped (one per map, nothing written to disk, cleared on leaving the map), and dismissed by an explicit close, Escape, or unmount. Copy is always an explicit press, never automatic on drop; a refused clipboard write reveals the payload as selectable text with a **Select all** control rather than failing silently.
+
+- A **Sharing** section in Settings chooses the mode ("Copy coordinates and map links", the default, or "Copy coordinates only") and shows a live example of the exact payload, built by the same builder the popup uses. Persisted through the `storage` seam, so it survives a desktop relaunch and a web/Pi reload.
+- **No URL shortener, permanently excluded** — a third-party shortener would send the user's exact coordinate (nest sites, stakeouts, suppressed rarities) to an outside company, mint a permanent public URL resolving to it, require a `PRIVACY_POLICY.md` entry, and break offline. Short canonical map URLs deliver the same "tappable in a text message" outcome locally.
+- The share action itself issues no request on either transport: coordinates are already on the device and both links are built as local strings. Only the preference touches the storage seam, carrying one of two mode literals and never a coordinate. `PRIVACY_POLICY.md` needs no change.
+- A corner **map tool** plants the pin at the view center, making the whole feature reachable without a pointer gesture (right-click and long-press have no keyboard equivalent, and four of the five surfaces have no coordinate inputs). It is the primary route, not a hidden accessibility fallback: on the Map Explorer it is the first item of the existing FAB cluster, so no shipped control moves.
+- One new map-anchored token pair (`--sr-share-pin` / `--sr-share-pin-ink`) — shape, a planted flag, carries the distinction from every existing pin, because no existing map color is free on all five surfaces.
+- Excluded by design: saved or named pins, a Web Share API sheet, an "Open in Maps" button, alternate coordinate formats, a reverse-geocoded place name (it would make a zero-network feature network-dependent), and the Weather tab's Predict picker map.
+
 ### Five-improvement Spool bundle: positioning, richer statistics, a rename, and a docs sweep (complete — August 2026, v0.5.78)
 
 Five queued improvements shipped as one release. The app's tagline now reads **"Self-hosted birding tools and data explorer"**, with the same formulation on the README description, the website title/og:title, and the website footer. On the Statistics tab, "Lists by observer count" shows every distinct observer count as its own bar, legend row, and donut slice (the old "5+" rollup is gone; the categorical axis renders only counts present in the data), and Temporal Stats gains a **Checklist duration** histogram — 15-minute bins for the first three hours, hourly bins after, with an average caption and an honest "N of M checklists have a usable duration" coverage note. The Frivolous Lists' rainbow collection is retitled **"Rainbow Connection"** (matching behavior unchanged). And the published docs caught up: HELP.md documents the new stats, the README's Multimedia entry names the "↔ Unbounded" toggle (closing the last v0.5.75 sweep gap), and em dashes were swept to zero across README, PRIVACY_POLICY.md, ACCESSIBILITY.md, and the website.
@@ -76,7 +87,8 @@ center pin. Right-click (desktop) or long-press (touch) anywhere on the map drop
 pin there and re-runs that view's search for the spot; dragging the pin fine-tunes (re-running
 on release). It works alongside the existing place-name search, "Use my location", and
 coordinate entry — all drive the same shared center — and is session-only (it doesn't change
-the saved Default Location). New `CenterPinDropper` (binds `map.on('contextmenu')` + a
+the saved Default Location). Its popup also carries the Pin Share copy action, so the one pin
+both sets the search center and shares the spot. New `CenterPinDropper` (binds `map.on('contextmenu')` + a
 hand-rolled touch long-press timer, cancelled on any pan/zoom and deduped against a
 synthesized post-long-press `contextmenu`) and `CenterPin` (a draggable DOM `<Marker>` that
 replaces the detected-location dot while shown) in `components/map/MapControls.tsx`; an

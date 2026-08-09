@@ -28,8 +28,15 @@ never promotional.
 - **Rainbow swatches:** `--sr-rainbow-{red,orange,yellow,green,blue,indigo,violet}` (Statistics → Frivolous Lists / Rainbow Warrior, v0.5.36) — decorative color dots, per-theme (saturated on light, luminous on dark), each with a 1px `--sr-border-medium` ring and `opacity: 0.30` when unfilled. The color NAME is the accessible text, so these are not held to text contrast.
 - **County choropleth ramp:** `--sr-county-{1..10}` (+ `-rgb` triplets) — a sequential single-hue green ramp (light `#C3E8D1` → deep `#1A5C38`, geometric-luminance-spaced so every adjacent step stays legible, deepening toward `--sr-accent-strong`) for a magnitude choropleth drawn on a map (Map Explorer county shading). Use THIS ramp — not the purple `--sr-tier` breeding ramp — for any new map magnitude choropleth, so it reads as "how many" and stays visually distinct from the breeding-atlas overlay when both are on. The ten steps serve BOTH tier mappings — quantile classes for count metrics and fixed 0–100% bands for absolute-scale metrics (Completeness) — and the same steps drive the Use Textures density hatch and the popup progress-bar fill (each county's bar filled with its own band token). Declared IDENTICALLY in both themes because the map canvas is the always-light Positron basemap regardless of app theme (same posture as the map-pin / rank / milestone on-map tokens; theme-flipping would wash the fills out over a light base). On-map fills use the solid color at `fill-opacity ~0.85`; the unrecorded tier is outline-only (`fill-opacity 0`, still hit-tested). Legend swatches use the solid color with a `--sr-border-medium` ring; legend text uses the theme-flipping `--sr-text` / `--sr-text-muted` (AA). There is no on-fill map text, so no on-fill text pair is minted.
 - **Calendar day-shade ramp (text-bearing):** `--sr-cal-{1..5}` (+ `-rgb`) with one white on-cell number `--sr-cal-fg` (`#FFFFFF`) — a sequential deep-green ramp (`#357E56 → #0C271A`) sized so the single on-fill number clears WCAG AA (≥4.5:1) on EVERY tier. Use THIS ramp — not the fill-only county ramp — whenever a shade cell CARRIES TEXT ON THE FILL: a fill-only ramp can't guarantee on-fill text contrast at every step (a mid ramp fill is a dead zone for any single text color), so a text-bearing surface gets its own ramp with a locked class count (here 5, forced by the AA + adjacency math) and one re-tuned on-fill text token. Declared IDENTICALLY in both themes (same posture as the county / map-pin / milestone on-surface tokens; theme-flipping would break the on-fill contrast guarantee). The steps also drive the colorblind crosshatch companion — a DOM CSS `repeating-linear-gradient` (`calHatchCss` over the `-rgb` tokens; the DOM analogue of the map's MapLibre-sprite hatch, reusing only the pure monotonic density shape). Guard the pair with a parse-the-tokens test asserting on-fill text ≥4.5:1 on every tier in both themes (the county ramp's contrast test omits this because it has no on-fill text).
+- **Share pin:** `--sr-share-pin` (#B4341F) + `--sr-share-pin-ink` (#FFFFFF) — the transient user-planted map pin. Declared IDENTICALLY in both themes (map-anchored: only ever drawn on the always-light Positron basemap, same posture as `--sr-map-pin-*` / `--sr-rank-pin-*` / the county ramp; theme-flipping would wash it out over a light base). 5.38:1 on Positron land, 6.08:1 for the ink notch — both clear the 3:1 WCAG 1.4.11 bar for a non-text graphic with the margin that keeps it legible over satellite too. No text is painted on the fill, so no on-fill text pair is minted.
 - **Rule:** every color via `var(--sr-*)`; new tokens go in BOTH themes before
-  use; rgba alphas via the `-rgb` triplet pattern.
+  use; rgba alphas via the `-rgb` triplet pattern. **Before minting a new map
+  color, check it is free on EVERY surface it will appear on** — the accent is
+  the sighting pin, the search-center pin and the rank circle; blue is the
+  Statistics rank square; amber and violet are Map Explorer's personal and
+  target pins. When no color is free everywhere, let SHAPE carry the
+  distinction and mint a token only to keep the new shape from reading as an
+  existing data class.
 
 ## Type
 Inter / system-ui. Three working roles: headline (1.125rem/700, -0.01em),
@@ -58,6 +65,30 @@ italic at 0.71875rem `--sr-text-gray`.
   (`/^S\d+$/`); `target="_blank" rel="noreferrer"`; accent + ExternalLink glyph.
 - **Icons:** Lucide, 11–15px, stroke ~2.2, purposeful only.
 - **Maps:** `<SnowMap>`/`SightingsMap` wrappers only.
+- **Map tools & transient pins:** a pointer gesture on a map (right-click /
+  long-press) always has a VISIBLE companion control, not a hidden shortcut — a
+  gesture-only feature has near-zero discoverability, and making the
+  keyboard-reachable route the primary one serves both audiences with one
+  control. The control is a small square icon button in the map's bottom-right
+  corner (`.sr-share-corner`, 30px in compact), joining the existing
+  `.sr-map-fab-cluster` as its FIRST item where that cluster exists, so no
+  shipped control moves and the iOS safe-area handling is inherited. A pin the
+  user plants is a distinct shape from any data pin (a planted flag against
+  teardrops and circles: a precise point rather than a bulb, right for a "this
+  exact spot" gesture), draggable to fine-tune, one at a time per map, session-
+  scoped with nothing written to disk. Its popup carries the coordinate in
+  `--font-mono`, one primary action, and a muted mode line naming what the
+  action will produce. Success settles QUIETER, not louder — the button goes
+  from accent-filled to accent-tinted (`--sr-accent-bg` on `--sr-accent`) with a
+  `Check` icon for ~2s, never a toast. A failed clipboard write reveals the
+  payload as selectable text plus a **Select all** control (Selection API only,
+  so it cannot fail the way the copy just did) — "select the text below" is
+  advice a phone user cannot follow by hand across wrapped lines in a map popup.
+  **Compact reduces size, never meaning:** on a small host map the popup
+  narrows, tightens padding and caps its body, but keeps every label, the mode
+  line, the failure text and `Select all` — the same full-density-degradation
+  rule as the inline-media placeholder, and the body cap floors at the
+  touch-target size rather than shrinking the action out of reach.
 - **Inline media (ML embeds):** Macaulay Library `.../asset/<id>/embed` iframe in
   a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. Height is a
   modifier class per surface, and each surface keeps its own classes so the two can
