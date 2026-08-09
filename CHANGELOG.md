@@ -2,6 +2,25 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.81] - 2026-08-09
+
+Five improvements in one release, most of them about making SnowRaven comfortable on a phone. (Shipped as a Spool bundle of 5 builds.)
+
+### Added
+- **Pin the code labels on the Breeding Codes matrix.** A new "Pin code labels" control keeps the row of code headers (NB, FL, CF, and the rest) visible while you scroll a long species list, so a circle's column stays identifiable instead of being a guess once the header has scrolled away. It is off by default and the choice is per-session, resetting on relaunch. Pinning works in the "↔ Unbounded" view, where the header can stay put without capping the table's height, so pressing Pin from the Normal view moves you there and pins in one press; pressing it again puts you back where you started. The natural full-height table you asked for in v0.5.69 is untouched as the default.
+- **Choose exactly what a shared location contains.** The Settings Sharing preference is now three independent switches, for the coordinates, the Google Maps link, and the Apple Maps link, so any combination is available instead of the previous two-way choice. The live example updates as you flip them, including when you switch all three off, in which case the share popup says so plainly rather than offering a button that would copy nothing. If you had previously chosen coordinates only, that is exactly what you still get.
+
+### Fixed
+- **The iPhone's Dynamic Island no longer covers the map sub-tabs.** In expanded map mode the panel was pinned to the physical top of the screen, so the status bar and Dynamic Island painted over the My Sightings and Hotspots tabs. The panel now clears them, and also clears the sensor housing in landscape.
+- **Consistent filter text on phones.** In the filter rows, dropdowns and date fields rendered noticeably larger than the buttons beside them, because the guard that stops iOS zooming in when you tap a form control pinned those controls to a fixed size. Both sides now match, on Life List, Multimedia, Checklists, Breeding Codes, Species Detail, and Calendar. The mismatch also used to invert at large text sizes, where the buttons grew and the dropdowns did not; that is fixed by the same change, so the rows stay consistent at every text scale.
+- **The in-app Help no longer opens under the Dynamic Island**, and its table of contents no longer runs past the bottom of the panel on an iPad, which had made its last few entries unreachable.
+
+### Documentation
+- Two statements in the in-app Help were wrong and are corrected. The Help said the Breeding Codes view choice turns itself off when you leave the tab, and it said the map share pin disappears when you leave the tab. Neither is true: tabs stay loaded once opened, so both settings persist until you relaunch. The share pin claim had been wrong since v0.5.80.
+
+### Notes
+- **Nothing here sends anything anywhere.** A "copy the closest street address" option was considered for the share pin and deliberately not built: it would have required looking the address up from a mapping service, which would have made the feature's no-lookup promise conditional. The share pin still assembles everything on your own device and works with no connection.
+
 ## [0.5.80] - 2026-08-08
 
 ### Added
