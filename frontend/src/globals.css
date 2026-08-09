@@ -1833,6 +1833,39 @@ select:focus-visible {
   top: 16px;
 }
 
+/* iOS app only. The skip link is `position: fixed`, so it is viewport-relative
+   and escapes the `.sr-ios-app body` padding-top: its focused rest position of
+   16px is measured from the PHYSICAL top and lands inside the Dynamic Island
+   band, leaving most of the pill behind opaque hardware. Same escape as
+   .sr-map-fullscreen-panel and .sr-help-panel, and gated for the same reason:
+   index.html ships viewport-fit=cover to browsers too, so a bare env() would
+   change shipped web rendering on every notched phone. Desktop is env()=0
+   either way; web/Pi never carries the class.
+
+   RE-POINT, don't pad. The two panels pad because they are inset:0
+   full-viewport boxes. This is a point-anchored pill, so padding would grow it
+   by the inset and paint its green background across the Island. The right
+   precedent is `.sr-ios-app .sr-bc-matrix--pinned thead th`, which likewise
+   moves an offset rather than adding padding.
+
+   :focus ONLY. The base rule's top:-100px is the off-screen park and is
+   load-bearing: at 200% text scale the pill is ~62px tall, so its bottom edge
+   sits at -38px. Add the inset there — by calc() or by padding, both fail the
+   same way — and on a 59px-inset phone the bottom lands at +21px, i.e. the
+   HIDDEN link becomes permanently visible in the Island band.
+
+   `left` yes, `right` never. `left` is the one at risk in landscape, and it
+   self-corrects in the rotation where the housing is on the far side (inset-left
+   is 0 there, so the calc collapses to the shipped 16px). The element declares
+   no `right` at all, and adding one to a width:auto fixed box would stretch the
+   pill across the viewport — the deliberate deviation from the two panel rules,
+   which need both edges only because inset:0 pins both. Bottom omitted, as in
+   every precedent. */
+.sr-ios-app .sr-skip-link:focus {
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  left: calc(16px + env(safe-area-inset-left, 0px));
+}
+
 /* ── MapLibre popups — theme to the app surface (default chrome is hardcoded white,
    which is a visible bug in dark mode). The content box + the little anchor tip both
    need the surface color; the tip is a CSS triangle whose facing border carries it. */
@@ -1963,6 +1996,32 @@ select:focus-visible {
      section labels, which are spans and stay deliberately smaller. */
   .sr-input-16,
   .sr-ctl-row :is(button, select, input) { font-size: max(16px, 0.75rem) !important; }
+
+  /* Map Explorer sidebar only: stack the Date Range pair from 481-640 too
+     (fix: map-explorer-input-zoom).
+
+     The general .sr-field-row stacks at <=480. That is enough everywhere else,
+     because every other consumer (LifeList, BreedingCodeList, Checklists,
+     SpeciesDetail, App) sits in the full-width main panel and gets 220px+ per
+     date field in this band. The Map Explorer's pair is the one that lives in
+     the fixed 282px sidebar overlay: content is 250px, so side by side each
+     native date input gets 120.5px. MEASURED in a browser against the built
+     CSS, not reasoned about: at 12px "08/09/2026" fits, at the 16px this tier's
+     .sr-input-16 guard now enforces it renders "08/09/202" with the year's last
+     digit cut off. Stacking gives each field the full 250px and the date reads
+     in full.
+
+     Scoped to the sidebar rather than moving the global tier to 640, per the
+     standing "prefer the rule that lives inside the feature's own subtree"
+     convention -- a global move would restack five surfaces that have no
+     problem. The guard itself is NOT weakened; the row adapts to it.
+
+     The <=480 block later in this file re-states the same declarations at lower
+     specificity; both agree, so the overlap is inert. Above 640 nothing here
+     applies and the sidebar is byte-identical (verified: same fonts, same
+     widths, same layout at 641px). */
+  .sr-map-sidebar-overlay .sr-field-row { flex-direction: column; align-items: stretch; }
+  .sr-map-sidebar-overlay .sr-field-row > * { width: 100%; }
 
   /* Breeding Codes matrix on a phone: narrow each code column from 44px to ~30px
      (the 28px count dot + ~1px breathing room each side), roughly halving the

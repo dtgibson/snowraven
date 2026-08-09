@@ -147,6 +147,76 @@ describe('phone-tier filter-control size: one formula for both sides', () => {
   })
 })
 
+describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explorer-input-zoom)', () => {
+  /** Rules that set a flex-direction on a .sr-field-row. */
+  function stackingRules(): Rule[] {
+    return rules().filter(r =>
+      r.selector.includes('.sr-field-row') && /flex-direction\s*:/.test(r.body),
+    )
+  }
+
+  it('stacks the sidebar field row inside the ≤640 tier', () => {
+    // Rejects deleting the rule, and rejects writing it outside the phone tier.
+    // It exists only because .sr-input-16 raises these two native date inputs to
+    // 16px in this tier: MEASURED in a browser against the built CSS, at 12px
+    // "08/09/2026" fits the 120.5px each gets side by side in the 282px sidebar,
+    // and at 16px it renders "08/09/202" with the year's last digit cut off.
+    // Stacking gives each field the full 250px. Above 640 the guard does not
+    // apply, so neither must this.
+    const [open, close] = phoneTierRange()
+    const inTier = stackingRules().filter(r => r.offset > open && r.offset < close)
+    expect(inTier.length, 'the sidebar field row must stack inside @media (max-width: 640px)').toBe(1)
+    expect(inTier[0].body).toMatch(/flex-direction:\s*column/)
+  })
+
+  it('scopes the stacking to the map sidebar rather than moving the global tier', () => {
+    // Rejects the over-reaching fix: changing the general `@media (max-width:
+    // 480px)` .sr-field-row block to 640. That would restack the pair on five
+    // other surfaces (LifeList, BreedingCodeList, Checklists, SpeciesDetail,
+    // App) which sit in the full-width main panel, get 220px+ per field in this
+    // band, and have no problem at any size. The Map Explorer's row is the only
+    // .sr-field-row inside a fixed 282px overlay, and its fix belongs in its own
+    // subtree.
+    const [open, close] = phoneTierRange()
+    for (const r of stackingRules()) {
+      const scoped = r.selector.includes('.sr-map-sidebar-overlay')
+      if (r.offset > open && r.offset < close) {
+        expect(scoped, `${r.selector} in the ≤640 tier must be scoped to the map sidebar`).toBe(true)
+      } else {
+        // The general stacking rule stays where it was, at ≤480.
+        expect(scoped, `${r.selector} outside the ≤640 tier must stay unscoped`).toBe(false)
+      }
+    }
+  })
+
+  it('gives the stacked fields the full row width', () => {
+    // Rejects flipping the axis without releasing the width. The children carry
+    // an inline `flex: 1; min-width: 0`, which in a column container distributes
+    // height, not width, so without this they would keep their auto width and
+    // the stack would buy nothing.
+    const widthRule = rules().find(r =>
+      r.selector.includes('.sr-map-sidebar-overlay') &&
+      r.selector.includes('.sr-field-row') &&
+      /width\s*:/.test(r.body),
+    )
+    expect(widthRule, 'the stacked fields need width: 100%').toBeTruthy()
+    expect(widthRule!.body).toMatch(/width:\s*100%/)
+  })
+
+  it('keeps the nine Map Explorer controls carrying the guard itself', () => {
+    // Rejects "fixing" the clipped date by dropping .sr-input-16 from the pair
+    // instead of stacking them. That would make the row fit and silently restore
+    // the iOS focus zoom on both date fields, which is the whole bug. The count
+    // is nine: place-name search, latitude, longitude, species, both dates,
+    // county, media, target-species search.
+    const src = readFileSync(new URL('../components/MapExplorer.tsx', import.meta.url), 'utf8')
+    // `[^>]*` cannot cross a `>`, so this only matches a class inside the SAME
+    // opening tag as the control -- a class on a wrapper is not counted.
+    const onControls = [...src.matchAll(/<(?:input|select)\b[^>]*className="sr-input-16"/g)]
+    expect(onControls.length).toBe(9)
+  })
+})
+
 describe('the premise the formula rests on', () => {
   it('keeps the root font-size multiplied by --sr-text-scale', () => {
     // The rem half of max(16px, 0.75rem) only tracks in-app text scale because the
