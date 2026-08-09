@@ -17,6 +17,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { mapContentClass } from './mapFullscreen'
+import { parseTopLevelRules } from './cssTopLevelRules'
 
 const css = readFileSync(fileURLToPath(new URL('../globals.css', import.meta.url)), 'utf8')
 const mapExplorer = readFileSync(
@@ -25,63 +26,41 @@ const mapExplorer = readFileSync(
 )
 const app = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.url)), 'utf8')
 
-// Remove every @media { … } block (brace-depth walk) so iosRule can only match
-// TOP-LEVEL rules. This enforces the any-width guarantee for real: globals.css
-// says the .sr-map-ios-fullscreen rules "mirror the ≤640 phone-tier block —
-// keep the two in sync", which invites a DRY consolidation INTO that media
-// block; doing so would silently kill iOS fullscreen at >640px (iPad — the
-// primary device the scope class exists for) while a bare textual regex would
-// keep matching. Stripping the media blocks makes that relocation fail here.
-function stripMediaBlocks(src: string): string {
-  let out = ''
-  let i = 0
-  for (;;) {
-    const at = src.indexOf('@media', i)
-    if (at === -1) {
-      out += src.slice(i)
-      return out
-    }
-    out += src.slice(i, at)
-    const open = src.indexOf('{', at)
-    if (open === -1) return out // malformed tail — nothing top-level left
-    let depth = 1
-    let j = open + 1
-    while (j < src.length && depth > 0) {
-      if (src[j] === '{') depth++
-      else if (src[j] === '}') depth--
-      j++
-    }
-    i = j
-  }
-}
+// Every TOP-LEVEL rule in globals.css, via the SHARED parser in
+// ./cssTopLevelRules — extracted when the .sr-skip-link guard in
+// iosChrome.test.ts became the third one needing this shape (see CLAUDE.md).
+// It replaces this file's own stripMediaBlocks + iosRule + cssRule trio, and
+// gives the same two guarantees they were written for:
+//  1. At-rule blocks are skipped WHOLE, so only top-level rules can be read.
+//     This enforces the any-width guarantee for real: globals.css says the
+//     .sr-map-ios-fullscreen rules "mirror the ≤640 phone-tier block — keep the
+//     two in sync", which invites a DRY consolidation INTO that media block;
+//     doing so would silently kill iOS fullscreen at >640px (iPad — the primary
+//     device the scope class exists for) while a bare textual regex would keep
+//     matching. A relocated rule vanishes from this map and fails here.
+//  2. EXACT selector keys, so `.sr-map-fullscreen-panel` cannot be read out of
+//     `.sr-ios-app .sr-map-fullscreen-panel` — the base rule and its gated
+//     companion have to be distinguishable for the gating test to mean anything.
+//     (This is stricter than the line-anchored regex it replaces, which relied
+//     on the two rules starting on their own lines.)
+// The parser's own properties are asserted in cssTopLevelRules.test.ts.
+const topLevel = parseTopLevelRules(css)
 
-const topLevelCss = stripMediaBlocks(css)
-
-// The declaration block for `.sr-map-ios-fullscreen <child>` — matched against
-// the media-stripped stylesheet, so only top-level rules count (the scope
-// class must work at ANY width).
-function iosRule(childSelector: string): string {
-  const re = new RegExp(
-    String.raw`\.sr-map-ios-fullscreen\s+${childSelector.replace(/\./g, '\\.')}\s*\{([^}]*)\}`,
-  )
-  const m = topLevelCss.match(re)
-  expect(m, `.sr-map-ios-fullscreen ${childSelector} rule missing from globals.css (top-level)`).toBeTruthy()
-  return m![1]
-}
-
-// A whole-selector rule matcher over the media-stripped stylesheet. Anchored to
-// the start of a line so `.sr-map-fullscreen-panel` cannot accidentally match
-// inside `.sr-ios-app .sr-map-fullscreen-panel` — the base rule and its gated
-// companion have to be asserted separately for the gating test to mean anything.
+/** Declaration body of a top-level rule, by exact selector. */
 function cssRule(selector: string): string {
-  const re = new RegExp(
-    String.raw`(?:^|\n)[ \t]*` +
-      selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
-      String.raw`\s*\{([^}]*)\}`,
-  )
-  const m = topLevelCss.match(re)
-  expect(m, `${selector} rule missing from globals.css (top-level)`).toBeTruthy()
-  return m![1]
+  const body = topLevel.get(selector)
+  expect(body, `${selector} rule missing from globals.css (top-level, outside @media)`).toBeTruthy()
+  return body!
+}
+
+/** Declaration body of a top-level `.sr-map-ios-fullscreen <child>` rule. */
+function iosRule(childSelector: string): string {
+  return cssRule(`.sr-map-ios-fullscreen ${childSelector}`)
+}
+
+/** Whether any top-level rule's selector names `needle`. */
+function someTopLevelSelector(needle: string): boolean {
+  return [...topLevel.keys()].some((s) => s.includes(needle))
 }
 
 // The Map Explorer tabpanel's opening tag in App.tsx (className + style),
@@ -113,26 +92,30 @@ describe('mapContentClass', () => {
 })
 
 describe('iosRule top-level enforcement (the any-width guarantee)', () => {
-  it('stripMediaBlocks removes rules nested inside @media, keeps top-level ones', () => {
+  it('the parser drops rules nested inside @media, keeps top-level ones', () => {
+    // This file's own claim about its plumbing, kept in place across the move to
+    // the shared parser (which asserts the same property, plus several more, in
+    // cssTopLevelRules.test.ts) — the rules read below are only as trustworthy
+    // as the media-block exclusion, so it is asserted where it is relied on.
     const fixture = [
       '.sr-keep { color: red; }',
       '@media (max-width: 640px) { .sr-map-ios-fullscreen .sr-x { display: block; } }',
       '@media (min-width: 1024px) { @supports (gap: 1px) { .sr-nested { gap: 1px; } } }',
       '.sr-also-keep { color: blue; }',
     ].join('\n')
-    const stripped = stripMediaBlocks(fixture)
-    expect(stripped).toContain('.sr-keep')
-    expect(stripped).toContain('.sr-also-keep')
-    expect(stripped).not.toContain('sr-map-ios-fullscreen')
-    expect(stripped).not.toContain('sr-nested')
+    const parsed = [...parseTopLevelRules(fixture).keys()]
+    expect(parsed).toContain('.sr-keep')
+    expect(parsed).toContain('.sr-also-keep')
+    expect(parsed.some((s) => s.includes('sr-map-ios-fullscreen'))).toBe(false)
+    expect(parsed.some((s) => s.includes('sr-nested'))).toBe(false)
   })
 
   it('globals.css keeps the .sr-map-ios-fullscreen rules OUT of media blocks', () => {
-    // The raw stylesheet contains the selectors, and so does the stripped one —
+    // The raw stylesheet contains the selectors, and so does the top-level map —
     // i.e. every occurrence is top-level. If a consolidation moves them inside
-    // the ≤640 tier, the stripped copy loses them and the iosRule tests fail.
+    // the ≤640 tier, they drop out of the map and the iosRule tests fail.
     expect(css).toContain('.sr-map-ios-fullscreen')
-    expect(topLevelCss).toContain('.sr-map-ios-fullscreen')
+    expect(someTopLevelSelector('.sr-map-ios-fullscreen')).toBe(true)
   })
 })
 
@@ -172,7 +155,7 @@ describe('globals.css fullscreen panel positioning + iOS inset', () => {
     // fullscreen is >640px, so a consolidation into the phone tier would strand
     // the inset on exactly the devices the scope class exists for.
     expect(css).toContain('.sr-map-fullscreen-panel')
-    expect(topLevelCss).toContain('.sr-map-fullscreen-panel')
+    expect(someTopLevelSelector('.sr-map-fullscreen-panel')).toBe(true)
   })
 
   it('carries the positioning that used to be inline in App.tsx', () => {

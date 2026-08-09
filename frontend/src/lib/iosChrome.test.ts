@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { parseTopLevelRules } from './cssTopLevelRules'
 
 const css = readFileSync(fileURLToPath(new URL('../globals.css', import.meta.url)), 'utf8')
 const app = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.url)), 'utf8')
@@ -29,42 +30,14 @@ function rule(selector: string): string {
 }
 
 // Every TOP-LEVEL rule in globals.css, keyed by its whitespace-normalized
-// selector. Three things the loose `rule()` regex above cannot do, all of which
-// the assertions below depend on:
-//  1. EXACT selector keys, so `.sr-help-panel` and `.sr-ios-app .sr-help-panel`
-//     are distinguishable. A substring regex matches the base selector inside
-//     the gated one, which would make the "the base rule carries no env()"
-//     assertion resolve to whichever happened to come first in the file.
-//  2. At-rule blocks are skipped WHOLE, so a rule that gets DRY-consolidated
-//     into the ≤640 phone tier disappears from this map and fails rather than
-//     silently keeping the iPad (>640px) uncovered.
-//  3. Comments are stripped first — globals.css has one comment containing a
-//     brace, which would otherwise desynchronize the brace walk.
-function parseTopLevelRules(src: string): Map<string, string> {
-  const clean = src.replace(/\/\*[\s\S]*?\*\//g, '')
-  const rules = new Map<string, string>()
-  let i = 0
-  let selStart = 0
-  while (i < clean.length) {
-    if (clean[i] !== '{') { i++; continue }
-    let depth = 1
-    let j = i + 1
-    while (j < clean.length && depth > 0) {
-      if (clean[j] === '{') depth++
-      else if (clean[j] === '}') depth--
-      j++
-    }
-    const selector = clean.slice(selStart, i).trim()
-    if (!selector.startsWith('@')) {
-      const body = clean.slice(i + 1, j - 1)
-      for (const one of selector.split(',')) rules.set(one.trim().replace(/\s+/g, ' '), body)
-    }
-    i = j
-    selStart = j
-  }
-  return rules
-}
-
+// selector, via the SHARED parser in ./cssTopLevelRules (extracted when the
+// .sr-skip-link guard below became the third one needing this shape — see
+// CLAUDE.md). Three things the loose `rule()` regex above cannot do, all of
+// which the assertions below depend on: exact selector keys (so `.sr-help-panel`
+// and `.sr-ios-app .sr-help-panel` are distinguishable), at-rule blocks skipped
+// whole (so a DRY-consolidation into the ≤640 tier fails instead of silently
+// leaving the iPad uncovered), and comments stripped before the brace walk. The
+// parser's own properties are asserted in cssTopLevelRules.test.ts.
 const topLevel = parseTopLevelRules(css)
 
 function topLevelRule(selector: string): string {
@@ -176,6 +149,97 @@ describe('globals.css Help TOC height cap', () => {
     // Where the nav stacks static above the content and scrolls with it. This
     // one lives INSIDE the media block, so it is read from the raw stylesheet.
     expect(css).toMatch(/\.sr-help-toc\s*\{[^}]*max-height:\s*none\s*!important/)
+  })
+})
+
+// ── The skip link's safe-area inset (skip-link-safe-area) ───────────────────
+// The third and last untreated surface of the family, and the most direct: an
+// interactive control, not a title. `.sr-skip-link` is position:fixed, so it is
+// viewport-relative and escapes `.sr-ios-app body`'s padding-top; on focus it
+// comes to rest at 16px from the PHYSICAL top, inside the Dynamic Island band.
+// Nothing needed lifting here — its positioning already lives in globals.css and
+// App.tsx carries no inline style on it — so the whole fix is one gated rule,
+// and these assertions ARE the fix.
+describe('globals.css skip link safe-area inset', () => {
+  it('keeps the off-screen park and the focused rest position ungated', () => {
+    // Byte-identical desktop and web: both rules are exactly what shipped.
+    expect(topLevelRule('.sr-skip-link')).toMatch(/top:\s*-100px/)
+    expect(topLevelRule('.sr-skip-link:focus')).toMatch(/top:\s*16px/)
+  })
+
+  it('never puts a safe-area inset on either UNGATED rule', () => {
+    // The teeth for the gating requirement. index.html ships viewport-fit=cover
+    // to browsers too, so env() is non-zero in iOS Safari on the WEB build — a
+    // bare env() here would fix the iOS app and silently change shipped web
+    // rendering on every notched phone.
+    expect(topLevelRule('.sr-skip-link')).not.toMatch(/env\(/)
+    expect(topLevelRule('.sr-skip-link:focus')).not.toMatch(/env\(/)
+  })
+
+  it('offsets the FOCUSED link past the status bar and the sensor housing, .sr-ios-app-gated', () => {
+    const body = topLevelRule('.sr-ios-app .sr-skip-link:focus')
+    // Anchored to the shipped 16px, so the rule degrades to today's exact
+    // geometry wherever the inset is 0 (desktop, iPad in landscape, a phone
+    // with no housing on that edge).
+    expect(body).toMatch(/top:\s*calc\(16px \+ env\(safe-area-inset-top,\s*0px\)\)/)
+    expect(body).toMatch(/left:\s*calc\(16px \+ env\(safe-area-inset-left,\s*0px\)\)/)
+  })
+
+  it('never insets the PARKED state (the named wrong turn)', () => {
+    // The most likely wrong turn, and it trades this bug for a worse one: the
+    // base rule's top:-100px is the off-screen park, and at 200% text scale the
+    // pill is ~62px tall (bottom edge at -38px). Inset the parked state by a
+    // 59px safe area and the bottom lands at +21px — the HIDDEN link becomes
+    // permanently visible in the Island band. Both the calc() and the
+    // padding-top forms of the mistake fail this way, and the two assertions
+    // below reject both: no gated rule may target the unfocused element, and
+    // the ungated base may not gain an env() (checked above).
+    expect(
+      topLevel.has('.sr-ios-app .sr-skip-link'),
+      'the safe-area inset must apply to :focus only, never the parked state',
+    ).toBe(false)
+  })
+
+  it('re-points rather than padding, and leaves the right edge alone', () => {
+    const body = topLevelRule('.sr-ios-app .sr-skip-link:focus')
+    // Padding is the panels' shape, not this one's: they are inset:0
+    // full-viewport boxes, this is a point-anchored pill whose green background
+    // would then be painted across the Island. The precedent that fits is
+    // `.sr-ios-app .sr-bc-matrix--pinned thead th`, which moves an offset.
+    expect(body).not.toMatch(/padding/)
+    // And no `right`: the element declares none, so adding one to a width:auto
+    // fixed box would stretch the pill across the viewport. The deliberate
+    // deviation from the two panel rules, which need both edges only because
+    // inset:0 pins both.
+    expect(body).not.toMatch(/(?:^|[;\s])right\s*:/)
+    expect(body).not.toMatch(/(?:^|[;\s])bottom\s*:/)
+  })
+
+  it('keeps the gated rule OUT of media blocks (the any-width guarantee)', () => {
+    // iPad reports a top inset too and is >640px, so a DRY-consolidation into
+    // the ≤640 phone tier would strand exactly the devices with the largest
+    // insets. The raw stylesheet contains the selector, and so does the
+    // top-level map — i.e. every occurrence is top-level.
+    expect(css).toContain('.sr-ios-app .sr-skip-link:focus')
+    expect(topLevel.has('.sr-ios-app .sr-skip-link:focus')).toBe(true)
+  })
+
+  it('has exactly three top-level rules naming it, and no fourth', () => {
+    // The cascade check with teeth. The gated rule wins on specificity alone
+    // ((0,3,0) vs the base focus rule's (0,2,0)), so source order is irrelevant
+    // here — unlike the equal-specificity pinned-header case. What could still
+    // make it inert is a FOURTH rule arriving later in the file at equal or
+    // higher specificity, which this enumeration catches and a per-rule
+    // assertion cannot. Read from the stylesheet, so a rename fails here too.
+    // Scope: rules NAMING the class. The generic `a:focus-visible` block also
+    // matches the link, but sets only outline and box-shadow, so it cannot
+    // compete for top/left; the other shipped stylesheet (maplibre-gl.css) is
+    // entirely .maplibregl-*-scoped.
+    expect([...topLevel.keys()].filter(s => s.includes('.sr-skip-link')).sort()).toEqual([
+      '.sr-ios-app .sr-skip-link:focus',
+      '.sr-skip-link',
+      '.sr-skip-link:focus',
+    ])
   })
 })
 
