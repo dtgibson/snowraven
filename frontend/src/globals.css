@@ -1872,12 +1872,38 @@ select:focus-visible {
      hover-only title never fires (base rule hides them). */
   .sr-media-count { display: inline; }
 
-  /* iOS focus-zoom guard — 16px is the iOS threshold (an absolute px value), so
-     a px font-size is correct here; scoped to the phone tier only. !important so it
-     beats an inline sub-16px font-size on the same element (React inline styles are
-     specificity 1,0,0 and otherwise win — the guard was inert wherever a control also
-     set an inline fontSize, e.g. the SpeciesCombobox input and WeatherForecastPanel). */
-  .sr-input-16 { font-size: 16px !important; }
+  /* ONE phone-tier text size for every interactive filter control
+     (fix: mobile-filter-text-size).
+     Two selectors, one declaration, deliberately — the guarded form controls and
+     the pills/sort-toggles/switches beside them must resolve to the SAME formula
+     or they mismatch in one direction or the other:
+
+       max(16px, 0.75rem)
+         · 16px is the iOS focus-zoom threshold, an ABSOLUTE px value, so a px
+           font-size is correct here (the sanctioned exception) — anything below
+           it re-opens the focus zoom this guard exists to prevent.
+         · 0.75rem is the app's control text size, and rem tracks the root
+           calc(100% * var(--sr-text-scale)), so it grows with in-app text scale.
+         · max() of the two: both sides land on 16px up to ~133% scale and on
+           0.75rem above it. They are never different from each other, at any
+           scale. The old flat `16px` here was the inversion bug — at 200% the
+           neighbours reached 24px while the form controls stayed pinned at 16px,
+           making the FORM CONTROLS the small ones for exactly the user who
+           enlarged their text.
+
+     !important on both because the thing each must beat is an inline fontSize
+     (React inline styles are specificity 1,0,0 and otherwise win — .sr-input-16
+     was silently inert on ~25 inputs until v0.5.61 for precisely this reason).
+
+     .sr-ctl-row is a CONTAINER hook, not an element one: filter-row membership is
+     conditional (the county select only mounts once counties resolve, the non-bird
+     toggle only with an eBird backbone) and the row is one wrapping flex container,
+     so there is no stable per-element subset to enumerate. It sizes interactive
+     DESCENDANTS only — never the container itself (which would cascade an
+     unrequested size onto every unstyled span inside it) and never the uppercase
+     section labels, which are spans and stay deliberately smaller. */
+  .sr-input-16,
+  .sr-ctl-row :is(button, select, input) { font-size: max(16px, 0.75rem) !important; }
 
   /* Breeding Codes matrix on a phone: narrow each code column from 44px to ~30px
      (the 28px count dot + ~1px breathing room each side), roughly halving the

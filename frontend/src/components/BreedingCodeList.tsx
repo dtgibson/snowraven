@@ -323,7 +323,11 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         gap: 12, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap',
       }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* .sr-ctl-row: one phone-tier text size for every control in the filter
+            block (globals.css), so the code pills and the A–Z/Taxonomic toggle can't
+            read smaller than the .sr-input-16 county select and date inputs. The
+            right-hand count + Table view cluster is deliberately outside it. */}
+        <div className="sr-ctl-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <button tabIndex={0}
             aria-pressed={filter.size === 0 && categoryFilter.size === 0}
             style={{
