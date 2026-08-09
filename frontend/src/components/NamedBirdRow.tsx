@@ -150,7 +150,10 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
               </div>
               <div className="sr-named-map" style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--sr-border)' }}>
                 <Suspense fallback={<div style={{ padding: 24, textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>Loading map…</div>}>
-                  <SightingsMap markers={cardMarkers} switcher={false} />
+                  {/* compact: this card map is 220px tall and often half the page
+                      wide, so the share popup and its drop button take the denser
+                      density. Passed explicitly rather than relying on a default. */}
+                  <SightingsMap markers={cardMarkers} switcher={false} compact />
                 </Suspense>
               </div>
             </div>

@@ -88,6 +88,25 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     expect(has('components/map/CountyCompletenessPopup.tsx')).toBe(false)
   })
 
+  it('the Pin Share map-coupled files are only reachable through a lazy map tab (NFR-10)', () => {
+    // Settings.tsx IS on App.tsx's static graph and imports lib/shareCopyPreference,
+    // which re-exports ShareCopyMode from lib/shareLocation — so BOTH of those
+    // lib modules must stay map-free, and these three components must stay off
+    // the entry graph. If either lib module ever imports a map type (or an
+    // `import type` a later refactor promotes to a value import), the ~1 MB
+    // maplibre vendor chunk lands on first paint.
+    expect(has('components/map/SharePin.tsx')).toBe(false)
+    expect(has('components/map/SharePopup.tsx')).toBe(false)
+    expect(has('components/map/useMapLongPressDrop.ts')).toBe(false)
+  })
+
+  it('the Pin Share lib modules ARE on the entry graph, which is what makes the check above live', () => {
+    // Guards the guard: if Settings ever stopped importing the preference, the
+    // map-free assertion would pass vacuously.
+    expect(has('lib/shareCopyPreference.ts')).toBe(true)
+    expect(has('lib/shareLocation.ts')).toBe(true)
+  })
+
   it('methodology sanity: the known-lazy AtlasLayer / ca-atlas-blocks are also absent', () => {
     // If these appeared, the resolver would be wrong (or someone broke the
     // map-lazy rule); the County checks above would then be meaningless.

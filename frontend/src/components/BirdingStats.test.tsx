@@ -38,6 +38,11 @@ vi.mock('./SnowMap', () => ({
 vi.mock('react-map-gl/maplibre', () => ({
   Marker: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   Popup: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  // The geographic map also mounts Pin Share's <SharePin>, which reads the map
+  // instance through useMap(). No live map here, so it reports none and the
+  // pin's gesture effect bails; the assertions below are unchanged. SharePin's
+  // own behavior is covered in components/map/SharePin.test.tsx.
+  useMap: () => ({ current: undefined }),
 }))
 
 // A small fixed eBird dataset: 3 species across 3 dates + coordinates, so the life

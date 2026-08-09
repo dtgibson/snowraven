@@ -47,6 +47,8 @@ import {
 import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
 import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch, CountyCompletenessLegend } from './map/MapSidebarUI'
 import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
+import { SharePin } from './map/SharePin'
+import { SharePopup } from './map/SharePopup'
 import { SightingMarkers } from './map/SightingMarkers'
 import { BasemapDesaturation } from './map/BasemapDesaturation'
 import { HotspotMarkers } from './map/HotspotMarkers'
@@ -187,6 +189,40 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   const sidebarRef = useRef<HTMLDivElement>(null)
   const filtersButtonRef = useRef<HTMLButtonElement>(null)
+
+  // ── Pin Share ───────────────────────────────────────────────────────────────
+  // Surface A (My Sightings) mounts <SharePin>, whose drop button is portaled
+  // into the SHIPPED FAB cluster. The cluster is rendered outside <SnowMap>, so
+  // the target element travels as state; while the mobile filters overlay has
+  // unmounted the cluster this is null and SharePin simply renders no button.
+  const [fabSlot, setFabSlot] = useState<HTMLDivElement | null>(null)
+  // Surface B: the copy popup hangs off the EXISTING search-center pin. Set ONLY
+  // by the pin's own click handler — `applyCenter` never touches it, so a
+  // drop-to-search stays visually identical to today (FR-16).
+  const [centerShareOpen, setCenterShareOpen] = useState(false)
+  const centerPinButtonRef = useRef<HTMLButtonElement>(null)
+  const restoreCenterPinFocusRef = useRef(false)
+  const closeCenterShare = useCallback(() => {
+    setCenterShareOpen(false)
+    restoreCenterPinFocusRef.current = true
+  }, [])
+  // Focus returns to the opener AFTER the close render commits, the same
+  // flag-ref-in-effect shape closeSidebar uses below.
+  useEffect(() => {
+    if (centerShareOpen || !restoreCenterPinFocusRef.current) return
+    restoreCenterPinFocusRef.current = false
+    centerPinButtonRef.current?.focus()
+  }, [centerShareOpen])
+  // FR-18 — a view-mode change closes the copy popup outright, so stale open
+  // state cannot re-appear when the user comes back to a center view. React's
+  // "adjusting state when a prop changes" pattern (a bare setState during
+  // render), not an effect: an effect here is a cascading render and is what
+  // react-hooks/set-state-in-effect rejects.
+  const [shareViewMode, setShareViewMode] = useState(viewMode)
+  if (shareViewMode !== viewMode) {
+    setShareViewMode(viewMode)
+    setCenterShareOpen(false)
+  }
 
   // My Sightings filters
   const [filterOpen, setFilterOpen]         = useState(true)
@@ -2004,6 +2040,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const centerLngNum = parseFloat(lng)
   const hasValidCenter = !Number.isNaN(centerLatNum) && !Number.isNaN(centerLngNum)
   const centerPinShown = isCenterView && hasValidCenter
+  // FR-18 — a view-mode change clears the share state in BOTH directions.
+  // Sightings → a center view unmounts <SharePin> (structural); a center view →
+  // sightings needs this, since centerShareOpen lives up here.
+  const centerShareShown = centerPinShown && centerShareOpen
 
   // ── Layout ────────────────────────────────────────────────────────────────────
 
@@ -2130,6 +2170,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               of the Filters label width. */}
           {!sidebarOpen && (
             <div className="sr-map-fab-cluster">
+              {/* Pin Share's drop button portals in here, so it is the FIRST item
+                  of this row (Pin, Fullscreen, Filters), no new corner is claimed
+                  and the .sr-ios-app safe-area handling is inherited. The slot is
+                  display:contents, so the button is a direct flex item and the
+                  DOM order matches the visual order. The two shipped controls
+                  below are untouched. */}
+              <div className="sr-map-fab-slot" ref={setFabSlot} />
               {onToggleFullscreen && (
                 <button tabIndex={0}
                   className="sr-map-fullscreen-btn"
@@ -2202,9 +2249,34 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {detectedLocation && !centerPinShown && <DetectedLocationPin position={detectedLocation} />}
               {isCenterView && (
                 <>
+                  {/* Untouched: this IS the drop-to-search path (QA-54 asks a
+                      reviewer to confirm it is literally the same code as before). */}
                   <CenterPinDropper onDrop={applyCenter} />
-                  {centerPinShown && <CenterPin lat={centerLatNum} lng={centerLngNum} onMove={applyCenter} />}
+                  {centerPinShown && (
+                    <CenterPin
+                      lat={centerLatNum}
+                      lng={centerLngNum}
+                      onMove={applyCenter}
+                      onActivate={() => setCenterShareOpen(true)}
+                      buttonRef={centerPinButtonRef}
+                    />
+                  )}
+                  {/* On a center drag `applyCenter` updates lat/lng and this popup
+                      reads the same values, so an open popup follows the pin and
+                      its next copy carries the new coordinates. No extra wiring. */}
+                  {centerShareShown && (
+                    <SharePopup
+                      lat={centerLatNum}
+                      lng={centerLngNum}
+                      compact={false}
+                      offset={32}
+                      onClose={closeCenterShare}
+                    />
+                  )}
                 </>
+              )}
+              {viewMode === 'sightings' && !isSetupRequired && (
+                <SharePin compact={false} buttonHost={fabSlot} />
               )}
               {viewMode === 'sightings' && !isSetupRequired && (
                 <SightingMarkers locations={filteredLocations} displayMode={displayMode} pointSize={pointSize} heatIntensity={heatIntensity} shadingFillId={atlasEnabled && shadeByBreeding ? 'sr-atlas-fill' : countyLinesEnabled && shadeByCounty ? 'sr-county-fill' : undefined} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />

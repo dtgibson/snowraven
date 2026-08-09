@@ -40,6 +40,7 @@ import { SectionCard, SectionHead, StatLabel, StatValueLink } from './speciesDet
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
+import { SharePin } from './map/SharePin'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1146,8 +1147,17 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     its own MapBoundsFitter. Heatmap mode keeps its inline SnowMap
                     with the HeatmapLayer and a top-level MapBoundsFitter, so the
                     fitter runs in BOTH modes. */}
+                {/* Pin Share note: Pins and Heatmap are TWO different <SnowMap>
+                    mounts, not one map with a toggle, so the share pin has to be
+                    wired into both or a user toggling the mode silently loses the
+                    feature (FR-01 / QA-01). Both branches also pass
+                    `selectedSpecies` as the pin's reset key: this map keeps its
+                    JSX position across a species change, so nothing unmounts and
+                    a stale pin would otherwise survive (FR-09 / QA-16). Two
+                    branches, two fixes, and a test for each — a single combined
+                    test would pass on a half-fix. */}
                 {mapMode === 'pins' ? (
-                  <SightingsMap markers={coordMarkers} switcher />
+                  <SightingsMap markers={coordMarkers} switcher compact={false} sharePinResetKey={selectedSpecies} />
                 ) : (
                   <SnowMap
                     initialViewState={{ longitude: uniqueCoords[0]?.[1] ?? 0, latitude: uniqueCoords[0]?.[0] ?? 0, zoom: 5 }}
@@ -1161,6 +1171,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                   >
                     <HeatmapLayer points={heatPoints} intensity={heatIntensity} />
                     <MapBoundsFitter coordinates={uniqueCoords} />
+                    <SharePin key={selectedSpecies} compact={false} buttonHost="corner" />
                   </SnowMap>
                 )}
               </div>

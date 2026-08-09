@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, ChevronDown, ChevronUp, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation } from 'lucide-react'
+import { BookOpen, ChevronDown, ChevronUp, Copy, Eye, EyeOff, FileCheck, FileQuestion, Loader2, Lock, Navigation } from 'lucide-react'
 import type { StoredFileInfo, StoredFilesStatus } from '../types'
 import { applyTheme, readStoredPreference, persistThemePreference, clearThemePreference, hydrateStoredTheme } from '../lib/theme'
 import type { ThemePreference } from '../lib/theme'
@@ -18,6 +18,9 @@ import { clearEbirdObservationsCache } from '../lib/observationsCache'
 import { clearMLExportCache } from '../lib/mlExportCache'
 import { clearNetworkCache } from '../lib/networkCache'
 import { invalidateHotspotSet } from '../lib/hotspotSet'
+import { buildSharePayload } from '../lib/shareLocation'
+import type { ShareCopyMode } from '../lib/shareLocation'
+import { useShareCopyMode, setShareCopyMode } from '../lib/shareCopyPreference'
 import { OutboundLink } from './OutboundLink'
 import { ToggleSwitch } from './ui/ToggleSwitch'
 
@@ -693,6 +696,78 @@ function DateFormatRow({ onDateFormatChange }: { onDateFormatChange?: () => void
           ),
         }))}
       />
+    </div>
+  )
+}
+
+// ---- Sharing: "Copying a location" row (Pin Share) ----
+
+// The fixed sample the live example is built from, so the block a user reads
+// here is the exact block a copy produces. It is the PRD's example coordinate.
+const SHARE_EXAMPLE_LAT = 38.54321
+const SHARE_EXAMPLE_LNG = -121.98765
+
+const SHARE_COPY_OPTIONS: { key: ShareCopyMode; label: string; sub: string }[] = [
+  { key: 'coords-and-links', label: 'Copy coordinates and map links', sub: 'Three lines, with Google Maps and Apple Maps' },
+  { key: 'coords-only',      label: 'Copy coordinates only',          sub: 'One line, nothing else' },
+]
+
+function ShareCopyRow() {
+  // Reads the shared store rather than holding local state, so a change here
+  // reaches a share popup that is already open on a map tab (FR-36). It hydrates
+  // TO THE DEFAULT and gates nothing: unlike the embedded-media preference there
+  // is no unsafe pre-hydration state to guard against (FR-34).
+  const mode = useShareCopyMode()
+  const example = buildSharePayload(SHARE_EXAMPLE_LAT, SHARE_EXAMPLE_LNG, mode)
+
+  function btnStyle(key: ShareCopyMode): React.CSSProperties {
+    const active = mode === key
+    return {
+      flex: '1 1 190px', minHeight: 48, padding: '7px 10px',
+      border: active ? '1.5px solid var(--sr-accent-border)' : '1.5px solid var(--sr-border)',
+      background: active ? 'var(--sr-accent-bg)' : 'var(--sr-surface-subtle)',
+      color: active ? 'var(--sr-accent)' : 'var(--sr-text-muted)',
+      fontSize: '0.8125rem', fontWeight: active ? 600 : 500, fontFamily: 'inherit',
+      cursor: 'pointer', borderRadius: 6, textAlign: 'left',
+      transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+    }
+  }
+
+  return (
+    <div style={{ padding: '14px 16px' }}>
+      <div style={{ fontSize: '0.84375rem', fontWeight: 600, color: 'var(--sr-text)', marginBottom: 4 }}>
+        Copying a location
+      </div>
+      <p style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', margin: '0 0 10px', lineHeight: 1.5 }}>
+        What gets copied when you copy a location from a map pin. Coordinates are decimal degrees to five places, latitude first.
+      </p>
+      <RadioGroup
+        label="Copying a location"
+        value={mode}
+        onChange={setShareCopyMode}
+        options={SHARE_COPY_OPTIONS.map(({ key, label, sub }) => ({
+          key,
+          // Leads with what is on screen, then the sub-line (WCAG 2.5.3).
+          ariaLabel: `${label}. ${sub}`,
+          style: btnStyle(key),
+          children: (
+            <>
+              <span style={{ display: 'block' }}>{label}</span>
+              <span style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 400, marginTop: 2 }}>
+                {sub}
+              </span>
+            </>
+          ),
+        }))}
+      />
+      {/* "Copy coordinates and map links" describes a payload; this IS the
+          payload, built by the same buildSharePayload the popup uses. Same
+          pattern the Weather tab already established. */}
+      <div className="sr-share-example-label">
+        <Copy size={11} strokeWidth={2.2} aria-hidden />
+        Example
+      </div>
+      <pre className="sr-share-example">{example}</pre>
     </div>
   )
 }
@@ -1382,6 +1457,16 @@ export function Settings({
           error={embeddedMediaPreferenceError}
           onChange={onDisableEmbeddedMediaChange}
         />
+      </div>
+
+      {/* Its own section, not under Appearance: what a copy action produces is
+          not an appearance setting, and "Sharing" is an accurate header with room
+          to grow. A single-row section is already precedented by
+          "Help & Documentation". */}
+      <SectionHeader label="Sharing" />
+
+      <div style={{ border: '1px solid var(--sr-border)', borderRadius: 10, background: 'var(--sr-surface)', overflow: 'hidden', marginBottom: 24 }}>
+        <ShareCopyRow />
       </div>
 
       <SectionHeader label="API Keys" />

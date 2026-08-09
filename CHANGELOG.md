@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.80] - 2026-08-08
+
+### Added
+- **Share a spot from any birding map.** Right-click a map, or long-press it on touch, and a pin plants at the exact point you pressed with that spot's coordinates shown beside it. Drag the pin to fine-tune, then copy a block ready to paste into a text message: the coordinates in decimal degrees, a Google Maps link, and an Apple Maps link, so whoever you send it to can open the spot in whichever app they use. The coordinate line on its own pastes straight into any maps app's search box. Press Escape, or the popup's close control, and the pin goes away. Nothing is saved: the pin is gone when you leave the map, and it never appears on a map you return to. This works on Map Explorer's sightings view, Species Detail's sighting locations in both pins and heatmap modes, the Statistics tab's geographic map, and the per-bird maps on Named Birds.
+- **A pin button on every one of those maps**, in the bottom-right corner beside Fullscreen, which plants the pin at the center of the current view. It is there for discoverability and so the whole feature can be reached from the keyboard, with no pointer gesture needed. On Map Explorer's Hotspots, Nearby Lifers, and Media Targets views, where right-click already sets the search center, that existing center pin now opens the same copy popup when you click it. Setting the search center by right-click or by dragging that pin behaves exactly as it did before.
+- **A Sharing section in Settings** to switch the copied block to coordinates only, with an example of what you will get shown under each option. The choice is remembered across launches, and changing it relabels an open share popup right away.
+
+### Notes
+- **Nothing about this leaves your device.** The coordinates and both map links are assembled on your own machine as plain text, with no link shortener, no lookup, and no request of any kind, so the whole flow works with no connection. The privacy policy is unchanged because there is nothing new to disclose.
+
 ## [0.5.79] - 2026-08-08
 
 ### Changed

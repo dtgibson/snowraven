@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pin Share, SnowRaven design</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   SnowRaven design tokens, copied verbatim from frontend/src/globals.css.
+   Only the tokens this feature touches are reproduced here. One new token
+   pair is proposed (--sr-share-*) and is marked NEW.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-error-border: #FECACA;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+
+  /* Map-anchored pin tokens (identical in both themes by design). */
+  --sr-map-pin-stroke: #3F3F46;
+
+  /* NEW: the share pin's pennant + its inner notch. Map-anchored, so declared
+     identically in both themes, same posture as --sr-map-pin-*. It is only ever
+     drawn on the always-light Positron basemap. Measured: #B4341F on Positron
+     land (#F2F1EC) is 5.38:1, and the white notch on the pennant is 6.08:1.
+     Both clear the 3:1 WCAG 1.4.11 bar for a non-text graphic with room to
+     spare, which is what lets the pin stay legible over satellite too. */
+  --sr-share-pin: #B4341F;
+  --sr-share-pin-ink: #FFFFFF;
+
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Fira Code', Consolas, monospace;
+}
+
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-error-border: #7F1D1D;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.35);
+
+  --sr-map-pin-stroke: #3F3F46;
+  --sr-share-pin: #B4341F;
+  --sr-share-pin-ink: #FFFFFF;
+}
+
+/* Basemap illustration colors. These stand in for OpenFreeMap's Positron
+   tiles, which are provider-owned and always light regardless of app theme.
+   They are deliberately NOT --sr-* tokens: the real basemap is not ours to
+   theme, which is exactly why the app already treats basemap-anchored colors
+   as a documented exception. */
+:root, [data-theme="dark"] {
+  --map-land:   #F2F1EC;
+  --map-field:  #EAE9E1;
+  --map-canopy: #DCE7D2;
+  --map-water:  #C3DAE7;
+  --map-road:   #FFFFFF;
+  --map-casing: #E0DED6;
+  --map-label:  #8C8A82;
+  /* MapLibre's own NavigationControl chrome, reproduced so the corner
+     occupancy can be judged. Third-party UI, not ours to token. */
+  --map-ctrl-ink:  #3A3A36;
+  --map-ctrl-rule: #DEDCD4;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Page shell. This page is a design document, not app chrome.
+   ══════════════════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--sr-bg);
+  color: var(--sr-text);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 96px; }
+
+/* Header */
+.topbar {
+  position: sticky; top: 0; z-index: 60;
+  background: color-mix(in srgb, var(--sr-bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--sr-border);
+}
+.topbar-in {
+  max-width: 1080px; margin: 0 auto; padding: 10px 20px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.brandmark { display: flex; align-items: center; gap: 9px; margin-right: auto; min-width: 0; }
+.brandmark b { font-size: 0.9375rem; font-weight: 700; letter-spacing: -0.01em; }
+.brandmark span { font-size: 0.75rem; color: var(--sr-text-muted); white-space: nowrap; }
+.dot-accent {
+  width: 22px; height: 22px; border-radius: 6px; flex: none;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: grid; place-items: center;
+}
+
+.hero { padding: 54px 0 34px; max-width: 62ch; }
+.hero h1 {
+  font-size: clamp(2rem, 5.2vw, 2.75rem); line-height: 1.08;
+  letter-spacing: -0.028em; font-weight: 700; margin: 0 0 14px;
+}
+.hero p { font-size: 1.0625rem; line-height: 1.6; color: var(--sr-text-muted); margin: 0 0 10px; }
+.eyebrow {
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--sr-accent); margin: 0 0 12px;
+}
+
+/* Section rhythm */
+section { padding-top: 56px; scroll-margin-top: 66px; }
+.sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 6px; }
+.sec-num {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--sr-text-disabled); font-variant-numeric: tabular-nums; flex: none;
+  padding-top: 4px;
+}
+h2 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.018em; margin: 0; line-height: 1.25; }
+.lede { font-size: 0.9375rem; color: var(--sr-text-muted); margin: 0 0 22px; max-width: 68ch; line-height: 1.6; }
+.lede + .lede { margin-top: -14px; }
+h3 {
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--sr-text-muted); margin: 0 0 10px;
+}
+
+.note {
+  font-size: 0.8125rem; line-height: 1.6; color: var(--sr-text-muted);
+  border-left: 3px solid var(--sr-accent-border); padding: 2px 0 2px 14px; margin: 18px 0 0;
+  max-width: 70ch;
+}
+.note b { color: var(--sr-text); font-weight: 600; }
+
+.cols { display: grid; grid-template-columns: minmax(0,1fr); gap: 24px; }
+@media (min-width: 900px) { .cols-2 { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 26px; } }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Map stage — a mock of the app's map surface. The SVG stands in for the
+   Positron basemap; everything drawn over it is real proposed UI.
+   ══════════════════════════════════════════════════════════════════════════ */
+.stage-frame {
+  border: 1px solid var(--sr-border); border-radius: 12px; overflow: hidden;
+  background: var(--sr-surface); box-shadow: var(--sr-card-shadow);
+}
+.stage-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 13px; border-bottom: 1px solid var(--sr-border);
+  background: var(--sr-surface-faint);
+  font-size: 0.75rem; color: var(--sr-text-muted);
+}
+.stage-bar strong { color: var(--sr-text); font-weight: 600; font-size: 0.78125rem; }
+.stage-bar .spacer { margin-left: auto; }
+
+.stage {
+  position: relative; width: 100%; overflow: hidden;
+  background: var(--map-land); touch-action: pan-y;
+  cursor: crosshair;
+}
+.stage svg.basemap { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+.stage-lg { height: 440px; }
+.stage-md { height: 380px; }
+.stage-sm { height: 220px; }
+@media (max-width: 640px) {
+  .stage-lg { height: 330px; }
+  .stage-md { height: 300px; }
+}
+
+/* Existing app furniture, reproduced so placement can be judged honestly. */
+.mock-nav {
+  position: absolute; top: 10px; left: 10px; z-index: 4;
+  width: 29px; border-radius: 4px; overflow: hidden;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.1); background: #fff;
+}
+.mock-nav button {
+  display: block; width: 29px; height: 29px; border: 0; background: #fff;
+  color: var(--map-ctrl-ink); font-size: 15px; line-height: 29px; padding: 0; cursor: default;
+}
+.mock-nav button + button { border-top: 1px solid var(--map-ctrl-rule); }
+.mock-layers {
+  position: absolute; top: 8px; right: 8px; z-index: 4;
+  display: flex; flex-direction: column; gap: 7px; padding: 7px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+}
+.mock-seg { display: inline-flex; gap: 2px; background: var(--sr-surface-subtle); border-radius: 7px; padding: 2px; }
+.mock-seg span {
+  padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; font-weight: 500;
+  color: var(--sr-text-muted);
+}
+.mock-seg span.on { background: var(--sr-surface); color: var(--sr-text); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+.mock-attrib {
+  position: absolute; left: 10px; bottom: 10px; z-index: 4;
+  background: rgba(255,255,255,0.85); border-radius: 4px; padding: 1px 6px;
+  font-size: 0.6875rem; color: #4a4a4a;
+}
+
+/* The existing Map Explorer FAB cluster, plus the new share control inside it. */
+.fab-cluster {
+  position: absolute; bottom: 20px; right: 16px; z-index: 20;
+  display: flex; align-items: center; gap: 10px;
+}
+.map-tool-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0; flex: none;
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 50%;
+  cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  transition: background 140ms cubic-bezier(0.16,1,0.3,1),
+              color 140ms cubic-bezier(0.16,1,0.3,1),
+              border-color 140ms cubic-bezier(0.16,1,0.3,1);
+}
+.map-tool-btn:hover { background: var(--sr-surface-subtle); }
+.map-tool-btn[aria-pressed="true"] {
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  border-color: var(--sr-accent-border-strong);
+}
+.map-tool-btn.compact { width: 30px; height: 30px; }
+.map-tool-btn.compact svg { width: 15px; height: 15px; }
+.fab-filters {
+  display: inline-flex; align-items: center; gap: 6px; padding: 0 16px; height: 36px;
+  background: var(--sr-accent); color: var(--sr-on-accent); border: none; border-radius: 18px;
+  font: inherit; font-size: 0.8125rem; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+/* Solo placement on Species Detail / Statistics / Named Birds. */
+.share-corner { position: absolute; bottom: 20px; right: 16px; z-index: 20; }
+.share-corner.compact { bottom: 12px; right: 12px; }
+
+/* ── The share pin ───────────────────────────────────────────────────────
+   A planted flag, not a teardrop. Every other pin in the app is a teardrop
+   or a circle, so shape carries the distinction and no hue has to. The staff
+   base is the exact coordinate. */
+.share-pin {
+  position: absolute; z-index: 15; padding: 0; border: 0; background: none;
+  cursor: grab; line-height: 0;
+  transform: translate(-4px, -100%);
+  animation: pin-plant 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.share-pin::after {  /* invisible 44px touch target, visual unchanged */
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 44px; height: 44px; transform: translate(-50%, -50%);
+}
+.share-pin:active { cursor: grabbing; }
+@keyframes pin-plant {
+  from { opacity: 0; transform: translate(-4px, calc(-100% - 7px)); }
+  to   { opacity: 1; transform: translate(-4px, -100%); }
+}
+
+/* Existing sighting pins, drawn so the share pin can be judged against them. */
+.data-pin { position: absolute; z-index: 12; transform: translate(-12px, -34px); line-height: 0; }
+
+/* ── The share popup ─────────────────────────────────────────────────────
+   Chrome matches .maplibregl-popup-content as themed in globals.css. */
+.pop {
+  position: absolute; z-index: 30; width: 268px; max-width: calc(100% - 24px);
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 10px;
+  box-shadow: var(--sr-card-shadow), 0 8px 26px rgba(0,0,0,0.16);
+  padding: 11px 13px 12px;
+  font-size: 0.8125rem;
+  transform-origin: bottom center;
+  animation: pop-in 170ms cubic-bezier(0.16, 1, 0.3, 1);
+  text-align: left;
+}
+.pop.compact { width: 224px; padding: 9px 10px 10px; }
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.94) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pop::after {  /* the popup tip */
+  content: ''; position: absolute; bottom: -9px; left: 50%; margin-left: -8px;
+  border: 9px solid transparent; border-bottom: 0;
+  border-top-color: var(--sr-surface);
+  filter: drop-shadow(0 1px 0 var(--sr-border));
+}
+.pop-close {
+  position: absolute; top: 1px; right: 2px;
+  border: 0; background: none; cursor: pointer;
+  color: var(--sr-text-muted); font-size: 1rem; line-height: 1;
+  padding: 4px 8px; font-family: inherit;
+}
+.pop-close:hover { color: var(--sr-text); }
+.pop-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 0.625rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--sr-text-muted);
+  margin: 0 26px 7px 0;
+}
+.pop-body { max-height: min(60dvh, 26rem); overflow-y: auto; overscroll-behavior: contain; }
+.pop.compact .pop-body { max-height: 9.5rem; }
+.coord {
+  font-family: var(--font-mono); font-size: 0.875rem; font-weight: 600;
+  letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
+  color: var(--sr-text); margin: 0 0 10px; user-select: text; cursor: text;
+  word-break: keep-all;
+}
+.pop.compact .coord { font-size: 0.8125rem; margin-bottom: 8px; }
+
+.copy-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; height: 32px; padding: 0 12px;
+  background: var(--sr-accent); color: var(--sr-on-accent);
+  border: 1.5px solid var(--sr-accent); border-radius: 6px;
+  font: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer;
+  transition: background 140ms cubic-bezier(0.16,1,0.3,1),
+              color 140ms cubic-bezier(0.16,1,0.3,1),
+              border-color 140ms cubic-bezier(0.16,1,0.3,1);
+}
+.pop.compact .copy-btn { height: 30px; font-size: 0.71875rem; }
+.copy-btn[data-state="done"] {
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  border-color: var(--sr-accent-border);
+}
+.copy-btn svg { flex: none; }
+.mode-hint {
+  font-size: 0.625rem; color: var(--sr-text-muted); margin: 6px 0 0;
+  line-height: 1.45; text-align: center;
+}
+.fail { margin-top: 10px; animation: fail-in 190ms cubic-bezier(0.16,1,0.3,1); }
+@keyframes fail-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.fail-msg {
+  display: flex; gap: 6px; align-items: flex-start;
+  background: var(--sr-error-bg); border: 1px solid var(--sr-error-border);
+  color: var(--sr-error); border-radius: 6px; padding: 7px 8px;
+  font-size: 0.6875rem; line-height: 1.45; margin: 0 0 7px;
+}
+.fail-msg svg { flex: none; margin-top: 1px; }
+.fail-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.fail-bar span { font-size: 0.625rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sr-text-muted); }
+.link-btn {
+  border: 0; background: none; padding: 0; font: inherit; font-size: 0.6875rem; font-weight: 600;
+  color: var(--sr-accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+.payload {
+  font-family: var(--font-mono); font-size: 0.6875rem; line-height: 1.65;
+  background: var(--sr-surface-subtle); border: 1px solid var(--sr-border);
+  border-radius: 6px; padding: 8px 9px; margin: 0; color: var(--sr-text);
+  white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; cursor: text;
+  max-height: 7.5rem; overflow-y: auto;
+}
+.pop.compact .payload { max-height: 4.75rem; font-size: 0.625rem; }
+
+/* Center pin (surface B) — the existing teardrop, promoted to a button. */
+.center-pin {
+  position: absolute; z-index: 15; padding: 0; border: 0; background: none;
+  cursor: grab; line-height: 0; transform: translate(-15px, -30px);
+  border-radius: 8px;
+}
+.center-pin::after { content: ''; position: absolute; left: 50%; top: 55%; width: 44px; height: 44px; transform: translate(-50%,-50%); }
+
+/* Focus ring, matching globals.css */
+button:focus-visible, [tabindex]:focus-visible, [role="radio"]:focus-visible {
+  outline: 3px solid var(--sr-accent); outline-offset: 3px;
+}
+.stage:focus-visible { outline: 3px solid var(--sr-accent); outline-offset: -3px; }
+
+/* Live region */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Demo controls (this page only, not proposed UI)
+   ══════════════════════════════════════════════════════════════════════════ */
+.demo-ctl {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+}
+.chip {
+  border: 1px solid var(--sr-border); background: var(--sr-surface);
+  color: var(--sr-text-muted); border-radius: 999px; padding: 3px 10px;
+  font: inherit; font-size: 0.6875rem; font-weight: 600; cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.chip[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); border-color: var(--sr-accent-border); }
+.hint-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 999px; padding: 4px 11px; font-size: 0.6875rem; color: var(--sr-text-muted);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+.stage-hint { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 6; pointer-events: none; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Settings mock
+   ══════════════════════════════════════════════════════════════════════════ */
+.settings-shell { max-width: 620px; }
+.sec-label { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.sec-label span {
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--sr-text-muted); white-space: nowrap;
+}
+.sec-label i { flex: 1; height: 1px; background: var(--sr-border); font-style: normal; }
+.set-card { border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); overflow: hidden; }
+.set-row { padding: 14px 16px; }
+.set-row + .set-row { border-top: 1px solid var(--sr-border); }
+.set-title { font-size: 0.84375rem; font-weight: 600; color: var(--sr-text); margin-bottom: 4px; }
+.set-desc { font-size: 0.75rem; color: var(--sr-text-muted); margin: 0 0 10px; line-height: 1.5; }
+.radio-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.radio-opt {
+  flex: 1 1 190px; min-height: 48px; padding: 7px 10px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface-subtle);
+  color: var(--sr-text-muted); border-radius: 6px;
+  font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer; text-align: left;
+  transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.radio-opt[aria-checked="true"] {
+  border-color: var(--sr-accent-border); background: var(--sr-accent-bg);
+  color: var(--sr-accent); font-weight: 600;
+}
+.radio-opt small { display: block; font-size: 0.6875rem; font-weight: 400; margin-top: 2px; opacity: 0.9; }
+.preview-label {
+  display: flex; align-items: center; gap: 7px; margin: 12px 0 5px;
+  font-size: 0.625rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--sr-text-muted);
+}
+
+/* Payload comparison */
+.pay-card { border: 1px solid var(--sr-border); border-radius: 10px; background: var(--sr-surface); overflow: hidden; }
+.pay-head {
+  display: flex; align-items: center; gap: 9px; padding: 10px 13px;
+  border-bottom: 1px solid var(--sr-border); background: var(--sr-surface-faint);
+}
+.pay-head b { font-size: 0.8125rem; font-weight: 600; }
+.pay-head em { font-style: normal; font-size: 0.6875rem; color: var(--sr-text-muted); margin-left: auto; white-space: nowrap; }
+.pay-body { padding: 12px 13px; }
+.msg-bubble {
+  background: var(--sr-accent-bg); border: 1px solid var(--sr-accent-border);
+  border-radius: 14px 14px 4px 14px; padding: 9px 12px; margin-top: 11px;
+  font-size: 0.78125rem; line-height: 1.6; color: var(--sr-text);
+  overflow-wrap: anywhere;
+}
+.msg-bubble a { color: var(--sr-accent); font-weight: 500; }
+.msg-cap { font-size: 0.625rem; color: var(--sr-text-muted); margin: 8px 0 0; text-align: right; }
+
+/* Keyboard walkthrough */
+.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+.steps li {
+  counter-increment: s; position: relative; padding: 0 0 0 34px; margin-bottom: 13px;
+  font-size: 0.84375rem; line-height: 1.55; color: var(--sr-text-muted);
+}
+.steps li::before {
+  content: counter(s); position: absolute; left: 0; top: 0;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  font-size: 0.6875rem; font-weight: 700; display: grid; place-items: center;
+}
+.steps b { color: var(--sr-text); font-weight: 600; }
+kbd {
+  font-family: var(--font-mono); font-size: 0.71875rem;
+  background: var(--sr-surface-subtle); border: 1px solid var(--sr-border);
+  border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; color: var(--sr-text);
+}
+
+.spec { border-top: 1px solid var(--sr-border); margin-top: 16px; padding-top: 14px; }
+.spec dl { margin: 0; display: grid; grid-template-columns: minmax(0, 8.5rem) minmax(0,1fr); gap: 7px 16px; }
+.spec dt { font-size: 0.71875rem; font-weight: 600; color: var(--sr-text); }
+.spec dd { margin: 0; font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5; }
+
+.tick { color: var(--sr-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+  }
+}
+@media (max-width: 640px) {
+  .wrap { padding: 0 14px 72px; }
+  .map-tool-btn { width: 44px; height: 44px; }
+  .map-tool-btn.compact { width: 40px; height: 40px; }
+  .fab-filters { height: 44px; }
+  .copy-btn { min-height: 44px; }
+  .spec dl { grid-template-columns: minmax(0,1fr); gap: 2px 0; }
+  .spec dd { margin-bottom: 9px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brandmark">
+      <span class="dot-accent" aria-hidden="true">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      </span>
+      <b>Pin Share</b>
+      <span>SnowRaven design direction</span>
+    </div>
+    <div class="demo-ctl">
+      <span>Copy mode</span>
+      <button class="chip" id="modeToggle" aria-pressed="false">Coordinates and links</button>
+    </div>
+    <div class="demo-ctl">
+      <button class="chip" id="themeToggle" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">Stage 4 &middot; The Designer</p>
+    <h1>Drop a pin. Send the spot.</h1>
+    <p>Right-click or long-press any birding map, and the exact place you pressed becomes a message you can text to another birder. Nothing leaves the device to make it.</p>
+    <p>Everything below is live. Right-click the maps, drag the pins, press the copy buttons, and switch the theme and the copy mode from the bar above.</p>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="s1">
+    <div class="sec-head"><span class="sec-num">01</span><h2>The share pin and its popup</h2></div>
+    <p class="lede">Right-click (or press and hold on touch) anywhere on the map. The pin plants where you pressed, the popup opens with the coordinates already on screen, and one press puts the share block on the clipboard.</p>
+
+    <div class="stage-frame">
+      <div class="stage-bar">
+        <strong>Map Explorer</strong> My Sightings
+        <span class="spacer"></span>
+        <span class="demo-ctl">
+          <button class="chip" data-fail-toggle aria-pressed="false">Simulate a clipboard failure</button>
+        </span>
+      </div>
+      <div class="stage stage-lg" data-stage="explorer" data-density="normal" tabindex="0" role="application" aria-label="Map Explorer demonstration map"></div>
+    </div>
+
+    <div class="cols cols-2" style="margin-top: 26px;">
+      <div>
+        <h3>Why a flag, not another teardrop</h3>
+        <p class="lede" style="margin-bottom: 14px;">Species Detail, Named Birds and the Statistics map are already full of accent-green teardrops, and Map Explorer adds green, slate, amber and violet circles. Every hue is spoken for on at least one surface, so color cannot carry the distinction. Shape can. A planted flag reads as something the user put there a moment ago, its base is a precise point rather than a fat bulb, and it is unmistakable next to a teardrop at a glance.</p>
+        <div style="display:flex; align-items:flex-end; gap: 30px; padding: 18px 20px; background: var(--map-land); border: 1px solid var(--sr-border); border-radius: 10px;">
+          <div style="text-align:center;">
+            <svg viewBox="0 0 28 40" width="24" height="34" aria-hidden="true"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" fill="var(--sr-accent)"/><circle cx="14" cy="14" r="5" fill="#fff"/></svg>
+            <div style="font-size:0.625rem; color:#5b5a55; margin-top:7px;">Sighting</div>
+          </div>
+          <div style="text-align:center;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="var(--sr-accent)" stroke="#fff" stroke-width="1.4" aria-hidden="true"><path d="M12 22s7-6.6 7-12A7 7 0 1 0 5 10c0 5.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.6" fill="#fff" stroke="none"/></svg>
+            <div style="font-size:0.625rem; color:#5b5a55; margin-top:7px;">Search center</div>
+          </div>
+          <div style="text-align:center;">
+            <span data-pin-swatch></span>
+            <div style="font-size:0.625rem; color:#5b5a55; margin-top:7px;">Share pin</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3>Popup anatomy</h3>
+        <div class="spec">
+          <dl>
+            <dt>Coordinates</dt>
+            <dd>Monospace, tabular, selectable. Five decimals, latitude first. This is the datum, so it leads.</dd>
+            <dt>Copy button</dt>
+            <dd>Accent filled. Its label names the active mode, so a coordinates-only copy is never a surprise.</dd>
+            <dt>Mode line</dt>
+            <dd>One muted line under the button restating what the payload contains.</dd>
+            <dt>Close</dt>
+            <dd>The map popup's own close control. It removes the pin and the popup together, and returns focus to whatever opened it.</dd>
+            <dt>Drag</dt>
+            <dd>The pin drags to fine-tune. The popup follows and the coordinates update on release. Nothing is copied by dragging.</dd>
+          </dl>
+        </div>
+        <p class="note"><b>Copy is always an explicit press.</b> Dropping, moving and dragging a pin never touch the clipboard. On the search views the same gesture also re-runs a search, so a silent clipboard overwrite would be doubly unwelcome.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="s2">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Confirmation, and an honest failure</h2></div>
+    <p class="lede">The clipboard write can genuinely be refused. When it is, the popup says so and hands the user the text instead of claiming a success that did not happen.</p>
+
+    <div class="cols cols-2">
+      <div>
+        <h3>Copied</h3>
+        <div style="background: var(--map-land); border: 1px solid var(--sr-border); border-radius: 10px; padding: 26px 20px 34px; display:flex; justify-content:center;">
+          <div class="pop" style="position: relative; animation: none;">
+            <button class="pop-close" aria-label="Close" tabindex="-1">&times;</button>
+            <div class="pop-head">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              Share location
+            </div>
+            <div class="pop-body">
+              <p class="coord">38.54321, -121.98765</p>
+              <button class="copy-btn" data-state="done" tabindex="-1">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                Copied
+              </button>
+              <p class="mode-hint">Clears after about two seconds.</p>
+            </div>
+          </div>
+        </div>
+        <p class="note">The button settles from filled to tinted rather than getting louder. A screen reader hears <b>"Location copied to the clipboard."</b> from a live region that is already on the page before the message changes, so the announcement is not lost.</p>
+      </div>
+
+      <div>
+        <h3>Could not copy</h3>
+        <div style="background: var(--map-land); border: 1px solid var(--sr-border); border-radius: 10px; padding: 26px 20px 34px; display:flex; justify-content:center;">
+          <div class="pop" style="position: relative; animation: none;">
+            <button class="pop-close" aria-label="Close" tabindex="-1">&times;</button>
+            <div class="pop-head">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              Share location
+            </div>
+            <div class="pop-body">
+              <p class="coord">38.54321, -121.98765</p>
+              <button class="copy-btn" tabindex="-1">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy coordinates and links
+              </button>
+              <div class="fail" style="animation:none;">
+                <p class="fail-msg">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                  <span>Could not copy automatically. Select the text below and copy it.</span>
+                </p>
+                <div class="fail-bar">
+                  <span>Text to copy</span>
+                  <button class="link-btn" tabindex="-1">Select all</button>
+                </div>
+                <pre class="payload">38.54321, -121.98765
+Google Maps: https://maps.google.com/?q=38.54321,-121.98765
+Apple Maps: https://maps.apple.com/?q=38.54321,-121.98765</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="note"><b>Select all</b> earns its place on a phone, where dragging a selection across three wrapped lines inside a map popup is genuinely hard. Without it, "select the text below" is advice the user cannot easily follow.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="s3">
+    <div class="sec-head"><span class="sec-num">03</span><h2>The keyboard route</h2></div>
+    <p class="lede">Right-click and long-press are both pointer gestures. Three of the five surfaces have no latitude and longitude fields to borrow a keyboard path from, so the pin needs a control of its own. That control turns out to solve a second problem: a gesture nobody can see is a feature almost nobody finds.</p>
+
+    <div class="cols cols-2">
+      <div>
+        <h3>One control, one corner, every surface</h3>
+        <p class="lede" style="margin-bottom:16px;">A 36px map tool in the bottom-right corner that plants the pin at the center of the current view. On Map Explorer it joins the row that already holds Fullscreen and Filters, so no new corner is claimed and the iOS safe-area handling comes along for free. On the other four maps that corner is empty, and the same button sits there alone.</p>
+        <ol class="steps">
+          <li><b>Tab</b> to the map. MapLibre's canvas is already focusable.</li>
+          <li>Pan with the <kbd>arrow keys</kbd>, zoom with <kbd>+</kbd> and <kbd>-</kbd>, until the spot is in the middle.</li>
+          <li><b>Tab</b> to the pin button and press <kbd>Enter</kbd>. The pin plants at the center and focus moves into the popup.</li>
+          <li><b>Tab</b> to Copy, press <kbd>Enter</kbd>. The result is announced.</li>
+          <li><kbd>Esc</kbd> clears the pin and the popup and returns focus to the pin button.</li>
+        </ol>
+      </div>
+      <div>
+        <h3>Button states</h3>
+        <div style="display:flex; gap:26px; align-items:flex-end; padding: 22px 24px; background: var(--map-land); border: 1px solid var(--sr-border); border-radius: 10px;">
+          <div style="text-align:center;">
+            <button class="map-tool-btn" aria-pressed="false" tabindex="-1" aria-label="Drop a pin at the map center">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            </button>
+            <div style="font-size:0.625rem; color:#5b5a55; margin-top:9px; max-width:104px;">No pin yet.<br>"Drop a pin at the map center"</div>
+          </div>
+          <div style="text-align:center;">
+            <button class="map-tool-btn" aria-pressed="true" tabindex="-1" aria-label="Move the pin to the map center">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            </button>
+            <div style="font-size:0.625rem; color:#5b5a55; margin-top:9px; max-width:104px;">Pin on this map.<br>"Move the pin to the map center"</div>
+          </div>
+        </div>
+        <p class="note">The accent-tinted state is the app's existing "active" convention, and it doubles as a persistent signal that this map is holding a pin. The label changes with the state rather than staying vague, because "drop a pin" would be a small lie once one exists.</p>
+        <p class="note"><b>Not on the three search views.</b> Hotspots, Nearby Lifers and Media Targets already have latitude and longitude fields and a single search-center pin. Adding a second way to move that center would be a competing control, so those views keep their existing route and the button does not appear.</p>
+      </div>
+    </div>
+
+    <div class="stage-frame" style="margin-top: 26px;">
+      <div class="stage-bar"><strong>Species Detail</strong> Sighting Locations, Pins mode
+        <span class="spacer"></span>
+        <span class="demo-ctl">Try the button, bottom right</span>
+      </div>
+      <div class="stage stage-md" data-stage="species" data-density="normal" tabindex="0" role="application" aria-label="Species Detail demonstration map"></div>
+    </div>
+    <p class="note">The same map in Heatmap mode is a separate mount in the code, and it gets the identical gesture and the identical button. Switching between Pins and Heatmap must never quietly cost the user the feature.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="s4">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Compact density</h2></div>
+    <p class="lede">The per-individual map inside a Named Birds card is 220px tall and often half the page wide. It gets the same popup with tighter padding, a smaller coordinate line and a shorter scroll cap, at full meaning rather than an icon-only reduction. Density is a required choice at every call site, never a silent default.</p>
+
+    <div class="cols cols-2">
+      <div class="stage-frame">
+        <div class="stage-bar"><strong>Named Birds</strong> Pilgrim, Sandhill Crane</div>
+        <div class="stage stage-sm" data-stage="named" data-density="compact" tabindex="0" role="application" aria-label="Named Birds demonstration map"></div>
+      </div>
+      <div>
+        <div class="spec" style="border-top:0; padding-top:0; margin-top:0;">
+          <dl>
+            <dt>Popup width</dt><dd>224px, from 268px.</dd>
+            <dt>Padding</dt><dd>9px by 10px, from 11px by 13px.</dd>
+            <dt>Coordinate</dt><dd>0.8125rem, from 0.875rem. Still monospace, still selectable.</dd>
+            <dt>Body cap</dt><dd>9.5rem with internal scroll, so a revealed payload cannot run past a 220px map. The map clips its own overflow, so this cap is doing real work.</dd>
+            <dt>Pin button</dt><dd>30px, inset 12px, and still 40px on a coarse pointer.</dd>
+            <dt>Unchanged</dt><dd>Every label, the mode line, the failure text and the Select all control. Small does not mean less honest.</dd>
+          </dl>
+        </div>
+        <p class="note">There is no base-map switcher on this map, which frees the top-right corner, but the button stays bottom-right so the control lives in the same place on every surface.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="s5">
+    <div class="sec-head"><span class="sec-num">05</span><h2>The search views keep their pin</h2></div>
+    <p class="lede">On Hotspots, Nearby Lifers and Media Targets, right-click and long-press are already taken: they set the search center. Rather than compete, the existing center pin becomes a real button. A drop still just re-runs the search and looks exactly as it does today. Click or focus the pin, and the copy popup opens.</p>
+
+    <div class="stage-frame">
+      <div class="stage-bar"><strong>Map Explorer</strong> Hotspots
+        <span class="spacer"></span>
+        <span class="demo-ctl">Click the search center pin, or drag it</span>
+      </div>
+      <div class="stage stage-md" data-stage="center" data-density="normal" tabindex="0" role="application" aria-label="Hotspots demonstration map"></div>
+    </div>
+
+    <p class="note"><b>Dragging is not activating.</b> Fine-tuning the center by dragging must not pop the copy popup, and a pointer drag can end in a synthesized click. The pin's accessible name leads with its coordinates exactly as the latitude and longitude fields show them, then names the action: <b>"38.54321, -121.98765. Copy this location"</b>.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="s6">
+    <div class="sec-head"><span class="sec-num">06</span><h2>What lands on the clipboard</h2></div>
+    <p class="lede">Three lines by default, one line if that is what you asked for. Built as local strings from the numbers already on the device. Nothing is fetched, shortened, resolved or checked, so no coordinate leaves the machine and the privacy policy needs no new entry.</p>
+
+    <div class="cols cols-2">
+      <div class="pay-card">
+        <div class="pay-head">
+          <b>Copy coordinates and map links</b><em>Default</em>
+        </div>
+        <div class="pay-body">
+          <pre class="payload" style="max-height:none;">38.54321, -121.98765
+Google Maps: https://maps.google.com/?q=38.54321,-121.98765
+Apple Maps: https://maps.apple.com/?q=38.54321,-121.98765</pre>
+          <button class="copy-btn" style="margin-top:11px;" data-copy-demo="coords-and-links">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy this to try it in a message
+          </button>
+          <div class="msg-bubble">
+            38.54321, -121.98765<br>
+            Google Maps: <a href="#" onclick="return false;">https://maps.google.com/?q=38.54321,-121.98765</a><br>
+            Apple Maps: <a href="#" onclick="return false;">https://maps.apple.com/?q=38.54321,-121.98765</a>
+          </div>
+          <p class="msg-cap">How it reads in a text message</p>
+        </div>
+      </div>
+
+      <div class="pay-card">
+        <div class="pay-head">
+          <b>Copy coordinates only</b><em>Alternative</em>
+        </div>
+        <div class="pay-body">
+          <pre class="payload" style="max-height:none;">38.54321, -121.98765</pre>
+          <button class="copy-btn" style="margin-top:11px;" data-copy-demo="coords-only">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy this to try it in a message
+          </button>
+          <div class="msg-bubble">38.54321, -121.98765</div>
+          <p class="msg-cap">Pastes straight into a maps search box, a spreadsheet or a notebook</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="note">Five decimals is about a metre, it matches what eBird shows, and both Google Maps and Apple Maps accept it pasted directly into their search boxes. That last property is what makes the one-line mode genuinely useful rather than a degraded fallback.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="s7">
+    <div class="sec-head"><span class="sec-num">07</span><h2>The Settings preference</h2></div>
+    <p class="lede">Two named options rather than a switch, because a switch can only label one of its states. It sits in a section of its own: what a copy action produces is not an appearance setting, and "Sharing" is an accurate header with room to grow.</p>
+
+    <div class="settings-shell">
+      <div class="sec-label"><span>Appearance</span><i></i></div>
+      <div class="set-card" style="opacity: 0.55; margin-bottom: 26px;">
+        <div class="set-row">
+          <div class="set-title">Date format</div>
+          <p class="set-desc" style="margin:0;">How dates are shown throughout the app.</p>
+        </div>
+        <div class="set-row">
+          <div class="set-title">Disable embedded media</div>
+          <p class="set-desc" style="margin:0;">Prevents inline Macaulay Library players from loading.</p>
+        </div>
+      </div>
+
+      <div class="sec-label"><span>Sharing</span><i></i></div>
+      <div class="set-card">
+        <div class="set-row">
+          <div class="set-title">Copying a location</div>
+          <p class="set-desc">What gets copied when you copy a location from a map pin. Coordinates are decimal degrees to five places, latitude first.</p>
+          <div class="radio-row" role="radiogroup" aria-label="Copying a location" id="settingsRadios">
+            <button class="radio-opt" role="radio" data-mode="coords-and-links" aria-checked="true" tabindex="0">
+              Copy coordinates and map links
+              <small>Three lines, with Google Maps and Apple Maps</small>
+            </button>
+            <button class="radio-opt" role="radio" data-mode="coords-only" aria-checked="false" tabindex="-1">
+              Copy coordinates only
+              <small>One line, nothing else</small>
+            </button>
+          </div>
+          <div class="preview-label">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Example
+          </div>
+          <pre class="payload" id="settingsPreview" style="max-height:none;"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols cols-2" style="margin-top:26px;">
+      <p class="note" style="margin-top:0;"><b>The example is the whole argument for a preview.</b> "Copy coordinates and map links" describes a payload; the example is the payload. It reuses the pattern the Weather tab already uses, where the block you are about to copy is shown before you copy it.</p>
+      <p class="note" style="margin-top:0;"><b>The default is on, and that is deliberate.</b> The app's usual off-by-default posture exists for options with a network or privacy cost. This one has neither: the links are built locally and nothing is fetched, so the richer mode is a strict superset with no downside and it matches the stated use, which is sharing by text.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════ -->
+  <section id="s8">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Motion</h2></div>
+    <p class="lede">Every movement here explains a state change and nothing decorates a static screen. All of it is under 200ms, all of it eases out, and all of it goes near-instant when the operating system asks for reduced motion.</p>
+    <div class="spec" style="border-top:0; padding-top:0; margin-top:0; max-width: 760px;">
+      <dl>
+        <dt>Pin plant</dt><dd>190ms, ease-out, rises 7px into place with a fade. It says something was placed here, without a bounce.</dd>
+        <dt>Popup open</dt><dd>170ms, ease-out, scales from 0.94 with its transform origin at the pin tip, so it grows out of the pin rather than appearing over it.</dd>
+        <dt>Copy result</dt><dd>140ms color transition from filled to tinted. No pulse, no flash.</dd>
+        <dt>Failure reveal</dt><dd>190ms, ease-out, a 4px rise with a fade as the text appears.</dd>
+        <dt>Pin button</dt><dd>140ms color transition into and out of the active state.</dd>
+        <dt>Reduced motion</dt><dd>Everything collapses to about 1 microsecond through the rule already in globals.css. The end state is identical, so nothing is lost.</dd>
+      </dl>
+    </div>
+  </section>
+
+</div>
+
+<span class="sr-only" role="status" aria-live="polite" id="liveRegion"></span>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     Basemap illustration. Putah Creek west of Davis, Yolo County, California,
+     which is where the PRD's example coordinate lands and a genuinely good
+     riparian birding stretch. Hand-drawn, no tiles, no requests.
+     ════════════════════════════════════════════════════════════════════════ -->
+<template id="mapArt">
+<svg class="basemap" viewBox="0 0 900 500" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <rect width="900" height="500" fill="var(--map-land)"/>
+  <g fill="var(--map-field)">
+    <rect x="20" y="18" width="180" height="118" rx="2"/>
+    <rect x="212" y="10" width="150" height="96" rx="2"/>
+    <rect x="376" y="16" width="196" height="112" rx="2"/>
+    <rect x="586" y="24" width="164" height="104" rx="2"/>
+    <rect x="762" y="14" width="150" height="126" rx="2"/>
+    <rect x="14" y="150" width="136" height="104" rx="2"/>
+    <rect x="640" y="150" width="152" height="92" rx="2"/>
+    <rect x="806" y="158" width="120" height="100" rx="2"/>
+    <rect x="30" y="392" width="176" height="118" rx="2"/>
+    <rect x="220" y="404" width="164" height="106" rx="2"/>
+    <rect x="398" y="396" width="150" height="114" rx="2"/>
+    <rect x="562" y="408" width="182" height="102" rx="2"/>
+    <rect x="758" y="392" width="158" height="118" rx="2"/>
+  </g>
+  <!-- riparian canopy along the creek -->
+  <path d="M-20 300 C 120 262, 210 336, 330 300 S 540 236, 640 268 S 800 316, 930 276 L 930 356 C 800 396, 640 348, 540 322 S 330 380, 210 400 S 80 352, -20 372 Z"
+        fill="var(--map-canopy)"/>
+  <!-- creek -->
+  <path d="M-20 336 C 120 300, 210 372, 330 338 S 540 274, 640 306 S 800 352, 930 314"
+        fill="none" stroke="var(--map-water)" stroke-width="15" stroke-linecap="round"/>
+  <!-- pond -->
+  <ellipse cx="196" cy="226" rx="52" ry="27" fill="var(--map-water)"/>
+  <!-- roads -->
+  <g stroke="var(--map-casing)" stroke-width="9" fill="none" stroke-linecap="round">
+    <path d="M0 144 L 900 128"/>
+    <path d="M262 -10 L 300 510"/>
+    <path d="M676 -10 L 646 510"/>
+    <path d="M0 388 L 900 402"/>
+  </g>
+  <g stroke="var(--map-road)" stroke-width="6" fill="none" stroke-linecap="round">
+    <path d="M0 144 L 900 128"/>
+    <path d="M262 -10 L 300 510"/>
+    <path d="M676 -10 L 646 510"/>
+    <path d="M0 388 L 900 402"/>
+  </g>
+  <g font-family="var(--font-sans)" fill="var(--map-label)" font-size="11" letter-spacing="0.3">
+    <text x="34" y="138" font-size="10.5">County Road 31</text>
+    <text x="700" y="122" font-size="10.5">County Road 29</text>
+    <text x="308" y="466" font-size="10.5">County Road 95A</text>
+    <text x="152" y="214" font-size="10">Putah Creek Pond</text>
+    <text x="404" y="286" font-size="12" font-style="italic" fill="#7f8f96">Putah Creek</text>
+    <text x="654" y="230" font-size="10.5">Stevenson Bridge</text>
+    <text x="60" y="470" font-size="10.5">Winters</text>
+  </g>
+</svg>
+</template>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Coordinate model ──────────────────────────────────────────────────
+     A believable bounding box around Putah Creek, Yolo County, California,
+     so a click anywhere on the demo map produces a coordinate a birder in
+     that area would recognise. */
+  var BBOX = { n: 38.5620, s: 38.5250, w: -122.0100, e: -121.9600 };
+  var EXAMPLE = { lat: 38.54321, lng: -121.98765 };
+
+  /* ── The payload, exactly as lib/shareLocation.ts will build it ─────── */
+  function normalizeLongitude(lng) {
+    return ((lng + 180) % 360 + 360) % 360 - 180;
+  }
+  function fixed5(lat, lng) {
+    var a = lat.toFixed(5), b = normalizeLongitude(lng).toFixed(5);
+    if (/^-0\.0+$/.test(a)) a = a.slice(1);
+    if (/^-0\.0+$/.test(b)) b = b.slice(1);
+    return { lat: a, lng: b };
+  }
+  function formatCoordinate(lat, lng) {
+    var f = fixed5(lat, lng);
+    return f.lat + ', ' + f.lng;
+  }
+  function buildSharePayload(lat, lng, mode) {
+    var f = fixed5(lat, lng);
+    var line = f.lat + ', ' + f.lng;
+    if (mode === 'coords-only') return line;
+    var pair = f.lat + ',' + f.lng;
+    return line
+      + '\nGoogle Maps: https://maps.google.com/?q=' + pair
+      + '\nApple Maps: https://maps.apple.com/?q=' + pair;
+  }
+
+  /* ── Shared preference, module-level so every open popup follows it ─── */
+  var mode = 'coords-and-links';
+  var modeListeners = [];
+  function onMode(fn) { modeListeners.push(fn); }
+  function setMode(next) {
+    if (next === mode) return;
+    mode = next;
+    modeListeners.forEach(function (fn) { fn(mode); });
+  }
+  function copyLabel() {
+    return mode === 'coords-only' ? 'Copy coordinates' : 'Copy coordinates and links';
+  }
+  function modeHint() {
+    return mode === 'coords-only'
+      ? 'Coordinates only.'
+      : 'With Google Maps and Apple Maps links.';
+  }
+
+  var live = document.getElementById('liveRegion');
+  function announce(msg) { live.textContent = ''; setTimeout(function () { live.textContent = msg; }, 30); }
+
+  /* ── Icons ─────────────────────────────────────────────────────────── */
+  var ICON = {
+    pin: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    copy: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    check: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+    warn: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+    head: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+    expand: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>',
+    filter: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>'
+  };
+
+  /* The share pin: a planted flag. Base of the staff is the coordinate. */
+  function sharePinSvg(size) {
+    var w = size === 'compact' ? 22 : 26, h = size === 'compact' ? 28 : 33;
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 26 33" aria-hidden="true"'
+      + ' style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.32));">'
+      + '<path d="M6 32.4 V3.4" stroke="var(--sr-map-pin-stroke)" stroke-width="3.1" stroke-linecap="round" fill="none"/>'
+      + '<path d="M6.9 2.6 L22.4 7.1 L6.9 12.6 Z" fill="var(--sr-share-pin)" stroke="var(--sr-map-pin-stroke)" stroke-width="1.5" stroke-linejoin="round"/>'
+      + '<circle cx="14.2" cy="7.3" r="1.7" fill="var(--sr-share-pin-ink)"/>'
+      + '<circle cx="6" cy="31.4" r="2.9" fill="var(--sr-share-pin)" stroke="var(--sr-map-pin-stroke)" stroke-width="1.4"/>'
+      + '</svg>';
+  }
+
+  var sw = document.querySelector('[data-pin-swatch]');
+  if (sw) sw.innerHTML = sharePinSvg('normal');
+
+  var mapArt = document.getElementById('mapArt');
+
+  /* ── Stage ─────────────────────────────────────────────────────────── */
+  var HOLD_MS = 550, SLOP = 10;
+  var failSim = false;
+
+  function Stage(el) {
+    var kind = el.dataset.stage;
+    var compact = el.dataset.density === 'compact';
+    var self = this;
+    this.el = el;
+    this.compact = compact;
+    this.kind = kind;
+    this.pin = null;          /* {lat, lng, x, y} */
+    this.open = false;
+    this.opener = null;
+    this.copyTimer = null;
+    this.failed = false;
+
+    el.appendChild(mapArt.content.cloneNode(true));
+
+    /* Existing app furniture */
+    var nav = document.createElement('div');
+    nav.className = 'mock-nav';
+    nav.setAttribute('aria-hidden', 'true');
+    nav.innerHTML = '<button tabindex="-1">+</button><button tabindex="-1">&minus;</button>';
+    el.appendChild(nav);
+
+    if (kind !== 'named') {
+      var layers = document.createElement('div');
+      layers.className = 'mock-layers';
+      layers.setAttribute('aria-hidden', 'true');
+      layers.innerHTML = '<div class="mock-seg"><span class="on">Map</span><span>Satellite</span><span>Topo</span></div>';
+      el.appendChild(layers);
+    }
+    var attrib = document.createElement('div');
+    attrib.className = 'mock-attrib';
+    attrib.setAttribute('aria-hidden', 'true');
+    attrib.textContent = '© OpenFreeMap';
+    el.appendChild(attrib);
+
+    /* Existing sighting pins, so the share pin can be judged in context */
+    var dataPins = kind === 'named'
+      ? [[0.44, 0.52], [0.63, 0.40]]
+      : (kind === 'center' ? [] : [[0.20, 0.35], [0.37, 0.61], [0.58, 0.30], [0.74, 0.55], [0.86, 0.42]]);
+    dataPins.forEach(function (p) {
+      var d = document.createElement('div');
+      d.className = 'data-pin';
+      d.style.left = (p[0] * 100) + '%';
+      d.style.top = (p[1] * 100) + '%';
+      d.innerHTML = '<svg viewBox="0 0 28 40" width="24" height="34" aria-hidden="true" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.28));"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" fill="var(--sr-accent)"/><circle cx="14" cy="14" r="5" fill="#fff"/></svg>';
+      el.appendChild(d);
+    });
+
+    /* Hint pill */
+    var hint = document.createElement('div');
+    hint.className = 'stage-hint';
+    hint.innerHTML = '<span class="hint-pill">' + (kind === 'center'
+      ? 'Click or drag the search center pin'
+      : 'Right-click the map, or press and hold') + '</span>';
+    el.appendChild(hint);
+    this.hint = hint;
+
+    /* Controls */
+    if (kind === 'center') {
+      /* Surface B: the existing center pin, promoted to a button. */
+      this.centerLat = BBOX.n - (BBOX.n - BBOX.s) * 0.46;
+      this.centerLng = BBOX.w + (BBOX.e - BBOX.w) * 0.5;
+      var cp = document.createElement('button');
+      cp.type = 'button';
+      cp.className = 'center-pin';
+      cp.style.left = '50%';
+      cp.style.top = '46%';
+      cp.innerHTML = '<svg width="30" height="30" viewBox="0 0 24 24" fill="var(--sr-accent)" stroke="var(--sr-on-accent)" stroke-width="1.4" aria-hidden="true" style="filter: drop-shadow(0 3px 3px rgba(0,0,0,0.3));"><path d="M12 22s7-6.6 7-12A7 7 0 1 0 5 10c0 5.4 7 12 7 12z"/><circle cx="12" cy="10" r="2.6" fill="var(--sr-on-accent)" stroke="none"/></svg>';
+      el.appendChild(cp);
+      this.centerPin = cp;
+      this.syncCenterName();
+
+      var moved = false, downAt = null, dragging = false;
+      cp.addEventListener('pointerdown', function (e) {
+        downAt = { x: e.clientX, y: e.clientY }; moved = false; dragging = true;
+        cp.setPointerCapture(e.pointerId);
+      });
+      cp.addEventListener('pointermove', function (e) {
+        if (!dragging || !downAt) return;
+        if (Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > SLOP) {
+          moved = true;
+          var r = el.getBoundingClientRect();
+          var x = Math.min(Math.max(e.clientX - r.left, 0), r.width);
+          var y = Math.min(Math.max(e.clientY - r.top, 0), r.height);
+          cp.style.left = (x / r.width * 100) + '%';
+          cp.style.top = (y / r.height * 100) + '%';
+          var c = self.coordAt(x, y, r);
+          self.centerLat = c.lat; self.centerLng = c.lng;
+          self.syncCenterName();
+          if (self.open) self.renderPopup();
+        }
+      });
+      cp.addEventListener('pointerup', function (e) {
+        dragging = false;
+        try { cp.releasePointerCapture(e.pointerId); } catch (err) { /* noop */ }
+      });
+      cp.addEventListener('click', function () {
+        /* A drag must never be read as an activation. */
+        if (moved) { moved = false; return; }
+        self.opener = cp;
+        self.open = true;
+        self.failed = false;
+        self.renderPopup();
+      });
+      cp.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') moved = false; });
+    } else {
+      /* Surfaces A, C, D, E, F: the drop button. */
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'map-tool-btn' + (compact ? ' compact' : '');
+      btn.setAttribute('aria-pressed', 'false');
+      btn.innerHTML = ICON.pin;
+      this.dropBtn = btn;
+      this.syncDropBtn();
+      btn.addEventListener('click', function () {
+        var r = el.getBoundingClientRect();
+        self.opener = btn;
+        self.drop(r.width / 2, r.height / 2, r);
+        var cb = self.popupEl && self.popupEl.querySelector('.copy-btn');
+        if (cb) cb.focus();
+      });
+
+      if (kind === 'explorer') {
+        var cluster = document.createElement('div');
+        cluster.className = 'fab-cluster';
+        cluster.appendChild(btn);
+        var fs = document.createElement('button');
+        fs.type = 'button'; fs.className = 'map-tool-btn'; fs.tabIndex = -1;
+        fs.setAttribute('aria-label', 'Enter fullscreen');
+        fs.innerHTML = ICON.expand;
+        cluster.appendChild(fs);
+        var fl = document.createElement('button');
+        fl.type = 'button'; fl.className = 'fab-filters'; fl.tabIndex = -1;
+        fl.innerHTML = ICON.filter + 'Filters';
+        cluster.appendChild(fl);
+        el.appendChild(cluster);
+      } else {
+        var corner = document.createElement('div');
+        corner.className = 'share-corner' + (compact ? ' compact' : '');
+        corner.appendChild(btn);
+        el.appendChild(corner);
+      }
+
+      /* Right-click and long-press, the shipped v0.5.43 gesture contract. */
+      el.addEventListener('contextmenu', function (e) {
+        e.preventDefault();
+        if (Date.now() - lastTouchFire < 800) return;
+        var r = el.getBoundingClientRect();
+        self.opener = null;
+        self.drop(e.clientX - r.left, e.clientY - r.top, r);
+      });
+
+      var timer = null, startPoint = null, lastTouchFire = 0;
+      function cancel() { if (timer) { clearTimeout(timer); timer = null; } startPoint = null; }
+      el.addEventListener('touchstart', function (e) {
+        if (e.touches.length !== 1) { cancel(); return; }
+        var t = e.touches[0];
+        var r = el.getBoundingClientRect();
+        startPoint = { x: t.clientX, y: t.clientY, rx: t.clientX - r.left, ry: t.clientY - r.top, r: r };
+        timer = setTimeout(function () {
+          if (startPoint) {
+            lastTouchFire = Date.now();
+            self.opener = null;
+            self.drop(startPoint.rx, startPoint.ry, startPoint.r);
+          }
+          cancel();
+        }, HOLD_MS);
+      }, { passive: true });
+      el.addEventListener('touchmove', function (e) {
+        if (!startPoint) return;
+        var t = e.touches[0];
+        if (Math.hypot(t.clientX - startPoint.x, t.clientY - startPoint.y) > SLOP) cancel();
+      }, { passive: true });
+      el.addEventListener('touchend', cancel, { passive: true });
+      el.addEventListener('touchcancel', cancel, { passive: true });
+    }
+
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && self.open) { e.stopPropagation(); self.close(); }
+    });
+
+    onMode(function () {
+      if (self.open) self.renderPopup();
+    });
+  }
+
+  Stage.prototype.coordAt = function (x, y, r) {
+    return {
+      lat: BBOX.n - (y / r.height) * (BBOX.n - BBOX.s),
+      lng: BBOX.w + (x / r.width) * (BBOX.e - BBOX.w)
+    };
+  };
+
+  Stage.prototype.syncCenterName = function () {
+    if (!this.centerPin) return;
+    this.centerPin.setAttribute('aria-label',
+      formatCoordinate(this.centerLat, this.centerLng) + '. Copy this location');
+  };
+
+  Stage.prototype.syncDropBtn = function () {
+    if (!this.dropBtn) return;
+    var has = !!this.pin;
+    this.dropBtn.setAttribute('aria-pressed', has ? 'true' : 'false');
+    this.dropBtn.setAttribute('aria-label', has
+      ? 'Move the pin to the map center'
+      : 'Drop a pin at the map center');
+    this.dropBtn.title = has ? 'Move the pin to the map center' : 'Drop a pin at the map center';
+  };
+
+  Stage.prototype.drop = function (x, y, r) {
+    var c = this.coordAt(x, y, r);
+    this.pin = { lat: c.lat, lng: c.lng, x: x / r.width, y: y / r.height };
+    this.open = true;
+    this.failed = false;
+    this.hint.style.display = 'none';
+    this.render();
+  };
+
+  Stage.prototype.close = function () {
+    this.open = false;
+    this.pin = null;
+    this.failed = false;
+    if (this.copyTimer) { clearTimeout(this.copyTimer); this.copyTimer = null; }
+    this.render();
+    var o = this.opener;
+    /* Focus is restored after the close render commits, never before. */
+    requestAnimationFrame(function () { if (o && o.isConnected) o.focus(); });
+  };
+
+  Stage.prototype.render = function () {
+    if (this.pinEl) { this.pinEl.remove(); this.pinEl = null; }
+    if (this.pin) {
+      var self = this;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'share-pin';
+      b.style.left = (this.pin.x * 100) + '%';
+      b.style.top = (this.pin.y * 100) + '%';
+      b.innerHTML = sharePinSvg(this.compact ? 'compact' : 'normal');
+      b.setAttribute('aria-label',
+        formatCoordinate(this.pin.lat, this.pin.lng) + '. Share this location');
+      this.el.appendChild(b);
+      this.pinEl = b;
+
+      /* Draggable, with the popup following and the coordinates updating. */
+      var dragging = false, downAt = null, moved = false;
+      b.addEventListener('pointerdown', function (e) {
+        dragging = true; moved = false; downAt = { x: e.clientX, y: e.clientY };
+        b.setPointerCapture(e.pointerId);
+      });
+      b.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        if (!moved && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) <= SLOP) return;
+        moved = true;
+        var r = self.el.getBoundingClientRect();
+        var x = Math.min(Math.max(e.clientX - r.left, 0), r.width);
+        var y = Math.min(Math.max(e.clientY - r.top, 0), r.height);
+        var c = self.coordAt(x, y, r);
+        self.pin = { lat: c.lat, lng: c.lng, x: x / r.width, y: y / r.height };
+        b.style.left = (self.pin.x * 100) + '%';
+        b.style.top = (self.pin.y * 100) + '%';
+        b.style.animation = 'none';
+        b.setAttribute('aria-label', formatCoordinate(c.lat, c.lng) + '. Share this location');
+        self.failed = false;
+        self.renderPopup();
+      });
+      b.addEventListener('pointerup', function (e) {
+        dragging = false;
+        try { b.releasePointerCapture(e.pointerId); } catch (err) { /* noop */ }
+      });
+      b.addEventListener('click', function () {
+        if (moved) { moved = false; return; }
+        self.opener = b; self.open = true; self.renderPopup();
+      });
+    }
+    this.syncDropBtn();
+    this.renderPopup();
+  };
+
+  Stage.prototype.renderPopup = function () {
+    var self = this;
+    if (this.popupEl) { this.popupEl.remove(); this.popupEl = null; }
+    if (!this.open) return;
+
+    var lat, lng, px, py;
+    if (this.kind === 'center') {
+      lat = this.centerLat; lng = this.centerLng;
+      px = parseFloat(this.centerPin.style.left) / 100;
+      py = parseFloat(this.centerPin.style.top) / 100;
+    } else {
+      if (!this.pin) return;
+      lat = this.pin.lat; lng = this.pin.lng; px = this.pin.x; py = this.pin.y;
+    }
+
+    var r = this.el.getBoundingClientRect();
+    var pop = document.createElement('div');
+    pop.className = 'pop' + (this.compact ? ' compact' : '');
+    var popW = this.compact ? 224 : 268;
+    var left = Math.min(Math.max(px * r.width, popW / 2 + 10), r.width - popW / 2 - 10);
+    pop.style.left = left + 'px';
+    pop.style.transform = 'translateX(-50%)';
+    /* Anchored above the pin; flips below when there is no room. */
+    var tipY = py * r.height - (this.kind === 'center' ? 32 : 34);
+    var above = tipY > (this.compact ? 118 : 148);
+    if (above) { pop.style.bottom = (r.height - tipY + 10) + 'px'; }
+    else { pop.style.top = (py * r.height + 14) + 'px'; pop.style.transformOrigin = 'top center'; pop.classList.add('below'); }
+
+    var failBlock = this.failed
+      ? '<div class="fail">'
+        + '<p class="fail-msg">' + ICON.warn + '<span>Could not copy automatically. Select the text below and copy it.</span></p>'
+        + '<div class="fail-bar"><span>Text to copy</span><button type="button" class="link-btn" data-selall>Select all</button></div>'
+        + '<pre class="payload" data-payload>' + escapeHtml(buildSharePayload(lat, lng, mode)) + '</pre>'
+        + '</div>'
+      : '';
+
+    var done = pop.dataset.done === '1';
+    pop.innerHTML =
+      '<button type="button" class="pop-close" aria-label="Close and remove the pin">&times;</button>'
+      + '<div class="pop-head">' + ICON.head + 'Share location</div>'
+      + '<div class="pop-body">'
+      + '<p class="coord">' + escapeHtml(formatCoordinate(lat, lng)) + '</p>'
+      + '<button type="button" class="copy-btn">' + ICON.copy + '<span>' + copyLabel() + '</span></button>'
+      + '<p class="mode-hint">' + modeHint() + '</p>'
+      + failBlock
+      + '</div>';
+
+    if (!above) {
+      pop.style.setProperty('--tip', 'top');
+    }
+
+    this.el.appendChild(pop);
+    this.popupEl = pop;
+
+    pop.querySelector('.pop-close').addEventListener('click', function () { self.close(); });
+
+    var selall = pop.querySelector('[data-selall]');
+    if (selall) {
+      selall.addEventListener('click', function () {
+        var pre = pop.querySelector('[data-payload]');
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        var range = document.createRange();
+        range.selectNodeContents(pre);
+        sel.addRange(range);
+        announce('Text selected. Copy it with your device’s copy command.');
+      });
+    }
+
+    var btn = pop.querySelector('.copy-btn');
+    btn.addEventListener('click', function () {
+      var payload = buildSharePayload(lat, lng, mode);
+      if (failSim) {
+        self.failed = true;
+        self.renderPopup();
+        announce('Could not copy. The text is shown so you can copy it manually.');
+        return;
+      }
+      var ok = writeClipboard(payload);
+      if (!ok) {
+        self.failed = true;
+        self.renderPopup();
+        announce('Could not copy. The text is shown so you can copy it manually.');
+        return;
+      }
+      btn.dataset.state = 'done';
+      btn.innerHTML = ICON.check + '<span>Copied</span>';
+      announce('Location copied to the clipboard.');
+      if (self.copyTimer) clearTimeout(self.copyTimer);
+      self.copyTimer = setTimeout(function () {
+        if (!btn.isConnected) return;
+        delete btn.dataset.state;
+        btn.innerHTML = ICON.copy + '<span>' + copyLabel() + '</span>';
+      }, 2000);
+    });
+  };
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function writeClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) { /* fall through */ }
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'absolute';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+
+  /* ── Wire the stages ───────────────────────────────────────────────── */
+  var stages = [];
+  document.querySelectorAll('[data-stage]').forEach(function (el) { stages.push(new Stage(el)); });
+
+  /* ── Demo controls ─────────────────────────────────────────────────── */
+  document.querySelectorAll('[data-fail-toggle]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      failSim = !failSim;
+      b.setAttribute('aria-pressed', failSim ? 'true' : 'false');
+      b.textContent = failSim ? 'Clipboard failure: on' : 'Simulate a clipboard failure';
+    });
+  });
+
+  var modeToggle = document.getElementById('modeToggle');
+  modeToggle.addEventListener('click', function () {
+    setMode(mode === 'coords-only' ? 'coords-and-links' : 'coords-only');
+  });
+
+  var radios = Array.prototype.slice.call(document.querySelectorAll('#settingsRadios [role="radio"]'));
+  radios.forEach(function (rb, i) {
+    rb.addEventListener('click', function () { setMode(rb.dataset.mode); });
+    rb.addEventListener('keydown', function (e) {
+      var next = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = (i + 1) % radios.length;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = (i - 1 + radios.length) % radios.length;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = radios.length - 1;
+      else return;
+      e.preventDefault();
+      setMode(radios[next].dataset.mode);
+      radios[next].focus();
+    });
+  });
+
+  var preview = document.getElementById('settingsPreview');
+  function syncMode() {
+    modeToggle.setAttribute('aria-pressed', mode === 'coords-only' ? 'true' : 'false');
+    modeToggle.textContent = mode === 'coords-only' ? 'Coordinates only' : 'Coordinates and links';
+    radios.forEach(function (rb) {
+      var on = rb.dataset.mode === mode;
+      rb.setAttribute('aria-checked', on ? 'true' : 'false');
+      rb.tabIndex = on ? 0 : -1;
+    });
+    preview.textContent = buildSharePayload(EXAMPLE.lat, EXAMPLE.lng, mode);
+  }
+  onMode(syncMode);
+  syncMode();
+
+  document.querySelectorAll('[data-copy-demo]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var text = buildSharePayload(EXAMPLE.lat, EXAMPLE.lng, b.dataset.copyDemo);
+      var label = b.querySelector('span');
+      if (writeClipboard(text)) {
+        b.dataset.state = 'done';
+        b.innerHTML = ICON.check + 'Copied';
+        announce('Example copied to the clipboard.');
+        setTimeout(function () {
+          delete b.dataset.state;
+          b.innerHTML = ICON.copy + 'Copy this to try it in a message';
+        }, 2000);
+      }
+      if (label) { /* keep reference used */ }
+    });
+  });
+
+  var themeToggle = document.getElementById('themeToggle');
+  themeToggle.addEventListener('click', function () {
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+    themeToggle.setAttribute('aria-pressed', dark ? 'false' : 'true');
+    themeToggle.textContent = dark ? 'Dark' : 'Light';
+  });
+})();
+</script>
+</body>
+</html>

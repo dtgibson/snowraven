@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
+import { SharePin } from './map/SharePin'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
 import { jumpTo } from '../lib/scroll'
@@ -861,6 +862,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                         <span style={{ fontSize: '0.8125rem' }}>{geoPopup.title}</span><br /><span style={{ color: 'var(--sr-text-muted)', fontSize: '0.75rem' }}>{geoPopup.sub}</span>
                       </Popup>
                     )}
+                    {/* Pin Share, surface E. No reset key needed: this map has no
+                        entity behind it that can change under a mounted map. */}
+                    <SharePin compact={false} buttonHost="corner" />
                   </SnowMap>
                 </div>
               ) : (

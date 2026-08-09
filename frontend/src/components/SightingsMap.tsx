@@ -17,6 +17,7 @@ import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 import { formatDate } from '../lib/formatDate'
 import { ChecklistLink } from './ChecklistLink'
 import { neutralizeMarkerWrapper } from '../lib/mapPins'
+import { SharePin } from './map/SharePin'
 import type { SightingMarker } from '../lib/sightingMarkers'
 
 export type { SightingMarker } from '../lib/sightingMarkers'
@@ -28,7 +29,7 @@ export type { SightingMarker } from '../lib/sightingMarkers'
 // (map popups stay escaped JSX; the pin sprite is the lone static-SVG exception).
 const SP_PIN_HTML = '<svg viewBox="0 0 28 40" width="24" height="34" xmlns="http://www.w3.org/2000/svg"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" style="fill:var(--sr-accent)"/><circle cx="14" cy="14" r="5" fill="white"/></svg>'
 
-export function SightingsMap({ markers, switcher = true }: {
+export function SightingsMap({ markers, switcher = true, compact = false, sharePinResetKey }: {
   /** Aggregated by coordinate, sightings newest-first. The caller must not mount
    *  this with an empty array — gate on `markers.length > 0` so no WebGL context
    *  mounts for a no-coordinate individual. */
@@ -36,6 +37,18 @@ export function SightingsMap({ markers, switcher = true }: {
   /** Show the base map switcher (Map/Satellite/Topo). Defaults true (Species
    *  Detail parity); the card passes false to keep the small map uncluttered. */
   switcher?: boolean
+  /** Share-pin density, forwarded to SharePin (where `compact` is REQUIRED, per
+   *  the MediaFrame precedent). It is defaulted HERE only to keep this
+   *  component's existing optional-prop shape (`switcher = true`) and its test
+   *  suite byte-unchanged; BOTH call sites pass it explicitly. The Named Birds
+   *  card map is 220px tall and wants the denser popup. */
+  compact?: boolean
+  /** Remounts ONLY the share pin when the entity behind the map changes. Species
+   *  Detail's map keeps its JSX position across a species change, so nothing
+   *  unmounts and a stale pin would survive (FR-09 / QA-16). Keying the whole
+   *  <SightingsMap> would churn the WebGL context and re-run the bounds fit on
+   *  every species change; this keys the tiny pin instead. */
+  sharePinResetKey?: string | number
 }) {
   // The pin whose popup is open. MapLibre uses ONE state-driven <Popup>, not a
   // popup bound to each marker. Keyed by "lat,lng".
@@ -89,6 +102,10 @@ export function SightingsMap({ markers, switcher = true }: {
         </Popup>
       )}
       <MapBoundsFitter coordinates={coords} />
+      {/* Pin Share, surfaces C and F in one change: Species Detail's Sighting
+          Locations (Pins mode) and the Named Birds per-individual card map are
+          this component's only two consumers. */}
+      <SharePin key={sharePinResetKey} compact={compact} buttonHost="corner" />
     </SnowMap>
   )
 }

@@ -286,6 +286,32 @@ Click **Use my location** in the map controls to center the map on your current 
 
 **Drop a pin to set the center.** On the Hotspots, Nearby Lifers, and Media Targets views you can set the search center right on the map: **right-click** (desktop) or **long-press** (touch) anywhere to drop a center pin there, then **drag the pin** to fine-tune. Each placement re-runs that view's search for the new spot. This sets the center for the current session only. It doesn't change your saved Default Location (set that in Settings). The place-name search, **Use my location**, and typed coordinates all still work and drive the same center.
 
+### Copying a location from a map
+
+When you want to tell another birder exactly where a spot is (the far end of the pond, the parking pullout, a stakeout on a levee road with no address), drop a share pin and copy it.
+
+**Dropping a pin.** On the My Sightings view, **right-click** (desktop) or **long-press** (touch) anywhere on the map. A small red flag plants at the exact point you pressed, and a popup opens showing that spot's coordinates. Drag the flag to fine-tune it: the coordinates update as you go and the popup follows. Dropping again moves the same pin rather than adding a second one.
+
+**Without a pointer.** Every map with a share pin also has a round pin button in its bottom-right corner. Press it and the pin plants at the center of the current view, so you can pan the map with the arrow keys, press the button, and copy without ever using a mouse gesture. The button tints green while that map is holding a pin.
+
+**Copying.** Press the copy button in the popup. By default you get three lines:
+
+```
+38.54321, -121.98765
+Google Maps: https://maps.google.com/?q=38.54321,-121.98765
+Apple Maps: https://maps.apple.com/?q=38.54321,-121.98765
+```
+
+Paste that into a text message and the two links are tappable, opening the exact spot in whichever maps app the person you sent it to prefers. The coordinate line on its own also works: paste it straight into a Google Maps or Apple Maps search box and it finds the spot. If you would rather send just that one line, choose **Copy coordinates only** in Settings under Sharing.
+
+If the clipboard write is refused (this can happen in some browsers), the popup says so and shows the full text with a **Select all** button, so you can copy it by hand. It never claims a copy that did not happen.
+
+**Where it works.** The share pin is on Map Explorer's My Sightings view, Species Detail's Sighting Locations map (both Pins and Heatmap), the Statistics Geographic Stats map, and the per-individual map on a Named Birds card. On Hotspots, Nearby Lifers, and Media Targets, right-click and long-press are already taken by the search center, so instead the **search center pin itself** is clickable: click it (or reach it with the keyboard) and the same copy popup opens. Dropping and dragging that pin behaves exactly as it always has.
+
+**Closing.** Press **Esc**, or the popup's close button, to remove the pin and the popup together. The pin is not saved anywhere: it disappears when you leave the tab, and nothing about it is written to disk.
+
+**Nothing is sent anywhere.** The coordinates are already on your device and the two links are assembled locally as plain text. No shortener, no geocoder, no lookup of any kind, so the whole thing works with no connection.
+
 ### My Sightings
 
 Shows all your personal observations on a map. Narrow what's shown with the panel filters: Species (a specific species), Breeding Code, Date Range, County (when your backup contains county data), and Media. The Radius control sets the map's starting zoom and the distance within which your saved personal locations appear.
@@ -459,6 +485,15 @@ Set your color scheme: System (follows your operating system preference), Light,
 **Date format.** Choose how dates appear throughout the app: month-first (Jun 8, 2026), day-first (8 Jun 2026), or ISO (2026-06-08). The default is month-first. Your choice applies everywhere dates are shown and is remembered across sessions.
 
 **Disable embedded media.** This option is off by default, so Species Detail and Named Birds normally show inline Macaulay Library players. Turn it on to prevent those players from loading anywhere in SnowRaven. Their space will say “Embedded media is disabled in Settings.” Dates, checklist links, media counts, comments, analytics, and direct links to each item on the Macaulay Library remain available. The choice takes effect immediately and is remembered across sessions.
+
+### Sharing
+
+**Copying a location.** Chooses what lands on the clipboard when you copy a location from a map pin (see "Copying a location from a map" under Map Explorer). Two options:
+
+- **Copy coordinates and map links** (the default): three lines, the coordinates followed by a Google Maps link and an Apple Maps link.
+- **Copy coordinates only**: one line, the coordinate pair and nothing else.
+
+Coordinates are decimal degrees to five places, latitude first, which is about a metre of precision and matches what eBird shows. An example of the exact text you will get is shown below the two options. Your choice is remembered across sessions and takes effect immediately, including for a share popup you already have open.
 
 ### API Keys
 

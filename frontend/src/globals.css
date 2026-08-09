@@ -183,6 +183,18 @@
   --sr-map-pin-target:    #7C3AED;  /* 5.00:1 vs land; white glyph 5.70:1 */
   --sr-map-pin-stroke:    #3F3F46;  /* dark outline ring replacing the old white stroke — 9.17:1 vs land */
 
+  /* Share pin (Pin Share). Map-anchored: only ever drawn on the always-light
+     Positron basemap, so declared IDENTICALLY in :root and [data-theme="dark"],
+     the same posture as --sr-map-pin-* and --sr-rank-pin-*. This duplication is
+     the design, not an oversight — theme-flipping would wash the pennant out
+     over a light base.
+     Measured: #B4341F on Positron land (#F2F1EC) is 5.38:1; the white notch on
+     the pennant is 6.08:1. Both clear the 3:1 WCAG 1.4.11 bar for a non-text
+     graphic with margin, which is what keeps the pin legible over satellite too.
+     No text is ever painted on this fill, so no on-fill text pair is minted. */
+  --sr-share-pin: #B4341F;
+  --sr-share-pin-ink: #FFFFFF;
+
   /* Firsts & Milestones chips (Statistics) — light tinted chips, deliberately
      identical in both themes. -date values darkened to ≥4.5:1 on the darker
      gradient stop; -num/-check verified (tier-1 num is 20px bold = large text). */
@@ -387,6 +399,13 @@
   --sr-map-pin-personal:  #B0701B;
   --sr-map-pin-target:    #7C3AED;
   --sr-map-pin-stroke:    #3F3F46;
+
+  /* Share pin — same values as :root BY DESIGN (map-anchored; see the :root
+     comment). No text is ever painted on this fill, so the "a surface that is
+     light in both themes must not host theme-following text" rule has nothing
+     to check here. */
+  --sr-share-pin: #B4341F;
+  --sr-share-pin-ink: #FFFFFF;
 
   /* Firsts & Milestones chips — dark-tinted tiles for dark mode. The :root values
      are intentionally near-white; reusing them here made the badges glare as white
@@ -1114,6 +1133,324 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
+/* ── Pin Share ───────────────────────────────────────────────────────────────
+   Drop a transient pin with a right-click / long-press, read its coordinates,
+   copy a share-ready block. All motion here is plain CSS, all ease-out, all
+   under 200ms; the global prefers-reduced-motion rule further down collapses
+   every one of these to ~1 microsecond, and because each animation's end state
+   IS its resting state, nothing is lost when it does. No per-component
+   reduced-motion query is needed and none should be added. */
+
+/* Transparent flex passthrough so SharePin's portaled drop button becomes the
+   FIRST item of the shipped .sr-map-fab-cluster (Pin, Fullscreen, Filters)
+   without claiming a new corner. `display: contents` rather than `order: -1` so
+   the DOM order matches the visual order and the tab order stays correct
+   (WCAG 2.4.3). The div renders nothing when SharePin has no button to place. */
+.sr-map-fab-slot { display: contents; }
+
+/* The drop button's own corner on the four maps that are not Map Explorer.
+   z-index 1050 matches the FAB cluster: this is peer map furniture, not a
+   floating overlay (which the repo reserves 1200 for). */
+.sr-share-corner {
+  position: absolute;
+  bottom: 20px;
+  right: 16px;
+  z-index: 1050;
+}
+.sr-share-corner--compact { bottom: 12px; right: 12px; }
+
+/* The drop button — the keyboard route (FR-38) and, deliberately, the primary
+   route: a right-click-only feature has near-zero discoverability. Visually the
+   shipped .sr-map-fullscreen-btn; that rule is left untouched so the two existing
+   controls cannot move. */
+.sr-share-drop-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex: none;
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  border: 1px solid var(--sr-border);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-share-drop-btn:hover { background: var(--sr-surface-subtle); }
+/* The app's existing "active" convention, doubling as a persistent signal that
+   this map is holding a pin. */
+.sr-share-drop-btn[aria-pressed="true"] {
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  border-color: var(--sr-accent-border-strong);
+}
+.sr-share-drop-btn--compact { width: 30px; height: 30px; }
+
+/* The pin marker itself: a planted flag, not a teardrop. Shape carries the
+   distinction from sighting teardrops, the search-center pin, hotspot teardrops,
+   rank pins and the GL circle layers, because no map hue is free on every
+   in-scope surface. */
+.sr-share-pin {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: grab;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.32));
+  animation: sr-share-pin-plant 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-share-pin:active { cursor: grabbing; }
+/* Invisible 44x44 touch target. The visual stays 26px; only the hit area grows. */
+.sr-share-pin::after,
+.sr-center-pin-btn::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+@keyframes sr-share-pin-plant {
+  from { opacity: 0; transform: translateY(7px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Surface B's search-center pin, promoted to a real button. Fill, stroke and
+   size are unchanged; the radius is only so the global focus ring reads
+   correctly around it. */
+.sr-center-pin-btn {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: grab;
+  border-radius: 8px;
+}
+.sr-center-pin-btn:active { cursor: grabbing; }
+
+/* ── The share popup ─────────────────────────────────────────────────────────
+   `.sr-share-popup` lands on the popup ROOT (.maplibregl-popup), so the anchor
+   classes maplibre stamps there can be combined with it. Chrome is the existing
+   themed .maplibregl-popup-content; only the body below is new. */
+.sr-share-popup .maplibregl-popup-content {
+  width: 268px;
+  max-width: 100%;
+  padding: 11px 13px 12px;
+  text-align: left;
+  /* MapLibre picks the anchor; the origin must FOLLOW it, or a popup that flips
+     below the pin grows out of thin air instead of out of the pin tip. The below
+     case is real on the 220px Named Birds map. */
+  transform-origin: bottom center;
+  animation: sr-share-pop-in 170ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-share-popup.maplibregl-popup-anchor-top .maplibregl-popup-content,
+.sr-share-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-content,
+.sr-share-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-content { transform-origin: top center; }
+.sr-share-popup.maplibregl-popup-anchor-left .maplibregl-popup-content { transform-origin: left center; }
+.sr-share-popup.maplibregl-popup-anchor-right .maplibregl-popup-content { transform-origin: right center; }
+@keyframes sr-share-pop-in {
+  from { opacity: 0; transform: scale(0.94) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Compact reduces SIZE, never MEANING — every label, the mode line, the failure
+   text and Select all are present at both densities. */
+.sr-share-popup--compact .maplibregl-popup-content { width: 224px; padding: 9px 10px 10px; }
+
+.sr-share-pop-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 26px 7px 0;  /* clears the close button */
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sr-text-muted);
+}
+
+/* Non-compact composes .sr-map-popup-body for the shared min(60dvh, 26rem) cap.
+   Compact needs a much tighter one: .maplibregl-map has overflow: hidden, so a
+   revealed failure payload on the 220px Named Birds card map is CLIPPED, not
+   scrolled, without it.
+
+   The cap is a px custom property SharePopup measures from the map's own height
+   and the pin's position within it (see COMPACT_BODY_* there) — deliberately not
+   a rem value. That card is a fixed 220px that does not grow with the in-app
+   text scale, so a rem cap was wrong twice over: unrelated to the space
+   available, and DOUBLED at 200% text scale on a box that had not grown at all,
+   which is precisely where it had to shrink. The fallback is the Designer's
+   9.5rem, pinned to px, for the moment before the measurement lands (and for a
+   popup mounted with no map). */
+.sr-share-popup--compact .sr-share-pop-body {
+  max-height: var(--sr-share-body-cap, 152px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* The datum leads, and it is the largest thing in the popup. */
+.sr-share-coord {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--sr-text);
+  user-select: text;
+  cursor: text;
+  /* The popup width is px (map furniture) while the text is rem, so at 200%
+     in-app text scale the pair must WRAP at its space rather than overflow.
+     keep-all so a coordinate never breaks mid-number. */
+  word-break: keep-all;
+}
+.sr-share-popup--compact .sr-share-coord { font-size: 0.8125rem; margin-bottom: 8px; }
+
+.sr-share-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 12px;
+  background: var(--sr-accent);
+  color: var(--sr-on-accent);
+  border: 1.5px solid var(--sr-accent);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-share-popup--compact .sr-share-copy-btn { min-height: 30px; font-size: 0.71875rem; }
+.sr-share-copy-btn svg { flex: none; }
+/* Success settles from filled to tinted. Quieter, not louder: no scale, no
+   pulse, no flash. */
+.sr-share-copy-btn[data-state="done"] {
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  border-color: var(--sr-accent-border);
+}
+
+.sr-share-mode-line {
+  margin: 6px 0 0;
+  font-size: 0.625rem;
+  line-height: 1.45;
+  color: var(--sr-text-muted);
+  text-align: center;
+}
+
+.sr-share-fail {
+  margin-top: 10px;
+  animation: sr-share-fail-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes sr-share-fail-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.sr-share-fail-msg {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 0 0 7px;
+  padding: 7px 8px;
+  background: var(--sr-error-bg);
+  border: 1px solid var(--sr-error-border);
+  border-radius: 6px;
+  color: var(--sr-error);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+.sr-share-fail-msg svg { flex: none; margin-top: 1px; }
+.sr-share-fail-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+.sr-share-fail-bar > span {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sr-text-muted);
+}
+.sr-share-link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--sr-accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+/* Wraps rather than scrolling sideways, so the whole payload is visible and can
+   be dragged over in one gesture. */
+.sr-share-payload {
+  margin: 0;
+  padding: 8px 9px;
+  background: var(--sr-surface-subtle);
+  border: 1px solid var(--sr-border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.65;
+  color: var(--sr-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+  cursor: text;
+  max-height: 7.5rem;
+  overflow-y: auto;
+}
+.sr-share-popup--compact .sr-share-payload { max-height: 4.75rem; font-size: 0.625rem; }
+
+/* The Settings "Sharing" example: the exact payload for the selected mode, built
+   by the same buildSharePayload the popup uses. No cap — it is three short lines. */
+.sr-share-example {
+  margin: 0;
+  padding: 8px 9px;
+  background: var(--sr-surface-subtle);
+  border: 1px solid var(--sr-border);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.65;
+  color: var(--sr-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.sr-share-example-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 12px 0 5px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sr-text-muted);
+}
+
 .sr-map-sidebar-close {
   display: none;
   align-items: center;
@@ -1270,6 +1607,17 @@ select:focus-visible {
   /* Icon-only buttons in dense map rows grow to a ~40px tap box on phones
      (both dimensions, rem). Keeps the glyph size and radius; desktop untouched. */
   .sr-map-icon-btn-touch { min-width: 2.5rem; min-height: 2.5rem; }
+
+  /* Pin Share drop button reaches the ~44px posture on phones (~40px compact,
+     matching the denser Named Birds card map). rem so it holds at 200% text
+     scale; the icon glyph size is untouched, only the hit box grows. */
+  .sr-share-drop-btn { width: 2.75rem; height: 2.75rem; }
+  .sr-share-drop-btn--compact { width: 2.5rem; height: 2.5rem; }
+  /* The copy button reaches the same posture. Re-stated at the compact
+     specificity (0,2,0) because the base compact rule would otherwise outrank
+     the .sr-touch-target min-height the button also carries, silently leaving
+     the card map's copy button at 30px on a phone. */
+  .sr-share-popup--compact .sr-share-copy-btn { min-height: 2.75rem; }
 
   /* Reveal the ChecklistComparer A/B side-cell tags on phones, where the two
      fixed-width cells can wrap under the species name (base rule hides them). */
