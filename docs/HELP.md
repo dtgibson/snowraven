@@ -373,7 +373,7 @@ Toolbar options:
 - A-Z / Taxonomic: switch between alphabetical and eBird taxonomic sort order.
 - Merge subspecies: on by default; combines subspecies variants under the parent species name.
 - Show sp./slash: off by default; hides uncertain identifications.
-- Unbounded: removes the table's horizontal scroll constraint so the full row is visible on narrow screens.
+- Unbounded: removes the table's horizontal scroll constraint so the full row is visible on narrow screens. In this view the column headings stay at the top of the screen as you scroll down the list.
 
 County and date-range filters appear in the toolbar when county data is available. These filters narrow which observations are counted for each species.
 
@@ -407,11 +407,11 @@ Multiple pills can be active simultaneously. The table shows only species that h
 
 The Unbounded toggle removes the table's horizontal scroll constraint for easier reading on narrow screens.
 
-Pin code labels keeps the row of code headings (NB, FL, CF, and so on) visible at the top of the screen while you scroll down the species list, so you can always tell which column a circle sits in. It is off by default, and the choice is per-session, resetting on relaunch.
+Pin labels freezes both sets of labels at once. The row of code headings (NB, FL, CF, and so on) stays at the top of the screen while you scroll down the species list, and the species-name column stays on the left while you scroll the codes sideways, so you can always tell which bird a circle belongs to and which column it sits in. It is off by default, and the choice is per-session, resetting on relaunch.
 
-Pinning uses the Unbounded view, so pressing Pin code labels from the normal view switches to Unbounded and pins in one press. Pressing it again unpins and puts you back in the view you started from. Switching back to Normal yourself also clears the pin. While the labels are pinned, a short note above the table says so. Nothing else changes: the table keeps its full height and the page still scrolls as one, with the legend after the last species.
+Pinning uses the Unbounded view, so pressing Pin labels from the normal view switches to Unbounded and pins in one press. Pressing it again unpins and puts you back in the view you started from. Switching back to Normal yourself also clears the pin. While the labels are pinned, a short note above the table says so. Nothing else changes: the table keeps its full height and the page still scrolls as one, with the legend after the last species.
 
-On a phone, in both the normal and Unbounded views, the code columns tighten to the width of their dots so far more of them fit on screen at once, thin vertical rules separate the columns so a row reads clearly across, and the species-name column stays fixed on the left as you scroll the codes sideways. You can pinch to zoom in on any part of the matrix using your device's normal gesture. The table scrolls as part of the page, with the legend at the end after the last species.
+On a phone, in both the normal and Unbounded views, the code columns tighten to the width of their dots so far more of them fit on screen at once, and thin vertical rules separate the columns so a row reads clearly across. The species-name column stays fixed on the left as you scroll the codes sideways in the normal view, and in the Unbounded view once you have pinned the labels. You can pinch to zoom in on any part of the matrix using your device's normal gesture. The table scrolls as part of the page, with the legend at the end after the last species.
 
 ---
 

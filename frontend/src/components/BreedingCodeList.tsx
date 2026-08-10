@@ -72,10 +72,11 @@ const CATEGORY_META: { key: BreedingCategory; label: string }[] = [
   { key: 'possible',  label: 'Possible' },
 ]
 
-// Shown while the code labels are pinned. Names the shipped view control by its
-// shipped label ("Unbounded"), never a synonym, so the sentence and the button
-// agree. No em dashes (standing copy rule).
-const PIN_NOTE = 'Code labels stay at the top while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.'
+// Shown while the labels are pinned. Describes BOTH freezes, because the pin now
+// holds the species-name column as well as the code header. Names the shipped
+// view control by its shipped label ("Unbounded"), never a synonym, so the
+// sentence and the button agree. No em dashes (standing copy rule).
+const PIN_NOTE = 'Species names and code labels both stay in view while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.'
 
 function ghostBtn(active = false): React.CSSProperties {
   return {
@@ -546,7 +547,13 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
               onClick={togglePin}
             >
               <Pin size={12} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0 }} />
-              Pin code labels
+              {/* "Pin labels", not "Pin code labels": the pin now freezes the
+                  species-name column too, so the shorter label is the ACCURATE one
+                  rather than merely the shorter one. It also returns ~29.5px (1x) /
+                  53.6px (200%) to the tightest control cluster in the app. The
+                  state value is `pinned` and already label-agnostic, so nothing
+                  renames behind it. */}
+              Pin labels
             </button>
             {/* .sr-touch-target on the SHIPPED toggle too: the two are now a visual
                 group, and at ≤640 a 2.75rem pill beside this button's inline 28px

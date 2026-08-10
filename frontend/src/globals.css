@@ -1048,6 +1048,78 @@ h1, h2, h3, h4, h5, h6 {
   scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
 }
 
+/* Multimedia table — PINNED header band (feature: freezable-label-rows).
+   Deliberately mirrors the .sr-bc-matrix--pinned block above, declaration for
+   declaration, so the two surfaces read as ONE pattern rather than two
+   independently-invented sticky headers.
+
+   On THIS surface `pinned` IS Unbounded: there is no separate pin control and
+   none is wanted. Breeding Codes' pill exists because pinning there CHANGES YOUR
+   VIEW (`pinned implies Unbounded`, so pressing it moves you somewhere else),
+   which is what makes it a choice worth surfacing. Multimedia's header pin is
+   already scoped to Unbounded — a view the user has already chosen — and inside
+   it the band costs ~36.5px (1x) / 53px (200%) and takes nothing away, because
+   Multimedia has no frozen name column to lose. A toggle whose only function is
+   to switch off something with no downside is a control that should not exist.
+   The modifier is still named --pinned rather than --wide so the vocabulary is
+   shared if that ever changes. LifeListTable.tsx adds it whenever wideMode.
+
+   This block REPAIRS a latent defect rather than adding a capability: the sticky
+   shipped on the <tr> from v0.0.29, and WKWebView honors sticky on CELLS ONLY —
+   so the header pin has very likely never worked in the macOS app or on iOS, and
+   was alive only in Chromium (web, Windows WebView2). Moving it to the <th> is
+   what fixes that; keeping it inline could not, because an inline style is
+   specificity 1,0,0 and the .sr-ios-app gate below could never reach it.
+
+   `border-collapse: separate` (already inline on the table) is required for
+   sticky table headers. The band's background moves onto the <th> because the
+   band IS the cells now, not the row: a sticky cell travels while its <tr> stays
+   in flow, so a fill left on the row would scroll away out from under it. It is
+   the opaque --sr-bg so body rows cannot read through. */
+.sr-ll-table--pinned thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--sr-bg);
+  box-shadow: inset 0 -1px 0 var(--sr-border-medium), var(--sr-sticky-shadow);
+}
+
+/* Keyboard focus must not land under the pinned band (WCAG 2.2 SC 2.4.11) —
+   the guard the inline-styled version could never carry. Same 3rem and the same
+   FOUR selectors as the Breeding Codes rule, and for the same reason: the
+   descendant selectors are the operative half, not defensive noise.
+   `scroll-margin` applies to the element scrolled INTO VIEW and does NOT
+   inherit, and the focusables here are not the cells — BirdName renders a
+   <button class="sr-birdname-link"> inside each row-header cell, and every media
+   count is an <a>. A rule on the cells alone computes 0px on everything that can
+   actually take focus.
+
+   scroll-margin (a focus-target property), never scroll-padding on the root: in
+   Unbounded the scrollport is the PAGE, and deferred tabs stay MOUNTED when
+   hidden, so a root-scoped rule would outlive this tab and apply on every other
+   one. Keeping it in this table's own subtree cannot reach another tab. */
+.sr-ll-table--pinned tbody th,
+.sr-ll-table--pinned tbody td,
+.sr-ll-table--pinned tbody th *,
+.sr-ll-table--pinned tbody td * { scroll-margin-top: 3rem; }
+
+/* iOS app only, mirroring `.sr-ios-app body`'s padding-top: a sticky element
+   resolves `top` against its SCROLLPORT (the viewport), which sits ABOVE that
+   padding, so without this the band pins into the notch / Dynamic Island. Gated
+   on .sr-ios-app and never a bare env(): index.html ships viewport-fit=cover to
+   browsers too, so an ungated rule would change shipped web rendering in iOS
+   Safari. Desktop and web never carry the class. */
+.sr-ios-app .sr-ll-table--pinned thead th { top: env(safe-area-inset-top, 0px); }
+/* The focus twin, across the SAME four selectors, with the inset composed in
+   because on iOS the band sits that much lower. Covering only the cells here
+   would leave iOS with the original defect while the web build is fixed. */
+.sr-ios-app .sr-ll-table--pinned tbody th,
+.sr-ios-app .sr-ll-table--pinned tbody td,
+.sr-ios-app .sr-ll-table--pinned tbody th *,
+.sr-ios-app .sr-ll-table--pinned tbody td * {
+  scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
+}
+
 /* The pinned-state note. .sr-bc-pinstatus is a CHROMELESS wrapper that is always
    rendered (it is the role="status" region — a live region has to exist before
    its content changes, or the first change is not announced) and collapses to

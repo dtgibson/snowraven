@@ -223,15 +223,30 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
       background: 'var(--sr-surface)',
       ...(wideMode ? { width: 'max-content' } : { overflowX: 'auto' }),
     }}>
-      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+      {/* .sr-ll-table--pinned owns the pinned header band (globals.css). On THIS
+          surface pinned IS Unbounded: there is no separate pin control, because
+          unlike Breeding Codes — where pinning also switches your view, which is
+          what makes it a choice worth surfacing — the band here costs ~36.5px and
+          takes nothing away (there is no frozen name column to lose). The modifier
+          is named --pinned rather than --wide so both surfaces share one CSS
+          vocabulary. */}
+      <table
+        className={wideMode ? 'sr-ll-table sr-ll-table--pinned' : 'sr-ll-table'}
+        style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}
+      >
         <thead>
-          {/* The header sticky was inert in the default (non-wideMode) path — that
-              wrapper only scrolls horizontally, so `position:sticky; top:0` never
-              pinned the header and it scrolled away with the page. Removed from the
-              default path (dead CSS, no behavior change); wideMode keeps its exact
-              declaration. The bg fill + bottom-border shadow stay in both modes. */}
-          <tr style={{
-            ...(wideMode ? { position: 'sticky', top: 0 } : {}),
+          {/* The header sticky lived HERE, on the <tr>, from v0.0.29 — and WKWebView
+              honors position:sticky on CELLS ONLY, so it has very likely never
+              pinned anything in the macOS app or on iOS and was alive only in
+              Chromium. It moves to `.sr-ll-table--pinned thead th`, which is also
+              the only form the .sr-ios-app safe-area gate and the scroll-margin-top
+              focus guard can reach (an inline style is specificity 1,0,0).
+
+              The band's fill + hairline move with it: a sticky CELL travels while
+              its <tr> stays in flow, so a fill left on the row would scroll out from
+              under the pinned band. They stay inline for the Normal path, where the
+              header does not pin and that path must render byte-identically. */}
+          <tr style={wideMode ? undefined : {
             background: 'var(--sr-bg)',
             boxShadow: 'inset 0 -1px 0 var(--sr-border)',
           }}>

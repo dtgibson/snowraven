@@ -260,10 +260,11 @@ describe('BreedingCodeTable column separators + horizontal-sticky name column (m
     expect(corner.style.top).toBe('')
   })
 
-  it('drops the corner horizontal freeze in wideMode (FR-13)', () => {
-    renderTable({ codesPresent: ['NB'], wideMode: true })
+  it('drops the corner horizontal freeze in UNPINNED wideMode (FR-13)', () => {
+    renderTable({ codesPresent: ['NB'], wideMode: true, pinned: false })
     const corner = screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement
-    // wideMode scrolls the whole max-content matrix — the name column is not frozen.
+    // Unpinned wideMode scrolls the whole max-content matrix as one unit — the name
+    // column is not frozen. (Pinning re-engages the freeze; see the reshape block.)
     expect(corner.style.position).toBe('')
     expect(corner.style.left).toBe('')
   })
@@ -469,13 +470,15 @@ describe('BreedingCodeTable pinned code labels (breeding-code-pinned-labels)', (
     expect(corner.style.boxShadow).toContain('1px 0 0 var(--sr-border)')
   })
 
-  it('sets NO inline position/top/zIndex on the pinned header cells (the sticky lives in the stylesheet)', () => {
+  it('sets NO inline position/top/zIndex on the pinned CODE header cells (the sticky lives in the stylesheet)', () => {
     // Rejects implementing the pin as an inline `position:sticky; top:0`. That would
     // work on desktop and be unreachable by the `.sr-ios-app` gate, so on a notched
     // iPhone the band would pin under the status bar / Dynamic Island — invisible
-    // everywhere the developer looks.
+    // everywhere the developer looks. The corner is the deliberate exception (it
+    // carries the HORIZONTAL freeze inline); it is covered separately below, where
+    // the absence of an inline `top` is asserted on it too.
     renderTable({ codesPresent: ['NB', 'FL'], wideMode: true, pinned: true })
-    for (const name of [/^NB/, /^FL/, /Species/]) {
+    for (const name of [/^NB/, /^FL/]) {
       const th = screen.getByRole('columnheader', { name }) as HTMLElement
       expect(th.style.position).toBe('')
       expect(th.style.top).toBe('')
@@ -496,6 +499,103 @@ describe('BreedingCodeTable pinned code labels (breeding-code-pinned-labels)', (
       expect(wrapper.style.maxHeight).toBe('')
       expect(wrapper.style.overflow).toBe('')
       expect(wrapper.style.overflowY).toBe('')
+      unmount()
+    }
+  })
+})
+
+describe('BreedingCodeTable pinned freezes BOTH label axes (freezable-label-rows)', () => {
+  // The reshape: pinning keeps the species-name column's horizontal freeze instead
+  // of dropping it, so one press freezes the code header across the top AND the
+  // bird name down the side. What a unit test can honestly carry is the DECLARED
+  // positioning and layering; whether the two-axis freeze actually holds under
+  // WKWebView with table-layout: fixed is geometric, invisible to jsdom, and is
+  // recorded as an on-device check (see pipeline/freezable-label-rows/how-to-see.md).
+
+  const corner = () => screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement
+  const nameCell = () => screen.getByRole('rowheader') as HTMLElement
+
+  it('freezes the corner AND the body name cells when pinned in Unbounded', () => {
+    // Rejects shipping the pinned band alone: without this, the name column slides
+    // off screen (measured at x=-277 mid-list at 320px) and every row becomes an
+    // anonymous grid of dots — a swap of one freeze for another, not a gain.
+    renderTable({ wideMode: true, pinned: true, codesPresent: ['NB'] })
+    expect(corner().style.position).toBe('sticky')
+    expect(corner().style.left).toBe('0px')
+    expect(nameCell().style.position).toBe('sticky')
+    expect(nameCell().style.left).toBe('0px')
+  })
+
+  it('layers the corner above BOTH the band and the frozen body name cells', () => {
+    // Pinned, the corner is the one cell sticky on both axes, so it must out-layer
+    // the pinned band (z-index 3, from .sr-bc-matrix--pinned thead th) as well as
+    // the body name cells (1) that pass under it. An inline 4 beats the stylesheet's
+    // 3 on the same element; anything ≤3 would let a body cell or a code header
+    // paint over the corner at the crossing point.
+    renderTable({ wideMode: true, pinned: true, codesPresent: ['NB'] })
+    expect(corner().style.zIndex).toBe('4')
+    expect(nameCell().style.zIndex).toBe('1')
+  })
+
+  it('still sets NO inline top or box-shadow on the pinned corner', () => {
+    // The horizontal half is inline; the VERTICAL half must not be. An inline `top`
+    // at specificity 1,0,0 is unreachable from `.sr-ios-app .sr-bc-matrix--pinned
+    // thead th`, so the band would pin into the Dynamic Island on a notched iPhone.
+    // The box-shadow is the same trap for the band's hairline; the corner's
+    // right-hand divider comes from .sr-bc-name-col's border-right instead.
+    renderTable({ wideMode: true, pinned: true, codesPresent: ['NB'] })
+    expect(corner().style.top).toBe('')
+    expect(corner().style.boxShadow).toBe('')
+  })
+
+  it('keeps the frozen name cells opaque so code cells pass under them', () => {
+    // A translucent frozen column would show the scrolling dots straight through it.
+    renderTable({ wideMode: true, pinned: true, codesPresent: ['NB'] })
+    expect(nameCell().style.background).toBe('var(--sr-surface)')
+    expect(nameCell().style.boxShadow).toBe('1px 0 0 var(--sr-border)')
+  })
+
+  it('leaves UNPINNED Unbounded byte-identical: no left freeze anywhere', () => {
+    // The regression bar for this surface. Unpinned Unbounded still pans as one
+    // unit, so anyone who never presses the pill sees exactly today's table.
+    renderTable({ wideMode: true, pinned: false, codesPresent: ['NB'] })
+    for (const el of [corner(), nameCell()]) {
+      expect(el.style.position).toBe('')
+      expect(el.style.left).toBe('')
+    }
+  })
+
+  it('leaves Normal view byte-identical: freeze at zIndex 3 with its own hairline', () => {
+    // Normal has always frozen the name column; the reshape must not perturb it.
+    // The corner keeps zIndex 3 (there is no band above it to out-layer) and its
+    // inline hairline + name-column edge.
+    renderTable({ wideMode: false, pinned: false, codesPresent: ['NB'] })
+    expect(corner().style.position).toBe('sticky')
+    expect(corner().style.zIndex).toBe('3')
+    expect(corner().style.boxShadow).toContain('inset 0 -1px 0 var(--sr-border)')
+    expect(corner().style.boxShadow).toContain('1px 0 0 var(--sr-border)')
+  })
+
+  it('never freezes the name column in Normal-with-a-stray-pinned (the invariant holds)', () => {
+    // `pinned implies Unbounded`: a stray `pinned` in Normal is inert, so the corner
+    // must keep Normal's shipped zIndex 3 and its inline hairline rather than
+    // silently adopting the pinned corner's shape.
+    renderTable({ wideMode: false, pinned: true, codesPresent: ['NB'] })
+    expect(corner().style.zIndex).toBe('3')
+    expect(corner().style.boxShadow).toContain('inset 0 -1px 0 var(--sr-border)')
+  })
+
+  it('derives both freeze sites from one flag, so header and body cannot drift', () => {
+    // Rejects two independent ternaries. A half-applied freeze (corner frozen, body
+    // loose, or the reverse) is a visibly broken column that no single-site
+    // assertion catches, so this walks all four states and demands agreement.
+    for (const [wideMode, pinned] of [[false, false], [false, true], [true, false], [true, true]] as const) {
+      const { unmount } = renderTable({ wideMode, pinned, codesPresent: ['NB'] })
+      const cornerFrozen = corner().style.position === 'sticky'
+      const bodyFrozen = nameCell().style.position === 'sticky'
+      expect(cornerFrozen, `wideMode=${wideMode} pinned=${pinned}`).toBe(bodyFrozen)
+      // And the flag itself: frozen exactly when Normal, or pinned in Unbounded.
+      expect(cornerFrozen).toBe(!wideMode || (pinned && wideMode))
       unmount()
     }
   })

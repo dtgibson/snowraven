@@ -817,7 +817,13 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             intent of flexShrink: 0 (the same pairing .sr-scroll-x already uses). */}
         <div className="sr-wrap-flex" style={{ '--sr-wrap-gap': '8px', flexShrink: 0, maxWidth: '100%' } as React.CSSProperties}>
           <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
+          {/* .sr-touch-target closes the parity gap with the Breeding Codes view
+              toggle, which got it in v0.5.81: this button ships 15px tall, well
+              under the ~44px phone posture. The class sets min-height in the ≤640
+              tier only, so desktop density is untouched and only the cluster's
+              height changes (the wrapping row absorbs it). */}
           <button tabIndex={0}
+            className="sr-touch-target"
             style={ghostBtn(wideMode)}
             onClick={() => setWideMode(w => !w)}
             title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
