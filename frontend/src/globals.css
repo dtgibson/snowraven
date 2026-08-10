@@ -2182,6 +2182,35 @@ select:focus-visible {
      inline styles in HelpDocs.tsx, hence the !important overrides) */
   .sr-help-row { flex-direction: column !important; gap: 0 !important; }
   .sr-help-toc { width: 100% !important; position: static !important; max-height: none !important; }
+  /* ...and make the content column FILL that stacked row. The rule above flips the
+     row to a column, which hands the parent's inline alignItems:'flex-start' control
+     of the CROSS axis — now width — so the column shrink-to-fits to its widest
+     child's min-content: the coordinates <pre> is white-space:pre, so its min-content
+     is its longest line (494px at 100% text scale, 955px at 200%). Measured shipped:
+     a 494.28px column inside a 296px row at 320px, dragging the help body 186px
+     sideways; 372px at 200% scale, where the column pins to its inline maxWidth:680.
+     The column's inline minWidth:0 is powerless here — it relaxes the MAIN axis.
+     Two axes, two declarations, both needed: align-self overrides the inherited
+     flex-start (stretch applies because the inline style leaves `width` auto), and
+     width:100% holds even if a `width` is ever set. !important because the element
+     carries inline styles (specificity 1,0,0) that would otherwise outrank a class
+     — the same reason the two rules above carry it. Constraining the column alone
+     still leaves 92px of leak at 320px/200%, so the wrap allowance below is part of
+     the same fix, not a nicety: three unbreakable strings have no wrap opportunity
+     at that scale (the links "github.com/dtgibson/snowraven-mini" 399.77px and
+     "ebird.org/downloadMyData" 326.89px, and the single H1 word "Documentation"
+     356.42px, all against a 296px column). These are the two declarations
+     .sr-wrap-anywhere carries, inlined rather than added as a class because that
+     helper is unconditional and this defect — and every measurement behind it — is
+     phone-tier only; 641px through 1440px measured clean and stay untouched. Both
+     are inherited, but no-ops inside the <pre>, where white-space:pre forbids
+     wrapping: it keeps scrolling in its own overflow-x:auto box, as intended. */
+  .sr-help-content {
+    align-self: stretch !important;
+    width: 100% !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
   .sr-map-sidebar-overlay {
     position: absolute;
