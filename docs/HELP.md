@@ -284,7 +284,11 @@ The Map Explorer tab provides four views of your birding locations and nearby ac
 
 A **fullscreen button** sits at the bottom-right of the map. Click it to expand the map to fill the entire window: the app header, tab selector, and mode tabs are hidden so you get the maximum map area. Click it again (the button becomes a minimize icon) to return to the normal layout. On small or mobile screens, a **Filters** button sits beside it to open the controls sidebar.
 
-Click **Use my location** in the map controls to center the map on your current position and place a blue pin at the detected location. The desktop app uses your operating system's native location service (macOS and Windows both supported). If location is off or denied, restore it in System Settings → Privacy & Security → Location Services on macOS, or Settings → Privacy & security → Location on Windows; in web/Pi mode, use your browser's site permissions.
+**Centering on where you are.** A round **location button** (a small target reticle) sits in the bottom-right cluster of the map, beside the fullscreen button, on all four views. Press it to center the map on your current position and place a blue pin at the detected location. The Hotspots, Nearby Lifers, and Media Targets views also offer the same thing as a **Use my location** button in the filters sidebar, which does exactly the same job; on those three views, pressing either one also runs that view's search when you have not set a center yet. While it is finding you, the button shows a spinner and a second press does nothing until the first finishes.
+
+The desktop app uses your operating system's native location service (macOS and Windows both supported). If location is off or denied, restore it in System Settings → Privacy & Security → Location Services on macOS, or Settings → Privacy & security → Location on Windows; in web/Pi mode, use your browser's site permissions. When a location request fails, the exact reason and the fix appear in a red note just above the map's buttons, where a screen reader announces it too. The note clears the next time detection succeeds, and when you switch views.
+
+On My Sightings, the location button appears once your eBird backup is loaded. Until then that view shows the setup instructions instead of a map, so there is nothing to center.
 
 **Drop a pin to set the center.** On the Hotspots, Nearby Lifers, and Media Targets views you can set the search center right on the map: **right-click** (desktop) or **long-press** (touch) anywhere to drop a center pin there, then **drag the pin** to fine-tune. Each placement re-runs that view's search for the new spot. This sets the center for the current session only. It doesn't change your saved Default Location (set that in Settings). The place-name search, **Use my location**, and typed coordinates all still work and drive the same center.
 
@@ -294,7 +298,7 @@ When you want to tell another birder exactly where a spot is (the far end of the
 
 **Dropping a pin.** On the My Sightings view, **right-click** (desktop) or **long-press** (touch) anywhere on the map. A small red flag plants at the exact point you pressed, and a popup opens showing that spot's coordinates. Drag the flag to fine-tune it: the coordinates update as you go and the popup follows. Dropping again moves the same pin rather than adding a second one.
 
-**Without a pointer.** Every map with a share pin also has a round pin button in its bottom-right corner. Press it and the pin plants at the center of the current view, so you can pan the map with the arrow keys, press the button, and copy without ever using a mouse gesture. The button tints green while that map is holding a pin.
+**Without a pointer.** Every map with a share pin also has a round button in its bottom-right corner carrying a small flag, matching the flag it plants. Press it and the pin plants at the center of the current view, so you can pan the map with the arrow keys, press the button, and copy without ever using a mouse gesture. The button tints green while that map is holding a pin. On the Map Explorer it sits next to the location button; the flag and the target reticle are deliberately different shapes so the two are easy to tell apart.
 
 **Copying.** Press the copy button in the popup. By default you get three lines:
 

@@ -1,0 +1,936 @@
+<!--
+  Map Location Buttons — design mockup
+  SnowRaven v0.5.82 · Stage 4 (The Designer)
+
+  Self-contained. Every colour is a real SnowRaven token value lifted from
+  frontend/src/globals.css; every glyph is the real path data from the installed
+  lucide-react@1.14.0; every size reproduces the shipped rem/px arithmetic via
+  --u (the effective root font size: 16px at 100%, 32px at 200% text scale).
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map Location Buttons — Design</title>
+<style>
+/* ── Page shell ─────────────────────────────────────────────────────────── */
+:root {
+  --display: 'Iowan Old Style', 'Superclarendon', 'Charter', 'Bitstream Charter', Georgia, serif;
+  --body: ui-sans-serif, 'Helvetica Neue', Helvetica, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Tinted neutrals — slate, pulled toward the product's green. */
+  --ink:        #14201b;
+  --ink-2:      #3d4f47;
+  --ink-3:      #63776d;
+  --paper:      #f4f7f4;
+  --paper-2:    #ffffff;
+  --rule:       #d9e2db;
+  --rule-soft:  #e8efe9;
+  --brand:      #277448;
+  --brand-soft: #e8f5ee;
+  --warn:       #9a3412;
+  --warn-soft:  #fdf1e7;
+  --good:       #1c6b45;
+  --good-soft:  #e6f4ec;
+}
+:root:not([data-theme="light"]) {
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink:        #e6efe9;
+    --ink-2:      #a8bcb1;
+    --ink-3:      #7d938a;
+    --paper:      #0d1512;
+    --paper-2:    #131d19;
+    --rule:       #253430;
+    --rule-soft:  #1b2724;
+    --brand:      #4ec48b;
+    --brand-soft: #0c2a1c;
+    --warn:       #f0a875;
+    --warn-soft:  #2a1a10;
+    --good:       #6ddba3;
+    --good-soft:  #0b2418;
+  }
+}
+:root[data-theme="dark"] {
+  --ink:        #e6efe9;
+  --ink-2:      #a8bcb1;
+  --ink-3:      #7d938a;
+  --paper:      #0d1512;
+  --paper-2:    #131d19;
+  --rule:       #253430;
+  --rule-soft:  #1b2724;
+  --brand:      #4ec48b;
+  --brand-soft: #0c2a1c;
+  --warn:       #f0a875;
+  --warn-soft:  #2a1a10;
+  --good:       #6ddba3;
+  --good-soft:  #0b2418;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1100px 520px at 82% -8%, color-mix(in srgb, var(--brand) 11%, transparent), transparent 68%),
+    radial-gradient(760px 420px at -6% 6%, color-mix(in srgb, var(--brand) 7%, transparent), transparent 62%),
+    var(--paper);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 61rem; margin: 0 auto; padding: 4.5rem 1.5rem 7rem; }
+
+h1 {
+  font-family: var(--display);
+  font-size: clamp(2.4rem, 6vw, 3.9rem);
+  line-height: 1.02;
+  letter-spacing: -0.022em;
+  font-weight: 400;
+  margin: 0 0 .7rem;
+}
+h2 {
+  font-family: var(--display);
+  font-size: clamp(1.5rem, 3.2vw, 2.05rem);
+  line-height: 1.14;
+  letter-spacing: -0.014em;
+  font-weight: 400;
+  margin: 0 0 .35rem;
+}
+h3 {
+  font-size: .8125rem;
+  font-weight: 700;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 2.4rem 0 .85rem;
+}
+p { margin: 0 0 1rem; max-width: 66ch; color: var(--ink-2); }
+p.lede {
+  font-size: 1.16rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 54ch;
+}
+strong { color: var(--ink); font-weight: 650; }
+code, .mono { font-family: var(--mono); font-size: .855em; }
+code {
+  background: var(--rule-soft);
+  border-radius: 4px;
+  padding: .1em .38em;
+  color: var(--ink);
+}
+a { color: var(--brand); }
+
+.meta {
+  display: flex; flex-wrap: wrap; gap: .5rem .9rem;
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-3);
+  margin: 0 0 2.6rem; padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+section { margin: 5rem 0 0; scroll-margin-top: 2rem; }
+.sec-head { display: flex; gap: 1.1rem; align-items: baseline; margin-bottom: 1.1rem; }
+.sec-num {
+  font-family: var(--mono); font-size: .78rem; font-weight: 700;
+  color: var(--brand); flex: none; padding-top: .42rem; letter-spacing: .06em;
+}
+
+/* Verdict strip */
+.verdict {
+  display: grid; grid-template-columns: auto 1fr; gap: .1rem 1rem;
+  align-items: start;
+  border-left: 3px solid var(--brand);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--brand) 8%, transparent), transparent 62%);
+  padding: 1rem 1.15rem; margin: 1.6rem 0 2rem; border-radius: 0 10px 10px 0;
+}
+.verdict .k {
+  font-family: var(--mono); font-size: .68rem; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--brand); font-weight: 700; padding-top: .3rem;
+}
+.verdict .v { color: var(--ink); margin: 0; font-size: 1.02rem; }
+
+.note {
+  border-left: 3px solid var(--warn);
+  background: var(--warn-soft);
+  padding: .85rem 1.1rem; border-radius: 0 8px 8px 0;
+  margin: 1.4rem 0; font-size: .93rem; color: var(--ink-2);
+}
+.note b { color: var(--warn); }
+.note p:last-child, .verdict p:last-child { margin-bottom: 0; }
+
+/* Data table */
+table { border-collapse: collapse; width: 100%; font-size: .87rem; margin: 1.2rem 0; }
+.scroll-x { overflow-x: auto; }
+th, td { text-align: left; padding: .52rem .7rem; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+th {
+  font-family: var(--mono); font-size: .68rem; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 700;
+  border-bottom: 1px solid var(--rule);
+}
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.is-bad td { background: color-mix(in srgb, var(--warn) 9%, transparent); }
+tr.is-good td { background: color-mix(in srgb, var(--good) 10%, transparent); }
+.tag {
+  display: inline-block; font-family: var(--mono); font-size: .66rem;
+  letter-spacing: .06em; text-transform: uppercase; font-weight: 700;
+  padding: .12rem .45rem; border-radius: 4px; white-space: nowrap;
+}
+.tag.no  { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.tag.yes { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+
+/* ── SnowRaven product tokens (verbatim from globals.css) ────────────────── */
+.sr {
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-bg: #F9FAFB;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-accent: #277448;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-error-border: #FECACA;
+  --sr-share-pin: #B4341F;
+  --sr-share-pin-ink: #FFFFFF;
+  --sr-map-pin-stroke: #3F3F46;
+  --sr-land: #EDEEEA;
+  --sr-water: #B8C6CD;
+  --sr-green: #D6E7D2;
+  --u: 16px;                     /* effective root font size (rem unit) */
+  /* Product chrome inherits the page's body sans (--body). The app itself ships
+     --font-sans as Inter over a system fallback; Inter is a self-hosted webfont,
+     not a local face, so naming it in a standalone file would resolve to a
+     fallback regardless. The simulated panes are about size, weight and box
+     geometry, all of which are reproduced exactly. */
+  color: var(--sr-text);
+}
+.sr.dark {
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-bg: #09090B;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-accent: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-error-border: #7F1D1D;
+}
+.sr.x2 { --u: 32px; }            /* 200% in-app text scale */
+
+/* Shipped FAB geometry. .sr-share-drop-btn is 36px at base and 2.75rem in the
+   ≤640 tier; .sr-map-fullscreen-btn is 36px at every width (a pre-existing gap
+   the PRD defers). Reproduced here through --u so both scales are honest. */
+.fab {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; padding: 0; flex: none;
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.fab:hover { background: var(--sr-surface-subtle); }
+.fab:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.fab.touch { width: calc(2.75 * var(--u)); height: calc(2.75 * var(--u)); }
+.fab.is-busy { cursor: default; }
+.fab.is-busy svg { color: var(--sr-accent); }
+.fab svg { flex: none; }
+
+.pill-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 16px; height: 36px; flex: none;
+  background: var(--sr-accent); color: var(--sr-on-accent);
+  border: none; border-radius: 24px;
+  font-size: 0.8125rem; font-weight: 600; font-family: inherit;
+  cursor: pointer; box-shadow: 0 4px 12px rgba(45, 134, 83, 0.4);
+  white-space: nowrap;
+}
+.sr.x2 .pill-btn { font-size: calc(0.8125 * var(--u)); }
+
+/* ── The device frame ───────────────────────────────────────────────────── */
+/* The frames are exactly 320px because that is the claim being made, so they
+   cannot shrink. Contain their overflow here rather than letting it reach the
+   page (the repo's own .sr-scroll-x posture). */
+.phones {
+  display: flex; flex-wrap: wrap; gap: 1.6rem 2rem; margin: 1.4rem 0 0;
+  overflow-x: auto; padding-bottom: .4rem;
+}
+.phone { flex: 0 0 auto; }
+.phone-cap {
+  font-family: var(--mono); font-size: .68rem; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-3); margin-bottom: .5rem;
+}
+.phone-cap b { color: var(--ink); font-weight: 700; }
+.screen {
+  position: relative; width: 320px; overflow: hidden;
+  border: 1px solid var(--rule); border-radius: 14px;
+  background: var(--sr-bg);
+  box-shadow: 0 10px 30px -14px rgba(20, 32, 27, .42);
+}
+.screen.tall { height: 363px; }
+.screen.tall-1x { height: 420px; }
+
+/* A stand-in map canvas: land, water, a park, and the demo birder's sighting
+   circles. Not a real basemap, but the right value structure to judge chrome. */
+.canvas {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(120px 90px at 22% 26%, var(--sr-green), transparent 70%),
+    radial-gradient(160px 120px at 68% 12%, var(--sr-green), transparent 72%),
+    linear-gradient(160deg, var(--sr-land) 0 52%, var(--sr-water) 52% 100%);
+}
+.sr.dark .canvas { filter: brightness(.55) saturate(.7); }
+.dot {
+  position: absolute; border-radius: 50%;
+  background: rgba(45, 122, 79, .82); border: 1.5px solid var(--sr-map-pin-stroke);
+}
+.lbl {
+  position: absolute; font-size: 9px; color: #5b5f5c; letter-spacing: .02em;
+}
+.sr.dark .lbl { color: #9aa39d; }
+
+/* Layer switcher — position and inset match SnowMap.tsx (top:8, right:8). */
+.switcher {
+  position: absolute; top: 8px; right: 8px; z-index: 1;
+  max-width: calc(100% - 16px);
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 8px; padding: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.14);
+  font-size: calc(0.75 * var(--u)); line-height: 1.3;
+}
+.switcher .seg { display: flex; flex-wrap: wrap; gap: 2px; }
+.switcher .seg span {
+  padding: 3px 7px; border-radius: 5px; color: var(--sr-text-muted); white-space: nowrap;
+}
+.switcher .seg span.on { background: var(--sr-surface-subtle); color: var(--sr-text); font-weight: 600; }
+.switcher .tr { display: flex; align-items: center; gap: 5px; color: var(--sr-text-muted); padding: 0 4px; }
+.switcher .box { width: 1em; height: 1em; border: 1px solid var(--sr-border); border-radius: 3px; flex: none; }
+
+.attrib {
+  position: absolute; bottom: 0; left: 10px; right: 10px;
+  background: color-mix(in srgb, var(--sr-surface) 88%, transparent);
+  color: var(--sr-text-muted);
+  font-size: calc(0.6875 * var(--u)); line-height: 1.25;
+  padding: 3px 6px; border-radius: 4px 4px 0 0;
+}
+
+/* ── The FAB cluster ────────────────────────────────────────────────────── */
+/* SHIPPED declarations, plus the four this design adds (marked). */
+.cluster {
+  display: flex;
+  position: absolute;
+  bottom: 20px;
+  right: 16px;
+  z-index: 1050;
+  align-items: center;
+  gap: 10px;
+}
+.cluster.fixed {
+  flex-wrap: wrap;              /* + */
+  justify-content: flex-end;    /* + */
+  row-gap: 10px;                /* + */
+  max-width: calc(100% - 32px); /* + */
+  pointer-events: none;         /* + */
+}
+.cluster.fixed button { pointer-events: auto; }
+.cluster.wraponly { flex-wrap: wrap; }
+
+/* The message region: its own full-width row, first in DOM order. */
+.geo { flex: 0 0 100%; display: flex; justify-content: flex-end; }
+.geo:empty { display: none; }
+.geo-msg {
+  display: flex; align-items: flex-start; gap: 8px;
+  max-width: 28rem; padding: 8px 12px;
+  background: var(--sr-error-bg);
+  border: 1px solid var(--sr-error-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-size: calc(0.75 * var(--u)); line-height: 1.45;
+  color: var(--sr-error); text-align: left;
+  animation: geo-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.geo-msg svg { flex: none; margin-top: .18em; }
+@keyframes geo-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { animation: spin .7s linear infinite; transform-origin: 50% 50%; }
+
+/* The app's global reduced-motion block collapses every animation, so the
+   message's resting state IS its end state and the spinner simply stops. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+/* ── Glyph comparison ───────────────────────────────────────────────────── */
+.glyphs { display: grid; gap: .55rem; margin: 1.2rem 0 0; }
+.grow {
+  display: grid;
+  grid-template-columns: 3.1rem 1fr;
+  gap: .85rem; align-items: center;
+  padding: .6rem .75rem; border-radius: 9px;
+  border: 1px solid var(--rule-soft);
+  background: var(--paper-2);
+}
+.grow.pick { border-color: color-mix(in srgb, var(--good) 45%, transparent); background: var(--good-soft); }
+.grow .gname { font-family: var(--mono); font-size: .8rem; font-weight: 700; color: var(--ink); }
+.grow .gwhy { font-size: .86rem; color: var(--ink-2); margin: .1rem 0 0; max-width: 62ch; }
+.chip {
+  width: 3.1rem; height: 3.1rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--sr-surface, #fff); border: 1px solid var(--sr-border, #E4E4E7);
+  color: #0F1117; flex: none;
+  box-shadow: 0 2px 7px rgba(0,0,0,.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .chip { background: #18181B; border-color: #27272A; color: #F4F4F5; }
+}
+:root[data-theme="dark"] .chip { background: #18181B; border-color: #27272A; color: #F4F4F5; }
+
+/* Side-by-side pair test at true shipped size (36px button, 17px glyph). */
+.pairs { display: flex; flex-wrap: wrap; gap: 1.5rem 2.2rem; margin: 1.1rem 0 0; }
+.pair { text-align: center; }
+.pair .duo { display: flex; gap: 10px; justify-content: center; padding: 10px 14px; border-radius: 10px; background: var(--sr-land, #EDEEEA); }
+.pair .duo.gray { filter: grayscale(1) contrast(.92); }
+.pair .plab { font-family: var(--mono); font-size: .68rem; color: var(--ink-3); margin-top: .45rem; letter-spacing: .04em; }
+.pair .plab b { color: var(--ink); }
+.pair.bad .duo { outline: 2px solid color-mix(in srgb, var(--warn) 55%, transparent); outline-offset: 3px; }
+.pair.good .duo { outline: 2px solid color-mix(in srgb, var(--good) 60%, transparent); outline-offset: 3px; }
+
+.demo-bar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.2rem 0 .4rem; }
+.demo-bar button {
+  font: inherit; font-size: .8rem; font-weight: 600;
+  padding: .38rem .8rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--paper-2); color: var(--ink);
+  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1), border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.demo-bar button:hover { background: var(--brand-soft); border-color: var(--brand); }
+.demo-bar button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+.spec { display: grid; gap: 0; margin: 1.2rem 0; }
+.spec .r { display: grid; grid-template-columns: minmax(9rem, 15rem) 1fr; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid var(--rule-soft); }
+.spec .r > div:first-child { font-family: var(--mono); font-size: .78rem; color: var(--ink-3); }
+.spec .r > div:last-child { color: var(--ink-2); font-size: .93rem; }
+@media (max-width: 640px) {
+  .spec .r { grid-template-columns: 1fr; gap: .15rem; }
+  .sec-head { gap: .7rem; }
+  .wrap { padding: 3rem 1.1rem 5rem; }
+}
+</style>
+
+<div class="wrap">
+
+<h1>Map&nbsp;Location Buttons</h1>
+<p class="lede">Two round buttons in the corner of the map, one of which does not exist yet and the other of which is wearing its face. This is the decision record for the glyph pair, the button states, the failure message, and how four controls fit a 320&nbsp;pixel phone.</p>
+<div class="meta">
+  <span>SnowRaven v0.5.82</span><span>·</span>
+  <span>Stage 4 — The Designer</span><span>·</span>
+  <span>10 Aug 2026</span><span>·</span>
+  <span>Measured in Chromium against the synthetic demo dataset</span>
+</div>
+
+<!-- ══ 1 ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head">
+    <div class="sec-num">01</div>
+    <div>
+      <h2>The glyph pair</h2>
+      <p>The share button plants a flag and draws a teardrop. Whatever sits beside it has to be unmistakably not-that.</p>
+    </div>
+  </div>
+
+  <p>The pin that gets planted is a <strong>staff with a right-pointing pennant and a foot circle</strong> — chosen in v0.5.80 precisely because shape, not hue, had to carry the distinction on a map where every colour was already spoken for. The button never followed. So the control announces itself with the universal &ldquo;a place / find me&rdquo; teardrop and produces a flag.</p>
+
+  <div class="glyphs" style="grid-template-columns:1fr;">
+    <div class="grow">
+      <span class="chip">
+        <!-- SharePinSprite, verbatim from SharePin.tsx -->
+        <svg width="26" height="33" viewBox="0 0 26 33" aria-hidden="true">
+          <path d="M6 32.4 V3.4" stroke="#3F3F46" stroke-width="3.1" stroke-linecap="round" fill="none"/>
+          <path d="M6.9 2.6 L22.4 7.1 L6.9 12.6 Z" fill="#B4341F" stroke="#3F3F46" stroke-width="1.5" stroke-linejoin="round"/>
+          <circle cx="14.2" cy="7.3" r="1.7" fill="#FFFFFF"/>
+          <circle cx="6" cy="31.4" r="2.9" fill="#B4341F" stroke="#3F3F46" stroke-width="1.4"/>
+        </svg>
+      </span>
+      <div>
+        <div class="gname">SharePinSprite — the artifact the button produces</div>
+        <p class="gwhy">The reference silhouette. Anything the button draws has to be recognisably this.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Candidates for the share button</h3>
+  <div class="glyphs">
+    <div class="grow">
+      <span class="chip"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></span>
+      <div>
+        <div class="gname">MapPin <span class="tag no">shipped &middot; rejected</span></div>
+        <p class="gwhy">A teardrop with a hole in it: the single most overloaded &ldquo;you are here&rdquo; mark in consumer mapping. It shares nothing with the sprite and actively claims the job of the button next to it.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <span class="chip"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></span>
+      <div>
+        <div class="gname">Flag <span class="tag no">rejected</span></div>
+        <p class="gwhy">A wavy banner on a short pole. The sprite&rsquo;s pennant is a hard triangle; at 17&nbsp;px this one collapses into a filled rectangle and loses the very feature that identifies it.</p>
+      </div>
+    </div>
+    <div class="grow pick">
+      <span class="chip"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V2.8a.8.8 0 0 1 1.17-.71l11.38 5.69a.8.8 0 0 1 0 1.44L6 15.5"/></svg></span>
+      <div>
+        <div class="gname">FlagTriangleRight <span class="tag yes">chosen</span></div>
+        <p class="gwhy">Vertical staff at <code>x=6</code>, right-pointing triangular pennant from the top — the same construction, on the same axis, pointing the same way as the sprite. <code>FlagTriangleLeft</code> mirrors it and would point the pennant away from the coordinate.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>Candidates for the location button</h3>
+  <div class="glyphs">
+    <div class="grow">
+      <span class="chip"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></span>
+      <div>
+        <div class="gname">Navigation <span class="tag no">the default &middot; rejected</span></div>
+        <p class="gwhy">Two independent problems. Its dominant mass is a <strong>triangle</strong>, and so is the flag&rsquo;s — the only thing separating them is a hairline staff (see the pair test below). And in every mapping app it means <em>turn-by-turn</em>: go there, not centre on me.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <span class="chip"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></svg></span>
+      <div>
+        <div class="gname">Crosshair <span class="tag no">rejected</span></div>
+        <p class="gwhy">Its ring is <code>r=10</code>, so it runs to the edge of the box and reads as a heavy second circle inside a circular button. It also means <em>aim at a point on the map</em>, which is what the share pin does.</p>
+      </div>
+    </div>
+    <div class="grow">
+      <span class="chip"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/></svg></span>
+      <div>
+        <div class="gname">Locate <span class="tag no">rejected</span></div>
+        <p class="gwhy">Right family, missing the point. Without the centre dot it is an empty reticle — a target, not a position. The dot is the part that says <em>me</em>.</p>
+      </div>
+    </div>
+    <div class="grow pick">
+      <span class="chip"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <div>
+        <div class="gname">LocateFixed <span class="tag yes">chosen</span></div>
+        <p class="gwhy">Radial, symmetric, centred on a dot — the shape a birder has already learned from every phone map they own, and the one MapLibre&rsquo;s own geolocate control uses. Against a tall, asymmetric, top-heavy flag it is the maximum available contrast.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>The pair test — 36&nbsp;px buttons, 17&nbsp;px glyphs, as shipped</h3>
+  <p>The question is not whether each glyph is good on its own. It is whether a birder glancing at the corner of the map can tell the two apart without reading anything. Second row is the same pair in grayscale, which is the colour-blind and low-light case.</p>
+  <div class="pairs sr">
+    <div class="pair bad">
+      <div class="duo">
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></span>
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></span>
+      </div>
+      <div class="duo gray" style="margin-top:6px">
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></span>
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></span>
+      </div>
+      <div class="plab"><b>MapPin</b> + LocateFixed<br>two location marks, one job each</div>
+    </div>
+
+    <div class="pair bad">
+      <div class="duo">
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V2.8a.8.8 0 0 1 1.17-.71l11.38 5.69a.8.8 0 0 1 0 1.44L6 15.5"/></svg></span>
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></span>
+      </div>
+      <div class="duo gray" style="margin-top:6px">
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V2.8a.8.8 0 0 1 1.17-.71l11.38 5.69a.8.8 0 0 1 0 1.44L6 15.5"/></svg></span>
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg></span>
+      </div>
+      <div class="plab">FlagTriangleRight + <b>Navigation</b><br>triangle beside triangle</div>
+    </div>
+
+    <div class="pair good">
+      <div class="duo">
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V2.8a.8.8 0 0 1 1.17-.71l11.38 5.69a.8.8 0 0 1 0 1.44L6 15.5"/></svg></span>
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></span>
+      </div>
+      <div class="duo gray" style="margin-top:6px">
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V2.8a.8.8 0 0 1 1.17-.71l11.38 5.69a.8.8 0 0 1 0 1.44L6 15.5"/></svg></span>
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></span>
+      </div>
+      <div class="plab"><b>FlagTriangleRight + LocateFixed</b><br>vertical mass vs radial mass</div>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <div class="k">Pair</div>
+    <p class="v"><strong>Share &rarr; <code>FlagTriangleRight</code>. Location &rarr; <code>LocateFixed</code>.</strong> Linear-and-asymmetric against radial-and-symmetric: the distinction survives grayscale, a 17&nbsp;px render and a glance.</p>
+    <div class="k">Carry</div>
+    <p class="v">Moving off <code>Navigation</code> means the sidebar&rsquo;s &ldquo;Use my location&rdquo; button changes glyph in the same edit (FR&#8209;18 is a two-site invariant). Glyph only — label, size, colour and behaviour untouched.</p>
+  </div>
+</section>
+
+<!-- ══ 2 ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head">
+    <div class="sec-num">02</div>
+    <div>
+      <h2>Four controls, 320&nbsp;pixels</h2>
+      <p>Measured in the running app, not calculated. The arithmetic was right; the reason it fails was not.</p>
+    </div>
+  </div>
+
+  <p>At 200% in-app text scale <code>1rem</code> is 32&nbsp;px, so the phone-tier <code>2.75rem</code> FAB computes to <strong>88&nbsp;px</strong>. Adding a fourth control takes the cluster from 268.9&nbsp;px to 366.9&nbsp;px against 288&nbsp;px of usable width. Because the cluster is anchored <code>right: 16px</code> and grows leftward, it overflows to the <em>left</em>:</p>
+
+  <div class="scroll-x">
+  <table>
+    <tr><th>320px &times; 200%</th><th>Share</th><th>Locate</th><th>Fullscreen</th><th>Filters</th><th>Cluster width</th><th>Leftmost edge</th><th><code>document.scrollWidth</code></th></tr>
+    <tr><td>Shipped, 3 controls</td><td class="num">88</td><td class="num">&mdash;</td><td class="num">36</td><td class="num">124.9</td><td class="num">268.9</td><td class="num">35.1</td><td class="num">320</td></tr>
+    <tr class="is-bad"><td>4 controls, no fix</td><td class="num">88</td><td class="num">88</td><td class="num">36</td><td class="num">124.9</td><td class="num">366.9</td><td class="num">&minus;62.9</td><td class="num">320</td></tr>
+    <tr class="is-good"><td>4 controls, wrapped + capped</td><td class="num">88</td><td class="num">88</td><td class="num">36</td><td class="num">124.9</td><td class="num">288</td><td class="num">16</td><td class="num">320</td></tr>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>The broken build reads a clean <code>document.scrollWidth</code> of 320.</b> The share button is 62.9&nbsp;px off the left edge of the viewport and unreachable, and the page-width assertion never notices, because a left overflow on an absolutely positioned element does not extend the scroll width at all. QA&#8209;16&rsquo;s stated pass condition would pass on the clipped layout above. <strong>Measure each control&rsquo;s box against the cluster&rsquo;s content box; do not assert on page width.</strong></p>
+  </div>
+
+  <div class="demo-bar" role="group" aria-label="Cluster variant">
+    <button type="button" data-cluster="ship" aria-pressed="false">Shipped (3 controls)</button>
+    <button type="button" data-cluster="broken" aria-pressed="false">4 controls, no fix</button>
+    <button type="button" data-cluster="wrap" aria-pressed="false">flex-wrap only</button>
+    <button type="button" data-cluster="fixed" aria-pressed="true">Wrapped + capped</button>
+  </div>
+
+  <div class="phones">
+    <div class="phone">
+      <div class="phone-cap"><b>320 &times; 200%</b> &middot; light &middot; map area 363px</div>
+      <div class="sr x2 screen tall" data-demo>
+        <div class="canvas"></div>
+        <span class="dot" style="left:52px;top:130px;width:34px;height:34px"></span>
+        <span class="dot" style="left:74px;top:150px;width:30px;height:30px"></span>
+        <span class="dot" style="left:96px;top:138px;width:26px;height:26px"></span>
+        <span class="dot" style="left:186px;top:118px;width:24px;height:24px"></span>
+        <span class="lbl" style="left:118px;top:126px">Bridgeport</span>
+        <span class="lbl" style="left:30px;top:100px">Trenton</span>
+        <div class="switcher"><div class="seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div><div class="tr"><span class="box"></span>Trails</div></div>
+        <div class="attrib">OpenFreeMap &copy; OpenMapTiles OpenStreetMap</div>
+        <div class="cluster fixed" data-cluster-el></div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="phone-cap"><b>320 &times; 200%</b> &middot; dark</div>
+      <div class="sr x2 dark screen tall" data-demo>
+        <div class="canvas"></div>
+        <span class="dot" style="left:52px;top:130px;width:34px;height:34px"></span>
+        <span class="dot" style="left:74px;top:150px;width:30px;height:30px"></span>
+        <span class="dot" style="left:96px;top:138px;width:26px;height:26px"></span>
+        <span class="dot" style="left:186px;top:118px;width:24px;height:24px"></span>
+        <div class="switcher"><div class="seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div><div class="tr"><span class="box"></span>Trails</div></div>
+        <div class="attrib">OpenFreeMap &copy; OpenMapTiles OpenStreetMap</div>
+        <div class="cluster fixed" data-cluster-el></div>
+      </div>
+    </div>
+
+    <div class="phone">
+      <div class="phone-cap"><b>320 &times; 100%</b> &middot; light &middot; one row, unchanged</div>
+      <div class="sr screen tall-1x" data-demo>
+        <div class="canvas"></div>
+        <span class="dot" style="left:56px;top:150px;width:26px;height:26px"></span>
+        <span class="dot" style="left:78px;top:168px;width:22px;height:22px"></span>
+        <span class="dot" style="left:100px;top:156px;width:19px;height:19px"></span>
+        <span class="dot" style="left:196px;top:140px;width:18px;height:18px"></span>
+        <span class="lbl" style="left:124px;top:150px">Bridgeport</span>
+        <span class="lbl" style="left:36px;top:122px">Trenton</span>
+        <span class="lbl" style="left:150px;top:96px">Hartford</span>
+        <div class="switcher"><div class="seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div><div class="tr"><span class="box"></span>Trails</div></div>
+        <div class="attrib">OpenFreeMap &copy; OpenMapTiles OpenStreetMap</div>
+        <div class="cluster fixed" data-cluster-el></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Why each declaration is there</h3>
+  <p>The Architect prescribed <code>flex-wrap</code> plus a <code>max-width</code> cap, on the standing rule that a container which is never narrowed never breaks a line. Measuring it showed the rule does not bite here — the cluster is absolutely positioned, so its shrink-to-fit width is already bounded by the map area — and that the two declarations earn their place for different reasons than expected:</p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>Declaration</th><th>What it actually does</th></tr>
+    <tr><td class="num">flex-wrap: wrap</td><td>Does the load-bearing work. Alone it stops the clipping — but it leaves the cluster flush against the <em>left</em> edge with the Filters pill orphaned in the bottom-left corner, which reads as a bug (try the <em>flex-wrap only</em> toggle above).</td></tr>
+    <tr><td class="num">justify-content: flex-end</td><td>Does the visible work. Right-aligns both rows so the wrap reads as a deliberate two-row cluster hugging the corner rather than a collapse.</td></tr>
+    <tr><td class="num">max-width: calc(100% &minus; 32px)</td><td>Guarantees the 16&nbsp;px left gutter. At today&rsquo;s content widths it changes no rendered position; it bounds the failure for a longer Filters label, another locale, or a fifth control.</td></tr>
+    <tr><td class="num">row-gap: 10px</td><td>Matches the existing column <code>gap</code> so the two rows sit on the same rhythm.</td></tr>
+    <tr><td class="num">pointer-events: none<br>(+ <code>auto</code> on buttons)</td><td>New here. The cluster box grows from 134&nbsp;px to 371&nbsp;px tall once a message is in it, and an absolutely positioned div swallows every gesture inside its box. Verified: a pointer at the message&rsquo;s centre now reaches <code>CANVAS.maplibregl-canvas</code>, and so do the gaps between the FABs — which they did not before.</td></tr>
+  </table>
+  </div>
+
+  <div class="note">
+    <p><b>Two things the render showed that are out of scope but will now be more visible.</b> The fullscreen toggle stays 36&nbsp;px while its neighbours grow to 88&nbsp;px at 200%, so it reads as the odd one out (the PRD defers this deliberately). And the glyphs stay a fixed 17&nbsp;px inside boxes that grow to 88&nbsp;px, so at 200% they float in a lot of white. Both are pre-existing properties of <code>.sr-share-drop-btn</code>, which FR&#8209;04 forbids altering; the new button inherits them rather than introducing them. The Filters pill also already overlaps the attribution at 200% today, and the wrap does not worsen it — the cluster grows upward, away from it.</p>
+  </div>
+</section>
+
+<!-- ══ 3 ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head">
+    <div class="sec-num">03</div>
+    <div>
+      <h2>The failure message</h2>
+      <p>A hundred characters of remediation text, on a map area 363&nbsp;pixels tall.</p>
+    </div>
+  </div>
+
+  <p>The obvious home was the shipped loading chip&rsquo;s band at <code>top: 12px</code>. Measuring killed it: the layer switcher runs the full width of a phone (105&nbsp;px tall at 200%), a message there sits on top of it at every phone size, and <code>elementFromPoint</code> confirms the two occupy the same space. Pushing it below the switcher does not help either — at 320&nbsp;px and 200% the free band between the switcher and the cluster is <strong>96&nbsp;px</strong> and the longest message renders <strong>227&nbsp;px</strong> tall. Nothing fits at the top.</p>
+
+  <div class="verdict">
+    <div class="k">Placement</div>
+    <p class="v">The message is a <strong>full-width row inside the bottom-anchored cluster</strong>, first in DOM order, above the buttons.</p>
+  </div>
+
+  <p>This is not a compromise, it is the better design, and it removes every magic number:</p>
+  <div class="spec">
+    <div class="r"><div>proximity</div><div>It appears directly above the button that produced it, where the eye and thumb already are — instead of 300&nbsp;px away at the top of the map.</div></div>
+    <div class="r"><div>the buttons never move</div><div>The cluster is bottom-anchored, so a new row extends it <em>upward</em>. Measured across empty / short / longest message at three viewports: every button&rsquo;s <code>top</code> and <code>left</code> is byte-identical. The control the user needs to press again does not shift under their finger.</div></div>
+    <div class="r"><div>no offset arithmetic</div><div><code>flex: 0 0 100%</code> claims its own row; the cluster&rsquo;s <code>row-gap</code> is the gap; its <code>justify-content: flex-end</code> is the alignment; its <code>max-width</code> is the width cap. One set of declarations, two jobs.</div></div>
+    <div class="r"><div>safe area for free</div><div><code>.sr-ios-app .sr-map-fab-cluster</code> already insets the cluster, so the message inherits iOS safe-area handling with no new rule.</div></div>
+    <div class="r"><div>the live-region contract holds structurally</div><div>The region is a sibling of the button that feeds it, so it is mounted whenever a message can be produced. It is present from first render (QA&#8209;20), and the one state where it is absent — the mobile Filters overlay, which unmounts the cluster — is a state in which the button cannot be pressed.</div></div>
+  </div>
+
+  <div class="note">
+    <p><b><code>.sr-map-geo-error:empty { display: none }</code> is load-bearing, not cosmetic.</b> A <code>flex: 0 0 100%</code> row with no content still claims a full row and a <code>row-gap</code>, which would push every button down by ~10&nbsp;px permanently. Verified: with the rule, the empty cluster measures byte-identically to no region at all. It also means no stray text node may be rendered inside the container — <code>{geoError ? &lt;span/&gt; : null}</code> and nothing else.</p>
+  </div>
+
+  <div class="demo-bar" role="group" aria-label="Failure reason">
+    <button type="button" data-msg="0" aria-pressed="true">macOS denied</button>
+    <button type="button" data-msg="1" aria-pressed="false">iOS denied</button>
+    <button type="button" data-msg="2" aria-pressed="false">Windows denied</button>
+    <button type="button" data-msg="3" aria-pressed="false">Web denied</button>
+    <button type="button" data-msg="4" aria-pressed="false">Timed out</button>
+    <button type="button" data-msg="5" aria-pressed="false">Insecure context</button>
+    <button type="button" data-msg="6" aria-pressed="false">Unavailable</button>
+    <button type="button" data-msg="-1" aria-pressed="false">Clear</button>
+  </div>
+  <p style="font-size:.88rem">Every string is <code>describeLocationError()</code> verbatim. Pressing the same reason twice replays the entrance, exactly as the sequence-keyed child replays the announcement.</p>
+
+  <div class="phones">
+    <div class="phone">
+      <div class="phone-cap"><b>320 &times; 200%</b> &middot; light &middot; the extreme case</div>
+      <div class="sr x2 screen tall" data-demo data-msgframe>
+        <div class="canvas"></div>
+        <span class="dot" style="left:52px;top:130px;width:34px;height:34px"></span>
+        <span class="dot" style="left:186px;top:118px;width:24px;height:24px"></span>
+        <div class="switcher"><div class="seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div><div class="tr"><span class="box"></span>Trails</div></div>
+        <div class="attrib">OpenFreeMap &copy; OpenMapTiles OpenStreetMap</div>
+        <div class="cluster fixed" data-cluster-el></div>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="phone-cap"><b>320 &times; 100%</b> &middot; dark</div>
+      <div class="sr dark screen tall-1x" data-demo data-msgframe>
+        <div class="canvas"></div>
+        <span class="dot" style="left:56px;top:150px;width:26px;height:26px"></span>
+        <span class="dot" style="left:196px;top:140px;width:18px;height:18px"></span>
+        <div class="switcher"><div class="seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div><div class="tr"><span class="box"></span>Trails</div></div>
+        <div class="attrib">OpenFreeMap &copy; OpenMapTiles OpenStreetMap</div>
+        <div class="cluster fixed" data-cluster-el></div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Appearance</h3>
+  <div class="spec">
+    <div class="r"><div>tokens</div><div><code>--sr-error-bg</code> fill, <code>--sr-error-border</code>, <code>--sr-error</code> text. An already-audited pair: <strong>4.82:1</strong> light, <strong>7.07:1</strong> dark. No new token, no new contrast test.</div></div>
+    <div class="r"><div>opaque, not translucent</div><div>It sits over live map canvas and, in the extreme case, over the layer switcher. A solid fill keeps it legible instead of muddling two layers.</div></div>
+    <div class="r"><div>left-aligned with an icon</div><div>Centred text is right for the one-line loading chip and wrong for a two-to-six-line instruction. A <code>CircleAlert</code> glyph (already imported in <code>MapExplorer.tsx</code>) top-aligned in the gutter carries &ldquo;problem&rdquo; without relying on the red alone.</div></div>
+    <div class="r"><div>radius 12px, not 20px</div><div>The chip&rsquo;s 20&nbsp;px pill radius is for a single line. On a wrapped block it reads as a lozenge; 12&nbsp;px reads as a card.</div></div>
+    <div class="r"><div>max-width 28rem</div><div>At 0.75rem that is roughly 72 characters — the top of a comfortable measure. The longest string lands in 2 lines on desktop. Wider would only trade line count for line length.</div></div>
+    <div class="r"><div>pointer-events: none</div><div>Verified: a pointer at the message&rsquo;s centre reaches the map canvas.</div></div>
+  </div>
+
+  <div class="note">
+    <p><b>The one residual, named.</b> At 320&nbsp;px with 200% text scale and the longest string, the message is 227&nbsp;px tall in a 363&nbsp;px map area, so it covers the layer switcher and spills about 28&nbsp;px above the map&rsquo;s top edge. There is no placement that avoids this — the message alone is 62% of the available height. It covers no control, it is click-through so the switcher underneath stays operable, and it clears on the next successful detection or view change. FR&#8209;16 asks that neither the cluster nor the switcher be obscured; at this one combination only the switcher can yield, and it is the item with nothing to do with the failure.</p>
+  </div>
+</section>
+
+<!-- ══ 4 ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head">
+    <div class="sec-num">04</div>
+    <div>
+      <h2>Button states and names</h2>
+    </div>
+  </div>
+
+  <div class="pairs sr" style="gap:1.4rem 2.4rem">
+    <div class="pair">
+      <div class="duo">
+        <span class="fab"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></span>
+      </div>
+      <div class="plab"><b>Idle</b><br>&ldquo;Center the map on my location&rdquo;</div>
+    </div>
+    <div class="pair">
+      <div class="duo">
+        <span class="fab is-busy"><svg class="spin" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg></span>
+      </div>
+      <div class="plab"><b>Locating</b><br>&ldquo;Finding your location&rdquo;</div>
+    </div>
+    <div class="pair">
+      <div class="duo">
+        <span class="fab touch"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg></span>
+      </div>
+      <div class="plab"><b>Phone tier</b><br>2.75rem &mdash; 44px at 100%</div>
+    </div>
+  </div>
+
+  <h3>The six names, pairwise distinct</h3>
+  <div class="scroll-x">
+  <table>
+    <tr><th>Control</th><th>State</th><th>Accessible name</th></tr>
+    <tr><td>Share pin</td><td>no pin</td><td class="num">Drop a pin at the map center</td></tr>
+    <tr><td>Share pin</td><td>pin planted</td><td class="num">Move the pin to the map center</td></tr>
+    <tr class="is-good"><td>Location</td><td>idle</td><td class="num">Center the map on my location</td></tr>
+    <tr class="is-good"><td>Location</td><td>locating</td><td class="num">Finding your location</td></tr>
+    <tr><td>Fullscreen</td><td>collapsed</td><td class="num">Enter fullscreen</td></tr>
+    <tr><td>Fullscreen</td><td>expanded</td><td class="num">Exit fullscreen</td></tr>
+  </table>
+  </div>
+
+  <div class="spec">
+    <div class="r"><div>one name, four views</div><div>The promise is identical everywhere: centre the map on me. On the three centre views the same press <em>may</em> also run a search, but only when both coordinate fields were empty — a condition the user cannot see. A name that promised a search would be a lie whenever the fields are already filled, and a name that changed with the view would make a screen-reader user relearn the control on every mode switch.</div></div>
+    <div class="r"><div>&ldquo;Finding your location&rdquo;</div><div>Matches the app&rsquo;s own loading vocabulary (&ldquo;Finding hotspots&rdquo;, &ldquo;Finding sightings&rdquo;, &ldquo;Finding nearby lifers&rdquo;). A bare gerund reads oddly out of context and an ellipsis is announced inconsistently, so the sidebar&rsquo;s visible &ldquo;Locating&hellip;&rdquo; is not reused verbatim as a name.</div></div>
+    <div class="r"><div>Label in Name</div><div>Does not constrain here: both states are icon-only with no visible text, so the accessible name is the only name and Voice Control has nothing else to match. Both stay short enough to speak. <code>title</code> mirrors the name, following <code>SharePin</code>.</div></div>
+    <div class="r"><div>aria-disabled, not disabled</div><div>Ratifying the Architect. Disabling a focused button drops focus to <code>&lt;body&gt;</code> in most browsers, which would break FR&#8209;06 for the button just pressed.</div></div>
+    <div class="r"><div>busy is legible without motion</div><div>The app&rsquo;s global reduced-motion block stops <em>all</em> animation, so the spinner freezes. The busy state therefore cannot rest on rotation: the <strong>glyph itself changes shape</strong> (a closed ring with a centre dot becomes an open arc) and takes <code>--sr-accent</code>, matching the sidebar&rsquo;s spinner. Shape first, colour second, motion third.</div></div>
+  </div>
+</section>
+
+<!-- ══ 5 ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head">
+    <div class="sec-num">05</div>
+    <div>
+      <h2>The setup-required state</h2>
+      <p>The one place the Architect left a visible button with nothing to centre.</p>
+    </div>
+  </div>
+
+  <p>On My Sightings with no eBird backup loaded, <code>&lt;SetupRequired&gt;</code> replaces the map while the cluster still renders above it. A press there detects successfully, arms <code>panTarget</code>, and — with no <code>MapEffects</code> mounted to consume it — does nothing observable. The Architect accepted this rather than reintroduce the data gate FR&#8209;02 forbids.</p>
+
+  <div class="verdict">
+    <div class="k">Decision</div>
+    <p class="v">The location button renders <strong>whenever a map is mounted</strong>. It is absent in the single branch where <code>&lt;SetupRequired&gt;</code> replaces the map (<code>viewMode === 'sightings' &amp;&amp; isSetupRequired</code>).</p>
+  </div>
+
+  <div class="spec">
+    <div class="r"><div>why not leave it</div><div>A control that produces no observable result teaches the user it is unreliable. That is the exact lesson today&rsquo;s pin button teaches, and the reason this feature exists. Shipping a second control that teaches it again would be self-defeating.</div></div>
+    <div class="r"><div>the permission cost</div><div>On a first press it can raise an OS location prompt for no benefit. In an app whose entire posture is privacy-first, asking for location it cannot act on is a real cost, not a cosmetic one.</div></div>
+    <div class="r"><div>why not disable it</div><div>A disabled control with no explanation is a dead end for everyone. The house rule is already to replace such a control with something honest rather than dim it — and here the honest replacement is already on screen: <code>&lt;SetupRequired&gt;</code> <em>is</em> the explanation, and it carries its own &ldquo;Go to Settings&rdquo; action.</div></div>
+    <div class="r"><div>FR-02 is preserved</div><div>FR&#8209;02 exists so the button is not gated on the user&rsquo;s <em>data</em>, and it is not: on Hotspots, Nearby Lifers and Media Targets the map renders even when <code>isSetupRequired</code> is true, and so does the button. The gate here is not &ldquo;is there data&rdquo; but &ldquo;is there a map&rdquo;. It is the same boolean that already governs the ternary, so it costs no new state.</div></div>
+    <div class="r"><div>flagged</div><div>QA&#8209;02 as written tests the sightings + setup-required combination and would fail. It needs amending to the three centre views, which is where it can actually be observed. This is a deliberate amendment, not a silent deviation.</div></div>
+  </div>
+</section>
+
+<!-- ══ 6 ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sec-head">
+    <div class="sec-num">06</div>
+    <div><h2>Motion</h2></div>
+  </div>
+  <p>Two moments, both inside the house vocabulary already in <code>globals.css</code> — <code>cubic-bezier(0.16, 1, 0.3, 1)</code> under 200&nbsp;ms, with an end state that <em>is</em> the resting state. The app&rsquo;s global <code>prefers-reduced-motion</code> block collapses every animation to ~1&nbsp;&micro;s, so nothing is lost when it fires and <strong>no per-component reduced-motion query may be added</strong> (the Pin Share comment says so explicitly).</p>
+  <div class="scroll-x">
+  <table>
+    <tr><th>Interaction</th><th>Easing</th><th>Duration</th><th>Origin</th><th>Reduced motion</th></tr>
+    <tr><td>Message enters</td><td class="num">cubic-bezier(.16,1,.3,1)</td><td class="num">190ms</td><td>opacity 0 &rarr; 1, translateY &minus;6px &rarr; 0 (drops down from the edge it is anchored to)</td><td>Global block; end state is the resting state</td></tr>
+    <tr><td>Message repeats</td><td class="num">cubic-bezier(.16,1,.3,1)</td><td class="num">190ms</td><td>Replays because the sequence-keyed child remounts &mdash; the same mechanism that re-announces it</td><td>As above</td></tr>
+    <tr><td>Button hover / busy tint</td><td class="num">cubic-bezier(.16,1,.3,1)</td><td class="num">140ms</td><td>Inherited from <code>.sr-share-drop-btn</code>, unchanged</td><td>Global block</td></tr>
+    <tr><td>Locating spinner</td><td class="num">linear</td><td class="num">0.7s loop</td><td>Existing <code>.spin</code>, verbatim. A continuous progress loop, not an enter/exit transition, so the sub-300ms rule does not apply to it</td><td>Stops. The glyph shape change carries the state instead</td></tr>
+  </table>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function () {
+  var ICON = {
+    flag:  '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22V2.8a.8.8 0 0 1 1.17-.71l11.38 5.69a.8.8 0 0 1 0 1.44L6 15.5"/></svg>',
+    pin:   '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>',
+    locate:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>',
+    full:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/><path d="M9 21H3v-6"/></svg>',
+    filter:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg>',
+    alert: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>'
+  };
+
+  // describeLocationError() verbatim, lib/location.ts.
+  var MSGS = [
+    'Location access was denied. Grant permission in System Settings → Privacy & Security → Location Services.',
+    'Allow location for SnowRaven in Settings → Privacy & Security → Location Services, then try again.',
+    'Turn on location in Windows Settings → Privacy & security → Location, then try again.',
+    'Location access was denied. Allow location access in your browser settings.',
+    'Location request timed out. Try again or enter coordinates manually.',
+    'Location requires HTTPS. Enter coordinates manually or access the app via localhost.',
+    'Unable to determine your location. Try again or enter coordinates manually.'
+  ];
+
+  var variant = 'fixed';
+  var msgIndex = 0;
+  var seq = 0;
+
+  function btn(cls, label, icon) {
+    return '<button type="button" class="' + cls + '" aria-label="' + label + '" title="' + label + '">' + icon + '</button>';
+  }
+
+  function render() {
+    document.querySelectorAll('[data-cluster-el]').forEach(function (el) {
+      var frame = el.closest('[data-demo]');
+      var isMsgFrame = frame && frame.hasAttribute('data-msgframe');
+      var showLocate = variant !== 'ship';
+
+      el.className = 'cluster' + (variant === 'fixed' ? ' fixed' : variant === 'wrap' ? ' wraponly' : '');
+
+      var html = '';
+      if (isMsgFrame) {
+        html += '<div class="geo" role="status" aria-live="polite">';
+        if (msgIndex >= 0) {
+          html += '<span class="geo-msg" data-seq="' + seq + '">' + ICON.alert + '<span>' + MSGS[msgIndex] + '</span></span>';
+        }
+        html += '</div>';
+      }
+      html += btn('fab touch', 'Drop a pin at the map center', ICON[variant === 'ship' ? 'pin' : 'flag']);
+      if (showLocate) html += btn('fab touch', 'Center the map on my location', ICON.locate);
+      html += btn('fab', 'Enter fullscreen', ICON.full);
+      html += '<button type="button" class="pill-btn" aria-label="Open map filters">' + ICON.filter + 'Filters</button>';
+      el.innerHTML = html;
+    });
+  }
+
+  function press(group, attr, apply) {
+    document.querySelectorAll('[' + attr + ']').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('[' + attr + ']').forEach(function (o) { o.setAttribute('aria-pressed', 'false'); });
+        b.setAttribute('aria-pressed', 'true');
+        apply(b.getAttribute(attr));
+        render();
+      });
+    });
+  }
+
+  press('cluster', 'data-cluster', function (v) { variant = v; });
+  press('msg', 'data-msg', function (v) { msgIndex = parseInt(v, 10); seq++; });
+
+  render();
+})();
+</script>

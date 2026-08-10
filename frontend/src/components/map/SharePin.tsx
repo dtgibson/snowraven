@@ -18,7 +18,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Marker, useMap } from 'react-map-gl/maplibre'
-import { MapPin } from 'lucide-react'
+// The button's job is to describe SharePinSprite below — a vertical staff with a
+// right-pointing triangular pennant. FlagTriangleRight is the same construction
+// (`M6 22V2.8 … l11.38 5.69 … L6 15.5`): same staff, same axis, same pennant.
+// A straight swap rather than a prop: the sprite it must match lives in this
+// file and is identical on all five surfaces, so the display decision is made
+// HERE (the `compact` discipline applied, not reinvented). A prop would make
+// five call sites answer a question they have no stake in, all identically, and
+// would let the glyph drift from the sprite it is supposed to describe.
+import { FlagTriangleRight } from 'lucide-react'
 import { neutralizeMarkerWrapper } from '../../lib/mapPins'
 import { formatCoordinate } from '../../lib/shareLocation'
 import { useMapLongPressDrop } from './useMapLongPressDrop'
@@ -134,7 +142,7 @@ export function SharePin({ compact, buttonHost }: {
         openAt(c.lat, c.lng, dropButtonRef.current)
       }}
     >
-      <MapPin size={s.icon} strokeWidth={2.2} aria-hidden />
+      <FlagTriangleRight size={s.icon} strokeWidth={2.2} aria-hidden />
     </button>
   )
 

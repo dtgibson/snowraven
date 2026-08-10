@@ -301,3 +301,65 @@ describe('the drop button host', () => {
     expect(pinButton()).toBeTruthy()
   })
 })
+
+// feature: map-location-buttons — the glyph correction (FR-19 / FR-20, QA-24 to
+// QA-26). SharePin is the ONE component all five share-pin surfaces mount (Map
+// Explorer My Sightings, Species Detail pins and heatmap, Statistics, Named
+// Birds card maps), and the glyph is a straight swap inside it rather than a
+// prop, so covering it here covers all five by construction — there is no
+// per-surface variation that could be missed. QA-25 is that structural fact
+// plus these assertions, not five copies of the same render.
+describe('the drop button glyph (FR-19, QA-24 to QA-26)', () => {
+  const drop = () => screen.getByRole('button', { name: /pin at the map center/ })
+
+  it('is a flag matching the sprite it plants, at both densities', () => {
+    for (const compact of [false, true]) {
+      render(<SharePin compact={compact} buttonHost="corner" />)
+      // Same construction as SharePinSprite: a vertical staff on the same axis
+      // with a right-pointing triangular pennant from the top of it.
+      expect(drop().querySelector('svg.lucide-flag-triangle-right')).toBeTruthy()
+      // Not the retired MapPin (a teardrop, which describes no part of the
+      // sprite), and not the mirrored FlagTriangleLeft, which would point the
+      // pennant away from the coordinate the staff marks.
+      expect(drop().querySelector('svg.lucide-map-pin')).toBeNull()
+      expect(drop().querySelector('svg.lucide-flag-triangle-left')).toBeNull()
+      cleanup()
+    }
+  })
+
+  it('is the same glyph down the portal path Map Explorer uses', () => {
+    // buttonHost is the other axis that varies across the five surfaces: four
+    // mount the corner wrapper, Map Explorer portals into the FAB cluster. The
+    // glyph is chosen inside this component and takes no prop, so both paths
+    // must render it identically — if a call-site-chosen glyph is ever
+    // introduced, this is where that decision gets re-made.
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    render(<SharePin compact={false} buttonHost={host} />)
+    expect(host.querySelector('.sr-share-drop-btn svg.lucide-flag-triangle-right')).toBeTruthy()
+    host.remove()
+  })
+
+  it('leaves everything else about the button unchanged (FR-20, QA-26)', () => {
+    render(<SharePin compact={false} buttonHost="corner" />)
+    const btn = drop()
+    expect(btn.getAttribute('aria-label')).toBe('Drop a pin at the map center')
+    expect(btn.getAttribute('title')).toBe('Drop a pin at the map center')
+    expect(btn.getAttribute('aria-pressed')).toBe('false')
+    expect(btn.className).toBe('sr-share-drop-btn')
+    // The glyph carries the same size and weight the MapPin did.
+    const svg = btn.querySelector('svg')!
+    expect(svg.getAttribute('width')).toBe('17')
+    expect(svg.getAttribute('stroke-width')).toBe('2.2')
+    expect(svg.getAttribute('aria-hidden')).toBe('true')
+
+    // Planting still flips the name and the pressed state, and the SPRITE (a
+    // separate hand-authored SVG) is untouched by the glyph swap.
+    act(() => { fire('contextmenu', { lngLat: { lat: 37.8, lng: -122.2 } }) })
+    expect(screen.getByRole('button', { name: 'Move the pin to the map center' })).toBeTruthy()
+    const sprite = pinButton()!.querySelector('svg')!
+    expect(sprite.getAttribute('viewBox')).toBe('0 0 26 33')
+    expect(sprite.querySelectorAll('path').length).toBe(2)
+    expect(sprite.querySelectorAll('circle').length).toBe(2)
+  })
+})

@@ -57,6 +57,21 @@ describe('parseTopLevelRules', () => {
     expect([...rules.keys()]).toEqual(['.after'])
   })
 
+  it('does not let a `;`-terminated at-rule swallow the rule that follows it', () => {
+    // globals.css opens with `@import "tailwindcss";`, so before this the first
+    // real rule in the file was parsed as part of the selector
+    // `@import "tailwindcss"; :root`, seen to start with `@`, and dropped. The
+    // failure was silent and vacuous: a guard asking for `:root` got `undefined`,
+    // and with optional chaining it simply passed.
+    const rules = parseTopLevelRules('@import "tailwindcss";\n:root { --sr-error: #D31F1F; }\n.a { gap: 0; }')
+    expect([...rules.keys()]).toEqual([':root', '.a'])
+    expect(rules.get(':root')).toContain('--sr-error')
+
+    // The same for the other `;`-terminated at-rules, and two in a row.
+    const layered = parseTopLevelRules('@charset "utf-8";\n@layer base, components;\n.b { gap: 1px; }')
+    expect([...layered.keys()]).toEqual(['.b'])
+  })
+
   it('does not treat a declaration value containing a brace-free at-word as an at-rule', () => {
     // Guards the `startsWith('@')` test against being applied to a selector that
     // merely follows an at-rule, e.g. after a @media block closes.
