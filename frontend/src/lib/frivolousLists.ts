@@ -8,7 +8,7 @@
 // the parent via normalizeSpeciesName, so a subspecies entry still ticks its list.
 
 import type { ObservationEntry } from '../types'
-import { normalizeSpeciesName, isSpuhOrSlash } from './speciesUtils'
+import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
 
 // Current eBird canonical common names (2024–25 taxonomy). A pre-split export
 // (e.g. "Northern Goshawk" before the American Goshawk split) won't tick — a
@@ -133,9 +133,17 @@ export interface FrivolousListsData {
   rainbowConnection: { rows: RainbowEntry[]; filled: number; total: number; complete: boolean }
 }
 
-/** Names we never count: spuh ("… sp."), slash ("A/B"), or " x " hybrids. */
+/** Names we never count: spuh ("… sp."), slash ("A/B"), or " x " hybrids — the
+ *  canonical countable-life-list predicate, not a re-inlined copy of it.
+ *
+ *  NOTE: this is called with a RAW `commonName` (see below), so unlike the count paths
+ *  in birdingStats/calendar it does NOT use `isNonCountableObservedName`. That is
+ *  deliberate and preserves long-standing behavior exactly: an intraspecific intergrade
+ *  ("Northern Flicker (Yellow-shafted x Red-shafted)") does not tick a themed list here,
+ *  even though it now counts as its parent species on Statistics and the Calendar.
+ *  Aligning the two is a behavior change to a playful feature, not part of this fix. */
 function isExcludedName(name: string): boolean {
-  return isSpuhOrSlash(name) || name.includes(' x ')
+  return isNonCountableSpecies(name)
 }
 
 /** True if `a` is an earlier first-sighting than `b`. Earliest date wins; ties

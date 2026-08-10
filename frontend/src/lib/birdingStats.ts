@@ -4,7 +4,7 @@
 
 import type { ObservationEntry, ChecklistEntry } from '../types'
 import type { MLExportRow } from './parseMLExport'
-import { normalizeSpeciesName, isSpuhOrSlash } from './speciesUtils'
+import { normalizeSpeciesName, isNonCountableObservedName } from './speciesUtils'
 import { BREEDING_CODE_MAP } from './breedingCodes'
 import { hasTideBlock, hasSnowravenWeatherBlock, hasRaincrowWeatherBlock } from './commentBlocks'
 
@@ -59,9 +59,19 @@ export function formatPeriodLabel(key: string, granularity: PeriodGranularity): 
 
 // ── Filtering ───────────────────────────────────────────────────────────────
 
-/** Drop spuh/slash ("sp." and "x" hybrid) entries unless the user opts to include them. */
+/** Drop non-countable entries — spuh ("Gull sp."), slash ("Greater/Lesser Scaup"),
+ *  and " x " hybrids ("Mallard x American Black Duck") — unless the user opts to
+ *  include them. Everything downstream of this filter is a COUNT (life list, per-
+ *  checklist species counts, milestones, county aggregates), so it uses the canonical
+ *  countable-life-list predicate, never the bare `isSpuhOrSlash` display primitive
+ *  (which omits hybrids).
+ *
+ *  `commonName` here is the RAW exported name, so this takes the raw-name variant:
+ *  `isNonCountableObservedName` normalizes before testing for " x ", which keeps
+ *  countable intergrades like "Yellow-rumped Warbler (Myrtle x Audubon's)" while still
+ *  dropping true hybrids. See its doc comment for why the two differ. */
 export function filterObservations(rawObs: ObservationEntry[], includeSpuh: boolean): ObservationEntry[] {
-  return includeSpuh ? rawObs : rawObs.filter(o => !isSpuhOrSlash(o.commonName))
+  return includeSpuh ? rawObs : rawObs.filter(o => !isNonCountableObservedName(o.commonName))
 }
 
 // ── Derivations ───────────────────────────────────────────────────────────────

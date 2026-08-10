@@ -23,12 +23,74 @@ describe('filterObservations', () => {
     obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01' }),
     obs({ submissionId: 'S1', commonName: 'gull sp.', date: '2024-01-01' }),
     obs({ submissionId: 'S1', commonName: 'Mallard/Gadwall', date: '2024-01-01' }),
+    obs({ submissionId: 'S1', commonName: 'Mallard x American Black Duck', date: '2024-01-01' }),
   ]
-  it('drops spuh and slash entries by default', () => {
+  it('drops spuh, slash, and hybrid entries by default', () => {
     expect(filterObservations(rows, false).map(o => o.commonName)).toEqual(['American Robin'])
   })
   it('keeps everything when includeSpuh is true', () => {
-    expect(filterObservations(rows, true)).toHaveLength(3)
+    expect(filterObservations(rows, true)).toHaveLength(4)
+  })
+  // The discriminating over-exclusion case. `commonName` is the RAW exported name, so
+  // a trailing parenthetical carrying its own " x " must NOT be read as a hybrid: an
+  // intergrade is a countable bird. A raw-name predicate drops these, erasing the
+  // species entirely when the intergrade is a birder's only record of it.
+  it('keeps intraspecific intergrades while still dropping true hybrids', () => {
+    const rows = [
+      obs({ submissionId: 'S1', commonName: "Yellow-rumped Warbler (Myrtle x Audubon's)", date: '2024-01-01' }),
+      obs({ submissionId: 'S1', commonName: 'Northern Flicker (Yellow-shafted x Red-shafted)', date: '2024-01-01' }),
+      obs({ submissionId: 'S1', commonName: 'Mallard x American Black Duck (hybrid)', date: '2024-01-01' }),
+    ]
+    expect(filterObservations(rows, false).map(o => o.commonName)).toEqual([
+      "Yellow-rumped Warbler (Myrtle x Audubon's)",
+      'Northern Flicker (Yellow-shafted x Red-shafted)',
+    ])
+    // And they reach the life list as their countable parent species.
+    expect(computeLifeList(filterObservations(rows, false)))
+      .toEqual(['Northern Flicker', 'Yellow-rumped Warbler'])
+  })
+
+  // The " x " hybrid marker is a separated word, so a species whose name merely
+  // contains an "x" must survive the filter. (Guard, not a regression test: this
+  // passes under the raw-name predicate too.)
+  it('does not over-exclude a real species with an x in its name', () => {
+    const kept = filterObservations([
+      obs({ submissionId: 'S1', commonName: "Xantus's Hummingbird", date: '2024-01-01' }),
+    ], false)
+    expect(kept.map(o => o.commonName)).toEqual(["Xantus's Hummingbird"])
+  })
+})
+
+// A life-list COUNT excludes spuh, slash AND hybrids (`isNonCountableSpecies`),
+// not just spuh/slash. Hybrids used to survive this filter and inflate every
+// derived species total on Statistics and the Map Explorer's county aggregates.
+describe('filterObservations — hybrids never inflate a species count', () => {
+  const rows = [
+    obs({ submissionId: 'S1', commonName: 'American Robin', date: '2024-01-01' }),
+    obs({ submissionId: 'S1', commonName: 'gull sp.', date: '2024-01-01' }),
+    obs({ submissionId: 'S1', commonName: 'Mallard/Gadwall', date: '2024-01-01' }),
+    obs({ submissionId: 'S1', commonName: 'Mallard x American Black Duck', date: '2024-01-01' }),
+    obs({ submissionId: 'S1', commonName: 'Mallard x Northern Pintail', date: '2024-01-01' }),
+  ]
+
+  it('excludes hybrids from computeLifeList / computeTotals at includeSpuh false', () => {
+    const filtered = filterObservations(rows, false)
+    const lifeList = computeLifeList(filtered)
+    expect(lifeList).toEqual(['American Robin'])
+    expect(computeTotals(computeChecklists(filtered), lifeList).speciesCount).toBe(1)
+  })
+
+  it('includes hybrids alongside spuh and slash at includeSpuh true', () => {
+    const filtered = filterObservations(rows, true)
+    const lifeList = computeLifeList(filtered)
+    expect(lifeList).toHaveLength(5)
+    expect(lifeList).toContain('Mallard x American Black Duck')
+    expect(computeTotals(computeChecklists(filtered), lifeList).speciesCount).toBe(5)
+  })
+
+  it('keeps the per-checklist species count off hybrids', () => {
+    const cks = computeChecklists(filterObservations(rows, false))
+    expect(cks[0].speciesCount).toBe(1)
   })
 })
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeSpeciesName, isSpuhOrSlash, isNonCountableSpecies } from './speciesUtils'
+import { normalizeSpeciesName, isSpuhOrSlash, isNonCountableSpecies, isNonCountableObservedName } from './speciesUtils'
 
 describe('normalizeSpeciesName', () => {
   it('returns name unchanged when no parenthetical', () => {
@@ -60,5 +60,43 @@ describe('isNonCountableSpecies', () => {
     expect(isNonCountableSpecies('Mallard')).toBe(false)
     // "x" must be space-delimited to count as a hybrid marker, not any embedded x.
     expect(isNonCountableSpecies('Xantus\'s Hummingbird')).toBe(false)
+  })
+})
+
+describe('isNonCountableObservedName', () => {
+  // The whole reason this variant exists: a trailing parenthetical can carry its own
+  // " x " for a countable intraspecific intergrade. Testing the raw name conflates
+  // that with a true inter-species hybrid.
+  it('KEEPS intraspecific intergrades, whose " x " is inside the parenthetical', () => {
+    expect(isNonCountableObservedName("Yellow-rumped Warbler (Myrtle x Audubon's)")).toBe(false)
+    expect(isNonCountableObservedName('Northern Flicker (Yellow-shafted x Red-shafted)')).toBe(false)
+    expect(isNonCountableObservedName('Dark-eyed Junco (Oregon x Pink-sided)')).toBe(false)
+    expect(isNonCountableObservedName('Green-winged Teal (Eurasian x American)')).toBe(false)
+    expect(isNonCountableObservedName('Redpoll (Common x Hoary)')).toBe(false)
+  })
+
+  it('still drops true hybrids, whose " x " is in the base name', () => {
+    expect(isNonCountableObservedName('Mallard x American Black Duck (hybrid)')).toBe(true)
+    expect(isNonCountableObservedName('Mallard x American Black Duck')).toBe(true)
+    expect(isNonCountableObservedName('Western x Glaucous-winged Gull (hybrid)')).toBe(true)
+  })
+
+  it('still drops spuh and slash', () => {
+    expect(isNonCountableObservedName('Gull sp.')).toBe(true)
+    expect(isNonCountableObservedName('Greater/Lesser Scaup')).toBe(true)
+  })
+
+  // The slash half deliberately tests the RAW name, so subspecies-group slashes stay
+  // excluded exactly as before. Normalizing that half too would newly admit them and
+  // silently raise life-list totals — a product decision, not this fix.
+  it('keeps subspecies-group slashes excluded, matching prior behavior', () => {
+    expect(isNonCountableObservedName('Canada Goose (moffitti/maxima)')).toBe(true)
+    expect(isNonCountableObservedName('Red-tailed Hawk (calurus/alascensis)')).toBe(true)
+  })
+
+  it('keeps ordinary species and subspecies', () => {
+    expect(isNonCountableObservedName('American Robin')).toBe(false)
+    expect(isNonCountableObservedName('Yellow-rumped Warbler (Myrtle)')).toBe(false)
+    expect(isNonCountableObservedName("Xantus's Hummingbird")).toBe(false)
   })
 })

@@ -160,6 +160,8 @@ A **Named Individuals** section appears when this species has birds you've named
 
 The Statistics tab shows a comprehensive analytics dashboard built from your eBird backup. A jump-nav at the top links to each section. The cards are described below. The eBird backup is required for all of them; the Media card additionally requires your ML export.
 
+A **Count spuh, slash & hybrids** checkbox in the tab header decides what counts as a species across every card. It is off by default, so the numbers you see are countable life-list counts: a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), and a hybrid (`Mallard x American Black Duck`) are all left out, and subspecies fold into their parent species. An intergrade between two subspecies, like `Northern Flicker (Yellow-shafted x Red-shafted)`, is not a hybrid in this sense: it counts, as an ordinary Northern Flicker. Turn the checkbox on to count the non-countable forms everywhere on the tab. It is the same rule, and the same wording, as the Calendar tab's switch.
+
 ### Life List Totals
 
 Your headline counts: total species, total checklists, total locations, years active, states and provinces, and countries. The accumulation chart shows how your life list grew over time. Use the interval toggle to switch between Weekly, Monthly, Yearly, and Total views. Total mode draws one step per new lifer in chronological order, with the species name shown in the tooltip at each step.
@@ -266,7 +268,7 @@ The **Use Textures** switch turns each shade tier into a crosshatch whose densit
 
 ### Counting spuh, slash & hybrids
 
-A low-emphasis switch at the bottom of the controls, **off by default**, optionally counts non-countable forms (a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), or a hybrid (`Mallard × American Black Duck`)) toward the **Species** count and the **Total count** individuals. Turning it on raises some day counts and re-shades the grid, and a former "0" day becomes a real numbered day. It has no effect on the Checklists metric, so it's dimmed and inactive whenever Checklists is the active metric (and while a single species is chosen).
+A low-emphasis switch at the bottom of the controls, **off by default**, optionally counts non-countable forms (a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), or a hybrid (`Mallard x American Black Duck`)) toward the **Species** count and the **Total count** individuals. An intergrade between two subspecies, like `Northern Flicker (Yellow-shafted x Red-shafted)`, is not one of those forms: it counts as its parent species whichever way the switch is set. Turning the switch on raises some day counts and re-shades the grid, and a former "0" day becomes a real numbered day. It has no effect on the Checklists metric, so it's dimmed and inactive whenever Checklists is the active metric (and while a single species is chosen).
 
 ### The day popup
 
