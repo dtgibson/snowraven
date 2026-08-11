@@ -2,6 +2,23 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.84] - 2026-08-11
+
+Five builds in one release: the map's corner buttons made consistent on every view, two fixes, and two pieces of hardening you will never see. (Shipped as a Spool bundle of 5 builds.)
+
+### Added
+- **A share button on every Map Explorer view.** The Hotspots, Nearby Lifers and Media Targets views now carry the same row of round buttons in the map's bottom-right corner that My Sightings has. On those three views, right-click and long-press are already taken by the search center, so the new button opens the copy popup belonging to the search center pin you have already placed, rather than dropping a second pin of its own. If that pin has drifted off screen it is brought back into view first. There is never more than one pin to keep track of, and every view now has the tool in the same place.
+
+### Changed
+- **The map's corner buttons are one family.** The fullscreen button was drawn a little differently from the buttons beside it and is now the same size and shape as the rest. Every glyph in the row also grows with the Text Size setting instead of staying fixed, so the row stays legible at the larger sizes.
+
+### Fixed
+- **Pin code labels no longer stretches the Breeding Codes table.** Pressing it on a desktop roughly doubled the width of every column. The pin was not the cause: pinning switches to the "↔ Unbounded" view, and that view was sizing its card by the tier legend underneath the table rather than by the table itself, so every column stretched to fill the extra width. The legend now wraps to the table's width instead of setting it, which is what it was always meant to do. On the demo dataset the card goes from 1751 pixels to 794 and the code columns from 97 to 44. The phone layout is unchanged, and nothing about pinning itself changed.
+- **The in-app Help no longer has to be dragged sideways just above phone width.** With the text size turned up, at window widths a little wider than a phone, a long web address in the help text ran past the edge of the text column and pushed the whole panel sideways. The fix that had already solved this on a phone had been applied at phone widths only. Long addresses now wrap at every width.
+
+### Notes
+- **Two pieces of hardening with nothing to see.** The in-app Help now makes a link in the help text clickable only when it points at an ordinary web address, showing anything else as plain text. The only help content SnowRaven ships is its own file, so this is a precaution rather than a repair. Separately, the routine that trims a trailing parenthetical from a bird name is now a single pass instead of a pattern that slowed sharply on malformed input. It produces exactly the same name for every real bird, so no list, count or total moves.
+
 ## [0.5.83] - 2026-08-10
 
 Four builds in one release: a counting correction, two table fixes, and a map button that was missing. (Shipped as a Spool bundle of 4 builds.)
