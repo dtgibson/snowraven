@@ -36,6 +36,7 @@ function renderTable(over: Partial<React.ComponentProps<typeof LifeListTable>> =
       showSubspecies={over.showSubspecies}
       taxonOrders={over.taxonOrders ?? {}}
       wideMode={over.wideMode ?? false}
+      pinned={over.pinned}
       onOpenSpecies={over.onOpenSpecies}
       hasEbirdBackbone={over.hasEbirdBackbone}
       sexFilter={over.sexFilter}
@@ -223,26 +224,40 @@ describe('LifeListTable pinned header repair (freezable-label-rows)', () => {
     }
   })
 
-  it('applies .sr-ll-table--pinned in Unbounded, where pinned IS the view', () => {
-    const { container } = renderTable({ wideMode: true })
+  it('applies .sr-ll-table--pinned only when the OPT-IN pin is on in Unbounded', () => {
+    const { container } = renderTable({ wideMode: true, pinned: true })
     // Both classes: the modifier layers onto the surface's base hook.
     expect(tableEl(container).classList.contains('sr-ll-table')).toBe(true)
     expect(tableEl(container).classList.contains('sr-ll-table--pinned')).toBe(true)
   })
 
+  it('does NOT pin in Unbounded until the control is pressed', () => {
+    // The reversal. An always-on band (modifier whenever wideMode, no control) was
+    // built first and reversed by the user, who wanted the two surfaces to match on
+    // the CONTROL, not only on the mechanism. This fails against that version.
+    const { container } = renderTable({ wideMode: true, pinned: false })
+    expect(tableEl(container).classList.contains('sr-ll-table--pinned')).toBe(false)
+    expect(tableEl(container).classList.contains('sr-ll-table')).toBe(true)
+  })
+
   it('does NOT apply the modifier in Normal view, where the header cannot pin', () => {
     // Normal's wrapper scrolls horizontally only, so a sticky top there would need
     // a capped-height inner box — the shape v0.5.69 reverted on both surfaces.
-    const { container } = renderTable({ wideMode: false })
-    expect(tableEl(container).classList.contains('sr-ll-table--pinned')).toBe(false)
-    expect(tableEl(container).classList.contains('sr-ll-table')).toBe(true)
+    // `pinned implies Unbounded`, so a stray pinned in Normal is inert: the local
+    // guard makes the component honest even if the parent's state machine broke.
+    for (const pinned of [false, true]) {
+      const { container, unmount } = renderTable({ wideMode: false, pinned })
+      expect(tableEl(container).classList.contains('sr-ll-table--pinned')).toBe(false)
+      expect(tableEl(container).classList.contains('sr-ll-table')).toBe(true)
+      unmount()
+    }
   })
 
   it('sets NO inline position/top/background/box-shadow on the pinned header cells', () => {
     // The band's fill and hairline have to come from the stylesheet: an inline
     // style is specificity 1,0,0, so the .sr-ios-app gate could never re-point
     // `top` and the band would pin into the Dynamic Island on a notched iPhone.
-    const { container } = renderTable({ wideMode: true })
+    const { container } = renderTable({ wideMode: true, pinned: true })
     const cells = container.querySelectorAll('thead th')
     expect(cells.length).toBeGreaterThan(0)
     for (const th of cells) {
@@ -257,16 +272,21 @@ describe('LifeListTable pinned header repair (freezable-label-rows)', () => {
   it('moves the band fill OFF the row when pinned, so it cannot scroll out from under', () => {
     // A sticky CELL travels while its <tr> stays in flow. A fill left on the row
     // would slide away and leave the pinned cells transparent over the body rows.
-    const { container } = renderTable({ wideMode: true })
+    const { container } = renderTable({ wideMode: true, pinned: true })
     expect(headerRow(container).style.background).toBe('')
     expect(headerRow(container).style.boxShadow).toBe('')
   })
 
-  it('leaves the Normal path byte-identical: the row keeps its fill and hairline', () => {
-    // The regression bar. Normal does not pin, so nothing about it changes.
-    const { container } = renderTable({ wideMode: false })
-    expect(headerRow(container).style.background).toBe('var(--sr-bg)')
-    expect(headerRow(container).style.boxShadow).toBe('inset 0 -1px 0 var(--sr-border)')
+  it('leaves every UNPINNED path byte-identical: the row keeps its fill and hairline', () => {
+    // The regression bar, and it covers UNBOUNDED-unpinned too, not just Normal.
+    // That state is the one Chromium users land in by default now, so its fill and
+    // hairline have to be exactly what shipped.
+    for (const wideMode of [false, true]) {
+      const { container, unmount } = renderTable({ wideMode, pinned: false })
+      expect(headerRow(container).style.background).toBe('var(--sr-bg)')
+      expect(headerRow(container).style.boxShadow).toBe('inset 0 -1px 0 var(--sr-border)')
+      unmount()
+    }
   })
 
   it('keeps borderCollapse separate (sticky table headers require it)', () => {

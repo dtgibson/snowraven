@@ -25,6 +25,10 @@ interface Props {
   showSubspecies?: boolean
   taxonOrders: Record<string, number>
   wideMode: boolean
+  /** Opt-in pinned column headings. Mirrors BreedingCodeTable's prop of the same
+   *  name: LifeList enforces `pinned implies Unbounded`, and the local guard below
+   *  re-derives it so this component is honest on its own. */
+  pinned?: boolean
   /** Navigate to + select a species on Species Detail (when a backbone entry exists). */
   onOpenSpecies?: (commonName: string) => void
   /** True when the eBird backbone is loaded (so bird entries have a Species Detail entry). */
@@ -96,7 +100,13 @@ const iconCell: React.CSSProperties = {
   alignItems: 'center',
 }
 
-export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, formTaxonMap, showSubspecies, taxonOrders, wideMode, onOpenSpecies, hasEbirdBackbone, sexFilter, ageFilter }: Props) {
+export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, userId, taxonMap, formTaxonMap, showSubspecies, taxonOrders, wideMode, pinned, onOpenSpecies, hasEbirdBackbone, sexFilter, ageFilter }: Props) {
+  // Pinning is offered in Unbounded ONLY, for the same reason as Breeding Codes:
+  // in Normal the overflow-x:auto wrapper is the scrollport, so a sticky header
+  // would need a capped-height inner box, and at 200% in-app text scale no height
+  // unit works. LifeList's state machine enforces `pinned implies Unbounded`; this
+  // is the second, local guard.
+  const pinnedNow = pinned === true && wideMode
   // Resolve the ML-link taxon code for an entry. OFF (merged): the SPECIES code, found
   // by normalizing the name before the lookup (taxonMap is keyed by the display name,
   // which is the species name when merged — but also try the normalized key so a form
@@ -223,15 +233,11 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
       background: 'var(--sr-surface)',
       ...(wideMode ? { width: 'max-content' } : { overflowX: 'auto' }),
     }}>
-      {/* .sr-ll-table--pinned owns the pinned header band (globals.css). On THIS
-          surface pinned IS Unbounded: there is no separate pin control, because
-          unlike Breeding Codes — where pinning also switches your view, which is
-          what makes it a choice worth surfacing — the band here costs ~36.5px and
-          takes nothing away (there is no frozen name column to lose). The modifier
-          is named --pinned rather than --wide so both surfaces share one CSS
-          vocabulary. */}
+      {/* .sr-ll-table--pinned owns the pinned header band (globals.css). It tracks
+          the OPT-IN pin, not wideMode: the two surfaces share one control shape as
+          well as one CSS vocabulary. */}
       <table
-        className={wideMode ? 'sr-ll-table sr-ll-table--pinned' : 'sr-ll-table'}
+        className={pinnedNow ? 'sr-ll-table sr-ll-table--pinned' : 'sr-ll-table'}
         style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}
       >
         <thead>
@@ -244,9 +250,9 @@ export function LifeListTable({ entries, mediaMap, filter, sort, onSortChange, u
 
               The band's fill + hairline move with it: a sticky CELL travels while
               its <tr> stays in flow, so a fill left on the row would scroll out from
-              under the pinned band. They stay inline for the Normal path, where the
-              header does not pin and that path must render byte-identically. */}
-          <tr style={wideMode ? undefined : {
+              under the pinned band. They stay inline for every UNPINNED path, where
+              the header does not pin and must render exactly as it ships. */}
+          <tr style={pinnedNow ? undefined : {
             background: 'var(--sr-bg)',
             boxShadow: 'inset 0 -1px 0 var(--sr-border)',
           }}>

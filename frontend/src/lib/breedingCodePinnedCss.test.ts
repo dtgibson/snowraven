@@ -210,19 +210,19 @@ describe('pinned status note', () => {
   it('keeps the live-region wrapper chromeless so it collapses to nothing when empty', () => {
     // The region is always rendered. If it carried padding/margin/border it would
     // leave a visible gap above the table for every user who never pins.
-    const body = ruleBody('.sr-bc-pinstatus')
+    const body = ruleBody('.sr-pinstatus')
     expect(body).toMatch(/display:\s*block/)
     expect(body).not.toMatch(/padding|margin|border|background/)
   })
 
   it('enters with a short ease-out rise and honors prefers-reduced-motion', () => {
-    expect(ruleBody('.sr-bc-pinnote--enter')).toMatch(/animation:\s*sr-bc-note-in 160ms ease-out both/)
-    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce) {\n  .sr-bc-pinnote--enter'))
+    expect(ruleBody('.sr-pinnote--enter')).toMatch(/animation:\s*sr-pin-note-in 160ms ease-out both/)
+    const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce) {\n  .sr-pinnote--enter'))
     expect(reduced.slice(0, 120)).toMatch(/animation:\s*none/)
   })
 
   it('uses only --sr-* tokens for its colors', () => {
-    const body = ruleBody('.sr-bc-pinnote')
+    const body = ruleBody('.sr-pinnote')
     expect(body).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
     expect(body).toContain('var(--sr-surface-faint)')
     expect(body).toContain('var(--sr-border-subtle)')

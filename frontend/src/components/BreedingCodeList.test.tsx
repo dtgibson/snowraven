@@ -41,11 +41,11 @@ beforeEach(() => { vi.clearAllMocks() })
 /** Render the tab and wait for its autoload to settle. */
 async function renderTab() {
   const view = render(<BreedingCodeList onGoToSettings={vi.fn()} />)
-  await screen.findByRole('button', { name: 'Pin labels' })
+  await screen.findByRole('button', { name: 'Pin code labels' })
   return view
 }
 
-const pinBtn = () => screen.getByRole('button', { name: 'Pin labels' })
+const pinBtn = () => screen.getByRole('button', { name: 'Pin code labels' })
 const viewBtn = () => screen.getByRole('button', { name: /^↔/ })
 const matrix = (container: HTMLElement) => container.querySelector('table') as HTMLElement
 const isPinned = (container: HTMLElement) => matrix(container).classList.contains('sr-bc-matrix--pinned')
@@ -53,7 +53,7 @@ const isPinned = (container: HTMLElement) => matrix(container).classList.contain
 const isUnbounded = (container: HTMLElement) => !!container.querySelector('.sr-bc-card')
 
 const PIN_NOTE =
-  'Species names and code labels both stay in view while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.'
+  'Code labels stay at the top while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.'
 
 describe('pin control, name and description', () => {
   it('names the control by its visible text and nothing else', async () => {
@@ -64,9 +64,10 @@ describe('pin control, name and description', () => {
     // coming from the button's own text, the two cannot disagree.
     expect(btn.getAttribute('aria-label')).toBe(null)
     expect(btn.getAttribute('aria-labelledby')).toBe(null)
-    // "Pin labels", not "Pin code labels": the pin freezes the species-name column
-    // as well as the code header, so the shorter label is the accurate one.
-    expect(btn.textContent).toBe('Pin labels')
+    // "Pin code labels", not "Pin labels": the pin freezes the row of code headings
+    // and nothing else, so naming the axis is what makes the label accurate. The
+    // shorter name was only ever justified by a two-axis freeze the user reversed.
+    expect(btn.textContent).toBe('Pin code labels')
   })
 
   it('carries the consequence as a DESCRIPTION, not part of the name', async () => {
@@ -248,15 +249,15 @@ describe('the pinned status note and its live region', () => {
     expect(note.textContent).toContain('Unbounded')
   })
 
-  it('describes BOTH frozen axes, since the pin now freezes the name column too', async () => {
-    // Rejects leaving the pre-reshape sentence in place. The pin used to freeze one
-    // axis and now freezes two, so a note that mentions only the code labels would
-    // be a published sentence the code no longer implements — the exact defect this
-    // repo has shipped twice in this area.
+  it('describes the ONE frozen axis, and never claims the name column freezes', async () => {
+    // Holds the reversal in the published sentence, not just in the styling. A
+    // two-axis note was shipped and reversed; a note claiming the species names
+    // freeze would be prose the code does not implement, which is the exact defect
+    // this repo has shipped repeatedly in this area.
     await renderTab()
     fireEvent.click(pinBtn())
     const note = await screen.findByText(PIN_NOTE)
-    expect(note.textContent).toContain('Species names')
-    expect(note.textContent).toContain('code labels')
+    expect(note.textContent).toContain('Code labels')
+    expect(note.textContent).not.toContain('Species names')
   })
 })

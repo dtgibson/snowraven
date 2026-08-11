@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar, MessageSquare, ChevronDown } from 'lucide-react'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { Loader2, AlertCircle, Camera, Mic, Video, MapPin, Calendar, MessageSquare, ChevronDown, Pin } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { ML_EXPORT_STEPS } from './setupCopy'
 import { ToggleSwitch } from './ui/ToggleSwitch'
@@ -19,6 +19,8 @@ import type { MediaFilterState, SortState, DateRangeState, ObservationEntry } fr
 import { MEDIA_FILTER_CLEAR, DATE_RANGE_CLEAR } from '../types'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
+import { nextPinnedState, nextViewState } from '../lib/pinnedLabels'
+import type { PinnedLabelsTransition } from '../lib/pinnedLabels'
 
 type Phase =
   | { tag: 'loading-saved' }
@@ -111,6 +113,12 @@ function pillStyle(active: 'none' | 'positive' | 'negative'): React.CSSPropertie
   return { ...base, border: '1.5px solid var(--sr-border)', background: 'var(--sr-surface)', color: 'var(--sr-text-muted)' }
 }
 
+// Shown while the column headings are pinned. The Breeding Codes note's twin, in
+// the same two-sentence shape: what holds still, then the view coupling, naming
+// the shipped view control by its shipped label ("Unbounded") so the sentence and
+// the button agree. No em dashes (standing copy rule).
+const PIN_NOTE = 'Column headings stay at the top while you scroll. Pinning uses the Unbounded view, so the table scrolls with the page.'
+
 function ghostBtn(active = false): React.CSSProperties {
   return {
     height: 28,
@@ -161,6 +169,17 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const [formTaxonMap, setFormTaxonMap] = useState<Record<string, string>>({})
   const [taxonOrders, setTaxonOrders] = useState<Record<string, number>>({})
   const [wideMode, setWideMode] = useState(false)
+  // Pinned column headings — opt-in, session-only (plain useState, matching
+  // wideMode right beside it: no storage seam, no localStorage, nothing persisted).
+  const [pinned, setPinned] = useState(false)
+  // The view the user pinned FROM, so unpinning restores it and the round trip
+  // leaves no residue. null whenever nothing is pinned.
+  const [viewBeforePin, setViewBeforePin] = useState<boolean | null>(null)
+  // Key of the live region's message node. React bails out when a text node
+  // reconciles to an identical string, so a repeat announcement needs a real node
+  // replacement, never an invisible character appended to the text (v0.5.80).
+  const [pinSeq, setPinSeq] = useState(0)
+  const pinDescId = useId()
   const [rawRows, setRawRows] = useState<MLExportRow[]>([])
   const [rawEbirdObs, setRawEbirdObs] = useState<ObservationEntry[]>([])
   const [mergeSubspecies, setMergeSubspecies] = useState(true)
@@ -173,6 +192,22 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
   const [sexFilter, setSexFilter] = useState<Sex | null>(null)
   const [ageFilter, setAgeFilter] = useState<AgeClass | null>(null)
+
+  // Both toggles run the SHARED machine in lib/pinnedLabels.ts — the same one the
+  // Breeding Codes tab runs. The user asked for this tab to have "the same pin
+  // labels option," and one implementation is the only way two surfaces stay the
+  // same. The invariant (`pinned` is never true while `wideMode` is false) and the
+  // reasoning behind it live there.
+  function applyPinTransition(next: PinnedLabelsTransition) {
+    setPinned(next.pinned)
+    setWideMode(next.wideMode)
+    setViewBeforePin(next.viewBeforePin)
+    if (next.announce) setPinSeq(s => s + 1)
+  }
+
+  const pinState = { pinned, wideMode, viewBeforePin }
+  const togglePin = () => applyPinTransition(nextPinnedState(pinState))
+  const toggleView = () => applyPinTransition(nextViewState(pinState))
 
   // Normalized eBird backbone names — used to decide whether a media-comment
   // species links to Species Detail (only species the user has actually recorded).
@@ -817,19 +852,49 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             intent of flexShrink: 0 (the same pairing .sr-scroll-x already uses). */}
         <div className="sr-wrap-flex" style={{ '--sr-wrap-gap': '8px', flexShrink: 0, maxWidth: '100%' } as React.CSSProperties}>
           <span aria-live="polite" style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>{countLabel}</span>
-          {/* .sr-touch-target closes the parity gap with the Breeding Codes view
-              toggle, which got it in v0.5.81: this button ships 15px tall, well
-              under the ~44px phone posture. The class sets min-height in the ≤640
-              tier only, so desktop density is untouched and only the cluster's
-              height changes (the wrapping row absorbs it). */}
-          <button tabIndex={0}
-            className="sr-touch-target"
-            style={ghostBtn(wideMode)}
-            onClick={() => setWideMode(w => !w)}
-            title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
-          >
-            {wideMode ? '↔ Normal' : '↔ Unbounded'}
-          </button>
+          {/* The two presentation controls read as one group rather than as more
+              filters, exactly as on Breeding Codes. Same shipped ghostBtn() styling,
+              so they are visually a pair. The group needs no width cap of its own:
+              unlike its parent it does not pin itself with flexShrink: 0, so it can
+              narrow and wrap (v0.5.82, .sr-wrap-flex is inert on a pinned cluster). */}
+          <div role="group" aria-label="Table view" className="sr-wrap-flex" style={{ '--sr-wrap-gap': '6px' } as React.CSSProperties}>
+            <button tabIndex={0}
+              type="button"
+              className="sr-touch-target"
+              // The accessible name is the button's own text and nothing else:
+              // deliberately NO aria-label, so the visible label and the accessible
+              // name cannot drift apart. The consequence of pressing it rides on
+              // aria-describedby, a DESCRIPTION not a name, which keeps WCAG 2.5.3
+              // Label in Name trivially satisfied. Same formula as Breeding Codes'.
+              aria-pressed={pinned}
+              aria-describedby={pinDescId}
+              style={{ ...ghostBtn(pinned), gap: 5 }}
+              onClick={togglePin}
+            >
+              <Pin size={12} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0 }} />
+              {/* Names the axis it freezes, as "Pin code labels" does on Breeding
+                  Codes: here the row that holds still is the column headings. */}
+              Pin column labels
+            </button>
+            {/* .sr-touch-target closes the parity gap with the Breeding Codes view
+                toggle, which got it in v0.5.81: this button ships 15px tall, well
+                under the ~44px phone posture. The class sets min-height in the ≤640
+                tier only, so desktop density is untouched and only the cluster's
+                height changes (the wrapping row absorbs it). */}
+            <button tabIndex={0}
+              type="button"
+              className="sr-touch-target"
+              style={ghostBtn(wideMode)}
+              onClick={toggleView}
+              title={wideMode ? 'Collapse table into scroll box' : 'Expand table: scroll the whole page on mobile'}
+            >
+              {wideMode ? '↔ Normal' : '↔ Unbounded'}
+            </button>
+          </div>
+          {/* Persistent description target. It sits in the control row, never inside
+              the horizontally scrolled table (where an absolutely positioned .sr-only
+              span can extend document.scrollWidth on a phone). */}
+          <span className="sr-only" id={pinDescId}>Pinning uses the Unbounded view.</span>
         </div>
       </div>
 
@@ -854,6 +919,18 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         </div>
       )}
 
+      {/* The live region is rendered from the START and never mounts alongside its
+          message: assistive tech reports CHANGES to a region that already exists, so
+          a region that appears together with its text can go unannounced. The
+          wrapper is chromeless and collapses to nothing when empty; the note is its
+          key={pinSeq} child, so each pin is a real node replacement (an addition in
+          aria-live terms) while the region's textContent stays exactly the message.
+          Padding the string with an invisible character to force a diff is the wrong
+          fix: it makes every textContent assertion quietly false. */}
+      <div className="sr-pinstatus" role="status">
+        {pinned ? <p key={pinSeq} className="sr-pinnote sr-pinnote--enter">{PIN_NOTE}</p> : null}
+      </div>
+
       <LifeListTable
         entries={isTargetFilteredEntries}
         mediaMap={mediaMap}
@@ -866,6 +943,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
         showSubspecies={!mergeSubspecies}
         taxonOrders={taxonOrders}
         wideMode={wideMode}
+        pinned={pinned}
         onOpenSpecies={onOpenSpecies}
         hasEbirdBackbone={phase.tag === 'ready' && phase.hasEbirdBackbone}
         sexFilter={sexFilter}

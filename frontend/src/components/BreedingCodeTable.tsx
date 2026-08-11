@@ -61,20 +61,6 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
   // the second, local guard, so the component is honest on its own.
   const pinnedNow = pinned && wideMode
 
-  // The HORIZONTAL species-name freeze (sticky left:0 on the corner and every name
-  // row cell). Normal view has always had it. Unbounded normally drops it so the
-  // matrix pans as one unit — but pinning is the one state where that choice stops
-  // paying, because the user has explicitly asked for labels to hold still. So the
-  // pin freezes BOTH label axes at once (the code header across the top, the bird
-  // name down the side) and is purely additive rather than a swap: measured, the
-  // freeze costs nothing in layout (identical page width at both text scales and at
-  // the 23-code ceiling) while the mid-list name holds on screen instead of sliding
-  // off to x=-277.
-  //
-  // ONE derived flag feeds both sites, so the corner and the body cells cannot
-  // drift apart into a half-frozen column.
-  const leftFreeze = !wideMode || pinnedNow
-
   const filtered = filter.size === 0
     ? entries
     : entries.filter(e => [...filter].every(code => (e.codes[code] ?? 0) > 0))
@@ -245,31 +231,29 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
         }}>
           <thead>
             <tr>
-              {/* The corner (species-name header) carries the HORIZONTAL name-column
-                  freeze inline — sticky left:0 whenever leftFreeze — so the name
-                  column stays put while the codes scroll sideways. Unpinned
-                  Unbounded still drops it, exactly as it ships.
-                  The VERTICAL half is never set here in either mode: unpinned, the
-                  header scrolls away with the page; pinned, the corner picks up
-                  sticky/top from .sr-bc-matrix--pinned like every other header cell.
-                  Pinned is therefore the one state where this cell is sticky on BOTH
-                  axes at once, which is why it needs zIndex 4: it must out-layer the
-                  pinned band (3, from the stylesheet) as well as the frozen body name
-                  cells (1) passing under it. Unpinned Normal keeps its shipped 3. */}
+              {/* The corner (species-name header) keeps the HORIZONTAL name-column
+                  freeze only: sticky left:0 in Normal so the name column stays put
+                  while the codes scroll sideways (wideMode drops it, as before).
+                  zIndex 3 keeps it above the sticky name body cells (1) during a
+                  sideways scroll. No vertical freeze is set here in either mode:
+                  unpinned, the header scrolls away with the page; pinned (Unbounded
+                  only), the corner is an ORDINARY member of the pinned header row
+                  and picks up sticky/top from .sr-bc-matrix--pinned like every other
+                  header cell — it holds vertically and travels horizontally with the
+                  rest, which is the shipped Unbounded behavior. Because Unbounded
+                  drops the left freeze, the corner is never sticky on both axes.
+
+                  The pin deliberately freezes the CODE HEADER ROW ONLY, not the
+                  species-name column: a two-axis reshape was built, previewed on
+                  device, and reversed by the user. Pinning is about the row of code
+                  labels; the name column's freeze stays a property of Normal view. */}
               <th
                 scope="col"
                 className="sr-bc-name-col"
                 aria-sort={sort.column === 'name' ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
                 style={{
                   ...thBase,
-                  ...(leftFreeze ? { position: 'sticky', left: 0, zIndex: pinnedNow ? 4 : 3 } : {}),
-                  // Normal view ONLY: the header hairline combined with the frozen
-                  // name column's 1px right edge. Pinned must carry NEITHER inline.
-                  // The band's hairline comes from `.sr-bc-matrix--pinned thead th`,
-                  // and an inline box-shadow at specificity 1,0,0 would make that
-                  // rule unreachable; the right-hand divider is already supplied by
-                  // .sr-bc-name-col's border-right, which applies at all widths.
-                  ...(wideMode ? {} : { boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)' }),
+                  ...(wideMode ? {} : { position: 'sticky', left: 0, zIndex: 3, boxShadow: 'inset 0 -1px 0 var(--sr-border), 1px 0 0 var(--sr-border)' }),
                   textAlign: 'left',
                   padding: '10px 12px',
                   width: NAME_COL_WIDTH,
@@ -342,11 +326,7 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                     // Horizontal name-column freeze only: sticky left:0 keeps the name
                     // visible while the codes scroll sideways (zIndex 1 lifts it above
                     // the normal body cells during that scroll). No vertical freeze.
-                    // Same leftFreeze flag as the corner, so the column can never end
-                    // up frozen at the header and loose in the body. The opaque
-                    // `background: rowBg` below is load-bearing here — code cells pass
-                    // UNDER this column while it holds still.
-                    ...(leftFreeze ? { position: 'sticky', left: 0, zIndex: 1, boxShadow: '1px 0 0 var(--sr-border)' } : {}),
+                    ...(wideMode ? {} : { position: 'sticky', left: 0, zIndex: 1, boxShadow: '1px 0 0 var(--sr-border)' }),
                     background: rowBg,
                     width: NAME_COL_WIDTH,
                     minWidth: NAME_COL_WIDTH,

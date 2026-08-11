@@ -1053,18 +1053,17 @@ h1, h2, h3, h4, h5, h6 {
    declaration, so the two surfaces read as ONE pattern rather than two
    independently-invented sticky headers.
 
-   On THIS surface `pinned` IS Unbounded: there is no separate pin control and
-   none is wanted. Breeding Codes' pill exists because pinning there CHANGES YOUR
-   VIEW (`pinned implies Unbounded`, so pressing it moves you somewhere else),
-   which is what makes it a choice worth surfacing. Multimedia's header pin is
-   already scoped to Unbounded — a view the user has already chosen — and inside
-   it the band costs ~36.5px (1x) / 53px (200%) and takes nothing away, because
-   Multimedia has no frozen name column to lose. A toggle whose only function is
-   to switch off something with no downside is a control that should not exist.
-   The modifier is still named --pinned rather than --wide so the vocabulary is
-   shared if that ever changes. LifeListTable.tsx adds it whenever wideMode.
+   The class is applied by an OPT-IN control that mirrors Breeding Codes': default
+   OFF, session-only, offered in Unbounded, and `pinned implies Unbounded`. An
+   always-on version (band whenever wideMode, no control) was built first and
+   reversed by the user, who asked for the two surfaces to match on the CONTROL,
+   not only on the mechanism. So the modifier tracks `pinned && wideMode` here
+   exactly as .sr-bc-matrix--pinned does there, and it is NOT a synonym for
+   wideMode. The cost of the reversal is named in the PR: Chromium users (web,
+   Windows) had an always-on band in Unbounded and now press a button for it.
 
-   This block REPAIRS a latent defect rather than adding a capability: the sticky
+   This block also REPAIRS a latent defect rather than only adding a capability:
+   the sticky
    shipped on the <tr> from v0.0.29, and WKWebView honors sticky on CELLS ONLY —
    so the header pin has very likely never worked in the macOS app or on iOS, and
    was alive only in Chromium (web, Windows WebView2). Moving it to the <th> is
@@ -1120,17 +1119,23 @@ h1, h2, h3, h4, h5, h6 {
   scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
 }
 
-/* The pinned-state note. .sr-bc-pinstatus is a CHROMELESS wrapper that is always
-   rendered (it is the role="status" region — a live region has to exist before
-   its content changes, or the first change is not announced) and collapses to
-   nothing when empty: no padding, no margin, no border. All the visible geometry
-   is on the note itself, which is the region's keyed child. */
-.sr-bc-pinstatus { display: block; }
+/* The pinned-state note, SHARED by both pinnable tables (Breeding Codes and
+   Multimedia). The classes carry no surface prefix precisely because both use
+   them verbatim: the note is one pattern with no per-surface variance, and a
+   .sr-bc-* name rendered on the Multimedia tab would be a name that lies.
+   (The pinned-band rules above stay per-surface: they target different tables.)
+
+   .sr-pinstatus is a CHROMELESS wrapper that is always rendered (it is the
+   role="status" region — a live region has to exist before its content changes,
+   or the first change is not announced) and collapses to nothing when empty: no
+   padding, no margin, no border. All the visible geometry is on the note itself,
+   which is the region's keyed child. */
+.sr-pinstatus { display: block; }
 
 /* Same geometry as the shipped filter strip (7px 12px, radius 6, 8px below) but
    on neutral surface-faint rather than the accent tint: the accent is already
    spent on the pressed pill, and pinning is not a filter. */
-.sr-bc-pinnote {
+.sr-pinnote {
   margin: 0 0 8px;
   padding: 7px 12px;
   background: var(--sr-surface-faint);
@@ -1143,13 +1148,13 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Enters on pin: a 2px rise out of the control row that triggered it. The band
    itself gets NO motion — sticky is continuous positioning, not a transition. */
-@keyframes sr-bc-note-in {
+@keyframes sr-pin-note-in {
   from { opacity: 0; transform: translateY(-2px); }
   to   { opacity: 1; transform: none; }
 }
-.sr-bc-pinnote--enter { animation: sr-bc-note-in 160ms ease-out both; }
+.sr-pinnote--enter { animation: sr-pin-note-in 160ms ease-out both; }
 @media (prefers-reduced-motion: reduce) {
-  .sr-bc-pinnote--enter { animation: none; }
+  .sr-pinnote--enter { animation: none; }
 }
 
 /* Map Explorer (non-fullscreen) panel height. Replaces the inline

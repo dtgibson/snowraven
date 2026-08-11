@@ -2,117 +2,165 @@
 
 ### What this does
 
-Makes the Breeding Codes **Pin labels** control freeze *both* label axes at once
-(the code header across the top and the species-name column down the side)
-instead of trading one for the other, and repairs the Multimedia tab's header
-pin, which has very likely never worked in the macOS app or on iOS.
+Gives the **Multimedia** tab the same opt-in **Pin column labels** control the
+Breeding Codes tab has, and repairs the header pin underneath it, which has very
+likely never worked in the macOS app or on iOS.
 
-Three parts:
+Two parts:
 
-1. **Breeding Codes reshape.** Unbounded normally drops the species-name
-   column's `position: sticky; left: 0` so the matrix pans as one unit. Pinning
-   is the one state where that choice stops paying, because the user has
-   explicitly asked for labels to hold still, so the pinned state now keeps it.
-   Both freeze sites (the corner header and every name row cell) derive from a
-   single `leftFreeze` flag so they cannot drift into a half-frozen column. The
-   pin is unchanged in every other respect: still opt-in, still default OFF,
-   still session-only, `pinned implies Unbounded` untouched.
-2. **Multimedia repair.** The header sticky shipped on the `<tr>` from v0.0.29.
-   WKWebView honors `position: sticky` on cells only, and SnowRaven ships in
-   WKWebView on macOS and iOS, so that pin was alive in Chromium (web, Windows
-   WebView2) and dead everywhere else. It moves to a `<th>`-level rule in
-   `globals.css` and gains the two guards an inline style could never carry: the
-   `.sr-ios-app` safe-area inset, and `scroll-margin-top` on the focus targets.
-   It stays always-on in Unbounded, with no opt-in pill.
-3. **Two parity items.** Multimedia's `↔ Unbounded` button gets
-   `.sr-touch-target` (it shipped 15px tall against the ~44px phone posture),
-   and the Breeding Codes pill is renamed `Pin code labels` → `Pin labels`.
+1. **Multimedia gains the control, and the mechanism is repaired.** The header
+   sticky shipped on the `<tr>` from v0.0.29. WKWebView honors `position: sticky`
+   on cells only, and SnowRaven ships in WKWebView on macOS and iOS, so that pin
+   was alive in Chromium (web, Windows WebView2) and dead everywhere else. It
+   moves to a `<th>`-level rule in `globals.css` and gains the two guards an
+   inline style could never carry: the `.sr-ios-app` safe-area inset and
+   `scroll-margin-top` on the focus targets. On top of that it is now driven by an
+   opt-in pill: default OFF, session-only, offered in Unbounded, with `pinned
+   implies Unbounded` and the same pinned-state note.
+2. **Breeding Codes pins the code header row only.** The two-axis reshape from the
+   previous revision is reverted, the pill is named **Pin code labels** again, and
+   the published prose is back to describing one freeze.
+
+### Why it changed shape
+
+Both parts reverse a decision made earlier in this build, after the user previewed
+the bundle on a device. Their words:
+
+> For the pin labels, I wanted to pin only the row with the breeding codes, not
+> the bird labels. I also want the multimedia page to have the same pin labels
+> option as the breeding codes.
+
+The previous revision had (a) made the Breeding Codes pin freeze *both* label axes
+and renamed the pill to "Pin labels" to match, and (b) repaired Multimedia's
+mechanism but deliberately left it always-on in Unbounded with no pill. Both are
+undone here. The reasoning behind them is preserved in `design-refinement.md`,
+which now carries a header marking it superseded.
+
+### The cost, named
+
+**Chromium users lose an automatic behavior.** On web and Windows, Multimedia's
+header band came on by itself whenever you pressed **↔ Unbounded**. It now waits
+for a button press. That is a real regression for that group, and it is exactly
+the objection the design pass raised when it declined the pill.
+
+It is the trade the user chose, with eyes open: parity of the *control* across the
+two tabs, rather than one tab having a pin button and the other pinning silently.
+WKWebView users (the macOS app, iOS) gain a working pin they have never had, and
+the button is one press from the old behavior.
 
 ### How to test
 
-See `how-to-see.md` beside this file for the click-by-click walkthrough. In
-short: Breeding Codes tab → press **Pin labels** → scroll down and sideways, and
-confirm the code header *and* the bird names both hold still. Then Multimedia tab
-→ press **↔ Unbounded** → scroll down and confirm the column headings hold at the
-top of the screen (this is the half that needs checking **in the desktop app**,
-not a browser, since a browser was never the broken case).
+See `how-to-see.md` beside this file for the click-by-click walkthrough. In short:
+Multimedia tab → note there are now **two** buttons beside the count → press
+**↔ Unbounded** alone and confirm the headings *do* scroll away → press **Pin
+column labels** and confirm they hold. Then Breeding Codes → press **Pin code
+labels** → scroll down and sideways, and confirm the code headings hold while the
+bird names travel with the matrix.
 
 ### Notes for reviewer
 
-- **The saved idea's "default on mobile" half was declined**, and the user
-  ratified that. Measurement in the design pass showed defaulting the pin would
-  push every bird name off-screen at 320px (mid-list name at x=-277) and leak
-  306-629px of page-horizontal scroll at first open, in a state that cannot
-  self-correct because `mountedTabs` only grows. It would also contradict
-  v0.5.81's recorded "never something a user can land in." Nothing here seeds
-  `pinned` from a breakpoint, and there is no `useIsPhone`, no persistence, and
-  no storage-seam work.
-- **Multimedia deliberately gets no pin pill**, so the two control rows are not
-  symmetric. Breeding Codes' pill exists because pinning there changes your view;
-  Multimedia's band is already scoped to a view the user chose and takes nothing
-  away. An opt-in pill defaulted OFF would have been a visible regression for
-  every Chromium user who has the header pin today.
-- **Multimedia deliberately gets no frozen name column.** Its name column is
-  238px at 1x and 423px at 200% on a 320px viewport (`minWidth: 200` with no
-  viewport clamp), so freezing it would leave nothing for the data. Breeding
-  Codes' column is clamped, which is exactly why the reshape works there and
-  cannot be ported here. Giving that column a viewport clamp is a real follow-up
-  idea and is out of scope (it would change the Normal view too).
-- **The corner cell is the one element sticky on both axes when pinned**, so it
-  carries an inline `z-index: 4` to out-layer the band (3, from the stylesheet)
-  and the frozen body name cells (1). It still sets **no** inline `top` and
-  **no** inline `box-shadow`: both come from the stylesheet, because an inline
-  value at specificity (1,0,0) would make the `.sr-ios-app` gate unreachable and
-  pin the band into the Dynamic Island.
-- **Known limitation, not covered by any test:** a `<th>` sticky on *both* axes
-  at once under WKWebView with `table-layout: fixed` is new here. Cell-level
-  sticky is the recorded WKWebView-safe form and both single axes ship today, but
-  the combination has only been verified in Chromium. It needs a look on device
-  (macOS app and an iPhone) before ship, along with the band clearing the Dynamic
-  Island on both tables. jsdom has no layout engine, so no unit test can settle
-  it, and none pretends to.
-- **Regression bar:** unpinned rendering is byte-identical on both surfaces, in
-  both views, at all widths, and there is a test for each. No capped-height
-  frozen-header box is reintroduced anywhere (v0.5.69 stays not-reversed).
+- **The Breeding Codes revert was done as a diff against `d8d4a56^`, not by
+  rewriting.** `BreedingCodeTable.tsx` is byte-identical to the pre-build revision
+  apart from one added comment recording why the pin is one-axis, so nobody
+  re-derives the reshape. `leftFreeze` is gone; both freeze sites are back to
+  their `wideMode ? {} : {…}` ternaries, and the corner's inline `zIndex: 4` (which
+  existed only to out-layer the band it was sticky within) is gone with it.
+- **The two surfaces share one state machine, not two copies.** `lib/pinnedLabels.ts`
+  (`nextPinnedState` / `nextViewState`) is pure, is used by both tabs, and carries
+  the `announce` flag so they cannot drift on when the live region speaks. This is
+  the `nextShadingState` pattern the repo already uses for a two-surface coupled
+  toggle: an explicit pure transition, never a `useEffect` mirror. The invariant
+  (`pinned` is never true while `wideMode` is false) is proved there once, including
+  over 400-step random walks, so neither component test has to re-prove it.
+- **The pinned-note classes were renamed to `.sr-pinstatus` / `.sr-pinnote`.** They
+  are rendered on both tabs now, and a `.sr-bc-*` (breeding codes) class on the
+  Multimedia tab would be a name that lies. Purely cosmetic rules; no value changed.
+- **Multimedia's `<tr>` keeps its inline fill and hairline in every UNPINNED path,
+  including Unbounded.** Only the pinned path moves them onto the `<th>`, because a
+  sticky cell travels while its `<tr>` stays in flow. The unpinned-Unbounded case is
+  the one Chromium users now land in by default, so it is covered by its own test
+  rather than folded into the Normal case.
+- **Multimedia still gets no frozen name column**, and that part of the design
+  stands: its name column is 238px at 1x and 423px at 200% on a 320px viewport
+  (`minWidth: 200`, no viewport clamp), so freezing it would leave nothing for the
+  data. Giving that column a viewport clamp remains a real follow-up idea and is out
+  of scope.
+- **`design-refinement.md` is now partly superseded** and says so at the top. Its
+  "do not add a pin pill to Multimedia" and the two-axis reshape are both reversed;
+  everything else in it (the measurements, the Half A decline, the CSS block, the
+  `.sr-touch-target` parity item) still describes what ships. It is left otherwise
+  intact as the record of what was decided and why, the same treatment dated
+  retrospectives get in `DECISIONS.md`.
 - Docs updated in the same change per the standing rule: `docs/HELP.md`,
-  `README.md`, `website/index.html`. The pin prose uses the settled house
-  phrasing "per-session, resetting on relaunch" and now describes both axes.
-- **A pre-existing false claim in that same paragraph was corrected on all three
-  surfaces** (security review, Low). They said the species-name column stays
-  frozen on a phone in *both* views; `leftFreeze = !wideMode || pinnedNow` says
-  Normal always, Unbounded only while pinned, and no CSS supplies it either
-  (`.sr-bc-name-col` has exactly one declaration in the emitted bundle,
-  `border-right`). The claim predates this build, but this build rewrote the
-  paragraph around it, so the page was selling the two-axis freeze as new while
-  simultaneously saying it already happened without pinning. The dot-width
-  narrowing and the vertical rules genuinely do hold in both views and are
-  unchanged; only the frozen-column clause was rescoped, not deleted, since the
-  Normal-view freeze is real and worth stating.
-- `CLAUDE.md` corrected too: its "the species-name column is horizontally sticky
-  ONLY" line is now half true (the pinned corner is sticky on both axes), and two
-  present-tense references to the old control name were updated. The v0.5.81
-  entries in `ROADMAP.md` and `PRODUCT_CONTEXT.md` were deliberately left alone:
-  they are dated release retrospectives, and "Pin code labels" is what that
-  release actually shipped, so editing them would falsify the record rather than
-  correct it. Same reasoning that puts `DECISIONS.md` and `CHANGELOG.md` out of
-  scope.
+  `README.md`, `website/index.html`. The Breeding Codes prose is byte-identical to
+  the pre-build text on all three **except** the "in the normal view" scoping fix,
+  which corrects a claim that was false before this build ever started (the page
+  said the species-name column stays frozen on a phone in *both* views;
+  `leftFreeze = !wideMode` says Normal only, and no CSS supplies it either). Both
+  tabs' pin prose uses the settled house phrasing "per-session, resetting on
+  relaunch".
+- **`CLAUDE.md` was reverted to its pre-build text and then extended**, rather than
+  edited in place, so no sentence still describes the reshape. The new material is
+  two bullets: the pinned-label pattern as one shared thing across two tables (the
+  state machine, the `<th>`-level sticky, the stylesheet-not-inline rule, the
+  four-selector focus guard), and both reversals recorded so they are not
+  re-derived. `ROADMAP.md` and `PRODUCT_CONTEXT.md` were deliberately left alone:
+  they are dated release retrospectives and "Pin code labels" is what v0.5.81
+  actually shipped.
 - No version bump, changelog entry, or tag: this is one build of a bundled Spool
   release, versioned once at the end.
 
 ### Verification run
 
-- `npx vitest run` — 145 files, 1939 tests, all passing.
+- `npx vitest run` — 151 files, 2006 tests, all passing.
 - `npm run build` (`tsc -b && vite build`) — clean.
 - `npx eslint src --max-warnings=0` — clean.
-- `grep -rn '—'` over the touched user-facing prose — clean.
-- Each new guard was proved to **fail** against the wrong implementation: the
-  stylesheet rules stranded inside the `≤640` tier (5 failures), the reshape
-  reverted to `leftFreeze = !wideMode` (4 failures), and the `<tr>` sticky
-  restored (2 failures).
-- Cascade-competitor scan over **both** emitted stylesheets (`index-*.css` and
-  `vendor-maplibre-*.css`), testing the rightmost compound of every selector
-  carrying `background` / `box-shadow` / `position` / `top` / `z-index`: the only
-  hits are the two feature blocks themselves, which target different tables. The
-  new rule sits at brace depth 0 in the built CSS, i.e. unlayered, so it beats
-  Tailwind preflight's `@layer base` on the stronger of the two grounds as well
-  as on specificity.
+- `grep -rn '—'` over `docs/HELP.md`, `README.md`, `website/index.html`,
+  `PRIVACY_POLICY.md`, `ACCESSIBILITY.md` — clean (the only hits anywhere are code
+  comments, which are out of scope).
+- Every new guard was proved to **fail** against the implementation it rejects:
+  the two-axis reshape restored (4 failures), Multimedia's always-on pin restored
+  (2 failures), and three separate mutations of the shared state machine (2, 1 and
+  1 failures).
+
+**Browser measurement** (Chromium 151 via Playwright, the synthetic demo dataset
+under `SR_DATA_DIR`, never a real export; 320x568, light and dark, 1x and 200%
+in-app text scale). Element measured against its container, never page
+`scrollWidth` alone:
+
+- **The control cluster fits: 0px overflow in all 16 measured states.** Before/after
+  on the same nodes: adding the third control took the cluster from 173.55px to
+  272px inside a 272px content box at 1x, and **page `scrollWidth` is unchanged**
+  (320 / 623 / 948 on both revisions). The pill measures 132.7px at 1x and 208.9px
+  at 200%; at 200% the two buttons wrap onto separate lines. The cost is vertical
+  (cluster height 44 → 70px at 1x, 132 → 226px at 200%), absorbed by the wrapping
+  row. Screenshots confirm no clipping at either scale.
+- The design pass had predicted this fit at 276.38px in a 288px box. **Re-measured
+  rather than trusted**, with the control as actually built: the container is 272px
+  rather than 288px and the cluster wraps instead of fitting on one line, so the
+  numbers differ while the verdict holds.
+- **`.sr-wrap-flex` is not inert here** (v0.5.82): squeezing the cluster's row to
+  200px takes the cluster from 272px to 200px, so it genuinely responds. The new
+  inner `role="group"` carries no `flexShrink: 0`, so it needs no width cap of its
+  own; the outer cluster keeps the v0.5.82 `maxWidth: '100%'` pairing, and
+  `CountClusterWrap.test.tsx` still passes unchanged.
+- **Pinned, the band holds at y=0** after scrolling 400px past the header's static
+  position, in all four theme/scale combinations, with an opaque fill
+  (`rgb(249,250,251)` light, `rgb(9,9,11)` dark) and `elementFromPoint` inside the
+  band returning a header cell, not a body row.
+- **Unpinned in Unbounded, the band does not hold**: the header sits at exactly its
+  static position (−400px), which is the reversal working rather than a broken pin.
+- **Focus guard read off the focusable, not the cell** (the v0.5.81 rule):
+  `scroll-margin-top` computes 48px at 1x and 96px at 200% on the `<button>` inside
+  the row header.
+- One methodology note worth keeping: the first probe scrolled a fixed 600px and
+  reported the band as broken. It was not. At that scroll the header was still
+  240px down the page, so sticky had nothing to do. Scrolling relative to the
+  element's own document position is what makes the measurement mean anything.
+
+### Known limitation, not covered by any test
+
+The band clearing the Dynamic Island is gated on `.sr-ios-app`, which desktop and
+web never carry, so it is unobservable outside an iOS build. It needs a look on
+device. jsdom has no layout engine and no cascade against inline styles, so no unit
+test can settle it, and none pretends to.

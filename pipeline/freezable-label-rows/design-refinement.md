@@ -1,5 +1,25 @@
 # Design Refinement — Freezable Label Rows
 
+> **PARTLY SUPERSEDED.** Two of this spec's verdicts were built, previewed on a
+> device, and reversed by the user. Read it as the record of what was decided and
+> why, not as the build instruction; `pr-description.md` describes what ships.
+>
+> - **The reshape under Verdict 1 is reverted.** Pinning freezes the CODE HEADER
+>   ROW ONLY. The species-name column's horizontal freeze is a property of Normal
+>   view (`leftFreeze` is gone; the predicate is `!wideMode`), and the pill is
+>   named "Pin code labels" again, so the Verdict 3 rename is reverted too.
+> - **Verdict 2 is reversed.** Multimedia DOES get the opt-in pin pill, mirroring
+>   Breeding Codes'. The user asked for parity of the control, not only of the
+>   mechanism. The Chromium regression this spec correctly named as the cost is
+>   real, was accepted, and is recorded in the PR.
+> - **Everything else still stands**, including the Half A decline, the
+>   measurements, the `<th>`-level sticky and its `globals.css` block, the
+>   `.sr-ios-app` gate, the focus guard, the `.sr-touch-target` parity item, and
+>   the reason Multimedia gets no frozen name column.
+> - The "What The Engineer should not do" list at the end is therefore wrong on
+>   two lines ("Do not add a pin pill to Multimedia" and the reshape it assumes).
+>   The rest of that list holds.
+
 Improve lane, Stage 2. This spec answers the change brief's three open calls
 with verdicts and the measurements behind them, so The Engineer builds to a
 decision rather than re-deriving one.
