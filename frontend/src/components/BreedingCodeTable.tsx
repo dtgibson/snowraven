@@ -241,7 +241,12 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
                   and picks up sticky/top from .sr-bc-matrix--pinned like every other
                   header cell — it holds vertically and travels horizontally with the
                   rest, which is the shipped Unbounded behavior. Because Unbounded
-                  drops the left freeze, the corner is never sticky on both axes. */}
+                  drops the left freeze, the corner is never sticky on both axes.
+
+                  The pin deliberately freezes the CODE HEADER ROW ONLY, not the
+                  species-name column: a two-axis reshape was built, previewed on
+                  device, and reversed by the user. Pinning is about the row of code
+                  labels; the name column's freeze stays a property of Normal view. */}
               <th
                 scope="col"
                 className="sr-bc-name-col"

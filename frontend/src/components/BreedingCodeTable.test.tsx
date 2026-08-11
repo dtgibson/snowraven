@@ -500,3 +500,71 @@ describe('BreedingCodeTable pinned code labels (breeding-code-pinned-labels)', (
     }
   })
 })
+
+describe('BreedingCodeTable pinning freezes the CODE HEADER ROW ONLY (freezable-label-rows)', () => {
+  // A two-axis reshape was built here (pinning ALSO kept the species-name column's
+  // horizontal freeze in Unbounded), previewed on device, and reversed by the user:
+  // pinning is about the row of code labels, and the name column's freeze stays a
+  // property of Normal view. These tests exist to hold that reversal, so every one
+  // of them fails against the reshape rather than merely passing against the
+  // shipped code.
+  //
+  // What a unit test can honestly carry here is the DECLARED positioning and
+  // layering. Whether a band holds at y=0 under WKWebView is geometric, invisible
+  // to jsdom, and is recorded as an on-device check.
+
+  const corner = () => screen.getByRole('columnheader', { name: /Species/ }) as HTMLElement
+  const nameCell = () => screen.getByRole('rowheader') as HTMLElement
+
+  it('does NOT freeze the name column when pinned in Unbounded', () => {
+    // The reversal itself. The reshape made both of these 'sticky'/'0px'.
+    renderTable({ wideMode: true, pinned: true, codesPresent: ['NB'] })
+    for (const el of [corner(), nameCell()]) {
+      expect(el.style.position).toBe('')
+      expect(el.style.left).toBe('')
+    }
+  })
+
+  it('never raises the corner above the band: zIndex is 3 in Normal and unset in Unbounded', () => {
+    // The reshape gave the pinned corner an inline zIndex 4 so it could out-layer
+    // the band it was then sticky within. With one axis pinned there is no such
+    // crossing point, so that layering must be gone rather than left behind as
+    // inert-looking-but-live styling.
+    renderTable({ wideMode: false, pinned: false, codesPresent: ['NB'] })
+    expect(corner().style.zIndex).toBe('3')
+    cleanup()
+    renderTable({ wideMode: true, pinned: true, codesPresent: ['NB'] })
+    expect(corner().style.zIndex).toBe('')
+  })
+
+  it('keeps Normal view frozen with its own hairline, pinned or not', () => {
+    // Normal has always frozen the name column and still does. `pinned implies
+    // Unbounded`, so a stray `pinned` in Normal is inert and must not perturb it.
+    for (const pinned of [false, true]) {
+      renderTable({ wideMode: false, pinned, codesPresent: ['NB'] })
+      expect(corner().style.position).toBe('sticky')
+      expect(corner().style.left).toBe('0px')
+      expect(corner().style.zIndex).toBe('3')
+      expect(corner().style.boxShadow).toContain('inset 0 -1px 0 var(--sr-border)')
+      expect(corner().style.boxShadow).toContain('1px 0 0 var(--sr-border)')
+      expect(nameCell().style.position).toBe('sticky')
+      cleanup()
+    }
+  })
+
+  it('freezes the name column exactly when Normal, in all four states', () => {
+    // The predicate, walked end to end. `pinned` must not appear in it at all: the
+    // reshape's `!wideMode || (pinned && wideMode)` diverges from this on the fourth
+    // row, and a half-applied freeze (corner frozen, body loose, or the reverse) is
+    // a visibly broken column that no single-site assertion catches.
+    for (const [wideMode, pinned] of [[false, false], [false, true], [true, false], [true, true]] as const) {
+      renderTable({ wideMode, pinned, codesPresent: ['NB'] })
+      const cornerFrozen = corner().style.position === 'sticky'
+      const bodyFrozen = nameCell().style.position === 'sticky'
+      const where = `wideMode=${wideMode} pinned=${pinned}`
+      expect(cornerFrozen, where).toBe(bodyFrozen)
+      expect(cornerFrozen, where).toBe(!wideMode)
+      cleanup()
+    }
+  })
+})

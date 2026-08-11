@@ -7,7 +7,7 @@
 // daysInMonth / dayOfWeek / isValidCalendarDay are arithmetic.
 
 import type { ObservationEntry } from '../types'
-import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
+import { normalizeSpeciesName, isNonCountableObservedName } from './speciesUtils'
 
 export type CalendarMetric = 'species' | 'checklists' | 'total'
 
@@ -188,7 +188,12 @@ export function buildDayCells(
       work.set(bucketKey, w)
     }
     const n = individualsOf(o.count) // "X"/blank/null → 0 (Statistics-consistent)
-    const countable = !isNonCountableSpecies(o.commonName)
+    // Raw-name variant deliberately: `o.commonName` still carries its trailing
+    // parenthetical here, so an intergrade ("Yellow-rumped Warbler (Myrtle x
+    // Audubon's)") must be judged on its base species and stay countable. Note this
+    // canNOT be `isNonCountableSpecies(norm)` — normalizing the slash check too would
+    // newly admit subspecies-group slashes. Same rule as Statistics' filter.
+    const countable = !isNonCountableObservedName(o.commonName)
     w.withForms.add(norm)
     w.totalWithForms += n
     if (countable) {

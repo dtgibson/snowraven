@@ -419,7 +419,14 @@ export function HelpDocs({ onClose }: { onClose: () => void }) {
           </nav>
 
           {/* Content */}
-          <div style={{ flex: 1, minWidth: 0, padding: '40px 0 80px', maxWidth: 680 }}>
+          {/* .sr-help-content is the phone-tier hook: once the ≤640 tier flips the
+              row to flex-direction: column, the parent's inline alignItems:'flex-start'
+              governs WIDTH (the cross axis), so this column shrink-to-fits to its
+              widest child's min-content instead of filling the row. minWidth:0 below
+              cannot help — it relaxes the MAIN axis. The constraint lives in
+              globals.css, per the "make layout responsive with a class, never an
+              inline style" rule. */}
+          <div className="sr-help-content" style={{ flex: 1, minWidth: 0, padding: '40px 0 80px', maxWidth: 680 }}>
             {blocks.map((block, idx) => renderBlock(block, idx))}
           </div>
 

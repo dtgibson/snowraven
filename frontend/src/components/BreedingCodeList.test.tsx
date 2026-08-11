@@ -64,6 +64,9 @@ describe('pin control, name and description', () => {
     // coming from the button's own text, the two cannot disagree.
     expect(btn.getAttribute('aria-label')).toBe(null)
     expect(btn.getAttribute('aria-labelledby')).toBe(null)
+    // "Pin code labels", not "Pin labels": the pin freezes the row of code headings
+    // and nothing else, so naming the axis is what makes the label accurate. The
+    // shorter name was only ever justified by a two-axis freeze the user reversed.
     expect(btn.textContent).toBe('Pin code labels')
   })
 
@@ -244,5 +247,17 @@ describe('the pinned status note and its live region', () => {
     // Names the view control by its shipped label, so the sentence and the button
     // on screen agree.
     expect(note.textContent).toContain('Unbounded')
+  })
+
+  it('describes the ONE frozen axis, and never claims the name column freezes', async () => {
+    // Holds the reversal in the published sentence, not just in the styling. A
+    // two-axis note was shipped and reversed; a note claiming the species names
+    // freeze would be prose the code does not implement, which is the exact defect
+    // this repo has shipped repeatedly in this area.
+    await renderTab()
+    fireEvent.click(pinBtn())
+    const note = await screen.findByText(PIN_NOTE)
+    expect(note.textContent).toContain('Code labels')
+    expect(note.textContent).not.toContain('Species names')
   })
 })

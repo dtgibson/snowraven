@@ -1,5 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Info, Loader2, Maximize2, Minimize2, MapPin, Navigation, Search, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+// LocateFixed (a ring, a centre dot, four cardinal ticks) replaces Navigation on
+// BOTH controls that centre this map — the sidebar button below and the new map
+// FAB. Two reasons, and the swap is deliberately a two-site edit so the two
+// controls doing the same job keep the same face (FR-18):
+//   * Navigation's dominant mass is a triangle, and so is the share pin's new
+//     FlagTriangleRight. Side by side at 17px in the FAB cluster the only thing
+//     separating them would be a hairline staff, which reproduces the exact
+//     confusion this feature exists to fix.
+//   * Navigation is the turn-by-turn/heading glyph everywhere else. It says "go
+//     there", not "centre on me".
+// Settings.tsx and WeatherForecastPanel.tsx deliberately KEEP Navigation: those
+// set a persisted default and run a weather lookup, on other tabs, and never
+// appear beside this cluster. Not an oversight.
+import { AlertCircle, Binoculars, Camera, ChevronDown, Crosshair, Filter, Info, Loader2, LocateFixed, Maximize2, Minimize2, MapPin, Search, X } from 'lucide-react'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { loadEbirdObservations } from '../lib/observationsCache'
@@ -17,6 +30,7 @@ import { isIOS } from '../lib/platform'
 import { mapContentClass } from '../lib/mapFullscreen'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
+import { geoErrorReducer, GEO_ERROR_NONE } from '../lib/geoErrorState'
 import { SnowMap } from './SnowMap'
 import { AtlasLayer } from './AtlasLayer'
 import type { AtlasData } from '../lib/atlasBlocks'
@@ -245,7 +259,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [lat, setLat]         = useState('')
   const [lng, setLng]         = useState('')
   const [radius, setRadius]   = useState(5)
-  const [geoError, setGeoError] = useState('')
+  // The location-failure text plus its announcement sequence. See
+  // lib/geoErrorState.ts for why this is a reducer (dispatch is stable AND
+  // recognized as stable by exhaustive-deps, so handleUseMyLocation keeps both
+  // its call sites and its dependency array byte-identical — QA-03).
+  const [geo, setGeoError] = useReducer(geoErrorReducer, GEO_ERROR_NONE)
+  const geoError = geo.text
   const [isLocating, setIsLocating] = useState(false)
 
   // Hotspot state
@@ -1005,6 +1024,18 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   }
 
   const isSetupRequired = phase.tag === 'setup-required'
+  // The one branch below that replaces <SnowMap> with <SetupRequired>. The
+  // location FAB is gated on this and on nothing else: "is there a map", never
+  // "is there data" (FR-02).
+  const mapMounted = !(isSetupRequired && viewMode === 'sightings')
+  // One name on all four views: the promise is identical everywhere. On the three
+  // centre views the same press MAY also run a search, but only when both
+  // coordinate fields were empty — a condition the user cannot see, so a name
+  // promising a search would be a lie whenever they are already filled.
+  // Both strings are pairwise distinct from the share pin's ("Drop a pin at the
+  // map center" / "Move the pin to the map center") and the fullscreen toggle's
+  // ("Enter fullscreen" / "Exit fullscreen") — FR-07.
+  const locateLabel = isLocating ? 'Finding your location' : 'Center the map on my location'
 
   const CenterPointControl = (
     <div style={{ marginBottom: 16 }}>
@@ -1025,11 +1056,17 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       >
         {isLocating
           ? <Loader2 size={13} strokeWidth={2} className="spin" style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
-          : <Navigation size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
+          : <LocateFixed size={13} strokeWidth={2} style={{ color: 'var(--sr-accent)', flexShrink: 0 }} />
         }
         {isLocating ? 'Locating…' : 'Use my location'}
       </button>
-      {geoError && <div role="alert" style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
+      {/* Visible text only — no role="alert". The on-map .sr-map-geo-error region
+          is the app's single announcer for this value (FR-15): on a desktop
+          centre view this block and that region are both on screen at once, and
+          two live regions carrying the same string would read it twice. The
+          duplicate VISIBLE copy is accepted and deliberate; FR-15 constrains
+          announcements, not copies. */}
+      {geoError && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-error)', marginBottom: 6 }}>{geoError}</div>}
       <div style={{ display: 'flex', gap: 6 }}>
         <input className="sr-input-16" type="number" placeholder="Latitude" aria-label="Latitude" value={lat} onChange={e => { setLat(e.target.value); setDetectedLocation(null) }}
           style={{ flex: 1, height: 34, padding: '0 8px', border: '1.5px solid var(--sr-border)', borderRadius: 6, fontSize: '0.75rem', fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)', minWidth: 0 }} />
@@ -2073,6 +2110,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               aria-pressed={viewMode === mode}
               onClick={() => {
                 setViewMode(mode)
+                // FR-17 — the failure does not survive a view change. At the one
+                // setViewMode call site rather than a useEffect mirror on
+                // viewMode: that would be a setState-in-effect and an extra
+                // render, the shape this repo already rejected for the shading
+                // exclusion (nextShadingState).
+                setGeoError('')
                 if (mode === 'hotspots' || mode === 'targets' || mode === 'lifers') {
                   const latNum = parseFloat(lat)
                   const lngNum = parseFloat(lng)
@@ -2168,12 +2211,49 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {viewMode === 'hotspots' ? 'Finding hotspots…' : viewMode === 'targets' ? 'Finding sightings…' : 'Finding nearby lifers…'}
             </div>
           )}
-          {/* Floating map controls, hidden while the mobile sidebar overlay is open.
-              Fullscreen toggle shows on all widths; the Filters button is mobile-
-              only (CSS). They sit in a flex cluster so they never overlap regardless
-              of the Filters label width. */}
-          {!sidebarOpen && (
-            <div className="sr-map-fab-cluster">
+          {/* Floating map controls, hidden while the mobile sidebar overlay is
+              open. Fullscreen toggle shows on all widths; the Filters button is
+              mobile-only (CSS). They sit in a flex cluster so they never overlap
+              regardless of the Filters label width, and the cluster wraps so a
+              fourth control cannot push one off the left edge of a phone. */}
+          {/* The cluster wrapper is mounted unconditionally so the live region
+              below survives every state (including the phone Filters overlay,
+              where the sidebar's own "Use my location" can still produce a
+              failure and is now the one control that can). Its INTERACTIVE
+              contents stay gated on !sidebarOpen exactly as shipped, so the
+              overlay still hides every FAB (FR-12) and SharePin still sees a
+              null host and renders no button. Empty, the cluster is a 0x0
+              pointer-events:none box. */}
+          <div className="sr-map-fab-cluster">
+            {/* The location-failure message: its own full-width row at the TOP
+                of this bottom-anchored cluster, so a message extends the cluster
+                UPWARD and every button's position is byte-identical with and
+                without one — the retry button never moves under the user's
+                finger. (The schema's top-centre chip was measured unusable: at
+                320px and 200% text scale the free band under the layer switcher
+                is 96px and the longest describeLocationError() string renders
+                227px tall.)
+
+                The region is rendered ALWAYS, never hidden while idle — the
+                SharePopup.tsx contract. It must be in the accessibility tree
+                before its content changes, and `display: none` would remove it
+                from that tree, so no `:empty` collapse rule may be added for it
+                (globals.css says why at length; a stylesheet guard rejects one).
+                Only its CHILD changes, keyed by geo.seq, because React bails out
+                reconciling identical text and aria-live fires on mutation.
+                NOTHING else may render inside the container, so that its
+                textContent is exactly the message read aloud — hence
+                `{geoError ? <span/> : null}` and nothing else. */}
+            <div className="sr-map-geo-error" role="status" aria-live="polite">
+              {geoError ? (
+                <span key={geo.seq} className="sr-map-geo-error-msg">
+                  <AlertCircle size={14} aria-hidden="true" />
+                  {geoError}
+                </span>
+              ) : null}
+            </div>
+            {!sidebarOpen && (
+              <>
               {/* Pin Share's drop button portals in here, so it is the FIRST item
                   of this row (Pin, Fullscreen, Filters), no new corner is claimed
                   and the .sr-ios-app safe-area handling is inherited. The slot is
@@ -2181,6 +2261,39 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   DOM order matches the visual order. The two shipped controls
                   below are untouched. */}
               <div className="sr-map-fab-slot" ref={setFabSlot} />
+              {/* Location FAB — a direct child in DOM position after the share
+                  slot, NOT a second display:contents slot: nothing here has to
+                  cross the <SnowMap> boundary the way SharePin's portaled button
+                  does. Direct child means DOM order = visual order = tab order
+                  for free, and no shipped control moves (FR-10). No CSS `order`
+                  anywhere; that would desynchronize tab order from reading order.
+
+                  Absent in the single branch where <SetupRequired> replaces the
+                  map: a press there would detect, arm panTarget, and do nothing
+                  observable (no MapEffects is mounted to consume it), teaching
+                  the user the control is unreliable, and it could raise an OS
+                  location prompt for no benefit. The gate is "is there a map",
+                  not "is there data" — on the three centre views the map and the
+                  button both render with isSetupRequired true (FR-02). */}
+              {mapMounted && (
+                <button
+                  type="button"
+                  className="sr-map-locate-btn"
+                  /* aria-disabled, NOT disabled: disabling a focused button drops
+                     focus to <body> in most browsers, which would break FR-06 for
+                     the button the user just pressed. The re-entrancy guard
+                     therefore lives here rather than in handleUseMyLocation,
+                     which must stay textually unchanged (QA-03). */
+                  aria-disabled={isLocating}
+                  aria-label={locateLabel}
+                  title={locateLabel}
+                  onClick={() => { if (isLocating) return; void handleUseMyLocation() }}
+                >
+                  {isLocating
+                    ? <Loader2 size={17} strokeWidth={2.2} className="spin" aria-hidden />
+                    : <LocateFixed size={17} strokeWidth={2.2} aria-hidden />}
+                </button>
+              )}
               {onToggleFullscreen && (
                 <button tabIndex={0}
                   className="sr-map-fullscreen-btn"
@@ -2202,8 +2315,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <Filter size={14} strokeWidth={2.5} />
                 Filters
               </button>
-            </div>
-          )}
+              </>
+            )}
+          </div>
           {isSetupRequired && viewMode === 'sightings' ? (
             <SetupRequired
               title="eBird Backup Required"

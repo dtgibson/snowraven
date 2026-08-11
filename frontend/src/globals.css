@@ -1048,17 +1048,94 @@ h1, h2, h3, h4, h5, h6 {
   scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
 }
 
-/* The pinned-state note. .sr-bc-pinstatus is a CHROMELESS wrapper that is always
-   rendered (it is the role="status" region — a live region has to exist before
-   its content changes, or the first change is not announced) and collapses to
-   nothing when empty: no padding, no margin, no border. All the visible geometry
-   is on the note itself, which is the region's keyed child. */
-.sr-bc-pinstatus { display: block; }
+/* Multimedia table — PINNED header band (feature: freezable-label-rows).
+   Deliberately mirrors the .sr-bc-matrix--pinned block above, declaration for
+   declaration, so the two surfaces read as ONE pattern rather than two
+   independently-invented sticky headers.
+
+   The class is applied by an OPT-IN control that mirrors Breeding Codes': default
+   OFF, session-only, offered in Unbounded, and `pinned implies Unbounded`. An
+   always-on version (band whenever wideMode, no control) was built first and
+   reversed by the user, who asked for the two surfaces to match on the CONTROL,
+   not only on the mechanism. So the modifier tracks `pinned && wideMode` here
+   exactly as .sr-bc-matrix--pinned does there, and it is NOT a synonym for
+   wideMode. The cost of the reversal is named in the PR: Chromium users (web,
+   Windows) had an always-on band in Unbounded and now press a button for it.
+
+   This block also REPAIRS a latent defect rather than only adding a capability:
+   the sticky
+   shipped on the <tr> from v0.0.29, and WKWebView honors sticky on CELLS ONLY —
+   so the header pin has very likely never worked in the macOS app or on iOS, and
+   was alive only in Chromium (web, Windows WebView2). Moving it to the <th> is
+   what fixes that; keeping it inline could not, because an inline style is
+   specificity 1,0,0 and the .sr-ios-app gate below could never reach it.
+
+   `border-collapse: separate` (already inline on the table) is required for
+   sticky table headers. The band's background moves onto the <th> because the
+   band IS the cells now, not the row: a sticky cell travels while its <tr> stays
+   in flow, so a fill left on the row would scroll away out from under it. It is
+   the opaque --sr-bg so body rows cannot read through. */
+.sr-ll-table--pinned thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--sr-bg);
+  box-shadow: inset 0 -1px 0 var(--sr-border-medium), var(--sr-sticky-shadow);
+}
+
+/* Keyboard focus must not land under the pinned band (WCAG 2.2 SC 2.4.11) —
+   the guard the inline-styled version could never carry. Same 3rem and the same
+   FOUR selectors as the Breeding Codes rule, and for the same reason: the
+   descendant selectors are the operative half, not defensive noise.
+   `scroll-margin` applies to the element scrolled INTO VIEW and does NOT
+   inherit, and the focusables here are not the cells — BirdName renders a
+   <button class="sr-birdname-link"> inside each row-header cell, and every media
+   count is an <a>. A rule on the cells alone computes 0px on everything that can
+   actually take focus.
+
+   scroll-margin (a focus-target property), never scroll-padding on the root: in
+   Unbounded the scrollport is the PAGE, and deferred tabs stay MOUNTED when
+   hidden, so a root-scoped rule would outlive this tab and apply on every other
+   one. Keeping it in this table's own subtree cannot reach another tab. */
+.sr-ll-table--pinned tbody th,
+.sr-ll-table--pinned tbody td,
+.sr-ll-table--pinned tbody th *,
+.sr-ll-table--pinned tbody td * { scroll-margin-top: 3rem; }
+
+/* iOS app only, mirroring `.sr-ios-app body`'s padding-top: a sticky element
+   resolves `top` against its SCROLLPORT (the viewport), which sits ABOVE that
+   padding, so without this the band pins into the notch / Dynamic Island. Gated
+   on .sr-ios-app and never a bare env(): index.html ships viewport-fit=cover to
+   browsers too, so an ungated rule would change shipped web rendering in iOS
+   Safari. Desktop and web never carry the class. */
+.sr-ios-app .sr-ll-table--pinned thead th { top: env(safe-area-inset-top, 0px); }
+/* The focus twin, across the SAME four selectors, with the inset composed in
+   because on iOS the band sits that much lower. Covering only the cells here
+   would leave iOS with the original defect while the web build is fixed. */
+.sr-ios-app .sr-ll-table--pinned tbody th,
+.sr-ios-app .sr-ll-table--pinned tbody td,
+.sr-ios-app .sr-ll-table--pinned tbody th *,
+.sr-ios-app .sr-ll-table--pinned tbody td * {
+  scroll-margin-top: calc(3rem + env(safe-area-inset-top, 0px));
+}
+
+/* The pinned-state note, SHARED by both pinnable tables (Breeding Codes and
+   Multimedia). The classes carry no surface prefix precisely because both use
+   them verbatim: the note is one pattern with no per-surface variance, and a
+   .sr-bc-* name rendered on the Multimedia tab would be a name that lies.
+   (The pinned-band rules above stay per-surface: they target different tables.)
+
+   .sr-pinstatus is a CHROMELESS wrapper that is always rendered (it is the
+   role="status" region — a live region has to exist before its content changes,
+   or the first change is not announced) and collapses to nothing when empty: no
+   padding, no margin, no border. All the visible geometry is on the note itself,
+   which is the region's keyed child. */
+.sr-pinstatus { display: block; }
 
 /* Same geometry as the shipped filter strip (7px 12px, radius 6, 8px below) but
    on neutral surface-faint rather than the accent tint: the accent is already
    spent on the pressed pill, and pinning is not a filter. */
-.sr-bc-pinnote {
+.sr-pinnote {
   margin: 0 0 8px;
   padding: 7px 12px;
   background: var(--sr-surface-faint);
@@ -1071,13 +1148,13 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Enters on pin: a 2px rise out of the control row that triggered it. The band
    itself gets NO motion — sticky is continuous positioning, not a transition. */
-@keyframes sr-bc-note-in {
+@keyframes sr-pin-note-in {
   from { opacity: 0; transform: translateY(-2px); }
   to   { opacity: 1; transform: none; }
 }
-.sr-bc-pinnote--enter { animation: sr-bc-note-in 160ms ease-out both; }
+.sr-pinnote--enter { animation: sr-pin-note-in 160ms ease-out both; }
 @media (prefers-reduced-motion: reduce) {
-  .sr-bc-pinnote--enter { animation: none; }
+  .sr-pinnote--enter { animation: none; }
 }
 
 /* Map Explorer (non-fullscreen) panel height. Replaces the inline
@@ -1336,7 +1413,37 @@ h1, h2, h3, h4, h5, h6 {
   z-index: 1050;
   align-items: center;
   gap: 10px;
+
+  /* ── Added by map-location-buttons. The cluster gained a fourth control and a
+     full-width message row, and the five declarations below are what keep it
+     inside a 320px viewport at 200% text scale. Measured, not calculated: at
+     that size .sr-share-drop-btn is 88px, so an unwrapped four-control row is
+     366.9px wide and leaves the share button 62.9px OFF the left edge of the
+     viewport, unreachable — while document.scrollWidth still reads a clean 320,
+     because a LEFT overflow on an absolutely positioned element never extends
+     the scroll width. Verify this in a browser, element box against container
+     box; a scrollWidth equality certifies the broken build.
+
+     flex-wrap does the load-bearing work. The v0.5.82 rule (a container that is
+     never narrowed never breaks a line) does NOT bite here: this cluster is
+     absolutely positioned, so its shrink-to-fit width is already bounded by the
+     map area and the wrap binds on its own. justify-content does the visible
+     work — without it the wrapped rows go flush left and the Filters pill is
+     orphaned in the bottom-left corner, which reads as a bug. max-width changes
+     no rendered position at today's content widths; it guarantees the 16px left
+     gutter and bounds the failure for a longer Filters label, another locale, or
+     a fifth control. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  row-gap: 10px;                /* matches the existing column `gap` */
+  max-width: calc(100% - 32px); /* responsive by construction, no breakpoint math */
+  /* The cluster box grows from 134px to 371px tall once a message is in it, and
+     an absolutely positioned div swallows every gesture inside its box. Pointer
+     events are re-enabled on the buttons below, which also fixes a pre-existing
+     dead zone in the gaps BETWEEN the FABs. */
+  pointer-events: none;
 }
+.sr-map-fab-cluster button { pointer-events: auto; }
 
 /* Safe-area insets (mobile-app NFR-07), iOS app only (.sr-ios-app — see the
    body rule above): keep the 44px-class FABs clear of the home indicator and
@@ -1378,6 +1485,113 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Map location button + on-map location-failure message ───────────────────
+   (feature: map-location-buttons) */
+
+/* The location FAB — second control in the cluster, after the share slot.
+   Visually .sr-share-drop-btn, whose declarations are DUPLICATED rather than
+   extracted into a shared base: .sr-share-drop-btn was itself written as a
+   deliberate duplicate of .sr-map-fullscreen-btn, and this feature may not alter
+   either shipped rule (FR-04). That makes this the third instance, and the
+   threshold: a FIFTH map FAB should force the extraction of a shared base class,
+   in a change whose scope permits touching the two shipped rules. */
+.sr-map-locate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex: none;
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  border: 1px solid var(--sr-border);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-map-locate-btn:hover { background: var(--sr-surface-subtle); }
+
+/* Busy. Keyed off aria-disabled, not :disabled — disabling a focused button
+   drops focus to <body> in most browsers, which would break FR-06 for the button
+   just pressed. The surface is deliberately NOT tinted to --sr-accent-bg: that
+   is the neighbouring share button's "holding a pin" signal and reusing it one
+   control away would collide semantically. The busy state's primary carrier is
+   the glyph SHAPE (a closed ring with a centre dot becomes an open arc), so it
+   survives the global prefers-reduced-motion block freezing .spin — shape first,
+   colour second, motion third. */
+.sr-map-locate-btn[aria-disabled="true"] { cursor: default; }
+.sr-map-locate-btn[aria-disabled="true"] svg { color: var(--sr-accent); }
+
+/* The failure message's row: full-width, first in the cluster, so a message
+   extends the bottom-anchored cluster UPWARD and no button moves. The cluster's
+   own row-gap is the gap, its justify-content is the alignment and its max-width
+   is the width cap — one set of declarations doing two jobs, and no offset
+   arithmetic to fit to one viewport. */
+.sr-map-geo-error {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+/* THERE IS DELIBERATELY NO `:empty { display: none }` RULE HERE, and none may be
+   added. This region is a `role="status"` live region, and `display: none`
+   removes an element from the ACCESSIBILITY TREE, not merely from view — so a
+   region hidden while idle is inserted into the tree at the same instant its
+   first content arrives, which is the documented way to make a live region fail
+   to announce. It would break every announcement, not just the first: the
+   handler's leading setGeoError('') empties the region before each press, so
+   each one would be a none -> flex transition. It would also defeat the
+   sequence-keyed child in lib/geoErrorState.ts, whose whole premise is a STABLE
+   region whose child is replaced. SharePopup.tsx is the house reference: its
+   region is always rendered and only its child changes.
+   Such a rule DID ship in review here, justified as keeping the buttons from
+   sitting 10px lower. That justification was already measured false — the
+   cluster is bottom-anchored, so an empty row grows the box 10px UPWARD (134px
+   -> 144px) and every button's frame is byte-identical either way. So the rule
+   cost the announcement and bought nothing but 10px of dead space inside an
+   invisible, pointer-events:none box. Guarded by mapFabClusterCss.test.ts.
+   The container still holds NOTHING but the keyed message node — not for
+   collapsing now, but so the region's textContent is exactly the message a
+   screen reader reads. Hence `{geoError ? <span/> : null}` and nothing else. */
+
+/* The message card. --sr-error on --sr-error-bg is the already-audited pair
+   (4.82:1 light, 7.07:1 dark — see the :root comment on --sr-error), so no new
+   token and no new parse-the-tokens contrast guard. Fully opaque because it sits
+   over live canvas. 12px radius, not the loading chip's 20px pill: on a two-to-
+   six-line block a pill reads as a lozenge, 12px reads as a card. The shadow is
+   the chip's, so the two read as one family of map chrome. */
+.sr-map-geo-error-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 28rem;               /* ~72 characters at 0.75rem */
+  padding: 8px 12px;
+  background: var(--sr-error-bg);
+  border: 1px solid var(--sr-error-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-size: 0.75rem;
+  line-height: 1.45;              /* looser than the chip's: this one wraps */
+  color: var(--sr-error);
+  text-align: left;
+  animation: sr-map-geo-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-map-geo-error-msg svg { flex: none; margin-top: 0.18em; }
+
+/* Replays for free on a repeat, because the sequence-keyed child remounts — the
+   SAME mechanism that re-announces it to a screen reader, so the visual and the
+   aural cue stay in lockstep. The end state IS the resting state, so the global
+   prefers-reduced-motion block collapsing this to ~1 microsecond loses nothing;
+   per the note below, no per-component reduced-motion query may be added. */
+@keyframes sr-map-geo-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Pin Share ───────────────────────────────────────────────────────────────
@@ -1950,6 +2164,11 @@ select:focus-visible {
      scale; the icon glyph size is untouched, only the hit box grows. */
   .sr-share-drop-btn { width: 2.75rem; height: 2.75rem; }
   .sr-share-drop-btn--compact { width: 2.5rem; height: 2.5rem; }
+  /* The location FAB reaches the same posture as the share button beside it.
+     (.sr-map-fullscreen-btn stays at 36px on a phone — a pre-existing gap the
+     PRD explicitly defers; FR-04 holds the NEW button to the better of the two
+     shipped precedents rather than the worse.) */
+  .sr-map-locate-btn { width: 2.75rem; height: 2.75rem; }
   /* The copy button reaches the same posture. Re-stated at the compact
      specificity (0,2,0) because the base compact rule would otherwise outrank
      the .sr-touch-target min-height the button also carries, silently leaving
@@ -2110,6 +2329,35 @@ select:focus-visible {
      inline styles in HelpDocs.tsx, hence the !important overrides) */
   .sr-help-row { flex-direction: column !important; gap: 0 !important; }
   .sr-help-toc { width: 100% !important; position: static !important; max-height: none !important; }
+  /* ...and make the content column FILL that stacked row. The rule above flips the
+     row to a column, which hands the parent's inline alignItems:'flex-start' control
+     of the CROSS axis — now width — so the column shrink-to-fits to its widest
+     child's min-content: the coordinates <pre> is white-space:pre, so its min-content
+     is its longest line (494px at 100% text scale, 955px at 200%). Measured shipped:
+     a 494.28px column inside a 296px row at 320px, dragging the help body 186px
+     sideways; 372px at 200% scale, where the column pins to its inline maxWidth:680.
+     The column's inline minWidth:0 is powerless here — it relaxes the MAIN axis.
+     Two axes, two declarations, both needed: align-self overrides the inherited
+     flex-start (stretch applies because the inline style leaves `width` auto), and
+     width:100% holds even if a `width` is ever set. !important because the element
+     carries inline styles (specificity 1,0,0) that would otherwise outrank a class
+     — the same reason the two rules above carry it. Constraining the column alone
+     still leaves 92px of leak at 320px/200%, so the wrap allowance below is part of
+     the same fix, not a nicety: three unbreakable strings have no wrap opportunity
+     at that scale (the links "github.com/dtgibson/snowraven-mini" 399.77px and
+     "ebird.org/downloadMyData" 326.89px, and the single H1 word "Documentation"
+     356.42px, all against a 296px column). These are the two declarations
+     .sr-wrap-anywhere carries, inlined rather than added as a class because that
+     helper is unconditional and this defect — and every measurement behind it — is
+     phone-tier only; 641px through 1440px measured clean and stay untouched. Both
+     are inherited, but no-ops inside the <pre>, where white-space:pre forbids
+     wrapping: it keeps scrolling in its own overflow-x:auto box, as intended. */
+  .sr-help-content {
+    align-self: stretch !important;
+    width: 100% !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
 
   .sr-map-sidebar-overlay {
     position: absolute;

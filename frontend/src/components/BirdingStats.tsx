@@ -396,7 +396,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             onChange={e => setIncludeSpuh(e.target.checked)}
             style={{ accentColor: 'var(--sr-accent)', width: 14, height: 14 }}
           />
-          Include spuh / slash species
+          Count spuh, slash &amp; hybrids
         </label>
       </div>
 

@@ -13,6 +13,8 @@ import type { BreedingSortState, DateRangeState } from '../types'
 import { DATE_RANGE_CLEAR } from '../types'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
+import { nextPinnedState, nextViewState } from '../lib/pinnedLabels'
+import type { PinnedLabelsTransition } from '../lib/pinnedLabels'
 
 type Phase =
   | { tag: 'loading-saved' }
@@ -75,6 +77,11 @@ const CATEGORY_META: { key: BreedingCategory; label: string }[] = [
 // Shown while the code labels are pinned. Names the shipped view control by its
 // shipped label ("Unbounded"), never a synonym, so the sentence and the button
 // agree. No em dashes (standing copy rule).
+//
+// It describes ONE freeze, the code header row, because that is all the pin does.
+// A two-axis version that also froze the species-name column was built and then
+// reversed by the user after a device preview; this sentence must not drift back
+// toward describing it.
 const PIN_NOTE = 'Code labels stay at the top while you scroll. Pinning uses the Unbounded view, so the matrix scrolls with the page.'
 
 function ghostBtn(active = false): React.CSSProperties {
@@ -115,42 +122,23 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
   const [countyFilter, setCountyFilter] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeState>(DATE_RANGE_CLEAR)
 
-  // The invariant: `pinned` is never true while `wideMode` is false. Pinning is
-  // only offered in Unbounded, where the scrollport is the PAGE and a sticky
-  // header costs nothing but its own ~40px band; Normal view would need a
-  // capped-height inner box, which has no workable height unit at 200% in-app
-  // text scale. The control is still present and enabled in Normal and reaches
-  // the working behavior in ONE press, so nothing is disabled, hidden, or dead.
-  //
-  // Both handlers are plain event handlers computing the next state directly. No
-  // effect mirrors one piece of state onto another (which would be ambiguous
-  // about which one wins, and an extra render).
-  function togglePin() {
-    if (pinned) {
-      // Unpin restores the view pinning switched away from.
-      setPinned(false)
-      if (viewBeforePin !== null) setWideMode(viewBeforePin)
-      setViewBeforePin(null)
-    } else {
-      setViewBeforePin(wideMode)
-      setWideMode(true)
-      setPinned(true)
-      // Advance only on pin: unpinning needs no announcement of its own, since
-      // the aria-pressed transition IS the announcement and the note leaves.
-      setPinSeq(s => s + 1)
-    }
+  // Both toggles run the SHARED machine in lib/pinnedLabels.ts, which the
+  // Multimedia tab runs too: the two surfaces offer the same control, and running
+  // one implementation is the only way that stays true. The invariant it enforces
+  // (`pinned` is never true while `wideMode` is false) and the reasoning behind it
+  // live there. These are plain event handlers applying the returned state. No
+  // effect mirrors one piece of state onto another (ambiguous about which wins,
+  // and an extra render).
+  function applyPinTransition(next: PinnedLabelsTransition) {
+    setPinned(next.pinned)
+    setWideMode(next.wideMode)
+    setViewBeforePin(next.viewBeforePin)
+    if (next.announce) setPinSeq(s => s + 1)
   }
 
-  function toggleView() {
-    const next = !wideMode
-    setWideMode(next)
-    if (!next && pinned) {
-      // Normal cannot pin, so the pin clears and the pill visibly un-presses in
-      // the same row. There is no view to restore afterwards.
-      setPinned(false)
-      setViewBeforePin(null)
-    }
-  }
+  const pinState = { pinned, wideMode, viewBeforePin }
+  const togglePin = () => applyPinTransition(nextPinnedState(pinState))
+  const toggleView = () => applyPinTransition(nextViewState(pinState))
 
   const fetchTaxonCodes = async (entries: BreedingEntry[]) => {
     try {
@@ -546,6 +534,11 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
               onClick={togglePin}
             >
               <Pin size={12} strokeWidth={2.2} aria-hidden style={{ flexShrink: 0 }} />
+              {/* "Pin code labels", not "Pin labels": the pin freezes the row of
+                  code headings and nothing else, so naming the axis is the accurate
+                  label. The shorter name was only ever justified by a two-axis
+                  freeze that the user reversed. The state value is `pinned` and
+                  already label-agnostic, so nothing renames behind this string. */}
               Pin code labels
             </button>
             {/* .sr-touch-target on the SHIPPED toggle too: the two are now a visual
@@ -599,8 +592,8 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
           aria-live terms) while the region's textContent stays exactly the message.
           Padding the string with an invisible character to force a diff is the wrong
           fix: it makes every textContent assertion quietly false. */}
-      <div className="sr-bc-pinstatus" role="status">
-        {pinned ? <p key={pinSeq} className="sr-bc-pinnote sr-bc-pinnote--enter">{PIN_NOTE}</p> : null}
+      <div className="sr-pinstatus" role="status">
+        {pinned ? <p key={pinSeq} className="sr-pinnote sr-pinnote--enter">{PIN_NOTE}</p> : null}
       </div>
 
       <BreedingCodeTable

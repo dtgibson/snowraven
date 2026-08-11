@@ -21,6 +21,12 @@
 //     passing while every width above 640 (iPad) is left uncovered.
 //  3. Comments are stripped first. globals.css contains a comment with a brace
 //     in it, which would otherwise desynchronize the brace walk.
+//  4. A top-level `;` ends a selector, so a `;`-terminated at-rule does not
+//     swallow the rule after it. globals.css opens with `@import "tailwindcss";`,
+//     and without this the parser read the whole of `@import "tailwindcss"; :root`
+//     as one selector, saw the leading `@`, and dropped it — so `:root` was
+//     absent from the map and any guard reaching for a token there got
+//     `undefined` and passed vacuously.
 
 /**
  * Every TOP-LEVEL rule in a stylesheet, keyed by its whitespace-normalized
@@ -36,6 +42,14 @@ export function parseTopLevelRules(src: string): Map<string, string> {
   let i = 0
   let selStart = 0
   while (i < clean.length) {
+    // Only ever reached OUTSIDE a block (the walk below jumps whole blocks), so
+    // a `;` here always terminates a top-level statement: `@import …;`,
+    // `@charset …;`, `@layer a, b;`.
+    if (clean[i] === ';') {
+      i++
+      selStart = i
+      continue
+    }
     if (clean[i] !== '{') {
       i++
       continue

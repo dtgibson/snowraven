@@ -422,6 +422,38 @@ describe('metricCount / nonZeroMetricCounts — includeNonCountable BOTH flags (
   })
 })
 
+// `o.commonName` is the RAW exported name, so the countable check must normalize
+// before testing for " x ": an intraspecific intergrade is a countable bird, while a
+// true hybrid is not. A raw-name predicate drops both, so an intergrade-only day
+// wrongly reads Species 0 with the toggle OFF.
+describe('buildDayCells — intergrades stay countable, true hybrids do not', () => {
+  const view: CalendarView = { kind: 'year', year: 2024 }
+  const cells = buildDayCells([
+    obs({ date: '2024-05-01', submissionId: 'S1', commonName: "Yellow-rumped Warbler (Myrtle x Audubon's)" }),
+    obs({ date: '2024-05-02', submissionId: 'S2', commonName: 'Mallard x American Black Duck (hybrid)' }),
+  ], view)
+
+  it('an intergrade-only day counts as a real species with the toggle OFF', () => {
+    const day = cells.get('2024-05-01')!
+    expect(metricCount(day, 'species', false)).toBe(1)
+    expect(metricCount(day, 'species', true)).toBe(1)
+  })
+
+  it('a hybrid-only day is still 0 with the toggle OFF and 1 with it ON', () => {
+    const day = cells.get('2024-05-02')!
+    expect(metricCount(day, 'species', false)).toBe(0)
+    expect(metricCount(day, 'species', true)).toBe(1)
+  })
+
+  it('the intergrade folds into its parent species rather than counting twice', () => {
+    const folded = buildDayCells([
+      obs({ date: '2024-06-01', submissionId: 'S3', commonName: "Yellow-rumped Warbler (Myrtle x Audubon's)" }),
+      obs({ date: '2024-06-01', submissionId: 'S3', commonName: 'Yellow-rumped Warbler' }),
+    ], view)
+    expect(metricCount(folded.get('2024-06-01')!, 'species', false)).toBe(1)
+  })
+})
+
 describe('individualsOf — "X"/blank/null → 0 (Statistics-consistent, change 1)', () => {
   it('returns the count when present', () => {
     expect(individualsOf(5)).toBe(5)

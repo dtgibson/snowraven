@@ -160,6 +160,8 @@ A **Named Individuals** section appears when this species has birds you've named
 
 The Statistics tab shows a comprehensive analytics dashboard built from your eBird backup. A jump-nav at the top links to each section. The cards are described below. The eBird backup is required for all of them; the Media card additionally requires your ML export.
 
+A **Count spuh, slash & hybrids** checkbox in the tab header decides what counts as a species across every card. It is off by default, so the numbers you see are countable life-list counts: a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), and a hybrid (`Mallard x American Black Duck`) are all left out, and subspecies fold into their parent species. An intergrade between two subspecies, like `Northern Flicker (Yellow-shafted x Red-shafted)`, is not a hybrid in this sense: it counts, as an ordinary Northern Flicker. Turn the checkbox on to count the non-countable forms everywhere on the tab. It is the same rule, and the same wording, as the Calendar tab's switch.
+
 ### Life List Totals
 
 Your headline counts: total species, total checklists, total locations, years active, states and provinces, and countries. The accumulation chart shows how your life list grew over time. Use the interval toggle to switch between Weekly, Monthly, Yearly, and Total views. Total mode draws one step per new lifer in chronological order, with the species name shown in the tooltip at each step.
@@ -266,7 +268,7 @@ The **Use Textures** switch turns each shade tier into a crosshatch whose densit
 
 ### Counting spuh, slash & hybrids
 
-A low-emphasis switch at the bottom of the controls, **off by default**, optionally counts non-countable forms (a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), or a hybrid (`Mallard × American Black Duck`)) toward the **Species** count and the **Total count** individuals. Turning it on raises some day counts and re-shades the grid, and a former "0" day becomes a real numbered day. It has no effect on the Checklists metric, so it's dimmed and inactive whenever Checklists is the active metric (and while a single species is chosen).
+A low-emphasis switch at the bottom of the controls, **off by default**, optionally counts non-countable forms (a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), or a hybrid (`Mallard x American Black Duck`)) toward the **Species** count and the **Total count** individuals. An intergrade between two subspecies, like `Northern Flicker (Yellow-shafted x Red-shafted)`, is not one of those forms: it counts as its parent species whichever way the switch is set. Turning the switch on raises some day counts and re-shades the grid, and a former "0" day becomes a real numbered day. It has no effect on the Checklists metric, so it's dimmed and inactive whenever Checklists is the active metric (and while a single species is chosen).
 
 ### The day popup
 
@@ -282,7 +284,11 @@ The Map Explorer tab provides four views of your birding locations and nearby ac
 
 A **fullscreen button** sits at the bottom-right of the map. Click it to expand the map to fill the entire window: the app header, tab selector, and mode tabs are hidden so you get the maximum map area. Click it again (the button becomes a minimize icon) to return to the normal layout. On small or mobile screens, a **Filters** button sits beside it to open the controls sidebar.
 
-Click **Use my location** in the map controls to center the map on your current position and place a blue pin at the detected location. The desktop app uses your operating system's native location service (macOS and Windows both supported). If location is off or denied, restore it in System Settings → Privacy & Security → Location Services on macOS, or Settings → Privacy & security → Location on Windows; in web/Pi mode, use your browser's site permissions.
+**Centering on where you are.** A round **location button** (a small target reticle) sits in the bottom-right cluster of the map, beside the fullscreen button, on all four views. Press it to center the map on your current position and place a blue pin at the detected location. The Hotspots, Nearby Lifers, and Media Targets views also offer the same thing as a **Use my location** button in the filters sidebar, which does exactly the same job; on those three views, pressing either one also runs that view's search when you have not set a center yet. While it is finding you, the button shows a spinner and a second press does nothing until the first finishes.
+
+The desktop app uses your operating system's native location service (macOS and Windows both supported). If location is off or denied, restore it in System Settings → Privacy & Security → Location Services on macOS, or Settings → Privacy & security → Location on Windows; in web/Pi mode, use your browser's site permissions. When a location request fails, the exact reason and the fix appear in a red note just above the map's buttons, where a screen reader announces it too. The note clears the next time detection succeeds, and when you switch views.
+
+On My Sightings, the location button appears once your eBird backup is loaded. Until then that view shows the setup instructions instead of a map, so there is nothing to center.
 
 **Drop a pin to set the center.** On the Hotspots, Nearby Lifers, and Media Targets views you can set the search center right on the map: **right-click** (desktop) or **long-press** (touch) anywhere to drop a center pin there, then **drag the pin** to fine-tune. Each placement re-runs that view's search for the new spot. This sets the center for the current session only. It doesn't change your saved Default Location (set that in Settings). The place-name search, **Use my location**, and typed coordinates all still work and drive the same center.
 
@@ -292,7 +298,7 @@ When you want to tell another birder exactly where a spot is (the far end of the
 
 **Dropping a pin.** On the My Sightings view, **right-click** (desktop) or **long-press** (touch) anywhere on the map. A small red flag plants at the exact point you pressed, and a popup opens showing that spot's coordinates. Drag the flag to fine-tune it: the coordinates update as you go and the popup follows. Dropping again moves the same pin rather than adding a second one.
 
-**Without a pointer.** Every map with a share pin also has a round pin button in its bottom-right corner. Press it and the pin plants at the center of the current view, so you can pan the map with the arrow keys, press the button, and copy without ever using a mouse gesture. The button tints green while that map is holding a pin.
+**Without a pointer.** Every map with a share pin also has a round button in its bottom-right corner carrying a small flag, matching the flag it plants. Press it and the pin plants at the center of the current view, so you can pan the map with the arrow keys, press the button, and copy without ever using a mouse gesture. The button tints green while that map is holding a pin. On the Map Explorer it sits next to the location button; the flag and the target reticle are deliberately different shapes so the two are easy to tell apart.
 
 **Copying.** Press the copy button in the popup. By default you get three lines:
 
@@ -372,6 +378,7 @@ Toolbar options:
 - Merge subspecies: on by default; combines subspecies variants under the parent species name.
 - Show sp./slash: off by default; hides uncertain identifications.
 - Unbounded: removes the table's horizontal scroll constraint so the full row is visible on narrow screens.
+- Pin column labels: keeps the row of column headings (Entries, Photo, Audio, Video, Total) visible at the top of the screen while you scroll down the list, so you can always tell which count a number is. It is off by default, and the choice is per-session, resetting on relaunch. Pinning uses the Unbounded view, so pressing it from the normal view switches to Unbounded and pins in one press. Pressing it again unpins and puts you back in the view you started from. Switching back to Normal yourself also clears the pin. While the headings are pinned, a short note above the table says so. This is the same control, and the same behavior, as Pin code labels on the Breeding Codes tab.
 
 County and date-range filters appear in the toolbar when county data is available. These filters narrow which observations are counted for each species.
 
@@ -409,7 +416,7 @@ Pin code labels keeps the row of code headings (NB, FL, CF, and so on) visible a
 
 Pinning uses the Unbounded view, so pressing Pin code labels from the normal view switches to Unbounded and pins in one press. Pressing it again unpins and puts you back in the view you started from. Switching back to Normal yourself also clears the pin. While the labels are pinned, a short note above the table says so. Nothing else changes: the table keeps its full height and the page still scrolls as one, with the legend after the last species.
 
-On a phone, in both the normal and Unbounded views, the code columns tighten to the width of their dots so far more of them fit on screen at once, thin vertical rules separate the columns so a row reads clearly across, and the species-name column stays fixed on the left as you scroll the codes sideways. You can pinch to zoom in on any part of the matrix using your device's normal gesture. The table scrolls as part of the page, with the legend at the end after the last species.
+On a phone, in both the normal and Unbounded views, the code columns tighten to the width of their dots so far more of them fit on screen at once, thin vertical rules separate the columns so a row reads clearly across, and the species-name column stays fixed on the left as you scroll the codes sideways in the normal view. You can pinch to zoom in on any part of the matrix using your device's normal gesture. The table scrolls as part of the page, with the legend at the end after the last species.
 
 ---
 
