@@ -152,3 +152,42 @@ export const CEILING_MS = 50
 /** The size every timing fixture is built at, and the size the figures above
  *  were measured at. */
 export const HOSTILE_LEN = 40000
+
+/**
+ * The probe alphabet for the species-name site, shared by every suite that
+ * sweeps it: `normalizeSpeciesNameParity.test.ts` and (improve:
+ * species-name-normalizer-consolidation) `truncateAtFirstParen.test.ts`.
+ *
+ * Shared rather than copied for one specific reason. Real eBird names cannot
+ * discriminate a correct implementation from a wrong one here - every one is
+ * well formed (at most one "(", always closed, always trailing), so the wrong
+ * implementations score ZERO divergences across all 58,104 snapshot strings.
+ * The probe set is the entire discriminating power of both suites, and a
+ * second copy is a second thing that can silently weaken. The exotic members
+ * are written as `\uXXXX` escapes because during improve:
+ * superlinear-regex-sweep literal ones were flattened to ASCII spaces in
+ * transit three separate times, which would quietly delete the only characters
+ * that make this set interesting.
+ *
+ * The two paren characters and an ordinary letter reach every branch; the five
+ * whitespace characters span the awkward corners of `\s`. U+2028 matters most:
+ * it is both `\s` and a LineTerminator, yet a non-multiline `$` does NOT treat
+ * it as an end of input, so an implementation reaching for a line-aware
+ * primitive diverges there and nowhere else.
+ */
+export const SPECIES_NAME_ALPHABET = [
+  '(',
+  ')',
+  'a',
+  ' ',
+  '\t',
+  '\n',
+  '\u00a0', // NO-BREAK SPACE
+  '\u2028', // LINE SEPARATOR: `\s` and a LineTerminator, yet not an end of input
+  '\ufeff', // ZERO WIDTH NO-BREAK SPACE (BOM)
+  '\u3000', // IDEOGRAPHIC SPACE
+] as const
+
+/** Length every species-name sweep enumerates to. 10 symbols, lengths 0..4 =>
+ *  1 + 10 + 100 + 1,000 + 10,000 = 11,111 probes. */
+export const SPECIES_NAME_PROBE_LEN = 4

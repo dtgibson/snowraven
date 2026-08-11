@@ -1,3 +1,5 @@
+import { truncateAtFirstParen } from './speciesUtils'
+
 export interface LifeListEntry {
   commonName: string
   scientificName: string
@@ -33,12 +35,6 @@ function parseCSVLine(line: string): string[] {
 
 function isExcluded(name: string): boolean {
   return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
-}
-
-function normalizeSpeciesName(name: string): string {
-  const parenIdx = name.indexOf('(')
-  if (parenIdx === -1) return name
-  return name.slice(0, parenIdx).trim()
 }
 
 function parseCatalogIds(raw: string): string[] {
@@ -80,7 +76,7 @@ export function parseLifeList(text: string): LifeListEntry[] {
 
     const rawName = col(cols, commonNameIdx)
     if (!rawName || isExcluded(rawName)) continue
-    const commonName = normalizeSpeciesName(rawName)
+    const commonName = truncateAtFirstParen(rawName)
 
     const rawTaxOrder = col(cols, taxonomicOrderIdx)
     const taxOrder =

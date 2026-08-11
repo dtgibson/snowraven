@@ -1,4 +1,5 @@
 import type { LifeListEntry } from './parseLifeList'
+import { truncateAtFirstParen } from './speciesUtils'
 
 export interface MLExportRow {
   catalogId: string
@@ -97,12 +98,6 @@ function isExcluded(name: string): boolean {
   return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
 }
 
-function normalizeSpeciesName(name: string): string {
-  const parenIdx = name.indexOf('(')
-  if (parenIdx === -1) return name
-  return name.slice(0, parenIdx).trim()
-}
-
 const VALID_FORMATS = new Set(['Photo', 'Audio', 'Video'])
 
 export function parseMLExport(text: string): MLExportResult {
@@ -159,7 +154,7 @@ export function parseMLExport(text: string): MLExportResult {
 
     const rawName = col(cols, commonNameIdx)
     if (!rawName || isExcluded(rawName)) continue
-    const commonName = normalizeSpeciesName(rawName)
+    const commonName = truncateAtFirstParen(rawName)
 
     const format = col(cols, formatIdx)
     if (!VALID_FORMATS.has(format)) continue
