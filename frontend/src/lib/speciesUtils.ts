@@ -10,13 +10,18 @@
 // Names arrive from the user's own uncapped CSV export (`parseEbirdObservations` stores
 // `commonName` with no length cap) and are normalized on the main thread inside consumer
 // memos, so this was an instance of the shape CLAUDE.md's regex-hygiene rule and the
-// 0.5.27 `commentBlocks.ts` post-mortem are about. It is NOT the last one: a sweep
-// measuring through real exported entry points (not the literals) found five more
-// superlinear regexes still reachable, all 4.00x-4.02x per doubling and 2,243-3,500 ms
-// at 40k characters — two of them in `commentBlocks.ts` itself, and the worst in
-// `commentText.ts`, reached from ChecklistComparer over eBird API comments, which is
-// the only one of the six an unrelated party supplies. Do not restate the sweep as
-// finished; re-derive it when you write the claim.
+// 0.5.27 `commentBlocks.ts` post-mortem are about. This was NOT the last one. The sweep
+// measuring through real exported entry points (not the literals) found five more, and
+// re-deriving it in v0.5.85 turned up a SIXTH the record had missed
+// (`countyBoundaries.ts`, which runs once per observation). All six became linear scans
+// in v0.5.85 — see `regexSweepGuards.ts` and the five `*RegexBound.test.ts` suites.
+//
+// Do not restate the sweep as finished; re-derive it when you write the claim. As of
+// v0.5.85 it was re-run over `frontend/src`, and every remaining regex literal carrying
+// an unbounded quantifier with something that can fail after it measured linear (~2x per
+// doubling at 10k/20k/40k) through its real path. That is a measurement with a date on
+// it, not a guarantee: it decays with every commit, and this exact count is the kind of
+// claim that has already shipped false here once.
 //
 // The pattern, read right to left as a scan:
 //   `\s*$`   the match runs to end of input, so only whitespace may follow the ')' ...

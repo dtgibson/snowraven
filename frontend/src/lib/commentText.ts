@@ -33,7 +33,38 @@ export interface CommentSegment {
 }
 
 // Matches http(s) URLs; stops at whitespace and characters unlikely to be in a URL.
+// The `+` is unbounded but nothing follows it in the pattern, so there is no
+// failure for the engine to backtrack into: measured flat (0.1 ms on a 40,000
+// character URL, 1.87x per doubling). Not an instance of the defect below.
 const URL_RE = /(https?:\/\/[^\s<>"')\]]+)/g
+
+/** The sentence punctuation `linkify` refuses to swallow into a link. */
+const TRAILING_PUNCT = '.,;:!?'
+
+/**
+ * The maximal trailing run of sentence punctuation - the linear replacement for
+ * `/[.,;:!?]+$/` (improve: superlinear-regex-sweep).
+ *
+ * Why it is no longer a regex. `+` is unbounded and `$` follows it, so a URL
+ * whose punctuation run does NOT reach the end made the engine consume that run
+ * and backtrack it away from every start position inside it: 2,781 ms on a
+ * 40,000 character run, 4.00x per doubling, measured through `commentSegments`.
+ *
+ * This is the one site in the sweep whose input an UNRELATED PARTY supplies -
+ * ChecklistComparer renders `<CommentText raw>` over comments that came from
+ * the eBird API, i.e. text written by whoever shared the checklist - which is
+ * what made it the sweep's priority.
+ *
+ * Equivalence is direct: `[.,;:!?]+$` must reach the end of the string, so the
+ * only substring it can match is the maximal trailing run of those characters.
+ * Absent a run this returns '', which is the falsy value the old `exec` null
+ * stood in for.
+ */
+function trailingPunctuation(url: string): string {
+  let k = url.length
+  while (k > 0 && TRAILING_PUNCT.includes(url[k - 1])) k--
+  return url.slice(k)
+}
 
 /** Split text into plain + link segments. Only http/https become links. */
 export function linkify(s: string): CommentSegment[] {
@@ -46,12 +77,8 @@ export function linkify(s: string): CommentSegment[] {
     if (m.index > last) out.push({ text: s.slice(last, m.index) })
     let url = m[1]
     // Don't swallow trailing sentence punctuation into the link.
-    const trail = /[.,;:!?]+$/.exec(url)
-    let suffix = ''
-    if (trail) {
-      suffix = trail[0]
-      url = url.slice(0, url.length - suffix.length)
-    }
+    const suffix = trailingPunctuation(url)
+    if (suffix) url = url.slice(0, url.length - suffix.length)
     out.push({ text: url, href: url })
     if (suffix) out.push({ text: suffix })
     last = m.index + m[1].length

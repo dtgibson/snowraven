@@ -11,6 +11,7 @@
 
 import type { MLExportRow } from './parseMLExport'
 import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
+import { isWsChar, isAsciiDigitChar, isLineTerminatorChar } from './charClasses'
 
 // ── Age/Sex ──────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,77 @@ export interface AgeSexGroup { age: AgeClass; sex: Sex; count: number }
 
 export const AGE_CLASSES: AgeClass[] = ['Adult', 'Immature', 'Juvenile', 'Unknown']
 export const SEXES: Sex[] = ['Male', 'Female', 'Unknown']
+
+/** The three separators the count may be introduced by: en-dash, em-dash, hyphen. */
+const COUNT_DASHES = '–—-'
+
+/** The two halves of a "<class> – <count>" group, or null when it has no count. */
+export interface AgeSexCountSplit {
+  /** Everything left of the whitespace run before the dash - the regex's group 1. */
+  classStr: string
+  /** The digit run, unparsed - the regex's group 2. */
+  count: string
+}
+
+/**
+ * Split a trailing "– N" / "- N" count off a group - the linear replacement for
+ * `/^(.*?)\s*[–—-]\s*(\d+)\s*$/` (improve: superlinear-regex-sweep). Exported
+ * for the guard that proves the equivalence; `parseAgeSex` is the only caller.
+ *
+ * Why it is no longer a regex. `(.*?)` is lazy and unbounded, and each of its
+ * expansions re-ran `\s*` greedily against a dash that can fail, so a group
+ * carrying a long internal whitespace run was retried from every offset:
+ * 2,495 ms on 40,000 spaces, 4.00x per doubling, measured through
+ * `parseAgeSex`. The input is the user's own uncapped ML export column.
+ *
+ * THE ASYMMETRY THIS MUST PRESERVE. `.` does not match a line terminator when
+ * the `s` flag is absent, so `(.*?)` cannot reach ACROSS one, and a value whose
+ * class text contains a newline therefore never matched - it fell through to
+ * "no count", class = the whole group, count = 1. A naive right-to-left scan
+ * would happily match it and silently change how such a row is counted, so the
+ * line-terminator check below is load-bearing, not defensive. Note that a
+ * newline AFTER the class is a different case and DID match, because the `\s*`
+ * either side of the dash are line-terminator-blind: "Adult\n - 3" parses,
+ * "Adult\nx - 3" does not.
+ *
+ * Equivalence, derived from the pattern rather than by inspection:
+ *   - Everything between the dash and the end has to decompose as
+ *     whitespace / digits / whitespace, and none of those three classes
+ *     overlaps, so each boundary is forced and no backtracking is available.
+ *   - A dash satisfying that tail can only be the LAST dash in the string: the
+ *     text after it holds nothing but whitespace and digits, neither of which
+ *     contains a dash. So there is exactly one candidate to test, not a scan.
+ *   - `^` pins group 1 to offset 0 and `\s*` is greedy-then-backtracking, so
+ *     the accepted split is the SMALLEST group-1 length, which puts the cut at
+ *     the start of the whitespace run before the dash.
+ *   - That cut is reachable only if group 1 crosses no line terminator, which
+ *     is the check described above.
+ */
+export function splitTrailingCount(g: string): AgeSexCountSplit | null {
+  // The one dash that could carry a count: the last one.
+  let dash = -1
+  for (let i = g.length - 1; i >= 0; i--) {
+    if (COUNT_DASHES.includes(g[i])) { dash = i; break }
+  }
+  if (dash === -1) return null
+
+  // `\s*(\d+)\s*$` after it, every boundary forced.
+  let numStart = dash + 1
+  while (numStart < g.length && isWsChar(g[numStart])) numStart++
+  if (numStart >= g.length || !isAsciiDigitChar(g[numStart])) return null
+  let numEnd = numStart
+  while (numEnd < g.length && isAsciiDigitChar(g[numEnd])) numEnd++
+  for (let i = numEnd; i < g.length; i++) if (!isWsChar(g[i])) return null
+
+  // `\s*` before it, taken back to the start of the run so group 1 is shortest.
+  let cut = dash
+  while (cut > 0 && isWsChar(g[cut - 1])) cut--
+
+  // `(.*?)` cannot cross a line terminator, so the cut is unreachable past one.
+  for (let i = 0; i < cut; i++) if (isLineTerminatorChar(g[i])) return null
+
+  return { classStr: g.slice(0, cut), count: g.slice(numStart, numEnd) }
+}
 
 /**
  * Parse the ML "Age/Sex" string into per-individual groups. Groups are split on
@@ -32,13 +104,15 @@ export function parseAgeSex(raw: string): AgeSexGroup[] {
   const s = (raw ?? '').trim()
   if (!s) return []
   const out: AgeSexGroup[] = []
+  // Both `\s` quantifiers below are unbounded, but each is the last thing in
+  // its pattern, so there is no failure to backtrack into: measured flat.
   for (const part of s.split(/;\s*/)) {
     const g = part.trim()
     if (!g) continue
     // Split off a trailing "– N" / "- N" count; keep the class on the left.
-    const m = g.match(/^(.*?)\s*[–—-]\s*(\d+)\s*$/)
-    const classStr = (m ? m[1] : g).trim()
-    const count = m ? parseInt(m[2], 10) : 1
+    const m = splitTrailingCount(g)
+    const classStr = (m ? m.classStr : g).trim()
+    const count = m ? parseInt(m.count, 10) : 1
     if (!classStr) continue
     const words = classStr.toLowerCase().split(/\s+/)
     const age: AgeClass = words.includes('juvenile')

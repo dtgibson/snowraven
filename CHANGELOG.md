@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.85] - 2026-08-11
+
+### Notes
+- **Six pieces of hardening with nothing to see.** Six routines that read your own data, or a comment from a checklist someone else shared, used text patterns that slowed down sharply on unusual input: a county name, a checklist ID pasted as a web address, the age and sex column of a Macaulay Library export, the comments SnowRaven hides weather and tide blocks from, and the links inside a comment. Each is now a single pass instead. A pathological value that could have frozen the tab for several seconds is now instant, and every one of the six produces exactly the same result as before on real data, so no name, count, total, link or hidden block moves. Five of these were already on the list; the sixth, the county name, was found by re-checking rather than trusting the list.
+
 ## [0.5.84] - 2026-08-11
 
 Five builds in one release: the map's corner buttons made consistent on every view, two fixes, and two pieces of hardening you will never see. (Shipped as a Spool bundle of 5 builds.)
