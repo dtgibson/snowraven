@@ -4,6 +4,56 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Uniform map FABs: a second route to the existing pin, not a second pin — 2026-08-11 (v0.5.84)
+
+The saved idea read as "give the other three map views the flag button My Sightings has." The naive build of that sentence is a FAB that drops an independent share pin on Hotspots, Nearby Lifers and Media Targets — and that would have **reversed v0.5.80 sub-decision 3** ("the gesture collision is resolved by extension, not competition"), which settled that on those three views the drop gesture is already the v0.5.43 search-centre pin and that pin gains the copy action rather than a second one competing with it. It would also have crossed out of Improve and into Feature territory, since it adds a capability rather than a route to an existing one.
+
+What shipped extends that decision instead: the new FAB opens the **existing** search-centre pin's `SharePopup`. No pin is created (measured with the popup open: 1 maplibre popup, 1 centre pin, 0 share pins), no copy capability is added or removed on any view, and the Settings sharing preference is untouched. It also extends v0.5.80's "the keyboard route is the *primary* route, not a hidden fallback", which had produced a visible corner tool on the five share-pin surfaces and had never been applied to the three centre views.
+
+**Three sub-decisions worth keeping.**
+
+**`aria-expanded`, not `aria-pressed`.** The neighbouring share button's `aria-pressed` means "this map is holding a pin", a property of the map; this button holds nothing and discloses a popup. The green tint is deliberately the *same* green on a different carrier with a different meaning — one app, one active convention — and the two buttons can never be on screen together, so nobody ever sees one green disc meaning two things. The no-centre state is `aria-disabled` with no native `disabled` (the locate button's focus-preserving precedent), dashed border, and **identical 36x36 geometry to the ready state**, so the row does not shift when a centre is set.
+
+**Pressing when the centre has drifted off screen pans first, through the shipped `panTarget` → `MapEffects` `flyTo` path**, so there stays one answer to "how does this map travel" (measured: centre pin `x = -15` → `x = 935`, latitude unchanged at `40.73`, so camera-only, no re-search, no pin move). The bounds check needed care: `BoundsTracker` reports the viewport grown 15% a side, and testing that padded box answers the question wrong **in the worse direction** — a point in the pad ring reads as in view and the popup opens where it cannot be seen. `lib/markersInView.ts` gained `unpadBounds` (proved to invert `padBounds` exactly) and `pointNeedsPan`, and `BoundsTracker`'s `0.15` literal became the shared `VIEWPORT_PAD_FRAC` so the two cannot drift with nothing failing.
+
+**Desktop FABs now grow with text scale, and that is a deliberate accepted change, not a side effect.** The shared base is `2.25rem` where the old fullscreen rule was a fixed `36px`, so a desktop disc is 36px at 1x and 72px at 200%. Keeping 36px fixed was rejected because it forces a px glyph, which re-opens the ratio bug the rem glyph exists to close, and leaves two sizing idioms inside one family. The phone tier already behaved this way.
+
+**Scope call taken rather than assumed:** the design marked the Filters pill's `.sr-touch-target` as "recommended, safe to defer" and it is included (one existing class, no new CSS, 44px at 1x phone and 88px at 200%), because "one family" is the change's whole point. It is one class name to delete if a future reader disagrees.
+
+---
+
+## The Breeding Codes Unbounded card was sized by its legend, not its table, for fourteen versions — 2026-08-11 (v0.5.84)
+
+Recorded because it **corrects a claim inside a previously recorded decision**, and a reader of that entry would otherwise inherit the wrong model.
+
+Pressing "Pin code labels" roughly doubled every column of the matrix on desktop. The pin was not the cause: `pinned implies Unbounded` forces the view switch, pressing "↔ Unbounded" alone reproduced it identically, and pinned measured byte-identical to unpinned Unbounded both before and after the fix. The defect was in the Unbounded view, shipped since v0.5.70.
+
+`.sr-bc-card { width: max-content }` sizes that card intrinsically, and the card is a **column flex container**, so its width is the maximum over BOTH children: the table wrapper and the tier legend. The legend is a wrapping row of nowrap "CODE Full Label" chips, so its max-content is every chip on one unwrapped line — 1749px against the table's 792px on the 13-code demo dataset, 2951px against 812px at 200% text scale. The table's `width: 100%` then resolved against that inflated card and `table-layout: auto` stretched every column to fill it: code columns at 97px instead of their declared 44px, and the card running 519px past the panel on a 1440px window.
+
+**What this corrects.** v0.5.70's entry, and the matching comments in `globals.css` and `CLAUDE.md`, said the card "hugs its wide auto-layout table". That was true on the phone tier and **false on desktop the entire time**. The v0.5.70 *decision* is not reversed: its "desktop Unbounded stays intentionally wide" is about the ≤640 dot-width narrowing not applying to desktop, and desktop still keeps 44px code columns against the phone's 30px; its three durable CSS lessons all stand. Only the incidental descriptive claim was wrong, and it is now true rather than merely written.
+
+**The fix constrains the legend so it can floor the card but never dictate it:** `.sr-bc-card > .sr-bc-legend { width: min-content; min-width: 100%; }`. Two alternatives were measured and rejected. Sizing the card `min-content` instead measures the same today (every column is width-pinned, so the two intrinsic sizes coincide) but is still the maximum over both children, so the legend would keep dictating whenever it happened to be larger — the defect shrinks rather than goes away and returns silently the first time content shifts. Removing the legend from sizing entirely (`width: 0`, or `contain: inline-size`) works on desktop and drops its contribution to zero, which lets the card fall below the widest chip; each chip is `white-space: nowrap`, so the chip hangs outside the card's rounded border and leaks horizontal scroll — reachable on a phone at 200% text scale with few codes present. `min-content` keeps the legend as the floor and the table as the ceiling, which is the property that survives both tiers.
+
+One user-visible consequence, named rather than hidden: on a wide window with a narrow matrix the Unbounded card is now **narrower than the panel** (794px in a 1232px panel) rather than wider than the window. That is what "the card hugs the table" means; it still grows past the panel and page-scrolls whenever the table genuinely needs it, which is the point of the view.
+
+---
+
+## Help overlay phone width: only ONE of the fix's two halves is tier-bound — 2026-08-10, recorded 2026-08-11 (v0.5.83, amended v0.5.84)
+
+Logged retroactively. v0.5.83's `help-docs-phone-width` fix shipped with **no `DECISIONS.md` entry at all** — its reasoning lived only in code comments and its pipeline folder — and the very next bundle had to repair it. The reasoning is exactly the kind that gets re-derived wrongly, so it is recorded here together with the amendment.
+
+**The v0.5.83 defect and its repair.** The Help overlay's prose column was being sized by a `white-space: pre` coordinates block's longest line (494px at 1x, 955px at 200%), so every line of help text ran off the right edge mid-word on a phone. The cause is that `.sr-help-row` carries an inline `alignItems: 'flex-start'`, which is load-bearing above 640 for the sticky table of contents and becomes a **cross-axis width constraint** the moment the phone tier flips that container to `flex-direction: column`; the child's own `minWidth: 0` is powerless, because it relaxes the main axis. The repair has two halves: a **constraint** (`align-self: stretch` + `width: 100%`, `!important` to out-rank the child's inline block) and a **wrap allowance** (`overflow-wrap: anywhere; word-break: break-word`).
+
+**The v0.5.84 amendment: both halves were written inside `@media (max-width: 640px)`, and only the constraint half belongs there.** Above the tier the row is a real row, `flex-start` governs the vertical axis, and the column's inline `flex: 1; minWidth: 0` already fills correctly (measured `viewport − 288` at every width) — so those two constraint declarations would fight `flex: 1` and must stay ≤640-only. The wrap allowance has no such tie and was simply missing above 640, where the content column is exactly `viewport − 288` and the longest unbreakable run in the help text renders 399.77px at 200% (the link `github.com/dtgibson/snowraven-mini` breaks at its hyphen, leaving `github.com/dtgibson/snowraven-` as one fragment). At 641px that fragment sat 46.77px past a 353px column and dragged the whole help body 23px sideways. The fix is one rule: the wrap allowance alone, scoped to the Help subtree, in a `@media (min-width: 641px)` block.
+
+**Deliberately no upper bound on that query.** The 687px edge is a function of the longest link's rendered width in `docs/HELP.md`, so pinning the band (`and (max-width: 687px)`) would silently stop covering a longer future URL. The guard test rejects that form — and, per the lesson this build produced, now asserts the *lower* edge too, since a consolidation into a higher tier would reopen the entire band with the suite green.
+
+**`.sr-wrap-anywhere` was not used, on both passes.** The helper is unconditional and cannot be scoped to a tier, and the two tiers want different halves of the fix.
+
+**Why this survived a fix written for it.** The `globals.css` comment above the ≤640 rule claimed "641px through 1440px measured clean and stay untouched". That was true at 100% text scale and had never been measured at 200%. Both that comment and the guard test's header now state what was actually measured and what was not, and the general form is in `CLAUDE.md`: a "measured clean" claim must name its text scales. Page `scrollWidth` was no help either — `.sr-help-panel` is `overflow: hidden`, and `document.documentElement.scrollWidth` read *exactly the viewport width in all 76 pre-fix configurations*, every broken one included.
+
+---
+
 ## Pinned label rows: two reversals the user made personally, and the risk that retired with them — 2026-08-10 (v0.5.83)
 
 Both of these reversed a builder's verdict, and both will be re-derived by anyone reading only the code, so the reasoning is recorded rather than the outcome alone.
