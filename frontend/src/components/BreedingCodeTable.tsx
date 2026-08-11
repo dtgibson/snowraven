@@ -390,7 +390,18 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
         </table>
       </div>
 
-      <div style={{
+      {/* .sr-bc-legend exists for ONE reason: this legend is the card's second flex
+          child, and in Unbounded the card's width is intrinsic — so without a
+          constraint the legend's max-content (every "CODE Full Label" chip on one
+          unwrapped line) sized the card instead of the table, and the table's
+          width:100% then stretched every column to fill it. The class caps its
+          CONTRIBUTION at min-content while `min-width: 100%` still stretches it
+          across the card (globals.css). It carries no width of its own here: an
+          inline width is specificity 1,0,0 and would make that rule unreachable,
+          the same trap .sr-bc-card and .sr-bc-matrix were lifted out of. The class
+          is unconditional; the rule is scoped under .sr-bc-card, so Normal view
+          (which never carries that class) is untouched. */}
+      <div className="sr-bc-legend" style={{
         background: 'var(--sr-surface-faint)',
         borderTop: '1px solid var(--sr-border-subtle)',
         padding: '12px 16px',

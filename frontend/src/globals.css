@@ -942,11 +942,50 @@ h1, h2, h3, h4, h5, h6 {
 
 /* The Unbounded (wideMode) card's width, lifted off the inline width:max-content in
    BreedingCodeTable.tsx (applied ONLY in wideMode) so the ≤640 phone tier can override
-   it. BASE width:max-content is byte-identical to the old inline value — desktop
-   Unbounded is unchanged (the card hugs its wide auto-layout table). The ≤640 override
-   (width:min-content) lives in the @media (max-width:640px) block below. Normal mode
-   never carries this class, so it is unaffected. */
+   it. The card is a COLUMN FLEX container, so an intrinsic width here is the MAX over
+   its children's contributions: the table wrapper AND the tier legend. The ≤640
+   override (width:min-content) lives in the @media (max-width:640px) block below.
+   Normal mode never carries this class, so it is unaffected. */
 .sr-bc-card { width: max-content; }
+
+/* The legend must not DICTATE the card's width — only floor it.
+   The legend is a wrapping row of "CODE Full Label" chips, so its max-content is
+   every chip on ONE unwrapped line: measured 1749px against the table's 792px on
+   the 13-code demo dataset (2951px vs 812px at 200% text scale). Left unconstrained
+   it won the card's max-content, the table's `width: 100%` then resolved against
+   that inflated card, and `table-layout: auto` stretched every column to fill it —
+   code columns 97px instead of 44px, the species column 486px instead of 220px, and
+   the card 519px past the panel. That is what pressing "Pin code labels" appeared to
+   do, because pinning forces the Unbounded view (`pinned implies Unbounded`); the
+   pin CSS was never involved, and pressing "↔ Unbounded" alone reproduced it.
+
+   `width: min-content` makes the legend contribute its min-content size (its widest
+   single chip) for BOTH intrinsic sizes, so it can no longer raise the card's
+   max-content above the table's. `min-width: 100%` then stretches it back over the
+   resolved card in layout — a percentage is indefinite while the card is being
+   sized intrinsically, so it does not feed back into that sizing.
+
+   Why the floor is kept rather than removing the legend from the sizing entirely
+   (`width: 0; min-width: 100%`, or `contain: inline-size`): each chip is
+   `white-space: nowrap`, so a card narrower than the widest chip would push it
+   outside the card's rounded border and leak horizontal scroll. Reachable on a
+   phone at 200% text scale with few codes present, where the table is narrow and
+   the chips are large. min-content keeps the legend as the card's floor and the
+   table as its ceiling.
+
+   Why this and not simply sizing the card `min-content`: on this table the two
+   intrinsic sizes coincide today (every column is width-pinned), so it measures the
+   same — but it would still be the MAX over both children, leaving the legend able
+   to dictate the width whenever it is the larger. The defect would shrink rather
+   than go away.
+
+   Scoped under .sr-bc-card because the card's width is intrinsic ONLY there. In
+   Normal view the card is a stretched flex item at the panel's width, so the class
+   on the legend is inert and Normal renders byte-identically. This rule is
+   deliberately TOP-LEVEL: it must hold at every width, including the ≤640 tier,
+   where the card is `min-content` and the legend would otherwise be free to set it
+   above the table's declared-column-width sum. */
+.sr-bc-card > .sr-bc-legend { width: min-content; min-width: 100%; }
 
 /* The header row's bottom hairline, lifted OFF BreedingCodeTable.tsx's inline
    thBase.boxShadow. The value is byte-identical to the old inline one, so the
