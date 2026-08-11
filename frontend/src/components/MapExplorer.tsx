@@ -46,7 +46,7 @@ import { computeChecklists, filterObservations } from '../lib/birdingStats'
 import { useHotspotSet } from '../lib/useHotspotSet'
 import { HEAT_INTENSITY_DEFAULT } from '../lib/heat'
 import { normalizeSpeciesName } from '../lib/speciesUtils'
-import { markersInView, MARKER_LIST_CAP, type MarkerBounds } from '../lib/markersInView'
+import { markersInView, pointNeedsPan, MARKER_LIST_CAP, type MarkerBounds } from '../lib/markersInView'
 import { formatDate } from '../lib/formatDate'
 import { BirdName } from './BirdName'
 import { HotspotLink } from './HotspotLink'
@@ -219,6 +219,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // drop-to-search stays visually identical to today (FR-16).
   const [centerShareOpen, setCenterShareOpen] = useState(false)
   const centerPinButtonRef = useRef<HTMLButtonElement>(null)
+  const centerShareFabRef = useRef<HTMLButtonElement>(null)
+  // Where focus goes when the popup closes. SharePin's openerRef shape, needed
+  // here as of uniform-map-fabs because the popup now has TWO openers (the pin
+  // and the centre-share FAB) — this used to focus the pin unconditionally,
+  // which would send focus to the wrong control after a FAB-opened popup closed.
+  // The FAB also re-points it at ITSELF when it is the control doing the closing,
+  // so a press never moves focus off the button the user just pressed.
+  const centerShareOpenerRef = useRef<HTMLElement | null>(null)
   const restoreCenterPinFocusRef = useRef(false)
   const closeCenterShare = useCallback(() => {
     setCenterShareOpen(false)
@@ -229,7 +237,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   useEffect(() => {
     if (centerShareOpen || !restoreCenterPinFocusRef.current) return
     restoreCenterPinFocusRef.current = false
-    centerPinButtonRef.current?.focus()
+    const opener = centerShareOpenerRef.current
+    centerShareOpenerRef.current = null
+    if (opener?.isConnected) { opener.focus(); return }
+    // The map canvas (SharePin's fallback) is unreachable from here — it lives
+    // inside <SnowMap> — so fall back to whichever of the two openers is still
+    // on screen rather than dropping the keyboard user on <body>.
+    ;(centerPinButtonRef.current ?? centerShareFabRef.current)?.focus()
   }, [centerShareOpen])
   // FR-18 — a view-mode change closes the copy popup outright, so stale open
   // state cannot re-appear when the user comes back to a center view. React's
@@ -2085,6 +2099,20 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Sightings → a center view unmounts <SharePin> (structural); a center view →
   // sightings needs this, since centerShareOpen lives up here.
   const centerShareShown = centerPinShown && centerShareOpen
+  // The centre-share FAB's three designed states.
+  //
+  // The load-bearing part is the `hasValidCenter` gate on aria-expanded below,
+  // not the choice of flag: clearing a coordinate field unmounts the popup
+  // WITHOUT routing through closeCenterShare, so `centerShareOpen` stays true
+  // with nothing on screen, and a button claiming aria-expanded="true" over no
+  // popup is a lie (and would wear the green "open" tint). `centerShareShown`
+  // reads that intent directly rather than leaving it to the reader to notice
+  // that the two flags happen to agree under the gate.
+  const centerShareLabel = !hasValidCenter
+    ? 'Set a search center to copy its location'
+    : centerShareShown
+      ? 'Close the location popup'
+      : 'Copy the search center location'
 
   // ── Layout ────────────────────────────────────────────────────────────────────
 
@@ -2261,6 +2289,71 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                   DOM order matches the visual order. The two shipped controls
                   below are untouched. */}
               <div className="sr-map-fab-slot" ref={setFabSlot} />
+              {/* The centre-share FAB takes the share slot's place on the three
+                  centre views, where SharePin is not mounted (right-click and
+                  long-press already belong to the search centre there). The two
+                  are mutually exclusive by construction, so the row has exactly
+                  one share-family disc on every view and the slot's DOM position
+                  is the same position either way.
+
+                  It creates NO pin. It is a second route to the popup the
+                  EXISTING search-centre pin already opens — v0.5.80's "resolved
+                  by extension, not competition" extended, not reversed — which
+                  is why it reads the one `centerShareOpen` state the pin sets
+                  and why the popup below is untouched.
+
+                  A direct child rather than a second display:contents slot or a
+                  portal: `centerShareOpen` lives right here in MapExplorer, so
+                  there is no <SnowMap> boundary to cross (the locate button's
+                  own recorded reasoning, applied again). DOM order is visual
+                  order is tab order, with no CSS `order` anywhere. */}
+              {isCenterView && (
+                <button
+                  type="button"
+                  ref={centerShareFabRef}
+                  className="sr-map-fab sr-map-fab--std sr-map-center-share-btn"
+                  /* aria-EXPANDED, not aria-pressed: the share button's pressed
+                     state means "this map is holding a pin", a property of the
+                     map. This button holds nothing; it discloses a popup. The
+                     green is the same green because the app has one active
+                     convention, but the carrier and the meaning differ, and the
+                     two buttons can never be on screen at once. */
+                  aria-expanded={hasValidCenter ? centerShareShown : undefined}
+                  /* aria-disabled, NOT disabled, and present rather than absent:
+                     the locate button's focus-preserving precedent, and a
+                     control that vanishes on some views at some times would
+                     rebuild the ragged row this change exists to fix. Reachable
+                     means a keyboard user can read the name that says how to
+                     enable it. Pressing it must NOT set a centre — that would
+                     re-run the view's search. */
+                  aria-disabled={!hasValidCenter}
+                  aria-label={centerShareLabel}
+                  title={centerShareLabel}
+                  onClick={e => {
+                    if (!hasValidCenter) return
+                    // Focus returns to this button either way: it is the opener
+                    // when it opens, and re-pointing the ref at itself on a close
+                    // keeps focus on the control just pressed instead of jumping
+                    // to the pin that happened to open the popup earlier.
+                    centerShareOpenerRef.current = e.currentTarget
+                    if (centerShareShown) { closeCenterShare(); return }
+                    // Pan first if the centre is off screen, or the popup opens
+                    // where the user cannot see it and the press looks dead. A
+                    // camera move only: it does not touch lat/lng, does not move
+                    // the pin and does not re-run the search. Reuses the shipped
+                    // panTarget -> MapEffects flyTo so there stays one answer to
+                    // "how does this map travel".
+                    if (pointNeedsPan(centerLatNum, centerLngNum, mapBounds)) {
+                      setPanTarget({ lat: centerLatNum, lng: centerLngNum })
+                    }
+                    setCenterShareOpen(true)
+                  }}
+                >
+                  {/* The teardrop CenterPin draws: the button is a picture of
+                      the pin whose popup it opens. */}
+                  <MapPin size={17} strokeWidth={2.2} aria-hidden />
+                </button>
+              )}
               {/* Location FAB — a direct child in DOM position after the share
                   slot, NOT a second display:contents slot: nothing here has to
                   cross the <SnowMap> boundary the way SharePin's portaled button
@@ -2278,7 +2371,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {mapMounted && (
                 <button
                   type="button"
-                  className="sr-map-locate-btn"
+                  className="sr-map-fab sr-map-fab--std sr-map-locate-btn"
                   /* aria-disabled, NOT disabled: disabling a focused button drops
                      focus to <body> in most browsers, which would break FR-06 for
                      the button the user just pressed. The re-entrancy guard
@@ -2296,19 +2389,28 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               )}
               {onToggleFullscreen && (
                 <button tabIndex={0}
-                  className="sr-map-fullscreen-btn"
+                  className="sr-map-fab sr-map-fab--std sr-map-fullscreen-btn"
                   onClick={onToggleFullscreen}
                   aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
                   aria-pressed={!!isFullscreen}
                 >
+                  {/* size/strokeWidth match the rest of the family (17 / 2.2).
+                      The px size= is the no-CSS fallback only — .sr-map-fab svg
+                      sizes the glyph in rem so it tracks the box at 200% text
+                      scale, which a px attribute cannot do. */}
                   {isFullscreen
-                    ? <Minimize2 size={16} strokeWidth={2.5} />
-                    : <Maximize2 size={16} strokeWidth={2.5} />}
+                    ? <Minimize2 size={17} strokeWidth={2.2} />
+                    : <Maximize2 size={17} strokeWidth={2.2} />}
                 </button>
               )}
+              {/* .sr-touch-target raises the pill's fixed 36px box toward the
+                  ~44px posture in the ≤640 tier only, so it reads as part of the
+                  row now that all three discs are 2.75rem there. min-height beats
+                  the class's own `height: 36px` in the used-value computation, so
+                  the box grows instead of clipping; desktop is untouched. */}
               <button tabIndex={0}
                 ref={filtersButtonRef}
-                className="sr-map-filters-btn"
+                className="sr-map-filters-btn sr-touch-target"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open map filters"
               >
@@ -2375,7 +2477,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                       lat={centerLatNum}
                       lng={centerLngNum}
                       onMove={applyCenter}
-                      onActivate={() => setCenterShareOpen(true)}
+                      onActivate={() => {
+                        // Record the pin as the opener so focus comes back here
+                        // and not to the FAB, which opens the same popup.
+                        centerShareOpenerRef.current = centerPinButtonRef.current
+                        setCenterShareOpen(true)
+                      }}
                       buttonRef={centerPinButtonRef}
                     />
                   )}

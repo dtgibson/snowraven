@@ -7,7 +7,7 @@ import { Marker, useMap } from 'react-map-gl/maplibre'
 import { padBounds } from '../../lib/atlasBlocks'
 import { neutralizeMarkerWrapper } from '../../lib/mapPins'
 import { formatCoordinate } from '../../lib/shareLocation'
-import type { MarkerBounds } from '../../lib/markersInView'
+import { VIEWPORT_PAD_FRAC, type MarkerBounds } from '../../lib/markersInView'
 import { useMapLongPressDrop } from './useMapLongPressDrop'
 
 // Imperative map effects (pan-to a target, jump to default center). react-map-gl
@@ -44,11 +44,15 @@ export function BoundsTracker({ onBounds }: { onBounds: (b: MarkerBounds) => voi
     if (!map) return
     const report = () => {
       const b = map.getBounds()
-      // Pad 15% like the atlas overlay so a list item near the edge doesn't pop
-      // out of the list during a small pan before the next moveend settles.
+      // Pad like the atlas overlay so a list item near the edge doesn't pop out
+      // of the list during a small pan before the next moveend settles. The
+      // fraction is a shared constant, not a literal, because the centre-share
+      // FAB's "is the centre off screen?" test has to remove exactly this much
+      // again (lib/markersInView.ts unpadBounds) — two literals could drift with
+      // nothing failing. Value unchanged at 0.15.
       onBounds(padBounds(
         [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
-        0.15,
+        VIEWPORT_PAD_FRAC,
       ))
     }
     report()

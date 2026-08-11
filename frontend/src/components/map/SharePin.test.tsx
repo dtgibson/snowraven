@@ -280,6 +280,14 @@ describe('the drop button host', () => {
     const { container } = render(<SharePin compact buttonHost="corner" />)
     expect(container.querySelector('.sr-share-corner--compact')).toBeTruthy()
     expect(container.querySelector('.sr-share-drop-btn--compact')).toBeTruthy()
+    // ...and the compact SIZE now comes from the shared family modifier
+    // (uniform-map-fabs), which is what makes the glyph track the box at 200%
+    // text scale. --std must be absent, or two same-specificity size rules would
+    // land on one element and source order alone would decide the diameter.
+    const btn = container.querySelector('.sr-share-drop-btn')!
+    expect(btn.classList.contains('sr-map-fab')).toBe(true)
+    expect(btn.classList.contains('sr-map-fab--compact')).toBe(true)
+    expect(btn.classList.contains('sr-map-fab--std')).toBe(false)
   })
 
   it('portals the button into a host element (Map Explorer\'s shipped FAB cluster)', () => {
@@ -346,7 +354,10 @@ describe('the drop button glyph (FR-19, QA-24 to QA-26)', () => {
     expect(btn.getAttribute('aria-label')).toBe('Drop a pin at the map center')
     expect(btn.getAttribute('title')).toBe('Drop a pin at the map center')
     expect(btn.getAttribute('aria-pressed')).toBe('false')
-    expect(btn.className).toBe('sr-share-drop-btn')
+    // uniform-map-fabs: the circle moved to the shared base + a size modifier.
+    // .sr-share-drop-btn survives as the [aria-pressed] state hook, and every 1x
+    // value is unchanged (--std is the 36px this rule used to declare itself).
+    expect(btn.className).toBe('sr-map-fab sr-map-fab--std sr-share-drop-btn')
     // The glyph carries the same size and weight the MapPin did.
     const svg = btn.querySelector('svg')!
     expect(svg.getAttribute('width')).toBe('17')
