@@ -24,20 +24,121 @@ const css = readFileSync(new URL('../globals.css', import.meta.url), 'utf8')
 // read as a declaration.
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '')
 
-/** Body of the first rule whose selector list matches `selector` exactly. */
-function ruleBody(selector: string): string {
-  const at = css.indexOf(selector + ' {')
-  if (at < 0) throw new Error(`rule not found: ${selector}`)
-  const open = css.indexOf('{', at)
-  const close = css.indexOf('}', open)
-  return css.slice(open + 1, close)
+// Comments blanked to spaces of EQUAL LENGTH for the offset walk below, so every
+// offset still points at the same character in the real file while no lookup can
+// be satisfied by prose.
+const masked = css.replace(/\/\*[\s\S]*?\*\//g, m => ' '.repeat(m.length))
+
+const topLevel = parseTopLevelRules(css)
+
+// ── Exact selector matching ──────────────────────────────────────────────────
+//
+// Both lookups below used to be `css.indexOf(selector + ' {')` over the RAW
+// stylesheet, and both defects that form carries were live here, not theoretical:
+//
+//  1. PREFIX COLLISION, held off only by source order. `.sr-bc-matrix--pinned
+//     thead th` occurs twice — as itself, and inside `.sr-ios-app
+//     .sr-bc-matrix--pinned thead th` — as does `.sr-pinnote--enter` (top level,
+//     and again inside @media (prefers-reduced-motion)). Each resolved to the
+//     right rule only because the base one happens to come first; a pure reorder
+//     would have made the base-rule assertions silently test the iOS rule. That is
+//     property #1 in cssTopLevelRules.ts's own docblock, in a file that already
+//     imported it.
+//  2. COMMENTS INCLUDED, inconsistent with `declarations` two lines above. A
+//     comment containing `selector + ' {'` hijacked the lookup outright.
+//
+// ruleBody now goes through the SHARED parser: every selector it looks up is
+// top-level reachable, and exact keys plus at-rule blocks skipped whole close both
+// holes at once. ruleOffset cannot — source ORDER is exactly the question a
+// selector→body map throws away — so it keeps a local walker and gains the same
+// exactness, which is the per-question form of the carve-out DECISIONS.md records
+// per file.
+
+/** Split a selector list on TOP-LEVEL commas. */
+function splitList(list: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let cur = ''
+  for (const ch of list) {
+    if (ch === '(' || ch === '[') depth++
+    else if (ch === ')' || ch === ']') depth--
+    if (ch === ',' && depth === 0) { parts.push(cur); cur = '' } else cur += ch
+  }
+  parts.push(cur)
+  return parts.map(p => p.trim().replace(/\s+/g, ' ')).filter(Boolean)
 }
 
-/** Source offset of a rule's selector, for source-order assertions. */
+/** The compounds of ONE complex selector, in order — combinator-separated, paren-aware. */
+function compounds(sel: string): string[] {
+  const out: string[] = []
+  let depth = 0
+  let cur = ''
+  for (const ch of sel) {
+    if (ch === '(' || ch === '[') depth++
+    else if (ch === ')' || ch === ']') depth--
+    if (depth === 0 && (/\s/.test(ch) || ch === '>' || ch === '+' || ch === '~')) {
+      if (cur) out.push(cur)
+      cur = ''
+      continue
+    }
+    cur += ch
+  }
+  if (cur) out.push(cur)
+  return out
+}
+
+/**
+ * Source offsets of every TOP-LEVEL rule, keyed by each EXACT selector in its
+ * list. Values are arrays so an ambiguous lookup can be refused rather than
+ * silently resolved by position — which is the defect this replaces.
+ */
+const topLevelOffsets = (() => {
+  const out = new Map<string, number[]>()
+  let i = 0
+  let selStart = 0
+  while (i < masked.length) {
+    // A top-level `;` ends a prelude (globals.css opens with `@import
+    // "tailwindcss";`) — the same property cssTopLevelRules.ts carries.
+    if (masked[i] === ';') { i++; selStart = i; continue }
+    if (masked[i] !== '{') { i++; continue }
+    let depth = 1
+    let j = i + 1
+    while (j < masked.length && depth > 0) {
+      if (masked[j] === '{') depth++
+      else if (masked[j] === '}') depth--
+      j++
+    }
+    const prelude = masked.slice(selStart, i)
+    if (!prelude.trim().startsWith('@')) {
+      const at = selStart + prelude.search(/\S/)
+      for (const one of splitList(prelude)) out.set(one, [...(out.get(one) ?? []), at])
+    }
+    i = j
+    selStart = j
+  }
+  return out
+})()
+
+/** Declaration body of a TOP-LEVEL rule, by exact selector. */
+function ruleBody(selector: string): string {
+  const body = topLevel.get(selector)
+  if (body === undefined) {
+    throw new Error(`top-level rule not found (exact selector, outside any @media): ${selector}`)
+  }
+  return body
+}
+
+/** Source offset of a top-level rule's selector list, for source-order assertions. */
 function ruleOffset(selector: string): number {
-  const at = css.indexOf(selector + ' {')
-  if (at < 0) throw new Error(`rule not found: ${selector}`)
-  return at
+  const hits = topLevelOffsets.get(selector) ?? []
+  if (hits.length === 0) throw new Error(`top-level rule not found: ${selector}`)
+  if (hits.length > 1) {
+    // Two top-level rules keyed by the same exact selector make "which one comes
+    // first" ambiguous, and picking either silently is how the substring form
+    // failed. Surface it instead.
+    throw new Error(`ambiguous source order: ${hits.length} top-level rules match ${selector}`)
+  }
+  return hits[0]
 }
 
 /** Custom-property value from the :root / [data-theme="dark"] token blocks. */
@@ -150,8 +251,20 @@ describe('keyboard focus under the pinned band (WCAG 2.2 SC 2.4.11)', () => {
   // later change cannot regress onto the root-scoped form that leaks across the
   // mounted-but-hidden tabs.
 
-  /** The selector list must reach the focusable DESCENDANTS, not just the cells. */
-  const focusRule = '.sr-bc-matrix--pinned tbody th,\n.sr-bc-matrix--pinned tbody td,\n.sr-bc-matrix--pinned tbody th *,\n.sr-bc-matrix--pinned tbody td *'
+  /**
+   * The four selectors the guard must cover: the cells AND their focusable
+   * descendants. Asserted one at a time through the shared parser (which keys each
+   * member of a comma group individually), so this states the INVARIANT rather than
+   * one literal spelling of the list: dropping any of the four goes red, while
+   * reordering or reflowing the group — which changes nothing — stays green. Same
+   * shape as lifeListPinnedCss.test.ts, its twin on the Multimedia table.
+   */
+  const focusSelectors = (prefix: string) => [
+    `${prefix} tbody th`,
+    `${prefix} tbody td`,
+    `${prefix} tbody th *`,
+    `${prefix} tbody td *`,
+  ]
 
   it('puts scroll-margin-top on the cells AND their focusable descendants', () => {
     // Rejects the exact mistake that was made. `scroll-margin` applies to the
@@ -159,7 +272,9 @@ describe('keyboard focus under the pinned band (WCAG 2.2 SC 2.4.11)', () => {
     // <button> BirdName renders inside the cell — so a cell-only rule computes 0px
     // on every focusable and never participates in the scroll. The `*` covers
     // present and future focusables without enumerating them.
-    expect(ruleBody(focusRule)).toMatch(/scroll-margin-top:\s*3rem/)
+    for (const sel of focusSelectors('.sr-bc-matrix--pinned')) {
+      expect(ruleBody(sel), sel).toMatch(/scroll-margin-top:\s*3rem/)
+    }
   })
 
   it('does not introduce a document-scoped scroll-padding-top', () => {
@@ -202,8 +317,9 @@ describe('keyboard focus under the pinned band (WCAG 2.2 SC 2.4.11)', () => {
     // The twin has to cover the descendants too, or iOS keeps the original defect
     // while the web build is fixed — the half-fix this repo has been bitten by
     // before (a caller reaching a component down two paths).
-    const iosRule = '.sr-ios-app .sr-bc-matrix--pinned tbody th,\n.sr-ios-app .sr-bc-matrix--pinned tbody td,\n.sr-ios-app .sr-bc-matrix--pinned tbody th *,\n.sr-ios-app .sr-bc-matrix--pinned tbody td *'
-    expect(ruleBody(iosRule)).toMatch(/scroll-margin-top:\s*calc\(3rem \+ env\(safe-area-inset-top, 0px\)\)/)
+    for (const sel of focusSelectors('.sr-ios-app .sr-bc-matrix--pinned')) {
+      expect(ruleBody(sel), sel).toMatch(/scroll-margin-top:\s*calc\(3rem \+ env\(safe-area-inset-top, 0px\)\)/)
+    }
   })
 })
 
@@ -226,8 +342,6 @@ describe('Unbounded card is sized by the table, not the legend (fix: pin-labels-
   // card stopped overflowing its panel's content box by 519.2px; at 200% text scale
   // the card went 2953.42px -> 814px. Normal view and the entire ≤640 tier measured
   // IDENTICAL before and after, in both engines.
-
-  const topLevel = parseTopLevelRules(css)
 
   /** Declarations of a rule body, keyed by property. */
   function decls(body: string): Map<string, string> {
@@ -316,10 +430,22 @@ describe('Unbounded card is sized by the table, not the legend (fix: pin-labels-
     // sized intrinsically, so the constraint has no work to do. Scoping is what
     // makes "Normal renders byte-identically" a property of the stylesheet instead
     // of a claim resting on a measurement. Rejects a bare `.sr-bc-legend` rule.
-    const legendRules = [...topLevel].filter(([sel]) => sel.includes('.sr-bc-legend'))
+    //
+    // Both halves exact. The subject is the legend itself, so the match is on the
+    // RIGHTMOST compound — `.sr-bc-legend span` sizes a chip, not the legend, and
+    // has no bearing on which child the card is sized from. And the scope is the
+    // LEADING compound, not `/^\.sr-bc-card\b/`: `\b` sits happily between `card`
+    // and the `-` of `.sr-bc-card-x`, so the old form admitted a scope class that
+    // nothing in the app carries. Same `\b`-against-a-hyphen trap as the
+    // `/\b100%\b/` one CLAUDE.md records.
+    // (parseTopLevelRules keys each member of a comma group separately, so every
+    // key here is already ONE complex selector.)
+    const rightmost = (sel: string) => compounds(sel)[compounds(sel).length - 1]
+    const legendRules = [...topLevel].filter(([sel]) => rightmost(sel) === '.sr-bc-legend')
     expect(legendRules.length, 'never vacuous: at least one legend rule must exist').toBeGreaterThan(0)
     for (const [sel] of legendRules) {
-      expect(sel, 'every .sr-bc-legend rule must be scoped under .sr-bc-card').toMatch(/^\.sr-bc-card\b/)
+      expect(compounds(sel)[0], `every .sr-bc-legend rule must be scoped under .sr-bc-card: ${sel}`)
+        .toBe('.sr-bc-card')
     }
   })
 
