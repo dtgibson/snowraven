@@ -2,6 +2,20 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.83] - 2026-08-10
+
+Four builds in one release: a counting correction, two table fixes, and a map button that was missing. (Shipped as a Spool bundle of 4 builds.)
+
+### Added
+- **A "Use my location" button on Map Explorer.** SnowRaven could already find you and center the map, but the button for it only appeared on the Hotspots, Nearby Lifers and Media Targets views, never on My Sightings, which is the one the map opens on. It is now on all four. On My Sightings it only centers the map and sends nothing anywhere; on the other three it centers and, if you have not searched yet, runs that view's search from where you are. If location is unavailable or you have said no before, the reason appears on the map itself and is read aloud by a screen reader. It never asks again once you have declined.
+- **Pin code labels on the Multimedia tab.** The Unbounded view now has the same opt-in "Pin code labels" control as Breeding Codes, holding the row of column headings in view as you scroll down a long list. Off by default and per-session, resetting on relaunch. On the web and on Windows the headings used to stay put automatically in that view; they now wait for you to press the button, which is the same behavior as Breeding Codes.
+
+### Fixed
+- **Hybrids no longer count as species in your totals.** A bird recorded as a cross between two species, like a Mallard x American Black Duck, was being counted as a species of its own in the Statistics tab's life list, in everything derived from it (milestones included), and in the per-county species counts on the map. Slashes and "sp." entries were already excluded; hybrids were meant to be and were not. Birds like the Yellow-shafted x Red-shafted Northern Flicker are not hybrids in this sense and still count, as they always have. The Statistics toggle that includes these forms is now labelled "Count spuh, slash & hybrids", matching the Calendar tab. If your data has no hybrid rows, none of your numbers change.
+- **The column headings stay in view on the Breeding Codes table in the macOS and iOS apps.** The Multimedia tab's headings were pinned in a way those apps do not honor, so the feature had only ever worked in a web browser. Both tables now use a form that works everywhere.
+- **The in-app Help no longer runs off the side of an iPhone screen.** Reading it meant dragging the page left and right on every paragraph. The text column now fits the screen at every size, including with the text size turned all the way up, and long web addresses in the text wrap instead of pushing the page sideways.
+- **The pin button on the maps no longer looks like a location button.** It drew the standard map-pin teardrop, the symbol every other app uses for "where I am", while actually planting a flag to share a spot. It now draws a flag, matching what it puts on the map, and the location button draws a target. This affects the Map Explorer, Species Detail, Statistics and Named Birds maps.
+
 ## [0.5.82] - 2026-08-09
 
 Three phone fixes in one release, each of them repair of something that was already meant to work. (Shipped as a Spool bundle of 3 builds.)
