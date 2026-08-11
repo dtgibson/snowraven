@@ -1328,6 +1328,53 @@ h1, h2, h3, h4, h5, h6 {
   max-height: calc(100vh - 52px - env(safe-area-inset-top, 0px));
 }
 
+/* Help overlay content column ABOVE the phone tier — the wrap allowance only
+   (fix: help-overlay-641-leak).
+
+   v0.5.83's help-docs-phone-width wrote BOTH halves of its fix inside
+   @media (max-width: 640px), so 641px and up never received the wrap allowance.
+   At 200% text scale the content column is exactly `viewport − 288` (a fixed
+   200px TOC, 40px gap, 2x24px row padding — the TOC is width:200/flexShrink:0,
+   so this is arithmetic, not a clamp), and the longest unbreakable run in the
+   help text renders 399.77px: the link "github.com/dtgibson/snowraven-mini"
+   breaks at its hyphen, leaving "github.com/dtgibson/snowraven-" as one
+   unbreakable 399.77px fragment. Measured shipped: at 641px/200% that fragment
+   sits 46.77px past a 353px column and drags the help body 23px sideways.
+
+   TWO NESTED BANDS, both narrower than "above the tier" — element overflow spans
+   641–687px (0.77px at 687, gone at 688 = 288 + 399.77) and user-visible drag
+   spans 641–663px (23px → 1px, gone at 664, because the row's 24px right padding
+   absorbs the last 24px of leak). Clean at every width at 100/125/150% scale, and
+   clean at 200% from 688px up (the column's inline maxWidth:680 caps it there).
+
+   NO UPPER BOUND, deliberately: 687 is a function of the longest link's rendered
+   width in docs/HELP.md, so pinning the band would silently stop covering a longer
+   future URL. NOT the unconditional .sr-wrap-anywhere class either — that helper
+   cannot be scoped to a tier, and this rule and the ≤640 one below want different
+   halves of the fix.
+
+   THE CONSTRAINT HALF (align-self:stretch / width:100%) IS DELIBERATELY ABSENT
+   HERE and must stay ≤640-only: it exists because that tier flips the row to
+   flex-direction:column and hands the parent's inline alignItems:'flex-start'
+   control of WIDTH. Above 640 the row is a real row, flex-start governs the
+   VERTICAL axis (load-bearing for the sticky TOC), and the column's inline
+   flex:1/minWidth:0 already fills correctly — measured `viewport − 288` at every
+   width. Adding those declarations here would fight flex:1.
+
+   No !important: unlike the constraint, these two properties appear in no inline
+   style on the element and no other rule in the bundle sets them on it, so a
+   plain class rule already wins. Source order against the ≤640 tier at the end of
+   this file is irrelevant — max-width:640 and min-width:641 can never both match.
+   Both properties are inherited but no-op inside the coordinates <pre>, where
+   white-space:pre forbids wrapping: it keeps scrolling in its own overflow-x:auto
+   box, as intended. */
+@media (min-width: 641px) {
+  .sr-help-content {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
 /* Leaf utilities — attach to the specific child that needs them. */
 .sr-min0 { min-width: 0; }
 .sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2441,10 +2488,18 @@ select:focus-visible {
      "ebird.org/downloadMyData" 326.89px, and the single H1 word "Documentation"
      356.42px, all against a 296px column). These are the two declarations
      .sr-wrap-anywhere carries, inlined rather than added as a class because that
-     helper is unconditional and this defect — and every measurement behind it — is
-     phone-tier only; 641px through 1440px measured clean and stay untouched. Both
-     are inherited, but no-ops inside the <pre>, where white-space:pre forbids
-     wrapping: it keeps scrolling in its own overflow-x:auto box, as intended. */
+     helper is unconditional and cannot be scoped to a tier. CORRECTED by
+     help-overlay-641-leak: this sentence used to end "...and every measurement
+     behind it — is phone-tier only; 641px through 1440px measured clean and stay
+     untouched", which was true at 100% TEXT SCALE ONLY. The widths above 640 were
+     never measured at 200%, where 641–687px leaks precisely because the wrap
+     allowance stopped at this tier boundary. That half now also ships in a
+     @media (min-width: 641px) rule beside .sr-help-toc earlier in this file; the
+     CONSTRAINT half above it (align-self/width) is correctly phone-tier only and
+     must stay that way, since above 640 the row is a real row and those two would
+     fight the column's inline flex:1. Both wrap declarations are inherited, but
+     no-op inside the <pre>, where white-space:pre forbids wrapping: it keeps
+     scrolling in its own overflow-x:auto box, as intended. */
   .sr-help-content {
     align-self: stretch !important;
     width: 100% !important;
