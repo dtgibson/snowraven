@@ -183,6 +183,13 @@ describe('the location control', () => {
 // ── Cluster structure (QA-14, FR-10) ─────────────────────────────────────────
 
 describe('cluster order', () => {
+  // Updated by uniform-map-fabs: the three discs now carry the shared
+  // .sr-map-fab base plus a size modifier, and on a centre view the share slot's
+  // position is taken by the centre-share FAB (see
+  // MapExplorerCenterShareFab.test.tsx). The ORDER itself is unchanged, which is
+  // what this test is for.
+  const classesOf = (el: HTMLElement) => el.className.split(/\s+/)
+
   it('is share slot, locate, fullscreen, Filters, with no CSS order (QA-14)', async () => {
     renderMap()
     await ready()
@@ -192,11 +199,31 @@ describe('cluster order', () => {
     expect(kids[0].className).toBe('sr-map-geo-error')
     expect(kids[1].className).toBe('sr-map-fab-slot')
     expect(kids[1].querySelector('.sr-share-drop-btn')).toBeTruthy()
-    expect(kids[2].className).toBe('sr-map-locate-btn')
-    expect(kids[3].className).toBe('sr-map-fullscreen-btn')
-    expect(kids[4].className).toBe('sr-map-filters-btn')
+    expect(classesOf(kids[2])).toContain('sr-map-locate-btn')
+    expect(classesOf(kids[3])).toContain('sr-map-fullscreen-btn')
+    expect(kids[4].className).toBe('sr-map-filters-btn sr-touch-target')
     // DOM order IS tab order: nothing in the cluster carries an inline `order`.
     for (const el of [cluster(), ...kids]) expect(el.style.order).toBe('')
+  })
+
+  it('gives every disc the shared base AND exactly one size modifier', async () => {
+    // .sr-map-fab svg reads `var(--sr-fab-glyph)` with NO fallback, and the
+    // custom property is declared on the size modifiers — so a disc carrying the
+    // base without a modifier renders a glyph with no width at all. Two
+    // modifiers would be as bad in the other direction: both are (0,1,0), so
+    // source order alone would pick the diameter.
+    renderMap()
+    await ready()
+    const discs = [
+      cluster().querySelector('.sr-share-drop-btn') as HTMLElement,
+      screen.getByRole('button', { name: 'Center the map on my location' }),
+      screen.getByRole('button', { name: 'Enter fullscreen' }),
+    ]
+    for (const el of discs) {
+      const cls = classesOf(el)
+      expect(cls, el.className).toContain('sr-map-fab')
+      expect(cls.filter(c => c === 'sr-map-fab--std' || c === 'sr-map-fab--compact'), el.className).toHaveLength(1)
+    }
   })
 })
 
@@ -216,9 +243,19 @@ describe('accessible names', () => {
     ])
     for (const n of names) expect(n.length).toBeGreaterThan(0)
     expect(new Set(names).size).toBe(names.length)
-    // The two states the location button can be in are distinct from each other
-    // and from every shipped name.
-    const all = [...names, 'Finding your location', 'Move the pin to the map center', 'Exit fullscreen']
+    // Every name any cluster control can carry, in any state, on any view, must
+    // be distinct from every other — including the three the centre-share FAB
+    // adds (uniform-map-fabs). Two of those sit one disc away from "Drop a pin
+    // at the map center" on a different view and must not be confusable with it.
+    const all = [
+      ...names,
+      'Finding your location',
+      'Move the pin to the map center',
+      'Exit fullscreen',
+      'Copy the search center location',
+      'Close the location popup',
+      'Set a search center to copy its location',
+    ]
     expect(new Set(all).size).toBe(all.length)
   })
 
@@ -514,8 +551,12 @@ describe('the glyph pair', () => {
     const share = cluster().querySelector('.sr-share-drop-btn')!
     expect(share.querySelector('svg.lucide-flag-triangle-right')).toBeTruthy()
     // Different silhouettes, so the pair survives grayscale (FR-21). Neither is
-    // the retired MapPin, and neither is Navigation (whose dominant mass is a
-    // triangle, like the flag's).
+    // MapPin, and neither is Navigation (whose dominant mass is a triangle, like
+    // the flag's). MapPin is NOT retired app-wide as of uniform-map-fabs — it is
+    // the centre-share FAB's glyph, naming the teardrop search-centre pin — but
+    // it is still wrong for either of these two, and that button is on a
+    // different view (MapExplorerCenterShareFab.test.tsx covers the pairing
+    // there, which is a crosshair against a teardrop).
     for (const el of [locateBtn()!, share as HTMLElement]) {
       expect(el.querySelector('svg.lucide-map-pin')).toBeNull()
       expect(el.querySelector('svg.lucide-navigation')).toBeNull()

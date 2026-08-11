@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uniform Map FABs — Design Refinement</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   SPECIMEN TOKENS — copied verbatim from frontend/src/globals.css.
+   Not retyped guesses: light from :root, dark from [data-theme="dark"].
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-subtle:#F4F4F5; --sr-surface-faint:#FAFAFA;
+  --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-disabled:#A1A1AA;
+  --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-border-medium:#C4C4CE;
+  --sr-accent:#277448; --sr-accent-strong:#1A5C38; --sr-accent-bg:#E8F5EE;
+  --sr-accent-border-strong:rgba(39,116,72,0.7); --sr-on-accent:#FFFFFF;
+  --sr-error:#D31F1F; --sr-error-bg:#FEF2F2; --sr-error-border:#FECACA;
+  --sr-share-pin:#B4341F; --sr-share-pin-ink:#FFFFFF; --sr-map-pin-stroke:#3F3F46;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  /* Document chrome (this sheet only, never the app) */
+  --ink:#141a17; --ink-2:#3d4a44; --ink-3:#68766f;
+  --paper:#f6f4ef; --paper-2:#fffefb; --rule:#ded7c9; --mark:#8a5a24;
+  --map-land:#e9ece6; --map-land-2:#dfe5da; --map-water:#cfdce4; --map-road:#f7f7f5;
+}
+:root[data-theme="dark"]{
+  --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-subtle:#27272A; --sr-surface-faint:#1C1C1F;
+  --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-disabled:#52525B;
+  --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-border-medium:#3F3F46;
+  --sr-accent:#34D399; --sr-accent-bg:#052E16;
+  --sr-accent-border-strong:rgba(52,211,153,0.5); --sr-on-accent:#052E16;
+  --sr-error:#F87171; --sr-error-bg:#1C0505; --sr-error-border:#7F1D1D;
+  --sr-card-shadow:0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --ink:#eceee9; --ink-2:#b2bcb6; --ink-3:#7d8a84;
+  --paper:#12140f; --paper-2:#191c17; --rule:#2c3128; --mark:#d9a15e;
+}
+/* The basemap the FABs actually sit on is the always-light Positron style, so
+   the specimen map keeps its light land/water in BOTH themes. Same reasoning as
+   the app's basemap-anchored colour exception. */
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:'Avenir Next','Avenir','Segoe UI','Helvetica Neue',sans-serif;
+  font-size:15px; line-height:1.6; letter-spacing:0.005em;
+  background-image:
+    radial-gradient(60rem 34rem at 12% -8%, rgba(39,116,72,0.10), transparent 62%),
+    radial-gradient(46rem 30rem at 96% 4%, rgba(138,90,36,0.09), transparent 58%),
+    radial-gradient(70rem 44rem at 50% 108%, rgba(39,116,72,0.06), transparent 60%);
+  background-attachment:fixed;
+}
+.wrap{max-width:76rem; margin:0 auto; padding:3.5rem 1.5rem 6rem}
+
+/* ── Type: three roles, real contrast ─────────────────────────────────────── */
+.display{
+  font-family:'Iowan Old Style','Charter','Palatino Linotype','Book Antiqua',Georgia,serif;
+  font-weight:600; font-size:clamp(2.1rem,5.4vw,3.3rem); line-height:1.06;
+  letter-spacing:-0.022em; margin:0 0 .55rem; color:var(--ink);
+}
+h2{
+  font-family:'Iowan Old Style','Charter','Palatino Linotype',Georgia,serif;
+  font-weight:600; font-size:1.6rem; line-height:1.2; letter-spacing:-0.012em;
+  margin:0 0 .4rem; color:var(--ink);
+}
+h3{font-size:1.02rem; font-weight:600; letter-spacing:-0.004em; margin:0 0 .3rem}
+.label{
+  font-size:.66rem; font-weight:700; letter-spacing:.15em; text-transform:uppercase;
+  color:var(--mark); margin:0 0 .5rem;
+}
+.lede{font-size:1.06rem; color:var(--ink-2); max-width:46rem; margin:0}
+p{margin:0 0 .9rem; color:var(--ink-2); max-width:46rem}
+strong{color:var(--ink); font-weight:600}
+code{
+  font-family:'SF Mono','JetBrains Mono','IBM Plex Mono',ui-monospace,monospace;
+  font-size:.84em; background:var(--paper-2); border:1px solid var(--rule);
+  border-radius:5px; padding:.08em .32em; color:var(--ink);
+}
+
+header.masthead{
+  display:flex; align-items:flex-end; justify-content:space-between;
+  gap:2rem; flex-wrap:wrap; padding-bottom:1.6rem; margin-bottom:2.6rem;
+  border-bottom:2px solid var(--rule);
+}
+.meta{font-size:.78rem; color:var(--ink-3); letter-spacing:.02em}
+
+.themeswitch{
+  display:inline-flex; gap:0; border:1px solid var(--rule); border-radius:999px;
+  background:var(--paper-2); padding:3px; flex:none;
+}
+.themeswitch button{
+  font:inherit; font-size:.76rem; font-weight:600; letter-spacing:.02em;
+  padding:.4rem .85rem; border:0; border-radius:999px; background:none;
+  color:var(--ink-3); cursor:pointer;
+  transition:background 160ms cubic-bezier(.16,1,.3,1), color 160ms cubic-bezier(.16,1,.3,1);
+}
+.themeswitch button[aria-pressed="true"]{background:var(--ink); color:var(--paper)}
+
+section{margin:0 0 4.2rem}
+.sechead{margin-bottom:1.5rem}
+
+/* ── Specimen bench ───────────────────────────────────────────────────────── */
+.bench{display:flex; flex-wrap:wrap; gap:1.6rem; align-items:flex-start}
+.spec{flex:0 0 auto; max-width:100%}
+.spec figcaption{
+  margin-top:.6rem; font-size:.76rem; color:var(--ink-3); line-height:1.45; max-width:24rem;
+}
+.spec figcaption b{color:var(--ink-2); font-weight:600}
+.scaletag{
+  display:inline-block; font-size:.62rem; font-weight:700; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--mark); margin-bottom:.45rem;
+}
+
+/* The simulated map panel. --fs models the ROOT font-size at that scale, so
+   every calc() below reads exactly as the shipped rem value would. */
+.map{
+  --fs:16px;
+  position:relative; overflow:hidden; border-radius:12px;
+  border:1px solid var(--rule); box-shadow:var(--sr-card-shadow);
+  background:
+    radial-gradient(120% 90% at 18% 12%, var(--map-land-2), transparent 55%),
+    linear-gradient(160deg, var(--map-water) 0 22%, var(--map-land) 22% 100%);
+}
+.map.scale200{--fs:32px}
+.map.desktop{width:392px; height:190px}
+.map.phone{width:320px; height:212px}
+.map.phone.scale200{height:322px}
+.map .terrain{position:absolute; inset:0; opacity:.85}
+.map .plabel{
+  position:absolute; top:10px; left:12px; z-index:2;
+  font-size:11px; font-weight:600; letter-spacing:.02em; color:#5c6a63;
+  background:rgba(255,255,255,.82); border-radius:5px; padding:2px 7px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROPOSED CSS — this is the spec's base + modifier structure, in the exact
+   source order the spec requires. Sizes use calc(n * var(--fs)) purely to
+   model rem at a chosen scale inside one document; the shipped rule is rem.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.cluster{
+  display:flex; position:absolute; bottom:20px; right:16px; z-index:1050;
+  align-items:center; gap:10px;
+  flex-wrap:wrap; justify-content:flex-end; row-gap:10px;
+  max-width:calc(100% - 32px);
+  pointer-events:none;
+}
+.cluster button{pointer-events:auto}
+
+/* 1. base */
+.fab{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:0; flex:none;
+  background:var(--sr-surface); color:var(--sr-text);
+  border:1px solid var(--sr-border); border-radius:50%;
+  cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.18);
+  transition:background 140ms cubic-bezier(0.16,1,0.3,1),
+             color 140ms cubic-bezier(0.16,1,0.3,1),
+             border-color 140ms cubic-bezier(0.16,1,0.3,1);
+}
+/* 2. glyph follows the box — the unit rule */
+.fab svg{width:var(--fab-glyph); height:var(--fab-glyph); stroke-width:2.2}
+/* 3. hover — BEFORE the state rules (same specificity as the state rules) */
+.fab:hover{background:var(--sr-surface-subtle)}
+/* 4. size modifiers */
+.fab--std{--fab-glyph:calc(1.0625 * var(--fs)); width:calc(2.25 * var(--fs)); height:calc(2.25 * var(--fs))}
+.phone .fab--std{width:calc(2.75 * var(--fs)); height:calc(2.75 * var(--fs))}
+/* 5. per-control state */
+.fab[aria-pressed="true"],
+.fab[aria-expanded="true"]{
+  background:var(--sr-accent-bg); color:var(--sr-accent);
+  border-color:var(--sr-accent-border-strong);
+}
+.fab[aria-disabled="true"]{border-style:dashed; cursor:default}
+.fab[aria-disabled="true"]:hover{background:var(--sr-surface)}
+.fab[aria-disabled="true"] svg{color:var(--sr-text-disabled)}
+/* focus: the app's global ring */
+.fab:focus-visible{outline:3px solid var(--sr-accent); outline-offset:3px}
+
+/* The Filters pill (phone only), with the recommended .sr-touch-target */
+.pill{
+  display:none; align-items:center; gap:6px; padding:0 16px; height:36px;
+  background:var(--sr-accent); color:var(--sr-on-accent); border:none;
+  border-radius:24px; font-family:inherit; font-weight:600;
+  font-size:calc(0.8125 * var(--fs)); cursor:pointer;
+  box-shadow:0 4px 12px rgba(45,134,83,0.4);
+}
+.phone .pill{display:inline-flex}
+/* This is the SHIPPED .sr-touch-target rule and nothing else. `min-height` alone
+   is enough: it beats the pill's own `height: 36px` in the used-value computation,
+   so the box grows to match the discs rather than clipping its 26px label. Do not
+   add `height: auto` here; re-authoring the rule around a modelled value is how a
+   reproduction quietly stops testing the shipped code. */
+.phone .pill.touch{min-height:calc(2.75 * var(--fs))}
+.pill svg{width:calc(0.875 * var(--fs)); height:calc(0.875 * var(--fs)); stroke-width:2.5; flex:none}
+
+/* ── The "today" build, for the side-by-side. Fixed px, exactly as shipped. ── */
+.today .fab--std{width:36px; height:36px; --fab-glyph:17px}
+.today.phone .fab--std{width:calc(2.75 * var(--fs)); height:calc(2.75 * var(--fs)); --fab-glyph:17px}
+/* AFTER the rule above, and at matching specificity: the fullscreen button carries
+   BOTH classes, so this is the same base-vs-modifier tie the spec warns about, and
+   source order is what settles it. Written the wrong way round it silently rendered
+   the shipped 16px glyph as 17px. */
+.today .fab--full,
+.today.phone .fab--full{width:36px; height:36px; --fab-glyph:16px}
+.today .fab--full svg{stroke-width:2.5}
+.today .pill{height:36px; min-height:0; padding-block:0}
+
+/* ── Callout ──────────────────────────────────────────────────────────────── */
+.note{
+  border-left:3px solid var(--mark); background:var(--paper-2);
+  padding:.85rem 1.1rem; border-radius:0 8px 8px 0; margin:1.2rem 0;
+  font-size:.9rem; color:var(--ink-2); max-width:46rem;
+}
+.note b{color:var(--ink)}
+
+/* ── State table ──────────────────────────────────────────────────────────── */
+.states{display:flex; flex-wrap:wrap; gap:1.1rem; margin-top:.4rem}
+.state{
+  flex:1 1 210px; min-width:190px; background:var(--paper-2);
+  border:1px solid var(--rule); border-radius:10px; padding:1rem 1.05rem 1.05rem;
+}
+.state .swatch{
+  display:flex; align-items:center; justify-content:center; height:104px;
+  border-radius:8px; margin-bottom:.75rem;
+  background:linear-gradient(160deg, var(--map-water) 0 26%, var(--map-land) 26% 100%);
+}
+.state .swatch .fab--std{--fs:16px}
+.state h3{margin-bottom:.2rem}
+.state p{font-size:.8rem; margin:0; color:var(--ink-3); max-width:none}
+.state .aname{
+  display:block; margin-top:.5rem;
+  font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace;
+  font-size:.7rem; color:var(--mark); line-height:1.4;
+}
+
+/* ── The demo popup (origin-aware, scales from its trigger) ───────────────── */
+.demopop{
+  position:absolute; z-index:1060; bottom:calc(20px + 2.75 * var(--fs) + 12px); right:16px;
+  width:min(15rem, calc(100% - 32px));
+  background:var(--sr-surface); color:var(--sr-text);
+  border:1px solid var(--sr-border); border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.22); padding:.6rem .7rem;
+  font-size:12px; line-height:1.45; text-align:left;
+  transform-origin:bottom right;
+  animation:pop 180ms cubic-bezier(0.16,1,0.3,1);
+}
+.map.desktop .demopop{bottom:calc(20px + 2.25 * var(--fs) + 12px)}
+.demopop .coord{
+  font-family:'SF Mono','JetBrains Mono',ui-monospace,monospace;
+  font-size:11.5px; color:var(--sr-text); display:block; margin-bottom:.35rem;
+}
+.demopop .sub{color:var(--sr-text-muted); font-size:11px; display:block}
+.demopop .cta{
+  display:inline-flex; align-items:center; gap:5px; margin-top:.55rem;
+  background:var(--sr-accent); color:var(--sr-on-accent);
+  border:0; border-radius:6px; padding:.3rem .6rem;
+  font:inherit; font-size:11.5px; font-weight:600; cursor:pointer;
+}
+@keyframes pop{from{opacity:0; transform:scale(.94) translateY(4px)} to{opacity:1; transform:none}}
+
+/* ── Code block ───────────────────────────────────────────────────────────── */
+pre{
+  background:var(--paper-2); border:1px solid var(--rule); border-radius:10px;
+  padding:1rem 1.1rem; overflow-x:auto; margin:1.1rem 0;
+  font-family:'SF Mono','JetBrains Mono','IBM Plex Mono',ui-monospace,monospace;
+  font-size:.79rem; line-height:1.62; color:var(--ink-2);
+}
+pre b{color:var(--ink); font-weight:600}
+pre i{color:var(--mark); font-style:normal}
+
+.sr-only{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+  }
+}
+@media (max-width:640px){
+  .wrap{padding:2rem 1rem 4rem}
+  .map.desktop{width:100%; max-width:392px}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <g id="i-flag" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M7 22V2l10 5-10 5"/>
+    </g>
+    <g id="i-locate" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/>
+      <line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/>
+      <circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/>
+    </g>
+    <g id="i-max" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+      <line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/>
+    </g>
+    <g id="i-pin" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>
+    </g>
+    <g id="i-filter" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+    </g>
+    <g id="i-copy" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2">
+      <rect x="9" y="9" width="13" height="13" rx="2"/>
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    </g>
+    <g id="terrain">
+      <path d="M0 0h420v46H0z" fill="#cfdce4"/>
+      <path d="M0 44c58 6 96-8 152-2s96 16 158 8 110-16 110-16v290H0z" fill="#e9ece6"/>
+      <path d="M118 60c34-6 62 8 88 4s52-14 82-6 56 30 96 24v34c-46 6-78-14-108-20s-54 8-84 10-52-12-74-8-34 14-56 12-46-16-62-10V70c30-12 54-4 118-10z" fill="#dfe5da" opacity=".85"/>
+      <path d="M0 128c40-4 78 12 118 10s70-16 112-10 74 26 118 22 72-16 72-16" stroke="#f7f7f5" stroke-width="7" fill="none"/>
+      <path d="M0 186c52 8 82-10 130-6s78 22 130 18 96-18 160-14" stroke="#f7f7f5" stroke-width="5" fill="none"/>
+      <path d="M56 0c-8 40 14 62 6 96s-26 52-18 92 24 60 16 100" stroke="#f7f7f5" stroke-width="4.5" fill="none"/>
+      <circle cx="252" cy="120" r="2.6" fill="#b9c4bc"/><circle cx="196" cy="176" r="2.6" fill="#b9c4bc"/>
+      <circle cx="318" cy="212" r="2.6" fill="#b9c4bc"/><circle cx="92" cy="150" r="2.6" fill="#b9c4bc"/>
+    </g>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div>
+    <p class="label">SnowRaven · Improve lane · Stage 2</p>
+    <h1 class="display">Uniform Map FABs</h1>
+    <p class="lede">One row of map furniture on all four Map Explorer views. Three discs of one
+      diameter, one gap, one surface, one optical glyph weight, and a third disc whose glyph names
+      the pin it commands.</p>
+  </div>
+  <div class="themeswitch" role="group" aria-label="Preview theme">
+    <button type="button" data-theme-set="light" aria-pressed="true">Light</button>
+    <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sechead">
+    <p class="label">1 · The family fix</p>
+    <h2>Today the row is ragged. It should not be.</h2>
+    <p>The share and locate discs reach the phone touch posture; the fullscreen disc stays at a
+      fixed 36px at every width and every text scale. At 320px with 200% text scale the gap is at
+      its worst: two 88px discs beside a 36px one. Hover any disc, and tab through them.</p>
+  </div>
+
+  <div class="bench">
+    <figure class="spec">
+      <span class="scaletag">Today · phone 320 · 200% text</span>
+      <div class="map phone scale200 today">
+        <svg class="terrain" viewBox="0 0 420 336" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">My Sightings</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" aria-pressed="false" title="Drop a pin at the map center" aria-label="Drop a pin at the map center"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption><b>88 · 88 · 36.</b> The odd one out. Note also that every glyph is pinned at
+        17px and 16px inside discs that have grown to 88px, so all three read as big empty
+        discs.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">After · phone 320 · 200% text</span>
+      <div class="map phone scale200">
+        <svg class="terrain" viewBox="0 0 420 336" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">My Sightings</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" aria-pressed="false" title="Drop a pin at the map center" aria-label="Drop a pin at the map center"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption><b>88 · 88 · 88, glyphs at 34.</b> Three discs at <code>2.75rem</code>, glyphs at
+        <code>1.0625rem</code>, so the ratio holds at every scale instead of only at 1x. The Filters
+        pill takes <code>.sr-touch-target</code> and stops clipping its own 26px label.</figcaption>
+    </figure>
+  </div>
+
+  <div class="note">
+    <b>This change consumes almost all the horizontal slack in the cluster. Measured, not
+    calculated.</b> At 320px and 200% text scale the three discs plus two 10px gaps measure
+    <b>284.00px</b>, and the Filters pill's own row measures <b>139.14px</b>, so the disc row is now
+    the binding one. The cap is <code>max-width: calc(100% - 32px)</code>, which resolves against
+    the <b>padding box</b> of <code>.sr-map-content</code>: at a full 320px content box that is
+    288px and the slack is <b>4px</b>. Anything that narrows that box reduces the slack
+    one-for-one. On this page the specimen carries a 1px border, so the cap computes to 286px and
+    the real slack is 2px, which is exactly the sort of difference that makes this a measurement
+    and not a sum. Today the same row is 232px with 56px to spare.
+    <br><br>
+    <b>The failure mode is bounded</b>, because <code>flex-wrap</code> and
+    <code>justify-content: flex-end</code> already handle it: if the row does not fit, the
+    fullscreen disc wraps to its own line. Nothing goes off screen. <b>Pre-approved escape hatch if
+    the app measures short:</b> drop the cluster's column <code>gap</code> to 8px in the ≤640 tier
+    while keeping <code>row-gap: 10px</code>, which buys 4px and doubles the margin. Do not cap the
+    disc below <code>2.75rem</code>; that is the touch-target posture.
+    <br><br>
+    Measure the element box against its container's content box, never
+    <code>document.scrollWidth</code>: a left overflow on an absolutely positioned element never
+    extends scroll width, so a scrollWidth check will certify a broken build.
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sechead">
+    <p class="label">2 · My Sightings</p>
+    <h2>Unchanged, except that the fullscreen disc joins the family</h2>
+    <p>The flag still drops and moves the share pin. Press it to see the "holding a pin" tint.</p>
+  </div>
+  <div class="bench">
+
+    <figure class="spec">
+      <span class="scaletag">Desktop</span>
+      <div class="map desktop">
+        <svg class="terrain" viewBox="0 0 420 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">My Sightings · 1,284 checklists</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-toggle="pressed" aria-pressed="false" title="Drop a pin at the map center" aria-label="Drop a pin at the map center"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+        </div>
+      </div>
+      <figcaption>36px discs. Filters is hidden: the desktop sidebar is always visible.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">Phone 320</span>
+      <div class="map phone">
+        <svg class="terrain" viewBox="0 0 420 212" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">My Sightings</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-toggle="pressed" aria-pressed="true" title="Move the pin to the map center" aria-label="Move the pin to the map center"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption>44px discs. Shown holding a pin, so the flag carries the accent tint and its name
+        has changed to <b>Move the pin to the map center</b>.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">Phone 320 · 200% text</span>
+      <div class="map phone scale200">
+        <svg class="terrain" viewBox="0 0 420 336" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">My Sightings</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-toggle="pressed" aria-pressed="false" title="Drop a pin at the map center" aria-label="Drop a pin at the map center"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-flag"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption>88px discs, 34px glyphs, Filters on its own row.</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sechead">
+    <p class="label">3 · Hotspots</p>
+    <h2>The new disc: a teardrop, because that is the pin it opens</h2>
+    <p>On the three centre views the pin is the draggable search centre, and it is a teardrop.
+      The FAB is a picture of it. Press the teardrop to open the same popup the pin opens; press
+      again to close.</p>
+  </div>
+  <div class="bench">
+
+    <figure class="spec">
+      <span class="scaletag">Desktop</span>
+      <div class="map desktop">
+        <svg class="terrain" viewBox="0 0 420 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Hotspots · 25 mi of Bodega Bay</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-pop aria-expanded="false" title="Copy the search center location" aria-label="Copy the search center location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+        </div>
+      </div>
+      <figcaption>Three discs where there were two. Same order, same gaps, nothing moved.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">Phone 320</span>
+      <div class="map phone">
+        <svg class="terrain" viewBox="0 0 420 212" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Hotspots</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-pop aria-expanded="false" title="Copy the search center location" aria-label="Copy the search center location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption>Press the teardrop. The popup scales from the button it came out of.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">Phone 320 · 200% text</span>
+      <div class="map phone scale200">
+        <svg class="terrain" viewBox="0 0 420 336" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Hotspots</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-pop aria-expanded="false" title="Copy the search center location" aria-label="Copy the search center location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption>The row still fits, with the Filters pill wrapped beneath it.</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sechead">
+    <p class="label">4 · Nearby Lifers</p>
+    <h2>Open, and the disc says so</h2>
+    <p>The accent tint here is carried by <code>aria-expanded</code>, not <code>aria-pressed</code>.
+      Same visual, different property, different meaning: the flag's tint means "this map is holding
+      a pin", this one means "the popup is open". They can never be on screen together, because a
+      view is either My Sightings or a centre view.</p>
+  </div>
+  <div class="bench">
+
+    <figure class="spec">
+      <span class="scaletag">Desktop</span>
+      <div class="map desktop">
+        <svg class="terrain" viewBox="0 0 420 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Nearby Lifers · 14 species within 25 mi</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-pop data-open aria-expanded="true" title="Close the location popup" aria-label="Close the location popup"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+        </div>
+      </div>
+      <figcaption>Shown open. The popup is <code>SharePopup</code>, reused unchanged, with the same
+        coordinates the centre pin carries.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">Phone 320</span>
+      <div class="map phone">
+        <svg class="terrain" viewBox="0 0 420 212" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Nearby Lifers</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-pop aria-expanded="false" title="Copy the search center location" aria-label="Copy the search center location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption>Closed. Pressing it also brings the camera to the centre pin first, but only when
+        that pin is off screen.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">Phone 320 · 200% text</span>
+      <div class="map phone scale200">
+        <svg class="terrain" viewBox="0 0 420 336" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Nearby Lifers</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" data-pop data-open aria-expanded="true" title="Close the location popup" aria-label="Close the location popup"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption>The open tint is legible at scale because it is a fill and a border, not a badge
+        that would have to shrink.</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sechead">
+    <p class="label">5 · Media Targets</p>
+    <h2>The state most likely to be missed: no centre set yet</h2>
+    <p>On a first visit both coordinate fields are empty, so there is no pin and nothing to copy.
+      The disc stays, dashed and disabled. It holds the row's shape, it stays focusable so a
+      keyboard user can read what to do, and it never sets a centre, because that would re-run the
+      search.</p>
+  </div>
+  <div class="bench">
+
+    <figure class="spec">
+      <span class="scaletag">Desktop</span>
+      <div class="map desktop">
+        <svg class="terrain" viewBox="0 0 420 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Media Targets · set a center to begin</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" aria-disabled="true" title="Set a search center to copy its location" aria-label="Set a search center to copy its location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+        </div>
+      </div>
+      <figcaption>Dashed border, <code>--sr-text-disabled</code> glyph, no hover. The box is
+        identical, so nothing shifts the moment a centre is set.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">Phone 320</span>
+      <div class="map phone">
+        <svg class="terrain" viewBox="0 0 420 212" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Media Targets</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" aria-disabled="true" title="Set a search center to copy its location" aria-label="Set a search center to copy its location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption>Tab to it: it takes focus and reads its name. <code>aria-disabled</code>, never
+        <code>disabled</code>.</figcaption>
+    </figure>
+
+    <figure class="spec">
+      <span class="scaletag">Phone 320 · 200% text</span>
+      <div class="map phone scale200">
+        <svg class="terrain" viewBox="0 0 420 336" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><use href="#terrain"/></svg>
+        <span class="plabel">Media Targets</span>
+        <div class="cluster">
+          <button type="button" class="fab fab--std" aria-disabled="true" title="Set a search center to copy its location" aria-label="Set a search center to copy its location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button>
+          <button type="button" class="fab fab--std" title="Center the map on my location" aria-label="Center the map on my location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-locate"/></svg></button>
+          <button type="button" class="fab fab--std fab--full" data-toggle="pressed" aria-pressed="false" title="Enter fullscreen" aria-label="Enter fullscreen"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-max"/></svg></button>
+          <button type="button" class="pill touch" aria-label="Open map filters"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-filter"/></svg>Filters</button>
+        </div>
+      </div>
+      <figcaption>The dash reads as "not filled in yet" at every size, which a colour change alone
+        would not.</figcaption>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sechead">
+    <p class="label">6 · The new disc, state by state</p>
+    <h2>Three states, three accessible names</h2>
+  </div>
+  <div class="states">
+    <div class="state">
+      <div class="swatch"><button type="button" class="fab fab--std" data-pop aria-expanded="false" title="Copy the search center location" aria-label="Copy the search center location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button></div>
+      <h3>Ready</h3>
+      <p>A centre is set, the popup is closed. Standard surface and border.</p>
+      <span class="aname">Copy the search center location</span>
+    </div>
+    <div class="state">
+      <div class="swatch"><button type="button" class="fab fab--std" data-pop data-open aria-expanded="true" title="Close the location popup" aria-label="Close the location popup"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button></div>
+      <h3>Open</h3>
+      <p>The popup is showing, whether it was opened from here or from the pin itself.</p>
+      <span class="aname">Close the location popup</span>
+    </div>
+    <div class="state">
+      <div class="swatch"><button type="button" class="fab fab--std" aria-disabled="true" title="Set a search center to copy its location" aria-label="Set a search center to copy its location"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button></div>
+      <h3>No centre</h3>
+      <p>Nothing to copy. Dashed, focusable, inert. It must not set a centre.</p>
+      <span class="aname">Set a search center to copy its location</span>
+    </div>
+    <div class="state">
+      <div class="swatch"><button type="button" class="fab fab--std" data-focusdemo title="Focus ring" aria-label="Focus ring demonstration"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-pin"/></svg></button></div>
+      <h3>Focus</h3>
+      <p>The app's global ring: 3px <code>--sr-accent</code>, 3px offset. Nothing per control.</p>
+      <span class="aname">Tab here to see it</span>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="sechead">
+    <p class="label">7 · The shared base</p>
+    <h2>One base, two size modifiers, and a source order that matters</h2>
+    <p><code>.sr-map-locate-btn</code> is the third hand-written copy of the same eleven
+      declarations. It becomes one base class. The semantic classes survive as state hooks only.</p>
+  </div>
+
+<pre><b>/* 1 */</b> .sr-map-fab            <i>display, align, justify, padding, flex, background,
+                          color, border, radius, cursor, shadow, transition</i>
+<b>/* 2 */</b> .sr-map-fab svg        <i>width/height: var(--sr-fab-glyph)</i>
+<b>/* 3 */</b> .sr-map-fab:hover      <i>background: var(--sr-surface-subtle)</i>
+<b>/* 4 */</b> .sr-map-fab--std       <i>--sr-fab-glyph: 1.0625rem;  2.25rem  (2.75rem @640)</i>
+        .sr-map-fab--compact   <i>--sr-fab-glyph: 0.9375rem;  1.875rem (2.5rem  @640)</i>
+<b>/* 5 */</b> .sr-share-drop-btn[aria-pressed="true"]
+        .sr-map-locate-btn[aria-disabled="true"]
+        .sr-map-center-share-btn[aria-expanded="true"]
+        .sr-map-center-share-btn[aria-disabled="true"]</pre>
+
+  <div class="note">
+    <b>A base plus a modifier puts two same-specificity rules on one element, so source order
+    decides.</b> <code>.sr-map-fab</code> and <code>.sr-map-fab--std</code> are both (0,1,0), so the
+    base must come first. The concrete regression this can introduce is at step 3 against step 5:
+    <code>.sr-map-fab:hover</code> and <code>.sr-share-drop-btn[aria-pressed="true"]</code> are
+    <b>both (0,2,0)</b> and both set <code>background</code>. Put the state rules above the base
+    block and a hovered, pinned button silently loses its green tint, which no value diff would
+    catch.
+  </div>
+
+  <div class="note">
+    <b>Per the repo's v0.5.81 convention this extraction needs a cascade-competitor scan at build
+    time.</b> It must cover every stylesheet the bundle emits, not only <code>globals.css</code>:
+    SnowRaven also ships <code>vendor-maplibre-*.css</code>, and these buttons live inside a map
+    container. Test the rightmost compound of each selector, and record the <code>@layer</code> as
+    well as the specificity, since Tailwind preflight's <code>* { padding: 0 }</code> and its
+    <code>button</code> border reset compete directly with the base. This is a class-to-class move,
+    so specificity is unchanged at (0,1,0): the scan proves the new shared rule cannot be outranked,
+    it does not repair a specificity drop. Say that in the test's own comment.
+  </div>
+
+  <div class="note">
+    <b>The glyph rule is not a tidy-up.</b> Lucide's <code>size={17}</code> renders a px attribute,
+    so a phone FAB grows 44px to 88px at 200% text scale while its glyph stays 17px. A glyph's unit
+    must match its box's unit, or the ratio breaks at scale. Both go to rem and the ratio becomes
+    scale-invariant by construction rather than correct at the one scale someone sampled. Keep the
+    <code>size</code> props as the no-CSS fallback; CSS wins over presentational attributes.
+  </div>
+</section>
+
+<footer style="border-top:2px solid var(--rule); padding-top:1.2rem; margin-top:1rem">
+  <p class="meta">Every colour on this page is an existing <code>--sr-*</code> token read from
+    <code>frontend/src/globals.css</code>. No new token is introduced. Specimen sizes use
+    <code>calc(n &times; --fs)</code> only to model three root font sizes inside one document; the
+    shipped rule is plain <code>rem</code>.</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var t = b.getAttribute('data-theme-set');
+      root.setAttribute('data-theme', t);
+      document.querySelectorAll('[data-theme-set]').forEach(function (o) {
+        o.setAttribute('aria-pressed', String(o === b));
+      });
+    });
+  });
+
+  // Flag / fullscreen: aria-pressed toggle, with the label following the action
+  // exactly as the shipped controls do.
+  var NAMES = {
+    'Drop a pin at the map center': 'Move the pin to the map center',
+    'Move the pin to the map center': 'Drop a pin at the map center',
+    'Enter fullscreen': 'Exit fullscreen',
+    'Exit fullscreen': 'Enter fullscreen'
+  };
+  document.querySelectorAll('[data-toggle="pressed"]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var on = b.getAttribute('aria-pressed') !== 'true';
+      b.setAttribute('aria-pressed', String(on));
+      var next = NAMES[b.getAttribute('aria-label')];
+      if (next) { b.setAttribute('aria-label', next); b.setAttribute('title', next); }
+    });
+  });
+
+  // Centre-share: aria-expanded toggle plus an origin-aware popup that scales
+  // from its trigger.
+  function popupFor(btn) {
+    var el = document.createElement('div');
+    el.className = 'demopop';
+    el.innerHTML =
+      '<span class="coord">38.3331° N, 123.0483° W</span>' +
+      '<span class="sub">Bodega Head, Sonoma County</span>' +
+      '<button type="button" class="cta"><svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">' +
+      '<use href="#i-copy"/></svg>Copy location</button>';
+    return el;
+  }
+  function setOpen(btn, open) {
+    var map = btn.closest('.map');
+    if (!map) return;
+    btn.setAttribute('aria-expanded', String(open));
+    var name = open ? 'Close the location popup' : 'Copy the search center location';
+    btn.setAttribute('aria-label', name);
+    btn.setAttribute('title', name);
+    var existing = map.querySelector('.demopop');
+    if (existing) existing.remove();
+    if (open) map.appendChild(popupFor(btn));
+  }
+  document.querySelectorAll('[data-pop]').forEach(function (b) {
+    if (b.hasAttribute('data-open')) setOpen(b, true);
+    b.addEventListener('click', function () {
+      setOpen(b, b.getAttribute('aria-expanded') !== 'true');
+    });
+  });
+
+  // Disabled discs are inert, exactly as aria-disabled promises.
+  document.querySelectorAll('.fab[aria-disabled="true"]').forEach(function (b) {
+    b.addEventListener('click', function (e) { e.preventDefault(); });
+  });
+})();
+</script>
+</body>
+</html>

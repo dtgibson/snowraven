@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { BookOpen, X } from 'lucide-react'
 import helpText from '../../../docs/HELP.md?raw'
+import { OutboundLink } from './OutboundLink'
+import { helpInlineTokenRe, isSafeHelpLinkTarget, parseHelpLinkToken } from '../lib/helpLinks'
 
 // ── TOC definition ────────────────────────────────────────────────────────────
 
@@ -43,7 +45,7 @@ function textToId(text: string): string {
 }
 
 function renderInline(text: string): React.ReactNode {
-  const pattern = /(\*\*(?:[^*]|\*(?!\*))+\*\*)|(`[^`]+`)|(\[[^\]]*\]\([^)]*\))/g
+  const pattern = helpInlineTokenRe()
   const segments: React.ReactNode[] = []
   let last = 0
   let ki = 0
@@ -68,15 +70,59 @@ function renderInline(text: string): React.ReactNode {
         </code>
       )
     } else if (m[3]) {
-      const lm = m[3].match(/\[([^\]]*)\]\(([^)]*)\)/)
-      if (lm) {
+      const link = parseHelpLinkToken(m[3])
+      if (link) {
+        // The target is gated before it can reach `href`. docs/HELP.md is a
+        // developer-controlled file bundled at build time (the ?raw import
+        // above), so today every target is https and this gate never fires —
+        // it exists so the renderer's safety stops DEPENDING on that staying
+        // true forever. On a miss we render the link text as plain escaped
+        // text and drop the anchor, never a styled link we can't vouch for.
+        // An `![alt](src)` image takes this same path; see lib/helpLinks.ts.
+        //
+        // That claim covers the WHOLE path, not just this branch. The scanner
+        // above runs before the gate, so a gate alone would not have made good
+        // on it: unbounded, the scanner was O(n^2) over its input (4.00x per
+        // doubling, measured), and hostile Help content would have hung the
+        // main thread long before any target reached this line. Its quantifiers
+        // are length-bounded, so the scan is linear by construction.
+        //
+        // What the gate is NOT: a check on the host. It authorizes the SCHEME,
+        // which is what stops script execution; an http(s) URL is then trusted
+        // to be an http(s) URL. Same scope as CommentText's, deliberately.
         segments.push(
-          <a key={ki++} href={lm[2]} target="_blank" rel="noreferrer"
-            style={{ color: 'var(--sr-accent)', textDecoration: 'underline' }}
-          >
-            {lm[1]}
-            <span className="sr-only"> (opens in a new tab)</span>
-          </a>
+          isSafeHelpLinkTarget(link.target) ? (
+            // OutboundLink is the standard wrapper for every non-checklist
+            // external link (v0.5.32); this anchor predated it and hand-rolled
+            // target/rel/cue. With plain-string children it emits the cue as an
+            // aria-label rather than an .sr-only node, and the announced name is
+            // UNCHANGED: "ebird.org (opens in a new tab)" on both revisions,
+            // byte-identical, verified against real accessibility trees in
+            // Chromium (Playwright + CDP Accessibility.getFullAXTree) and in
+            // WebKit, the engine the macOS and iOS apps actually ship on.
+            // href/target/rel and the visible copy are byte-identical too.
+            //
+            // Do NOT re-derive this from dom-accessibility-api (what jsdom and
+            // testing-library compute). It omits the inter-node space both real
+            // engines insert per the accname algorithm, so it reports a spurious
+            // one-space delta between these two forms and makes an identical
+            // name look like a change. It is a proxy, not a render.
+            <OutboundLink key={ki++} href={link.target}
+              style={{ color: 'var(--sr-accent)', textDecoration: 'underline' }}
+            >
+              {link.text}
+            </OutboundLink>
+          ) : (
+            // Plain string, exactly like the surrounding text slices. An
+            // empty-text link therefore vanishes entirely, which is correct;
+            // THIS fallback never echoes the raw markdown source. The renderer
+            // has a second one that does: a token longer than HELP_TOKEN_MAX is
+            // never matched by the scanner, so it never reaches this branch at
+            // all and its brackets, parens and URL render as escaped text. Both
+            // fail closed with respect to linking, which is what matters, but
+            // the two are not the same fallback.
+            link.text
+          )
         )
       }
     }

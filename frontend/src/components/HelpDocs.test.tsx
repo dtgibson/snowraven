@@ -68,11 +68,57 @@ describe('HelpDocs accessibility (F006/F039/F040/F060/F078)', () => {
     opener.remove()
   })
 
-  it('appends a visually-hidden new-tab hint to documentation links (F078)', () => {
-    const { container } = render(<HelpDocs onClose={vi.fn()} />)
-    const externalLink = container.querySelector('a[target="_blank"]')
-    expect(externalLink).toBeTruthy()
-    expect(externalLink!.querySelector('.sr-only')?.textContent).toContain('opens in a new tab')
+  it('announces the new-tab cue on documentation links (F078)', () => {
+    // Re-pointed from the .sr-only MECHANISM to the announced NAME
+    // (help-link-scheme-gate). The old assertion read the cue out of an
+    // .sr-only child node, which is only one of the two ways OutboundLink can
+    // carry it: with plain-string children (every link in HELP.md) it builds a
+    // clean `aria-label` instead, and the .sr-only node is correctly absent.
+    // That made the old test go red on a change that left the announced name
+    // byte-identical — it was pinning an implementation detail. F078's actual
+    // guarantee is that the link announces that it opens in a new tab, and
+    // that the visible text leads the name (WCAG 2.5.3 Label in Name), so
+    // that is what this asserts. Sampled on the one HELP.md link whose text
+    // is unique in the document.
+    render(<HelpDocs onClose={vi.fn()} />)
+    const link = screen.getByRole('link', { name: 'ebird.org/api/keygen (opens in a new tab)' })
+    expect(link.getAttribute('target')).toBe('_blank')
+    expect(link.getAttribute('rel')).toContain('noreferrer')
+    expect(link.getAttribute('href')).toBe('https://ebird.org/api/keygen')
+    // The visible copy is unchanged — the cue is screen-reader-only either way.
+    expect(link.textContent).toBe('ebird.org/api/keygen')
+  })
+
+  it('announces the cue on EVERY documentation link, not just the sampled one (F078)', () => {
+    render(<HelpDocs onClose={vi.fn()} />)
+    const all = screen.getAllByRole('link')
+    // Anchored at the END on purpose: it pins the exact cue wording AND proves
+    // the visible text leads the accessible name (WCAG 2.5.3 Label in Name),
+    // which is the half of F078 that a bare "contains the cue" check misses.
+    const cued = screen.getAllByRole('link', { name: /\(opens in a new tab\)$/ })
+    // HELP.md ships 7 links today; asserting a floor rather than an exact count
+    // keeps this from failing when a link is added to the docs.
+    expect(all.length).toBeGreaterThanOrEqual(7)
+    expect(cued.length).toBe(all.length)
+  })
+
+  it('emits an anchor only for an absolute http(s) target (help-link-scheme-gate)', () => {
+    // Asserted against the REAL docs/HELP.md, which is developer-controlled and
+    // holds no hostile target — so this test alone cannot reject the defect,
+    // and removing the gate does not turn it red (confirmed by mutation, not
+    // assumed). What it is worth: it proves the gate did not silently strip the
+    // real links, since a passing negative suite plus a blank Help page is
+    // exactly the wrong outcome.
+    //
+    // The defect itself is rejected in two other places, both mutation-checked
+    // in both directions: lib/helpLinks.test.ts for the predicate, and
+    // HelpDocsHostileContent.test.tsx, which mocks the ?raw import to drive
+    // THIS renderer with hostile content and is what catches the gate being
+    // deleted from HelpDocs.tsx.
+    render(<HelpDocs onClose={vi.fn()} />)
+    for (const link of screen.getAllByRole('link')) {
+      expect(link.getAttribute('href')).toMatch(/^https?:\/\//i)
+    }
   })
 
   it('closes on Escape', () => {

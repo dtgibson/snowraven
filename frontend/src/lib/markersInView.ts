@@ -12,6 +12,49 @@ export type MarkerBounds = [number, number, number, number]
 /** Max markers listed before the list collapses to a "zoom in / N more" hint. */
 export const MARKER_LIST_CAP = 200
 
+/**
+ * The fraction BoundsTracker grows the reported viewport by on every side, so a
+ * list item near the edge doesn't pop out during a small pan before the next
+ * `moveend` settles.
+ *
+ * Exported (and consumed by BoundsTracker rather than repeated as a literal)
+ * because `unpadBounds` below has to remove EXACTLY this much. Two copies of
+ * 0.15 in two files is a silent-drift hazard: nothing would fail if one moved.
+ */
+export const VIEWPORT_PAD_FRAC = 0.15
+
+/**
+ * Recover the map's VISIBLE viewport from the padded bounds BoundsTracker
+ * reports. Exactly inverts `padBounds(b, frac)`: that grows a span S to
+ * S(1 + 2f), so the padding is f/(1 + 2f) of the PADDED span on each side.
+ */
+export function unpadBounds(padded: MarkerBounds, frac: number = VIEWPORT_PAD_FRAC): MarkerBounds {
+  const shrink = frac / (1 + 2 * frac)
+  const dLng = (padded[2] - padded[0]) * shrink
+  const dLat = (padded[3] - padded[1]) * shrink
+  return [padded[0] + dLng, padded[1] + dLat, padded[2] - dLng, padded[3] - dLat]
+}
+
+/**
+ * Is a point off screen, so that something anchored to it (a popup) needs a
+ * camera move before the user can see it?
+ *
+ * Takes the PADDED bounds — what BoundsTracker reports — and removes the pad
+ * first. Testing the padded box directly would answer the question wrong in the
+ * worse direction: a point inside the pad ring is off screen, would be judged in
+ * view, and the popup would open where the user cannot see it, which is the
+ * exact failure the pan exists to prevent. Erring the other way costs at most
+ * one unnecessary 600ms flight.
+ *
+ * `null` bounds (no map load yet, so nothing has moved from the centre the map
+ * was opened at) means no pan: gratuitous motion on an unchanged view is what
+ * the motion doctrine forbids.
+ */
+export function pointNeedsPan(lat: number, lng: number, padded: MarkerBounds | null): boolean {
+  if (!padded) return false
+  return !pointInBounds(lat, lng, unpadBounds(padded))
+}
+
 /** A point-bearing marker. Anything with lat/lng can be filtered to a view. */
 export interface PlacedMarker {
   lat: number

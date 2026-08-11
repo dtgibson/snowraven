@@ -402,6 +402,63 @@ describe('BreedingCodeTable matrix table-layout hook (unbounded-column-narrowing
   })
 })
 
+describe('BreedingCodeTable legend does not size the Unbounded card (pin-labels-column-width)', () => {
+  // In Unbounded the card's width is INTRINSIC (.sr-bc-card), and the card is a
+  // column flex container — so its width is the max over its two children's
+  // contributions. The legend's max-content is every "CODE Full Label" chip on one
+  // unwrapped line, which beat the table and stretched every column to fill the
+  // inflated card. The constraint lives in globals.css and is guarded there
+  // (lib/breedingCodePinnedCss.test.ts); the geometry is measured on a real render
+  // by pipeline/pin-labels-column-width/card-width-probe.mjs. What the component
+  // owes is the HOOK the rule needs, and the DOM shape the rule assumes. jsdom has
+  // no layout engine, so none of these can see a width.
+  const cardOf = (c: HTMLElement) => c.querySelector('table')!.parentElement!.parentElement as HTMLElement
+  function legendOf(c: HTMLElement): HTMLElement {
+    const card = cardOf(c)
+    const legend = card.lastElementChild as HTMLElement
+    // Guard the structural resolution: without this, a reshape that moved the
+    // legend would leave these assertions quietly measuring the table wrapper.
+    expect(legend).not.toBe(c.querySelector('table')!.parentElement)
+    expect(legend.textContent).toMatch(/Confirmed|Probable|Possible/)
+    return legend
+  }
+
+  it('classes the legend in BOTH views so the scoped rule can reach it', () => {
+    // The class is unconditional and the SCOPING does the view-selection (the rule
+    // is `.sr-bc-card > .sr-bc-legend`, and Normal never carries .sr-bc-card). A
+    // wideMode-only className would leave the DOM churning on every toggle for no
+    // gain, and would put the same decision in two places.
+    for (const wideMode of [false, true]) {
+      const { container, unmount } = renderTable({ wideMode, codesPresent: ['NB', 'FL'] })
+      expect(legendOf(container).classList.contains('sr-bc-legend')).toBe(true)
+      unmount()
+    }
+  })
+
+  it('sets NO inline width on the legend, so the class rule is reachable', () => {
+    // The same trap .sr-bc-card and .sr-bc-matrix were lifted out of: a React inline
+    // style is specificity 1,0,0, so an inline width here would beat the stylesheet
+    // and the legend would go straight back to dictating the card's width.
+    const { container } = renderTable({ wideMode: true, codesPresent: ['NB', 'FL'] })
+    const legend = legendOf(container)
+    expect(legend.style.width).toBe('')
+    expect(legend.style.minWidth).toBe('')
+    expect(legend.style.maxWidth).toBe('')
+  })
+
+  it('keeps the legend the card\'s LAST DIRECT child (the rule is a child combinator)', () => {
+    // The card has exactly two children — the table wrapper and the legend — and the
+    // constraint selects the legend as a child of the card. Wrapping the legend in a
+    // new div, or moving it out of the card, silently un-scopes the rule while every
+    // other test here still passes.
+    const { container } = renderTable({ wideMode: true, codesPresent: ['NB', 'FL'] })
+    const card = cardOf(container)
+    expect(card.children.length).toBe(2)
+    expect(card.children[0]).toBe(container.querySelector('table')!.parentElement)
+    expect(card.children[1]).toBe(legendOf(container))
+  })
+})
+
 describe('BreedingCodeTable pinned code labels (breeding-code-pinned-labels)', () => {
   // The pinned band is pure CSS (.sr-bc-matrix--pinned in globals.css) and jsdom has
   // no layout engine, so these assert the CLASS HOOK and — just as load-bearing —

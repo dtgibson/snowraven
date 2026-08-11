@@ -126,38 +126,174 @@ describe('.sr-map-fab-cluster gains exactly the five declarations, at top level'
   })
 })
 
-describe('.sr-map-locate-btn matches the shipped share FAB', () => {
-  const locate = TOP.get('.sr-map-locate-btn')
-  const share = TOP.get('.sr-share-drop-btn')
+// ── The shared circular-FAB base (feature: uniform-map-fabs) ─────────────────
+//
+// This block REPLACES the old "the duplicate stays a duplicate" guard, which
+// existed because FR-04 forbade altering the two shipped FAB rules and which
+// named its own successor: "a FIFTH map FAB should force the extraction of a
+// shared base class, in a change whose scope permits touching the two shipped
+// rules." This change's scope does, and this is that extraction.
+//
+// NOTE ON WHAT THE ORDER TEST BELOW ANSWERS. CLAUDE.md's cascade-competitor
+// convention was written for an INLINE-to-class move, where specificity DROPS
+// from (1,0,0) to (0,1,0) and every other rule in the stylesheet gains a chance
+// to win. This is a CLASS-to-class move: specificity is unchanged at (0,1,0) on
+// every declaration. So the risk here is not a specificity drop, it is the
+// SOURCE ORDER of same-specificity rules — which the scan for outside
+// competitors (lib/mapFabCascade.test.ts) cannot see and this test owns.
+describe('the .sr-map-fab base class', () => {
+  const base = TOP.get('.sr-map-fab')
+  const glyph = TOP.get('.sr-map-fab svg')
+  const std = TOP.get('.sr-map-fab--std')
+  const compact = TOP.get('.sr-map-fab--compact')
+  const order = [...TOP.keys()]
+  const at = (selector: string) => {
+    const i = order.indexOf(selector)
+    expect(i, `${selector} must be a top-level rule`).toBeGreaterThanOrEqual(0)
+    return i
+  }
 
-  it('duplicates .sr-share-drop-btn\'s visual declarations', () => {
-    expect(locate).toBeTruthy()
-    expect(share).toBeTruthy()
-    // Duplication is the house pattern here (FR-04 forbids altering either
-    // shipped FAB rule), so the guard is that the duplicate stays a duplicate.
-    // A FIFTH map FAB should force the extraction of a shared base class.
-    for (const prop of [
-      'display', 'align-items', 'justify-content', 'width', 'height', 'padding',
-      'flex', 'background', 'color', 'border', 'border-radius', 'cursor',
-      'box-shadow', 'transition',
-    ]) {
-      expect(decl(locate!, prop), prop).toBe(decl(share!, prop))
+  it('carries every shared, size-independent declaration, at top level', () => {
+    expect(base).toBeTruthy()
+    expect(decl(base!, 'display')).toBe('inline-flex')
+    expect(decl(base!, 'align-items')).toBe('center')
+    expect(decl(base!, 'justify-content')).toBe('center')
+    expect(decl(base!, 'padding')).toBe('0')
+    expect(decl(base!, 'flex')).toBe('none')
+    expect(decl(base!, 'background')).toBe('var(--sr-surface)')
+    expect(decl(base!, 'color')).toBe('var(--sr-text)')
+    expect(decl(base!, 'border')).toBe('1px solid var(--sr-border)')
+    expect(decl(base!, 'border-radius')).toBe('50%')
+    expect(decl(base!, 'cursor')).toBe('pointer')
+    expect(decl(base!, 'box-shadow')).toBe('0 4px 12px rgba(0, 0, 0, 0.18)')
+    expect(decl(base!, 'transition')).toContain('cubic-bezier(0.16, 1, 0.3, 1)')
+    // Size lives on the modifiers, never here: an element carrying the base and
+    // a modifier has two (0,1,0) rules, and a width in both would make the
+    // diameter depend on which one happened to come last.
+    expect(decl(base!, 'width')).toBeUndefined()
+    expect(decl(base!, 'height')).toBeUndefined()
+  })
+
+  it('replaces the three hand-duplicated copies rather than adding a fourth', () => {
+    // The whole point: these three rules must no longer exist as circle
+    // definitions. .sr-share-drop-btn survives ONLY as [aria-pressed], and
+    // .sr-map-locate-btn ONLY as [aria-disabled] — asserted below.
+    expect(TOP.get('.sr-map-fullscreen-btn')).toBeUndefined()
+    expect(TOP.get('.sr-share-drop-btn')).toBeUndefined()
+    expect(TOP.get('.sr-map-locate-btn')).toBeUndefined()
+    expect(TOP.get('.sr-share-drop-btn--compact')).toBeUndefined()
+    // ...and the phone tier carries the two modifiers, not three per-control
+    // entries, so a control cannot be left behind at 36px the way the fullscreen
+    // button was.
+    const phone = mediaTier(640)
+    expect(/\.sr-map-locate-btn\s*\{/.test(phone)).toBe(false)
+    expect(/\.sr-share-drop-btn\s*\{/.test(phone)).toBe(false)
+    expect(/\.sr-map-fullscreen-btn\s*\{/.test(phone)).toBe(false)
+  })
+
+  it('sizes the glyph in the same unit as the box, so the ratio survives 200% text scale', () => {
+    // THE UNIT RULE. lucide's size= prop renders a px width/height ATTRIBUTE, so
+    // before this a phone FAB grew 44px -> 88px at 200% while its glyph stayed
+    // 17px. Both are rem now and the ratio is scale-invariant by construction.
+    expect(glyph).toBeTruthy()
+    expect(decl(glyph!, 'width')).toBe('var(--sr-fab-glyph)')
+    expect(decl(glyph!, 'height')).toBe('var(--sr-fab-glyph)')
+    // No fallback value: a base with no size modifier is a mistake and should
+    // look like one. (The component test asserts every disc carries exactly one.)
+    expect(decl(glyph!, 'width')).not.toContain(',')
+    for (const [sel, body] of [['--std', std], ['--compact', compact]] as const) {
+      expect(decl(body!, '--sr-fab-glyph'), sel).toMatch(/rem$/)
     }
   })
 
-  it('reaches the ~44px touch posture on a phone, exactly as the share FAB does', () => {
-    const phone = mediaTier(640)
-    const locatePhone = phone.match(/\.sr-map-locate-btn\s*\{([^}]*)\}/)?.[1]
-    const sharePhone = phone.match(/\.sr-share-drop-btn\s*\{([^}]*)\}/)?.[1]
-    expect(locatePhone).toBeTruthy()
-    // rem, not px, so it holds at 200% in-app text scale.
-    expect(decl(locatePhone!, 'width')).toBe('2.75rem')
-    expect(decl(locatePhone!, 'height')).toBe('2.75rem')
-    expect(decl(locatePhone!, 'width')).toBe(decl(sharePhone!, 'width'))
-    // ...and the base rule stays at the shipped 36px above that tier.
-    expect(decl(locate!, 'width')).toBe('36px')
+  it('keeps every 1x value byte-identical to the rules it replaced', () => {
+    // 2.25rem = 36px, 1.875rem = 30px, 1.0625rem = 17px, 0.9375rem = 15px — the
+    // exact numbers the three duplicated rules and the two lucide size= props
+    // carried. The extraction is therefore provable as a byte-identical render
+    // on every surface except the one control this change intends to move.
+    expect(decl(std!, 'width')).toBe('2.25rem')
+    expect(decl(std!, 'height')).toBe('2.25rem')
+    expect(decl(std!, '--sr-fab-glyph')).toBe('1.0625rem')
+    expect(decl(compact!, 'width')).toBe('1.875rem')
+    expect(decl(compact!, 'height')).toBe('1.875rem')
+    expect(decl(compact!, '--sr-fab-glyph')).toBe('0.9375rem')
   })
 
+  it('gives every disc the ~44px phone posture, including the fullscreen button', () => {
+    const phone = mediaTier(640)
+    const stdPhone = phone.match(/\.sr-map-fab--std\s*\{([^}]*)\}/)?.[1]
+    const compactPhone = phone.match(/\.sr-map-fab--compact\s*\{([^}]*)\}/)?.[1]
+    expect(stdPhone).toBeTruthy()
+    // rem, not px, so it holds at 200% in-app text scale.
+    expect(decl(stdPhone!, 'width')).toBe('2.75rem')
+    expect(decl(stdPhone!, 'height')).toBe('2.75rem')
+    expect(decl(compactPhone!, 'width')).toBe('2.5rem')
+    expect(decl(compactPhone!, 'height')).toBe('2.5rem')
+    // The glyph is NOT re-declared here: it tracks the box through the custom
+    // property, which is what keeps the ratio identical at 1x and at 200%.
+    expect(decl(stdPhone!, '--sr-fab-glyph')).toBeUndefined()
+  })
+
+  /**
+   * THE ONE THAT MATTERS in this block. A shared base plus a modifier puts two
+   * same-specificity rules on one element, so SOURCE ORDER decides, and one
+   * ordering is a live defect rather than a style preference:
+   *
+   *   .sr-map-fab:hover                        (0,2,0), sets `background`
+   *   .sr-share-drop-btn[aria-pressed="true"]  (0,2,0), sets `background`
+   *
+   * Both match a hovered, pinned share button. Today the pressed rule is later
+   * and wins, which is what makes a pinned button stay green under the cursor.
+   * Lift the per-control state rules above the base block — the natural thing to
+   * do when "grouping the FAB rules together" — and the hover silently wins
+   * instead, dropping the green tint. No value diff would catch it, so the guard
+   * has to be about position.
+   *
+   * Written against parseTopLevelRules' insertion order (which is source order)
+   * rather than a substring search, because `.sr-map-fab` is a prefix of
+   * `.sr-map-fab-cluster` and `.sr-map-fab-slot` and an indexOf would find the
+   * wrong rule.
+   */
+  it('is ordered base, glyph, hover, size, state, phone tier (and the order is load-bearing)', () => {
+    expect(at('.sr-map-fab')).toBeLessThan(at('.sr-map-fab svg'))
+    expect(at('.sr-map-fab svg')).toBeLessThan(at('.sr-map-fab:hover'))
+    expect(at('.sr-map-fab:hover')).toBeLessThan(at('.sr-map-fab--std'))
+    expect(at('.sr-map-fab--std')).toBeLessThan(at('.sr-map-fab--compact'))
+
+    // Step 3 before step 5, per control. These are the rules that must beat the
+    // base's hover, and the ONLY thing that makes them do so is coming later.
+    for (const state of [
+      '.sr-share-drop-btn[aria-pressed="true"]',
+      '.sr-map-center-share-btn[aria-expanded="true"]',
+      '.sr-map-center-share-btn[aria-disabled="true"]',
+      '.sr-map-locate-btn[aria-disabled="true"]',
+    ]) {
+      expect(at('.sr-map-fab:hover'), `${state} must come after the base hover`)
+        .toBeLessThan(at(state))
+      expect(at('.sr-map-fab--compact'), `${state} must come after the size modifiers`)
+        .toBeLessThan(at(state))
+    }
+
+    // ...and the phone tier last of all, or a base-tier width would re-beat it.
+    const marker = '@media (max-width: 640px)'
+    let tierStart = -1
+    for (let i = CSS.indexOf(marker); i !== -1; i = CSS.indexOf(marker, i + 1)) {
+      const open = CSS.indexOf('{', i)
+      let depth = 1
+      let j = open + 1
+      while (j < CSS.length && depth > 0) {
+        if (CSS[j] === '{') depth++
+        else if (CSS[j] === '}') depth--
+        j++
+      }
+      if (CSS.slice(open, j).includes('.sr-map-fab--std')) { tierStart = i; break }
+    }
+    expect(tierStart, 'the phone tier must carry the size modifiers').toBeGreaterThan(-1)
+    expect(CSS.search(/(^|\n)\.sr-map-fab\s*\{/m)).toBeLessThan(tierStart)
+  })
+})
+
+describe('.sr-map-locate-btn keeps only its own state', () => {
   it('signals busy through aria-disabled, never :disabled', () => {
     // Disabling a focused button drops focus to <body> in most browsers, which
     // would break FR-06 for the button the user just pressed.
@@ -166,6 +302,79 @@ describe('.sr-map-locate-btn matches the shipped share FAB', () => {
     expect(TOP.get('.sr-map-locate-btn:disabled')).toBeUndefined()
     // The busy surface must NOT borrow the share button's "holding a pin" tint.
     expect(decl(TOP.get('.sr-map-locate-btn[aria-disabled="true"]')!, 'background')).toBeUndefined()
+  })
+})
+
+// ── The centre-share FAB (feature: uniform-map-fabs) ─────────────────────────
+describe('.sr-map-center-share-btn', () => {
+  const expanded = TOP.get('.sr-map-center-share-btn[aria-expanded="true"]')
+  const off = TOP.get('.sr-map-center-share-btn[aria-disabled="true"]')
+
+  it('wears the app\'s active tint on aria-EXPANDED, not aria-pressed', () => {
+    // Same three values as the share button's pressed state — one app, one
+    // active convention — on a different carrier with a different meaning. The
+    // share button's aria-pressed means "this map is holding a pin", a property
+    // of the map; this one holds nothing, it discloses a popup. The two can
+    // never be on screen together, so one green disc never means two things.
+    expect(expanded).toBeTruthy()
+    const pressed = TOP.get('.sr-share-drop-btn[aria-pressed="true"]')!
+    for (const prop of ['background', 'color', 'border-color']) {
+      expect(decl(expanded!, prop), prop).toBe(decl(pressed, prop))
+    }
+    expect(decl(expanded!, 'background')).toBe('var(--sr-accent-bg)')
+    // aria-pressed on this control would be the semantic collision the carrier
+    // split exists to avoid.
+    expect(TOP.get('.sr-map-center-share-btn[aria-pressed="true"]')).toBeUndefined()
+  })
+
+  it('carries the no-centre state as SHAPE first, with identical geometry', () => {
+    expect(off).toBeTruthy()
+    // Dashed, not merely greyed: shape first, colour second, motion third — the
+    // same ordering the locate button's busy state uses.
+    const shorthand = decl(off!, 'border')
+    expect(`${shorthand ?? ''} ${decl(off!, 'border-style') ?? ''}`).toContain('dashed')
+    // ...and the GEOMETRY stays byte-identical to the ready state, so the row
+    // cannot shift when a centre is set. Written about the border WIDTH rather
+    // than about which spelling was used: `border-style: dashed` and
+    // `border: 1px dashed …` are equally correct here, and a guard that rejects
+    // one of them is testing a preference, not the requirement.
+    if (shorthand !== undefined) expect(shorthand).toMatch(/(^|\s)1px(\s|$)/)
+    const borderWidth = decl(off!, 'border-width')
+    if (borderWidth !== undefined) expect(borderWidth).toBe('1px')
+    expect(decl(off!, 'width')).toBeUndefined()
+    expect(decl(off!, 'height')).toBeUndefined()
+    expect(decl(off!, 'padding')).toBeUndefined()
+    expect(decl(off!, 'cursor')).toBe('default')
+    expect(decl(TOP.get('.sr-map-center-share-btn[aria-disabled="true"] svg')!, 'color'))
+      .toBe('var(--sr-text-disabled)')
+  })
+
+  it('suppresses hover feedback while disabled, on specificity rather than order', () => {
+    // (0,3,0) against the base hover's (0,2,0), so this one rule holds wherever
+    // the two sit relative to each other — deliberately the one member of this
+    // family that does not depend on source order.
+    const offHover = TOP.get('.sr-map-center-share-btn[aria-disabled="true"]:hover')
+    expect(offHover).toBeTruthy()
+    expect(decl(offHover!, 'background')).toBe('var(--sr-surface)')
+    expect(decl(TOP.get('.sr-map-fab:hover')!, 'background')).toBe('var(--sr-surface-subtle)')
+  })
+
+  it('never uses :disabled, which would drop focus off the control', () => {
+    expect(TOP.get('.sr-map-center-share-btn:disabled')).toBeUndefined()
+    for (const [selector] of TOP) {
+      expect(selector, 'no :disabled on any map FAB')
+        .not.toMatch(/^\.sr-map-(fab|center-share-btn|locate-btn|fullscreen-btn)[^ ]*:disabled/)
+    }
+  })
+
+  it('introduces no new token', () => {
+    // Every value it paints with already existed, so no new parse-the-tokens
+    // contrast guard is owed here.
+    for (const token of ['--sr-accent-bg', '--sr-accent', '--sr-accent-border-strong', '--sr-text-disabled', '--sr-surface']) {
+      for (const theme of [':root', '[data-theme="dark"]']) {
+        expect(decl(TOP.get(theme)!, token), `${token} in ${theme}`).toBeTruthy()
+      }
+    }
   })
 })
 
@@ -280,12 +489,14 @@ describe('.sr-map-geo-error', () => {
   })
 })
 
-describe('the shipped rules this feature may not alter (FR-04)', () => {
-  it('leaves .sr-share-drop-btn, .sr-map-fullscreen-btn and .sr-map-loading-chip alone', () => {
-    // Pinned to the values at the time of this change, so a future edit that
-    // "tidies" one of them has to say so out loud.
-    expect(decl(TOP.get('.sr-map-fullscreen-btn')!, 'width')).toBe('36px')
-    expect(decl(TOP.get('.sr-share-drop-btn')!, 'width')).toBe('36px')
+describe('the rules around the cluster that stay put', () => {
+  it('leaves .sr-map-loading-chip alone', () => {
+    // map-location-buttons' FR-04 also pinned .sr-share-drop-btn and
+    // .sr-map-fullscreen-btn to `width: 36px` HERE, because that feature was
+    // forbidden from touching the two shipped FAB rules. uniform-map-fabs lifted
+    // that constraint deliberately: both rules are gone, their 36px lives on as
+    // .sr-map-fab--std's 2.25rem, and the base-class block above is where those
+    // values are now pinned. The chip is unrelated and still pinned here.
     expect(decl(TOP.get('.sr-map-loading-chip')!, 'top')).toBe('12px')
     expect(decl(TOP.get('.sr-map-loading-chip')!, 'pointer-events')).toBe('none')
     // The --below-chip modifier the schema sketched was deliberately NOT built:

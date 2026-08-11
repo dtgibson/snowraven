@@ -1,4 +1,20 @@
-// Guard for the Help overlay's phone-tier content column (fix: help-docs-phone-width).
+// Guard for the Help overlay's content column
+// (fixes: help-docs-phone-width, then help-overlay-641-leak).
+//
+// SCOPE CORRECTION (help-overlay-641-leak). This file was written as a phone-tier
+// guard, and its tier test asserted that EVERY .sr-help-content rule sits inside
+// @media (max-width: 640px) — on the stated ground that "641/768/1024/1440 measured
+// clean before the fix". That was true at 100% TEXT SCALE ONLY: those widths were
+// never measured at 200%, where the column is `viewport − 288` and the longest
+// unbreakable run in the help text is 399.77px, so 641–687px overflowed and
+// 641–663px dragged the help body (46.77px over / 23px of drag at 641px). The fix
+// adds the WRAP ALLOWANCE above the tier as well, so the tier test is now split:
+// the constraint half is still pinned to ≤640 (it would fight flex:1 above it), the
+// wrap allowance is required in BOTH bands, and the upper band must stay unbounded
+// above. Page scrollWidth cannot see any of this — .sr-help-panel is overflow:hidden
+// and read exactly the viewport width in all 40 configurations measured, every
+// broken one included — so the real-render proof measures the element against its
+// container's content box.
 //
 // The defect: the ≤640 tier flips `.sr-help-row` to flex-direction:column, which hands
 // the row's INLINE alignItems:'flex-start' control of the cross axis — now width — so
@@ -57,12 +73,62 @@ function phoneTierRange(): [number, number] {
   throw new Error('unbalanced braces in globals.css')
 }
 
-const contentRules = () => rules().filter(r => r.selector.includes('.sr-help-content'))
+/**
+ * Rules whose subject IS the help content column — matched exactly, never by
+ * substring. `selector.includes('.sr-help-content')` also matches five forms
+ * that would leave the defect open while keeping this file green: a
+ * prefix-extended rename (`.sr-help-content-typo`), a scope under an ancestor
+ * that does not exist (`.sr-nope .sr-help-content`), and three descendant
+ * narrowings (`.sr-help-content pre`, `> pre`, ` a`). The `pre` one is the
+ * sharpest, because `white-space: pre` makes a wrap allowance a no-op there, so
+ * the guard would be green on a rule that fixes nothing. Exact-match form
+ * follows mapFabCascade.test.ts. A comma-joined selector list still counts if
+ * any of its parts is exactly this element.
+ */
+const contentRules = () =>
+  rules().filter(r =>
+    r.selector.split(',').some(part => part.trim() === '.sr-help-content'),
+  )
+
+/**
+ * The at-rule preludes enclosing an offset, outermost first — e.g.
+ * ['@media (max-width: 640px)'] for a rule in the phone tier, [] at top level.
+ *
+ * This file keeps its own parser rather than moving to lib/cssTopLevelRules.ts,
+ * for the reason CLAUDE.md records: that helper answers "what is the body of this
+ * top-level selector", skipping at-rule blocks WHOLE, and every question here is
+ * an OFFSET/NESTING question it cannot answer — which tier a rule sits in, and
+ * whether that tier is bounded above. Same carve-out as filterControlSizeCss and
+ * breedingCodePinnedCss.
+ */
+function enclosingAtRules(offset: number): string[] {
+  const stack: string[] = []
+  let last = 0
+  for (let i = 0; i < masked.length && i < offset; i++) {
+    const ch = masked[i]
+    if (ch === '{') { stack.push(masked.slice(last, i).trim()); last = i + 1 }
+    // A top-level `;` terminates a prelude (globals.css opens with
+    // `@import "tailwindcss";`) — the same property cssTopLevelRules.ts carries.
+    else if (ch === '}') { stack.pop(); last = i + 1 }
+    else if (ch === ';') { last = i + 1 }
+  }
+  return stack.filter(s => s.startsWith('@'))
+}
 
 /** A declaration's value, whitespace-normalised, `!important` kept. */
 function decl(r: Rule, prop: string): string | null {
   const m = new RegExp(`(?:^|;)\\s*${prop}\\s*:\\s*([^;]+)`, 'i').exec(r.body)
   return m ? m[1].replace(/\s+/g, ' ').trim() : null
+}
+
+/** Either property, either spelling — .sr-wrap-anywhere itself ships both. */
+function wrapAllowance(r: Rule): string[] {
+  const ow = decl(r, 'overflow-wrap')
+  const wb = decl(r, 'word-break')
+  return [
+    ow && /\b(anywhere|break-word)\b/.test(ow) ? ow : null,
+    wb && /\b(break-word|break-all)\b/.test(wb) ? wb : null,
+  ].filter((v): v is string => v !== null)
 }
 
 /** Any of the measured-equivalent ways to make the column fill the stacked row. */
@@ -104,36 +170,82 @@ describe('help overlay phone-tier content column (help-docs-phone-width)', () =>
     }
   })
 
-  it('grants a wrap allowance, without which the fix is only half done', () => {
+  it('grants a wrap allowance inside the ≤640 tier, or the fix is only half done', () => {
     // Rejects the constraint-only half-fix, which is NOT hypothetical: it was
     // measured, and it leaves 92px of drag at 320px/200% and 22px at 390px/200%.
     // Three strings have no wrap opportunity at that scale — the links
     // "github.com/dtgibson/snowraven-mini" (399.77px) and "ebird.org/downloadMyData"
     // (326.89px), and the single H1 word "Documentation" (356.42px) — against a
-    // 296px column. Accepts either property, and either spelling of each, since
-    // .sr-wrap-anywhere itself ships both.
-    const allowances = contentRules().flatMap(r => {
-      const ow = decl(r, 'overflow-wrap')
-      const wb = decl(r, 'word-break')
-      return [
-        ow && /\b(anywhere|break-word)\b/.test(ow) ? ow : null,
-        wb && /\b(break-word|break-all)\b/.test(wb) ? wb : null,
-      ].filter(Boolean)
-    })
-    expect(allowances.length).toBeGreaterThan(0)
+    // 296px column.
+    //
+    // Scoped to the phone tier by help-overlay-641-leak: the allowance now ships in
+    // TWO places (see the band test below), so an unscoped "at least one exists"
+    // count would stay green if this tier's copy were deleted.
+    const [open, close] = phoneTierRange()
+    const inTier = contentRules().filter(r => r.offset > open && r.offset < close)
+    expect(inTier.flatMap(wrapAllowance).length).toBeGreaterThan(0)
   })
 
-  it('lives ONLY inside the ≤640 tier, leaving 641px and up byte-identical', () => {
-    // Rejects a rule written at top level (or in another tier). Above 640 the row is
-    // a real two-column layout and align-items:flex-start is load-bearing for the
-    // sticky TOC; 641/768/1024/1440 measured clean before the fix and must stay so.
-    // This is also why the wrap allowance is spelled out here rather than added as
-    // the unconditional .sr-wrap-anywhere class in the markup — that helper cannot
-    // be scoped to a tier.
+  it('grants a wrap allowance above the tier too, unbounded above', () => {
+    // The help-overlay-641-leak regression guard. Rejects the shipped v0.5.83 state,
+    // where BOTH halves sat inside @media (max-width: 640px) so 641px and up got no
+    // wrap allowance at all: at 200% text scale the column is `viewport − 288` and
+    // the longest unbreakable run is 399.77px ("github.com/dtgibson/snowraven-mini"
+    // breaks at its hyphen, leaving "github.com/dtgibson/snowraven-"), so 641–687px
+    // overflowed and 641–663px dragged the help body — 46.77px over / 23px of drag
+    // at 641px.
+    //
+    // Also rejects pinning the upper bound (`and (max-width: 687px)`), which reads
+    // like a tighter fix and is a trap: 687 is a function of the longest link's
+    // rendered width in docs/HELP.md, so a longer future URL would silently escape
+    // the band. Accepts a top-level rule as measured-equivalent — that covers 641+
+    // as well — so a later consolidation stays green.
+    const unbounded = contentRules().filter(r => {
+      if (wrapAllowance(r).length === 0) return false
+      const at = enclosingAtRules(r.offset)
+      return !at.some(a => /max-width/i.test(a))
+    })
+    expect(
+      unbounded.length,
+      'a .sr-help-content wrap allowance must apply above 640px with no upper bound',
+    ).toBeGreaterThan(0)
+
+    // Both edges, not just the top one. Pinning the upper bound is the trap the
+    // comment above describes; leaving the LOWER edge unpinned is its mirror and
+    // was the live hole here — rewriting the rule as `min-width: 900px` leaves
+    // 641-899 broken at 200% scale with this file green. The band must START at
+    // or below 641, the exact complement of the established 640 tier.
+    const startsLowEnough = unbounded.some(r => {
+      const at = enclosingAtRules(r.offset)
+      const mins = at.flatMap(a => [...a.matchAll(/min-width:\s*(\d+)px/gi)].map(m => Number(m[1])))
+      // A top-level rule (no min-width at all) covers 641+ by construction.
+      return mins.length === 0 || Math.max(...mins) <= 641
+    })
+    expect(
+      startsLowEnough,
+      'the wrap allowance must begin at or below 641px, not partway up',
+    ).toBe(true)
+  })
+
+  it('keeps the CONSTRAINT half ONLY inside the ≤640 tier', () => {
+    // Rejects a cross-axis constraint written at top level or in another tier —
+    // NOT merely a style preference. align-self:stretch / width:100% exist because
+    // the phone tier flips the row to flex-direction:column and hands the parent's
+    // inline alignItems:'flex-start' control of WIDTH. Above 640 the row is a real
+    // two-column layout, flex-start governs the VERTICAL axis (load-bearing for the
+    // sticky TOC), and the column's inline flex:1/minWidth:0 already fills the row
+    // — measured `viewport − 288` at every width — so these two would fight it.
+    //
+    // Narrowed from "every .sr-help-content rule lives inside the tier" by
+    // help-overlay-641-leak, which deliberately adds a second rule above the tier.
+    // The narrowing is exactly the wrap allowance: the constraint half is still
+    // pinned here, and the band test above pins the other side, so neither half can
+    // drift into the other's tier unnoticed.
     const [open, close] = phoneTierRange()
-    expect(contentRules().length).toBeGreaterThan(0)
-    for (const r of contentRules()) {
-      expect(r.offset, `${r.selector} must live inside @media (max-width: 640px)`)
+    const constrained = contentRules().filter(r => crossAxisConstraint(r) !== null)
+    expect(constrained.length).toBeGreaterThan(0)
+    for (const r of constrained) {
+      expect(r.offset, `${r.selector} cross-axis constraint must live inside @media (max-width: 640px)`)
         .toBeGreaterThan(open)
       expect(r.offset).toBeLessThan(close)
     }

@@ -942,11 +942,50 @@ h1, h2, h3, h4, h5, h6 {
 
 /* The Unbounded (wideMode) card's width, lifted off the inline width:max-content in
    BreedingCodeTable.tsx (applied ONLY in wideMode) so the ≤640 phone tier can override
-   it. BASE width:max-content is byte-identical to the old inline value — desktop
-   Unbounded is unchanged (the card hugs its wide auto-layout table). The ≤640 override
-   (width:min-content) lives in the @media (max-width:640px) block below. Normal mode
-   never carries this class, so it is unaffected. */
+   it. The card is a COLUMN FLEX container, so an intrinsic width here is the MAX over
+   its children's contributions: the table wrapper AND the tier legend. The ≤640
+   override (width:min-content) lives in the @media (max-width:640px) block below.
+   Normal mode never carries this class, so it is unaffected. */
 .sr-bc-card { width: max-content; }
+
+/* The legend must not DICTATE the card's width — only floor it.
+   The legend is a wrapping row of "CODE Full Label" chips, so its max-content is
+   every chip on ONE unwrapped line: measured 1749px against the table's 792px on
+   the 13-code demo dataset (2951px vs 812px at 200% text scale). Left unconstrained
+   it won the card's max-content, the table's `width: 100%` then resolved against
+   that inflated card, and `table-layout: auto` stretched every column to fill it —
+   code columns 97px instead of 44px, the species column 486px instead of 220px, and
+   the card 519px past the panel. That is what pressing "Pin code labels" appeared to
+   do, because pinning forces the Unbounded view (`pinned implies Unbounded`); the
+   pin CSS was never involved, and pressing "↔ Unbounded" alone reproduced it.
+
+   `width: min-content` makes the legend contribute its min-content size (its widest
+   single chip) for BOTH intrinsic sizes, so it can no longer raise the card's
+   max-content above the table's. `min-width: 100%` then stretches it back over the
+   resolved card in layout — a percentage is indefinite while the card is being
+   sized intrinsically, so it does not feed back into that sizing.
+
+   Why the floor is kept rather than removing the legend from the sizing entirely
+   (`width: 0; min-width: 100%`, or `contain: inline-size`): each chip is
+   `white-space: nowrap`, so a card narrower than the widest chip would push it
+   outside the card's rounded border and leak horizontal scroll. Reachable on a
+   phone at 200% text scale with few codes present, where the table is narrow and
+   the chips are large. min-content keeps the legend as the card's floor and the
+   table as its ceiling.
+
+   Why this and not simply sizing the card `min-content`: on this table the two
+   intrinsic sizes coincide today (every column is width-pinned), so it measures the
+   same — but it would still be the MAX over both children, leaving the legend able
+   to dictate the width whenever it is the larger. The defect would shrink rather
+   than go away.
+
+   Scoped under .sr-bc-card because the card's width is intrinsic ONLY there. In
+   Normal view the card is a stretched flex item at the panel's width, so the class
+   on the legend is inert and Normal renders byte-identically. This rule is
+   deliberately TOP-LEVEL: it must hold at every width, including the ≤640 tier,
+   where the card is `min-content` and the legend would otherwise be free to set it
+   above the table's declared-column-width sum. */
+.sr-bc-card > .sr-bc-legend { width: min-content; min-width: 100%; }
 
 /* The header row's bottom hairline, lifted OFF BreedingCodeTable.tsx's inline
    thBase.boxShadow. The value is byte-identical to the old inline one, so the
@@ -1289,6 +1328,53 @@ h1, h2, h3, h4, h5, h6 {
   max-height: calc(100vh - 52px - env(safe-area-inset-top, 0px));
 }
 
+/* Help overlay content column ABOVE the phone tier — the wrap allowance only
+   (fix: help-overlay-641-leak).
+
+   v0.5.83's help-docs-phone-width wrote BOTH halves of its fix inside
+   @media (max-width: 640px), so 641px and up never received the wrap allowance.
+   At 200% text scale the content column is exactly `viewport − 288` (a fixed
+   200px TOC, 40px gap, 2x24px row padding — the TOC is width:200/flexShrink:0,
+   so this is arithmetic, not a clamp), and the longest unbreakable run in the
+   help text renders 399.77px: the link "github.com/dtgibson/snowraven-mini"
+   breaks at its hyphen, leaving "github.com/dtgibson/snowraven-" as one
+   unbreakable 399.77px fragment. Measured shipped: at 641px/200% that fragment
+   sits 46.77px past a 353px column and drags the help body 23px sideways.
+
+   TWO NESTED BANDS, both narrower than "above the tier" — element overflow spans
+   641–687px (0.77px at 687, gone at 688 = 288 + 399.77) and user-visible drag
+   spans 641–663px (23px → 1px, gone at 664, because the row's 24px right padding
+   absorbs the last 24px of leak). Clean at every width at 100/125/150% scale, and
+   clean at 200% from 688px up (the column's inline maxWidth:680 caps it there).
+
+   NO UPPER BOUND, deliberately: 687 is a function of the longest link's rendered
+   width in docs/HELP.md, so pinning the band would silently stop covering a longer
+   future URL. NOT the unconditional .sr-wrap-anywhere class either — that helper
+   cannot be scoped to a tier, and this rule and the ≤640 one below want different
+   halves of the fix.
+
+   THE CONSTRAINT HALF (align-self:stretch / width:100%) IS DELIBERATELY ABSENT
+   HERE and must stay ≤640-only: it exists because that tier flips the row to
+   flex-direction:column and hands the parent's inline alignItems:'flex-start'
+   control of WIDTH. Above 640 the row is a real row, flex-start governs the
+   VERTICAL axis (load-bearing for the sticky TOC), and the column's inline
+   flex:1/minWidth:0 already fills correctly — measured `viewport − 288` at every
+   width. Adding those declarations here would fight flex:1.
+
+   No !important: unlike the constraint, these two properties appear in no inline
+   style on the element and no other rule in the bundle sets them on it, so a
+   plain class rule already wins. Source order against the ≤640 tier at the end of
+   this file is irrelevant — max-width:640 and min-width:641 can never both match.
+   Both properties are inherited but no-op inside the coordinates <pre>, where
+   white-space:pre forbids wrapping: it keeps scrolling in its own overflow-x:auto
+   box, as intended. */
+@media (min-width: 641px) {
+  .sr-help-content {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
 /* Leaf utilities — attach to the specific child that needs them. */
 .sr-min0 { min-width: 0; }
 .sr-truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1454,6 +1540,67 @@ h1, h2, h3, h4, h5, h6 {
   right: calc(16px + env(safe-area-inset-right, 0px));
 }
 
+/* ── The circular map FAB family ──────────────────────────────────────────────
+   (feature: uniform-map-fabs)
+
+   One base plus two size modifiers, replacing THREE hand-duplicated copies of
+   the same declarations: .sr-map-fullscreen-btn, .sr-share-drop-btn (written as
+   a deliberate duplicate of it) and .sr-map-locate-btn, whose own comment named
+   this change — "a FIFTH map FAB should force the extraction of a shared base
+   class, in a change whose scope permits touching the two shipped rules". The
+   semantic classes survive as STATE HOOKS only: .sr-share-drop-btn keeps its
+   [aria-pressed] tint, .sr-map-locate-btn its busy rule, .sr-map-center-share-btn
+   its two states, and .sr-map-fullscreen-btn carries no declarations at all.
+
+   SOURCE ORDER IS LOAD-BEARING AND NOT OPTIONAL:
+     1. .sr-map-fab            (base)
+     2. .sr-map-fab svg        (glyph)
+     3. .sr-map-fab:hover
+     4. .sr-map-fab--std / --compact   (size)
+     5. the per-control state rules further down this file
+     6. the @media (max-width: 640px) tier at the end of the file
+   Steps 1 and 4 are both (0,1,0), so only source order separates the base from
+   the size that must win. Step 3 before step 5 is the one that actually bites:
+   .sr-map-fab:hover and .sr-share-drop-btn[aria-pressed="true"] are BOTH (0,2,0)
+   and both set `background`, so lifting the state rules above this block would
+   silently drop the green tint from a hovered pinned button — a defect no value
+   diff would catch. lib/mapFabClusterCss.test.ts asserts the whole sequence and
+   goes red if any of it moves.
+
+   Every 1x value here is byte-identical to the three rules it replaces, with ONE
+   intended exception: the fullscreen button was 36px at every width and now
+   joins the family's 2.75rem phone posture. */
+.sr-map-fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex: none;
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  border: 1px solid var(--sr-border);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 140ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* THE UNIT RULE: a glyph's unit must match its box's unit, or the ratio breaks
+   at scale. lucide's `size={17}` prop renders a PX width/height attribute, so a
+   phone FAB grew from 44px to 88px at 200% in-app text scale while its glyph
+   stayed 17px — a big empty disc at exactly the condition this family is judged
+   at. Both are rem now, and the ratio is scale-invariant by construction rather
+   than correct at the one scale someone happened to sample. The size= props stay
+   in the TSX as the no-CSS fallback; a class selector beats a presentational
+   attribute, so this rule governs wherever the stylesheet is loaded.
+   Deliberately NO fallback in the var(): a .sr-map-fab carrying no size modifier
+   is a mistake and should look like one rather than quietly working. */
+.sr-map-fab svg { width: var(--sr-fab-glyph); height: var(--sr-fab-glyph); }
+.sr-map-fab:hover { background: var(--sr-surface-subtle); }
+.sr-map-fab--std     { --sr-fab-glyph: 1.0625rem; width: 2.25rem;  height: 2.25rem; }
+.sr-map-fab--compact { --sr-fab-glyph: 0.9375rem; width: 1.875rem; height: 1.875rem; }
+
 .sr-map-filters-btn {
   display: none;
   align-items: center;
@@ -1471,53 +1618,22 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 4px 12px rgba(45, 134, 83, 0.4);
 }
 
-/* Fullscreen toggle — first (left) item in the cluster. */
-.sr-map-fullscreen-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  background: var(--sr-surface);
-  color: var(--sr-text);
-  border: 1px solid var(--sr-border);
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-}
+/* Fullscreen toggle — last disc in the cluster. It has no rule of its own any
+   more: the circle, the glyph size and the phone posture all come from
+   .sr-map-fab + .sr-map-fab--std above. The class stays on the element as the
+   hook a future state rule would hang off, and as the handle the cluster-order
+   test reads. */
 
 /* ── Map location button + on-map location-failure message ───────────────────
    (feature: map-location-buttons) */
 
-/* The location FAB — second control in the cluster, after the share slot.
-   Visually .sr-share-drop-btn, whose declarations are DUPLICATED rather than
-   extracted into a shared base: .sr-share-drop-btn was itself written as a
-   deliberate duplicate of .sr-map-fullscreen-btn, and this feature may not alter
-   either shipped rule (FR-04). That makes this the third instance, and the
-   threshold: a FIFTH map FAB should force the extraction of a shared base class,
-   in a change whose scope permits touching the two shipped rules. */
-.sr-map-locate-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  flex: none;
-  background: var(--sr-surface);
-  color: var(--sr-text);
-  border: 1px solid var(--sr-border);
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1),
-              color 140ms cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.sr-map-locate-btn:hover { background: var(--sr-surface-subtle); }
+/* The location FAB — the middle disc in the cluster, after the share slot. Its
+   circle, hover and phone posture now come from .sr-map-fab + .sr-map-fab--std
+   above (uniform-map-fabs); the duplicated block that used to sit here named
+   that extraction as its own successor. What is left is the one state this
+   control alone has.
 
-/* Busy. Keyed off aria-disabled, not :disabled — disabling a focused button
+   Busy. Keyed off aria-disabled, not :disabled — disabling a focused button
    drops focus to <body> in most browsers, which would break FR-06 for the button
    just pressed. The surface is deliberately NOT tinted to --sr-accent-bg: that
    is the neighbouring share button's "holding a pin" signal and reusing it one
@@ -1527,6 +1643,44 @@ h1, h2, h3, h4, h5, h6 {
    colour second, motion third. */
 .sr-map-locate-btn[aria-disabled="true"] { cursor: default; }
 .sr-map-locate-btn[aria-disabled="true"] svg { color: var(--sr-accent); }
+
+/* ── The centre-share FAB ────────────────────────────────────────────────────
+   (feature: uniform-map-fabs)
+
+   The share slot's occupant on Hotspots, Nearby Lifers and Media Targets, where
+   right-click and long-press are already spoken for by the search centre. It
+   creates NO pin: it is a second route to the popup the existing search-centre
+   pin already opens. Its MapPin glyph is a picture of that pin, which is the
+   rule the whole family hangs off — each FAB's glyph names the map object it
+   acts on (a crosshair on you, the planted share flag, the teardrop centre).
+
+   The active tint is keyed to aria-EXPANDED, not aria-pressed. The share
+   button's aria-pressed means "this map is holding a pin", a property of the
+   map; this button holds nothing, it discloses a popup. Same three values, so
+   the app keeps one active convention, on a different carrier with a different
+   meaning. The two can never be on screen together (My Sightings and a centre
+   view are mutually exclusive), so nobody sees one green disc meaning two
+   things. */
+.sr-map-center-share-btn[aria-expanded="true"] {
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  border-color: var(--sr-accent-border-strong);
+}
+/* No centre set yet. Present and reachable, not absent: a button that vanishes
+   on some views at some times rebuilds exactly the ragged row this change is
+   fixing. aria-disabled rather than :disabled follows the locate button's
+   focus-preserving precedent above, and keeps the control reachable so a
+   keyboard user can read the name that tells them how to enable it. The DASHED
+   border carries the state as SHAPE, not colour alone (shape first, colour
+   second, motion third), and reads as "this slot is not filled yet" rather than
+   "this control is broken". Geometry is byte-identical to the ready state (the
+   same 1px border box), so nothing in the row shifts when a centre is set. */
+.sr-map-center-share-btn[aria-disabled="true"] { border-style: dashed; cursor: default; }
+.sr-map-center-share-btn[aria-disabled="true"] svg { color: var(--sr-text-disabled); }
+/* ...and no hover feedback on a control that does nothing. (0,3,0) against the
+   base's (0,2,0), so this holds wherever the two rules sit relative to each
+   other — the one place in this family that does not depend on source order.) */
+.sr-map-center-share-btn[aria-disabled="true"]:hover { background: var(--sr-surface); }
 
 /* The failure message's row: full-width, first in the cluster, so a message
    extends the bottom-anchored cluster UPWARD and no button moves. The cluster's
@@ -1621,36 +1775,21 @@ h1, h2, h3, h4, h5, h6 {
 .sr-share-corner--compact { bottom: 12px; right: 12px; }
 
 /* The drop button — the keyboard route (FR-38) and, deliberately, the primary
-   route: a right-click-only feature has near-zero discoverability. Visually the
-   shipped .sr-map-fullscreen-btn; that rule is left untouched so the two existing
-   controls cannot move. */
-.sr-share-drop-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  flex: none;
-  background: var(--sr-surface);
-  color: var(--sr-text);
-  border: 1px solid var(--sr-border);
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-  transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1),
-              color 140ms cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 140ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-.sr-share-drop-btn:hover { background: var(--sr-surface-subtle); }
+   route: a right-click-only feature has near-zero discoverability. Its circle
+   comes from .sr-map-fab + a size modifier (--std, or --compact on a card map);
+   uniform-map-fabs folded the copy that used to live here into that base, so
+   what remains is this control's own state. .sr-share-drop-btn--compact stays on
+   the element as a density hook even though its size now comes from
+   .sr-map-fab--compact. */
 /* The app's existing "active" convention, doubling as a persistent signal that
-   this map is holding a pin. */
+   this map is holding a pin. Both this and .sr-map-fab:hover are (0,2,0) and
+   both set `background`, so this rule MUST stay below the base block or a
+   hovered pinned button loses its tint. */
 .sr-share-drop-btn[aria-pressed="true"] {
   background: var(--sr-accent-bg);
   color: var(--sr-accent);
   border-color: var(--sr-accent-border-strong);
 }
-.sr-share-drop-btn--compact { width: 30px; height: 30px; }
 
 /* The pin marker itself: a planted flag, not a teardrop. Shape carries the
    distinction from sighting teardrops, the search-center pin, hotspot teardrops,
@@ -2159,16 +2298,17 @@ select:focus-visible {
      (both dimensions, rem). Keeps the glyph size and radius; desktop untouched. */
   .sr-map-icon-btn-touch { min-width: 2.5rem; min-height: 2.5rem; }
 
-  /* Pin Share drop button reaches the ~44px posture on phones (~40px compact,
-     matching the denser Named Birds card map). rem so it holds at 200% text
-     scale; the icon glyph size is untouched, only the hit box grows. */
-  .sr-share-drop-btn { width: 2.75rem; height: 2.75rem; }
-  .sr-share-drop-btn--compact { width: 2.5rem; height: 2.5rem; }
-  /* The location FAB reaches the same posture as the share button beside it.
-     (.sr-map-fullscreen-btn stays at 36px on a phone — a pre-existing gap the
-     PRD explicitly defers; FR-04 holds the NEW button to the better of the two
-     shipped precedents rather than the worse.) */
-  .sr-map-locate-btn { width: 2.75rem; height: 2.75rem; }
+  /* Every circular map FAB reaches the ~44px touch posture on phones (~40px
+     compact, matching the denser Named Birds card map). rem so it holds at 200%
+     text scale; the glyph tracks the box through --sr-fab-glyph, so the RATIO
+     holds at every scale too rather than being correct at 1x only.
+     These two entries replace three hand-written per-control ones
+     (.sr-share-drop-btn, .sr-share-drop-btn--compact, .sr-map-locate-btn). The
+     fullscreen button, which had no phone entry at all and stayed 36px beside
+     44px neighbours, joins the family here — the one intended value change in
+     the uniform-map-fabs extraction. */
+  .sr-map-fab--std     { width: 2.75rem; height: 2.75rem; }
+  .sr-map-fab--compact { width: 2.5rem;  height: 2.5rem;  }
   /* The copy button reaches the same posture. Re-stated at the compact
      specificity (0,2,0) because the base compact rule would otherwise outrank
      the .sr-touch-target min-height the button also carries, silently leaving
@@ -2348,10 +2488,18 @@ select:focus-visible {
      "ebird.org/downloadMyData" 326.89px, and the single H1 word "Documentation"
      356.42px, all against a 296px column). These are the two declarations
      .sr-wrap-anywhere carries, inlined rather than added as a class because that
-     helper is unconditional and this defect — and every measurement behind it — is
-     phone-tier only; 641px through 1440px measured clean and stay untouched. Both
-     are inherited, but no-ops inside the <pre>, where white-space:pre forbids
-     wrapping: it keeps scrolling in its own overflow-x:auto box, as intended. */
+     helper is unconditional and cannot be scoped to a tier. CORRECTED by
+     help-overlay-641-leak: this sentence used to end "...and every measurement
+     behind it — is phone-tier only; 641px through 1440px measured clean and stay
+     untouched", which was true at 100% TEXT SCALE ONLY. The widths above 640 were
+     never measured at 200%, where 641–687px leaks precisely because the wrap
+     allowance stopped at this tier boundary. That half now also ships in a
+     @media (min-width: 641px) rule beside .sr-help-toc earlier in this file; the
+     CONSTRAINT half above it (align-self/width) is correctly phone-tier only and
+     must stay that way, since above 640 the row is a real row and those two would
+     fight the column's inline flex:1. Both wrap declarations are inherited, but
+     no-op inside the <pre>, where white-space:pre forbids wrapping: it keeps
+     scrolling in its own overflow-x:auto box, as intended. */
   .sr-help-content {
     align-self: stretch !important;
     width: 100% !important;

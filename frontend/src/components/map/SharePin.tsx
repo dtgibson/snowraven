@@ -132,7 +132,11 @@ export function SharePin({ compact, buttonHost }: {
     <button
       type="button"
       ref={dropButtonRef}
-      className={`sr-share-drop-btn${compact ? ' sr-share-drop-btn--compact' : ''}`}
+      // The circle comes from the shared FAB base + a size modifier
+      // (uniform-map-fabs); .sr-share-drop-btn is now a state hook carrying the
+      // [aria-pressed] tint, and --compact a density hook. Every 1x value is
+      // unchanged: --std is 36px and --compact 30px, exactly as before.
+      className={`sr-map-fab sr-map-fab--${compact ? 'compact' : 'std'} sr-share-drop-btn${compact ? ' sr-share-drop-btn--compact' : ''}`}
       aria-pressed={hasPin}
       aria-label={buttonLabel}
       title={buttonLabel}
