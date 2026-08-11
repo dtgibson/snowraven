@@ -214,9 +214,12 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // the target element travels as state; while the mobile filters overlay has
   // unmounted the cluster this is null and SharePin simply renders no button.
   const [fabSlot, setFabSlot] = useState<HTMLDivElement | null>(null)
-  // Surface B: the copy popup hangs off the EXISTING search-center pin. Set ONLY
-  // by the pin's own click handler — `applyCenter` never touches it, so a
-  // drop-to-search stays visually identical to today (FR-16).
+  // Surface B: the copy popup hangs off the EXISTING search-center pin. Set only
+  // by an explicit press, on the pin itself or on the centre-share FAB that
+  // uniform-map-fabs added as a second route to the same popup — `applyCenter`
+  // never touches it, so a drop-to-search stays visually identical to today
+  // (FR-16). That guarantee needs the cleared-centre adjustment further down to
+  // hold: a latched flag would have the drop re-open a popup nobody pressed for.
   const [centerShareOpen, setCenterShareOpen] = useState(false)
   const centerPinButtonRef = useRef<HTMLButtonElement>(null)
   const centerShareFabRef = useRef<HTMLButtonElement>(null)
@@ -2095,19 +2098,45 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const centerLngNum = parseFloat(lng)
   const hasValidCenter = !Number.isNaN(centerLatNum) && !Number.isNaN(centerLngNum)
   const centerPinShown = isCenterView && hasValidCenter
+  // Clearing a coordinate field unmounts the popup — it is gated on
+  // `centerShareShown` just below — WITHOUT routing through closeCenterShare.
+  // Without this line the open flag would stay set with nothing on screen, and
+  // the popup would spring back on its own the next time a centre arrived, by
+  // any route: retyping, the place-name search, Use my location, or a
+  // right-click drop. The drop is the sharpest, because applyCenter's own
+  // comment above promises a drop-to-search stays visually identical to today.
+  //
+  // This is the missing half of the FR-18 adjustment up in the share block, not
+  // a new mechanism: `centerPinShown` has two factors, that one covers
+  // isCenterView and this one covers hasValidCenter. Same React "adjust state
+  // during render" shape (a bare setState, never an effect — an effect here is
+  // a cascading render), and deliberately routed AROUND closeCenterShare: that
+  // arms the focus-restore ref, which would throw focus out of the field being
+  // edited and onto the FAB mid-backspace.
+  //
+  // No tracking state, unlike the view-mode adjustment, because the two axes
+  // ask different questions. Hotspots → Media Targets leaves the popup
+  // perfectly showable, so only the CHANGE is a signal and the previous value
+  // has to be remembered; no valid centre makes the popup unshowable outright,
+  // so this is a standing invariant and comparing against the flag itself is
+  // the whole test. It is self-terminating either way: the update falsifies
+  // its own condition, so the adjustment render runs once.
+  if (!hasValidCenter && centerShareOpen) setCenterShareOpen(false)
   // FR-18 — a view-mode change clears the share state in BOTH directions.
   // Sightings → a center view unmounts <SharePin> (structural); a center view →
   // sightings needs this, since centerShareOpen lives up here.
   const centerShareShown = centerPinShown && centerShareOpen
   // The centre-share FAB's three designed states.
   //
-  // The load-bearing part is the `hasValidCenter` gate on aria-expanded below,
-  // not the choice of flag: clearing a coordinate field unmounts the popup
-  // WITHOUT routing through closeCenterShare, so `centerShareOpen` stays true
-  // with nothing on screen, and a button claiming aria-expanded="true" over no
-  // popup is a lie (and would wear the green "open" tint). `centerShareShown`
-  // reads that intent directly rather than leaving it to the reader to notice
-  // that the two flags happen to agree under the gate.
+  // The `hasValidCenter` gate on aria-expanded below is still load-bearing, but
+  // for the reason the uniform-map-fabs decision recorded rather than the latch:
+  // a control that discloses nothing claims no expanded state AT ALL, so the
+  // attribute is absent, not "false". (The latch it was also written against is
+  // closed at the source by the adjustment above, so the two flags now agree in
+  // every state — but absent-vs-false is a rendering difference the gate alone
+  // decides, and dropping it still fails the suite.) `centerShareShown` reads
+  // the intent directly rather than leaving it to the reader to notice that the
+  // two flags happen to agree under the gate.
   const centerShareLabel = !hasValidCenter
     ? 'Set a search center to copy its location'
     : centerShareShown

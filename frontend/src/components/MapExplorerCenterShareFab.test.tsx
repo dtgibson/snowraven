@@ -11,7 +11,13 @@
 // user actually pressed, across both openers; that the no-centre state is
 // present, reachable, and cannot set a centre; that an off-screen centre pans
 // first and an on-screen one does not; and that the row's glyphs stay three
-// distinct silhouettes.
+// distinct silhouettes. feature: center-share-latch then adds one section: that
+// clearing a coordinate does not leave the popup latched open behind it.
+//
+// That section lives here rather than in a second file beside it because the
+// popup's open flag lives in MapExplorer, so the mocks below are exactly the
+// ones it needs, and because this file already carried the two assertions the
+// fix makes stale (both amended in place, neither weakened).
 //
 // WHAT IT CANNOT PROVE (per CLAUDE.md, and NOT evidence for): anything
 // geometric or cascade-dependent. jsdom has no layout engine, no media queries,
@@ -22,7 +28,7 @@
 // measurements, written up in pipeline/uniform-map-fabs/pr-description.md.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, waitFor, fireEvent, act } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import type { ObservationEntry } from '../types'
 
@@ -65,6 +71,9 @@ const pans = vi.hoisted(() => ({ seen: [] as Array<{ lat: number; lng: number } 
 // VIEWPORT_PAD_FRAC), because that is what the component receives and has to
 // un-pad before deciding.
 const bounds = vi.hoisted(() => ({ value: null as null | [number, number, number, number] }))
+// CenterPinDropper still renders nothing; it just hands its onDrop out so the
+// right-click / long-press route into applyCenter is reachable from a test.
+const drop = vi.hoisted(() => ({ onDrop: null as null | ((lat: number, lng: number) => void) }))
 vi.mock('./map/MapControls', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./map/MapControls')>()
   const { useEffect } = await import('react')
@@ -79,7 +88,10 @@ vi.mock('./map/MapControls', async (importOriginal) => {
       return null
     },
     DetectedLocationPin: () => null,
-    CenterPinDropper: () => null,
+    CenterPinDropper: (props: { onDrop: (lat: number, lng: number) => void }) => {
+      drop.onDrop = props.onDrop
+      return null
+    },
   }
 })
 
@@ -161,7 +173,7 @@ async function centreView(mode: string = 'Hotspots', lat = '37.90000', lng = '-1
   }
 }
 
-beforeEach(() => { popupProps.last = null; pans.seen = []; bounds.value = null })
+beforeEach(() => { popupProps.last = null; pans.seen = []; bounds.value = null; drop.onDrop = null })
 afterEach(() => { cleanup(); vi.clearAllMocks() })
 
 // ── Presence ─────────────────────────────────────────────────────────────────
@@ -249,6 +261,13 @@ describe('states', () => {
     // The second observable: the press must not LATCH. Setting a centre here
     // would re-run the view's search, and a latched open flag would pop the
     // popup the instant a centre arrived from any other route.
+    //
+    // As of center-share-latch this half no longer discriminates on its own —
+    // the cleared-centre adjustment would clear a flag set here anyway, in the
+    // same render pass — and it is kept rather than deleted because the pan
+    // assertion above still rejects dropping the early return, which is the
+    // mutation both halves were written against. The latch itself is rejected
+    // by the cleared-centre describe block below.
     fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '37.90000' } })
     fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '-122.24000' } })
     await waitFor(() => expect(fab()!.getAttribute('aria-disabled')).toBe('false'))
@@ -274,10 +293,11 @@ describe('states', () => {
   })
 
   /**
-   * Clearing a coordinate field unmounts the popup WITHOUT routing through
-   * closeCenterShare, so `centerShareOpen` stays true with nothing on screen. A
-   * button claiming aria-expanded="true" over no popup is a lie, and would wear
-   * the green "open" tint with nothing open.
+   * Clearing a coordinate field unmounts the popup. As of center-share-latch
+   * the open flag is cleared on that same edge, so the two flags now agree in
+   * every state — but what this button renders when it discloses nothing is
+   * still a live choice, and the uniform-map-fabs decision settled it as no
+   * aria-expanded AT ALL rather than aria-expanded="false".
    *
    * WHAT THIS REJECTS, stated precisely, because the obvious reading is wrong.
    * It does NOT reject `aria-expanded={hasValidCenter ? centerShareOpen : …}`:
@@ -285,12 +305,12 @@ describe('states', () => {
    * observe (`centerShareShown` is `isCenterView && hasValidCenter &&
    * centerShareOpen`, and the first two are already true wherever the button
    * renders), so those two spellings are genuinely equivalent and swapping them
-   * leaves the whole suite green. Verified by mutation during this build, and
-   * recorded rather than papered over.
+   * leaves the whole suite green. Verified by mutation during uniform-map-fabs,
+   * and recorded rather than papered over.
    *
    * What it DOES reject is dropping the `hasValidCenter` gate — which is the
    * part that carries the property — leaving the button asserting an expanded
-   * state it cannot have.
+   * state on a press that can disclose nothing.
    */
   it('drops the expanded state when the popup unmounts because the centre was cleared', async () => {
     renderMap()
@@ -304,6 +324,99 @@ describe('states', () => {
     expect(fab()!.getAttribute('aria-expanded')).toBeNull()
     expect(fab()!.getAttribute('aria-disabled')).toBe('true')
     expect(fab()!.getAttribute('aria-label')).toBe(EMPTY)
+  })
+})
+
+// ── The cleared-centre latch ─────────────────────────────────────────────────
+
+/**
+ * feature: center-share-latch.
+ *
+ * Clearing a coordinate while the popup is open unmounts it (the popup is gated
+ * on `centerShareShown`) without routing through closeCenterShare, so the open
+ * flag was left set with nothing on screen and the NEXT centre to arrive
+ * re-opened the popup on its own, by any route.
+ *
+ * These three fail on the pre-change component. Verified by mutation, not
+ * assumed: removing the one-line render adjustment in MapExplorer.tsx turns the
+ * first two red, and swapping it for the remediation the v0.5.84 security
+ * report recommended (route the cleared path through closeCenterShare) turns
+ * the third red. All 89 tests that existed across the four share suites before
+ * this build are green either way, so none of them rejected any of it.
+ *
+ * Two routes are exercised rather than all four, and that is the whole range on
+ * purpose: every way of setting a centre lands in the same `lat`/`lng` state,
+ * which is what the guard reads, so the retyped case and the dropped case are
+ * the two ends of one path. The drop is here by name because applyCenter's own
+ * comment promises a drop-to-search stays visually identical to today, and with
+ * the flag latched that promise did not hold.
+ */
+describe('a cleared centre does not leave the popup latched open', () => {
+  it('stays closed when the centre is typed back in', async () => {
+    renderMap()
+    await ready()
+    await centreView()
+    fireEvent.click(fab()!)
+    await waitFor(() => expect(popup()).toBeTruthy())
+
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '' } })
+    await waitFor(() => expect(popup()).toBeNull())
+
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: '37.90000' } })
+    await waitFor(() => expect(fab()!.getAttribute('aria-disabled')).toBe('false'))
+    expect(popup()).toBeNull()
+    // The button agrees: nothing is disclosed, and it offers to open rather
+    // than to close.
+    expect(fab()!.getAttribute('aria-expanded')).toBe('false')
+    expect(fab()!.getAttribute('aria-label')).toBe(READY)
+    // Still one press away, so closing the latch has not disabled the control.
+    fireEvent.click(fab()!)
+    await waitFor(() => expect(popup()).toBeTruthy())
+  })
+
+  it('stays closed when a right-click drop sets the centre', async () => {
+    renderMap()
+    await ready()
+    await centreView()
+    fireEvent.click(pin()!)                       // opened from the pin this time
+    await waitFor(() => expect(popup()).toBeTruthy())
+
+    fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '' } })
+    await waitFor(() => expect(popup()).toBeNull())
+
+    expect(drop.onDrop).toBeTruthy()
+    await act(async () => { drop.onDrop!(38.20000, -122.50000) })
+    // The drop did set the centre — otherwise "no popup" would prove nothing.
+    await waitFor(() => expect((screen.getByLabelText('Longitude') as HTMLInputElement).value).toBe('-122.50000'))
+    expect(popup()).toBeNull()
+    expect(fab()!.getAttribute('aria-expanded')).toBe('false')
+  })
+
+  /**
+   * The guard against the remediation the security report recommended, named
+   * here so the next person to read that report does not "fix" it back.
+   * closeCenterShare arms restoreCenterPinFocusRef, and the effect keyed on the
+   * open flag then moves focus to the opener. On this edge the opener has
+   * unmounted with the pin, so focus falls through to the centre-share FAB:
+   * backspacing a coordinate field would throw the caret out of the field
+   * mid-edit. The fix is a bare setState that leaves the focus path alone.
+   */
+  it('leaves focus in the field being edited when the centre is cleared', async () => {
+    renderMap()
+    await ready()
+    await centreView()
+    fireEvent.click(pin()!)
+    await waitFor(() => expect(popup()).toBeTruthy())
+
+    const latInput = screen.getByLabelText('Latitude') as HTMLInputElement
+    latInput.focus()
+    fireEvent.change(latInput, { target: { value: '' } })
+    await waitFor(() => expect(popup()).toBeNull())
+
+    expect(document.activeElement).toBe(latInput)
+    // Named rather than left to the negation above: this exact button is where
+    // the wrong remediation puts the caret.
+    expect((document.activeElement as HTMLElement).getAttribute('aria-label')).not.toBe(EMPTY)
   })
 })
 
