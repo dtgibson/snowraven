@@ -1,5 +1,5 @@
 import type { FileData } from '../types'
-import { truncateAtFirstParen } from './speciesUtils'
+import { isNonCountableObservedName, truncateAtFirstParen } from './speciesUtils'
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = []
@@ -24,10 +24,6 @@ function parseCSVLine(line: string): string[] {
   }
   result.push(field)
   return result
-}
-
-function isExcluded(name: string): boolean {
-  return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
 }
 
 export function parseEbirdCSV(filename: string, content: string): FileData {
@@ -57,7 +53,7 @@ export function parseEbirdCSV(filename: string, content: string): FileData {
     if (!line) continue
     const cols = parseCSVLine(line)
     const name = cols[commonNameIdx]?.trim().replace(/^"|"$/g, '')
-    if (!name || isExcluded(name)) continue
+    if (!name || isNonCountableObservedName(name)) continue
     const normalized = truncateAtFirstParen(name)
     species.add(normalized)
 

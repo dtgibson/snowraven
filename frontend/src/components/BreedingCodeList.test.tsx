@@ -108,6 +108,31 @@ describe('pin control, name and description', () => {
   })
 })
 
+describe('full-label filter pills', () => {
+  it('uses the Breeding-Codes-only containment hooks and preserves the full label', async () => {
+    const { container } = await renderTab()
+    const row = container.querySelector('.sr-bc-filter-row') as HTMLElement
+    expect(row).toBeTruthy()
+    expect(row.classList.contains('sr-ctl-row')).toBe(true)
+
+    const pill = screen.getByRole('button', { name: 'Recently Fledged Young (FL)' })
+    expect(pill.classList.contains('sr-bc-filter-pill')).toBe(true)
+    const label = pill.querySelector('.sr-bc-filter-pill-label') as HTMLElement
+    expect(label).toBeTruthy()
+    expect(label.textContent).toBe('Recently Fledged Young')
+    expect(label.getAttribute('aria-hidden')).toBe(null)
+    expect(pill.style.height).toBe('30px')
+    expect(pill.style.minHeight).toBe('')
+
+    // The special layout hook belongs only to the code pills. Category pills,
+    // separators, sort, county and date controls remain ordinary row children.
+    expect(row.querySelectorAll('.sr-bc-filter-pill')).toHaveLength(2)
+    expect(row.querySelector('[role="group"]')?.classList.contains('sr-bc-filter-pill')).toBe(false)
+    expect(row.querySelector('select')?.classList.contains('sr-bc-filter-pill')).toBe(false)
+    expect(row.querySelector('input')?.classList.contains('sr-bc-filter-pill')).toBe(false)
+  })
+})
+
 describe('the invariant: pinned implies Unbounded', () => {
   it('starts unpinned in Normal view, with the shipped rendering', async () => {
     const { container } = await renderTab()

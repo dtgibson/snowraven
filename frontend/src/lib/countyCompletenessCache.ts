@@ -6,7 +6,8 @@
 // shades the map when a refresh fails offline (FR-30). Structure copies the
 // proven replayStore.ts shape: one-disk-read-per-session in-memory mirror,
 // debounced whole-document write through `storage.setSetting`, and an `order[]`
-// (oldest-fetched first) driving count+byte-cap eviction. It is deliberately NOT
+// (oldest-fetched first) driving count and payload-length-budget eviction. It
+// is deliberately NOT
 // networkCache (90 s — wrong TTL) and NOT replayStore (live-first semantics
 // would refetch inside the bound), and the route is NOT in CACHED_GET_PATHS —
 // this module is the single caching layer for /map/county-species.
@@ -25,21 +26,24 @@ export const COMPLETENESS_TTL_MS = 30 * 24 * 60 * 60 * 1000
 /** Storage-seam document key (one settings document, replay-store style). */
 export const COMPLETENESS_STORE_KEY = 'county-completeness-v1'
 
-// Caps: 250 counties OR 4 MB, whichever fills first (a ~500-species county is
-// ~15 KB serialized). Mutable bindings + test seams mirror REPLAY_MAX_*.
+// Caps: 250 counties OR 4,000,000 JSON payload code units, whichever fills
+// first (a ~500-species county is ~15,000 serialized code units). The length
+// budget excludes entry keys/envelopes and allows one sole oversized newest
+// entry so a successful fresh fetch is never immediately discarded. Mutable
+// bindings + test seams mirror REPLAY_MAX_*.
 export let COMPLETENESS_MAX_ENTRIES = 250
 export let COMPLETENESS_MAX_BYTES = 4_000_000
 
 /** Test seam: override the entry cap. */
 export function setCompletenessMaxEntries(n: number): void { COMPLETENESS_MAX_ENTRIES = n }
-/** Test seam: override the byte cap. */
+/** Test seam: override the serialized payload-length budget. */
 export function setCompletenessMaxBytes(n: number): void { COMPLETENESS_MAX_BYTES = n }
 
 export interface CountyCompletenessCacheEntry {
   data: CountyEbirdData
   /** ms epoch — the 30-day TTL anchor. */
   fetchedAt: number
-  /** Serialized length — byte-cap eviction. */
+  /** JSON.stringify(data).length in UTF-16 code units. */
   bytes: number
 }
 
@@ -105,6 +109,43 @@ let _store: CountyCompletenessStore | null = null
 let _loading: Promise<CountyCompletenessStore> | null = null
 let _totalBytes = 0
 
+// Deterministic work accounting for the capacity+1 guard. Disabled in the app:
+// `_resetCountyCompletenessCacheForTests` installs the recorder, and only tests
+// read it. This keeps the production hot path free of benchmark clocks while
+// letting the guard distinguish the unavoidable loader from FIFO bookkeeping
+// and the debounced whole-document snapshot.
+export interface CountyCompletenessCacheWorkStats {
+  loaderCalls: number
+  puts: number
+  orderSearches: number
+  orderSearchSlots: number
+  orderMoves: number
+  evictions: number
+  shiftedSlots: number
+  writeSchedules: number
+  writeFlushes: number
+  lastSnapshotEntries: number
+  lastSnapshotEntryBytes: number
+  lastSnapshotBytes: number
+}
+
+const EMPTY_WORK_STATS = (): CountyCompletenessCacheWorkStats => ({
+  loaderCalls: 0,
+  puts: 0,
+  orderSearches: 0,
+  orderSearchSlots: 0,
+  orderMoves: 0,
+  evictions: 0,
+  shiftedSlots: 0,
+  writeSchedules: 0,
+  writeFlushes: 0,
+  lastSnapshotEntries: 0,
+  lastSnapshotEntryBytes: 0,
+  lastSnapshotBytes: 0,
+})
+
+let _workStats: CountyCompletenessCacheWorkStats | null = null
+
 async function ensureLoaded(): Promise<CountyCompletenessStore> {
   if (_store) return _store
   if (_loading) return _loading
@@ -142,14 +183,22 @@ export async function loadAll(): Promise<ReadonlyMap<string, CountyCompletenessC
 }
 
 function putEntry(store: CountyCompletenessStore, regionCode: string, data: CountyEbirdData, fetchedAt: number): void {
+  if (_workStats) _workStats.puts += 1
   const bytes = JSON.stringify(data).length
   const existing = store.entries[regionCode]
   if (existing) _totalBytes -= existing.bytes
   store.entries[regionCode] = { data, fetchedAt, bytes }
   _totalBytes += bytes
 
+  if (_workStats) {
+    _workStats.orderSearches += 1
+    _workStats.orderSearchSlots += store.order.length
+  }
   const at = store.order.indexOf(regionCode)
-  if (at !== -1) store.order.splice(at, 1)
+  if (at !== -1) {
+    store.order.splice(at, 1)
+    if (_workStats) _workStats.orderMoves += 1
+  }
   store.order.push(regionCode)
 
   // Evict oldest-fetched while over EITHER cap; the just-put tail always survives.
@@ -157,6 +206,12 @@ function putEntry(store: CountyCompletenessStore, regionCode: string, data: Coun
     store.order.length > 1 &&
     (store.order.length > COMPLETENESS_MAX_ENTRIES || _totalBytes > COMPLETENESS_MAX_BYTES)
   ) {
+    // Array.shift moves every surviving slot left by one. Count those moves,
+    // rather than timing them, so the cap+1 assertion is deterministic.
+    if (_workStats) {
+      _workStats.evictions += 1
+      _workStats.shiftedSlots += store.order.length - 1
+    }
     const oldest = store.order.shift()!
     const ev = store.entries[oldest]
     if (ev) {
@@ -199,6 +254,7 @@ export function dedupedFetch(
     if (pending) return pending
     const p = (async () => {
       try {
+        if (_workStats) _workStats.loaderCalls += 1
         const data = await loader()
         const fetchedAt = Date.now()
         putEntry(store, regionCode, data, fetchedAt)
@@ -225,15 +281,30 @@ let _writeTimer: ReturnType<typeof setTimeout> | null = null
 const WRITE_DEBOUNCE_MS = 250
 
 function scheduleWrite(store: CountyCompletenessStore): void {
+  if (_workStats) _workStats.writeSchedules += 1
   if (_writeTimer) clearTimeout(_writeTimer)
   _writeTimer = setTimeout(() => {
     _writeTimer = null
-    void storage.setSetting<CountyCompletenessStore>(COMPLETENESS_STORE_KEY, {
+    const snapshot: CountyCompletenessStore = {
       version: store.version,
       entries: { ...store.entries },
       order: [...store.order],
-    }).catch(() => { /* best-effort — the mirror stays the live source */ })
+    }
+    if (_workStats) {
+      _workStats.writeFlushes += 1
+      _workStats.lastSnapshotEntries = snapshot.order.length
+      _workStats.lastSnapshotEntryBytes = _totalBytes
+      _workStats.lastSnapshotBytes = JSON.stringify(snapshot).length
+    }
+    void storage.setSetting<CountyCompletenessStore>(COMPLETENESS_STORE_KEY, snapshot)
+      .catch(() => { /* best-effort — the mirror stays the live source */ })
   }, WRITE_DEBOUNCE_MS)
+}
+
+/** Test seam: deterministic work performed since the last reset. */
+export function _getCountyCompletenessCacheWorkStatsForTests(): Readonly<CountyCompletenessCacheWorkStats> {
+  if (!_workStats) _workStats = EMPTY_WORK_STATS()
+  return { ..._workStats }
 }
 
 /** Test seam: reset the module mirror so each test starts from disk-empty. */
@@ -242,6 +313,7 @@ export function _resetCountyCompletenessCacheForTests(): void {
   _store = null
   _loading = null
   _totalBytes = 0
+  _workStats = EMPTY_WORK_STATS()
   _inflight.clear()
   COMPLETENESS_MAX_ENTRIES = 250
   COMPLETENESS_MAX_BYTES = 4_000_000

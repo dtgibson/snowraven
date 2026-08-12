@@ -16,6 +16,13 @@ vi.mock('./storage', () => ({
   },
 }))
 
+const getSettingSpy = vi.mocked(
+  (await import('./storage')).storage.getSetting,
+)
+const setSettingSpy = vi.mocked(
+  (await import('./storage')).storage.setSetting,
+)
+
 function payload(regionCode: string, speciesCount = 3): CountyEbirdData {
   return {
     regionCode,
@@ -30,6 +37,8 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.setSystemTime(1_750_000_000_000)
   seamDoc.value = null
+  getSettingSpy.mockClear()
+  setSettingSpy.mockClear()
   cache._resetCountyCompletenessCacheForTests()
 })
 
@@ -127,13 +136,99 @@ describe('countyCompletenessCache — eviction caps', () => {
     expect([...all.keys()]).toEqual(['US-CA-003', 'US-CA-005'])
   })
 
-  it('evicts on the byte cap too, whichever fills first', async () => {
+  it('evicts on the serialized payload-length budget too, whichever fills first', async () => {
     cache.setCompletenessMaxBytes(JSON.stringify(payload('US-CA-001', 50)).length + 10)
     await cache.dedupedFetch('US-CA-001', async () => payload('US-CA-001', 50))
     vi.advanceTimersByTime(1000)
     await cache.dedupedFetch('US-CA-003', async () => payload('US-CA-003', 50))
     const all = await cache.loadAll()
     expect([...all.keys()]).toEqual(['US-CA-003'])
+  })
+
+  it('real CAPACITY+1 work is one loader, one bounded FIFO shift and one debounced snapshot', async () => {
+    const cap = 250
+    const seededFetchedAt = Date.now() - DAY
+    const seededEntries: Record<string, cache.CountyCompletenessCacheEntry> = {}
+    const seededOrder: string[] = []
+    for (let i = 0; i < cap; i++) {
+      const regionCode = `US-CA-${String(i).padStart(3, '0')}`
+      const data = payload(regionCode)
+      seededOrder.push(regionCode)
+      seededEntries[regionCode] = {
+        data,
+        fetchedAt: seededFetchedAt + i,
+        bytes: JSON.stringify(data).length,
+      }
+    }
+    seamDoc.value = { version: 1, entries: seededEntries, order: seededOrder }
+
+    const newcomer = 'US-NV-001'
+    const loader = vi.fn(async () => payload(newcomer))
+    const result = await cache.dedupedFetch(newcomer, loader)
+    expect(result.fromNetwork).toBe(true)
+    expect(loader).toHaveBeenCalledTimes(1)
+
+    const all = await cache.loadAll()
+    expect(all.size).toBe(cap)
+    expect(all.has('US-CA-000')).toBe(false)
+    expect(all.has(newcomer)).toBe(true)
+
+    let work = cache._getCountyCompletenessCacheWorkStatsForTests()
+    expect(work).toMatchObject({
+      loaderCalls: 1,
+      puts: 1,
+      orderSearches: 1,
+      orderSearchSlots: cap,
+      orderMoves: 0,
+      evictions: 1,
+      shiftedSlots: cap,
+      writeSchedules: 1,
+      writeFlushes: 0,
+    })
+    expect(getSettingSpy).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(300)
+    work = cache._getCountyCompletenessCacheWorkStatsForTests()
+    expect(work.writeFlushes).toBe(1)
+    expect(work.lastSnapshotEntries).toBe(cap)
+    expect(work.lastSnapshotEntryBytes).toBe(
+      [...all.values()].reduce((sum, entry) => sum + entry.bytes, 0),
+    )
+    expect(work.lastSnapshotBytes).toBe(JSON.stringify(seamDoc.value).length)
+    expect(setSettingSpy).toHaveBeenCalledTimes(1)
+
+    // The retained newcomer is a real exported-API hit: no second loader and
+    // no cache bookkeeping or persistence at all.
+    const never = vi.fn(async () => payload(newcomer))
+    expect((await cache.dedupedFetch(newcomer, never)).fromNetwork).toBe(false)
+    expect(never).not.toHaveBeenCalled()
+    expect(cache._getCountyCompletenessCacheWorkStatsForTests()).toEqual(work)
+  })
+
+  it('real PAYLOAD-LENGTH-BUDGET+1 from a seeded document evicts the oldest', async () => {
+    const firstData = payload('US-CA-001', 12)
+    const secondData = payload('US-CA-003', 12)
+    const firstBytes = JSON.stringify(firstData).length
+    const secondBytes = JSON.stringify(secondData).length
+    seamDoc.value = {
+      version: 1,
+      entries: {
+        'US-CA-001': { data: firstData, fetchedAt: Date.now() - DAY, bytes: firstBytes },
+      },
+      order: ['US-CA-001'],
+    }
+    cache.setCompletenessMaxBytes(firstBytes + secondBytes - 1)
+
+    await cache.dedupedFetch('US-CA-003', async () => secondData)
+    const all = await cache.loadAll()
+    expect([...all.keys()]).toEqual(['US-CA-003'])
+    expect(all.get('US-CA-003')?.bytes).toBe(secondBytes)
+    expect(cache._getCountyCompletenessCacheWorkStatsForTests()).toMatchObject({
+      loaderCalls: 1,
+      puts: 1,
+      evictions: 1,
+      shiftedSlots: 1,
+    })
   })
 })
 

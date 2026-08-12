@@ -23,7 +23,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseTopLevelRules } from './cssTopLevelRules'
+import { findUngatedSafeAreaRules, parseTopLevelRules } from './cssTopLevelRules'
 
 const CSS = readFileSync(fileURLToPath(new URL('../globals.css', import.meta.url)), 'utf8')
 const TOP = parseTopLevelRules(CSS)
@@ -512,5 +512,6 @@ describe('the rules around the cluster that stay put', () => {
     // Gated on .sr-ios-app, never a bare env(): index.html ships viewport-fit=cover
     // to browsers too, so an ungated rule would change shipped web rendering.
     expect(decl(TOP.get('.sr-map-fab-cluster')!, 'bottom')).toBe('20px')
+    expect(findUngatedSafeAreaRules(CSS, 'sr-map-fab-cluster')).toEqual([])
   })
 })

@@ -2365,6 +2365,29 @@ select:focus-visible {
   .sr-input-16,
   .sr-ctl-row :is(button, select, input) { font-size: max(16px, 0.75rem) !important; }
 
+  /* Breeding Codes' full-label filter pills only. At 320px / 200% the longest
+     buttons otherwise give this wrapping flex row a 327.11px min-content width
+     inside a 272px panel (55.11px past its parent). There are TWO flex floors:
+     the pill is a flex item in the row, and its label is a flex item inside the
+     inline-flex pill. Release both. Most labels can break at spaces, but
+     `C Courtship/Display/Copul.` has no usable break point; after both automatic
+     minimums are released, `break-word` supplies the emergency break while
+     preserving every character and the normal intrinsic-size calculation.
+
+     The three dedicated hooks keep this out of separators, the sort group, county
+     and date controls, and all four other .sr-ctl-row surfaces. It does not touch
+     the table or either Normal/Unbounded view class. The phone rule alone releases
+     the pill's inline 30px height so a full label can earn a second line; desktop
+     keeps the shipped fixed-height geometry byte-for-byte. */
+  .sr-bc-filter-row { min-width: 0; max-width: 100%; }
+  .sr-bc-filter-row > .sr-bc-filter-pill {
+    height: auto !important;
+    min-height: 30px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sr-bc-filter-row > .sr-bc-filter-pill > .sr-bc-filter-pill-label { min-width: 0; overflow-wrap: break-word; }
+
   /* Map Explorer sidebar only: stack the Date Range pair from 481-640 too
      (fix: map-explorer-input-zoom).
 
@@ -2399,6 +2422,13 @@ select:focus-visible {
      letter-spacing so it stays legible at the narrower width; it remains a real
      sortable <button> with its full-meaning aria-label (untouched in the TSX).
      Magnify beyond this is native viewport pinch — no CSS zoom/transform:scale. */
+  /* Keep the shared BirdName inside the Breeding Codes name-cell clamp. The
+     outer box fills the usable cell width and its one-line name/favicon row may
+     wrap, so the indivisible two-link group drops intact below a name instead of
+     escaping the column. Both declarations are local to this matrix/phone tier;
+     the shared BirdName and SpeciesLinks components remain unchanged. */
+  .sr-bc-name-col .sr-birdname { width: 100%; max-width: 100%; }
+  .sr-bc-name-col .sr-birdname-row { flex-wrap: wrap; }
   .sr-bc-code-col { width: 30px; min-width: 30px; }
   /* table-layout: fixed (phone tier ONLY) makes the DECLARED column widths
      authoritative rather than a floor, so the 30px .sr-bc-code-col narrowing

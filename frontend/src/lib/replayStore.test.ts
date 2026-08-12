@@ -119,8 +119,9 @@ describe('eviction (OQ-07 / QA-24)', () => {
     expect((await replayStore.get('/a'))!.data).toEqual({ n: 11 });
   });
 
-  it('never grows past the byte cap (oldest-loaded evicted by bytes)', async () => {
-    // Each entry ~120 bytes of data; cap at ~300 bytes → ~2 entries survive.
+  it('stays within the payload-length budget when more than one entry remains', async () => {
+    // Each entry is ~120 serialized code units; a ~300-code-unit budget leaves
+    // about two entries.
     const big = (i: number) => ({ pad: 'x'.repeat(100), i });
     replayStore.setReplayMaxBytes(JSON.stringify(big(0)).length * 2 + 10);
     for (let i = 0; i < 5; i++) await replayStore.put(`/k${i}`, big(i));
@@ -134,7 +135,7 @@ describe('eviction (OQ-07 / QA-24)', () => {
     expect(count).toBeGreaterThanOrEqual(1);
   });
 
-  it('a single entry over the byte cap is kept as the sole survivor', async () => {
+  it('keeps one sole newest entry even when it exceeds the payload-length budget', async () => {
     replayStore.setReplayMaxBytes(10);
     await replayStore.put('/huge', { pad: 'x'.repeat(1000) });
     expect(await replayStore.get('/huge')).not.toBeNull();
@@ -148,6 +149,73 @@ describe('eviction (OQ-07 / QA-24)', () => {
     const written = setSpy.mock.calls[0][0];
     expect(written.entries['/weather/S1?']).toBeDefined();
     expect(written.order).toContain('/weather/S1?');
+  });
+
+  it('real CAPACITY+1 from seeded disk is one bounded FIFO shift and one snapshot', async () => {
+    const cap = 300;
+    const entries: import('./storage').ReplayStore['entries'] = {};
+    const order: string[] = [];
+    for (let i = 0; i < cap; i++) {
+      const key = `/weather/S${i}?`;
+      const data = { i };
+      order.push(key);
+      entries[key] = { data, loadedAt: i, bytes: JSON.stringify(data).length };
+    }
+    _disk = { version: 1, entries, order };
+
+    const newest = '/weather/S300?';
+    await replayStore.put(newest, { i: cap });
+    expect(await replayStore.get('/weather/S0?')).toBeNull();
+    expect(await replayStore.get(newest)).not.toBeNull();
+
+    let work = replayStore._getReplayStoreWorkStatsForTests();
+    expect(work).toMatchObject({
+      puts: 1,
+      orderSearches: 1,
+      orderSearchSlots: cap,
+      orderMoves: 0,
+      evictions: 1,
+      shiftedSlots: cap,
+      writeSchedules: 1,
+      writeFlushes: 0,
+    });
+    expect(getSpy).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(300);
+    work = replayStore._getReplayStoreWorkStatsForTests();
+    expect(work.writeFlushes).toBe(1);
+    expect(work.lastSnapshotEntries).toBe(cap);
+    expect(work.lastSnapshotEntryBytes).toBe(
+      Object.values(_disk!.entries).reduce((sum, entry) => sum + entry.bytes, 0),
+    );
+    expect(work.lastSnapshotBytes).toBe(JSON.stringify(_disk).length);
+    expect(setSpy).toHaveBeenCalledTimes(1);
+
+    // A replay hit is a pure mirror read: it schedules no extra persistence.
+    expect((await replayStore.get(newest))?.data).toEqual({ i: cap });
+    expect(replayStore._getReplayStoreWorkStatsForTests()).toEqual(work);
+  });
+
+  it('real PAYLOAD-LENGTH-BUDGET+1 from seeded disk evicts the oldest', async () => {
+    const oldData = { pad: 'a'.repeat(60) };
+    const newData = { pad: 'b'.repeat(60) };
+    const oldBytes = JSON.stringify(oldData).length;
+    const newBytes = JSON.stringify(newData).length;
+    _disk = {
+      version: 1,
+      entries: { '/old': { data: oldData, loadedAt: 1, bytes: oldBytes } },
+      order: ['/old'],
+    };
+    replayStore.setReplayMaxBytes(oldBytes + newBytes - 1);
+
+    await replayStore.put('/new', newData);
+    expect(await replayStore.get('/old')).toBeNull();
+    expect((await replayStore.get('/new'))?.bytes).toBe(newBytes);
+    expect(replayStore._getReplayStoreWorkStatsForTests()).toMatchObject({
+      puts: 1,
+      evictions: 1,
+      shiftedSlots: 1,
+    });
   });
 });
 

@@ -1,4 +1,5 @@
 import asyncio
+import math
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -28,13 +29,29 @@ class NominatimResponse(BaseModel):
     results: list[LocationResult]
 
 
-# In-process cache: (rounded_lat, rounded_lng) → county | None
+# One ML export can carry tens of thousands of rows, and a long-lived backend
+# can receive multiple disjoint exports. Admission control bounds the retained
+# rounded coordinates without FIFO's capacity+1 thrash: once full, existing
+# hits remain hits and later results are returned but not retained.
+NOMINATIM_COUNTY_CACHE_MAX_ENTRIES = 4_096
+
+# In-process cache: (rounded_lat, rounded_lng) → county | None. None is a
+# deliberate cached result for failures/no county, matching the Tauri twin.
 _cache: dict[tuple[float, float], Optional[str]] = {}
 _rate_lock = asyncio.Lock()
 
 
 def _round_coord(v: float) -> float:
-    return round(v, 4)
+    # Match JavaScript Math.round(v * 10_000) / 10_000, including exact
+    # positive and negative half steps. Python's round() uses ties-to-even and
+    # would otherwise split the web and desktop cache/dedup identities.
+    scaled = v * 10_000
+    return math.floor(scaled + 0.5) / 10_000
+
+
+def _cache_county(key: tuple[float, float], county: Optional[str]) -> None:
+    if len(_cache) < NOMINATIM_COUNTY_CACHE_MAX_ENTRIES:
+        _cache[key] = county
 
 
 async def _lookup(lat: float, lng: float) -> Optional[str]:
@@ -58,7 +75,7 @@ async def _lookup(lat: float, lng: float) -> Optional[str]:
                 county = resp.json().get("address", {}).get("county")
         except Exception:
             pass
-        _cache[key] = county
+        _cache_county(key, county)
         await asyncio.sleep(1.0)
         return county
 

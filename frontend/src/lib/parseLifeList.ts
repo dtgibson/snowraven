@@ -1,4 +1,4 @@
-import { truncateAtFirstParen } from './speciesUtils'
+import { isNonCountableObservedName, truncateAtFirstParen } from './speciesUtils'
 
 export interface LifeListEntry {
   commonName: string
@@ -31,10 +31,6 @@ function parseCSVLine(line: string): string[] {
   }
   result.push(field)
   return result
-}
-
-function isExcluded(name: string): boolean {
-  return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
 }
 
 function parseCatalogIds(raw: string): string[] {
@@ -75,7 +71,7 @@ export function parseLifeList(text: string): LifeListEntry[] {
     const cols = parseCSVLine(line)
 
     const rawName = col(cols, commonNameIdx)
-    if (!rawName || isExcluded(rawName)) continue
+    if (!rawName || isNonCountableObservedName(rawName)) continue
     const commonName = truncateAtFirstParen(rawName)
 
     const rawTaxOrder = col(cols, taxonomicOrderIdx)

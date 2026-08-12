@@ -183,3 +183,29 @@ describe('WebTransport.post', () => {
     await expect(transport.post('/settings', {})).rejects.toThrow('Transport error: 500');
   });
 });
+
+describe('TauriTransport Nominatim routing', () => {
+  const reverseGeocodeCounties = vi.fn();
+
+  beforeEach(() => {
+    vi.resetModules();
+    reverseGeocodeCounties.mockReset().mockResolvedValue({ results: [] });
+    vi.doMock('./platform', () => ({ isTauri: () => true }));
+    vi.doMock('./tauri/nominatimService', () => ({ reverseGeocodeCounties }));
+  });
+
+  afterEach(() => {
+    vi.doUnmock('./platform');
+    vi.doUnmock('./tauri/nominatimService');
+  });
+
+  it('delegates the public counties POST path to the desktop Nominatim service', async () => {
+    const locations = [{ lat: 40.12345, lng: -73.50005 }];
+    const { transport } = await import('./transport');
+
+    await expect(transport.post('/nominatim/counties', { locations }))
+      .resolves.toEqual({ results: [] });
+    expect(reverseGeocodeCounties).toHaveBeenCalledTimes(1);
+    expect(reverseGeocodeCounties).toHaveBeenCalledWith(locations);
+  });
+});
