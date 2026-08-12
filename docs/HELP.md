@@ -402,7 +402,7 @@ The tab loads automatically from your eBird backup saved in Settings.
 
 Each cell shows how many times you recorded that code for that species. Cells are color-coded by eBird's four-tier system: darkest for the highest Confirmed codes, medium for lower Confirmed codes, lighter for Probable, and lightest for Possible. Empty cells are blank.
 
-A legend below the table spells out each code you've recorded with its full meaning (for example "NB Nest Building"), grouped by evidence tier, so you can read what a code stands for without hovering. The filter pills above the table show each code's meaning the same way.
+A legend below the table spells out each code you've recorded with its full meaning (for example "NB Nest Building"), grouped by evidence tier, so you can read what a code stands for without hovering. The filter pills above the table show each code's meaning the same way. On a phone in the normal view, a meaning too long for the line wraps onto a second line rather than running off the side of the card. Nothing is shortened, abbreviated or hidden: every code keeps its full meaning, which is the point of the legend.
 
 Click any column header to sort by that code's count. Click the species name column to sort alphabetically or by eBird taxonomic order using the A-Z / Taxonomic toggle.
 
@@ -420,7 +420,7 @@ Pin code labels keeps the row of code headings (NB, FL, CF, and so on) visible a
 
 Pinning uses the Unbounded view, so pressing Pin code labels from the normal view switches to Unbounded and pins in one press. Pressing it again unpins and puts you back in the view you started from. Switching back to Normal yourself also clears the pin. While the labels are pinned, a short note above the table says so. Nothing else changes: the table keeps its full height and the page still scrolls as one, with the legend after the last species.
 
-On a phone, in both the normal and Unbounded views, the code columns tighten to the width of their dots so far more of them fit on screen at once, thin vertical rules separate the columns so a row reads clearly across, and the species-name column stays fixed on the left as you scroll the codes sideways in the normal view. You can pinch to zoom in on any part of the matrix using your device's normal gesture. The table scrolls as part of the page, with the legend at the end after the last species.
+On a phone, in both the normal and Unbounded views, the code columns tighten to the width of their dots so far more of them fit on screen at once, thin vertical rules separate the columns so a row reads clearly across, and the species-name column stays fixed on the left as you scroll the codes sideways in the normal view. You can pinch to zoom in on any part of the matrix using your device's normal gesture. The table scrolls as part of the page, with the legend at the end after the last species; in the normal view its longer code meanings wrap onto a second line so they stay inside the card at the largest text sizes.
 
 ---
 

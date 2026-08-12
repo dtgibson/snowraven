@@ -5,6 +5,16 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Five-build Spool bundle: two repairs and three pieces of invisible hardening (complete — August 2026, v0.5.85)
+
+Five queued builds shipped as one release: two fixes a user can see, and three hardening passes with nothing to see. Frontend only throughout, and deliberately so — no new provider, backend route, dependency, persisted setting, network call, or Tauri grant, and no bird name, count, total, link, or hidden weather block moves anywhere in the app. Three of the five made no change to the shipped bundle at all beyond their own module.
+
+- **The Breeding Codes tier legend wraps instead of running off a phone screen.** In Normal view at a narrow width with the Text Size setting turned up, the longest code meanings ran out through the side of the card and off the right edge, dragging the whole page sideways. They now wrap onto a second line, still fully spelled out: nothing is truncated, abbreviated, or hidden, which is the whole point of the legend. The "↔ Unbounded" view and every width above a phone render exactly as before.
+- **The Map Explorer's copy popup no longer reopens on its own.** On the Hotspots, Nearby Lifers and Media Targets views, clearing or editing a coordinate box while the popup is open now closes it for good; the next search center to arrive, by any route, leaves it closed until the user presses for it.
+- **Bird-name tidying is bounded in memory.** The memo that remembers each name's tidied form was uncapped and never cleared, so a long session across several file loads retained every name from every earlier file. It is now two admission-controlled caches with a structural ceiling no real collection approaches (the entire world taxonomy fills about half of it), and absurdly long values from a damaged file are held separately under their own budget.
+- **Six routines that read the user's own data, or a comment from someone else's shared checklist, are single-pass scans.** A county name, a checklist ID pasted as a URL, the Macaulay Library export's age-and-sex column, the two weather/tide comment scanners, and the link scanner inside a comment each slowed sharply on pathological input; each is now linear, and each is proven to produce byte-identical output on real data.
+- **Two self-checks over the app's own stylesheet actually check what they claim to.** Both had been selecting a rule by looking for its name anywhere in the file: one assertion could not fail at all, and two others were reading the intended rule only because of the order the file happens to be written in.
+
 ### Five-build Spool bundle: one map-button family, two layout repairs, and two pieces of hardening (complete — August 2026, v0.5.84)
 
 Five queued builds shipped as one release: two improvements, two fixes, and one hardening pass. Frontend only throughout: no new provider, backend route, dependency, persisted setting, network call, or Tauri grant, and no user-visible count, total, or list changes anywhere.
