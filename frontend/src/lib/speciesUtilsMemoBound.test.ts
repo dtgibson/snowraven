@@ -18,6 +18,7 @@ import {
   __resetNormCacheForTests,
   __longCacheForTests,
   __MEMO_LIMITS_FOR_TESTS as LIMITS,
+  __recomputesForTests,
 } from './speciesUtils'
 
 // The pre-change implementation, as the oracle for every correctness claim below.
@@ -643,49 +644,74 @@ describe('every bounded structure survives CAPACITY PLUS ONE', () => {
   }, RATIO_TEST_TIMEOUT_MS)
 
   it('neither structure is ever much worse than having no cache at all', () => {
-    // The property that actually matters to a user: a bounded cache past its bound must
-    // degrade toward the un-memoized baseline, never past it. The FIFO short cache was
-    // 167x WORSE than no cache; the single slot was 1.048x the no-cache cost on the long
-    // path. Measured now: short cache 1.08x at capacity+1 and 1.60x at twice capacity (a
-    // failed Map lookup per miss, a small constant rather than a cliff), long cache 0.98x.
+    // THE MOST LOAD-BEARING ASSERTION IN THIS FILE: it is the exact property both High
+    // findings violated. The FIFO short cache was 167x worse than no cache; the single
+    // slot cost 1.048x the skip-only implementation it was written to avoid.
     //
-    // FIXTURE SIZING MATTERS HERE in a way it does not for the ratios above. This ratio
-    // depends on REUSE: with fewer calls than distinct names every call is a first sight,
-    // the memo can only cost and never help, and the figure climbs to 4.75x. That regime
-    // cannot occur in the app - the stats passes normalize ~12x per observation and there
-    // can be no more distinct names than observations, so calls per distinct name is at
-    // least 12. This fixture uses 240,000 calls, i.e. 3.7 per name at twice capacity,
-    // which is still conservative against the real 12 and does not flatter the memo.
-    const noCache = (n: string): string => oracleNormalize(n)
-    const REUSE_CALLS = 240_000
-    function ratioAgainstNoCache(distinct: number, len: number): number {
-      let bestShipped = Infinity
-      let bestNone = Infinity
-      for (let run = 0; run < 3; run++) {
-        const ns = names(distinct, len, 4000 + run)
-        const time = (fn: (n: string) => string, reset: boolean): number => {
-          if (reset) __resetNormCacheForTests()
-          let sink = 0
-          const t0 = performance.now()
-          for (let i = 0; i < REUSE_CALLS; i++) sink += fn(ns[i % distinct]).length
-          const e = performance.now() - t0
-          if (sink < 0) throw new Error('unreachable')
-          return e
-        }
-        if (run % 2 === 0) {
-          bestShipped = Math.min(bestShipped, time(normalizeSpeciesName, true))
-          bestNone = Math.min(bestNone, time(noCache, false))
-        } else {
-          bestNone = Math.min(bestNone, time(noCache, false))
-          bestShipped = Math.min(bestShipped, time(normalizeSpeciesName, true))
-        }
-      }
-      return bestShipped / bestNone
+    // It is asserted as WORK DONE, not elapsed time, and that is a repair rather than a
+    // preference. It was first a wall-clock ratio against an un-memoized baseline, and it
+    // passed in isolation (1.60 measured here, 2.08 and 2.50 by two reviewers) while
+    // FAILING the full-suite run at 5.69 against a ceiling of 4. Repetition would not have
+    // fixed it: a hit is a lookup in a 32,768-entry Map and a miss is recomputation, so
+    // the two sides are different KINDS of work, and under the memory pressure of 163
+    // parallel files the Map loses CPU-cache locality while straight-line recomputation
+    // does not. The ratio drifts systematically, not noisily. Measured under real
+    // contention it read 2.21 at min-of-3 and 2.70 at min-of-9 - more rounds made it
+    // worse, which is the signature of a systematic effect.
+    //
+    // "Worse than no cache" has an exact meaning that needs no clock: having no cache
+    // recomputes on EVERY call, so a cache is worse than useless when it recomputes about
+    // as often. Counting misses says precisely that, cannot be moved by a loaded machine,
+    // and is a STRICTER bar than the timing form it replaces - a defect cannot hide behind
+    // a fast moment.
+    const CALLS = 240_000
+
+    function missRate(distinct: number, len: number, salt: number): number {
+      __resetNormCacheForTests()
+      const ns = names(distinct, len, salt)
+      for (let i = 0; i < CALLS; i++) normalizeSpeciesName(ns[i % distinct])
+      return __recomputesForTests() / CALLS
     }
-    // Generous ceilings: the claim is "a small constant", not a tuned number, and the
-    // defects this rejects were 167x and 1.048x-plus-a-cliff.
-    expect(ratioAgainstNoCache(LIMITS.maxEntries * 2, 24)).toBeLessThan(4)
+
+    // The scale is fixed and needs no calibration: HAVING NO CACHE IS EXACTLY 1.0, and so
+    // is any cache that misses on every call - which is what both High findings did. Every
+    // figure below is deterministic, so these thresholds exist to separate designs, not to
+    // absorb noise. Measured values are quoted beside each.
+    //
+    // There is an unavoidable floor: every admitted name must be computed once, so a cold
+    // cache cannot beat maxEntries/CALLS = 0.1365 on these fixtures.
+
+    // Structure 1, the short cache, at twice capacity - the workload that flaked as a
+    // timing assertion. Half the names are admitted and always hit; only the unadmitted
+    // half recomputes. Measured 0.5904 against no-cache 1.0.
+    expect(missRate(LIMITS.maxEntries * 2, 24, 8001)).toBeLessThan(0.75)
+
+    // Structure 1 at capacity+1, where the FIFO cliff was: everything still hits, so this
+    // sits on the cold-start floor. Measured 0.1366 against a floor of 0.1365 - i.e. the
+    // one unadmitted name is the only ongoing cost - where a FIFO recomputes at ~1.0.
+    expect(missRate(LIMITS.maxEntries + 1, 24, 8002)).toBeLessThan(0.2)
+
+    // Structure 2, the over-length cache, at twice its character budget. Measured 0.5259.
     const longCapacity = Math.floor(LIMITS.longCharBudget / (LIMITS.maxKeyLength + 1))
-    expect(ratioAgainstNoCache(longCapacity * 2, LIMITS.maxKeyLength + 1)).toBeLessThan(4)
+    expect(missRate(longCapacity * 2, LIMITS.maxKeyLength + 1, 8003)).toBeLessThan(0.75)
+
+    // Structure 2 on the workload that defeated the single slot: two alternating
+    // over-length names. Measured 0.0000083 - two cold misses in 240,000 calls - where the
+    // slot recomputed on every one of them.
+    expect(missRate(2, 40000, 8004)).toBeLessThan(0.01)
+
+    // Not vacuous: the counter has to be able to reach 1.0, or every bound above passes
+    // for the wrong reason. A working set of names that can never be admitted does exactly
+    // that - it is the no-cache baseline, measured rather than assumed.
+    __resetNormCacheForTests()
+    const unadmittable = names(LIMITS.maxEntries + 50, 24, 8005)
+    for (let i = 0; i < LIMITS.maxEntries; i++) normalizeSpeciesName(unadmittable[i])
+    const before = __recomputesForTests()
+    for (let r = 0; r < 20; r++) {
+      for (let i = LIMITS.maxEntries; i < unadmittable.length; i++) {
+        normalizeSpeciesName(unadmittable[i])
+      }
+    }
+    expect(__recomputesForTests() - before).toBe(20 * 50)
   }, RATIO_TEST_TIMEOUT_MS)
 })

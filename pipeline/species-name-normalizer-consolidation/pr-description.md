@@ -183,7 +183,7 @@ normal-use smoke test. `pipeline/species-name-normalizer-consolidation/how-to-se
 the step-by-step.
 
 ```
-cd frontend && npx vitest run          # 163 files, 2,211 tests
+cd frontend && npx vitest run          # 163 files, 2,228 tests (whole bundle)
 cd frontend && npm run build           # the real gate: tsc -b && vite build
 cd frontend && npm run lint
 cd backend  && ./.venv/bin/python -m pytest tests/ -q
@@ -257,6 +257,20 @@ cd backend  && ./.venv/bin/python -m pytest tests/ -q
   session. Two exact assertions, no wall clock — one seeds the cache with a value a recompute
   could not produce (so "served from cache" is observable at all), the other pins the
   accounting variable separately from the contents. Each turns exactly its own mutant red.
+
+- **The "never much worse than no cache" assertion was re-expressed as work done, not
+  elapsed time.** It passed in isolation (1.60 here, 2.08 and 2.50 by two reviewers) and
+  failed the bundle's full-suite run at 5.69 against a ceiling of 4. Repetition was not the
+  fix and measurement proved it: under real contention it read 2.21 at min-of-3 and **2.70
+  at min-of-9**, worse with more rounds, which is the signature of a systematic effect
+  rather than noise. A hit is a lookup in a 32,768-entry Map and a miss is recomputation, so
+  the two sides are different kinds of work and lose CPU-cache locality at different rates.
+  It now counts misses instead: having no cache recomputes on exactly 1.0 of calls, so
+  "worse than no cache" has an exact meaning that no loaded machine can move. Measured
+  0.5904 / 0.1366 / 0.5259 / 0.0000083 against thresholds of 0.75 / 0.2 / 0.75 / 0.01, and
+  it still turns **M8 and M4b** red (plus M7 and M8e). The counter increments only on a
+  miss, so the hot path is unchanged, and it is tree-shaken out of the bundle like the other
+  test-only exports.
 
 - **Mutation matrix: 25 mutations, all RED, none survived.** Enumerated in full so the
   count is checkable against the matrix rather than asserted:

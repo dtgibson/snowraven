@@ -196,11 +196,30 @@ const MEMO_LONG_CHAR_BUDGET = 1048576
 const _longCache = new Map<string, string>()
 let _longChars = 0
 
+// Recompute counter, incremented ONLY on a miss, never on the hit path.
+//
+// It exists so the load-bearing property - that neither cache is ever much worse than
+// having no cache at all - can be asserted as WORK DONE rather than as elapsed time. That
+// property was first written as a wall-clock ratio against an un-memoized baseline, and it
+// failed under full-suite contention (5.69 against a ceiling of 4) while reading 1.60 to
+// 2.50 in isolation. The cause was not random noise and no amount of repetition fixes it:
+// a cache hit is a lookup in a 32,768-entry Map and a miss is recomputation, so the two
+// sides are different KINDS of work. Under the memory pressure of 163 parallel test files
+// the Map loses CPU-cache locality while straight-line recomputation does not, and the
+// ratio drifts systematically rather than noisily.
+//
+// Counting misses removes the clock from the question entirely: "worse than no cache"
+// means "recomputes about as often as having no cache would", which is exact, and a
+// machine under load cannot move it. The increments sit on the branch that was already
+// paying for a full scan, so the hot path is byte-for-byte unchanged.
+let _recomputes = 0
+
 export function normalizeSpeciesName(name: string): string {
   if (name.length > MEMO_MAX_KEY_LENGTH) {
     const longHit = _longCache.get(name)
     if (longHit !== undefined) return longHit
     const norm = stripTrailingParenthetical(name)
+    _recomputes++
     // Admit only while the budget allows, or into an empty cache so that a single name
     // larger than the whole budget is still served rather than recomputed on every call.
     if (_longChars + name.length <= MEMO_LONG_CHAR_BUDGET || _longCache.size === 0) {
@@ -212,6 +231,7 @@ export function normalizeSpeciesName(name: string): string {
   const hit = _normCache.get(name)
   if (hit !== undefined) return hit
   const norm = stripTrailingParenthetical(name)
+  _recomputes++
   // Admission control, exactly as on the over-length path above. This cache ALSO evicted
   // FIFO once, and it had the same capacity+1 cliff for the same reason: past the limit
   // every call misses, deletes and re-inserts. At one name past the cap that measured
@@ -280,6 +300,13 @@ export function __resetNormCacheForTests(): void {
   _normCache.clear()
   _longCache.clear()
   _longChars = 0
+  _recomputes = 0
+}
+
+/** Misses since the last reset. Lets the "never much worse than no cache" property be
+ *  asserted exactly, instead of through a wall clock that contention can move. */
+export function __recomputesForTests(): number {
+  return _recomputes
 }
 
 export const __MEMO_LIMITS_FOR_TESTS = {
