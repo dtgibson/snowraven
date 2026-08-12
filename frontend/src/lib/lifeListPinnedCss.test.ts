@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseTopLevelRules } from './cssTopLevelRules'
+import { findUngatedSafeAreaRules, parseTopLevelRules } from './cssTopLevelRules'
 
 const css = readFileSync(fileURLToPath(new URL('../globals.css', import.meta.url)), 'utf8')
 const tsx = readFileSync(
@@ -152,10 +152,7 @@ describe('Multimedia pinned header, iOS safe area', () => {
     // iOS Safari; an ungated rule would change shipped web rendering on every
     // notched phone. Exact selector keys are what make this assertion land on the
     // UNGATED rule rather than finding itself inside the gated one.
-    for (const sel of ['.sr-ll-table--pinned thead th', ...focusSelectors('.sr-ll-table--pinned')]) {
-      expect(topLevelRule(sel), `${sel} must not reach env() without the .sr-ios-app gate`)
-        .not.toContain('env(')
-    }
+    expect(findUngatedSafeAreaRules(css, 'sr-ll-table--pinned')).toEqual([])
   })
 })
 

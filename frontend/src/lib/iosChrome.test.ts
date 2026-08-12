@@ -13,7 +13,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { parseTopLevelRules } from './cssTopLevelRules'
+import { findUngatedSafeAreaRules, parseTopLevelRules } from './cssTopLevelRules'
 
 const css = readFileSync(fileURLToPath(new URL('../globals.css', import.meta.url)), 'utf8')
 const app = readFileSync(fileURLToPath(new URL('../App.tsx', import.meta.url)), 'utf8')
@@ -102,7 +102,7 @@ describe('globals.css Help overlay panel positioning + iOS inset', () => {
     // to browsers too, so env() is non-zero in iOS Safari on the WEB build — a
     // bare env() here would fix the iOS app and silently change shipped web
     // rendering on every notched phone (the documented QA round-1 finding).
-    expect(topLevelRule('.sr-help-panel')).not.toMatch(/env\(/)
+    expect(findUngatedSafeAreaRules(css, 'sr-help-panel')).toEqual([])
   })
 
   it('pads the panel clear of the status bar and the sensor housing, .sr-ios-app-gated', () => {
@@ -132,7 +132,7 @@ describe('globals.css Help TOC height cap', () => {
     // viewport-fit=cover reason as the panel above.
     const body = topLevelRule('.sr-help-toc')
     expect(body).toMatch(/max-height:\s*calc\(100vh\s*-\s*52px\)/)
-    expect(body).not.toMatch(/env\(/)
+    expect(findUngatedSafeAreaRules(css, 'sr-help-toc')).toEqual([])
   })
 
   it('subtracts the top safe-area inset from the cap on iOS', () => {
@@ -172,8 +172,7 @@ describe('globals.css skip link safe-area inset', () => {
     // to browsers too, so env() is non-zero in iOS Safari on the WEB build — a
     // bare env() here would fix the iOS app and silently change shipped web
     // rendering on every notched phone.
-    expect(topLevelRule('.sr-skip-link')).not.toMatch(/env\(/)
-    expect(topLevelRule('.sr-skip-link:focus')).not.toMatch(/env\(/)
+    expect(findUngatedSafeAreaRules(css, 'sr-skip-link')).toEqual([])
   })
 
   it('offsets the FOCUSED link past the status bar and the sensor housing, .sr-ios-app-gated', () => {

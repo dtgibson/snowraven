@@ -11,7 +11,7 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { parseTopLevelRules } from './cssTopLevelRules'
+import { findUngatedSafeAreaRules, parseTopLevelRules } from './cssTopLevelRules'
 
 // Vitest stubs `.css` imports (`?raw` included), so read the file directly. Node
 // types are pulled in for this one file by the reference above, matching how
@@ -286,9 +286,9 @@ describe('pinned header, iOS safe area', () => {
   it('gates EVERY safe-area rule on .sr-ios-app so web stays byte-identical', () => {
     // index.html ships viewport-fit=cover to browsers too, so env() is NOT zero in
     // iOS Safari; an ungated rule would change the shipped web rendering on notched
-    // phones. Asserts no .sr-bc-matrix--pinned selector reaches env() at the start of
-    // a line (i.e. without the .sr-ios-app prefix).
-    expect(css).not.toMatch(/^\.sr-bc-matrix--pinned[^{]*\{[^}]*env\(safe-area/m)
+    // phones. Search every rule occurrence, including copies nested inside block
+    // at-rules; parseTopLevelRules remains reserved for positive any-width claims.
+    expect(findUngatedSafeAreaRules(css, 'sr-bc-matrix--pinned')).toEqual([])
   })
 })
 

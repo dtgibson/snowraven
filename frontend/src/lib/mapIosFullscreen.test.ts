@@ -17,7 +17,11 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { mapContentClass } from './mapFullscreen'
-import { parseTopLevelRules } from './cssTopLevelRules'
+import {
+  findSafeAreaDeclarations,
+  findUngatedSafeAreaRules,
+  parseTopLevelRules,
+} from './cssTopLevelRules'
 
 const css = readFileSync(fileURLToPath(new URL('../globals.css', import.meta.url)), 'utf8')
 const mapExplorer = readFileSync(
@@ -171,7 +175,7 @@ describe('globals.css fullscreen panel positioning + iOS inset', () => {
     // to browsers too, so env() is non-zero in iOS Safari on the WEB build — a
     // bare env() here would fix the iOS app and silently change shipped web
     // rendering on every notched phone (the documented QA round-1 finding).
-    expect(cssRule('.sr-map-fullscreen-panel')).not.toMatch(/env\(/)
+    expect(findUngatedSafeAreaRules(css, 'sr-map-fullscreen-panel')).toEqual([])
   })
 
   it('pads the panel clear of the status bar and the sensor housing, .sr-ios-app-gated', () => {
@@ -195,7 +199,33 @@ describe('globals.css fullscreen panel positioning + iOS inset', () => {
     // so its own padding-left (correct before the panel was padded) would now
     // double. See the .sr-map-content assertion below for why left:0 lands on
     // the padded edge rather than the physical viewport edge.
-    expect(iosRule('.sr-map-sidebar-overlay')).not.toMatch(/padding-left:\s*env\(/)
+    const leftInsets = findSafeAreaDeclarations(css, 'sr-map-sidebar-overlay')
+      .filter(({ property }) => property === 'padding-left')
+    expect(leftInsets).toEqual([])
+  })
+
+  it.each([
+    String.raw`padding\2d left: env(safe-area-inset-left)`,
+    String.raw`padding-left: e\6ev(safe-area-inset-left)`,
+    String.raw`padding-left: env(safe\2d area-inset-left)`,
+    'padding-left: env(/* comment; with delimiter */ safe-area-inset-left)',
+    'padding-left: calc(1px + env(/* comment; */ safe-area-inset-left))',
+  ])('detects semantic sidebar left-inset mutation: %s', (declaration) => {
+    const fixture = `.sr-map-sidebar-overlay { ${declaration}; }`
+    expect(findSafeAreaDeclarations(fixture, 'sr-map-sidebar-overlay')).toMatchObject([
+      { property: 'padding-left', safeAreaVariables: ['safe-area-inset-left'] },
+    ])
+  })
+
+  it('does not confuse another safe-area property plus padding-left:0 for a left inset', () => {
+    const fixture = [
+      '.sr-map-sidebar-overlay {',
+      '  top: env(safe-area-inset-top);',
+      '  padding-left: 0;',
+      '}',
+    ].join('\n')
+    expect(findSafeAreaDeclarations(fixture, 'sr-map-sidebar-overlay')
+      .filter(({ property }) => property === 'padding-left')).toEqual([])
   })
 
   it('keeps .sr-map-content positioned (it carries the inset down to the sidebar)', () => {
