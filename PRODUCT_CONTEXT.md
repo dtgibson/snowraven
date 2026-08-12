@@ -5,6 +5,16 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Five-build Spool bundle: two Breeding Codes phone repairs, a counting correction, and two pieces of invisible hardening (complete — August 2026, v0.5.86)
+
+Five queued builds shipped as one release: two phone-layout fixes, one data-correctness fix, and two hardening passes. This is not a frontend-only bundle: the bounded Nominatim policy also changed the FastAPI backend, and the stylesheet inspector added development dependencies.
+
+- **Breeding Codes' filter meanings stay inside their pills on a phone.** At 320px and 200% Text Size, the row had reached 31px past the viewport even though it was already allowed to wrap, because the longest pill and its label kept their intrinsic minimum widths. Dedicated phone-only hooks release both floors and let the complete label wrap; the shared filter-row system and wider layouts are unchanged.
+- **Long bird names and both reference links stay inside the name column.** The column clamp was correct; the shared one-line name-and-links row was not. At phone widths the name may now wrap above its eBird and Birds of the World links, with both icons, full accessible names and 24px touch targets retained. Normal keeps its sticky name column, while Unbounded keeps its intentionally non-sticky one.
+- **Countable intergrades survive all four import families.** The eBird backup, Life List, Macaulay Library and both Breeding Codes paths now classify the raw name with the same rule: true interspecies hybrids, spuhs and raw-name slashes remain excluded, while an intergrade named only inside a trailing parenthetical counts as its parent species. Across the bundled taxonomy, 36 rescued forms fold into 26 parents and 0 additional names are excluded.
+- **Nominatim coordinate retention is bounded on both transports.** The Tauri and FastAPI paths retain at most 4,096 rounded-coordinate county results with fill-and-stop admission. Desktop forward and reverse calls share one provider-safe request-start queue, and concurrent reverse calls for the same rounded key share one request.
+- **Seven safe-area guards now inspect nested rules.** The five originally reported guard groups plus the Help table of contents and map button family use an all-depth AST inspection that preserves directed selector ancestry, fails closed, and caps selector expansion at 4,096 alternatives. Positive “applies at every width” assertions keep their deliberately top-level parser.
+
 ### Five-build Spool bundle: two repairs and three pieces of invisible hardening (complete — August 2026, v0.5.85)
 
 Five queued builds shipped as one release: two fixes a user can see, and three hardening passes with nothing to see. Frontend only throughout, and deliberately so — no new provider, backend route, dependency, persisted setting, network call, or Tauri grant, and no bird name, count, total, link, or hidden weather block moves anywhere in the app. Three of the five made no change to the shipped bundle at all beyond their own module.
@@ -577,7 +587,7 @@ the initial page load.
 - Persistent tab bar switches between "Weather" and "List Comparer" without page reload or state loss
 - Two drop zones accept eBird backup CSV files via drag-and-drop or click-to-browse
 - Parses the "Common Name" column; rejects files missing that column with a clear error
-- Excludes spuh entries (ending in " sp."), slash species (containing "/"), and hybrids (containing " x "); soundscape entries are included
+- Excludes spuh entries (ending in " sp."), raw-name slash forms, and true interspecies hybrids; a trailing-parenthetical intergrade counts as its parent species, and soundscape entries are included
 - Strips subspecies parentheticals so "Yellow-rumped Warbler (Myrtle)" and "Yellow-rumped Warbler (Audubon's)" count as the same species
 - Produces three alphabetically-sorted lists: in both, File A only, File B only
 - Summary bar shows five counts: total A, total B, both, A only, B only
@@ -621,7 +631,7 @@ the species list from eBird observations rather than ML catalog entries alone.
 **What it does:**
 - Upload screen shows a single drop zone for ML export (with download instructions)
 - Parses one entry per unique species; normalizes subspecies parentheticals (e.g. "Yellow-rumped Warbler (Myrtle)" → "Yellow-rumped Warbler")
-- Excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `); soundscape entries are included as first-class rows
+- Excludes spuh (` sp.`), raw-name slash forms, and true interspecies hybrids; a trailing-parenthetical intergrade counts as its parent species, and soundscape entries are included as first-class rows
 - Strips the `ML` prefix from catalog numbers and deduplicates
 - Media types come from the `Format` column (Photo/Audio/Video) — client-side only, no network request
 - Renders a table with five columns: Entries, Photo, Audio, Video, Total; all count cells show a dash for zero
@@ -711,7 +721,7 @@ scrolls with the page, not a boxed data-grid).
 - Legend at the bottom of the table card maps tier colors to categories and codes
 - **↔ Unbounded / ↔ Normal toggle** — removes `overflowX` and unfreezes the sticky species column so the whole page scrolls horizontally on mobile; species column stickiness is re-enabled in Normal mode
 - "Load new file" button resets to the upload state
-- Spuh (` sp.`), slash species, and hybrids (` x `) excluded; subspecies parentheticals normalized to parent species name
+- Spuh (` sp.`), raw-name slash forms, and true interspecies hybrids are excluded; a trailing-parenthetical intergrade counts as its parent species, and subspecies parentheticals normalize to the parent species name
 
 **Key files:**
 - `frontend/src/lib/breedingCodes.ts` — 23 code definitions (`code`, `label`, `tier`), `BREEDING_CODE_MAP`, `TIER_COLORS`
@@ -874,7 +884,7 @@ County and date-range filters added to the Breeding Codes, Media List, and Speci
 - County controls show a "Resolving counties…" spinner while the Nominatim pass is running in the background
 
 **Key files:**
-- `backend/routers/nominatim.py` — `POST /nominatim/counties` endpoint; accepts `[{lat, lng}]`; in-process `_cache` dict; `asyncio.Lock()` enforces ≤1 req/sec to OSM; `User-Agent: SnowRaven/1.0`
+- `backend/routers/nominatim.py` — `POST /nominatim/counties` endpoint; accepts `[{lat, lng}]`; the FastAPI and Tauri transports each retain at most 4,096 rounded-coordinate results with fill-and-stop admission; the backend lock and desktop's shared forward/reverse request-start queue enforce ≤1 req/sec to OSM; `User-Agent: SnowRaven/1.0`
 - `frontend/src/lib/parseBreedingCodes.ts` — added `BreedingCodeRow`, `rows` field in `BreedingData`, `aggregateBreedingRows()`
 - `frontend/src/lib/parseMLExport.ts` — added `MLExportRow`, `rows` field in `MLExportResult`, `aggregateMLRows()`
 - `frontend/src/lib/parseEbirdObservations.ts` — added `county` column read
@@ -1638,7 +1648,9 @@ Column headers (Entries, Photo, Audio, Video; breeding code columns) are clickab
 **Soundscape entries are included in ML export parsing**
 Macaulay Library exports include non-species entries like "Soundscape" with no
 scientific name. These pass through `parseMLExport.ts` as first-class entries — the
-`isExcluded()` function only excludes spuh (` sp.`), slash species (`/`), and hybrids (` x `).
+canonical raw-observation classifier excludes spuh (` sp.`), raw-name slash forms,
+and true interspecies hybrids while retaining a trailing-parenthetical intergrade
+as its parent species.
 Soundscape entries appear in the table with an empty scientific name cell and respond
 to the standard filter pills (e.g. "Has audio") like any other entry.
 

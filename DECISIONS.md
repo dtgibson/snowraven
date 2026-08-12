@@ -4,6 +4,58 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## Export parsers classify the RAW observation before their deliberately distinct output normalization — 2026-08-12 (v0.5.86)
+
+`parseEbird`, `parseLifeList`, `parseMLExport`, and the two Breeding Codes paths no longer carry four private predicates that reject any raw name containing `" x "`. All five call sites now use the canonical `isNonCountableObservedName`: true interspecies hybrids are rejected because the marker remains in the normalized base name, while an intraspecific intergrade named only inside a trailing parenthetical remains countable. Spuhs and raw-name slash forms keep their existing exclusion.
+
+The taxonomy sweep fixed the scale before the change: of **17,891** distinct bundled taxonomy names, the old predicates dropped **36** countable intergrade forms. The canonical classifier rescues all 36 into **26** parent species and newly excludes **0** names. Parser-level fixtures prove the row consequence as well as the taxonomy consequence: all 36 source rows survive both the ML-export and Breeding Codes paths.
+
+This does **not** reverse v0.5.85's normalization decision. Classification and output normalization answer different questions. Each parser classifies the raw cell with `isNonCountableObservedName`, then continues to call `truncateAtFirstParen`, preserving the more-aggressive malformed-cell behavior that was measured and ratified in the prior release. The change converges the exclusion rule, not the normalization rule.
+
+---
+
+## The cache inventory found three different answers, so capacity+1 is a measurement rule rather than one universal policy — 2026-08-12 (v0.5.86)
+
+The five-item roadmap inventory was wrong in two useful ways. `storage.ts` is not a cache owner at all; it is a persistence seam. `persistedStyle.ts`'s shipped caller graph is finite (`VectorVariant`, currently only the Positron call), but its string-accepting exported API does not impose a structural bound, so the record must not turn today's callers into an API guarantee.
+
+The two durable stores remain FIFO by decision. County completeness holds at most **250** entries and replay at most **300**. At capacity+1 each performs one linear lookup/shift and one debounced whole-document snapshot, work dominated by the network or storage operation around it. More importantly, retaining the newest county result or last-loaded response for offline use is the product contract. Admission control was right for the hot name memo because repeated cheap misses made FIFO pathological; it is not a universal replacement for useful newest-data eviction.
+
+Their historical “4 MB” and “3 MB” labels are not byte bounds. Both enforce `JSON.stringify(data).length` over payload values, which is a count of JavaScript UTF-16 code units. Keys, metadata, ordering and the persisted envelope are excluded, and one sole oversized newest payload is deliberately allowed. The strict entry caps remain the hard retained-count bounds. A separate pre-existing durability limitation is now explicit: debounced writes are best-effort and not serialized by completion, so an older stalled write may finish after a newer snapshot even though the in-memory mirror remains current.
+
+The two genuinely unbounded Nominatim coordinate caches changed. Tauri and FastAPI now retain at most **4,096** rounded-coordinate results by fill-and-stop admission: overflow calls return normally but do not churn the admitted working set. Desktop forward and reverse calls share one request-start queue enforcing the provider's one-second spacing, concurrent same-rounded-key reverse calls share one Promise, and parity tests lock JavaScript/Python rounding at positive and negative half steps.
+
+---
+
+## Stylesheet absence claims use an all-depth directed selector graph, while positive every-width claims keep the top-level parser — 2026-08-12 (v0.5.86)
+
+The v0.5.85 finding named five safe-area guard groups that could not see an ungated declaration nested in an at-rule. The root-cause sweep widened the protected set to **seven surfaces**: the original Breeding Codes pinned header, Multimedia/Life List pinned header, Help panel, skip link and fullscreen map, plus the Help table of contents and map FAB family. Every absence assertion now queries the shared `css-tree` AST inspector at arbitrary block-at-rule and native-nesting depth. `parseTopLevelRules` is unchanged and remains the right tool for a positive claim that a rule applies at every viewport width; skipping at-rule blocks is load-bearing for that question.
+
+Using an AST was necessary but not sufficient. The first AST implementation flattened a complex `:is()`/`:where()` branch and could mistake a same-element `.sr-ios-app` class for an ancestor gate. The final representation preserves each selector alternative as directed compound constraints converging on its **rightmost subject**. Only a descendant or child path from `.sr-ios-app` establishes the native-app gate; same-compound, sibling and column relations do not, and every unsafe branch remains visible independently. Unsupported or recovered shapes fail closed.
+
+The same review found unbounded Cartesian expansion. One deterministic **4,096-alternative** budget now preflights every functional-selector, selector-list, native-nesting, nested-scope and scope-by-rule product before allocation. Exact 4,096-path fixtures pass and 4,097/4,160/8,192-path fixtures fail with the stable diagnostic. Accepted **Low** residual: the helper still does not cap total graph nodes/edges, stylesheet rule count or recursive nesting depth. It reads committed test CSS only, has no production import, and is therefore a CI-resilience follow-up rather than a release blocker.
+
+---
+
+## The Breeding Codes filter row needed both nested flex floors released, behind its own phone hooks — 2026-08-12 (v0.5.86)
+
+At 320px and 200% Text Size, the Breeding Codes filter row measured **327.11px** inside a **272px** parent: **55.11px** beyond the parent's content edge and **31.11px** beyond the viewport, identically in Normal and Unbounded. `flex-wrap: wrap` was already active. The longest pill and its label both retained the automatic `min-width: auto` floor, so the row was structurally allowed to wrap and still could not shrink.
+
+The repair releases every minimum on that path: `min-width: 0` on the feature row, pill and nested label; phone-only `height: auto !important` with the existing 30px minimum on full-label code pills; and `overflow-wrap: break-word` for the emergency slash-delimited run. Three dedicated hooks keep that layout contract inside Breeding Codes. The shared `.sr-ctl-row` still sizes text only, its other consumers are unchanged, and widths above 640px retain the fixed desktop pill height.
+
+The production-backed Chromium probe exercised 72 width/text-scale/view combinations, including the pathological code C label, and measured the row, every pill box and every text-node ink rectangle against the actual parent. Normal had no page horizontal scroll; Unbounded's intentional table-wide page scroll remained separate. The real demo supplies 13 of 23 codes, so an all-23 browser fixture remains a coverage-strengthening follow-up rather than a correctness prerequisite.
+
+---
+
+## The Breeding Codes name-cell clamp was correct; the shared name-and-two-link row was the escaping object — 2026-08-12 (v0.5.86)
+
+The roadmap's “favicon is the offender” diagnosis was incomplete. The phone name column itself resolved to its intended clamp, but the shared one-line `BirdName` row laid the common name beside an indivisible two-link `SpeciesLinks` group. That row escaped the cell by **27.44–33.52px**; hiding or shrinking one favicon would not remove the reserved slot or preserve the two-reference contract.
+
+The repair is scoped to the Breeding Codes phone name cell. The shared name row fills the available width and may wrap, so a long common name sits above the eBird and Birds of the World links instead of pushing them outside. Both links and both 14px icons remain present, each link keeps its full accessible name and at least a **24×24px** target, and the scientific-name line keeps its established behavior. The column width and state predicates are unchanged: Normal remains sticky; Unbounded and Unbounded+pinned remain non-sticky.
+
+The built-app probe checked 48 Chromium/WebKit combinations across four text scales, two themes and three table states. It measured visible text and icon ink plus complete anchor rectangles against each clamped cell, not page `scrollWidth`; every edge stayed inside. A 641px fingerprint was identical with the repair enabled and removed, proving the phone scope without altering the shared `BirdName`/`SpeciesLinks` system elsewhere.
+
+---
+
 ## The four parsers' copies were EXTRACTED, not converged, and the DIRECTION of the divergence is what settles it — 2026-08-11 (v0.5.85)
 
 `parseEbird`, `parseLifeList`, `parseMLExport` and `parseBreedingCodes` each carried a private function *named* `normalizeSpeciesName` that shadowed the import of that name while not being it: it cuts at the first `(` regardless of closure or position. `ROADMAP.md` asked to converge them onto the real normalizer. That was measured and **rejected**.
