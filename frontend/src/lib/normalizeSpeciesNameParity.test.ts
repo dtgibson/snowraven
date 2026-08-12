@@ -17,19 +17,26 @@
 /// <reference types="node" />
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { normalizeSpeciesName, isNonCountableObservedName } from './speciesUtils'
+import {
+  normalizeSpeciesName,
+  isNonCountableObservedName,
+  truncateAtFirstParen,
+} from './speciesUtils'
+import { enumerateProbes, SPECIES_NAME_ALPHABET, SPECIES_NAME_PROBE_LEN } from './regexSweepGuards'
 
 // The pre-change implementation, verbatim, as the differential oracle.
 const shippedRegexNormalize = (name: string): string => name.replace(/\s*\([^)]*\)\s*$/, '').trim()
 
-// The variant local to parseEbird / parseLifeList / parseMLExport / parseBreedingCodes.
-// A DIFFERENT function (it cuts at the first "(" regardless of closure or position), not a
-// ready-made answer. Present only so the probe set can prove it rejects it.
-const parsersLocalNormalize = (name: string): string => {
-  const parenIdx = name.indexOf('(')
-  if (parenIdx === -1) return name
-  return name.slice(0, parenIdx).trim()
-}
+// The variant the four CSV parsers use. A DIFFERENT function (it cuts at the first "("
+// regardless of closure or position), not a ready-made answer. Present only so the probe
+// set can prove it rejects it.
+//
+// It used to be a copy written out here, because the real thing was four private
+// functions inside the parsers with no export to reach. improve:
+// species-name-normalizer-consolidation extracted them to one export named for its rule,
+// so this guard now aims at the SHIPPED function rather than at a reproduction of it -
+// which is what makes it a guard rather than a description.
+const parsersLocalNormalize = truncateAtFirstParen
 
 // ---------------------------------------------------------------------------
 // probe sets
@@ -40,19 +47,18 @@ const parsersLocalNormalize = (name: string): string => {
 // corners of `\s`. U+2028 matters most. It is both `\s` and a LineTerminator, yet a
 // non-multiline `$` does NOT treat it as an end of input, so an implementation that
 // reached for a line-aware primitive would diverge there and nowhere else.
-const ALPHABET = ['(', ')', 'a', ' ', '\t', '\n', ' ', ' ', '﻿', '　']
-const MAX_PROBE_LEN = 4
+//
+// The alphabet moved to `regexSweepGuards.ts` in improve:
+// species-name-normalizer-consolidation, so this suite and `truncateAtFirstParen.test.ts`
+// share ONE definition. It is the entire discriminating power of both (real names score
+// zero divergences against every wrong implementation), and its exotic members have been
+// flattened to ASCII spaces in transit three separate times - a second copy is a second
+// thing that can silently weaken. `truncateAtFirstParen.test.ts` pins its code points.
+const ALPHABET = SPECIES_NAME_ALPHABET
+const MAX_PROBE_LEN = SPECIES_NAME_PROBE_LEN
 
 function exhaustiveProbes(): string[] {
-  let all: string[] = ['']
-  let cur: string[] = ['']
-  for (let len = 1; len <= MAX_PROBE_LEN; len++) {
-    const next: string[] = []
-    for (const s of cur) for (const c of ALPHABET) next.push(s + c)
-    all = all.concat(next)
-    cur = next
-  }
-  return all
+  return enumerateProbes(ALPHABET, MAX_PROBE_LEN)
 }
 
 // Named probes, kept readable so the semantics stay legible without decoding the sweep.

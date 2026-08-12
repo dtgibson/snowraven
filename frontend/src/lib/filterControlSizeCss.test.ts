@@ -51,12 +51,158 @@ function phoneTierRange(): [number, number] {
   throw new Error('unbalanced braces in globals.css')
 }
 
-/** Rules that set a font-size on the guarded controls or on .sr-ctl-row. */
+// ── Exact selector matching ──────────────────────────────────────────────────
+//
+// Selector SELECTION here is exact, never String.includes, per the CLAUDE.md
+// sub-rule and the mapFabCascade / helpContentWidthCss house pattern. The
+// substring form this replaces was not merely fragile here: the "reaches buttons,
+// selects and inputs" assertion below tested `sel.includes('input')` against the
+// joined selector string, which the CLASS NAME `.sr-input-16` satisfies on its
+// own — so that third of it could not fail, and narrowing the shipped rule to
+// `:is(button, select)` left it green while the `button` mutation went red. That
+// is the per-partition non-vacuity defect CLAUDE.md records for mapFabCascade's
+// glyph half, live in a second file.
+//
+// "Exact" means the RIGHTMOST COMPOUND, not string equality with the whole
+// selector. `.sr-ctl-row :is(button, select, input)` and
+// `.sr-map-sidebar-overlay .sr-field-row > *` are deliberately DESCENDANT
+// selectors, and equality with the ancestor asserts the opposite of what they mean.
+//
+// (That sentence is worded around one word on purpose, and this one is too.
+// Tailwind v4 auto source detection scans THIS FILE and treats bare words in
+// comments as class candidates, so a comment here can emit a rule into the SHIPPED
+// stylesheet. An earlier draft used the obvious filter-utility verb for "turns it
+// backwards" and grew the production CSS by 219 bytes; naming that verb again here,
+// even to warn about it, reintroduced the rule. See the standing convention in
+// CLAUDE.md, and verify with a byte-compare of dist CSS against HEAD.)
+//
+// These helpers stay LOCAL, and lib/cssTopLevelRules.ts is not an option for any
+// question in this file: both subjects are ≤640-tier rules, and that parser skips
+// at-rule blocks WHOLE, so neither is even present in its map. The three
+// selector-analysis helpers below are a third copy of the ones in
+// mapFabCascade.test.ts — hoisting them into a shared module is a deliberate step,
+// as the parser extraction was, and is flagged for the roadmap rather than taken
+// inside a test-only hardening change.
+
+/** Split a selector list on TOP-LEVEL commas — `:is(button, select, input)` must survive whole. */
+function splitList(list: string): string[] {
+  const parts: string[] = []
+  let depth = 0
+  let cur = ''
+  for (const ch of list) {
+    if (ch === '(' || ch === '[') depth++
+    else if (ch === ')' || ch === ']') depth--
+    if (ch === ',' && depth === 0) { parts.push(cur); cur = '' } else cur += ch
+  }
+  parts.push(cur)
+  return parts.map(p => p.trim().replace(/\s+/g, ' ')).filter(Boolean)
+}
+
+/** The compounds of ONE complex selector, in order — combinator-separated, paren-aware. */
+function compounds(sel: string): string[] {
+  const out: string[] = []
+  let depth = 0
+  let cur = ''
+  for (const ch of sel) {
+    if (ch === '(' || ch === '[') depth++
+    else if (ch === ')' || ch === ']') depth--
+    if (depth === 0 && (/\s/.test(ch) || ch === '>' || ch === '+' || ch === '~')) {
+      if (cur) out.push(cur)
+      cur = ''
+      continue
+    }
+    cur += ch
+  }
+  if (cur) out.push(cur)
+  return out
+}
+
+/** The compound that has to match the element itself. */
+function rightmost(sel: string): string {
+  const c = compounds(sel)
+  return c[c.length - 1] ?? sel
+}
+
+/** Simple selectors inside one compound, in order (house form, mapFabCascade.test.ts). */
+function simpleParts(compound: string): string[] {
+  const parts: string[] = []
+  let i = 0
+  while (i < compound.length) {
+    const ch = compound[i]
+    if (ch === '[') {
+      const end = compound.indexOf(']', i)
+      parts.push(compound.slice(i, end + 1)); i = end + 1; continue
+    }
+    if (ch === '#' || ch === '.' || ch === ':') {
+      let j = i + 1
+      if (ch === ':' && compound[j] === ':') j++
+      while (j < compound.length && /[-\w\\]/.test(compound[j])) j++
+      if (compound[j] === '(') {           // functional pseudo: take the whole ()
+        let d = 1; j++
+        while (j < compound.length && d > 0) { if (compound[j] === '(') d++; else if (compound[j] === ')') d--; j++ }
+      }
+      parts.push(compound.slice(i, j)); i = j; continue
+    }
+    let j = i
+    while (j < compound.length && /[-\w*|\\]/.test(compound[j])) j++
+    if (j === i) { i++; continue }
+    parts.push(compound.slice(i, j)); i = j
+  }
+  return parts
+}
+
+/**
+ * The ELEMENT (type) selectors a compound names, including inside `:is()` /
+ * `:where()` arguments — which is where all three of this rule's live, so a scan
+ * that stopped at the compound would see none of them.
+ */
+function elementsNamed(compound: string): string[] {
+  const out: string[] = []
+  for (const p of simpleParts(compound)) {
+    if (p.startsWith('.') || p.startsWith('#') || p.startsWith('[') || p === '*') continue
+    if (p.startsWith(':')) {
+      const args = /\((.*)\)$/s.exec(p)?.[1]
+      if (args) for (const inner of splitList(args)) out.push(...elementsNamed(inner))
+      continue
+    }
+    out.push(p.toLowerCase())
+  }
+  return out
+}
+
+/**
+ * The two subjects this guard is about, and what an exact match means for each.
+ *
+ *   .sr-input-16 — the class sits ON the control, so the selector must BE it.
+ *     Rejects a prefix-extended rename (`.sr-input-16-lg`), a descendant
+ *     narrowing (`.sr-input-16 span`, which sizes the wrong element), and a scope
+ *     under an ancestor that may not exist (`.sr-nope .sr-input-16`).
+ *   .sr-ctl-row — a CONTAINER hook, so the guarded element is a DESCENDANT and
+ *     equality would be wrong; the LEADING compound must be exactly the
+ *     container. This deliberately still ADMITS the bare `.sr-ctl-row {
+ *     font-size }` form: excluding it here would drop the container-hook rule out
+ *     of the set entirely and leave the assertion that exists to reject it
+ *     passing vacuously on the very bug it names.
+ */
+type Subject = 'input-16' | 'ctl-row'
+interface Guarded { rule: Rule; selector: string; subject: Subject }
+
+/** Every complex selector in the stylesheet that sizes one of the two subjects. */
+function guardedSizing(): Guarded[] {
+  const out: Guarded[] = []
+  for (const rule of rules()) {
+    if (!/font-size\s*:/.test(rule.body)) continue
+    for (const selector of splitList(rule.selector)) {
+      if (selector === '.sr-input-16') out.push({ rule, selector, subject: 'input-16' })
+      else if (compounds(selector)[0] === '.sr-ctl-row') out.push({ rule, selector, subject: 'ctl-row' })
+    }
+  }
+  return out
+}
+
+/** The rules those selectors live in, deduped. */
 function sizingRules(): Rule[] {
-  return rules().filter(r =>
-    (r.selector.includes('.sr-input-16') || r.selector.includes('.sr-ctl-row')) &&
-    /font-size\s*:/.test(r.body),
-  )
+  return [...new Set(guardedSizing().map(g => g.rule))]
 }
 
 /** The font-size value a rule declares, whitespace-normalised, `!important` kept. */
@@ -70,9 +216,13 @@ describe('phone-tier filter-control size: one formula for both sides', () => {
     // pre-fix state, which had `.sr-input-16 { font-size: 16px !important; }` and
     // no neighbour rule at all. That is the reported bug: 16px selects against
     // 12px pills in the same wrapping row.
-    const selectors = sizingRules().map(r => r.selector).join(' ')
-    expect(selectors).toContain('.sr-input-16')
-    expect(selectors).toContain('.sr-ctl-row')
+    // Matched exactly, so a prefix-extended rename or a descendant narrowing on
+    // either side goes red here rather than being found inside its own longer
+    // selector — the substring form could not tell `.sr-input-16` from
+    // `.sr-input-16-lg`, nor `.sr-ctl-row` from `.sr-ctl-row-x`.
+    const subjects = new Set(guardedSizing().map(g => g.subject))
+    expect(subjects.has('input-16'), '.sr-input-16 itself must be sized').toBe(true)
+    expect(subjects.has('ctl-row'), '.sr-ctl-row must size its neighbours').toBe(true)
   })
 
   it('gives both sides the IDENTICAL value, so they cannot drift apart', () => {
@@ -130,28 +280,57 @@ describe('phone-tier filter-control size: one formula for both sides', () => {
     // uppercase section labels these rows are built around, which are deliberately
     // smaller, and every unstyled span in five components' filter blocks. The
     // container is a hook, not a text element.
-    for (const r of sizingRules()) {
-      for (const sel of r.selector.split('\n').map(s => s.trim().replace(/,$/, ''))) {
-        if (!sel.includes('.sr-ctl-row')) continue
-        expect(sel, '.sr-ctl-row must be a container hook, not a sized element')
-          .toMatch(/\.sr-ctl-row\s+\S/)
-      }
+    //
+    // Split on top-level COMMAS, not on '\n': the shipped selector list is one
+    // comma-separated group that happens to be written across two lines, and a
+    // newline split would tear `:is(button, select, input)` apart the moment the
+    // group were reflowed onto one line.
+    const ctlRow = guardedSizing().filter(g => g.subject === 'ctl-row')
+    expect(ctlRow.length, 'never vacuous: a .sr-ctl-row sizing rule must exist').toBeGreaterThan(0)
+    for (const g of ctlRow) {
+      expect(compounds(g.selector).length, `${g.selector}: .sr-ctl-row is a container hook, not a sized element`)
+        .toBeGreaterThan(1)
     }
   })
 
   it('reaches buttons, selects and inputs — the three shapes a filter control takes', () => {
     // Rejects a descendant rule narrowed to `button`, which would miss the county
     // <select> and the date <input>s, or to `input`, which would miss every pill.
-    const sel = sizingRules().map(r => r.selector).join(' ')
-    for (const tag of ['button', 'select', 'input']) expect(sel).toContain(tag)
+    //
+    // Read off the rule's ELEMENT LIST — the type selectors named by the subject
+    // compound, `:is()` arguments included — never off the joined selector string.
+    // The string form was INERT for `input`: `.sr-input-16` contains it as a
+    // substring, so the narrowed `:is(button, select)` mutation stayed green while
+    // the identical `button` mutation went red. A class name can no longer stand in
+    // for the element it is named after.
+    const named = new Set(guardedSizing().flatMap(g => elementsNamed(rightmost(g.selector))))
+    for (const tag of ['button', 'select', 'input']) {
+      expect([...named], `the sizing rule must reach <${tag}>`).toContain(tag)
+    }
   })
 })
 
 describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explorer-input-zoom)', () => {
-  /** Rules that set a flex-direction on a .sr-field-row. */
+  /**
+   * Rules that set a flex-direction on a .sr-field-row.
+   *
+   * The row ITSELF is the subject, so the match is on the rightmost compound:
+   * `.sr-field-row` and `.sr-map-sidebar-overlay .sr-field-row` both qualify (the
+   * scope test below is what tells them apart), while `.sr-field-row > *` does
+   * not — that rule's subject is the children, and it is picked up separately.
+   */
   function stackingRules(): Rule[] {
     return rules().filter(r =>
-      r.selector.includes('.sr-field-row') && /flex-direction\s*:/.test(r.body),
+      /flex-direction\s*:/.test(r.body) &&
+      splitList(r.selector).some(sel => rightmost(sel) === '.sr-field-row'),
+    )
+  }
+
+  /** Is this rule's .sr-field-row scoped under the map sidebar, exactly? */
+  function scopedToSidebar(r: Rule): boolean {
+    return splitList(r.selector).some(sel =>
+      rightmost(sel) === '.sr-field-row' &&
+      compounds(sel).slice(0, -1).includes('.sr-map-sidebar-overlay'),
     )
   }
 
@@ -179,7 +358,10 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
     // subtree.
     const [open, close] = phoneTierRange()
     for (const r of stackingRules()) {
-      const scoped = r.selector.includes('.sr-map-sidebar-overlay')
+      // Exact ancestor compound: `.sr-map-sidebar-overlay-x .sr-field-row` is a
+      // scope that does not exist, and would leave the pair unstacked while
+      // reading here as correctly scoped.
+      const scoped = scopedToSidebar(r)
       if (r.offset > open && r.offset < close) {
         expect(scoped, `${r.selector} in the ≤640 tier must be scoped to the map sidebar`).toBe(true)
       } else {
@@ -194,10 +376,17 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
     // an inline `flex: 1; min-width: 0`, which in a column container distributes
     // height, not width, so without this they would keep their auto width and
     // the stack would buy nothing.
+    //
+    // Both ancestors matched as EXACT compounds, and the subject is whatever the
+    // row contains — so this is the rule sizing the FIELDS, not one sizing the row
+    // (`.sr-map-sidebar-overlay .sr-field-row { width: 100% }` would satisfy the
+    // old substring pair while leaving the stacked children at their auto width).
     const widthRule = rules().find(r =>
-      r.selector.includes('.sr-map-sidebar-overlay') &&
-      r.selector.includes('.sr-field-row') &&
-      /width\s*:/.test(r.body),
+      /width\s*:/.test(r.body) &&
+      splitList(r.selector).some(sel => {
+        const ancestors = compounds(sel).slice(0, -1)
+        return ancestors.includes('.sr-map-sidebar-overlay') && ancestors.includes('.sr-field-row')
+      }),
     )
     expect(widthRule, 'the stacked fields need width: 100%').toBeTruthy()
     expect(widthRule!.body).toMatch(/width:\s*100%/)

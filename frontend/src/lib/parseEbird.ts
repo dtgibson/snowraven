@@ -1,4 +1,5 @@
 import type { FileData } from '../types'
+import { truncateAtFirstParen } from './speciesUtils'
 
 function parseCSVLine(line: string): string[] {
   const result: string[] = []
@@ -29,12 +30,6 @@ function isExcluded(name: string): boolean {
   return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
 }
 
-function normalizeSpeciesName(name: string): string {
-  const parenIdx = name.indexOf('(')
-  if (parenIdx === -1) return name
-  return name.slice(0, parenIdx).trim()
-}
-
 export function parseEbirdCSV(filename: string, content: string): FileData {
   const lines = content.split(/\r?\n/)
   const headerLine = lines[0]?.trim()
@@ -63,7 +58,7 @@ export function parseEbirdCSV(filename: string, content: string): FileData {
     const cols = parseCSVLine(line)
     const name = cols[commonNameIdx]?.trim().replace(/^"|"$/g, '')
     if (!name || isExcluded(name)) continue
-    const normalized = normalizeSpeciesName(name)
+    const normalized = truncateAtFirstParen(name)
     species.add(normalized)
 
     if (taxOrderIdx !== -1) {

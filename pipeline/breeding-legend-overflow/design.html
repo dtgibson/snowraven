@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breeding Codes legend — phone overflow (design refinement)</title>
+<style>
+  /* ---- page chrome tokens (light) ---------------------------------- */
+  :root{
+    --ink:#1B1A17; --ink-2:#4A4740; --ink-3:#6E6A60;
+    --paper:#F7F4EE; --paper-2:#FFFDF8; --rule:#E0DACE; --rule-2:#CFC7B6;
+    --flag:#B4341F; --ok:#277448; --tint:#EFEADF;
+    /* SnowRaven light tokens, verbatim from frontend/src/globals.css */
+    --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-faint:#FAFAFA;
+    --sr-text:#0F1117; --sr-text-muted:#6B6B74;
+    --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5; --sr-accent:#277448;
+    --sr-tier-4:#3B0764; --sr-tier-3:#6B21A8; --sr-tier-2:#9333EA; --sr-tier-1:#C084FC;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ink:#F2EFE8; --ink-2:#C3BDB0; --ink-3:#928C7F;
+      --paper:#151412; --paper-2:#1D1B18; --rule:#302D28; --rule-2:#494439;
+      --flag:#E8735C; --ok:#34D399; --tint:#232019;
+      /* SnowRaven dark tokens, verbatim */
+      --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-faint:#1C1C1F;
+      --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA;
+      --sr-border:#27272A; --sr-border-subtle:#1F1F23; --sr-accent:#34D399;
+      --sr-tier-4:#6B21A8; --sr-tier-3:#7C3AED; --sr-tier-2:#A855F7; --sr-tier-1:#C084FC;
+    }
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(120% 80% at 12% -10%, var(--tint) 0%, transparent 60%),
+      linear-gradient(180deg, var(--paper) 0%, var(--paper-2) 100%);
+    background-attachment:fixed;
+    color:var(--ink);
+    font:400 1rem/1.6 'Iowan Old Style','Palatino Linotype',Palatino,Charter,Georgia,serif;
+    padding:3rem 1.5rem 6rem;
+  }
+  .wrap{max-width:76rem;margin:0 auto}
+  h1{font-size:2.25rem;line-height:1.1;letter-spacing:-0.02em;font-weight:700;max-width:22ch}
+  .kicker{font:600 0.6875rem/1 ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:0.16em;
+    text-transform:uppercase;color:var(--ink-3);margin-bottom:1rem}
+  .lede{font-size:1.1875rem;line-height:1.5;color:var(--ink-2);max-width:60ch;margin-top:1.25rem}
+  .lede b{color:var(--ink);font-weight:700}
+  h2{font-size:1.375rem;letter-spacing:-0.01em;font-weight:700;margin:0 0 .25rem}
+  .sub{font-size:0.9375rem;color:var(--ink-3);max-width:62ch;margin-bottom:1.5rem}
+  section{margin-top:4rem;border-top:1px solid var(--rule);padding-top:2rem}
+  p{max-width:64ch;color:var(--ink-2);margin-top:.75rem}
+  p b{color:var(--ink);font-weight:700}
+  .num{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:0.9em;
+    font-variant-numeric:tabular-nums;color:var(--ink)}
+  .flag{color:var(--flag);font-weight:700}
+  .ok{color:var(--ok);font-weight:700}
+
+  table{border-collapse:collapse;margin-top:1.25rem;font-size:0.875rem;width:100%}
+  th,td{text-align:left;padding:.5rem .875rem;border-bottom:1px solid var(--rule)}
+  thead th{font:600 0.6875rem/1.2 ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--rule-2)}
+  td.n{font-family:ui-monospace,'SF Mono',Menlo,monospace;font-variant-numeric:tabular-nums;text-align:right}
+  .scroll{overflow-x:auto}
+
+  pre{background:var(--paper-2);border:1px solid var(--rule);border-left:3px solid var(--ok);
+    border-radius:6px;padding:1rem 1.125rem;overflow-x:auto;margin-top:1.25rem;
+    font:400 0.8125rem/1.65 ui-monospace,'SF Mono',Menlo,monospace;color:var(--ink)}
+  pre .c{color:var(--ink-3)}
+  pre .hl{color:var(--ok);font-weight:700}
+
+  .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(21rem,100%),1fr));
+    gap:2rem;align-items:start;margin-top:1.75rem}
+  .frame-head{display:flex;align-items:baseline;gap:.625rem;margin-bottom:.625rem}
+  .frame-head h3{font-size:1.0625rem;font-weight:700}
+  .tag{font:600 0.625rem/1 ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.1em;
+    text-transform:uppercase;padding:.3rem .5rem;border-radius:3px}
+  .tag--bad{background:var(--flag);color:#FFFDF8}
+  .tag--good{background:var(--ok);color:#FFFDF8}
+  .cap{font-size:0.875rem;color:var(--ink-3);margin-bottom:.75rem;max-width:44ch}
+
+  /* ---- the phone frame: 320px wide, clipped at the screen edge ------ */
+  .phone{width:320px;max-width:100%;background:var(--sr-bg);border:1px solid var(--rule-2);
+    border-radius:4px;overflow:hidden;position:relative;
+    box-shadow:0 1px 3px rgba(0,0,0,.10),0 10px 30px rgba(0,0,0,.07)}
+  .phone::after{content:"";position:absolute;top:0;right:0;bottom:0;width:2px;background:var(--flag);opacity:.85}
+  .edge{font:600 0.5625rem/1 ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--flag);text-align:right;margin-bottom:.3rem;padding-right:.25rem}
+  /* 200% in-app text scale == the 16px root doubled. Everything inside the
+     frame that is rem-sized in the app is em-sized here against this 32px. */
+  /* 23px each side, inside the frame's 1px rule and the card's 1px border,
+     lands the legend's content box on the 238px measured at a 320px viewport. */
+  .scale{font-size:32px;padding:0 23px}
+
+  /* ---- faithful reproduction of the shipped legend DOM -------------- */
+  .card{border:1px solid var(--sr-border);border-radius:10px;background:var(--sr-surface);
+    display:flex;flex-direction:column;min-width:0;margin:14px 0}
+  .rows{font-size:0.6875em;color:var(--sr-text)}
+  .row{display:flex;align-items:center;gap:6px;padding:9px 12px;border-top:1px solid var(--sr-border-subtle)}
+  .row:first-child{border-top:none}
+  .row .sp{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .dotc{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:inline-flex;
+    align-items:center;justify-content:center;font-weight:700;font-size:0.6875em;color:#fff}
+  .legend{background:var(--sr-surface-faint);border-top:1px solid var(--sr-border-subtle);
+    padding:12px 16px;display:flex;flex-wrap:wrap;gap:16px;flex-shrink:0;
+    border-radius:0 0 9px 9px}
+  .grp{display:flex;align-items:flex-start;gap:6px}
+  .dot{width:18px;height:18px;border-radius:50%;flex-shrink:0;margin-top:1px}
+  /* The app's own --font-sans and body line-height. Declared here and nowhere
+     else on the page: wrap points are a function of exact font metrics, so
+     reproducing the product surface in any other face would make every
+     measurement in this document fiction. The page's own display face is the
+     serif above. */
+  .txt{font-size:0.6875em;line-height:1.5;color:var(--sr-text-muted);min-width:0;
+    font-family:'Inter',system-ui,'Segoe UI',Roboto,sans-serif}
+  .tier-name{font-weight:600}
+  .codes{display:flex;flex-wrap:wrap;gap:2px 10px;margin-top:3px}
+  .chip{white-space:nowrap}                       /* shipped base rule */
+  .fixed .grp{min-width:0}                        /* the refinement */
+  .fixed .chip{white-space:normal;min-width:0;overflow-wrap:break-word}
+
+  .callout{border:1px solid var(--rule-2);border-left:3px solid var(--flag);border-radius:6px;
+    background:var(--paper-2);padding:1.125rem 1.25rem;margin-top:1.5rem;max-width:64ch}
+  .callout h4{font-size:1rem;font-weight:700;margin-bottom:.375rem}
+  .callout p{margin-top:.5rem;font-size:0.9375rem}
+  .callout--ok{border-left-color:var(--ok)}
+  ul{margin:.75rem 0 0 1.1rem;max-width:64ch;color:var(--ink-2)}
+  li{margin-top:.4rem}
+  li b{color:var(--ink)}
+  .foot{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--rule);
+    font-size:0.8125rem;color:var(--ink-3);max-width:64ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="kicker">SnowRaven &middot; Improve &middot; breeding-legend-overflow</p>
+  <h1>A legend label that will not fit</h1>
+  <p class="lede">At 320px and 200% text scale, the Breeding Codes tier legend runs
+    <b>81px past its own content box</b> and off the edge of the screen. The labels
+    must stay fully readable (v0.5.56), so the only honest answer is to let them wrap.
+    The refinement is <b>three declarations at the phone tier, in Normal view only</b> —
+    and each one is load-bearing.</p>
+
+  <!-- ============================================================ -->
+  <section>
+    <h2>What is actually broken</h2>
+    <p class="sub">Measured on a real render in Chromium, reproducing the shipped legend
+      DOM and CSS. Figures are the worst <b>text ink</b> past the legend's content box.</p>
+
+    <p>The change brief measured the 13-code demo dataset. Re-measured with all 23
+      breeding codes present — an ordinary complete breeding list — <b>the defect is
+      wider than recorded</b>, and the worst label is a different one.</p>
+
+    <div class="scroll">
+    <table>
+      <thead><tr>
+        <th>Normal view, 200% scale unless noted</th>
+        <th style="text-align:right">brief (13 codes)</th>
+        <th style="text-align:right">re-measured (23 codes)</th>
+        <th>worst label</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>320px</td><td class="n">64.17</td><td class="n flag">81.08</td><td>B Wren/Woodpecker Nest Bldg</td></tr>
+        <tr><td>360px</td><td class="n">24.17</td><td class="n flag">41.08</td><td>B Wren/Woodpecker Nest Bldg</td></tr>
+        <tr><td>390px</td><td class="n">0 &nbsp;<span style="color:var(--ink-3)">(recorded clean)</span></td><td class="n flag">11.08</td><td>B Wren/Woodpecker Nest Bldg</td></tr>
+        <tr><td>320px at <b>1.5&times;</b></td><td class="n">3.36 <span style="color:var(--ink-3)">(near-miss)</span></td><td class="n flag">16.20</td><td>B Wren/Woodpecker Nest Bldg</td></tr>
+        <tr><td>430px and above, all scales</td><td class="n">0</td><td class="n ok">0</td><td>&mdash;</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <p>So the defect band reaches <b>390px</b>, not 360px, and reaches <b>1.5&times;</b>
+      text scale, not only 2&times;. The leak tracks the data, exactly as the brief's own
+      intervention test predicted when shortening the longest chip still left 30px.</p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <h2>Before and after</h2>
+    <p class="sub">Both frames are 320px wide at 200% text scale, with all 23 codes
+      present, rendering the real legend markup. The red rule is the right edge of the
+      screen.</p>
+
+    <div class="cols">
+
+      <div>
+        <div class="frame-head"><h3>Today</h3><span class="tag tag--bad">81.08px past</span></div>
+        <p class="cap">Every chip is <span class="num">white-space: nowrap</span>. Nothing
+          above it clips, so the longest labels run out through the card's rounded border
+          and off the screen. The words are simply gone.</p>
+        <p class="edge">screen edge &#8595;</p>
+        <div class="phone"><div class="scale">
+          <div class="card">
+            <div class="rows">
+              <div class="row"><span class="sp">Song Sparrow</span><span class="dotc" style="background:var(--sr-tier-4)">3</span><span class="dotc" style="background:var(--sr-tier-2)">1</span></div>
+              <div class="row"><span class="sp">Marsh Wren</span><span class="dotc" style="background:var(--sr-tier-3)">2</span><span class="dotc" style="background:var(--sr-tier-2)">4</span></div>
+            </div>
+            <div class="legend" id="legend-before"></div>
+          </div>
+        </div></div>
+      </div>
+
+      <div>
+        <div class="frame-head"><h3>Refined</h3><span class="tag tag--good">0px past</span></div>
+        <p class="cap">The chip may wrap, and the two flex ancestors that were floored at
+          the widest label's intrinsic width may now shrink to the line. Nothing is
+          truncated, hidden, or abbreviated.</p>
+        <p class="edge">screen edge &#8595;</p>
+        <div class="phone"><div class="scale">
+          <div class="card">
+            <div class="rows">
+              <div class="row"><span class="sp">Song Sparrow</span><span class="dotc" style="background:var(--sr-tier-4)">3</span><span class="dotc" style="background:var(--sr-tier-2)">1</span></div>
+              <div class="row"><span class="sp">Marsh Wren</span><span class="dotc" style="background:var(--sr-tier-3)">2</span><span class="dotc" style="background:var(--sr-tier-2)">4</span></div>
+            </div>
+            <div class="legend fixed" id="legend-after"></div>
+          </div>
+        </div></div>
+      </div>
+
+    </div>
+
+    <div class="callout callout--ok">
+      <h4>Why plain wrapping stays readable, and is not a mess</h4>
+      <p>The worry with wrapping a row of chips is that a continuation line strands a
+        word next to the start of the following chip &mdash; <span class="num">Material&nbsp;&nbsp;DD
+        Distraction</span> reading as one run. That cannot happen here, and it is a
+        property of flex line collection rather than luck: items are collected onto a
+        line only <b>while they fit</b>, so an item wide enough to wrap is always
+        <b>alone on its flex line</b>. Confirmed on the render at every probed
+        configuration &mdash; zero shared lines. Every line in the panel above therefore
+        begins with a bold code, or is a continuation of the line above it.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <h2>The refinement</h2>
+    <p class="sub">Two new class names, one view modifier, and a lift of the chip's
+      inline <span class="num">white-space</span> so a media query can reach it.</p>
+
+<pre><span class="c">/* top level &mdash; byte-identical to the inline value it replaces, so every
+   view at every width above the phone tier renders exactly as it ships. */</span>
+.sr-bc-legend-chip { white-space: nowrap; }
+
+@media (max-width: 640px) {
+  <span class="c">/* Normal view only. The modifier is present exactly when the card is
+     NOT .sr-bc-card, so this block cannot match in Unbounded &mdash; the
+     v0.5.84 rule keeps reading the legend it always read. */</span>
+  .sr-bc-legend--normal .sr-bc-legend-tier { <span class="hl">min-width: 0;</span> }
+  .sr-bc-legend--normal .sr-bc-legend-chip {
+    <span class="hl">white-space: normal;</span>
+    <span class="hl">min-width: 0;</span>
+    <span class="hl">overflow-wrap: break-word;</span>
+  }
+}</pre>
+
+    <p><b>Why three declarations and not one.</b> Relaxing
+      <span class="num">white-space</span> alone leaves <span class="num flag">22.19px</span>
+      still leaking. The tier group and the chip are both flex items with
+      <span class="num">min-width: auto</span>, whose automatic minimum size is their
+      min-content width &mdash; and one label,
+      <span class="num">C&nbsp;Courtship/Display/Copul.</span>, contains a
+      <b>24-character run with no break opportunity</b> that measures
+      <span class="num">236.19px</span> against a <span class="num">214px</span> line.
+      Both ancestors were being floored at that width. Releasing the floors lets the box
+      reach the line; <span class="num">overflow-wrap: break-word</span> then breaks that
+      one run. Each declaration was removed in turn and the leak returned.</p>
+
+    <div class="scroll">
+    <table>
+      <thead><tr><th>Mutation, 23 codes at 320px / 200%</th>
+        <th style="text-align:right">box past</th><th style="text-align:right">ink past</th></tr></thead>
+      <tbody>
+        <tr><td>all three present</td><td class="n ok">0</td><td class="n ok">0</td></tr>
+        <tr><td>drop <span class="num">min-width: 0</span> on the tier group</td><td class="n">22.19</td><td class="n flag">22.20</td></tr>
+        <tr><td>drop <span class="num">min-width: 0</span> on the chip</td><td class="n">22.19</td><td class="n flag">22.20</td></tr>
+        <tr><td>drop <span class="num">overflow-wrap: break-word</span></td><td class="n ok">0</td><td class="n flag">22.20</td></tr>
+        <tr><td>revert <span class="num">white-space</span> to <span class="num">nowrap</span></td><td class="n ok">0</td><td class="n flag">81.08</td></tr>
+        <tr><td>shipped baseline</td><td class="n">81.08</td><td class="n flag">81.08</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="callout">
+      <h4>The last two rows are why QA must measure ink, not boxes</h4>
+      <p>Two of the mutations leave a <b>box measurement reading a clean zero</b> while
+        text hangs 22px and 81px outside it. Once a box is allowed to shrink to the line,
+        an unbreakable run simply overflows it, and
+        <span class="num">getBoundingClientRect()</span> on the element cannot see that.
+        The brief's harness measures element boxes against the container's content box,
+        which is right for the baseline &mdash; where nowrap text fills its box exactly &mdash;
+        but <b>will certify a half-fixed build as clean</b>. Verify with client rects over
+        the text (a <span class="num">Range</span> per text node), not element boxes.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <h2>The one rough edge, and what I am not fixing here</h2>
+    <p class="sub">One label out of 23 still reads poorly, and the cause is its copy
+      rather than its layout.</p>
+
+    <p>Because <span class="num">Courtship/Display/Copul.</span> has no break opportunity
+      &mdash; Chromium does not break after <span class="num">/</span> here &mdash; the browser
+      first pushes the whole label off the code's line, then breaks it mid-word. It reads:</p>
+
+    <pre>C
+ Courtship/Display/Co
+pul.</pre>
+
+    <p>That is bounded and legible, and it is the correct behaviour for CSS that must
+      hold for any label. But the real repair is the string: eBird's own name for code C
+      is <b>Courtship, Display, or Copulation</b>, and the commas are break
+      opportunities. Rendered with the label reworded, the same configuration gives
+      <span class="num">C Courtship, Display,&nbsp;/&nbsp;Copulation</span> &mdash; no orphaned
+      code, no mid-word break, one line shorter.</p>
+
+    <p><b>I am deliberately leaving it out.</b> The label is a compile-time constant
+      that also feeds the column <span class="num">title</span> and the sort button's
+      <span class="num">aria-label</span>, so rewording it changes desktop rendering and
+      an accessible name &mdash; a copy decision with reach well past this tier, and past a
+      brief scoped to constraining the chip column. It goes to the roadmap with the
+      measurement attached. <b>The CSS must not be made to depend on it.</b></p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <h2>Scope: why Unbounded and desktop cannot move</h2>
+
+    <ul>
+      <li><b>Unbounded is a property of the stylesheet, not of a measurement.</b>
+        The refinement is scoped to <span class="num">.sr-bc-legend--normal</span>, which
+        the component adds exactly when <span class="num">wideMode</span> is false &mdash; the
+        same condition under which it omits <span class="num">.sr-bc-card</span>. The two
+        can never co-occur, so the block cannot match in Unbounded. This is doing real
+        work, not belt and braces: <span class="num">min-width: 0</span> on the tier group
+        lowers the legend's min-content, which is precisely the value
+        <span class="num">.sr-bc-card &gt; .sr-bc-legend</span> reads. Scoping is what keeps
+        v0.5.84's floor untouched.</li>
+      <li><b>v0.5.84's rule is not edited, and its rejection is not reopened.</b>
+        <span class="num">width: min-content; min-width: 100%</span> stays byte-identical.
+        <span class="num">overflow-wrap: anywhere</span> was measured and rejected: it
+        renders <b>identically</b> to the chosen rule (same lines, same height, same zero
+        leak), so it buys nothing, and it would collapse min-content to a single character
+        &mdash; the shape that decision named. <span class="num">break-word</span> never
+        affects intrinsic sizing.</li>
+      <li><b>Desktop is above the tier.</b> The base rule reproduces the inline
+        <span class="num">nowrap</span> exactly; nothing else changes above 640px.</li>
+      <li><b>The cascade was scanned after the specificity lift.</b> Moving
+        <span class="num">white-space</span> from an inline style (1,0,0) to a class
+        (0,1,0), and giving two previously unclassed elements their first class, opens
+        them to rules that could not reach them before. Across
+        <span class="num">globals.css</span> and the bundled
+        <span class="num">maplibre-gl.css</span>, testing the <b>rightmost compound</b> of
+        every selector that sets <span class="num">white-space</span>,
+        <span class="num">min-width</span>, <span class="num">overflow-wrap</span>,
+        <span class="num">word-break</span> or <span class="num">line-break</span>:
+        <b>one</b> hit, <span class="num">.sr-bc-card &gt; .sr-bc-legend</span>, which
+        targets the legend rather than either newly classed element and is unaffected.</li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <h2>What I traded</h2>
+    <ul>
+      <li><b>Vertical height for horizontal containment.</b> At 320px / 200% with all 23
+        codes, 11 of the labels take a second line and the legend grows from
+        <span class="num">1014px</span> to <span class="num">1410px</span> &mdash; measured on
+        the frames above. This tab is already a natural full-height,
+        page-scrolling table by decision (v0.5.69); vertical scroll is the currency it
+        already spends, and horizontal leak is not.</li>
+      <li><b>A wrapped label is not indented under its code.</b> I designed a hanging
+        indent and <b>rejected it</b>: <span class="num">padding-left</span> changes the
+        chip's box at every width in the tier, including the configurations measured
+        clean, and the brief requires those to hold. The chosen rule is inert wherever
+        nothing overflows &mdash; verified by fingerprinting every chip's x/y/w/h to
+        1/100px across 40 configurations, where only the 7 already-leaking ones move. The
+        compensating cue is the bold code that already opens every chip.</li>
+      <li><b>One label breaks mid-word</b> until its copy is fixed. Named above.</li>
+      <li><b>Two class names and a view modifier</b> added to a component that was
+        already carrying four. The alternative &mdash; a structural
+        <span class="num">:not(.sr-bc-card) &gt; div</span> selector &mdash; would be shorter
+        and far more fragile.</li>
+    </ul>
+
+    <div class="callout">
+      <h4>Rejected, with reasons</h4>
+      <p><b>Break beside the code.</b> Insufficient alone &mdash; the label without its code
+        still exceeds the line &mdash; and it costs every chip a second line to fix a
+        problem that only about half of them have.</p>
+      <p><b>Collapse the tier-dot indent on phone.</b> Measured insufficient by the brief
+        (24px recovered of 81px needed), and the indent is what groups a tier's codes
+        under its heading at exactly the moment the legend is tallest.</p>
+      <p><b>Scroll the legend.</b> Adds a second horizontal scrollport to a tab that
+        already has one, and makes a touch user swipe sideways to read the very meanings
+        that v0.5.56 spelled out for them. It answers the measurement and reverses the
+        decision.</p>
+      <p><b>Force one chip per line at the tier.</b> Unnecessary &mdash; flex line collection
+        already guarantees it wherever a chip wraps &mdash; and it would restructure the
+        legend at 640px / 1&times;, where it works.</p>
+    </div>
+  </section>
+
+  <p class="foot">
+    Frames render the shipped legend markup at 320px with the root font size doubled,
+    in the app's own <span class="num">--font-sans</span> stack and
+    <span class="num">--sr-*</span> tokens for both themes &mdash; a different face would move
+    every wrap point and make this document fiction. Figures measured in Chromium against
+    a reproduction that agrees with the brief's independently measured baseline to 0.01px
+    (64.16 against 64.17, widest chip 278.16 against 278.17), and that reads clean at a
+    known-good 1440px / 1&times;. No motion in this refinement &mdash; see the spec.
+  </p>
+
+</div>
+
+<script>
+// Build both legends from the real breeding-code table so the two frames differ
+// by exactly one thing: the `fixed` class carrying the refinement.
+const CODES = [
+  ['NY','Nest with Young',4],['NE','Nest with Eggs',4],['FS','Carrying Fecal Sac',4],
+  ['FY','Feeding Young',4],['CF','Carrying Food',4],['FL','Recently Fledged Young',4],
+  ['ON','Occupied Nest',4],['UN','Used Nest',4],['DD','Distraction Display',4],
+  ['NB','Nest Building',3],['CN','Carrying Nesting Material',3],
+  ['PE','Physiological Evidence',2],['B','Wren/Woodpecker Nest Bldg',2],['A','Agitated Behavior',2],
+  ['N','Visiting Probable Nest',2],['C','Courtship/Display/Copul.',2],['T','Territorial Defense',2],
+  ['P','Pair in Suitable Habitat',2],['M','Multiple (7+) Singing',2],['S7','Singing Bird 7+ Days',2],
+  ['S','Singing Bird',1],['H','In Appropriate Habitat',1],['F','Flyover',1]
+];
+const TIER_LABELS = {4:'Confirmed',3:'Confirmed (also)',2:'Probable',1:'Possible'};
+
+function buildLegend(el){
+  for (const tier of [4,3,2,1]){
+    const inTier = CODES.filter(c => c[2] === tier);
+    if (!inTier.length) continue;
+    const grp = document.createElement('div');
+    grp.className = 'grp';
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    dot.style.background = 'var(--sr-tier-' + tier + ')';
+    const txt = document.createElement('div');
+    txt.className = 'txt';
+    const name = document.createElement('span');
+    name.className = 'tier-name';
+    name.textContent = TIER_LABELS[tier];
+    const codes = document.createElement('span');
+    codes.className = 'codes';
+    for (const [code, label] of inTier){
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      const b = document.createElement('span');
+      b.style.fontWeight = '700';
+      b.textContent = code;
+      chip.append(b, document.createTextNode(' ' + label));
+      codes.append(chip);
+    }
+    txt.append(name, codes);
+    grp.append(dot, txt);
+    el.append(grp);
+  }
+}
+buildLegend(document.getElementById('legend-before'));
+buildLegend(document.getElementById('legend-after'));
+</script>
+</body>
+</html>

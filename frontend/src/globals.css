@@ -987,6 +987,15 @@ h1, h2, h3, h4, h5, h6 {
    above the table's declared-column-width sum. */
 .sr-bc-card > .sr-bc-legend { width: min-content; min-width: 100%; }
 
+/* Each legend entry is a "CODE Full Label" chip. This value is BYTE-IDENTICAL to
+   the inline `whiteSpace: 'nowrap'` it replaces in BreedingCodeTable.tsx, so every
+   width above the phone tier — and the Unbounded view at every width — renders
+   exactly as it shipped. It has to be a class: an inline style is specificity
+   1,0,0 and unreachable from a media query, so the ≤640 rule below could never
+   override it (the same trap .sr-bc-card, .sr-bc-matrix and .sr-bc-code-col were
+   each lifted out of). */
+.sr-bc-legend-chip { white-space: nowrap; }
+
 /* The header row's bottom hairline, lifted OFF BreedingCodeTable.tsx's inline
    thBase.boxShadow. The value is byte-identical to the old inline one, so the
    shipped (unpinned) header renders exactly as before in both views. It HAS to
@@ -2427,6 +2436,59 @@ select:focus-visible {
      (specificity 1,0,0), so !important is required to shrink it at the phone tier —
      same reason .sr-input-16 above is !important (it must beat an inline value). */
   th.sr-bc-code-col > button { font-size: 0.625rem !important; letter-spacing: 0 !important; }
+
+  /* Breeding Codes tier legend on a phone, NORMAL VIEW ONLY: let a label too wide
+     for the line wrap instead of overhanging the card.
+
+     THE DEFECT. In Normal the card is a stretched flex item at the panel's width,
+     so an unbreakable chip is simply wider than it. At 320px / 200% text scale
+     with all 23 codes present, the widest chip (`B Wren/Woodpecker Nest Bldg`,
+     max-content 295.08px) runs 81.08px past the legend's content box, sitting
+     behind the 24px tier-dot indent. Every box from the legend up to <body> is
+     overflow-x: visible, so nothing clips it: the text hangs outside the card's
+     rounded border and off the right edge of the screen. The band reaches 390px
+     and 1.5x, not 360px/2x only. Above 640px nothing here applies.
+
+     WHY THREE DECLARATIONS, ALL LOAD-BEARING. Relaxing white-space alone leaves
+     22.19px still leaking. One label, `C Courtship/Display/Copul.`, holds a
+     24-character run with no break opportunity (Chromium offers none after `/`)
+     whose min-content is 236.19px against a 214px line — and the tier group and
+     the chip are BOTH flex items, whose automatic minimum size (`min-width: auto`)
+     is their min-content width, so both floor the box at 236.19px regardless of
+     the space available. Releasing both floors lets the box reach the line;
+     overflow-wrap then breaks that one run inside it. Removing any one of the
+     three, measured at 320px/2x with 23 codes: drop either min-width -> 22.19px
+     leaks; drop overflow-wrap -> the element BOX reads a clean 0 while text ink
+     still hangs 22.20px outside it. Do not trust a box measurement here.
+
+     WHY break-word AND NOT anywhere. `overflow-wrap: anywhere` renders
+     identically (same breaks, same height, same zero leak) and would let the two
+     min-width: 0 declarations go — but `anywhere` collapses min-content to a
+     single character, which is exactly the zero-contribution shape the v0.5.84
+     decision above named and rejected. `break-word` never affects intrinsic
+     sizing. Do not "simplify" this into `anywhere`.
+
+     WHY SCOPED TO --normal. .sr-bc-legend--normal is present exactly when
+     .sr-bc-card is absent, so the two can never co-occur and this block cannot
+     match in Unbounded — a property of the stylesheet rather than an argument.
+     That is doing real work: min-width: 0 on the tier group LOWERS the legend's
+     min-content, and min-content is precisely the value the
+     .sr-bc-card > .sr-bc-legend rule above reads. Unscoped, this would reach into
+     that rule's input. Unbounded measured clean in all 40 probed configurations.
+
+     No hanging indent, deliberately: a padding-left on the chip would change its
+     box at every width in this tier, including the ones that must stay put. The
+     continuation line needs no cue anyway — flex collects items onto a line only
+     while they fit, so a chip wide enough to wrap is always alone on its line
+     (verified: zero shared lines across 40 configurations), and every line either
+     opens with a bold code or continues the one above it. The labels stay fully
+     spelled out (v0.5.56): nothing is truncated, abbreviated or hidden. */
+  .sr-bc-legend--normal .sr-bc-legend-tier { min-width: 0; }
+  .sr-bc-legend--normal .sr-bc-legend-chip {
+    white-space: normal;
+    min-width: 0;
+    overflow-wrap: break-word;
+  }
 
   .sr-two-col { grid-template-columns: 1fr; }
   .sr-compare-panels { grid-template-columns: 1fr; }

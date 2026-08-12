@@ -1,4 +1,5 @@
 import { BREEDING_CODE_MAP, BREEDING_CODES } from './breedingCodes'
+import { truncateAtFirstParen } from './speciesUtils'
 
 export interface BreedingEntry {
   commonName: string
@@ -98,11 +99,6 @@ function isExcluded(name: string): boolean {
   return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
 }
 
-function normalizeSpeciesName(name: string): string {
-  const parenIdx = name.indexOf('(')
-  return parenIdx === -1 ? name : name.slice(0, parenIdx).trim()
-}
-
 /** Minimal per-observation shape needed to derive breeding rows (a subset of
  * ObservationEntry, so the parsed observations can be reused without re-parsing). */
 export interface BreedingObsInput {
@@ -137,7 +133,7 @@ export function deriveBreedingRows(observations: readonly BreedingObsInput[]): B
     const code = o.breedingCode ?? ''
     if (!code || !BREEDING_CODE_MAP.has(code)) continue
     rows.push({
-      commonName: normalizeSpeciesName(rawName),
+      commonName: truncateAtFirstParen(rawName),
       scientificName: o.scientificName ?? '',
       date: o.date ?? '',
       county: o.county ?? null,
@@ -185,7 +181,7 @@ export function parseBreedingCodes(content: string): BreedingData {
     const rawName = cols[commonNameIdx]?.trim() ?? ''
     if (!rawName || isExcluded(rawName)) continue
 
-    const name = normalizeSpeciesName(rawName)
+    const name = truncateAtFirstParen(rawName)
     const sciName = sciNameIdx !== -1 ? (cols[sciNameIdx]?.trim() ?? '') : ''
     const rawCode = cols[breedingCodeIdx]?.trim() ?? ''
     const code = rawCode.split(/\s+/)[0] ?? ''

@@ -12,6 +12,7 @@
 // that asset.
 
 import type { Polygon, MultiPolygon } from 'geojson'
+import { isWsChar } from './charClasses'
 
 /** Map viewport as [minLng, minLat, maxLng, maxLat] (MapLibre LngLatBounds order). */
 export type Bounds = [number, number, number, number]
@@ -119,14 +120,65 @@ export function countyListRows(features: CountyFeature[], cap: number): { rows: 
 
 // ── The canonical (state, county) join key (FR-10) ────────────────────────────
 
+// The administrative suffixes a county name may carry, exactly as the
+// alternation in the pattern this replaced listed them.
+const ADMIN_SUFFIXES = [
+  'county', 'parish', 'census area', 'borough', 'municipality',
+  'city and borough', 'municipio',
+] as const
+
+/**
+ * Drop a trailing whitespace-separated admin suffix - the linear replacement for
+ * `/\s+(county|parish|census area|borough|municipality|city and borough|municipio)$/`
+ * (improve: superlinear-regex-sweep).
+ *
+ * Why it is no longer a regex. `\s+` is unbounded and an alternation that can
+ * fail follows it, so a name carrying a long whitespace run made the engine
+ * consume that run and retry the alternation at every offset inside it, from
+ * every start position: 2,496 ms on 40,000 spaces, 4.00x per doubling, measured
+ * through `normalizeCountyName`. This site is amplified rather than incidental -
+ * it runs once per observation from `countyShading` and `countyCompleteness`
+ * over the CSV `County` column, which the parser does not cap.
+ *
+ * Equivalence. The pattern must reach `$`, so the alternative it matches is
+ * whatever suffix the string ENDS with, preceded by at least one whitespace
+ * character. `\s+` is greedy-then-backtracking and the overall match is
+ * leftmost, so the cut lands at the START of the whitespace run before that
+ * suffix. Two consequences the loop below reproduces deliberately:
+ *   - Alternation ORDER cannot matter. Every alternative has to end at `$`, so
+ *     at most one can equal the string's tail at a given cut point.
+ *   - When two suffixes both fit ("city and borough" also ends with
+ *     "borough"), leftmost-match picks the one whose whitespace run starts
+ *     EARLIER, which is why this minimises the cut across all candidates rather
+ *     than stopping at the first hit. Iterating longest-first would agree on
+ *     today's list, but only by accident of that one nesting.
+ */
+function stripAdminSuffix(s: string): string {
+  let cut = -1
+  for (const suffix of ADMIN_SUFFIXES) {
+    const at = s.length - suffix.length
+    // `at > 0` leaves room for the whitespace the pattern requires; `at === 0`
+    // (the string IS the suffix) has none, and never matched.
+    if (at <= 0 || !s.endsWith(suffix)) continue
+    let start = at
+    while (start > 0 && isWsChar(s[start - 1])) start--
+    if (start < at && (cut === -1 || start < cut)) cut = start
+  }
+  return cut === -1 ? s : s.slice(0, cut)
+}
+
 /** Lowercase, de-diacritic, strip admin suffixes, normalize Saint/St., collapse ws. */
 export function normalizeCountyName(raw: string): string {
-  return raw
-    .normalize('NFD').replace(/\p{Diacritic}/gu, '')                 // Doña Ana → Dona Ana
-    .toLowerCase()
-    .replace(/\bst\.?\b/g, 'saint').replace(/\bste\.?\b/g, 'sainte')
-    .replace(/[.]/g, '')
-    .replace(/\s+(county|parish|census area|borough|municipality|city and borough|municipio)$/, '')
+  // The surviving `\s+` below is unbounded, but nothing follows it in its
+  // pattern, so there is no failure to backtrack into: measured flat. Only the
+  // suffix strip was an instance of the defect.
+  return stripAdminSuffix(
+    raw
+      .normalize('NFD').replace(/\p{Diacritic}/gu, '')                 // Doña Ana → Dona Ana
+      .toLowerCase()
+      .replace(/\bst\.?\b/g, 'saint').replace(/\bste\.?\b/g, 'sainte')
+      .replace(/[.]/g, ''),
+  )
     .replace(/\s+/g, ' ')
     .trim()
 }
