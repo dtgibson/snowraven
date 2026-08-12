@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.86] - 2026-08-12
+
+Five builds in one release: two repairs on the Breeding Codes tab, a corrected species-counting path, and two pieces of invisible hardening. (Shipped as a Spool bundle of 5 builds.)
+
+### Fixed
+- **Breeding Codes no longer drags a phone screen sideways at the largest text size.** The row of code filters wrapped, but its longest pills still insisted on keeping their full one-line width, pushing the page 31 pixels past a 320-pixel screen in both Normal and Unbounded views. Those labels now wrap inside their pills instead. Every one of the 23 names stays complete, and the change is confined to this tab's phone layout; the shared filter rows elsewhere and all wider layouts keep their existing shape.
+- **Bird names and their two reference links now stay inside the Breeding Codes name column on a phone.** The column itself was clamped correctly, but the eBird and Birds of the World icons beside a long name could escape it by as much as 34 pixels. The name-and-icons row now wraps within the same column at phone widths, without hiding either link, shrinking its 24-pixel target, changing the sticky column, or moving wider layouts. The repair was checked across 48 Chromium and WebKit combinations of text size, theme, and table view.
+- **Countable intergrades no longer disappear while SnowRaven reads an export.** Four import paths treated any bird name containing “ x ” as a hybrid before looking at where that marker appeared. That wrongly discarded forms such as “Yellow-rumped Warbler (Myrtle x Audubon's)”, which should count as the parent species. Across the bundled taxonomy, 36 valid intergrade names now survive and fold into 26 parent species, while no additional name is excluded. True hybrids, spuhs, and slash entries keep their existing treatment.
+
+### Notes
+- **Location lookups now have a fixed memory ceiling, with no visible behavior change.** The web and desktop paths remembered every distinct rounded coordinate sent to the county-name lookup for the lifetime of the process. Both now retain at most 4,096 results, more than 400 times the distinct-coordinate set in the committed synthetic media export. Existing hits never churn, requests keep their one-per-second spacing, and a lookup beyond the ceiling still returns normally; it simply is not kept forever. The other caches named in the review were measured at their real limits and kept their existing policies because those bounds already match their offline-data promises.
+- **The safe-area stylesheet guards now inspect nested rules as well as top-level ones.** Seven automated checks protect browser layouts from accidentally inheriting native-app screen insets. They could catch a bad rule written at the top level but miss the same declaration inside a media query or other nested block, even though the shipped stylesheet itself was correct. The shared checker now understands the nested selector structure, fails closed on malformed or explosively complex input, and proved the production CSS byte-identical before and after.
+
 ## [0.5.85] - 2026-08-11
 
 Five builds in one release: two repairs on a phone screen, and three pieces of hardening you will never see. (Shipped as a Spool bundle of 5 builds.)
