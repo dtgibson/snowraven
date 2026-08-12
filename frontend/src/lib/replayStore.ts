@@ -15,14 +15,16 @@ import { networkCacheKey } from './networkCache';
 import { storage } from './storage';
 import type { ReplayStore, ReplayEntry } from './storage';
 
-// OQ-07: 300 entries AND 3 MB, whichever fills first; oldest-loaded evicted.
-// Exported as mutable bindings so eviction tests can lower them (QA-24 needs CAP+1).
+// OQ-07: 300 entries AND a 3,000,000-JSON-payload-code-unit budget, whichever
+// fills first; oldest-loaded evicted. The budget excludes keys/envelopes and
+// allows one sole oversized newest entry. Exported as mutable bindings so
+// eviction tests can lower them (QA-24 needs CAP+1).
 export let REPLAY_MAX_ENTRIES = 300;
 export let REPLAY_MAX_BYTES = 3_000_000;
 
 /** Test seam: override the entry cap (QA-24). */
 export function setReplayMaxEntries(n: number): void { REPLAY_MAX_ENTRIES = n; }
-/** Test seam: override the byte cap. */
+/** Test seam: override the serialized payload-length budget. */
 export function setReplayMaxBytes(n: number): void { REPLAY_MAX_BYTES = n; }
 
 const EMPTY_STORE = (): ReplayStore => ({ version: 1, entries: {}, order: [] });
@@ -90,11 +92,45 @@ export async function getReplayedAt(key: string): Promise<number | null> {
   return hit ? hit.loadedAt : null;
 }
 
-// Running sum of entry bytes, maintained across puts. Seeded once from the
-// loaded mirror on the first put of a session (the store may arrive non-empty
-// from disk), then kept incrementally.
+// Running sum of stored JSON payload lengths, maintained across puts. Seeded
+// once from the loaded mirror on the first put of a session (the store may
+// arrive non-empty from disk), then kept incrementally.
 let _totalBytes = 0;
 let _bytesSeeded = false;
+
+// Deterministic capacity+1 accounting. The recorder is installed only by the
+// test reset seam, so normal app sessions do not retain diagnostic history.
+// It separates bounded FIFO work from the whole-document snapshot without a
+// wall clock (the live request happens before replayStore.put and is unchanged).
+export interface ReplayStoreWorkStats {
+  puts: number;
+  orderSearches: number;
+  orderSearchSlots: number;
+  orderMoves: number;
+  evictions: number;
+  shiftedSlots: number;
+  writeSchedules: number;
+  writeFlushes: number;
+  lastSnapshotEntries: number;
+  lastSnapshotEntryBytes: number;
+  lastSnapshotBytes: number;
+}
+
+const EMPTY_WORK_STATS = (): ReplayStoreWorkStats => ({
+  puts: 0,
+  orderSearches: 0,
+  orderSearchSlots: 0,
+  orderMoves: 0,
+  evictions: 0,
+  shiftedSlots: 0,
+  writeSchedules: 0,
+  writeFlushes: 0,
+  lastSnapshotEntries: 0,
+  lastSnapshotEntryBytes: 0,
+  lastSnapshotBytes: 0,
+});
+
+let _workStats: ReplayStoreWorkStats | null = null;
 
 function seedTotalBytes(store: ReplayStore): void {
   if (_bytesSeeded) return;
@@ -121,6 +157,7 @@ function seedTotalBytes(store: ReplayStore): void {
 export async function put(key: string, data: unknown): Promise<void> {
   const store = await ensureLoaded();
   seedTotalBytes(store);
+  if (_workStats) _workStats.puts += 1;
 
   const bytes = JSON.stringify(data).length;
   const existing = store.entries[key];
@@ -130,8 +167,15 @@ export async function put(key: string, data: unknown): Promise<void> {
   _totalBytes += bytes;
 
   // Move/append key to the tail of order (oldest → newest).
+  if (_workStats) {
+    _workStats.orderSearches += 1;
+    _workStats.orderSearchSlots += store.order.length;
+  }
   const at = store.order.indexOf(key);
-  if (at !== -1) store.order.splice(at, 1);
+  if (at !== -1) {
+    store.order.splice(at, 1);
+    if (_workStats) _workStats.orderMoves += 1;
+  }
   store.order.push(key);
 
   // Evict oldest-loaded while over either cap. The tail (just-put) is never
@@ -140,6 +184,12 @@ export async function put(key: string, data: unknown): Promise<void> {
     store.order.length > 1 &&
     (store.order.length > REPLAY_MAX_ENTRIES || _totalBytes > REPLAY_MAX_BYTES)
   ) {
+    // Array.shift moves each surviving slot once. Record the exact bounded
+    // movement so the guard measures work rather than elapsed time.
+    if (_workStats) {
+      _workStats.evictions += 1;
+      _workStats.shiftedSlots += store.order.length - 1;
+    }
     const oldest = store.order.shift()!;
     const ev = store.entries[oldest];
     if (ev) {
@@ -156,17 +206,32 @@ let _writeTimer: ReturnType<typeof setTimeout> | null = null;
 const WRITE_DEBOUNCE_MS = 250;
 
 function scheduleWrite(store: ReplayStore): void {
+  if (_workStats) _workStats.writeSchedules += 1;
   if (_writeTimer) clearTimeout(_writeTimer);
   _writeTimer = setTimeout(() => {
     _writeTimer = null;
     // Snapshot a plain clone so an in-flight async write can't observe a later
     // mutation mid-serialize; best-effort (failures degrade to "no replay").
-    void storage.setReplayStore({
+    const snapshot: ReplayStore = {
       version: store.version,
       entries: { ...store.entries },
       order: [...store.order],
-    }).catch(() => { /* best-effort — the mirror stays the live source */ });
+    };
+    if (_workStats) {
+      _workStats.writeFlushes += 1;
+      _workStats.lastSnapshotEntries = snapshot.order.length;
+      _workStats.lastSnapshotEntryBytes = _totalBytes;
+      _workStats.lastSnapshotBytes = JSON.stringify(snapshot).length;
+    }
+    void storage.setReplayStore(snapshot)
+      .catch(() => { /* best-effort — the mirror stays the live source */ });
   }, WRITE_DEBOUNCE_MS);
+}
+
+/** Test seam: deterministic work performed since the last reset. */
+export function _getReplayStoreWorkStatsForTests(): Readonly<ReplayStoreWorkStats> {
+  if (!_workStats) _workStats = EMPTY_WORK_STATS();
+  return { ..._workStats };
 }
 
 /** Test seam: reset the module mirror so each test starts from disk-empty. */
@@ -176,4 +241,5 @@ export function _resetReplayStoreForTests(): void {
   _loading = null;
   _totalBytes = 0;
   _bytesSeeded = false;
+  _workStats = EMPTY_WORK_STATS();
 }

@@ -81,6 +81,22 @@ describe('readPersistedStyle', () => {
     expect(getStyleBlob).toHaveBeenCalledTimes(2)
   })
 
+  it('covers the shipped typed caller domain at domain+1 without retained growth', async () => {
+    // VectorVariant is exactly positron | liberty; production SnowMap currently
+    // calls only positron. Across that shipped call graph, a third call must be
+    // a repeat. The underlying helpers accept string and are not structurally
+    // bounded by this test.
+    getStyleBlob.mockImplementation(async (v: string) =>
+      ({ variant: v, style: STYLE, savedAt: 1 }))
+    const requested = ['positron', 'liberty', 'positron'] as const
+    const results = []
+    for (const variant of requested) results.push(await readPersistedStyle(variant))
+
+    expect(results.map(r => r?.variant)).toEqual(requested)
+    expect(getStyleBlob.mock.calls.map(([variant]) => variant))
+      .toEqual(['positron', 'liberty'])
+  })
+
   it('resolves null when the seam read rejects (degrades, never throws)', async () => {
     getStyleBlob.mockRejectedValue(new Error('disk fail'))
     expect(await readPersistedStyle('positron')).toBeNull()
