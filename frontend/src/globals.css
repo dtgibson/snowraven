@@ -2365,6 +2365,29 @@ select:focus-visible {
   .sr-input-16,
   .sr-ctl-row :is(button, select, input) { font-size: max(16px, 0.75rem) !important; }
 
+  /* Breeding Codes' full-label filter pills only. At 320px / 200% the longest
+     buttons otherwise give this wrapping flex row a 327.11px min-content width
+     inside a 272px panel (55.11px past its parent). There are TWO flex floors:
+     the pill is a flex item in the row, and its label is a flex item inside the
+     inline-flex pill. Release both. Most labels can break at spaces, but
+     `C Courtship/Display/Copul.` has no usable break point; after both automatic
+     minimums are released, `break-word` supplies the emergency break while
+     preserving every character and the normal intrinsic-size calculation.
+
+     The three dedicated hooks keep this out of separators, the sort group, county
+     and date controls, and all four other .sr-ctl-row surfaces. It does not touch
+     the table or either Normal/Unbounded view class. The phone rule alone releases
+     the pill's inline 30px height so a full label can earn a second line; desktop
+     keeps the shipped fixed-height geometry byte-for-byte. */
+  .sr-bc-filter-row { min-width: 0; max-width: 100%; }
+  .sr-bc-filter-row > .sr-bc-filter-pill {
+    height: auto !important;
+    min-height: 30px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .sr-bc-filter-row > .sr-bc-filter-pill > .sr-bc-filter-pill-label { min-width: 0; overflow-wrap: break-word; }
+
   /* Map Explorer sidebar only: stack the Date Range pair from 481-640 too
      (fix: map-explorer-input-zoom).
 

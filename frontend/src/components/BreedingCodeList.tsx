@@ -313,9 +313,11 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
       }}>
         {/* .sr-ctl-row: one phone-tier text size for every control in the filter
             block (globals.css), so the code pills and the A–Z/Taxonomic toggle can't
-            read smaller than the .sr-input-16 county select and date inputs. The
-            right-hand count + Table view cluster is deliberately outside it. */}
-        <div className="sr-ctl-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            read smaller than the .sr-input-16 county select and date inputs.
+            .sr-bc-filter-row is the narrower layout hook: only this row contains
+            full breeding-code labels whose min-content can exceed a phone panel at
+            200% text scale. The right-hand count + Table view cluster is outside it. */}
+        <div className="sr-ctl-row sr-bc-filter-row" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           <button tabIndex={0}
             aria-pressed={filter.size === 0 && categoryFilter.size === 0}
             style={{
@@ -360,6 +362,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
             return (
               <button tabIndex={0}
                 key={code}
+                className="sr-bc-filter-pill"
                 aria-pressed={active}
                 style={codePillStyle(def.tier, active)}
                 onClick={() => {
@@ -381,7 +384,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
                   background: TIER_COLORS[def.tier], flexShrink: 0,
                 }} />
                 <span style={{ fontWeight: 700 }}>{code}</span>
-                <span style={{ fontWeight: 400, color: 'inherit' }}>{def.label}</span>
+                <span className="sr-bc-filter-pill-label" style={{ fontWeight: 400, color: 'inherit' }}>{def.label}</span>
               </button>
             )
           })}

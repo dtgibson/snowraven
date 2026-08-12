@@ -431,7 +431,11 @@ describe('the class is actually applied where the bug was reported', () => {
   for (const file of surfaces) {
     it(`${file} wraps its filter controls in .sr-ctl-row`, () => {
       const src = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8')
-      expect(src).toMatch(/className="sr-ctl-row"/)
+      // Token membership, not whole-attribute equality: a surface may carry a
+      // second, feature-local hook beside this shared one (Breeding Codes does).
+      // Whitespace boundaries keep `.sr-ctl-row-x` from satisfying the guard.
+      const classValues = [...src.matchAll(/className="([^"]*)"/g)].map(m => m[1])
+      expect(classValues.some(value => value.split(/\s+/).includes('sr-ctl-row'))).toBe(true)
     })
   }
 
