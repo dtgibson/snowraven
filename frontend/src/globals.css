@@ -2422,6 +2422,13 @@ select:focus-visible {
      letter-spacing so it stays legible at the narrower width; it remains a real
      sortable <button> with its full-meaning aria-label (untouched in the TSX).
      Magnify beyond this is native viewport pinch — no CSS zoom/transform:scale. */
+  /* Keep the shared BirdName inside the Breeding Codes name-cell clamp. The
+     outer box fills the usable cell width and its one-line name/favicon row may
+     wrap, so the indivisible two-link group drops intact below a name instead of
+     escaping the column. Both declarations are local to this matrix/phone tier;
+     the shared BirdName and SpeciesLinks components remain unchanged. */
+  .sr-bc-name-col .sr-birdname { width: 100%; max-width: 100%; }
+  .sr-bc-name-col .sr-birdname-row { flex-wrap: wrap; }
   .sr-bc-code-col { width: 30px; min-width: 30px; }
   /* table-layout: fixed (phone tier ONLY) makes the DECLARED column widths
      authoritative rather than a floor, so the 30px .sr-bc-code-col narrowing
