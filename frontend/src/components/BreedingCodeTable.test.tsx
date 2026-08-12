@@ -459,6 +459,103 @@ describe('BreedingCodeTable legend does not size the Unbounded card (pin-labels-
   })
 })
 
+describe('BreedingCodeTable legend chips can wrap on a phone (breeding-legend-overflow)', () => {
+  // The fix is entirely CSS (globals.css, guarded in lib/breedingCodePinnedCss.test.ts)
+  // and the geometry is measured on a real render by
+  // pipeline/breeding-legend-overflow/legend-ink-probe.mjs. What the COMPONENT owes
+  // is the three class hooks the rules hang off, and — just as load-bearing — the
+  // ABSENCE of the inline white-space those rules would otherwise be unable to beat.
+  // jsdom has no layout engine or media queries, so nothing here can see a wrap.
+  const cardOf = (c: HTMLElement) => c.querySelector('table')!.parentElement!.parentElement as HTMLElement
+  const legendOf = (c: HTMLElement) => cardOf(c).lastElementChild as HTMLElement
+
+  it('adds .sr-bc-legend--normal in Normal view and NEVER in Unbounded', () => {
+    // Both directions. The modifier IS the scope: present it wrongly in Unbounded
+    // and `min-width: 0` starts lowering the legend's min-content, which is exactly
+    // the value v0.5.84's `.sr-bc-card > .sr-bc-legend` rule reads.
+    const normal = renderTable({ wideMode: false, codesPresent: ['NB', 'FL'] })
+    expect(legendOf(normal.container).classList.contains('sr-bc-legend--normal')).toBe(true)
+    normal.unmount()
+
+    const wide = renderTable({ wideMode: true, codesPresent: ['NB', 'FL'] })
+    expect(legendOf(wide.container).classList.contains('sr-bc-legend--normal')).toBe(false)
+    wide.unmount()
+  })
+
+  it('never lets --normal and .sr-bc-card co-occur, in either view', () => {
+    // The stylesheet scope rests on this mutual exclusion, and it is a property of
+    // the component, not of the CSS: the two class decisions read the same
+    // `wideMode` and must stay opposite. A refactor that made either unconditional
+    // would leave the scoped block matching in Unbounded with every CSS guard green.
+    for (const wideMode of [false, true]) {
+      const { container, unmount } = renderTable({ wideMode, codesPresent: ['NB', 'FL'] })
+      const hasCard = cardOf(container).classList.contains('sr-bc-card')
+      const hasNormal = legendOf(container).classList.contains('sr-bc-legend--normal')
+      expect(hasCard, `wideMode=${wideMode}`).toBe(!hasNormal)
+      unmount()
+    }
+  })
+
+  it('keeps .sr-bc-legend on the legend in both views (v0.5.84\'s hook is untouched)', () => {
+    for (const wideMode of [false, true]) {
+      const { container, unmount } = renderTable({ wideMode, codesPresent: ['NB', 'FL'] })
+      expect(legendOf(container).classList.contains('sr-bc-legend')).toBe(true)
+      unmount()
+    }
+  })
+
+  it('classes every tier group and every chip', () => {
+    // Both floors have to be reachable: the tier group and the chip are both flex
+    // items and both are floored at min-content, so a rule that can reach only one
+    // of them leaves 22.19px still leaking (measured, both ways round).
+    const { container } = renderTable({
+      codesPresent: ['NB', 'FL', 'C', 'B'],
+      entries: [entry({ commonName: 'American Robin', codes: { NB: 1, FL: 1, C: 1, B: 1 } })],
+    })
+    const legend = legendOf(container)
+    const tiers = legend.querySelectorAll('.sr-bc-legend-tier')
+    expect(tiers.length, 'one classed group per tier present').toBeGreaterThan(0)
+    expect(tiers.length).toBe(legend.children.length)
+    expect(legend.querySelectorAll('.sr-bc-legend-chip').length).toBe(4)
+  })
+
+  it('sets NO inline white-space on a chip, so the phone-tier rule is reachable', () => {
+    // The specificity trap this whole change turns on: a React inline style is
+    // (1,0,0) and unreachable from a media query, so an inline `whiteSpace: nowrap`
+    // here would leave the ≤640 rule inert and the defect exactly as it shipped —
+    // with the stylesheet guard passing, because the rule really is in the file.
+    const { container } = renderTable({ codesPresent: ['NB', 'FL'] })
+    for (const chip of legendOf(container).querySelectorAll<HTMLElement>('.sr-bc-legend-chip')) {
+      expect(chip.style.whiteSpace).toBe('')
+      expect(chip.style.minWidth).toBe('')
+      expect(chip.style.overflowWrap).toBe('')
+    }
+  })
+
+  it('leaves the tier group\'s inline layout alone (the class is a hook, not a move)', () => {
+    // The design adds class names and lifts ONE declaration. The group's inline
+    // display/alignItems/gap stay inline, so nothing about the legend's look moves.
+    const { container } = renderTable({ codesPresent: ['NB', 'FL'] })
+    const tier = legendOf(container).querySelector<HTMLElement>('.sr-bc-legend-tier')!
+    expect(tier.style.display).toBe('flex')
+    expect(tier.style.alignItems).toBe('flex-start')
+    expect(tier.style.minWidth, 'the floor is released by the stylesheet, per tier').toBe('')
+  })
+
+  it('still spells every label out in full (v0.5.56 touch accessibility)', () => {
+    // The fix wraps text; it must never shorten it. `C` is the label the CSS has to
+    // break mid-word, so it is the one worth asserting arrives whole.
+    const { container } = renderTable({
+      codesPresent: ['C', 'CN'],
+      entries: [entry({ commonName: 'American Robin', codes: { C: 1, CN: 1 } })],
+    })
+    const text = legendOf(container).textContent ?? ''
+    expect(text).toContain('Courtship/Display/Copul.')
+    expect(text).toContain('Carrying Nesting Material')
+    expect(text).not.toContain('…')
+  })
+})
+
 describe('BreedingCodeTable pinned code labels (breeding-code-pinned-labels)', () => {
   // The pinned band is pure CSS (.sr-bc-matrix--pinned in globals.css) and jsdom has
   // no layout engine, so these assert the CLASS HOOK and — just as load-bearing —

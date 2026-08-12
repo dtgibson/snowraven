@@ -87,6 +87,65 @@ function compounds(sel: string): string[] {
   return out
 }
 
+/** The SUBJECT of a complex selector — the element the rule actually styles. */
+function rightmost(sel: string): string {
+  const c = compounds(sel)
+  return c[c.length - 1]
+}
+
+/**
+ * Every style rule in the stylesheet at ANY nesting depth, with whether it sits
+ * inside an at-rule. `selectors` holds one complex selector per entry (groups
+ * split), so callers can ask about a rule's SUBJECT rather than about text.
+ *
+ * parseTopLevelRules deliberately throws the nested rules away, which is right for
+ * "does this rule hold at every width" but useless for "may a tier redeclare it" —
+ * that question needs both halves of the file, told apart.
+ */
+function collectRules(
+  src: string,
+  nested = false,
+  out: { selectors: string[]; body: string; nested: boolean }[] = [],
+): { selectors: string[]; body: string; nested: boolean }[] {
+  let i = 0
+  let selStart = 0
+  while (i < src.length) {
+    if (src[i] === ';') { i++; selStart = i; continue }
+    if (src[i] !== '{') { i++; continue }
+    let depth = 1
+    let j = i + 1
+    while (j < src.length && depth > 0) {
+      if (src[j] === '{') depth++
+      else if (src[j] === '}') depth--
+      j++
+    }
+    const prelude = src.slice(selStart, i)
+    const body = src.slice(i + 1, j - 1)
+    if (prelude.trim().startsWith('@')) collectRules(body, true, out)
+    else out.push({ selectors: splitList(prelude), body, nested })
+    i = j
+    selStart = j
+  }
+  return out
+}
+
+const allRules = collectRules(declarations)
+
+/**
+ * Does this selector's SUBJECT match the legend BOX itself — `.sr-bc-legend` or
+ * its `--normal` view modifier — rather than something inside it?
+ *
+ * The `(?![-\w])` is the whole point. `.sr-bc-legend` is a PREFIX of
+ * `.sr-bc-legend-chip`, `.sr-bc-legend-tier` and `.sr-bc-legend--normal`, so the
+ * plain-substring form this replaces could not tell the legend from its
+ * descendants: it went red the moment the phone-tier chip rules landed, reporting
+ * them as "the legend declared inside an at-rule" when they declare nothing on the
+ * legend at all. Exactly the `String.includes` trap CLAUDE.md records.
+ */
+function subjectIsLegendBox(sel: string): boolean {
+  return /\.sr-bc-legend(--normal)?(?![-\w])/.test(rightmost(sel))
+}
+
 /**
  * Source offsets of every TOP-LEVEL rule, keyed by each EXACT selector in its
  * list. Values are arrays so an ambiguous lookup can be refused rather than
@@ -416,11 +475,18 @@ describe('Unbounded card is sized by the table, not the legend (fix: pin-labels-
     // re-declare a width on the legend and quietly undo it, which matters most in
     // the ≤640 block, where the card's own width is re-declared two lines away.
     legendRuleBody()
-    const ranges = atRuleRanges()
-    expect(ranges.length, 'at-rule blocks must be found, or this passes vacuously').toBeGreaterThan(3)
-    for (const m of declarations.matchAll(/\.sr-bc-legend/g)) {
-      const inside = ranges.find(([a, b]) => m.index! > a && m.index! < b)
-      expect(inside, `.sr-bc-legend is declared inside an at-rule at offset ${m.index}`).toBeUndefined()
+    // Asks about each rule's SUBJECT, not about text. The substring scan this
+    // replaces could not distinguish `.sr-bc-legend` from `.sr-bc-legend-chip`, so
+    // it read a phone-tier rule on the CHIPS as a redeclaration of the LEGEND.
+    // Descendant rules inside a tier are fine and expected; a width on the legend
+    // box itself is what must never be tier-scoped.
+    const legendBoxRules = allRules.filter(r => r.selectors.some(subjectIsLegendBox))
+    expect(
+      legendBoxRules.length,
+      'never vacuous: at least one rule must have the legend box as its subject',
+    ).toBeGreaterThan(0)
+    for (const r of legendBoxRules) {
+      expect(r.nested, `a tier redeclares the legend box: ${r.selectors.join(', ')}`).toBe(false)
     }
   })
 
@@ -440,7 +506,6 @@ describe('Unbounded card is sized by the table, not the legend (fix: pin-labels-
     // `/\b100%\b/` one CLAUDE.md records.
     // (parseTopLevelRules keys each member of a comma group separately, so every
     // key here is already ONE complex selector.)
-    const rightmost = (sel: string) => compounds(sel)[compounds(sel).length - 1]
     const legendRules = [...topLevel].filter(([sel]) => rightmost(sel) === '.sr-bc-legend')
     expect(legendRules.length, 'never vacuous: at least one legend rule must exist').toBeGreaterThan(0)
     for (const [sel] of legendRules) {
@@ -465,6 +530,180 @@ describe('Unbounded card is sized by the table, not the legend (fix: pin-labels-
       .filter(block => /^\s*@media\s*\(max-width:\s*640px\)/.test(block) && block.includes('.sr-bc-card'))
     expect(phoneTier, 'the ≤640 tier block declaring .sr-bc-card must be found').toHaveLength(1)
     expect(phoneTier[0]).toMatch(/\.sr-bc-card\s*\{\s*width:\s*min-content;?\s*\}/)
+  })
+})
+
+describe('legend chips wrap on a phone in Normal view (fix: breeding-legend-overflow)', () => {
+  // The converse of the block above, and a DISTINCT defect: v0.5.84 stopped the
+  // legend DICTATING an intrinsic card width, which can only happen in Unbounded.
+  // Here the card is fixed at the panel's width and an unbreakable chip is simply
+  // wider than it — the exact failure v0.5.84's decision anticipated by name when
+  // it rejected a zero contribution. At 320px/200% with 23 codes the widest label
+  // hangs 81.08px past the legend's content box, out through the card's rounded
+  // border and off the screen; nothing between the legend and <body> clips it.
+  //
+  // WHAT THESE CAN CARRY. The claim is geometric, and jsdom has no layout engine,
+  // so these assert the MECHANISM — that the three declarations exist, that they
+  // are bounded to the phone tier at BOTH edges, and that they cannot reach
+  // Unbounded. The geometry is measured on a real render by
+  // pipeline/breeding-legend-overflow/legend-ink-probe.mjs (Playwright/Chromium,
+  // ink measured through Range client rects, not element boxes: two of the five
+  // mutations leave the BOX reading a clean zero while text hangs 22px and 81px
+  // outside it, so a box-measuring harness certifies a half-fixed build as clean).
+
+  /** Declarations of a rule body, keyed by property. */
+  function decls(body: string): Map<string, string> {
+    const out = new Map<string, string>()
+    for (const d of body.split(';')) {
+      const at = d.indexOf(':')
+      if (at < 0) continue
+      out.set(d.slice(0, at).trim(), d.slice(at + 1).trim())
+    }
+    return out
+  }
+
+  /**
+   * The ≤640 tier block that carries these rules, matched on its FULL prelude so
+   * BOTH media bounds are pinned. A media-query fix has two edges and a guard that
+   * checks one is half a guard:
+   *  - UPPER: `max-width: 640px` is the established phone boundary. Raising it
+   *    would start rewrapping the legend on tablets and desktops, where it works.
+   *  - LOWER: there must be NO min-width, or the fix stops covering the narrow end
+   *    it was written for. The defect is worst at 320px, so a tier consolidated
+   *    into e.g. `(min-width: 361px) and (max-width: 640px)` would reopen the whole
+   *    band with this suite green — the shape a v0.5.84 sibling shipped.
+   */
+  function phoneTierBlock(): string {
+    const blocks: string[] = []
+    let i = 0
+    let selStart = 0
+    while (i < declarations.length) {
+      if (declarations[i] === ';') { i++; selStart = i; continue }
+      if (declarations[i] !== '{') { i++; continue }
+      let depth = 1
+      let j = i + 1
+      while (j < declarations.length && depth > 0) {
+        if (declarations[j] === '{') depth++
+        else if (declarations[j] === '}') depth--
+        j++
+      }
+      const prelude = declarations.slice(selStart, i).trim().replace(/\s+/g, ' ')
+      // EXACT prelude, not a prefix test: `@media (max-width: 640px) and (…)` and
+      // `@media (min-width: 361px) and (max-width: 640px)` both start or contain
+      // the same text while covering a different band.
+      if (prelude === '@media (max-width: 640px)' && declarations.slice(i, j).includes('.sr-bc-legend--normal')) {
+        blocks.push(declarations.slice(i + 1, j - 1))
+      }
+      i = j
+      selStart = j
+    }
+    expect(blocks, 'exactly one unbounded-below @media (max-width: 640px) block must carry the legend rules').toHaveLength(1)
+    return blocks[0]
+  }
+
+  /** A rule inside the phone tier, by exact selector. */
+  function tierRule(selector: string): Map<string, string> {
+    const hits = collectRules(phoneTierBlock(), true).filter(r => r.selectors.includes(selector))
+    expect(hits.map(r => r.selectors), `exactly one phone-tier rule for ${selector}`).toHaveLength(1)
+    return decls(hits[0].body)
+  }
+
+  it('reproduces the inline nowrap EXACTLY at the top level, so nothing above 640px moves', () => {
+    // The chip's white-space moved from a React inline style (specificity 1,0,0,
+    // unreachable from a media query) to a class. The base value must be
+    // byte-identical or every desktop width silently rewraps — and the class must
+    // be TOP-LEVEL, which finding it in parseTopLevelRules' map is itself the proof
+    // of (that map skips at-rule blocks whole).
+    const d = decls(ruleBody('.sr-bc-legend-chip'))
+    expect(d.get('white-space')).toBe('nowrap')
+    expect(d.size, 'the base rule carries the lifted value and nothing else').toBe(1)
+  })
+
+  it('releases BOTH flex-item min-content floors, not just one', () => {
+    // The tier group <div> and the chip <span> are both flex items, so both are
+    // floored at min-content by `min-width: auto`. `C Courtship/Display/Copul.`
+    // holds a 24-char run with no break opportunity whose min-content is 236.19px
+    // against a 214px line, so releasing either floor alone still leaves 22.19px
+    // leaking — measured both ways round. Dropping either declaration must go red.
+    expect(tierRule('.sr-bc-legend--normal .sr-bc-legend-tier').get('min-width')).toBe('0')
+    expect(tierRule('.sr-bc-legend--normal .sr-bc-legend-chip').get('min-width')).toBe('0')
+  })
+
+  it('lets the chips wrap and breaks the one run wider than the line', () => {
+    const d = tierRule('.sr-bc-legend--normal .sr-bc-legend-chip')
+    expect(d.get('white-space')).toBe('normal')
+    // overflow-wrap is the declaration a BOX-based test reports as unnecessary:
+    // without it the box reads a clean 0 while ink hangs 22.20px outside it.
+    expect(d.get('overflow-wrap')).toBe('break-word')
+  })
+
+  it('never collapses into `anywhere`, which would zero the legend\'s contribution', () => {
+    // `overflow-wrap: anywhere` renders identically here (same breaks, same height,
+    // same zero leak) and would let both min-width: 0 declarations go — but it
+    // collapses min-content to a single character, which is the zero-contribution
+    // shape v0.5.84 named and rejected, and min-content is exactly what
+    // `.sr-bc-card > .sr-bc-legend` reads. `break-word` never affects intrinsic
+    // sizing. `word-break: break-all` is rejected for the same reason plus its
+    // reach (it breaks every label, not the one run that needs it).
+    const d = tierRule('.sr-bc-legend--normal .sr-bc-legend-chip')
+    expect(d.get('overflow-wrap')).not.toBe('anywhere')
+    expect(d.has('word-break')).toBe(false)
+    expect(d.has('line-break')).toBe(false)
+  })
+
+  it('adds no hanging indent and truncates nothing (v0.5.56 stays intact)', () => {
+    // A hanging indent was designed and rejected: padding-left changes the chip's
+    // box at every width in this tier, including configurations that measure clean.
+    // Flex collects items onto a line only while they fit, so a chip wide enough to
+    // wrap is always alone on its line and needs no cue. And the labels must stay
+    // fully readable — the v0.5.56 touch-a11y decision — so no ellipsis or clip may
+    // arrive here by the back door.
+    const d = tierRule('.sr-bc-legend--normal .sr-bc-legend-chip')
+    for (const p of ['padding-left', 'text-indent', 'text-overflow', 'overflow', 'max-width', 'width']) {
+      expect(d.has(p), `the chip rule must not declare ${p}`).toBe(false)
+    }
+  })
+
+  it('scopes EVERY phone-tier legend rule under --normal, so Unbounded cannot be reached', () => {
+    // This is the load-bearing half, and it is a SELECTOR claim rather than a
+    // declaration one: `min-width: 0` on the tier group lowers the legend's
+    // min-content, which is precisely the value `.sr-bc-card > .sr-bc-legend`
+    // reads. Unscoped, this change would reach into v0.5.84's input. The component
+    // adds `--normal` exactly when it omits `.sr-bc-card`, so the two can never
+    // co-occur — which is what makes "Unbounded cannot change" a property of the
+    // stylesheet instead of a measurement. Rejects a bare `.sr-bc-legend-chip` or
+    // `.sr-bc-legend-tier` rule in any tier.
+    //
+    // Compares compounds EXACTLY. `.sr-bc-legend` is a prefix of all three of these
+    // class names, so a String.includes scope check would pass on `.sr-bc-legend`
+    // alone — which reaches Unbounded — and this guard would be worthless.
+    const inTier = collectRules(phoneTierBlock(), true)
+      .flatMap(r => r.selectors)
+      .filter(sel => compounds(sel).some(c => /^\.sr-bc-legend(-|$)/.test(c)))
+    expect(inTier.length, 'never vacuous: the phone-tier legend rules must be found').toBe(2)
+    for (const sel of inTier) {
+      expect(compounds(sel)[0], `phone-tier legend rule is not scoped to Normal view: ${sel}`)
+        .toBe('.sr-bc-legend--normal')
+    }
+  })
+
+  it('leaves v0.5.84\'s Unbounded constraint exactly as it shipped', () => {
+    // Stated separately from the block above so a change here fails with a message
+    // naming the rule it broke: this fix adds a Normal-view constraint that rule
+    // deliberately did not cover, and must change nothing about it — the two
+    // declarations, and NOTHING else acquired alongside them.
+    //
+    // Matched by what the rule TARGETS, not by one literal spelling.
+    // `.sr-bc-card > .sr-bc-legend` and `.sr-bc-card .sr-bc-legend` select the same
+    // element (the legend is a direct child either way), so keying on the shipped
+    // string would go red on a refactor that changed nothing — which is exactly
+    // what it did when this was first written, caught by mutation testing.
+    const hits = [...topLevel].filter(([sel]) => /^\.sr-bc-card\s*>?\s*\.sr-bc-legend$/.test(sel))
+    expect(hits, 'exactly one top-level rule must constrain the legend inside the card').toHaveLength(1)
+    const d = decls(hits[0][1])
+    expect(d.get('width')).toBe('min-content')
+    expect(d.get('min-width')).toBe('100%')
+    expect(d.size, 'the rule must not acquire a third declaration').toBe(2)
   })
 })
 

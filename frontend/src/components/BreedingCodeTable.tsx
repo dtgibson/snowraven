@@ -400,8 +400,21 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
           inline width is specificity 1,0,0 and would make that rule unreachable,
           the same trap .sr-bc-card and .sr-bc-matrix were lifted out of. The class
           is unconditional; the rule is scoped under .sr-bc-card, so Normal view
-          (which never carries that class) is untouched. */}
-      <div className="sr-bc-legend" style={{
+          (which never carries that class) is untouched.
+
+          .sr-bc-legend--normal is the CONVERSE, and is added exactly when
+          .sr-bc-card is omitted — mirroring line 180, so the two can never
+          co-occur. In Normal the card is a stretched flex item at the panel's
+          width and an unbreakable chip is simply wider than it: at 320px/200%
+          text scale the widest label runs 81px past the legend's content box,
+          out through the card's rounded border and off the screen (no ancestor
+          clips it). The ≤640 rules that let those chips wrap hang off this
+          modifier so Unbounded cannot be reached by them — which matters because
+          `min-width: 0` on the tier group LOWERS the legend's min-content, and
+          min-content is precisely the value .sr-bc-card > .sr-bc-legend reads.
+          Without the modifier this change would reach into that rule's input.
+          Do NOT flatten it into an unconditional class. */}
+      <div className={wideMode ? 'sr-bc-legend' : 'sr-bc-legend sr-bc-legend--normal'} style={{
         background: 'var(--sr-surface-faint)',
         borderTop: '1px solid var(--sr-border-subtle)',
         padding: '12px 16px',
@@ -411,7 +424,12 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
         flexShrink: 0,
       }}>
         {([4, 3, 2, 1] as const).filter(tier => tierGroups.has(tier)).map(tier => (
-          <div key={tier} style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+          // .sr-bc-legend-tier is a class hook ONLY — the inline display /
+          // alignItems / gap stay exactly as they are. The tier group and the chip
+          // are both flex items, so both are floored at their min-content width by
+          // `min-width: auto`; releasing only one of them leaves the same 22.19px
+          // leak (measured, both ways round). The phone-tier rule floors this one.
+          <div key={tier} className="sr-bc-legend-tier" style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
             <div style={{
               width: 18, height: 18, borderRadius: '50%',
               background: TIER_COLORS[tier], flexShrink: 0, marginTop: 1,
@@ -420,10 +438,19 @@ export function BreedingCodeTable({ entries, codesPresent, sort, onSortChange, f
               <span style={{ fontWeight: 600 }}>{TIER_LABELS[tier]}</span>
               {/* Each present code shows its full meaning as visible text (e.g.
                   "NB Nest Building") so a touch user reads it without the hover-only
-                  title tooltip. The list wraps gracefully on a phone. */}
+                  title tooltip. The ROW of chips has always wrapped; until the
+                  phone-tier rule below, an individual chip could not, so a label
+                  wider than a phone line ran out through the card's border and off
+                  the screen. Labels are never truncated (v0.5.56). */}
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', marginTop: 3 }}>
+                {/* whiteSpace lives in .sr-bc-legend-chip (globals.css), NOT inline.
+                    The base class rule is byte-identical to the inline `nowrap` it
+                    replaces, so every width above the phone tier renders exactly as
+                    before — but a React inline style is specificity 1,0,0 and
+                    unreachable from a media query, the same trap .sr-bc-card,
+                    .sr-bc-matrix and .sr-bc-code-col were each lifted out of. */}
                 {tierGroups.get(tier)!.map(code => (
-                  <span key={code} style={{ whiteSpace: 'nowrap' }}>
+                  <span key={code} className="sr-bc-legend-chip">
                     <span style={{ fontWeight: 700 }}>{code}</span> {BREEDING_CODE_MAP.get(code)!.label}
                   </span>
                 ))}
