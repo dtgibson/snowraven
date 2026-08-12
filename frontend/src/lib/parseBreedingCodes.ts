@@ -1,5 +1,5 @@
 import { BREEDING_CODE_MAP, BREEDING_CODES } from './breedingCodes'
-import { truncateAtFirstParen } from './speciesUtils'
+import { isNonCountableObservedName, truncateAtFirstParen } from './speciesUtils'
 
 export interface BreedingEntry {
   commonName: string
@@ -95,10 +95,6 @@ function parseCSV(content: string): string[][] {
   return rows
 }
 
-function isExcluded(name: string): boolean {
-  return name.endsWith(' sp.') || name.includes('/') || name.includes(' x ')
-}
-
 /** Minimal per-observation shape needed to derive breeding rows (a subset of
  * ObservationEntry, so the parsed observations can be reused without re-parsing). */
 export interface BreedingObsInput {
@@ -129,7 +125,7 @@ export function deriveBreedingRows(observations: readonly BreedingObsInput[]): B
   const rows: BreedingCodeRow[] = []
   for (const o of observations) {
     const rawName = o.commonName?.trim() ?? ''
-    if (!rawName || isExcluded(rawName)) continue
+    if (!rawName || isNonCountableObservedName(rawName)) continue
     const code = o.breedingCode ?? ''
     if (!code || !BREEDING_CODE_MAP.has(code)) continue
     rows.push({
@@ -179,7 +175,7 @@ export function parseBreedingCodes(content: string): BreedingData {
     if (cols.length === 1 && cols[0].trim() === '') continue
 
     const rawName = cols[commonNameIdx]?.trim() ?? ''
-    if (!rawName || isExcluded(rawName)) continue
+    if (!rawName || isNonCountableObservedName(rawName)) continue
 
     const name = truncateAtFirstParen(rawName)
     const sciName = sciNameIdx !== -1 ? (cols[sciNameIdx]?.trim() ?? '') : ''
