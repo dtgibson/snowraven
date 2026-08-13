@@ -9,6 +9,9 @@
 import type { ObservationEntry } from '../types'
 import { normalizeSpeciesName, isNonCountableObservedName } from './speciesUtils'
 
+/** Shared no-exclusion default (see buildDayCells). */
+const EMPTY_EXCLUDED: ReadonlySet<string> = new Set<string>()
+
 export type CalendarMetric = 'species' | 'checklists' | 'total'
 
 /** Individuals contributed by one row's Count. eBird "X"/blank/non-numeric parses to
@@ -147,6 +150,14 @@ export function buildDayCells(
   observations: ObservationEntry[],
   view: CalendarView,
   speciesFilter?: string,
+  /** Normalized names classified eBird Exotic: Escapee, read PASSIVELY from the
+   *  persistent provenance cache (`useProvenanceLookup`). The Calendar never
+   *  initiates a provenance request and imports no network module, so its
+   *  zero-network guarantee (v0.5.63) is unchanged: when the cache is empty this
+   *  set is empty and every number here is byte-identical to pre-feature
+   *  (FR-26, FR-35, QA-40). Applied to the countable set only, exactly like the
+   *  countable-name predicate it composes with; the with-forms set is untouched. */
+  excludedNames: ReadonlySet<string> = EMPTY_EXCLUDED,
 ): DayCellMap {
   // Per checklist we carry its display fields (date + time + location) alongside the
   // id, PLUS its own two distinct-species Sets — a countable-only set and an all-names
@@ -193,7 +204,7 @@ export function buildDayCells(
     // Audubon's)") must be judged on its base species and stay countable. Note this
     // canNOT be `isNonCountableSpecies(norm)` — normalizing the slash check too would
     // newly admit subspecies-group slashes. Same rule as Statistics' filter.
-    const countable = !isNonCountableObservedName(o.commonName)
+    const countable = !isNonCountableObservedName(o.commonName) && !excludedNames.has(norm)
     w.withForms.add(norm)
     w.totalWithForms += n
     if (countable) {

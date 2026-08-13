@@ -17,6 +17,9 @@ import { isNonCountableSpecies, normalizeSpeciesName } from './speciesUtils'
 import { countyKeyFromState } from './countyBoundaries'
 import type { CountyMetric } from './countyShading'
 
+/** Shared no-exclusion default (see buildCountyCompletenessLocal). */
+const EMPTY_EXCLUDED: ReadonlySet<string> = new Set<string>()
+
 /** The county shade metric union — the two shipped count metrics plus
  *  completeness. `CountyMetric` itself is deliberately unchanged (FR-06). */
 export type CountyShadeMetric = CountyMetric | 'completeness'
@@ -170,6 +173,23 @@ export function completenessPercent(x: number, y: number): number {
  */
 export function buildCountyCompletenessLocal(
   observations: ObservationEntry[],
+  /**
+   * Normalized names classified eBird Exotic: Escapee. Applied to the NUMERATOR
+   * (X) only, unconditionally and independent of the Statistics "Count escapees"
+   * toggle (FR-34, FR-37).
+   *
+   * DELIBERATE ASYMMETRY, stated here rather than left silent (OQ-03): the
+   * DENOMINATOR is eBird's own region species list, which we do not filter, so a
+   * county's percentage is measured against a list that still contains whatever
+   * exotics eBird publishes for the region. Filtering the denominator would mean
+   * classifying every species on eBird's regional list, which is a different and
+   * much larger question than classifying the birder's own. It is the same
+   * approximation the metric already carries for spuh and slash names, and the
+   * popup caption now says so in words.
+   *
+   * An empty set is a no-op returning byte-identical pre-feature numbers.
+   */
+  excludedNames: ReadonlySet<string> = EMPTY_EXCLUDED,
 ): Map<string, CountyLocalCompleteness> {
   interface Work {
     stateProvince: string
@@ -182,7 +202,8 @@ export function buildCountyCompletenessLocal(
     const key = countyKeyFromState(o.stateProvince, o.county)
     if (!key) continue
     const norm = normalizeSpeciesName(o.commonName)
-    if (isNonCountableSpecies(norm)) continue
+    // The escapee rule composes with the countable-name predicate (FR-05).
+    if (isNonCountableSpecies(norm) || excludedNames.has(norm)) continue
     let w = work.get(key)
     if (!w) {
       w = { stateProvince: o.stateProvince!, county: o.county!, firstDates: new Map() }

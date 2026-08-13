@@ -1,0 +1,207 @@
+{
+  "_comment": [
+    "SHARED dual-transport fixture for the exotic-provenance seam extension",
+    "(escapee-count-toggle, schema.md 11.4). Loaded by BOTH",
+    "frontend/src/lib/checklistProvenance.parity.test.ts and",
+    "backend/tests/test_checklist_provenance_parity.py, so if either twin's",
+    "normalization drifts its own test fails.",
+    "",
+    "Every `obs` row is a RAW eBird checklist/view observation. `expected` is the",
+    "normalized ChecklistSpecies pair both transports must produce for it.",
+    "",
+    "The hostile rows are the point, and they cover BOTH halves of parity.",
+    "",
+    "CHARACTER CLASSES. The v0.5.54 finding was a pydantic rust-regex `\\d`",
+    "admitting Arabic-Indic digits while its JS twin did not, so the 'same'",
+    "pattern validated differently on the two transports. Both sides therefore",
+    "write EXPLICIT ASCII CLASSES ([A-Z]) and this fixture includes a non-ASCII",
+    "digit, a non-ASCII letter, a lowercase token, an over-long token, a",
+    "non-string, and an absent field.",
+    "",
+    "ANCHORS. Matching classes are NOT sufficient, and this pair shipped",
+    "divergent on the anchors alone: Python's `$` matches before a trailing",
+    "newline and JavaScript's does not, so `re.match` accepted 'X\\n' where",
+    "`.test()` rejected it. The backend uses `fullmatch` for that reason and the",
+    "trailing-newline rows below are what hold it. Whenever a twinned pattern is",
+    "added, give it a trailing-newline row.",
+    "",
+    "Anything not matching normalizes to '', which COUNTS under the shipped rule."
+  ],
+  "cases": [
+    {
+      "why": "the sampled escapee shape: category X with its DNC companion",
+      "obs": {
+        "speciesCode": "graygo",
+        "exoticCategory": "X",
+        "userDoNotCount": "DNC"
+      },
+      "expected": {
+        "exoticCategory": "X",
+        "userDoNotCount": "DNC"
+      }
+    },
+    {
+      "why": "naturalized: eBird COUNTS this, and the offline category==='domestic' shortcut would wrongly drop it",
+      "obs": {
+        "speciesCode": "redjun",
+        "exoticCategory": "N"
+      },
+      "expected": {
+        "exoticCategory": "N",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "provisional: eBird COUNTS this too (the other half of the anti-shortcut pair)",
+      "obs": {
+        "speciesCode": "indpea1",
+        "exoticCategory": "P"
+      },
+      "expected": {
+        "exoticCategory": "P",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "field absent entirely, the ordinary case, and it counts",
+      "obs": {
+        "speciesCode": "amerob"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "an unrecognized FUTURE category is carried verbatim, never collapsed: it is a bounded token, not a closed union",
+      "obs": {
+        "speciesCode": "rocpig",
+        "exoticCategory": "Q"
+      },
+      "expected": {
+        "exoticCategory": "Q",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "lowercase is not the shape eBird emits; both transports reject it identically",
+      "obs": {
+        "speciesCode": "mallar3",
+        "exoticCategory": "x",
+        "userDoNotCount": "dnc"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "over-length tokens exceed the bounded classes on both sides",
+      "obs": {
+        "speciesCode": "cangoo",
+        "exoticCategory": "XXXXX",
+        "userDoNotCount": "DNCDNCDNC"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "ARABIC-INDIC DIGITS: the v0.5.54 trap. Explicit [A-Z] rejects on both transports; a bare \\w or \\d would not agree",
+      "obs": {
+        "speciesCode": "sposan",
+        "exoticCategory": "٠١٢",
+        "userDoNotCount": "٣٤٥"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "non-ASCII UPPERCASE letters (Cyrillic Х, which renders like an X)",
+      "obs": {
+        "speciesCode": "killde",
+        "exoticCategory": "Х",
+        "userDoNotCount": "ДНЦ"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "a non-string value never reaches the store as one",
+      "obs": {
+        "speciesCode": "houspa",
+        "exoticCategory": 1,
+        "userDoNotCount": true
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "an empty string stays empty rather than becoming a token",
+      "obs": {
+        "speciesCode": "eursta",
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "whitespace padding is not trimmed into a valid token",
+      "obs": {
+        "speciesCode": "buwtea",
+        "exoticCategory": " X ",
+        "userDoNotCount": " DNC"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "ANCHOR PARITY: a trailing newline. Python's `$` matches before it and JavaScript's does not, so this row is what forces the backend to use fullmatch",
+      "obs": {
+        "speciesCode": "muswan",
+        "exoticCategory": "X\n",
+        "userDoNotCount": "DNC\n"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "ANCHOR PARITY: a leading newline, the same divergence family from the other end",
+      "obs": {
+        "speciesCode": "gadwal",
+        "exoticCategory": "\nX",
+        "userDoNotCount": "\nDNC"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    },
+    {
+      "why": "ANCHOR PARITY: an embedded newline cannot smuggle a valid token past either engine",
+      "obs": {
+        "speciesCode": "norpin",
+        "exoticCategory": "X\nN",
+        "userDoNotCount": "DNC\nDNC"
+      },
+      "expected": {
+        "exoticCategory": "",
+        "userDoNotCount": ""
+      }
+    }
+  ]
+}

@@ -25,6 +25,10 @@ export const MILESTONE_THRESHOLDS = [
 export type Granularity = 'total' | 'weekly' | 'monthly' | 'yearly'
 export type PeriodGranularity = Exclude<Granularity, 'total'>
 
+/** Shared no-exclusion default, so callers that predate the escapee rule keep
+ *  byte-identical behavior and no call site allocates a Set per invocation. */
+const EMPTY_EXCLUDED: ReadonlySet<string> = new Set<string>()
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function parseHour(time: string | null | undefined): number | null {
@@ -182,8 +186,31 @@ export function computeTotals(checklists: ChecklistEntry[], lifeList: string[]) 
   }
 }
 
-/** Life-list accumulation curve + milestone hits (chronological pass over observations). */
-export function computeAccumulation(filteredObs: ObservationEntry[], accGranularity: Granularity) {
+/** Distinct countable names in `lifeList` that are NOT classified eBird
+ *  Exotic: Escapee (`useProvenanceLookup` / `useExoticProvenance` supply the set).
+ *
+ *  The escapee rule COMPOSES with the countable-name predicate and never
+ *  replaces it: `lifeList` has already been through `filterObservations`, so
+ *  this is a second predicate on the same normalized value. An empty set is a
+ *  no-op returning the same array, which is what makes an unresolved cache
+ *  produce byte-identical pre-feature numbers. */
+export function countableLifeList(lifeList: string[], excludedNames: ReadonlySet<string>): string[] {
+  if (excludedNames.size === 0) return lifeList
+  return lifeList.filter(n => !excludedNames.has(n))
+}
+
+/** Life-list accumulation curve + milestone hits (chronological pass over observations).
+ *
+ *  `excludedNames` drops eBird escapees from the accumulation entirely, so the
+ *  Nth milestone is the Nth species that counts toward a life list. Pass an
+ *  empty set for the unfiltered series; the two are computed in ONE memo pass on
+ *  Statistics and selected at read, so the "Count escapees" toggle is never a
+ *  memo input (NFR-02). */
+export function computeAccumulation(
+  filteredObs: ObservationEntry[],
+  accGranularity: Granularity,
+  excludedNames: ReadonlySet<string> = EMPTY_EXCLUDED,
+) {
   const sorted = [...filteredObs].sort((a, b) => a.date.localeCompare(b.date))
   const seen = new Set<string>()
   const milestoneMap = new Map<number, { date: string; species: string; submissionId: string }>()
@@ -194,6 +221,7 @@ export function computeAccumulation(filteredObs: ObservationEntry[], accGranular
 
   for (const o of sorted) {
     const norm = normalizeSpeciesName(o.commonName)
+    if (excludedNames.has(norm)) continue
     if (!seen.has(norm)) {
       seen.add(norm)
       const count = seen.size

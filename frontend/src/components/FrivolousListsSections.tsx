@@ -18,12 +18,16 @@ import { formatDate } from '../lib/formatDate'
 import { computeFrivolousLists } from '../lib/frivolousLists'
 import type { NameListResult, GroupedListResult, RainbowEntry, SpeciesTick } from '../lib/frivolousLists'
 import type { ObservationEntry } from '../types'
+import { COUNT_RULE_SENTENCE } from '../lib/exoticCopy'
 
 interface Props {
   observations: ObservationEntry[]
   codeFor: (name: string) => string | undefined
   hasEntryFor: (name: string) => boolean
   onOpenSpecies?: (commonName: string) => void
+  /** Normalized names classified eBird Exotic: Escapee. Applied unconditionally
+   *  (FR-36); an empty set is a no-op. */
+  excludedNames: ReadonlySet<string>
 }
 
 const HEAD_ROW: CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }
@@ -180,11 +184,20 @@ function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies, isHo
   )
 }
 
-export function FrivolousListsSections({ observations, codeFor, hasEntryFor, onOpenSpecies }: Props) {
-  const data = useMemo(() => computeFrivolousLists(observations), [observations])
+export function FrivolousListsSections({ observations, codeFor, hasEntryFor, onOpenSpecies, excludedNames }: Props) {
+  // The escapee exclusion applies UNCONDITIONALLY here, independent of the
+  // Statistics "Count escapees" toggle, exactly as these lists already ignore
+  // the include-spuh toggle (FR-36, QA-41).
+  const data = useMemo(() => computeFrivolousLists(observations, excludedNames), [observations, excludedNames])
   const { isHotspot } = useHotspotSet()
   return (
     <>
+      {/* FR-33: where a count reflects the escapee rule, the surface makes the
+          rule legible. Rendered only when the exclusion is actually in force, so
+          an unresolved cache adds no copy. */}
+      {excludedNames.size > 0 && (
+        <p className="sr-count-rule-note">{COUNT_RULE_SENTENCE}</p>
+      )}
       <NameList title="Avian American" list={data.avianAmerican} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
       <Divider />
       <NameList title="California Dreamer" list={data.californiaDreamer} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />

@@ -23,9 +23,14 @@ import { BirdName } from './BirdName'
 import {
   filterObservations, computeChecklists, computeLifeList, computeTopSpecies, computeTotals,
   computeAccumulation, computeTemporal, computeDurationBins, computeGeo, computeEffort, computeQuality,
-  computeBreedingStats, computeMlStats, computeFunStats,
+  computeBreedingStats, computeMlStats, computeFunStats, countableLifeList,
   formatPeriodLabel, MILESTONE_THRESHOLDS, KM_TO_MI, HA_TO_ACRE,
 } from '../lib/birdingStats'
+import { buildCoverIndex, EMPTY_LOOKUP } from '../lib/exoticProvenance'
+import { useExoticProvenance } from '../lib/useExoticProvenance'
+import { ExoticProvenanceAccount } from './ExoticProvenanceAccount'
+import { ESCAPEE_TOGGLE_LABEL } from '../lib/exoticCopy'
+import { useOnline } from '../lib/useOnline'
 import type { Granularity, PeriodGranularity } from '../lib/birdingStats'
 import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
@@ -82,6 +87,11 @@ const NAV_SECTIONS = [
 export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings: () => void; onOpenSpecies?: (commonName: string) => void }) {
   const [phase, setPhase]           = useState<Phase>({ tag: 'loading-saved' })
   const [includeSpuh, setIncludeSpuh] = useState(false)
+  // Session-only, matching its neighbour: no storage seam, resetting on relaunch.
+  // A tab stays mounted once opened, so it survives leaving and returning to
+  // Statistics and resets only on relaunch (the settled phrasing).
+  const [includeEscapees, setIncludeEscapees] = useState(false)
+  const [hasEbirdKey, setHasEbirdKey] = useState<boolean | null>(null)
   const [accGranularity, setAccGranularity] = useState<Granularity>('total')
   const [showAllCounties, setShowAllCounties] = useState(false)
   const [breedingFilter, setBreedingFilter] = useState<'all' | 'confirmed' | 'probable' | 'possible'>('all')
@@ -164,6 +174,18 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     load()
     return () => { cancelled = true }
   }, [])
+
+  // Is an eBird key configured? One of the three auto-start conditions for the
+  // exotic-provenance pass (the other two are online and a non-fresh cache).
+  useEffect(() => {
+    let cancelled = false
+    storage.getApiKey('ebird')
+      .then(k => { if (!cancelled) setHasEbirdKey(!!k) })
+      .catch(() => { if (!cancelled) setHasEbirdKey(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  const online = useOnline()
 
   // Raw data — stable refs so useMemos don't thrash when phase tag changes
   const rawObs = phase.tag === 'ready' ? phase.observations : EMPTY_OBS
@@ -252,6 +274,25 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   }, [mlTaxonOrders])
   const orderFor = (name: string) => mlTaxonOrders[name] ?? normTaxonOrder[normalizeSpeciesName(name)] ?? Infinity
 
+  // ── Exotic provenance (escapee-count-toggle) ───────────────────────────────
+  // The cover index is built from the RAW observations, never `filteredObs`, so
+  // neither count-rule toggle is a memo input to it (NFR-02). Names are mapped
+  // to codes ONCE, in one direction, through the batch this tab already fetches
+  // for favicons and taxonomic sort; there is no code -> name -> code round trip
+  // anywhere in this feature (FR-07).
+  const coverIndex = useMemo(
+    () => buildCoverIndex(effectiveObs, norm => normTaxon[norm]),
+    [effectiveObs, normTaxon],
+  )
+  // Statistics is the ONLY surface allowed to initiate a provenance request
+  // (FR-17). Every other surface reads the cached result through
+  // `useProvenanceLookup`, which cannot reach a network module at all.
+  const provenance = useExoticProvenance({ active: computed, index: coverIndex, hasEbirdKey, online })
+  // Both counts are precomputed in one pass and SELECTED AT READ, so toggling
+  // "Count escapees" never invalidates a memo (NFR-02, QA-52).
+  const excludedNames = provenance.lookup.excludedNames
+  const appliedExcluded = includeEscapees ? EMPTY_LOOKUP.excludedNames : excludedNames
+
   // ── useMemos (all declared before any conditional return) ─────────────────
 
   const filteredObs = useMemo(() => filterObservations(effectiveObs, deferredIncludeSpuh), [effectiveObs, deferredIncludeSpuh])
@@ -266,8 +307,30 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   const totals = useMemo(() => computeTotals(checklists, lifeList), [checklists, lifeList])
 
-  // Accumulation curve + milestones — must process observations in chronological order
-  const accumulation = useMemo(() => computeAccumulation(filteredObs, deferredAccGranularity), [filteredObs, deferredAccGranularity])
+  // The headline Species figure. `countableLifeList` composes the escapee rule
+  // with the countable-name predicate `lifeList` has already been through; it
+  // never replaces it (FR-05). With the toggle ON this is byte-identical to the
+  // pre-feature value (FR-28, QA-02).
+  const speciesShown = useMemo(
+    () => countableLifeList(lifeList, appliedExcluded).length,
+    [lifeList, appliedExcluded],
+  )
+
+  // Accumulation curve + milestones — must process observations in chronological
+  // order. BOTH series are produced in one memo pass and the toggle selects
+  // between them at read (NFR-02): the Calendar's precompute-both shape, not the
+  // include-spuh toggle's recompute-everything shape. With nothing excluded the
+  // second series IS the first, so an unresolved cache costs one comparison.
+  const accumulationPair = useMemo(() => {
+    const all = computeAccumulation(filteredObs, deferredAccGranularity)
+    return {
+      all,
+      countable: excludedNames.size === 0
+        ? all
+        : computeAccumulation(filteredObs, deferredAccGranularity, excludedNames),
+    }
+  }, [filteredObs, deferredAccGranularity, excludedNames])
+  const accumulation = includeEscapees ? accumulationPair.all : accumulationPair.countable
 
   // Temporal histograms
   const temporal = useMemo(() => computeTemporal(checklists, filteredObs), [checklists, filteredObs])
@@ -291,7 +354,13 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const mlStats = useMemo(() => computeMlStats(effectiveMl), [effectiveMl])
 
   // Richer media stats (demographics, behaviors, coverage, ratings, time-of-day)
-  const mediaStats = useMemo(() => computeMediaStats(effectiveMl, backboneNames), [effectiveMl, backboneNames])
+  // Media documentation coverage applies the escapee rule UNCONDITIONALLY,
+  // independent of the toggle, exactly as it already ignores the include-spuh
+  // toggle (FR-30, FR-34, QA-39).
+  const mediaStats = useMemo(
+    () => computeMediaStats(effectiveMl, backboneNames, excludedNames),
+    [effectiveMl, backboneNames, excludedNames],
+  )
 
   // Fun stats
   const funStats = useMemo(() => computeFunStats(filteredObs, checklists, effectiveObs), [filteredObs, checklists, effectiveObs])
@@ -389,15 +458,32 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             {computed ? fmt(totals.checklistCount) : '…'} checklists · eBird backup: {freshness}
           </p>
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', cursor: 'pointer', userSelect: 'none' }}>
-          <input
-            type="checkbox"
-            checked={includeSpuh}
-            onChange={e => setIncludeSpuh(e.target.checked)}
-            style={{ accentColor: 'var(--sr-accent)', width: 14, height: 14 }}
-          />
-          Count spuh, slash &amp; hybrids
-        </label>
+        {/* Two count rules, STACKED rather than side by side: two "Count ..."
+            labels in a row read as two unrelated controls and wrap badly at any
+            narrow width; stacked they read as one count rule with two clauses.
+            The new control is a plain checkbox identical to its neighbour, not a
+            ToggleSwitch, because FR-27 asks for matching treatment and the
+            neighbour is a checkbox. */}
+        <div className="sr-count-rules">
+          <label className="sr-count-rule">
+            <input
+              type="checkbox"
+              checked={includeSpuh}
+              onChange={e => setIncludeSpuh(e.target.checked)}
+              style={{ accentColor: 'var(--sr-accent)', width: 14, height: 14 }}
+            />
+            Count spuh, slash &amp; hybrids
+          </label>
+          <label className="sr-count-rule">
+            <input
+              type="checkbox"
+              checked={includeEscapees}
+              onChange={e => setIncludeEscapees(e.target.checked)}
+              style={{ accentColor: 'var(--sr-accent)', width: 14, height: 14 }}
+            />
+            {ESCAPEE_TOGGLE_LABEL}
+          </label>
+        </div>
       </div>
 
       {/* Section jump-nav */}
@@ -430,7 +516,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
       <SectionCard title="Life List Totals" icon={<BarChart2 size={16} />}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(7.5rem, 1fr))', gap: 0 }}>
           {[
-            { label: 'Species', value: totals.speciesCount },
+            { label: 'Species', value: speciesShown, settling: provenance.status.kind === 'in-progress' },
             { label: 'Checklists', value: totals.checklistCount },
             { label: 'Locations', value: totals.locationCount },
             { label: 'Years Active', value: totals.yearCount },
@@ -438,10 +524,30 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
             totals.countryCount > 0 ? { label: 'Countries', value: totals.countryCount } : null,
           ].filter(Boolean).map((stat, i) => (
             <div key={i} style={{ borderRight: '1px solid var(--sr-border-subtle)', borderBottom: '1px solid var(--sr-border-subtle)' }}>
-              <StatCell label={stat!.label} value={stat!.value} />
+              {/* A settling figure renders muted while a pass runs. Supporting
+                  cue only: the status sentence below says the same thing in
+                  words, so it is never colour alone (WCAG 1.4.1). No sub-line is
+                  added here, which would force `reserveSub` on all six tiles and
+                  permanently add a blank line to five of them. */}
+              <StatCell label={stat!.label} value={stat!.value} settling={stat!.settling ?? false} />
             </div>
           ))}
         </div>
+
+        {/* The control lives with its sibling in the header; the ACCOUNT lives
+            with the number, because a headline figure that drops by three has to
+            answer for itself where the reader is looking. */}
+        <ExoticProvenanceAccount
+          status={provenance.status}
+          statusSeq={provenance.statusSeq}
+          excluded={provenance.lookup.excluded}
+          includeEscapees={includeEscapees}
+          onStop={provenance.stop}
+          onRetry={provenance.retry}
+          onGoToSettings={onGoToSettings}
+          codeFor={codeFor}
+          onOpenSpecies={onOpenSpecies}
+        />
 
         {totals.firstDate && (
           <>
@@ -509,7 +615,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                 ))}
               </div>
             </div>
-            <div style={{ height: 180 }} role="img" aria-label={`Life list accumulation chart: ${fmt(totals.speciesCount)} species recorded over time`}>
+            <div style={{ height: 180 }} role="img" aria-label={`Life list accumulation chart: ${fmt(speciesShown)} species recorded over time`}>
               <ResponsiveContainer width="100%" height="100%">
                 {deferredAccGranularity === 'total' ? (
                   <AreaChart data={accumulation.liferPoints} margin={{ top: 4, right: 4, bottom: 0, left: -10 }}>
@@ -1778,6 +1884,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
           <MediaStatsSections
             stats={mediaStats}
+            escapeesExcluded={excludedNames.size > 0}
             taxonOrderFor={orderFor}
             userId={mlUserId}
             renderName={name => (
@@ -1860,6 +1967,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
       <SectionCard title="Frivolous Lists" icon={<Sparkles size={16} />}>
         <FrivolousListsSections
           observations={effectiveObs}
+          excludedNames={excludedNames}
           codeFor={codeFor}
           hasEntryFor={hasEntryFor}
           onOpenSpecies={onOpenSpecies}

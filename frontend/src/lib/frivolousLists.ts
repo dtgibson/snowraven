@@ -10,6 +10,9 @@
 import type { ObservationEntry } from '../types'
 import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
 
+/** Shared no-exclusion default (see computeFrivolousLists). */
+const EMPTY_EXCLUDED: ReadonlySet<string> = new Set<string>()
+
 // Current eBird canonical common names (2024–25 taxonomy). A pre-split export
 // (e.g. "Northern Goshawk" before the American Goshawk split) won't tick — a
 // re-download resolves it; we intentionally keep no legacy-name alias map.
@@ -154,7 +157,14 @@ function isEarlier(a: FirstSeen, b: { date: string; submissionId: string }): boo
   return a.submissionId < b.submissionId
 }
 
-export function computeFrivolousLists(observations: ObservationEntry[]): FrivolousListsData {
+export function computeFrivolousLists(
+  observations: ObservationEntry[],
+  /** Normalized names classified eBird Exotic: Escapee. Applied UNCONDITIONALLY,
+   *  independent of the Statistics "Count escapees" toggle, matching this
+   *  feature's existing independence from the include-spuh toggle (FR-36).
+   *  Empty set → byte-identical pre-feature behavior. */
+  excludedNames: ReadonlySet<string> = EMPTY_EXCLUDED,
+): FrivolousListsData {
   // First-seen record per normalized species (earliest date, deterministic tie-break),
   // plus the set of recorded species.
   const firstSeen = new Map<string, FirstSeen>()
@@ -162,6 +172,9 @@ export function computeFrivolousLists(observations: ObservationEntry[]): Frivolo
   for (const o of observations) {
     if (isExcludedName(o.commonName)) continue
     const norm = normalizeSpeciesName(o.commonName)
+    // The escapee rule composes with the name predicate above; it never
+    // replaces it (FR-05).
+    if (excludedNames.has(norm)) continue
     recorded.add(norm)
     const cand: FirstSeen = {
       commonName: norm,

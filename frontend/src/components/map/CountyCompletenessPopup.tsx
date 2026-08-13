@@ -11,6 +11,7 @@
 import { AlertTriangle, Clock, KeyRound, Loader2, RefreshCw, WifiOff } from 'lucide-react'
 import { BirdName } from '../BirdName'
 import { cacheLineText, monthDay, type CountyCompletenessResult } from '../../lib/countyCompleteness'
+import { COUNTY_COUNT_RULE_SENTENCE } from '../../lib/exoticCopy'
 
 // Session-stable "now" for the cache-line day math (never Date.now() in render).
 const SESSION_NOW_MS = Date.now()
@@ -85,7 +86,7 @@ export function CountyCompletenessPopup({ countyName, result, onLoad, onOpenSpec
         </div>
         <div style={{ ...CAPTION, marginTop: 3, marginBottom: 0 }}>
           {birded
-            ? "Countable species: spuhs, slashes & hybrids don't count."
+            ? `Countable species. ${COUNTY_COUNT_RULE_SENTENCE}`
             : '0%: the county stays a plain outline on the map.'}
         </div>
       </>
@@ -118,7 +119,7 @@ export function CountyCompletenessPopup({ countyName, result, onLoad, onOpenSpec
         </div>
         {birded && (
           <div style={{ ...CAPTION, marginTop: 5, marginBottom: 0 }}>
-            You've recorded {x.toLocaleString()} countable species here; spuhs, slashes & hybrids don't count.
+            You've recorded {x.toLocaleString()} countable species here. {COUNTY_COUNT_RULE_SENTENCE}
           </div>
         )}
         {status === 'error' && (

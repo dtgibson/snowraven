@@ -13,6 +13,10 @@ import type { MLExportRow } from './parseMLExport'
 import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
 import { isWsChar, isAsciiDigitChar, isLineTerminatorChar } from './charClasses'
 
+/** Shared no-exclusion default so a caller that supplies no escapee set keeps
+ *  byte-identical pre-feature behavior. */
+const EMPTY_EXCLUDED: ReadonlySet<string> = new Set<string>()
+
 // ── Age/Sex ──────────────────────────────────────────────────────────────────
 
 export type AgeClass = 'Adult' | 'Immature' | 'Juvenile' | 'Unknown'
@@ -312,7 +316,15 @@ interface SpeciesAgg {
   agedAssets: number
 }
 
-export function computeMediaStats(rows: MLExportRow[], lifeListNames?: Set<string>): MediaStats {
+export function computeMediaStats(
+  rows: MLExportRow[],
+  lifeListNames?: Set<string>,
+  /** Normalized names classified eBird Exotic: Escapee. Applied to the coverage
+   *  denominator UNCONDITIONALLY, independent of the Statistics "Count escapees"
+   *  toggle, exactly as this metric already ignores the include-spuh toggle
+   *  (FR-30, FR-34). An empty set is a no-op. */
+  excludedNames: ReadonlySet<string> = EMPTY_EXCLUDED,
+): MediaStats {
   let photo = 0, audio = 0, video = 0
   const bySpecies = new Map<string, SpeciesAgg>()
   const ageMix: Record<AgeClass, number> = { Adult: 0, Immature: 0, Juvenile: 0, Unknown: 0 }
@@ -395,7 +407,10 @@ export function computeMediaStats(rows: MLExportRow[], lifeListNames?: Set<strin
   // understated the percentage. Drop them from both the denominator and the numerator.
   let coverage: MediaStats['coverage'] = null
   if (lifeListNames && lifeListNames.size > 0) {
-    const countable = [...lifeListNames].filter(n => !isNonCountableSpecies(n))
+    // The escapee rule composes with the countable-name predicate; it never
+    // replaces it (FR-05). Both the denominator and the numerator drop the
+    // excluded names, because the numerator is filtered against `countable`.
+    const countable = [...lifeListNames].filter(n => !isNonCountableSpecies(n) && !excludedNames.has(n))
     if (countable.length > 0) {
       // Case-insensitive match: both sides are normalized eBird names, but guard
       // against any casing drift between the eBird and ML name sources.

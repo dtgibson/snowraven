@@ -26,6 +26,8 @@ import { SetupRequired } from './SetupRequired'
 import { EBIRD_BACKUP_STEPS } from './setupCopy'
 import { storage } from '../lib/storage'
 import { loadEbirdObservations } from '../lib/observationsCache'
+import { useProvenanceLookup } from '../lib/useProvenanceLookup'
+import { COUNT_RULE_SENTENCE } from '../lib/exoticCopy'
 import { formatDate } from '../lib/formatDate'
 import { ChecklistLink } from './ChecklistLink'
 import { computeCountyTiers, type CountyTiers } from '../lib/countyShading'
@@ -62,6 +64,9 @@ type Phase =
   | { tag: 'empty' }
   | { tag: 'error'; message: string }
   | { tag: 'ready'; observations: ObservationEntry[] }
+
+/** Stable empty reference for the passive provenance read before data loads. */
+const EMPTY_OBSERVATIONS: ObservationEntry[] = []
 
 // ── Small presentational pieces ──────────────────────────────────────────────
 
@@ -805,11 +810,18 @@ export function Calendar({ onGoToSettings, filesVersion }: {
   // makes the calendar render its own presence instead of an all-zero grid.
   const effectiveForms = speciesFilterActive ? true : includeForms
 
+  // The escapee rule, read PASSIVELY. `useProvenanceLookup` touches the storage
+  // seam and the pure model only; it imports no network module, holds no key
+  // dependency, and initiates nothing. This tab's zero-network guarantee is
+  // therefore unchanged, and with an empty cache the set is empty and every
+  // number here is byte-identical to pre-feature (FR-26, FR-35, QA-40).
+  const escapeeNames = useProvenanceLookup(observations ?? EMPTY_OBSERVATIONS)
+
   const cells = useMemo(
     () => (observations
-      ? buildDayCells(observations, view, speciesFilterActive ? selectedSpecies : undefined)
+      ? buildDayCells(observations, view, speciesFilterActive ? selectedSpecies : undefined, escapeeNames)
       : new Map() as DayCellMap),
-    [observations, view, speciesFilterActive, selectedSpecies],
+    [observations, view, speciesFilterActive, selectedSpecies, escapeeNames],
   )
   const tiers = useMemo(
     () => computeCountyTiers(nonZeroMetricCounts(cells, metric, effectiveForms), 5),
@@ -1038,6 +1050,12 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <p style={{ margin: 0, fontSize: '0.6875rem', lineHeight: 1.35, color: 'var(--sr-text-muted)' }}>
             Spuh / slash / hybrid forms aren't countable species; off by default.
           </p>
+          {/* FR-33: the Species metric reflects the escapee rule once Statistics
+              has resolved it, so the rule is stated here rather than left to be
+              discovered. Plain text, no link and no fetch. */}
+          {escapeeNames.size > 0 && (
+            <p className="sr-count-rule-note" style={{ margin: 0 }}>{COUNT_RULE_SENTENCE}</p>
+          )}
         </div>
       </div>
 

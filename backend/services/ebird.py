@@ -1,4 +1,5 @@
 import os
+import re
 
 from http_client import get_client
 
@@ -90,10 +91,43 @@ async def fetch_checklist(checklist_id: str) -> dict:
     }
 
 
-async def fetch_checklist_species(checklist_id: str) -> dict:
+# The eBird response is untrusted input. Both provenance fields are normalized
+# against EXPLICIT ASCII CLASSES ([A-Z]), never `\w` — the desktop twin in
+# lib/tauri/checklistService.ts uses the identical explicit classes for the same
+# reason. The v0.5.54 finding was a rust-regex `\d` admitting `٠١٢` while its JS
+# twin did not, so the "same" pattern validated differently on the two
+# transports. Anything not matching becomes "", which counts.
+#
+# THE CHARACTER CLASSES ARE ONLY HALF OF PARITY; THE ANCHORS ARE THE OTHER HALF,
+# and this pair shipped divergent on exactly that. Python's `$` matches BEFORE a
+# trailing newline and JavaScript's does not, so `re.match(r"^[A-Z]{1,4}$", ...)`
+# accepted "X\n" while its `.test()` twin rejected it. The token still counted on
+# both transports, so no species could be wrongly dropped, but "X\n" then failed
+# the persisted store's own SEEN_TOKEN_RE on reload, which silently discarded the
+# whole species record and re-fetched it every session on web/Pi.
+#
+# `fullmatch` is what makes the anchors agree: it requires the WHOLE string, so
+# the trailing newline is unconsumed and the value is rejected, exactly as in JS.
+# The shared fixture carries a trailing-newline row, and reverting to `.match()`
+# turns the parity tests red on both transports.
+_EXOTIC_RE = re.compile(r"^[A-Z]{1,4}$")
+_DNC_RE = re.compile(r"^[A-Z]{1,8}$")
+
+
+def _norm_token(value, pattern) -> str:
+    return value if isinstance(value, str) and pattern.fullmatch(value) else ""
+
+
+async def fetch_checklist_species(checklist_id: str, skip_loc_name: bool = False) -> dict:
     """Fetch a checklist's species observations (eBird speciesCode + count string)
     plus a short header (location + date). eBird returns obs in taxonomic order;
-    that order is preserved. Common names are resolved separately via the taxonomy."""
+    that order is preserved. Common names are resolved separately via the taxonomy.
+
+    `skip_loc_name` suppresses the SECOND outbound eBird call (ref/region/info)
+    that resolves a readable location name from the locId. The exotic-provenance
+    pass does not need one and is capped at one request per checklist, so with
+    the flag set `locName` falls back to the locId exactly as it already does
+    when resolution fails. The response shape is unchanged either way."""
     api_key = os.getenv("EBIRD_API_KEY")
     if not api_key:
         raise ValueError("EBIRD_API_KEY not configured")
@@ -114,7 +148,7 @@ async def fetch_checklist_species(checklist_id: str) -> dict:
     # location name so the two checklists are easy to tell apart.
     loc_id = data.get("locId", "")
     loc_name = data.get("locName", "")
-    if not loc_name and loc_id:
+    if not loc_name and loc_id and not skip_loc_name:
         try:
             region_resp = await client.get(
                 f"https://api.ebird.org/v2/ref/region/info/{loc_id}",
@@ -146,6 +180,12 @@ async def fetch_checklist_species(checklist_id: str) -> dict:
             "count": o.get("howManyStr", "X"),
             "breedingCode": breeding,
             "comments": o.get("comments") or "",   # per-species note (HTML-entity encoded)
+            # Exotic provenance rides on the OBSERVATION, so it lands on the
+            # collapsed parent species code in the router below. Raw values,
+            # never a derived countability boolean: 'X' escapee, 'N'
+            # naturalized, 'P' provisional, "" absent.
+            "exoticCategory": _norm_token(o.get("exoticCategory"), _EXOTIC_RE),
+            "userDoNotCount": _norm_token(o.get("userDoNotCount"), _DNC_RE),
             "media": {
                 "photo": int(mc.get("P", 0) or 0),
                 "audio": int(mc.get("A", 0) or 0),

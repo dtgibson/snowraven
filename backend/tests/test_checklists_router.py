@@ -41,12 +41,16 @@ _FAKE_CHECKLIST = {
     "obs": [
         {
             "speciesCode": "amerob", "howManyStr": "3",
+            # Raw eBird exotic provenance rides on the observation.
+            "exoticCategory": "N", "userDoNotCount": "",
             # breeding code lives in obsAux (internal code; UI translates to display)
             "obsAux": [{"fieldName": "breeding_code", "value": "S1"}],
             "mediaCounts": {"P": 2, "A": 1},
             "comments": "Making display flights",
         },
-        {"speciesCode": "rocpig1", "howManyStr": "6"},  # a sub-form — should normalize
+        # A sub-form: it normalizes to its parent species AND carries its own
+        # provenance, which is the case the monotone OR exists for.
+        {"speciesCode": "rocpig1", "howManyStr": "6", "exoticCategory": "X", "userDoNotCount": "DNC"},
     ],
 }
 _FAKE_REGION = {"result": "Albany Bulb"}
@@ -127,3 +131,69 @@ def test_checklist_resolves_location_and_normalizes_subform(monkeypatch):
     assert data["comments"] == "&#x1f325;\r\nBroken clouds"
     assert by_name["American Robin"]["comments"] == "Making display flights"
     assert by_name["Rock Pigeon"]["comments"] == ""
+
+
+def test_provenance_fields_pass_through_additively(monkeypatch):
+    """FR-39/QA-44/QA-45: exoticCategory and userDoNotCount are carried through
+    RAW, and every field the Life List Comparer already reads is untouched."""
+    _reset_taxonomy_cache()
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    shared = _combined_client()
+    with patch("services.ebird.get_client", return_value=shared), \
+         patch("routers.taxonomy.get_client", return_value=shared):
+        resp = client.get("/checklists/S12345678")
+    assert resp.status_code == 200
+    by_name = {s["commonName"]: s for s in resp.json()["species"]}
+    assert by_name["American Robin"]["exoticCategory"] == "N"
+    assert by_name["American Robin"]["userDoNotCount"] == ""
+    # The sub-form's provenance lands on the COLLAPSED parent code, which is
+    # precisely the join key the provenance cache uses.
+    assert by_name["Rock Pigeon"]["speciesCode"] == "rocpig"
+    assert by_name["Rock Pigeon"]["exoticCategory"] == "X"
+    assert by_name["Rock Pigeon"]["userDoNotCount"] == "DNC"
+    # Purely additive: the Comparer's fields are unchanged.
+    assert by_name["American Robin"]["count"] == "3"
+    assert by_name["American Robin"]["breedingCode"] == "S1"
+    assert by_name["American Robin"]["media"] == {"photo": 2, "audio": 1, "video": 0}
+
+
+def test_fields_provenance_skips_the_second_outbound_call(monkeypatch):
+    """FR-13/QA-18: a provenance pass issues exactly ONE eBird request per
+    checklist. Without the flag the seam makes a SECOND call to ref/region/info
+    purely to resolve a readable location name, which the pass does not need.
+
+    The response SHAPE is unchanged either way: locName falls back to the locId,
+    exactly as it already does when resolution fails."""
+    _reset_taxonomy_cache()
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    shared = _combined_client()
+    with patch("services.ebird.get_client", return_value=shared), \
+         patch("routers.taxonomy.get_client", return_value=shared):
+        resp = client.get("/checklists/S12345678", params={"fields": "provenance"})
+    assert resp.status_code == 200
+    urls = [c.args[0] for c in shared.get.await_args_list]
+    assert any("/product/checklist/view/" in u for u in urls)
+    assert not any("/ref/region/info/" in u for u in urls)
+    # Shape intact, name degraded to the locId rather than the field vanishing.
+    data = resp.json()
+    assert data["locName"] == "L99"
+    assert data["obsDt"] == "2025-03-02 10:55"
+    assert len(data["species"]) == 2
+    assert data["species"][0]["exoticCategory"] == "N"
+
+
+def test_without_the_flag_the_location_name_is_still_resolved(monkeypatch):
+    """The must-stay-GREEN half of the pair: the flag is what changes behavior,
+    not the presence of the parameter. An unknown `fields` value behaves exactly
+    like no value at all, so a typo degrades to the shipped path rather than
+    silently suppressing a call."""
+    _reset_taxonomy_cache()
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    shared = _combined_client()
+    with patch("services.ebird.get_client", return_value=shared), \
+         patch("routers.taxonomy.get_client", return_value=shared):
+        resp = client.get("/checklists/S12345678", params={"fields": "somethingelse"})
+    assert resp.status_code == 200
+    assert resp.json()["locName"] == "Albany Bulb"
+    urls = [c.args[0] for c in shared.get.await_args_list]
+    assert any("/ref/region/info/" in u for u in urls)

@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SnowRaven — Escapee Count Toggle (design direction)</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   TOKENS — copied verbatim from frontend/src/globals.css (:root and
+   [data-theme="dark"]). No new token is minted by this feature.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-text-disabled: #A1A1AA;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-error-border: #FECACA;
+  --sr-warning: #92400E;
+  --sr-warning-bg: #FFFBEB;
+  --sr-warning-subtle: #FDE68A;
+  --sr-card-shadow: 0 1px 4px rgba(15,17,23,0.06), 0 4px 16px rgba(15,17,23,0.04);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-text-disabled: #52525B;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-error-border: #7F1D1D;
+  --sr-warning: #FDE68A;
+  --sr-warning-bg: #1C1002;
+  --sr-warning-subtle: #78350F;
+  --sr-card-shadow: 0 1px 4px rgba(2,2,4,0.4), 0 4px 16px rgba(2,2,4,0.25);
+}
+
+/* Motion vocabulary. Everything enters ease-out, everything under 300ms. */
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur: 200ms;
+  --dur-slow: 300ms;
+}
+
+* { box-sizing: border-box; }
+/* An author `display` beats the UA stylesheet's [hidden] rule. Without this the
+   progress row survives into every state that is not a running pass. */
+[hidden] { display: none !important; }
+html { font-size: 16px; }
+body {
+  margin: 0;
+  /* SnowRaven's shipped body face. See "Deliberate deviations" note at the
+     foot of this page: the doctrine's distinctive-display rule is knowingly
+     not applied, because changing the type of a 61-version shipped app is a
+     reinvention, and design-system.md wins on specifics. */
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--sr-bg);
+  color: var(--sr-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOCKUP HARNESS — review scaffolding, deliberately NOT product chrome.
+   Sized in px so the 200% text-scale test does not blow it up.
+   ══════════════════════════════════════════════════════════════════════════ */
+.harness {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--sr-surface);
+  border-bottom: 1px dashed var(--sr-border-medium);
+  padding: 10px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+  font-size: 12px;
+}
+.harness__tag {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--sr-text-gray);
+  border: 1px dashed var(--sr-border-medium); border-radius: 4px; padding: 3px 6px;
+}
+.harness__group { display: flex; align-items: center; gap: 6px; }
+.harness__group > label { color: var(--sr-text-muted); font-size: 11px; }
+.harness select, .harness button.h-btn {
+  font: inherit; font-size: 12px; font-family: inherit;
+  background: var(--sr-surface-subtle); color: var(--sr-text);
+  border: 1px solid var(--sr-border-input); border-radius: 6px;
+  padding: 4px 8px; cursor: pointer;
+}
+.harness button.h-btn[aria-pressed="true"] {
+  background: var(--sr-accent-bg); border-color: var(--sr-accent);
+  color: var(--sr-accent);
+}
+.harness__note {
+  flex-basis: 100%; margin: 0; font-size: 11px; color: var(--sr-text-gray);
+  line-height: 1.5;
+}
+
+/* Frame that holds the mocked app surface. */
+.stage { padding: 24px 16px 64px; display: flex; justify-content: center; }
+.frame {
+  width: 100%; max-width: 900px;
+  transition: max-width var(--dur-slow) var(--ease-out);
+}
+.frame--phone { max-width: 320px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SHIPPED SURFACE — Statistics tab, as it exists today plus this feature.
+   ══════════════════════════════════════════════════════════════════════════ */
+.tab { display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* ── Page header ─────────────────────────────────────────────────────────── */
+.pagehead {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap;
+}
+.pagehead h2 {
+  font-size: 1.375rem; font-weight: 700; letter-spacing: -0.01em;
+  margin: 0 0 0.25rem; display: flex; align-items: center; gap: 0.5rem;
+}
+.pagehead h2 svg { color: var(--sr-accent); }
+.pagehead p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; }
+
+/* The two count-rule checkboxes. The new one matches its neighbour exactly:
+   same 14px accent checkbox, same 0.8125rem label, same interaction. */
+.countrules { display: flex; flex-direction: column; gap: 0.125rem; align-items: flex-start; }
+.countrule {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.8125rem; cursor: pointer; user-select: none;
+  padding: 0.25rem 0; min-height: 1.75rem;
+}
+.countrule input {
+  accent-color: var(--sr-accent);
+  width: 0.875rem; height: 0.875rem; margin: 0; flex-shrink: 0; cursor: pointer;
+}
+.countrule:hover { color: var(--sr-accent); }
+
+/* ── Jump nav (existing) ─────────────────────────────────────────────────── */
+.jumpnav { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.jumpnav a {
+  font-size: 0.71875rem; font-weight: 500; color: var(--sr-text-muted);
+  text-decoration: none; padding: 0.25rem 0.625rem; border-radius: 100px;
+  background: var(--sr-surface-subtle); border: 1px solid var(--sr-border);
+  white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.jumpnav a:hover { color: var(--sr-accent); border-color: var(--sr-accent-border); }
+
+/* ── SectionCard (existing) ──────────────────────────────────────────────── */
+.card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  padding: clamp(0.875rem, 4vw, 1.5rem);
+  box-shadow: var(--sr-card-shadow);
+}
+.card__head {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 1.25rem; padding-bottom: 1rem;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.card__head svg { color: var(--sr-accent); }
+.card__head h3 { font-size: 0.9375rem; font-weight: 600; margin: 0; }
+.divider { height: 1px; background: var(--sr-border-subtle); margin: 1rem 0; }
+
+/* ── Stat grid (existing) ────────────────────────────────────────────────── */
+.statgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); }
+.statgrid > div { border-right: 1px solid var(--sr-border-subtle); border-bottom: 1px solid var(--sr-border-subtle); }
+.statcell { padding: 0.75rem 0.25rem; display: flex; flex-direction: column; align-items: center; gap: 0.125rem; }
+.statcell__value {
+  font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em;
+  color: var(--sr-text); line-height: 1;
+}
+.statcell__label { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 0.125rem; }
+
+/* The headline Species figure while a pass is still running. The muting is a
+   supporting cue only: the status line below states the same thing in words,
+   so this is never colour-alone (WCAG 1.4.1). */
+.statcell__value--settling { color: var(--sr-text-muted); }
+.statcell__value--changed { animation: valueSettle var(--dur) var(--ease-out); }
+@keyframes valueSettle {
+  from { opacity: 0.35; transform: translateY(-0.1875rem); }
+  to   { opacity: 1;    transform: translateY(0); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   NEW — the count-rule account. One region, directly under the number it
+   explains. No nested card: a Divider and then plain rows, the way the card
+   already separates its own regions.
+   ══════════════════════════════════════════════════════════════════════════ */
+.account { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* Row 1 — the live status line, with its action trailing on the same line.
+   The row wraps rather than shrinking the control, so the button keeps its
+   touch target on a phone. */
+.account__statusrow {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+}
+.account__status {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text);
+  min-height: 1.25rem; flex: 1 1 20rem; min-width: 0;
+}
+.account__icon { flex-shrink: 0; margin-top: 0.1875rem; color: var(--sr-text-muted); }
+.account__icon--accent { color: var(--sr-accent); }
+.account__icon--error  { color: var(--sr-error); }
+.account__icon--warn   { color: var(--sr-warning); }
+.account__msg { animation: msgIn var(--dur-fast) var(--ease-out); }
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(0.1875rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The definite progress figure. Never an indeterminate spinner bar: the
+   denominator is known before the first request goes out. */
+/* Capped rather than full-bleed: 73 checklists is a small, short-lived job and
+   a card-width bar overstates it. */
+.account__progress {
+  display: flex; align-items: center; gap: 0.5rem; margin-top: 0.375rem;
+  max-width: 26rem;
+}
+.progress {
+  flex: 1; min-width: 0; height: 0.375rem; border-radius: 0.1875rem;
+  background: var(--sr-surface-subtle); overflow: hidden;
+}
+.progress__fill {
+  height: 100%; background: var(--sr-accent); border-radius: 0.1875rem;
+  transition: width var(--dur-slow) var(--ease-out);
+}
+.progress__count {
+  font-size: 0.6875rem; color: var(--sr-text-muted); flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Trailing control: Stop while running, Try again on error, Check again on a
+   partial result. Quiet by default; the accent stays on the disclosure. */
+.account__act {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  font: inherit; font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  background: var(--sr-surface-subtle); color: var(--sr-text);
+  border: 1px solid var(--sr-border-input); border-radius: 6px;
+  padding: 0.3125rem 0.625rem; cursor: pointer; flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.account__act:hover { background: var(--sr-surface); border-color: var(--sr-accent); color: var(--sr-accent); }
+.account__act:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+/* Row 2 — the standing rule. What the setting means, always true, whichever
+   way the toggle is set and whatever the pass has resolved so far. */
+.account__rule {
+  font-size: 0.6875rem; line-height: 1.6; color: var(--sr-text-muted);
+  margin: 0; max-width: 62ch;
+}
+
+/* Row 3 — the disclosure. */
+.disclose {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  font-size: 0.75rem; color: var(--sr-accent); padding: 0.5rem 0;
+  align-self: flex-start;
+}
+.disclose:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; border-radius: 4px; }
+.disclose svg { transition: transform var(--dur) var(--ease-out); }
+
+/* Origin-aware reveal: the panel grows downward from the control that opened
+   it, never a centred fade. */
+.excluded {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur) var(--ease-out), opacity var(--dur) var(--ease-out);
+  opacity: 0; transform-origin: top center;
+}
+.excluded--open { grid-template-rows: 1fr; opacity: 1; }
+.excluded__inner { overflow: hidden; min-height: 0; }
+.excluded__lead {
+  font-size: 0.75rem; line-height: 1.6; color: var(--sr-text-muted);
+  margin: 0 0 0.625rem; max-width: 62ch;
+}
+/* Capped so a name and its evidence stay visually paired instead of sitting at
+   opposite ends of a 900px card. */
+#a-rows { max-width: 34rem; }
+.exrow {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap; min-width: 0;
+  padding: 0.5rem 0; border-top: 1px solid var(--sr-border-subtle);
+}
+.exrow:last-child { border-bottom: 1px solid var(--sr-border-subtle); }
+.exrow__name {
+  font-size: 0.84375rem; color: var(--sr-accent); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 0.3125rem;
+}
+.exrow__name:hover { text-decoration: underline; }
+.exrow__name svg { color: var(--sr-text-gray); flex-shrink: 0; }
+/* The evidence line wraps. At 320px and 200% text scale a nowrap version ran
+   133px past the card's content box, measured, which is the whole reason this
+   is a wrapping line and not a tidy single row. */
+.exrow__why {
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word; min-width: 0;
+}
+
+/* ── Existing "first / most recent" tiles, for context ───────────────────── */
+.tiles { display: flex; gap: 1rem; flex-wrap: wrap; }
+.tile {
+  flex: 1 1 10rem; padding: 0.625rem 0.875rem; border-radius: 8px;
+  background: var(--sr-surface-subtle); border: 1px solid var(--sr-border);
+}
+.tile p { font-size: 0.6875rem; color: var(--sr-text-muted); margin: 0 0 0.25rem; }
+.tile a { font-size: 0.9375rem; font-weight: 700; color: var(--sr-accent); text-decoration: none; display: block; margin-bottom: 0.1875rem; }
+.tile span { font-size: 0.6875rem; color: var(--sr-text-muted); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SECONDARY SURFACES — the one shared sentence, shown where a count changed
+   on a tab the birder was not looking at.
+   ══════════════════════════════════════════════════════════════════════════ */
+.elsewhere { margin-top: 2.5rem; }
+.elsewhere__label {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 0.75rem;
+}
+/* min(15rem, 100%) so the track self-collapses below a phone width instead of
+   overflowing at 200% text scale, where a bare 15rem resolves to 480px. */
+.elsewhere__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: 0.875rem; }
+.popupmock {
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 10px; padding: 0.875rem; box-shadow: var(--sr-card-shadow);
+}
+.popupmock h4 { font-size: 0.8125rem; font-weight: 600; margin: 0 0 0.5rem; }
+.popupmock__bar { height: 0.5rem; border-radius: 0.25rem; background: var(--sr-surface-subtle); overflow: hidden; margin: 0.5rem 0; }
+.popupmock__bar > div { height: 100%; background: var(--sr-accent); border-radius: 0.25rem; }
+.popupmock__num { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; }
+.popupmock__cap { font-size: 0.6875rem; line-height: 1.6; color: var(--sr-text-muted); margin: 0.5rem 0 0; }
+.popupmock__was {
+  font-size: 0.625rem; line-height: 1.6; color: var(--sr-text-gray); margin: 0.5rem 0 0;
+  padding-top: 0.5rem; border-top: 1px dashed var(--sr-border-medium);
+}
+.popupmock__was b { font-weight: 600; color: var(--sr-text-muted); }
+
+/* ── Designer's notes ────────────────────────────────────────────────────── */
+.notes { max-width: 900px; margin: 3rem auto 0; padding: 0 16px; }
+.notes h3 { font-size: 0.9375rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+.notes p, .notes li { font-size: 0.8125rem; line-height: 1.65; color: var(--sr-text-muted); }
+.notes ul { padding-left: 1.125rem; margin: 0.5rem 0; }
+.notes code { font-family: var(--font-mono); font-size: 0.75rem; color: var(--sr-text); background: var(--sr-surface-subtle); padding: 0.0625rem 0.25rem; border-radius: 4px; }
+
+/* ── Phone tier ──────────────────────────────────────────────────────────── */
+.frame--phone .pagehead { flex-direction: column; align-items: stretch; }
+.frame--phone .countrules { width: 100%; }
+.frame--phone .countrule { min-height: 2.75rem; }   /* .sr-touch-target posture */
+.frame--phone .statgrid { grid-template-columns: repeat(auto-fill, minmax(min(7.5rem, 100%), 1fr)); }
+.frame--phone .exrow { flex-direction: column; gap: 0.125rem; }
+.frame--phone .account__progress { flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .countrule { min-height: 2.75rem; }
+  .exrow { flex-direction: column; gap: 0.125rem; }
+}
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .spin { animation: none !important; }
+}
+.spin { animation: spin 1s linear infinite; transform-origin: center; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     REVIEW HARNESS — not part of the product
+     ═══════════════════════════════════════════════════════════════════════ -->
+<div class="harness">
+  <span class="harness__tag">Mockup controls</span>
+
+  <span class="harness__group">
+    <label for="h-state">Resolution state</label>
+    <select id="h-state">
+      <option value="not-checked">1. Not checked yet</option>
+      <option value="in-progress" selected>2. In progress (runs live)</option>
+      <option value="complete">3. Complete</option>
+      <option value="partial-cancelled">4a. Partial — stopped</option>
+      <option value="partial-failures">4b. Partial — request failures</option>
+      <option value="partial-pass-budget">4c. Partial — pass limit</option>
+      <option value="partial-species-budget">4d. Partial — follow-up limit</option>
+      <option value="no-key">5. No eBird key</option>
+      <option value="offline">6. Offline</option>
+      <option value="error">7. eBird error</option>
+    </select>
+  </span>
+
+  <span class="harness__group">
+    <button class="h-btn" id="h-theme" aria-pressed="false">Dark theme</button>
+    <button class="h-btn" id="h-phone" aria-pressed="false">320px phone</button>
+    <button class="h-btn" id="h-scale" aria-pressed="false">200% text</button>
+  </span>
+
+  <p class="harness__note">
+    Pick state 2 to watch a real pass: 73 checklists over about 10 seconds, the
+    figure settling 267 to 264 as each escapee is confirmed. Press Stop mid-pass
+    to land in the partial state. Both checkboxes in the header are live.
+  </p>
+</div>
+
+<div class="stage">
+<div class="frame" id="frame">
+<div class="tab">
+
+  <!-- ── Page header ─────────────────────────────────────────────────────── -->
+  <div class="pagehead">
+    <div>
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        Statistics
+      </h2>
+      <p>3,252 checklists &middot; eBird backup: 11 Aug 2026</p>
+    </div>
+
+    <div class="countrules">
+      <label class="countrule">
+        <input type="checkbox" id="cb-spuh">
+        Count spuh, slash &amp; hybrids
+      </label>
+      <label class="countrule">
+        <input type="checkbox" id="cb-escapee">
+        Count escapees
+      </label>
+    </div>
+  </div>
+
+  <!-- ── Jump nav ────────────────────────────────────────────────────────── -->
+  <nav class="jumpnav" aria-label="Jump to section">
+    <a href="#">Life List Totals</a>
+    <a href="#">Top Species</a>
+    <a href="#">Firsts &amp; Milestones</a>
+    <a href="#">Temporal Stats</a>
+    <a href="#">Geography</a>
+    <a href="#">Effort</a>
+    <a href="#">Media</a>
+    <a href="#">Frivolous Lists</a>
+  </nav>
+
+  <!-- ── Life List Totals ────────────────────────────────────────────────── -->
+  <section class="card">
+    <div class="card__head">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+      <h3>Life List Totals</h3>
+    </div>
+
+    <div class="statgrid">
+      <div><div class="statcell"><span class="statcell__value" id="v-species">267</span><span class="statcell__label">Species</span></div></div>
+      <div><div class="statcell"><span class="statcell__value">3,252</span><span class="statcell__label">Checklists</span></div></div>
+      <div><div class="statcell"><span class="statcell__value">418</span><span class="statcell__label">Locations</span></div></div>
+      <div><div class="statcell"><span class="statcell__value">12</span><span class="statcell__label">Years Active</span></div></div>
+      <div><div class="statcell"><span class="statcell__value">9</span><span class="statcell__label">States/Provinces</span></div></div>
+      <div><div class="statcell"><span class="statcell__value">3</span><span class="statcell__label">Countries</span></div></div>
+    </div>
+
+    <!-- ══ NEW: the count-rule account ══════════════════════════════════════
+         Directly beneath the figure it explains, inside the card, with no
+         nested elevation. Three rows: what is happening, what the rule is,
+         and which species it named.
+         ═════════════════════════════════════════════════════════════════════ -->
+    <div class="divider"></div>
+
+    <div class="account">
+
+      <!-- Row 1: live status. Present in the accessibility tree from first
+           render, never display:none, message carried in a keyed child so a
+           repeated identical message still announces. -->
+      <div class="account__statusrow">
+        <div class="account__status" role="status" aria-live="polite">
+          <span class="account__icon" id="a-icon" aria-hidden="true"></span>
+          <span id="a-msgwrap"></span>
+        </div>
+        <div id="a-actwrap" hidden>
+          <button class="account__act" id="a-act" type="button"></button>
+        </div>
+      </div>
+
+      <div class="account__progress" id="a-progress" hidden>
+        <div class="progress"><div class="progress__fill" id="a-fill" style="width:0%"></div></div>
+        <span class="progress__count" id="a-count"></span>
+        <button class="account__act" id="a-stop" type="button">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          Stop
+        </button>
+      </div>
+
+      <!-- Row 2: the standing rule. -->
+      <p class="account__rule" id="a-rule"></p>
+
+      <!-- Row 3: the disclosure. -->
+      <div id="a-disclosewrap" hidden>
+        <button class="disclose" id="a-disclose" type="button" aria-expanded="false" aria-controls="a-excluded">
+          <svg id="a-chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          <span id="a-disclose-label"></span>
+        </button>
+        <div class="excluded" id="a-excluded">
+          <div class="excluded__inner">
+            <p class="excluded__lead" id="a-lead"></p>
+            <div id="a-rows"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="tiles">
+      <div class="tile">
+        <p>First observation</p>
+        <a href="#">14 Mar 2014</a>
+        <span>Lake Merritt, Oakland</span>
+      </div>
+      <div class="tile">
+        <p>Most recent</p>
+        <a href="#">9 Aug 2026</a>
+        <span>Arrowhead Marsh</span>
+      </div>
+      <div class="tile">
+        <p>First species ever</p>
+        <a href="#">Black Phoebe</a>
+        <span>14 Mar 2014</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ Secondary surfaces ═══════════════════════════════════════════════ -->
+  <div class="elsewhere">
+    <p class="elsewhere__label">The same rule, where a count changed on a tab you were not looking at</p>
+    <div class="elsewhere__grid">
+
+      <div class="popupmock">
+        <h4>Alameda County</h4>
+        <div class="popupmock__num">264 <span style="font-size:0.75rem;font-weight:400;color:var(--sr-text-muted)">of 431</span></div>
+        <div class="popupmock__bar"><div style="width:61%"></div></div>
+        <p class="popupmock__cap">
+          Your count leaves out forms that don't count toward a life list,
+          including escapees. The eBird regional list is not filtered.
+        </p>
+        <p class="popupmock__was"><b>Replaces:</b> "spuhs, slashes &amp; hybrids don't count" (both places in CountyCompletenessPopup)</p>
+      </div>
+
+      <div class="popupmock">
+        <h4>Calendar &middot; 9 August</h4>
+        <div class="popupmock__num">41 <span style="font-size:0.75rem;font-weight:400;color:var(--sr-text-muted)">species</span></div>
+        <p class="popupmock__cap">
+          Counts leave out forms that don't count toward a life list,
+          including escapees.
+        </p>
+        <p class="popupmock__was"><b>Note:</b> read from cache only. The Calendar still makes zero requests.</p>
+      </div>
+
+      <div class="popupmock">
+        <h4>Multimedia &middot; Documentation coverage</h4>
+        <div class="popupmock__num">182 <span style="font-size:0.75rem;font-weight:400;color:var(--sr-text-muted)">of 264 photographed</span></div>
+        <div class="popupmock__bar"><div style="width:69%"></div></div>
+        <p class="popupmock__cap">
+          Counts leave out forms that don't count toward a life list,
+          including escapees.
+        </p>
+        <p class="popupmock__was"><b>Note:</b> one sentence, written once and reused on every surface.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<div class="notes">
+  <h3>What this direction decides</h3>
+  <p>
+    <b>The control.</b> "Count escapees" sits directly under "Count spuh, slash
+    &amp; hybrids" as an identical checkbox, so the two read as one count rule
+    rather than a feature bolted beside a feature. The label names the class it
+    governs and claims nothing about eBird; the parity claim is made once, in
+    the rule line under the number, where it can be stated precisely.
+  </p>
+  <p>
+    <b>The partial state.</b> Automatic on tab open, with the plan stated as a
+    definite figure before the first request goes out, a determinate bar, and a
+    Stop control. The figure only ever falls, never rises, and it is muted while
+    a pass is running so a settling number does not read as a final one.
+  </p>
+  <p>
+    <b>The disclosure.</b> Immediately under the figure, in the same region as
+    the status. Every excluded species is named, links to its Species Detail
+    record, and carries its evidence rather than a restatement of the rule.
+    The list stays reachable with the toggle on.
+  </p>
+
+  <h3>Deliberate deviations from the Weft design doctrine</h3>
+  <ul>
+    <li>
+      <b>Type face.</b> The doctrine asks for a distinctive display face and
+      names Inter as the thing to avoid. SnowRaven's shipped face is Inter /
+      system-ui across 61 versions, and <code>design-system.md</code> wins on
+      specifics. Changing it here would be a reinvention of an app-wide surface
+      inside a feature that adds one checkbox.
+    </li>
+    <li>
+      <b>Palette.</b> One dominant accent (<code>--sr-accent</code>) and heavily
+      restrained colour is the brand's stated position, not an oversight. This
+      feature mints no token and paints nothing new.
+    </li>
+    <li>
+      <b>Depth.</b> Flat surfaces with hairline borders are the shipped register.
+      The new region deliberately has no card of its own, because a card inside
+      a card is what the doctrine forbids and what this surface would otherwise
+      become.
+    </li>
+  </ul>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Icons ────────────────────────────────────────────────────────────────
+  var ICONS = {
+    dashed: '<circle cx="12" cy="12" r="9" stroke-dasharray="3 3"/>',
+    spinner: '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+    check: '<path d="M20 6 9 17l-5-5"/>',
+    alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+    key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 8.3-8.3"/><path d="M17 6l2 2"/><path d="M20 3l1.5 1.5"/>',
+    wifioff: '<path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 4.2-2.5"/><path d="M19 12.9a10 10 0 0 0-1.8-1.4"/><path d="M2 8.8a15 15 0 0 1 4-2.6"/><path d="M22 8.8a15 15 0 0 0-11-3.7"/><path d="m2 2 20 20"/>',
+    retry: '<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>'
+  };
+  function svg(name, cls) {
+    return '<svg class="' + (cls || '') + '" width="14" height="14" viewBox="0 0 24 24" fill="none" ' +
+      'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" ' +
+      'aria-hidden="true">' + ICONS[name] + '</svg>';
+  }
+  // Stand-in for the two favicons <BirdName> already renders beside every
+  // species name (eBird, Macaulay Library). The real build supplies them.
+  var LINKGLYPH = '<span style="display:inline-block;width:0.6875rem;height:0.6875rem;' +
+    'border:1px solid var(--sr-border-medium);border-radius:2px;' +
+    'background:var(--sr-surface-subtle);vertical-align:-0.0625rem"></span>';
+
+  // ── The three escapees on this export, with their evidence ───────────────
+  var GRAYLAG = { name: 'Graylag Goose', checklists: 2 };
+  var SWAN    = { name: 'Swan Goose',    checklists: 1 };
+  var MUSCOVY = { name: 'Muscovy Duck',  checklists: 3 };
+
+  // ── The seven states ─────────────────────────────────────────────────────
+  // Each names its icon, tone, sentence, evidence so far, and whether the
+  // figure it is describing is still settling.
+  var STATES = {
+    'not-checked': {
+      icon: 'dashed', tone: '',
+      msg: 'Exotic status has not been checked yet. Every species counts until it is.',
+      found: [], settling: false
+    },
+    'complete': {
+      icon: 'check', tone: 'accent',
+      msg: 'Exotic status checked across 73 checklists. 3 of your species are eBird escapees.',
+      found: [GRAYLAG, SWAN, MUSCOVY], settling: false
+    },
+    'partial-cancelled': {
+      icon: 'alert', tone: 'warn',
+      msg: 'Stopped at 34 of 73 checklists. 41 checklists were not checked, and the species on them still count.',
+      found: [GRAYLAG], settling: false, act: 'Check again'
+    },
+    'partial-failures': {
+      icon: 'alert', tone: 'warn',
+      msg: 'Checked 63 of 73 checklists. 10 requests failed, so 12 species are still unchecked and still count.',
+      found: [GRAYLAG, SWAN], settling: false, act: 'Check again'
+    },
+    'partial-pass-budget': {
+      icon: 'alert', tone: 'warn',
+      msg: "Reached this pass's limit of 500 requests. 9 species are still unchecked and still count.",
+      found: [GRAYLAG, SWAN], settling: false, act: 'Check again'
+    },
+    'partial-species-budget': {
+      icon: 'alert', tone: 'warn',
+      msg: 'Stopped following up on 2 species after 25 checklists each. Both still count.',
+      found: [GRAYLAG, SWAN], settling: false, act: 'Check again'
+    },
+    'no-key': {
+      icon: 'key', tone: '',
+      msg: 'No eBird key, so exotic status cannot be checked. Every species counts.',
+      found: [], settling: false, link: 'Add a key in Settings'
+    },
+    'offline': {
+      icon: 'wifioff', tone: '',
+      msg: 'Offline, so exotic status cannot be rechecked. Showing the check from 11 Aug.',
+      found: [GRAYLAG, SWAN, MUSCOVY], settling: false
+    },
+    'error': {
+      icon: 'alert', tone: 'error',
+      msg: 'eBird could not be reached. Every species counts until the check succeeds.',
+      found: [], settling: false, act: 'Try again'
+    }
+  };
+
+  // ── Live pass simulation ─────────────────────────────────────────────────
+  var PLANNED = 73;
+  var sim = null, timer = null;
+
+  function startSim() {
+    stopSim();
+    sim = { done: 0, additional: 0, found: [] };
+    timer = setInterval(tick, 420);
+    tick();
+  }
+  function stopSim() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+  function tick() {
+    sim.done += 4;
+    if (sim.done >= 12 && sim.found.indexOf(GRAYLAG) === -1) sim.found.push(GRAYLAG);
+    if (sim.done >= 34 && sim.found.indexOf(SWAN) === -1) { sim.found.push(SWAN); sim.additional = 4; }
+    if (sim.done >= 58 && sim.found.indexOf(MUSCOVY) === -1) sim.found.push(MUSCOVY);
+    if (sim.done >= PLANNED + sim.additional) {
+      sim.done = PLANNED + sim.additional;
+      stopSim();
+      sel.value = 'complete';
+      render();
+      return;
+    }
+    render();
+  }
+
+  // ── Elements ─────────────────────────────────────────────────────────────
+  var sel = document.getElementById('h-state');
+  var frame = document.getElementById('frame');
+  var cbSpuh = document.getElementById('cb-spuh');
+  var cbEsc = document.getElementById('cb-escapee');
+  var vSpecies = document.getElementById('v-species');
+  var aIcon = document.getElementById('a-icon');
+  var aMsgWrap = document.getElementById('a-msgwrap');
+  var aProgress = document.getElementById('a-progress');
+  var aFill = document.getElementById('a-fill');
+  var aCount = document.getElementById('a-count');
+  var aActWrap = document.getElementById('a-actwrap');
+  var aAct = document.getElementById('a-act');
+  var aRule = document.getElementById('a-rule');
+  var aDiscloseWrap = document.getElementById('a-disclosewrap');
+  var aDisclose = document.getElementById('a-disclose');
+  var aDiscloseLabel = document.getElementById('a-disclose-label');
+  var aChev = document.getElementById('a-chev');
+  var aExcluded = document.getElementById('a-excluded');
+  var aLead = document.getElementById('a-lead');
+  var aRows = document.getElementById('a-rows');
+
+  var seq = 0;          // sequence-keyed live-region child
+  var lastMsg = null;
+  var lastValue = null;
+  var open = false;
+
+  function render() {
+    var key = sel.value;
+    var running = (key === 'in-progress');
+    var st;
+
+    if (running) {
+      var extra = sim.additional > 0 ? ', plus ' + sim.additional + ' follow-up checks' : '';
+      st = {
+        icon: 'spinner', tone: 'accent',
+        msg: 'Checking exotic status: ' + sim.done + ' of ' + PLANNED + ' checklists' + extra + '.',
+        found: sim.found.slice(), settling: true
+      };
+    } else {
+      st = STATES[key];
+    }
+
+    // ── The figure ────────────────────────────────────────────────────────
+    // Base countable life list, before either exclusion is reconsidered.
+    var base = cbSpuh.checked ? 281 : 267;
+    // Escapees come out only when the toggle is off. An unresolved species
+    // always counts, so the figure converges downward and never below truth.
+    var value = cbEsc.checked ? base : base - st.found.length;
+
+    if (value !== lastValue) {
+      vSpecies.textContent = value.toLocaleString();
+      vSpecies.classList.remove('statcell__value--changed');
+      void vSpecies.offsetWidth;                       // restart the animation
+      if (lastValue !== null) vSpecies.classList.add('statcell__value--changed');
+      lastValue = value;
+    }
+    vSpecies.classList.toggle('statcell__value--settling', st.settling);
+
+    // ── Status line ───────────────────────────────────────────────────────
+    aIcon.className = 'account__icon' + (st.tone ? ' account__icon--' + st.tone : '');
+    aIcon.innerHTML = svg(st.icon, st.icon === 'spinner' ? 'spin' : '');
+
+    var msg = st.msg;
+    if (st.link) msg += ' ';
+    if (msg !== lastMsg || running) {
+      seq += 1;
+      aMsgWrap.innerHTML = '';
+      var child = document.createElement('span');
+      child.className = 'account__msg';
+      child.setAttribute('data-seq', String(seq));
+      child.textContent = st.msg;
+      if (st.link) {
+        var a = document.createElement('a');
+        a.href = '#';
+        a.textContent = ' ' + st.link;
+        a.style.color = 'var(--sr-accent)';
+        a.style.textDecoration = 'none';
+        a.style.marginLeft = '0.25rem';
+        child.appendChild(a);
+      }
+      aMsgWrap.appendChild(child);
+      lastMsg = msg;
+    }
+
+    // ── Progress ──────────────────────────────────────────────────────────
+    if (running) {
+      var total = PLANNED + sim.additional;
+      aProgress.hidden = false;
+      aFill.style.width = Math.min(100, (sim.done / total) * 100) + '%';
+      aCount.textContent = sim.done + ' / ' + total;
+    } else {
+      aProgress.hidden = true;
+    }
+
+    // ── Trailing action ───────────────────────────────────────────────────
+    if (!running && st.act) {
+      aActWrap.hidden = false;
+      aAct.innerHTML = (st.act === 'Try again' ? svg('retry') : svg('retry')) +
+        '<span>' + st.act + '</span>';
+    } else {
+      aActWrap.hidden = true;
+    }
+
+    // ── The standing rule ─────────────────────────────────────────────────
+    aRule.textContent = cbEsc.checked
+      ? 'Escapees count toward Species. eBird does not count them toward a life list, so this total will read higher than the one eBird shows you.'
+      : 'Escapees do not count toward Species, following eBird. Naturalized and provisional exotics do count.';
+
+    // ── The disclosure ────────────────────────────────────────────────────
+    if (st.found.length === 0) {
+      aDiscloseWrap.hidden = true;
+      setOpen(false);
+    } else {
+      aDiscloseWrap.hidden = false;
+      var n = st.found.length;
+      var noun = n === 1 ? 'escapee' : 'escapees';
+      var sofar = running ? ' found so far' : '';
+      aDiscloseLabel.textContent = (open ? 'Hide the ' : 'Show the ') + n + ' ' + noun + sofar;
+
+      aLead.textContent = cbEsc.checked
+        ? 'eBird tags these as Exotic: Escapee. They are counted here because Count escapees is on.'
+        : 'eBird tags these as Exotic: Escapee, so they are left out of Species. They stay on your Life List.';
+
+      aRows.innerHTML = st.found.map(function (s) {
+        var unit = s.checklists === 1 ? 'checklist' : 'checklists';
+        return '<div class="exrow">' +
+          '<a class="exrow__name" href="#">' + s.name + LINKGLYPH + LINKGLYPH + '</a>' +
+          '<span class="exrow__why">Exotic: Escapee &middot; ' + s.checklists + ' ' + unit + ' checked</span>' +
+        '</div>';
+      }).join('');
+    }
+  }
+
+  function setOpen(v) {
+    open = v;
+    aExcluded.classList.toggle('excluded--open', v);
+    aDisclose.setAttribute('aria-expanded', v ? 'true' : 'false');
+    aChev.style.transform = v ? 'rotate(180deg)' : 'rotate(0deg)';
+  }
+
+  // ── Wiring ───────────────────────────────────────────────────────────────
+  sel.addEventListener('change', function () {
+    if (sel.value === 'in-progress') { startSim(); } else { stopSim(); render(); }
+  });
+
+  document.getElementById('a-stop').addEventListener('click', function () {
+    stopSim();
+    // Stopping keeps everything already resolved and reports the partial state.
+    STATES['partial-cancelled'].msg =
+      'Stopped at ' + sim.done + ' of ' + PLANNED + ' checklists. ' +
+      (PLANNED - sim.done) + ' checklists were not checked, and the species on them still count.';
+    STATES['partial-cancelled'].found = sim.found.slice();
+    sel.value = 'partial-cancelled';
+    render();
+  });
+
+  aAct.addEventListener('click', function () { sel.value = 'in-progress'; startSim(); });
+  aDisclose.addEventListener('click', function () { setOpen(!open); render(); });
+  cbSpuh.addEventListener('change', render);
+  cbEsc.addEventListener('change', render);
+
+  document.getElementById('h-theme').addEventListener('click', function () {
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+    this.setAttribute('aria-pressed', dark ? 'false' : 'true');
+    this.textContent = dark ? 'Dark theme' : 'Light theme';
+  });
+  document.getElementById('h-phone').addEventListener('click', function () {
+    var on = frame.classList.toggle('frame--phone');
+    this.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  document.getElementById('h-scale').addEventListener('click', function () {
+    var big = document.documentElement.style.fontSize === '32px';
+    document.documentElement.style.fontSize = big ? '16px' : '32px';
+    this.setAttribute('aria-pressed', big ? 'false' : 'true');
+  });
+
+  startSim();
+})();
+</script>
+</body>
+</html>

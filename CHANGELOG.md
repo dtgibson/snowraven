@@ -2,6 +2,24 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.87] - 2026-08-12
+
+The Statistics species total now matches the number eBird shows you.
+
+### Added
+- **A "Count escapees" checkbox on the Statistics tab, off by default, so the Species figure follows eBird's own life-list rule.** eBird sorts exotic birds into three kinds: Naturalized and Provisional both count toward a life list, and Escapee does not. SnowRaven counted all three, so the headline total read higher than the number eBird shows you. It now leaves escapees out; turn the checkbox on to put them back and see the total you may be used to. Both count rules are per-session, resetting on relaunch.
+
+  Your CSV export does not carry this information, so SnowRaven asks eBird for it. Rather than sweeping every checklist, it works out offline the smallest set of your checklists that covers every species you have recorded and fetches just those: 73 checklists and about ten seconds on a 21,000-observation, 3,252-checklist export. The answer is cached for 30 days, so loading a newer export re-checks only checklists it has not already seen. At most four requests are in flight at once and a pass is capped, which keeps this well inside the network etiquette the rest of the app already follows.
+
+  A species is only ever left out once every checklist carrying it has been checked and every one came back Escapee. Until then it counts, so the figure settles downward and never wrongly drops a bird you have seen. This is also why Indian Peafowl and Red Junglefowl still count: eBird tags them Provisional and Naturalized, and the rule reads eBird's own tag rather than guessing from a name or a taxonomy label.
+
+- **An account of the number, directly beneath it.** A line under the Species figure always says what the check is doing: not checked yet, in progress with a definite count and a Stop button, complete, partially resolved with a Check again button, no eBird key, offline, or unreachable. Each one also says what the number is doing, not only what the network is doing. When escapees are found, an expandable list names each bird with the evidence behind it, and stays available with the checkbox on. Those birds stay on your Life List either way.
+
+### Changed
+- **The corrected count rule reaches the other places that headline a life-list count**: Multimedia documentation coverage, county Completeness on the Map Explorer, the Calendar's species counts, and the Frivolous Lists. Each says so where the count appears. Those surfaces read the cached answer and never fetch anything themselves, so the Calendar keeps working with no connection, exactly as before.
+- **The county Completeness caption no longer claims there are only three kinds of bird that do not count.** It now reads "Your count leaves out forms that don't count toward a life list, including escapees. The eBird regional list is not filtered.", which stays accurate as the rule grows and is honest that the percentage's denominator is eBird's unfiltered regional list.
+- **With nothing checked yet, every number is exactly what it was before.** No key, no connection, a cache that has never been filled, or a check that stopped early all produce the pre-existing figures, and the tab says which of those it is rather than leaving you guessing.
+
 ## [0.5.86] - 2026-08-12
 
 Five builds in one release: two repairs on the Breeding Codes tab, a corrected species-counting path, and two pieces of invisible hardening. (Shipped as a Spool bundle of 5 builds.)

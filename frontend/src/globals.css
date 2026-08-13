@@ -2294,8 +2294,162 @@ select:focus-visible {
      1-up at 640 — a 2-up tier would leave a lone half-width orphan panel. */
 }
 
+
+/* ── Escapee count rule: the count-rule account (escapee-count-toggle) ────────
+   Layout lives here, never in a React inline style: an inline style is
+   specificity (1,0,0) and unreachable from a media query, which is exactly why
+   this vocabulary exists. Colours come only from --sr-* tokens; the feature
+   mints none and paints no new text-on-fill pairing, so it needs no new
+   contrast guard (it reuses pairs already meeting AA in both themes). */
+.sr-exotic { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* Row 1: the live status, with its action trailing on the same line. It WRAPS
+   rather than shrinking the control, so the button keeps its touch target on a
+   phone. */
+.sr-exotic-statusrow {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+}
+
+/* The live region itself. It is `flex` in EVERY state, idle included: a
+   `display: none` on a role="status" removes it from the accessibility tree, so
+   it would be INSERTED along with its first message, which is the documented way
+   to make a live region fail to announce (the v0.5.83 finding). Never give this
+   selector a hiding display, visibility, or content-visibility. */
+.sr-exotic-status {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text);
+  min-height: 1.25rem; flex: 1 1 20rem; min-width: 0;
+  overflow-wrap: break-word;
+}
+.sr-exotic-icon { flex-shrink: 0; margin-top: 0.1875rem; }
+.sr-exotic-msg { animation: sr-exotic-msg-in 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes sr-exotic-msg-in {
+  from { opacity: 0; transform: translateY(0.1875rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The no-key state's inline navigation to Settings. A button, not an anchor:
+   it changes tab within the app rather than following a URL. */
+.sr-exotic-link {
+  background: none; border: none; padding: 0; font: inherit;
+  color: var(--sr-accent); text-decoration: underline; cursor: pointer;
+}
+.sr-exotic-link:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; border-radius: 3px; }
+
+/* Row 1b: the definite progress figure. Capped rather than full-bleed, because
+   a 73-checklist job is short and a card-width bar overstates it. */
+.sr-exotic-progress {
+  display: flex; align-items: center; gap: 0.5rem; margin-top: 0.375rem;
+  max-width: 26rem; flex-wrap: wrap;
+}
+.sr-exotic-track {
+  flex: 1; min-width: 0; height: 0.375rem; border-radius: 0.1875rem;
+  background: var(--sr-surface-subtle); overflow: hidden;
+}
+.sr-exotic-fill {
+  height: 100%; background: var(--sr-accent); border-radius: 0.1875rem;
+  transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-exotic-count {
+  font-size: 0.6875rem; color: var(--sr-text-muted); flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Trailing control: Stop while running, Try again on error, Check again on a
+   partial result. Quiet by default; the accent stays on the disclosure, which is
+   the action that matters. */
+.sr-exotic-act {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  background: var(--sr-surface-subtle); color: var(--sr-text);
+  border: 1px solid var(--sr-border-input); border-radius: 6px;
+  padding: 0.3125rem 0.625rem; cursor: pointer; flex-shrink: 0;
+  transition: background 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-exotic-act:hover { background: var(--sr-surface); border-color: var(--sr-accent); color: var(--sr-accent); }
+.sr-exotic-act:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+/* Row 2: the standing rule. What the setting means, always true. */
+.sr-exotic-rule {
+  font-size: 0.6875rem; line-height: 1.6; color: var(--sr-text-muted);
+  margin: 0; max-width: 62ch;
+}
+
+/* Row 3: the disclosure BUTTON, on the shipped "Show all N counties" idiom.
+   The idiom covers this control's styling only. The panel below it is clipped
+   rather than conditionally rendered, so its collapsed content carries `inert`
+   in the component; see the note there. */
+.sr-exotic-disclose {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  background: none; border: none; cursor: pointer; font-family: inherit;
+  font-size: 0.75rem; color: var(--sr-accent); padding: 0.5rem 0;
+  align-self: flex-start;
+}
+.sr-exotic-disclose:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; border-radius: 4px; }
+
+/* Origin-aware reveal: the panel grows downward from the control that opened
+   it, never a centred fade. */
+.sr-exotic-excluded {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0; transform-origin: top center;
+}
+.sr-exotic-excluded--open { grid-template-rows: 1fr; opacity: 1; }
+.sr-exotic-excluded-inner { overflow: hidden; min-height: 0; }
+.sr-exotic-lead {
+  font-size: 0.75rem; line-height: 1.6; color: var(--sr-text-muted);
+  margin: 0 0 0.625rem; max-width: 62ch;
+}
+/* Capped so a name and its evidence stay visually paired instead of sitting at
+   opposite ends of a 900px card. */
+.sr-exotic-rows { max-width: 34rem; }
+.sr-exotic-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap; min-width: 0;
+  padding: 0.5rem 0; border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-exotic-row:last-child { border-bottom: 1px solid var(--sr-border-subtle); }
+/* The evidence line WRAPS. At 320px and 200% text scale a nowrap version ran
+   133.38px past the card's content box, measured as text ink against the
+   container's content box, which is the whole reason this is a wrapping line and
+   not a tidy single row. `min-width: 0` on both this and its row releases the
+   automatic minimum that would otherwise floor the flex item at its min-content
+   width. */
+.sr-exotic-why {
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word; min-width: 0;
+}
+
+/* The one shared cross-tab sentence (FR-33), rendered wherever a count reflects
+   the escapee rule. Muted, small, and never a link: on the Calendar it must add
+   no fetch and no network module. */
+.sr-count-rule-note {
+  font-size: 0.6875rem; line-height: 1.6; color: var(--sr-text-muted);
+  margin: 0 0 0.75rem; max-width: 62ch;
+}
+
+/* The two count-rule checkboxes in the page header, stacked. Two "Count ..."
+   labels side by side read as two unrelated controls and wrap badly at any
+   narrow width; stacked they read as one count rule with two clauses. */
+.sr-count-rules { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+.sr-count-rule {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8125rem; cursor: pointer; user-select: none;
+}
+.sr-count-rule:hover { color: var(--sr-accent); }
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
+  /* Escapee count rule: the checkbox rows take the touch-target posture on a
+     phone. The checkboxes carry no text, so .sr-input-16 does not apply. */
+  .sr-count-rule { min-height: 2.75rem; }
+  /* Each excluded row stacks its evidence beneath the name at phone widths. */
+  .sr-exotic-row { flex-direction: column; align-items: flex-start; gap: 0.125rem; }
   .sr-panel  { padding-top: 20px !important; padding-bottom: 16px !important; }
   .sr-card   { padding: 20px !important; }
 

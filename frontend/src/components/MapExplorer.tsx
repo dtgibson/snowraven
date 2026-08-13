@@ -69,6 +69,7 @@ import { HotspotMarkers } from './map/HotspotMarkers'
 import { TargetMarkers } from './map/TargetMarkers'
 import { NearbyLiferMarkers, type MarkerMode } from './map/NearbyLiferMarkers'
 import { buildNearbyLifers, isWithinWindow } from '../lib/nearbyLifers'
+import { useProvenanceLookup } from '../lib/useProvenanceLookup'
 
 interface MapExplorerProps {
   onGoToSettings: () => void
@@ -101,6 +102,9 @@ const WINDOW_DAYS: Record<TimeWindow, number> = { day: 1, week: 7, all: 30 }
 // Session-stable "now" for the recency windows — computed once at module load,
 // not during render (calling Date.now() inside a memo trips react-hooks/purity).
 const SESSION_NOW_MS = Date.now()
+
+/** Stable empty reference for the passive provenance read before data loads. */
+const EMPTY_OBSERVATIONS: ObservationEntry[] = []
 
 // A classified overlay error — the kind drives the OfflineMessage icon + token
 // palette + role so offline / no-key / server-error get three distinct, more-
@@ -867,9 +871,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // Local (backup-derived) per-county completeness: countable X + the recent
   // new-in-county list. Works offline and with no eBird key (FR-21/FR-24).
+  // The escapee rule, read PASSIVELY (FR-35): the Map Explorer never initiates a
+  // provenance request. Applied to the Completeness NUMERATOR only; the eBird
+  // regional list that forms the denominator is left unfiltered, and the popup
+  // caption now says so in words (OQ-03, FR-37).
+  const escapeeNames = useProvenanceLookup(phase.tag === 'ready' ? phase.observations : EMPTY_OBSERVATIONS)
+
   const countyLocalCompleteness = useMemo(
-    () => (phase.tag === 'ready' ? buildCountyCompletenessLocal(phase.observations) : null),
-    [phase],
+    () => (phase.tag === 'ready' ? buildCountyCompletenessLocal(phase.observations, escapeeNames) : null),
+    [phase, escapeeNames],
   )
 
   // The Completeness controller — persistent 30-day cache, bounded eager fetch,

@@ -55,8 +55,12 @@ describe('CountyCompletenessPopup — birded county (Variant A)', () => {
     expect(screen.getByText('312')).toBeTruthy()
     expect(screen.getByText('41%')).toBeTruthy()
     // FR-20 / D-402: the countable X is labeled so it can't be confused with
-    // the raw Species-metric count.
-    expect(screen.getByText(/spuhs, slashes & hybrids don't count/)).toBeTruthy()
+    // the raw Species-metric count. The wording no longer enumerates the
+    // exclusion classes, so it stays accurate with a fourth class in force
+    // (escapees) and survives a fifth; the second sentence makes the
+    // numerator-only asymmetry against eBird's regional list visible.
+    expect(screen.getByText(/leaves out forms that don't count toward a life list, including escapees/)).toBeTruthy()
+    expect(screen.getByText(/The eBird regional list is not filtered/)).toBeTruthy()
   })
 
   it('lists recent new-in-county species with their first-record dates (FR-21)', () => {
@@ -158,6 +162,13 @@ describe('CountyCompletenessPopup — degraded states (FR-24/25/29/30/31, NFR-08
     )
     expect(screen.getByText(/You're offline/)).toBeTruthy()
     expect(screen.getByText(/recorded 42 countable species here/)).toBeTruthy()
+    // FR-40 / QA-46: the caption appears in TWO branches and the new wording is
+    // required in BOTH. Asserting only the unchanged "recorded N countable
+    // species here" prefix matched a build with the rule sentence stripped from
+    // this branch, which is exactly how this half went unguarded: mutation
+    // showed the ready-branch caption going red and this one staying green.
+    expect(screen.getByText(/leaves out forms that don't count toward a life list, including escapees/)).toBeTruthy()
+    expect(screen.getByText(/The eBird regional list is not filtered/)).toBeTruthy()
     expect(screen.getByText('Canada Goose')).toBeTruthy()
   })
 

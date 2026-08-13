@@ -76,6 +76,8 @@ Offline and error states are conveyed by an icon paired with text, never by colo
 
 These offline surfaces are responsive from roughly 320-pixel phones up to large desktops and hold at 200% text scale without leaking horizontal page-scroll.
 
+The Statistics tab's exotic-status check reports itself the same way. Its status line is a live region with `role="status"` and `aria-live="polite"`, rendered from first paint and never hidden while idle, so a message is announced rather than arriving with the region itself. Each message is placed in a child element keyed to its own sequence number, so pressing "Check again" twice announces twice even when the resulting sentence is identical. Every state's meaning is in its sentence: the muted Species figure while the check runs, and the tinted status icon, are supporting cues only and every icon in that region is hidden from assistive technology. While a check is running, its progress is a `progressbar` with real `aria-valuenow`, `aria-valuemin`, and `aria-valuemax` values, and the same figure is written out beside it as text.
+
 ---
 
 ## Known Exceptions

@@ -33,11 +33,16 @@ export function SectionCard({ children, title, icon }: {
   )
 }
 
-export function StatCell({ label, value, sub, large = true, reserveSub = false }: {
+export function StatCell({ label, value, sub, large = true, reserveSub = false, settling = false }: {
   label: string; value: string | number; sub?: React.ReactNode; large?: boolean
   /** Render the sub-line slot even without a `sub`, so a grid mixing tiles
       with and without sub-lines keeps every tile the same height. */
   reserveSub?: boolean
+  /** Mute the value while it is still converging (the Statistics Species figure
+      during an exotic-provenance pass). A SUPPORTING CUE ONLY: the status line
+      beside it states the same thing in words, so this is never colour alone
+      (WCAG 1.4.1). */
+  settling?: boolean
 }) {
   return (
     <div style={{ padding: '12px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
@@ -45,7 +50,7 @@ export function StatCell({ label, value, sub, large = true, reserveSub = false }
         fontSize: large ? '1.75rem' : '1.375rem',
         fontWeight: 700,
         letterSpacing: '-0.02em',
-        color: 'var(--sr-text)',
+        color: settling ? 'var(--sr-text-muted)' : 'var(--sr-text)',
         lineHeight: 1,
       }}>
         {typeof value === 'number' ? fmt(value) : value}

@@ -97,10 +97,21 @@ class TauriTransport implements TransportAdapter {
       return getWeather(checklistId) as Promise<T>;
     }
 
+    // NOT in CACHED_GET_PATHS: lib/exoticProvenanceCache.ts owns the durable
+    // 30-day caching for this path, so a second 90 s layer would only shadow it
+    // (one caching layer per call).
+    //
+    // `fields=provenance` is a flag on the EXISTING path, not a new endpoint
+    // family (FR-12): it suppresses the second per-checklist eBird call this
+    // seam otherwise makes to resolve a readable location name, which a
+    // provenance pass does not need (FR-13). The response SHAPE is unchanged —
+    // `locName` falls back to the locId exactly as it already does when
+    // resolution fails. The id is sliced off the PATH, so a query string can
+    // never contaminate it.
     if (path.startsWith('/checklists/')) {
       const { getChecklist } = await import('./tauri/checklistService');
       const checklistId = path.slice('/checklists/'.length);
-      return getChecklist(checklistId) as Promise<T>;
+      return getChecklist(checklistId, { skipLocName: params?.fields === 'provenance' }) as Promise<T>;
     }
 
     if (path === '/version/check') {

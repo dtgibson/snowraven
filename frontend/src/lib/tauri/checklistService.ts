@@ -12,6 +12,50 @@ export interface ChecklistSpecies {
   breedingCode: string
   comments: string
   media: { photo: number; audio: number; video: number }
+  /** Raw eBird exotic provenance: 'X' (escapee), 'N' (naturalized), 'P'
+   *  (provisional), or '' when absent. Deliberately NOT a closed union — an
+   *  unrecognized future category is carried verbatim and, per the countability
+   *  rule, counts. */
+  exoticCategory: string
+  /** Raw companion flag ('DNC' in sampled data), or '' when absent. Recorded so
+   *  the question of what it means stays answerable without re-fetching; it is
+   *  never used to decide countability. */
+  userDoNotCount: string
+}
+
+// The eBird response is untrusted input (NFR-08). Both fields are normalized
+// here, at the seam, against EXPLICIT ASCII CLASSES rather than `\w` or `\d`.
+// The backend twin uses the same explicit classes for the same reason: the
+// v0.5.54 finding was a pydantic rust-regex `\d` admitting `٠١٢` while its JS
+// twin did not, so the "same" pattern validated differently on the two
+// transports. Anything not matching becomes '', which counts.
+const EXOTIC_RE = /^[A-Z]{1,4}$/
+const DNC_RE = /^[A-Z]{1,8}$/
+
+function normToken(v: unknown, re: RegExp): string {
+  return typeof v === 'string' && re.test(v) ? v : ''
+}
+
+/** The exotic-provenance normalization, exported so the dual-transport parity
+ *  test exercises the SHIPPED code rather than a retyped copy of it. Its Python
+ *  twin is `services.ebird._norm_token` applied to the same two fields, and both
+ *  are driven by the one shared fixture
+ *  (`frontend/src/lib/checklistProvenance.fixture.json`). */
+export function normalizeProvenancePair(
+  exoticCategory: unknown, userDoNotCount: unknown,
+): { exoticCategory: string; userDoNotCount: string } {
+  return {
+    exoticCategory: normToken(exoticCategory, EXOTIC_RE),
+    userDoNotCount: normToken(userDoNotCount, DNC_RE),
+  }
+}
+
+export interface ChecklistOptions {
+  /** Skip the second outbound eBird call that resolves a readable location name
+   *  from the locId. The provenance pass does not need one and FR-13 caps a
+   *  pass at one request per checklist; `locName` then falls back to the locId
+   *  exactly as it already does when resolution fails. */
+  skipLocName?: boolean
 }
 
 export interface ChecklistResult {
@@ -31,7 +75,7 @@ export interface ChecklistResult {
 // Desktop counterpart of the backend /checklists/{id} endpoint: fetch a checklist's
 // observations directly from eBird, then resolve species codes → common names via the
 // cached taxonomy. eBird returns obs in taxonomic order, which we preserve.
-export async function getChecklist(checklistId: string): Promise<ChecklistResult> {
+export async function getChecklist(checklistId: string, opts?: ChecklistOptions): Promise<ChecklistResult> {
   const key = await storage.getApiKey('ebird')
   if (!key) {
     throw Object.assign(new Error('eBird API key not configured. Add it in Settings.'), { status: 401 })
@@ -71,6 +115,8 @@ export async function getChecklist(checklistId: string): Promise<ChecklistResult
       speciesCode?: string
       howManyStr?: string
       comments?: string
+      exoticCategory?: string
+      userDoNotCount?: string
       obsAux?: Array<{ fieldName?: string; value?: string; auxCode?: string }>
       mediaCounts?: { P?: number; A?: number; V?: number }
     }>
@@ -89,12 +135,19 @@ export async function getChecklist(checklistId: string): Promise<ChecklistResult
       breedingCode,
       comments: o.comments ?? '',
       media: { photo: mc.P ?? 0, audio: mc.A ?? 0, video: mc.V ?? 0 },
+      // `exoticCategory` rides on the OBSERVATION, so it lands on the COLLAPSED
+      // parent species code above — precisely the join key the provenance cache
+      // wants. Two forms on one checklist ("Mallard" and "Mallard (Domestic
+      // type)") therefore contribute two rows for one code, which is the case
+      // the monotone OR exists for; never de-duplicate by code before merging.
+      ...normalizeProvenancePair(o.exoticCategory, o.userDoNotCount),
     }
   })
 
   // checklist/view carries only locId, not a readable name. Resolve it so the two
   // checklists are easy to tell apart (mirrors the backend /checklists/{id} flow).
-  const locName = data.locName || (data.locId ? await resolveLocName(key, data.locId) : '')
+  const locName = data.locName
+    || (data.locId && !opts?.skipLocName ? await resolveLocName(key, data.locId) : '')
   return {
     locName: locName || data.locId || '',
     obsDt: data.obsDt ?? '',
