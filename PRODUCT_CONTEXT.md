@@ -5,6 +5,18 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Escapee-aware species count on Statistics (complete — August 2026, v0.5.87)
+
+An off-by-default **Count escapees** toggle beneath the existing "Count spuh, slash & hybrids" switch, so the Statistics species total follows eBird's own life-list rule: Exotic: Provisional and Exotic: Naturalized count, Exotic: Escapee does not. With the toggle on, the total is exactly the pre-v0.5.87 number, so the earlier behavior is preserved rather than approximated. On the reference export the default figure reads 264 rather than 267 (Graylag Goose, Swan Goose, Muscovy Duck), matching what eBird shows the same birder.
+
+- **Provenance is resolved by a bounded, cached pass, not a sweep.** It is a per-observation eBird fact, the question is per species, and the answer is a monotone OR: a species counts if at least one of its observations is not an escapee. One checklist call therefore returns provenance for every species on it, which makes resolution a set cover over data the app already holds. The cover is computed offline from the loaded export, fetched through the existing checklist path at concurrency 4, and cached 30 days, refreshing only checklists a newer export has not already resolved. On the reference export that is 73 calls in about ten seconds.
+- **An unresolved species counts.** A species is removed only once every checklist carrying it has been consulted and every one came back an escapee, so the total converges downward and never wrongly erases a lifer. A partial pass says how far it got, names why it stopped, and offers a retry on every partial reason. With no key, no connection, or a server error the tab says which, plainly, and shows the uncorrected number.
+- **A birder can see which species were excluded and why**, in a disclosure beneath the figure, rather than a headline number silently dropping.
+- **No offline heuristic stands in for provenance.** Classifying by the bundled taxonomy's domestic category is wrong in both directions, since eBird counts Indian Peafowl and Red Junglefowl, and a control labelled "escapees" running a different rule than eBird's claims a parity it does not have.
+- The corrected rule reaches the surfaces that headline a life-list count: Statistics totals and milestones, media documentation coverage, county Completeness, Calendar species counts, and the Frivolous Lists. Surfaces that list species rather than headline a count are unchanged. Two stated limits: county Completeness applies the rule to its numerator only, against eBird's unfiltered regional species list, which its caption now says in words; and Statistics' Geographic Stats per-county counts are out of scope.
+- **The Calendar stays zero-network.** Resolution is initiated only from Statistics, every other surface reads the cached result passively, and a test walks the module import graph so a passive surface cannot gain a network edge.
+- No new provider, endpoint family, account, telemetry, or privacy-policy change; both transports gained the two provenance fields eBird already returns.
+
 ### Five-build Spool bundle: two Breeding Codes phone repairs, a counting correction, and two pieces of invisible hardening (complete — August 2026, v0.5.86)
 
 Five queued builds shipped as one release: two phone-layout fixes, one data-correctness fix, and two hardening passes. This is not a frontend-only bundle: the bounded Nominatim policy also changed the FastAPI backend, and the stylesheet inspector added development dependencies.
