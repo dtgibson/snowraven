@@ -3,6 +3,58 @@ import re
 
 from http_client import get_client
 
+# The shape guard for an eBird checklist id, and the SINGLE SOURCE for it on this
+# transport. Two routes gate on it: `/weather/{checklist_id}` and
+# `/tide/{checklist_id}` each check it before calling `fetch_checklist` below,
+# and both already import from here; it was two byte-identical copies inside
+# those routers until v0.5.88.
+#
+# IT IS NOT A MODULE-WIDE INVARIANT. The module's other entry point,
+# `fetch_checklist_species`, has one caller — `/checklists/{checklist_id}` in
+# routers/checklists.py — and that route does NOT gate, so an unvalidated id
+# reaches the same outbound eBird URL construction. What that permits was
+# measured END TO END through that route on a live server, not on the URL builder
+# in isolation: the reachable injection is the QUERY STRING ONLY. A request for
+# `/checklists/S1%3Ffoo=bar` arrives as `S1?foo=bar` and produces
+# `…/checklist/view/S1?foo=bar`.
+#
+# What stops the rest, because a future reader needs the tripwire: Starlette's
+# DEFAULT `str` PATH CONVERTER is `[^/]+`, so `{checklist_id}` is always exactly
+# one path segment and can never contain a `/`. Traversal therefore never reaches
+# the handler at all — `..%2F..%2Fetc/passwd` and friends 404 at routing, and
+# `%252F`, backslash, overlong UTF-8 `%C0%AF` and fullwidth solidus U+FF0F all
+# arrive as themselves rather than as a separator. httpx WILL normalize `../`
+# once a literal slash is present (`httpx.URL(base + "../../etc/passwd")` really
+# does collapse to `/etc/passwd`), which is why measuring the builder alone
+# OVER-STATES this — the route cannot deliver the slash that would trigger it.
+# Changing this route to `{checklist_id:path}` (regex `.*`) removes exactly that
+# protection. The host also cannot be steered (`@`, `://`, `//` all still resolve
+# to api.ebird.org) and the request cannot be split (httpx rejects CR and LF as
+# non-printable ASCII).
+#
+# That is PRE-EXISTING, unchanged by v0.5.88 and outside its approved scope; it
+# is recorded for its own change. Do not read this constant as covering that
+# path, and do not assume a new caller of `fetch_checklist_species` inherits a
+# guard — it does not.
+#
+# Its JS counterparts are `isValidChecklistId` (frontend/src/lib/checklistId.ts),
+# which gates the REQUEST to these two routes, and `SUBMISSION_ID_RE`
+# (components/speciesDetail/ui.tsx), which gates whether an id becomes a link.
+# The JS side is NOT single-sourced — four further byte-identical copies live in
+# lib/mediaStats.ts, lib/speciesStats.ts, map/TargetMarkers.tsx and
+# map/NearbyLiferMarkers.tsx — so the single-sourcing claim above is about THIS
+# transport only. The shared fixture drives both of the two named guards and
+# asserts they agree, so neither can drift away from this constant unnoticed.
+#
+# `[0-9]`, NEVER `\d` (v0.5.54): Python's `\d` matches Unicode decimal digits, so
+# `S٠١٢` (Arabic-Indic) passed the backend guard while the JS twin's ASCII-only
+# `\d` rejected it — the "same" pattern validating differently on the two
+# transports. Explicit ASCII classes are what make the two agree.
+#
+# `fullmatch` at every call site for the anchor half of the same parity (see the
+# _EXOTIC_RE note below); the shared fixture carries newline rows that hold it.
+CHECKLIST_ID_RE = re.compile(r"^S[0-9]+$")
+
 
 async def fetch_checklist(checklist_id: str) -> dict:
     api_key = os.getenv("EBIRD_API_KEY")

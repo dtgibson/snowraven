@@ -1,12 +1,11 @@
 import os
-import re
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
 from formatters.tide import format_tide, format_tide_body
 from formatters.weather import get_timezone
-from services.ebird import fetch_checklist
+from services.ebird import CHECKLIST_ID_RE, fetch_checklist
 from services.noaa import fetch_tides
 from services.tide import (
     TideReading,
@@ -92,7 +91,12 @@ async def get_tide_at(lat: float, lng: float, dt: str | None = None, force: bool
 
 @router.get("/tide/{checklist_id}")
 async def get_tide(checklist_id: str, force: bool = False):
-    if not re.fullmatch(r"S\d+", checklist_id):
+    # Single-sourced on services.ebird (which this router already imports); it was
+    # a byte-identical copy of the tide/weather sibling's regex until v0.5.88.
+    # Explicit ASCII `[0-9]`, never `\d`: Python's `\d` matches every Unicode
+    # decimal digit, so an id written in Arabic-Indic digits passed here while the
+    # JS guard on the request path rejected it (v0.5.54 character-class rule).
+    if not CHECKLIST_ID_RE.fullmatch(checklist_id):
         raise HTTPException(status_code=400, detail="That doesn't look like a valid eBird checklist ID.")
 
     # NOAA is keyless — only eBird is needed to resolve the checklist.

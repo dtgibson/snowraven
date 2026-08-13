@@ -1,12 +1,11 @@
 import asyncio
 import os
-import re
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException
 
 from formatters.weather import format_weather, get_timezone
-from services.ebird import fetch_checklist
+from services.ebird import CHECKLIST_ID_RE, fetch_checklist
 from services.forecast import build_weather_payload
 from services.openweather import fetch_historical, fetch_forecast
 
@@ -49,7 +48,12 @@ async def get_weather_at(lat: float, lng: float, dt: str | None = None):
 
 @router.get("/weather/{checklist_id}")
 async def get_weather(checklist_id: str):
-    if not re.fullmatch(r"S\d+", checklist_id):
+    # Single-sourced on services.ebird (which this router already imports); it was
+    # a byte-identical copy of the tide/weather sibling's regex until v0.5.88.
+    # Explicit ASCII `[0-9]`, never `\d`: Python's `\d` matches every Unicode
+    # decimal digit, so an id written in Arabic-Indic digits passed here while the
+    # JS guard on the request path rejected it (v0.5.54 character-class rule).
+    if not CHECKLIST_ID_RE.fullmatch(checklist_id):
         raise HTTPException(status_code=400, detail="That doesn't look like a valid eBird checklist ID.")
 
     if not os.getenv("EBIRD_API_KEY") or not os.getenv("OPENWEATHER_API_KEY"):

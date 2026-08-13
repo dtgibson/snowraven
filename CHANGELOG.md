@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.88] - 2026-08-12
+
+Two backend input checks now enforce exactly what they claim to. Nothing you can see changes.
+
+### Notes
+- **A settings key ending in a stray newline is no longer accepted.** SnowRaven stores each of your saved preferences in its own small file, and checks the name first so it can only ever be a plain name. Python's pattern matching quietly forgives a newline at the very end of a value, so a name like "theme" followed by a line break slipped through and created a second, near-invisible file alongside the real one. It also walked past a second check that keeps this store away from the names reserved for API keys, uploaded files, and map defaults. Both are closed. No file outside the settings folder was ever reachable, your API keys were never touched, and every key SnowRaven actually uses is accepted exactly as before.
+- **The eBird checklist ID check now agrees with itself on both halves of the app.** SnowRaven asks for weather and tide by checklist ID, and the browser and the backend each check the ID's shape before using it. The browser counts only the digits 0 through 9; the backend was counting digits from any writing system, so an ID written in, say, Arabic-Indic numerals passed one check and failed the other. The backend now uses the same ASCII-only rule, and the two live in one place each so they cannot drift apart again. Real checklist IDs are unaffected, and the mismatched ones only ever produced a "not found" from eBird.
+
 ## [0.5.87] - 2026-08-12
 
 The Statistics species total now matches the number eBird shows you.

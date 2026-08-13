@@ -33,6 +33,11 @@ SETTINGS_DIR = DATA_DIR / "settings"
 
 # NFR-12/QA-39: shape-validate the key before it touches a path — blocks
 # `..`/`/` traversal into the CSVs, api-keys.json, or settings.json.
+#
+# The character class is already EXPLICIT ASCII, so the v0.5.54 rule (never `\d`
+# / `\w` on the Python half of a twinned guard) is satisfied and this pattern is
+# NOT a twin of anything on the JS side — the storage seam builds `/settings/{key}`
+# from hardcoded keys and carries no shape guard of its own.
 _KEY_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 
 # Defense-in-depth: never let the free-form store answer for a key that has a
@@ -44,7 +49,21 @@ _MAX_BYTES = 16 * 1024 * 1024  # ~16 MB
 
 
 def _key_path(key: str) -> Path:
-    if not _KEY_RE.match(key):
+    # `fullmatch`, NEVER `.match()`: Python's `$` matches BEFORE a trailing
+    # newline, so `_KEY_RE.match("theme\n")` succeeded and this guard admitted a
+    # key it was written to exclude — `POST /settings/theme%0A` returned 200 and
+    # wrote a second file `theme\n.json` beside `theme.json`, and
+    # `POST /settings/keys%0A` slipped past the _RESERVED_KEYS check below where
+    # the un-suffixed form 404s. No traversal was ever reachable (`..` and `a/b`
+    # are rejected upstream by routing), but a shape guard on a value that
+    # becomes a FILENAME has to mean what it says. `fullmatch` requires the whole
+    # string, so the newline is unconsumed and the key is rejected; it is the
+    # house form for the Python half of any shape guard (v0.5.87 anchor rule).
+    #
+    # The DELIBERATE CARVE-OUT beside that rule: pydantic `pattern=` constraints
+    # (routers/map.py, routers/media.py) run on the Rust regex engine, which
+    # rejects a trailing newline already. Do NOT "fix" those toward `fullmatch`.
+    if not _KEY_RE.fullmatch(key):
         raise HTTPException(status_code=422, detail="Invalid settings key.")
     if key in _RESERVED_KEYS:
         # 404 — this generic store does not own reserved keys.

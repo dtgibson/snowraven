@@ -1,0 +1,171 @@
+{
+  "_comment": [
+    "SHARED dual-transport fixture for the eBird checklist-id shape guard",
+    "(backend-guard-anchor-parity). Loaded by BOTH",
+    "frontend/src/lib/checklistId.parity.test.ts and",
+    "backend/tests/test_checklist_id_parity.py, so if either twin drifts its own",
+    "test fails.",
+    "",
+    "  Python  services/ebird.py              CHECKLIST_ID_RE = ^S[0-9]+$",
+    "  JS      lib/checklistId.ts             isValidChecklistId (gates the",
+    "                                         REQUEST: App.tsx checks it before",
+    "                                         fetching /weather/{id}, /tide/{id})",
+    "  JS      components/speciesDetail/ui.tsx SUBMISSION_ID_RE (gates the LINK)",
+    "",
+    "Before this change the Python half was two byte-identical copies inside",
+    "routers/weather.py and routers/tide.py; it is now one constant. The JS side",
+    "is NOT single-sourced and this change does not make it so: the two guards",
+    "above, plus four more copies of the same literal in lib/mediaStats.ts,",
+    "lib/speciesStats.ts, map/TargetMarkers.tsx and map/NearbyLiferMarkers.tsx,",
+    "are all byte-identical today. Consolidating them is separate work. The",
+    "vitest half therefore drives BOTH of the guards above and asserts they agree",
+    "with each other, so neither can drift away from the backend unnoticed.",
+    "",
+    "CHARACTER CLASSES are the half this pair shipped divergent on. Python's `\\d`",
+    "matches every Unicode decimal digit (category Nd) while JavaScript's `\\d` is",
+    "ASCII-only, so an id of S followed by U+0660 U+0661 U+0662 (Arabic-Indic 012)",
+    "passed the backend guard and failed the frontend one.",
+    "The Python side therefore writes an EXPLICIT ASCII CLASS ([0-9]), and the",
+    "rows below carry three separate Nd blocks (Arabic-Indic, fullwidth,",
+    "Devanagari) plus a mixed ASCII/non-ASCII id, because any of them alone would",
+    "leave a `\\d` regression passing on two thirds of the probe set.",
+    "",
+    "ANCHORS are the other half, and on THIS pair they already agreed: both sides",
+    "use whole-string matching (`re.fullmatch` / `^...$` with `.test()`), so every",
+    "newline row below is expected to fail on both transports BEFORE and AFTER the",
+    "class fix. They are here because the house rule says every twinned pattern",
+    "gets trailing-, leading- and embedded-newline rows, and because they are the",
+    "evidence that the character-class bug and the anchor bug fixed in the same",
+    "change are genuinely two defects and not one: swapping the anchor here",
+    "changes nothing, exactly as swapping the class in settingskv.py changes",
+    "nothing.",
+    "",
+    "Exotic characters are written as \\uXXXX ESCAPES, never literals: this repo",
+    "has had literal exotic whitespace and digits silently flattened into ordinary",
+    "ASCII four times across two builds, leaving a probe set weaker with every",
+    "test still green. Both non-vacuity tests pin the code points directly, so a",
+    "flattened escape fails rather than quietly narrowing the fixture."
+  ],
+  "cases": [
+    {
+      "why": "the ordinary case: a real eBird submission id",
+      "id": "S12345678",
+      "valid": true
+    },
+    {
+      "why": "minimal valid id, one digit",
+      "id": "S1",
+      "valid": true
+    },
+    {
+      "why": "leading zeros are digits like any other; nothing normalizes them away",
+      "id": "S00000000",
+      "valid": true
+    },
+    {
+      "why": "a long but well-formed id stays valid (the guard bounds shape, not length)",
+      "id": "S999999999999",
+      "valid": true
+    },
+    {
+      "why": "ARABIC-INDIC DIGITS: the v0.5.54 trap and the discriminating row of this change. Python's `\\d` admits U+0660..U+0662, JavaScript's does not",
+      "id": "S\u0660\u0661\u0662",
+      "valid": false
+    },
+    {
+      "why": "FULLWIDTH DIGITS (U+FF10..U+FF12): a second Nd block, so a `\\d` regression cannot pass by handling only Arabic-Indic",
+      "id": "S\uff10\uff11\uff12",
+      "valid": false
+    },
+    {
+      "why": "DEVANAGARI DIGITS (U+0966..U+0968): a third Nd block",
+      "id": "S\u0966\u0967\u0968",
+      "valid": false
+    },
+    {
+      "why": "MIXED ASCII and Arabic-Indic: the nastiest shape, since the id looks well-formed up to its last character",
+      "id": "S123\u0660",
+      "valid": false
+    },
+    {
+      "why": "CYRILLIC CAPITAL DZE (U+0405) renders like an S but is not one; the literal `S` is ASCII on both sides",
+      "id": "\u0405123",
+      "valid": false
+    },
+    {
+      "why": "ANCHOR row: a trailing newline. Expected false on BOTH transports before and after this change, because both already match the whole string",
+      "id": "S123\n",
+      "valid": false
+    },
+    {
+      "why": "ANCHOR row: a leading newline",
+      "id": "\nS123",
+      "valid": false
+    },
+    {
+      "why": "ANCHOR row: an embedded newline cannot smuggle a valid id past either engine",
+      "id": "S12\n3",
+      "valid": false
+    },
+    {
+      "why": "a trailing carriage return is the other line terminator and is rejected the same way",
+      "id": "S123\r",
+      "valid": false
+    },
+    {
+      "why": "no digits at all",
+      "id": "S",
+      "valid": false
+    },
+    {
+      "why": "no leading S",
+      "id": "12345678",
+      "valid": false
+    },
+    {
+      "why": "lowercase s is not the shape eBird emits",
+      "id": "s12345678",
+      "valid": false
+    },
+    {
+      "why": "a doubled prefix",
+      "id": "SS123",
+      "valid": false
+    },
+    {
+      "why": "punctuation inside the digits",
+      "id": "S-123",
+      "valid": false
+    },
+    {
+      "why": "an interior space",
+      "id": "S 123",
+      "valid": false
+    },
+    {
+      "why": "trailing whitespace is not trimmed into a valid id",
+      "id": "S123 ",
+      "valid": false
+    },
+    {
+      "why": "a trailing tab (U+0009), written as an escape so it cannot be flattened",
+      "id": "S123\u0009",
+      "valid": false
+    },
+    {
+      "why": "the empty string",
+      "id": "",
+      "valid": false
+    },
+    {
+      "why": "the location-id prefix must not be accepted by the checklist guard",
+      "id": "L12345678",
+      "valid": false
+    },
+    {
+      "why": "a path separator can never become part of an id",
+      "id": "S123/../S456",
+      "valid": false
+    }
+  ]
+}
