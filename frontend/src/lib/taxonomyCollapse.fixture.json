@@ -88,14 +88,15 @@
   },
 
   "formCodesCases": {
-    "_comment": "media-catalog-taxon-links parity: the /taxonomy/codes formCodes map (all-category name->code, from inverting byCode) resolves a FORM name to its OWN issf/domestic code (the ON media link) and a species name to the species code, while `codes` (species-only) still misses the form names. Both twins (getTaxonomyCodes / get_species_codes) assert THIS on the shared fixture.",
+    "_comment": "media-catalog-taxon-links parity: the /taxonomy/codes formCodes map (all-category name->code, from inverting byCode) resolves a FORM name to its OWN issf/domestic code (the ON media link) and a species name to the species code, while `codes` (species-only) still misses the form names. Both twins (getTaxonomyCodes / get_species_codes) assert THIS on the shared fixture. The 'constructor' row is the taxonomy-hasown-lookups hostile-name case (v0.5.81 allowlist-lookup rule): a CSV species name that is an Object.prototype member must resolve to NOTHING on both transports — the expected maps carry no entry for it. The Python twin is immune by construction (dict.get has no prototype chain); on the TS twin an unguarded bare index returns the truthy inherited `constructor` function and this row goes red.",
 
     "input": [
       { "commonName": "American Robin", "scientificName": "Turdus migratorius" },
       { "commonName": "Yellow-rumped Warbler", "scientificName": "Setophaga coronata" },
       { "commonName": "Yellow-rumped Warbler (Myrtle)", "scientificName": "Setophaga coronata coronata" },
       { "commonName": "Rock Pigeon (Feral Pigeon)", "scientificName": "Columba livia (Feral Pigeon)" },
-      { "commonName": "Mallard (Domestic type)", "scientificName": "Anas platyrhynchos (Domestic type)" }
+      { "commonName": "Mallard (Domestic type)", "scientificName": "Anas platyrhynchos (Domestic type)" },
+      { "commonName": "constructor", "scientificName": "constructor" }
     ],
 
     "expectedFormCodes": {
