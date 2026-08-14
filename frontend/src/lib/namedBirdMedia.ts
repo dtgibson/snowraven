@@ -50,7 +50,7 @@ export interface NamedBirdAsset {
   catalogId: string   // digits only — the parser guarantees ^\d+$ (ML prefix stripped)
   format: 'Photo' | 'Audio' | 'Video'
   date: string        // raw export date string ('' when absent); formatted at render
-  checklistId: string // '' when absent; ChecklistLink guards ^S\d+$ at render
+  checklistId: string // '' when absent; ChecklistLink guards ^S\d{1,15}$ at render
 }
 
 /**

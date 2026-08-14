@@ -108,7 +108,7 @@ export function TargetMarkers({ pins, speciesCodeMap, hasEntryFor, onOpenSpecies
                   const pinTier = recencyTier(pin.recentDate)
                   const { bg: pinBg, text: pinText } = tierColors(pinTier)
                   const tierLabel = pinTier === 'fresh' ? '≤7 days' : pinTier === 'mid' ? '8–15 days' : '16–30 days'
-                  const validSubId = /^S\d+$/.test(pin.subId ?? '')
+                  const validSubId = /^S\d{1,15}$/.test(pin.subId ?? '')
                   return (
                     <div key={pin.speciesCode} style={{ paddingTop: j > 0 ? 8 : 0, marginTop: j > 0 ? 8 : 0, borderTop: j > 0 ? '1px solid var(--sr-border)' : 'none' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, flexWrap: 'wrap' }}>

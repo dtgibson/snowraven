@@ -117,11 +117,15 @@ const EMPTY_STORE = (): ProvenanceStore => ({
 // structurally bounded.
 const SPECIES_CODE_KEY_RE = /^[a-z0-9-]{2,16}$/
 
-// Deliberately STRICTER than the app-wide display guard SUBMISSION_ID_RE
-// (/^S\d+$/, components/speciesDetail/ui.tsx), which is unbounded in length. A
-// persisted KEY must be structurally bounded; a display guard need not be. Do
-// not loosen, replace, or re-point the app-wide constant, and do not introduce a
-// third copy of it.
+// This was the FIRST checklist-id guard to carry a length ceiling; the
+// app-wide guards (SUBMISSION_ID_RE in components/speciesDetail/ui.tsx,
+// isValidChecklistId, their copies, and the backend's CHECKLIST_ID_RE) were
+// unbounded until length-bound-checklist-id aligned them all to this
+// constant's `{1,15}` — closing the window where an id passed every guard yet
+// failed here, silently discarding the record (the v0.5.87 shape). A persisted
+// KEY must be structurally bounded either way, so this stays the reference:
+// do not loosen it, re-point the app-wide constants at it, or introduce
+// another copy of it.
 const SUBMISSION_KEY_RE = /^S[0-9]{1,15}$/
 
 // "<category>|<doNotCount>", both raw, both bounded ASCII uppercase.

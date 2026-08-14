@@ -47,7 +47,13 @@ export function StatLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-export const SUBMISSION_ID_RE = /^S\d+$/
+// `{1,15}` (length-bound-checklist-id): real ids are ~10 digits; the ceiling
+// aligns every checklist-id guard with the persisted-key guard
+// SUBMISSION_KEY_RE (lib/exoticProvenanceCache.ts), so an id can no longer
+// become a link yet fail the store's own key guard. Kept in lockstep with
+// isValidChecklistId and the four display-guard copies; the shared parity
+// fixture (lib/checklistId.fixture.json) holds the ceiling on both transports.
+export const SUBMISSION_ID_RE = /^S\d{1,15}$/
 export const LOCATION_ID_RE = /^L\d+$/
 
 // Species Detail's large stat cells (e.g. "first seen", "highest count") link to the

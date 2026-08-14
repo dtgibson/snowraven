@@ -163,13 +163,24 @@ describe('stripTrailingSlashes is linear by construction', () => {
     expect(unboundedQuantifiers(functionBody(perChar, 'function f'))).toEqual([])
   })
 
-  it('deliberately leaves isValidChecklistId\'s `\\d+$` alone', () => {
-    // Unbounded with `$` after it, which is the defect's shape - except that
-    // `^` pins the scan to a single start position, so the backtrack is O(n)
-    // once rather than from every offset. Measured flat (0.1 ms on 40,000
-    // digits, 1.95x per doubling). Scoped honestly rather than swept up: this
-    // is a sibling in the same file, and it is not an instance.
+  it('isValidChecklistId is now bounded by construction ({1,15})', () => {
+    // History, so the two changes stay distinguishable: the superlinear-regex
+    // sweep deliberately left this site's unbounded `\d+$` alone (with `^` the
+    // backtrack is O(n) once - measured flat, 0.1 ms on 40,000 digits - so it
+    // was not an instance of that defect), and this test then pinned the
+    // carve-out by value. length-bound-checklist-id later bounded the
+    // quantifier to `{1,15}` for guard/store alignment (see the comment at the
+    // definition site), which retires the carve-out: the body now carries no
+    // unbounded quantifier at all. The BEHAVIOURAL ceiling - at-ceiling
+    // accepted, over-ceiling rejected - is pinned by the shared fixture and
+    // checklistId.parity.test.ts, not here.
     expect(unboundedQuantifiers(functionBody(source, 'export function isValidChecklistId')))
+      .toEqual([])
+    // Guard-the-guard: the exact form a revert to unbounded would take is
+    // still flagged, so the empty result above is a claim about the shipped
+    // body rather than about a scanner that stopped matching.
+    const reverted = 'export function f(id) {\n  return /^S\\d+$/.test(id)\n}'
+    expect(unboundedQuantifiers(functionBody(reverted, 'export function f')))
       .toEqual(['/^S\\d+$/'])
     expect(isValidChecklistId('S12345678')).toBe(true)
     expect(isValidChecklistId('S1x')).toBe(false)

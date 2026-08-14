@@ -6,7 +6,7 @@
     "backend/tests/test_checklist_id_parity.py, so if either twin drifts its own",
     "test fails.",
     "",
-    "  Python  services/ebird.py              CHECKLIST_ID_RE = ^S[0-9]+$",
+    "  Python  services/ebird.py              CHECKLIST_ID_RE = ^S[0-9]{1,15}$",
     "  JS      lib/checklistId.ts             isValidChecklistId (gates the",
     "                                         REQUEST: App.tsx checks it before",
     "                                         fetching /weather/{id}, /tide/{id})",
@@ -40,6 +40,15 @@
     "changes nothing, exactly as swapping the class in settingskv.py changes",
     "nothing.",
     "",
+    "LENGTH is the third axis (length-bound-checklist-id): every guard carries",
+    "{1,15}, the ceiling chosen to align with the persisted-key guard",
+    "SUBMISSION_KEY_RE = /^S[0-9]{1,15}$/ (lib/exoticProvenanceCache.ts), so an",
+    "id can no longer pass the request/link guards yet fail the store's own key",
+    "guard (the v0.5.87 silent-discard shape). Real ids are ~10 digits; 15 keeps",
+    "~5 orders of magnitude of headroom. The at-ceiling (15-digit, valid) and",
+    "over-ceiling (16-digit, invalid) rows below are the discriminating pair:",
+    "reverting any guard to unbounded turns the 16-digit row red on that guard.",
+    "",
     "Exotic characters are written as \\uXXXX ESCAPES, never literals: this repo",
     "has had literal exotic whitespace and digits silently flattened into ordinary",
     "ASCII four times across two builds, leaving a probe set weaker with every",
@@ -63,9 +72,19 @@
       "valid": true
     },
     {
-      "why": "a long but well-formed id stays valid (the guard bounds shape, not length)",
+      "why": "12 digits: longer than any real id (~10 digits) and comfortably under the {1,15} ceiling, so it stays valid exactly as it did before the guard bounded length",
       "id": "S999999999999",
       "valid": true
+    },
+    {
+      "why": "AT-CEILING: exactly 15 digits, the longest id the guard accepts. The ceiling aligns every guard with SUBMISSION_KEY_RE's {1,15} (length-bound-checklist-id)",
+      "id": "S999999999999999",
+      "valid": true
+    },
+    {
+      "why": "OVER-CEILING: 16 digits, one past the ceiling — the discriminating row of length-bound-checklist-id. Reverting any guard to unbounded S[0-9]+ turns this row red",
+      "id": "S9999999999999999",
+      "valid": false
     },
     {
       "why": "ARABIC-INDIC DIGITS: the v0.5.54 trap and the discriminating row of this change. Python's `\\d` admits U+0660..U+0662, JavaScript's does not",

@@ -234,7 +234,7 @@ function dayNumber(date: string): number | null {
 // Same shape check the other ebird.org/checklist link sites apply
 // (BirdingStats SUBMISSION_ID_RE, speciesStats) — junk in the export's
 // "eBird Checklist ID" column must degrade to plain text, not a 404 link.
-const SUBMISSION_ID_RE = /^S\d+$/
+const SUBMISSION_ID_RE = /^S\d{1,15}$/
 
 // ── aggregate ────────────────────────────────────────────────────────────────
 

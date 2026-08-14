@@ -6,7 +6,7 @@ import type { ObservationEntry, MediaType } from '../types'
 import { normalizeSpeciesName } from './speciesUtils'
 import { BREEDING_CODE_MAP, BREEDING_CODES } from './breedingCodes'
 
-const SUBMISSION_ID_RE = /^S\d+$/
+const SUBMISSION_ID_RE = /^S\d{1,15}$/
 
 // Canonical eBird ordering of breeding codes (index in the master list).
 const BREEDING_CODE_CANONICAL_ORDER = new Map(BREEDING_CODES.map((d, i) => [d.code, i]))

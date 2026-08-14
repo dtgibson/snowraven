@@ -188,6 +188,37 @@ def test_malformed_id_shapes_rejected_at_the_route(monkeypatch):
     fetch.assert_not_awaited()
 
 
+def test_over_ceiling_id_rejected_at_the_route(monkeypatch):
+    """The {1,15} length ceiling asserted AT THE CALL SITE
+    (length-bound-checklist-id).
+
+    16 digits is one past the ceiling; 15 is the ceiling itself. The keys are
+    present and both fetches are mocked, so the 400 can only be the shape
+    guard, and the at-ceiling id proves the guard rejects only what it claims
+    to. The pattern half lives in test_checklist_id_parity.py; this pins that
+    THIS route still applies it (the v0.5.88 rule: single-sourcing prevents
+    copies drifting, not a call site being dropped, and a verification derived
+    from the thing it checks cannot fail)."""
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    monkeypatch.setenv("OPENWEATHER_API_KEY", "test-key")
+    fetch = AsyncMock(return_value=MOCK_CHECKLIST)
+    with patch("routers.weather.fetch_checklist", new=fetch):
+        resp = client.get("/weather/S" + "9" * 16)
+    assert resp.status_code == 400
+    assert "valid eBird checklist ID" in resp.json()["detail"]
+    fetch.assert_not_awaited()
+
+    # The other direction, at the exact boundary: 15 digits still reaches the
+    # checklist fetch.
+    with (
+        patch("routers.weather.fetch_checklist", new=fetch),
+        patch("routers.weather.fetch_historical", new=AsyncMock(return_value=MOCK_OWM_RESPONSE)),
+    ):
+        resp = client.get("/weather/S" + "9" * 15)
+    assert resp.status_code == 200
+    fetch.assert_awaited_once()
+
+
 def test_health():
     resp = client.get("/health")
     assert resp.status_code == 200

@@ -19,7 +19,7 @@ vi.mock('../storage', () => ({
   storage: { getApiKey: vi.fn(async () => null) },
 }))
 
-import { getTaxonomyCodes, resolveSpecies } from './taxonomyService'
+import { getTaxonomyCodes, resolveSpecies, collapseToSpeciesList } from './taxonomyService'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -53,5 +53,40 @@ describe('taxonomy bundled offline floor', () => {
     // The supersede attempt fires-and-forgets; it may or may not have run yet, but it
     // never throws out of loadTaxonomy.
     expect(vi.isMockFunction(tauriFetch)).toBe(true)
+  })
+})
+
+describe('prototype-member names against the REAL bundled snapshot (taxonomy-hasown-lookups)', () => {
+  // The v0.5.81 corpus run against production data: no published eBird name or
+  // code is an Object.prototype member, so every axis must be a clean miss. The
+  // attack surface is whatever the running engine exposes — derive the list here
+  // rather than pinning it (the pinned twelve + a runtime coverage check live in
+  // taxonomyService.hostileKeys.test.ts, alongside the per-guard revert cases).
+  const PROTO_NAMES = Object.getOwnPropertyNames(Object.prototype)
+
+  it('getTaxonomyCodes resolves nothing for prototype-member names on either name axis', async () => {
+    const asCommon = await getTaxonomyCodes(
+      PROTO_NAMES.map(n => ({ commonName: n, scientificName: `nosuchus ${n.toLowerCase()}` }))
+    )
+    const asSci = await getTaxonomyCodes(
+      PROTO_NAMES.map((n, i) => ({ commonName: `No Such Bird ${i}`, scientificName: n }))
+    )
+    for (const maps of [asCommon, asSci]) {
+      expect(Object.keys(maps.codes)).toEqual([])
+      expect(Object.keys(maps.orders)).toEqual([])
+      expect(Object.keys(maps.formCodes)).toEqual([])
+    }
+  })
+
+  it('resolveSpecies falls through to string identity (no truthy inherited member leaks)', async () => {
+    const out = await resolveSpecies(PROTO_NAMES)
+    for (const n of PROTO_NAMES) {
+      expect(Object.hasOwn(out, n)).toBe(true)
+      expect(out[n]).toEqual({ speciesCode: n, commonName: n })
+    }
+  })
+
+  it('collapseToSpeciesList drops every prototype-member code', async () => {
+    expect(await collapseToSpeciesList(PROTO_NAMES)).toEqual([])
   })
 })

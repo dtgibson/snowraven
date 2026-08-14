@@ -234,22 +234,41 @@ export async function getTaxonomyCodes(
   const cache = await ensureTaxonomy();
   const byComAll = byComAllFor(cache);
 
-  const codes: Record<string, string> = {};
-  const orders: Record<string, number> = {};
+  // Null-prototype accumulators (taxonomy-hasown-lookups): the keys are CSV-derived
+  // names, and on a plain `{}` a name of `__proto__` hits the Object.prototype
+  // setter — the entry is silently dropped (a string/number value is a setter
+  // no-op), never stored as an own key. Object.create(null) makes every write a
+  // real own key. Consumers read these with bare indexing / `?? {}` /
+  // Object.entries / spread, all prototype-independent (verified repo-wide).
+  const codes = Object.create(null) as Record<string, string>;
+  const orders = Object.create(null) as Record<string, number>;
   // `formCodes` is ADDITIVE — the code for the name EXACTLY as given (including a
   // trailing subspecies/form parenthetical). `codes`/`orders` stay species-only and
   // byte-identical so favicons/sort don't shift (parity with the backend twin).
-  const formCodes: Record<string, string> = {};
+  const formCodes = Object.create(null) as Record<string, string>;
 
   for (const item of species) {
     const comLower = item.commonName.toLowerCase();
-    const code = cache.bySci[item.scientificName.toLowerCase()] ?? cache.byCom[comLower];
+    const sciLower = item.scientificName.toLowerCase();
+    // Object.hasOwn, NOT a bare index (v0.5.81 allowlist-lookup rule; house
+    // reference: shareCopyPreference.ts). These keys are lowercased CSV-derived
+    // names, so a species named `constructor` (or any of the twelve
+    // Object.prototype member names) would otherwise return a truthy INHERITED
+    // member and take the wrong branch. The ternary-into-`??` form preserves the
+    // original `??` fallthrough exactly for every own key. Each guard is pinned
+    // per consumer by taxonomyService.hostileKeys.test.ts (revert any one bare
+    // index and its named case goes red), and the hostile row in
+    // taxonomyCollapse.fixture.json runs through BOTH parity twins.
+    const code =
+      (Object.hasOwn(cache.bySci, sciLower) ? cache.bySci[sciLower] : undefined) ??
+      (Object.hasOwn(cache.byCom, comLower) ? cache.byCom[comLower] : undefined);
     if (code) codes[item.commonName] = code;
-    const order = cache.byOrder[comLower];
+    const order = Object.hasOwn(cache.byOrder, comLower) ? cache.byOrder[comLower] : undefined;
     if (order != null) orders[item.commonName] = order;
     // All-category exact-name code (may be an issf/form/domestic code), else the
     // species code so a plain species name still resolves here too.
-    const formCode = byComAll[comLower] ?? code;
+    const formCode =
+      (Object.hasOwn(byComAll, comLower) ? byComAll[comLower] : undefined) ?? code;
     if (formCode) formCodes[item.commonName] = formCode;
   }
 
@@ -285,9 +304,23 @@ export async function collapseToSpeciesList(
   const seen = new Set<string>()
   const out: { speciesCode: string; commonName: string }[] = []
   for (const c of codes) {
-    const parent = cache.reportAs[c] ?? c
+    // Object.hasOwn guard (v0.5.81 rule): `c` is an eBird-API-derived code. NOTE —
+    // this particular guard is NOT discriminable by any test: for a prototype-member
+    // name the bare index yields a truthy inherited member (e.g. a function), which
+    // `speciesSet.has` rejects exactly as it rejects the raw string, so both
+    // implementations collapse to "dropped" (and for an OWN `__proto__` data key a
+    // bare read returns the own value too — own properties shadow the inherited
+    // accessor). Guarded anyway for the module-wide sweep: an unguarded read here is
+    // the line a future edit copies. The guards that DO discriminate are pinned in
+    // taxonomyService.hostileKeys.test.ts (the bySci/byCom/byOrder/byComAll cases
+    // and the resolveSpecies reportAs/byCode cases).
+    const parent = (Object.hasOwn(cache.reportAs, c) ? cache.reportAs[c] : undefined) ?? c
     if (!speciesSet.has(parent) || seen.has(parent)) continue
     seen.add(parent)
+    // `cache.byCode[parent]` needs no hasOwn guard: `parent` passed `speciesSet.has`
+    // above, so it is a VALUE of cache.bySci — a published eBird species code, never
+    // an attacker-chosen string (allowlist-by-membership, same property a hasOwn
+    // guard provides).
     out.push({ speciesCode: parent, commonName: cache.byCode[parent] || parent })
   }
   return out
@@ -303,10 +336,25 @@ export async function resolveSpecies(
   codes: string[]
 ): Promise<Record<string, { speciesCode: string; commonName: string }>> {
   const cache = await ensureTaxonomy();
-  const out: Record<string, { speciesCode: string; commonName: string }> = {};
+  // Null-prototype accumulator (taxonomy-hasown-lookups): keyed by raw eBird codes,
+  // and the value here is an OBJECT — on a plain `{}` a code of `__proto__` would
+  // hit the Object.prototype setter and silently SWAP the returned map's prototype
+  // instead of storing the entry. Object.create(null) makes the write a real own
+  // key. The consumer (checklistService) reads with optional-chained bare indexing.
+  const out = Object.create(null) as Record<string, { speciesCode: string; commonName: string }>;
   for (const c of codes) {
-    const norm = cache.reportAs[c] ?? c;
-    const name = cache.byCode[norm] || cache.byCode[c] || norm;
+    // Object.hasOwn guards (v0.5.81 rule): `c` and `norm` are eBird-API-derived
+    // codes; a bare index on a prototype-member name returns a truthy inherited
+    // member and corrupts this entry (function-valued speciesCode/commonName). The
+    // ternary forms preserve the original fallthroughs exactly — including the
+    // deliberate `||` below: an own byCode entry with an EMPTY comName falls
+    // through to the next arm, which `??` would not do (pinned by the
+    // empty-comName case in taxonomyService.hostileKeys.test.ts).
+    const norm = (Object.hasOwn(cache.reportAs, c) ? cache.reportAs[c] : undefined) ?? c;
+    const name =
+      (Object.hasOwn(cache.byCode, norm) ? cache.byCode[norm] : undefined) ||
+      (Object.hasOwn(cache.byCode, c) ? cache.byCode[c] : undefined) ||
+      norm;
     out[c] = { speciesCode: norm, commonName: name };
   }
   return out;

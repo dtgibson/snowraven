@@ -91,7 +91,7 @@ export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, o
             {selLoc.lifers.map((lifer, j) => {
               const liferTier = recencyTier(lifer.recentDate)
               const { bg: dotBg } = tierColors(liferTier)
-              const validSubId = /^S\d+$/.test(lifer.subId ?? '')
+              const validSubId = /^S\d{1,15}$/.test(lifer.subId ?? '')
               return (
                 <div key={lifer.speciesCode} style={{ paddingTop: j > 0 ? 8 : 0, marginTop: j > 0 ? 8 : 0, borderTop: j > 0 ? '1px solid var(--sr-border)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3, flexWrap: 'wrap' }}>

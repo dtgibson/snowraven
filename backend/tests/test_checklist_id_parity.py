@@ -1,8 +1,8 @@
 """SHARED-FIXTURE PARITY TEST — the Python half of the dual-transport
 checklist-id shape guard (backend-guard-anchor-parity, finding 2).
 
-`services.ebird.CHECKLIST_ID_RE` (web/Pi backend, enforced by routers/weather.py
-and routers/tide.py) and the JS guards -- `isValidChecklistId` in
+`services.ebird.CHECKLIST_ID_RE` (web/Pi backend, enforced by routers/weather.py,
+routers/tide.py and routers/checklists.py) and the JS guards -- `isValidChecklistId` in
 `frontend/src/lib/checklistId.ts`, which gates the REQUEST for these very
 routes, and `SUBMISSION_ID_RE` in `.../components/speciesDetail/ui.tsx`, which
 gates the link -- are kept in lockstep by comment only. This test and its vitest
@@ -23,7 +23,7 @@ SINGLE-SOURCING IS NOT THE SAME AS BEING TESTED ONCE. The guard used to be two
 byte-identical copies inside the two routers and is now one constant, which
 prevents the copies DRIFTING — it does nothing to prevent a copy being DROPPED.
 So each router keeps its own route-level test (test_weather_router.py,
-test_tide_router.py) alongside this one.
+test_tide_router.py, test_checklists_router.py) alongside this one.
 
 SCOPE OF THE SINGLE-SOURCING CLAIM: it is about THIS transport. The JS side
 still holds several byte-identical copies of the same literal (the two named
@@ -96,6 +96,12 @@ def test_fixture_still_carries_the_discriminating_cases():
     assert "\nS123" in ids
     assert "S12\n3" in ids
 
+    # The length pair (length-bound-checklist-id), built from the digit count
+    # so a row quietly shortened below the ceiling stops being the row that
+    # discriminates and fails here instead.
+    assert "S" + "9" * 15 in ids
+    assert "S" + "9" * 16 in ids
+
     # ...and enough valid rows that a guard rejecting EVERYTHING would fail.
     assert "S12345678" in ids
     assert sum(1 for c in _cases() if c["valid"]) >= 3
@@ -116,6 +122,26 @@ def test_unicode_digits_are_rejected_on_this_transport_too():
     # ...and every well-formed id is untouched by the change.
     assert _accepts("S12345678") is True
     assert _accepts("S1") is True
+
+
+def test_the_length_ceiling_is_live_on_this_transport():
+    """{1,15} (length-bound-checklist-id): the mutation guard for the bound.
+
+    Reverting CHECKLIST_ID_RE to the unbounded `S[0-9]+` turns the over-ceiling
+    assertion red. The ceiling aligns this guard with the frontend's
+    persisted-key guard SUBMISSION_KEY_RE = /^S[0-9]{1,15}$/
+    (lib/exoticProvenanceCache.ts), closing the 16+-digit window where an id
+    passed every guard yet failed the store's key guard; real ids are ~10
+    digits, so no id eBird has ever emitted moves. The route-level halves are
+    pinned in test_weather_router.py / test_tide_router.py /
+    test_checklists_router.py (400, outbound fetch awaited zero times), per the
+    v0.5.88 per-consumer rule."""
+    at_ceiling = "S" + "9" * 15
+    over_ceiling = "S" + "9" * 16
+    assert len(at_ceiling) == 16  # S + 15 digits
+    assert len(over_ceiling) == 17  # S + 16 digits
+    assert _accepts(at_ceiling) is True
+    assert _accepts(over_ceiling) is False
 
 
 def test_the_anchor_half_was_ALREADY_correct_on_this_pair():
