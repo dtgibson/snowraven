@@ -22,12 +22,15 @@
 //                                                 uses it to decide whether an
 //                                                 id may become an anchor.
 //
-// Both are byte-identical `/^S\d+$/` today, and the last assertion pins that
-// they agree on every row: asserting only one of them would leave the other free
-// to drift away from the backend with this file still green. Four more copies of
-// the same literal live in lib/mediaStats.ts, lib/speciesStats.ts,
-// map/TargetMarkers.tsx and map/NearbyLiferMarkers.tsx; they are off the
-// weather/tide path and out of scope here.
+// Both are byte-identical `/^S\d{1,15}$/` today (the `{1,15}` ceiling is
+// length-bound-checklist-id, aligning every guard with the persisted-key guard
+// SUBMISSION_KEY_RE in lib/exoticProvenanceCache.ts), and the agreement
+// assertion pins that they agree on every row: asserting only one of them would
+// leave the other free to drift away from the backend with this file still
+// green. Four more copies of the same literal live in lib/mediaStats.ts,
+// lib/speciesStats.ts, map/TargetMarkers.tsx and map/NearbyLiferMarkers.tsx;
+// they carry the same ceiling in lockstep but are off the weather/tide path,
+// so they stay kept-in-lockstep-by-sweep rather than driven here.
 //
 // THE TRAP THIS EXISTS FOR (v0.5.54). Python's `\d` matches every Unicode
 // decimal digit and JavaScript's is ASCII-only, so the backend's
@@ -85,7 +88,7 @@ describe('eBird checklist-id shape guard (JS half of the parity pair)', () => {
   })
 
   it('the two JS guards agree with each other on every row', () => {
-    // They are byte-identical `/^S\d+$/` today and the JS side is not
+    // They are byte-identical `/^S\d{1,15}$/` today and the JS side is not
     // single-sourced, so pin the agreement rather than assuming it.
     for (const c of cases) {
       expect(acceptsOnRequestPath(c.id), c.why).toBe(accepts(c.id))
@@ -119,6 +122,12 @@ describe('eBird checklist-id shape guard (JS half of the parity pair)', () => {
     expect(ids).toContain('\nS123')
     expect(ids).toContain('S12\n3')
 
+    // The length pair (length-bound-checklist-id), built from the digit count
+    // so a row quietly shortened below the ceiling stops being the row that
+    // discriminates and fails here instead.
+    expect(ids).toContain('S' + '9'.repeat(15))
+    expect(ids).toContain('S' + '9'.repeat(16))
+
     // ...and enough valid rows that a guard rejecting EVERYTHING would fail.
     expect(ids).toContain('S12345678')
     expect(cases.filter(c => c.valid).length).toBeGreaterThanOrEqual(3)
@@ -138,6 +147,23 @@ describe('eBird checklist-id shape guard (JS half of the parity pair)', () => {
     // ...and every well-formed id is untouched.
     expect(accepts('S12345678')).toBe(true)
     expect(accepts('S1')).toBe(true)
+  })
+
+  it('mutation guard: the {1,15} ceiling is live on BOTH JS guards', () => {
+    // length-bound-checklist-id. Asserted on each guard separately, not via the
+    // agreement loop: two guards reverted to unbounded together would still
+    // agree with each other, so agreement alone cannot reject the revert.
+    // Reverting EITHER guard to /^S\d+$/ turns its over-ceiling assertion red;
+    // the backend's half is pinned in test_checklist_id_parity.py and at both
+    // routes (test_weather_router.py / test_tide_router.py).
+    const atCeiling = 'S' + '9'.repeat(15)
+    const overCeiling = 'S' + '9'.repeat(16)
+    expect(atCeiling.length).toBe(16) // S + 15 digits
+    expect(overCeiling.length).toBe(17) // S + 16 digits
+    expect(accepts(atCeiling)).toBe(true)
+    expect(accepts(overCeiling)).toBe(false)
+    expect(acceptsOnRequestPath(atCeiling)).toBe(true)
+    expect(acceptsOnRequestPath(overCeiling)).toBe(false)
   })
 
   it('the ANCHOR half already agreed on this pair, which is why it is a separate bug', () => {

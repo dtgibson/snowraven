@@ -53,7 +53,20 @@ from http_client import get_client
 #
 # `fullmatch` at every call site for the anchor half of the same parity (see the
 # _EXOTIC_RE note below); the shared fixture carries newline rows that hold it.
-CHECKLIST_ID_RE = re.compile(r"^S[0-9]+$")
+#
+# `{1,15}` (length-bound-checklist-id): the ceiling exists to ALIGN the guards,
+# not to model eBird. Real ids are ~10 digits, so 15 keeps ~5 orders of
+# magnitude of headroom; what picks 15 over ROADMAP's `{1,20}` candidate is the
+# shipped persisted-key guard `SUBMISSION_KEY_RE = /^S[0-9]{1,15}$/`
+# (frontend/src/lib/exoticProvenanceCache.ts). A 16-20-digit id would pass
+# every request/link guard yet fail that store's own key guard — the v0.5.87
+# silent-discard shape. The bound also discharges the v0.5.88 deferral: a
+# 65,001-character id passed the unbounded guard and issued an outbound eBird
+# request, deviating from the house SSRF rule (the reference guard
+# /media/embed-status is explicitly bounded). The six JS guard sites carry the
+# same `{1,15}` in lockstep, and the shared fixture's at-ceiling / over-ceiling
+# rows hold it on both transports.
+CHECKLIST_ID_RE = re.compile(r"^S[0-9]{1,15}$")
 
 
 async def fetch_checklist(checklist_id: str) -> dict:

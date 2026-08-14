@@ -191,3 +191,33 @@ def test_malformed_id_shapes_rejected_at_the_route(monkeypatch):
     # The key is set and the fetch is mocked, so a 400 above can only be the shape
     # guard; this pins that none of these reached the checklist fetch.
     fetch.assert_not_awaited()
+
+
+def test_over_ceiling_id_rejected_at_the_route(monkeypatch):
+    """The {1,15} length ceiling asserted AT THE CALL SITE
+    (length-bound-checklist-id).
+
+    16 digits is one past the ceiling; 15 is the ceiling itself. The key is
+    present and both fetches are mocked, so the 400 can only be the shape
+    guard, and the at-ceiling id proves the guard rejects only what it claims
+    to. The pattern half lives in test_checklist_id_parity.py; this pins that
+    THIS route still applies it (the v0.5.88 rule: single-sourcing prevents
+    copies drifting, not a call site being dropped, and a verification derived
+    from the thing it checks cannot fail)."""
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    fetch = AsyncMock(return_value=MOCK_CHECKLIST)
+    with patch("routers.tide.fetch_checklist", new=fetch):
+        resp = client.get("/tide/S" + "9" * 16)
+    assert resp.status_code == 400
+    assert "valid eBird checklist ID" in resp.json()["detail"]
+    fetch.assert_not_awaited()
+
+    # The other direction, at the exact boundary: 15 digits still reaches the
+    # checklist fetch.
+    with (
+        patch("routers.tide.fetch_checklist", new=fetch),
+        patch("routers.tide.fetch_tides", new=AsyncMock(return_value=(OBS_BODY, PRED_BODY, HILO_BODY))),
+    ):
+        resp = client.get("/tide/S" + "9" * 15)
+    assert resp.status_code == 200
+    fetch.assert_awaited_once()

@@ -96,6 +96,12 @@ def test_fixture_still_carries_the_discriminating_cases():
     assert "\nS123" in ids
     assert "S12\n3" in ids
 
+    # The length pair (length-bound-checklist-id), built from the digit count
+    # so a row quietly shortened below the ceiling stops being the row that
+    # discriminates and fails here instead.
+    assert "S" + "9" * 15 in ids
+    assert "S" + "9" * 16 in ids
+
     # ...and enough valid rows that a guard rejecting EVERYTHING would fail.
     assert "S12345678" in ids
     assert sum(1 for c in _cases() if c["valid"]) >= 3
@@ -116,6 +122,25 @@ def test_unicode_digits_are_rejected_on_this_transport_too():
     # ...and every well-formed id is untouched by the change.
     assert _accepts("S12345678") is True
     assert _accepts("S1") is True
+
+
+def test_the_length_ceiling_is_live_on_this_transport():
+    """{1,15} (length-bound-checklist-id): the mutation guard for the bound.
+
+    Reverting CHECKLIST_ID_RE to the unbounded `S[0-9]+` turns the over-ceiling
+    assertion red. The ceiling aligns this guard with the frontend's
+    persisted-key guard SUBMISSION_KEY_RE = /^S[0-9]{1,15}$/
+    (lib/exoticProvenanceCache.ts), closing the 16+-digit window where an id
+    passed every guard yet failed the store's key guard; real ids are ~10
+    digits, so no id eBird has ever emitted moves. The route-level halves are
+    pinned in test_weather_router.py / test_tide_router.py (400, outbound fetch
+    awaited zero times), per the v0.5.88 per-consumer rule."""
+    at_ceiling = "S" + "9" * 15
+    over_ceiling = "S" + "9" * 16
+    assert len(at_ceiling) == 16  # S + 15 digits
+    assert len(over_ceiling) == 17  # S + 16 digits
+    assert _accepts(at_ceiling) is True
+    assert _accepts(over_ceiling) is False
 
 
 def test_the_anchor_half_was_ALREADY_correct_on_this_pair():

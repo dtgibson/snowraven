@@ -31,9 +31,14 @@ export function extractChecklistId(raw: string): string {
 
 /** eBird submission IDs look like S12345678. */
 export function isValidChecklistId(id: string): boolean {
-  // `\d+` is unbounded and `$` follows it, but `^` pins the scan to a single
-  // start position, so the backtrack is O(n) once rather than from every
-  // offset: measured flat (0.1 ms on 40,000 digits, 1.95x per doubling).
-  // Deliberately left alone - it is not an instance of the defect.
-  return /^S\d+$/.test(id)
+  // `{1,15}` (length-bound-checklist-id): real ids are ~10 digits; the ceiling
+  // aligns every checklist-id guard with the persisted-key guard
+  // SUBMISSION_KEY_RE (lib/exoticProvenanceCache.ts), so an id can no longer
+  // pass this guard yet fail the store's own key guard. The shared parity
+  // fixture (checklistId.fixture.json) carries the at-ceiling / over-ceiling
+  // rows that hold it. Historical note: the superlinear-regex-sweep had
+  // deliberately left the old unbounded `\d+$` alone (with `^` the backtrack
+  // is O(n) once, measured flat at 40,000 digits); the bound supersedes that
+  // carve-out rather than fixing a live defect here.
+  return /^S\d{1,15}$/.test(id)
 }
