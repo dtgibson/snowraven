@@ -1,8 +1,8 @@
 """SHARED-FIXTURE PARITY TEST — the Python half of the dual-transport
 checklist-id shape guard (backend-guard-anchor-parity, finding 2).
 
-`services.ebird.CHECKLIST_ID_RE` (web/Pi backend, enforced by routers/weather.py
-and routers/tide.py) and the JS guards -- `isValidChecklistId` in
+`services.ebird.CHECKLIST_ID_RE` (web/Pi backend, enforced by routers/weather.py,
+routers/tide.py and routers/checklists.py) and the JS guards -- `isValidChecklistId` in
 `frontend/src/lib/checklistId.ts`, which gates the REQUEST for these very
 routes, and `SUBMISSION_ID_RE` in `.../components/speciesDetail/ui.tsx`, which
 gates the link -- are kept in lockstep by comment only. This test and its vitest
@@ -23,7 +23,7 @@ SINGLE-SOURCING IS NOT THE SAME AS BEING TESTED ONCE. The guard used to be two
 byte-identical copies inside the two routers and is now one constant, which
 prevents the copies DRIFTING — it does nothing to prevent a copy being DROPPED.
 So each router keeps its own route-level test (test_weather_router.py,
-test_tide_router.py) alongside this one.
+test_tide_router.py, test_checklists_router.py) alongside this one.
 
 SCOPE OF THE SINGLE-SOURCING CLAIM: it is about THIS transport. The JS side
 still holds several byte-identical copies of the same literal (the two named
@@ -133,8 +133,9 @@ def test_the_length_ceiling_is_live_on_this_transport():
     (lib/exoticProvenanceCache.ts), closing the 16+-digit window where an id
     passed every guard yet failed the store's key guard; real ids are ~10
     digits, so no id eBird has ever emitted moves. The route-level halves are
-    pinned in test_weather_router.py / test_tide_router.py (400, outbound fetch
-    awaited zero times), per the v0.5.88 per-consumer rule."""
+    pinned in test_weather_router.py / test_tide_router.py /
+    test_checklists_router.py (400, outbound fetch awaited zero times), per the
+    v0.5.88 per-consumer rule."""
     at_ceiling = "S" + "9" * 15
     over_ceiling = "S" + "9" * 16
     assert len(at_ceiling) == 16  # S + 15 digits

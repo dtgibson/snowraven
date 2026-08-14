@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from routers.taxonomy import resolve_species
-from services.ebird import fetch_checklist_species
+from services.ebird import CHECKLIST_ID_RE, fetch_checklist_species
 
 router = APIRouter()
 
@@ -19,6 +19,22 @@ async def get_checklist(checklist_id: str, fields: str | None = Query(None)) -> 
     Comparer reads is untouched. The desktop twin is transport.ts's
     `/checklists/` branch plus lib/tauri/checklistService.ts; keep them in
     lockstep."""
+    # Single-sourced on services.ebird, same as the weather/tide siblings; this
+    # route was the one caller of fetch_checklist_species that reached outbound
+    # eBird URL construction unguarded (v0.5.88 finding, deferred; closed by
+    # checklists-route-guard). The reachable injection was the QUERY STRING ONLY:
+    # `/checklists/S1%3Ffoo=bar` arrived as `S1?foo=bar` and built
+    # `…/checklist/view/S1?foo=bar`. This guard now fronts the route; the SECOND,
+    # independent ground is ROUTING — Starlette's default `str` path converter is
+    # `[^/]+`, so the id is always exactly one segment and traversal/host
+    # steering never reach the handler. Never change the route to
+    # `{checklist_id:path}` (regex `.*`), which removes exactly that ground.
+    # `fullmatch`, never `.match()` (Python's `$` admits a trailing newline), and
+    # explicit ASCII `[0-9]`, never `\d` (v0.5.54/v0.5.88 parity rules — see the
+    # constant's comment block in services/ebird.py).
+    if not CHECKLIST_ID_RE.fullmatch(checklist_id):
+        raise HTTPException(status_code=400, detail="That doesn't look like a valid eBird checklist ID.")
+
     try:
         data = await fetch_checklist_species(checklist_id, skip_loc_name=(fields == "provenance"))
     except LookupError as exc:

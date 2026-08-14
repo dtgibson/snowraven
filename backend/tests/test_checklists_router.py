@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import unquote
 
 import pytest
 from fastapi.testclient import TestClient
@@ -197,3 +198,107 @@ def test_without_the_flag_the_location_name_is_still_resolved(monkeypatch):
     assert resp.json()["locName"] == "Albany Bulb"
     urls = [c.args[0] for c in shared.get.await_args_list]
     assert any("/ref/region/info/" in u for u in urls)
+
+
+# --- Checklist-id shape guard (checklists-route-guard) ----------------------
+# The guard itself is single-sourced on services.ebird.CHECKLIST_ID_RE and its
+# cross-transport behavior is locked by the shared fixture in
+# tests/test_checklist_id_parity.py. This is the ROUTE-level half: single-sourcing
+# prevents the three copies DRIFTING, it does nothing to prevent one being
+# DROPPED, so each router keeps its own test that the guard is still applied
+# here. This route has no key check ahead of the fetch, so the reasoning is even
+# tighter than the weather/tide siblings': the fetch is mocked to succeed, so a
+# 400 can ONLY be the shape guard.
+
+_GUARD_FAKE_FETCH = {"locName": "L99", "obsDt": "2025-03-02 10:55", "species": []}
+
+
+def test_query_injection_shape_rejected_at_the_route(monkeypatch):
+    """The exact shape the v0.5.88 finding measured end to end: this route was
+    the one caller of fetch_checklist_species reaching outbound eBird URL
+    construction unguarded, and the reachable injection was the QUERY STRING
+    ONLY — `/checklists/S1%3Ffoo=bar` arrives as `S1?foo=bar` and previously
+    built `…/checklist/view/S1?foo=bar`.
+
+    `%3F` is a URL escape rather than a literal `?` in this source (a literal
+    would be parsed as the request's own query string and never reach the path);
+    the decoded value is pinned below so a future edit cannot quietly turn it
+    into an ordinary id. Removing the guard makes this request reach the mocked
+    fetch, which turns both assertions red."""
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    assert unquote("S1%3Ffoo=bar") == "S1?foo=bar"
+
+    fetch = AsyncMock(return_value=_GUARD_FAKE_FETCH)
+    with patch("routers.checklists.fetch_checklist_species", new=fetch):
+        resp = client.get("/checklists/S1%3Ffoo=bar")
+    assert resp.status_code == 400
+    assert "valid eBird checklist ID" in resp.json()["detail"]
+    fetch.assert_not_awaited()
+
+
+def test_unicode_digit_id_rejected_at_the_route(monkeypatch):
+    """`S` + Arabic-Indic 012 (U+0660..U+0662): the v0.5.54 character-class row,
+    asserted at THIS call site (Python's `\\d` would admit it; the shipped
+    explicit ASCII `[0-9]` rejects it)."""
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    fetch = AsyncMock(return_value=_GUARD_FAKE_FETCH)
+    with patch("routers.checklists.fetch_checklist_species", new=fetch):
+        resp = client.get("/checklists/S\u0660\u0661\u0662")
+    assert resp.status_code == 400
+    assert "valid eBird checklist ID" in resp.json()["detail"]
+    fetch.assert_not_awaited()
+
+
+def test_trailing_newline_id_rejected_at_the_route(monkeypatch):
+    """The anchor row, and why this test mocks rather than trusting the parity
+    file: the shared fixture pins the PATTERN, so mutating this call site to
+    `CHECKLIST_ID_RE.match(...)` would leave the whole suite green while
+    `GET /checklists/S123%0A` genuinely passed the guard (Python's `$` matches
+    before a trailing newline). Reverting this call site to `.match()` turns
+    this red.
+
+    `%0A` is a URL escape rather than a literal newline in this source, and the
+    decoded value is pinned below. The weather twin verified out-of-band that
+    the shape survives routing: the handler receives "S123" + chr(10) rather
+    than the request 404ing first."""
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    assert unquote("S123%0A") == "S123" + chr(10)
+
+    fetch = AsyncMock(return_value=_GUARD_FAKE_FETCH)
+    with patch("routers.checklists.fetch_checklist_species", new=fetch):
+        resp = client.get("/checklists/S123%0A")
+    assert resp.status_code == 400
+    assert "valid eBird checklist ID" in resp.json()["detail"]
+    fetch.assert_not_awaited()
+
+
+def test_over_ceiling_id_rejected_at_the_route(monkeypatch):
+    """The {1,15} length ceiling asserted AT THIS CALL SITE
+    (length-bound-checklist-id, build 1 of this bundle; this guard is build 2).
+
+    16 digits is one past the ceiling; the at-ceiling direction below proves the
+    guard rejects only what it claims to. The pattern half lives in
+    test_checklist_id_parity.py; this pins that THIS route applies it (the
+    v0.5.88 rule: single-sourcing prevents copies drifting, not a call site
+    being dropped)."""
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    fetch = AsyncMock(return_value=_GUARD_FAKE_FETCH)
+    with patch("routers.checklists.fetch_checklist_species", new=fetch):
+        resp = client.get("/checklists/S" + "9" * 16)
+    assert resp.status_code == 400
+    assert "valid eBird checklist ID" in resp.json()["detail"]
+    fetch.assert_not_awaited()
+
+    # The other direction, at the exact boundary: 15 digits still reaches the
+    # outbound fetch and the full pipeline (through the same shared-client
+    # machinery as the file's other 200 tests, so this doubles as the guard's
+    # no-regression case alongside test_checklist_resolves_location_and_
+    # normalizes_subform's S12345678).
+    _reset_taxonomy_cache()
+    shared = _combined_client()
+    with patch("services.ebird.get_client", return_value=shared), \
+         patch("routers.taxonomy.get_client", return_value=shared):
+        resp = client.get("/checklists/S" + "9" * 15)
+    assert resp.status_code == 200
+    urls = [c.args[0] for c in shared.get.await_args_list]
+    assert any("/product/checklist/view/" in u for u in urls)

@@ -4,42 +4,45 @@ import re
 from http_client import get_client
 
 # The shape guard for an eBird checklist id, and the SINGLE SOURCE for it on this
-# transport. Two routes gate on it: `/weather/{checklist_id}` and
-# `/tide/{checklist_id}` each check it before calling `fetch_checklist` below,
-# and both already import from here; it was two byte-identical copies inside
-# those routers until v0.5.88.
+# transport. Three routes gate on it: `/weather/{checklist_id}` and
+# `/tide/{checklist_id}` each check it before calling `fetch_checklist` below
+# (two byte-identical copies inside those routers until v0.5.88), and
+# `/checklists/{checklist_id}` (routers/checklists.py) checks it before calling
+# `fetch_checklist_species` (checklists-route-guard, discharging the v0.5.88
+# deferral this block previously recorded).
 #
-# IT IS NOT A MODULE-WIDE INVARIANT. The module's other entry point,
-# `fetch_checklist_species`, has one caller — `/checklists/{checklist_id}` in
-# routers/checklists.py — and that route does NOT gate, so an unvalidated id
-# reaches the same outbound eBird URL construction. What that permits was
-# measured END TO END through that route on a live server, not on the URL builder
-# in isolation: the reachable injection is the QUERY STRING ONLY. A request for
-# `/checklists/S1%3Ffoo=bar` arrives as `S1?foo=bar` and produces
-# `…/checklist/view/S1?foo=bar`.
+# IT IS STILL NOT A MODULE-WIDE INVARIANT. The guard lives at the ROUTES, not in
+# these functions, so a NEW caller of `fetch_checklist` or
+# `fetch_checklist_species` does NOT inherit it — gate at the call site. Before
+# its route gated, an unvalidated id reached `fetch_checklist_species`'s
+# outbound eBird URL construction; what that permitted was measured END TO END
+# through that route on a live server, not on the URL builder in isolation: the
+# reachable injection was the QUERY STRING ONLY. A request for
+# `/checklists/S1%3Ffoo=bar` arrived as `S1?foo=bar` and produced
+# `…/checklist/view/S1?foo=bar`. The guard closes that; the route's own tests
+# pin it (test_checklists_router.py, 400 with the outbound fetch never awaited).
 #
-# What stops the rest, because a future reader needs the tripwire: Starlette's
-# DEFAULT `str` PATH CONVERTER is `[^/]+`, so `{checklist_id}` is always exactly
-# one path segment and can never contain a `/`. Traversal therefore never reaches
-# the handler at all — `..%2F..%2Fetc/passwd` and friends 404 at routing, and
-# `%252F`, backslash, overlong UTF-8 `%C0%AF` and fullwidth solidus U+FF0F all
-# arrive as themselves rather than as a separator. httpx WILL normalize `../`
-# once a literal slash is present (`httpx.URL(base + "../../etc/passwd")` really
-# does collapse to `/etc/passwd`), which is why measuring the builder alone
-# OVER-STATES this — the route cannot deliver the slash that would trigger it.
-# Changing this route to `{checklist_id:path}` (regex `.*`) removes exactly that
-# protection. The host also cannot be steered (`@`, `://`, `//` all still resolve
-# to api.ebird.org) and the request cannot be split (httpx rejects CR and LF as
-# non-printable ASCII).
-#
-# That is PRE-EXISTING, unchanged by v0.5.88 and outside its approved scope; it
-# is recorded for its own change. Do not read this constant as covering that
-# path, and do not assume a new caller of `fetch_checklist_species` inherits a
-# guard — it does not.
+# What stopped the rest, because a future reader needs the tripwire — and it
+# remains the SECOND, INDEPENDENT ground now that the guard fronts the route:
+# Starlette's DEFAULT `str` PATH CONVERTER is `[^/]+`, so `{checklist_id}` is
+# always exactly one path segment and can never contain a `/`. Traversal
+# therefore never reaches the handler at all — `..%2F..%2Fetc/passwd` and
+# friends 404 at routing, and `%252F`, backslash, overlong UTF-8 `%C0%AF` and
+# fullwidth solidus U+FF0F all arrive as themselves rather than as a separator.
+# httpx WILL normalize `../` once a literal slash is present
+# (`httpx.URL(base + "../../etc/passwd")` really does collapse to
+# `/etc/passwd`), which is why measuring the builder alone OVER-STATES this —
+# the route cannot deliver the slash that would trigger it. Changing any of the
+# three routes to `{checklist_id:path}` (regex `.*`) removes exactly that
+# protection. The host also cannot be steered (`@`, `://`, `//` all still
+# resolve to api.ebird.org) and the request cannot be split (httpx rejects CR
+# and LF as non-printable ASCII).
 #
 # Its JS counterparts are `isValidChecklistId` (frontend/src/lib/checklistId.ts),
-# which gates the REQUEST to these two routes, and `SUBMISSION_ID_RE`
-# (components/speciesDetail/ui.tsx), which gates whether an id becomes a link.
+# which gates the REQUEST to the weather/tide routes and the Comparer's
+# `/checklists/` calls (ChecklistComparer.tsx), and `SUBMISSION_ID_RE`
+# (components/speciesDetail/ui.tsx), which gates whether an id becomes a link
+# and the provenance pass's `/checklists/` calls (useExoticProvenance.ts).
 # The JS side is NOT single-sourced — four further byte-identical copies live in
 # lib/mediaStats.ts, lib/speciesStats.ts, map/TargetMarkers.tsx and
 # map/NearbyLiferMarkers.tsx — so the single-sourcing claim above is about THIS
