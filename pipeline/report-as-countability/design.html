@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Report-As Countability: control copy refinement</title>
+<style>
+:root {
+  --sr-text-scale: 1;
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-text-disabled: #A1A1AA;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-on-accent: #FFFFFF;
+  --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-warning: #92400E;
+  --sr-warning-bg: #FFFBEB;
+}
+:root[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-on-accent: #052E16;
+  --sr-gray-400: #6E6E78;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  --sr-error: #F87171;
+  --sr-error-bg: #2A1416;
+  --sr-warning: #FBBF24;
+  --sr-warning-bg: #1F1A0A;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--sr-bg);
+  color: var(--sr-text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.84375rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 72px; }
+
+/* ── mockup chrome (not part of the app) ─────────────────────────── */
+.docbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 26px;
+  padding-bottom: 18px; border-bottom: 1px solid var(--sr-border);
+}
+.docbar h1 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.015em; margin: 0 0 3px; }
+.docbar p { margin: 0; font-size: 0.8125rem; color: var(--sr-text-muted); }
+.themebtn {
+  font: inherit; font-size: 0.75rem; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 32px; padding: 0 13px; border-radius: 6px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  color: var(--sr-text-muted); cursor: pointer;
+  transition: border-color 160ms ease-out, color 160ms ease-out;
+}
+.themebtn:hover { border-color: var(--sr-border-medium); color: var(--sr-text); }
+.themebtn:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+h2.sec {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+  margin: 40px 0 12px;
+}
+h2.sec:first-of-type { margin-top: 0; }
+.note { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0 0 16px; max-width: 74ch; }
+.note code, .inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78em; background: var(--sr-surface-subtle);
+  padding: 1px 5px; border-radius: 4px; color: var(--sr-text);
+}
+
+/* before / after pairing */
+.ba { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(21rem, 100%), 1fr)); gap: 14px; }
+.pane {
+  border: 1px solid var(--sr-border); border-radius: 12px;
+  background: var(--sr-surface); box-shadow: var(--sr-card-shadow);
+  overflow: hidden; min-width: 0;
+}
+.pane > .tag {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 9px 16px; border-bottom: 1px solid var(--sr-border-subtle);
+  background: var(--sr-surface-faint); color: var(--sr-text-muted);
+}
+.pane.now > .tag { color: var(--sr-text-muted); }
+.pane.next > .tag { color: var(--sr-accent); background: var(--sr-accent-bg); border-bottom-color: var(--sr-accent-border); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.pane .body { padding: 16px; }
+
+/* ── real app control replicas ───────────────────────────────────── */
+
+/* Statistics header count-rule stack */
+.sr-count-rules { display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+.sr-count-rule {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.8125rem; cursor: pointer; user-select: none; color: var(--sr-text);
+}
+.sr-count-rule:hover { color: var(--sr-accent); }
+.sr-count-rule input { accent-color: var(--sr-accent); width: 14px; height: 14px; margin: 0; }
+
+.statshead {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap;
+}
+.statshead h3 {
+  font-size: 1.375rem; font-weight: 700; margin: 0 0 4px;
+  display: flex; align-items: center; gap: 8px; letter-spacing: -0.01em;
+}
+.statshead .sub { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; }
+.ico { color: var(--sr-accent); flex-shrink: 0; }
+
+/* the ToggleSwitch boxed variant, 28x16 track / 12px knob */
+.tog {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 10px 0 8px; border-radius: 6px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  font: inherit; font-size: 0.75rem; font-weight: 500;
+  color: var(--sr-text-muted); white-space: nowrap; cursor: pointer;
+}
+.tog:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.track {
+  width: 28px; height: 16px; border-radius: 8px; flex-shrink: 0; position: relative;
+  background: var(--sr-gray-400);
+  transition: background 180ms ease-out;
+}
+.tog[aria-checked="true"] .track { background: var(--sr-accent); }
+.tog[aria-checked="true"] { color: var(--sr-text); }
+.knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--sr-switch-thumb); box-shadow: var(--sr-switch-thumb-shadow);
+  transition: transform 180ms ease-out;
+}
+.tog[aria-checked="true"] .knob { transform: translateX(12px); }
+
+/* Calendar small Switch — matches components/Calendar.tsx Switch({small}):
+   30x18 track, 14px knob, no white-space:nowrap (the label wraps by design). */
+.swsm {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: inherit; font-size: 0.71875rem;
+  color: var(--sr-text); background: none; border: none;
+  padding: 0; margin: 0; cursor: pointer; text-align: left;
+}
+.swsm:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 3px; border-radius: 4px; }
+.swsm .track { width: 30px; height: 18px; border-radius: 999px; }
+.swsm .knob { width: 14px; height: 14px; }
+.swsm[aria-checked="true"] .knob { transform: translateX(12px); }
+
+.settlingrow {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding: 9px 16px; border-top: 1px solid var(--sr-border-subtle);
+  background: var(--sr-surface-subtle); border-radius: 0 0 10px 10px;
+}
+.helper { margin: 0; font-size: 0.6875rem; line-height: 1.35; color: var(--sr-text-muted); }
+
+/* toolbar (Multimedia / Species Detail) */
+.toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pillsep { width: 1px; height: 18px; background: var(--sr-border); flex-shrink: 0; }
+.countright { margin-left: auto; font-size: 0.75rem; color: var(--sr-text-muted); }
+
+/* shared count-rule note */
+.sr-count-rule-note {
+  font-size: 0.6875rem; line-height: 1.6; color: var(--sr-text-muted);
+  margin: 0 0 0.75rem; max-width: 62ch;
+}
+
+/* a stat tile, for the coverage / species figure demos */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(7.5rem, 100%), 1fr)); gap: 0; }
+.tile { border-right: 1px solid var(--sr-border-subtle); border-bottom: 1px solid var(--sr-border-subtle); padding: 12px 14px; min-width: 0; }
+.tile .lbl { font-size: 0.6875rem; font-weight: 600; color: var(--sr-text-muted); letter-spacing: 0.02em; }
+.tile .val { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 2px; }
+.tile .val.up { color: var(--sr-accent); }
+
+.divider { height: 1px; background: var(--sr-border-subtle); margin: 14px 0; }
+
+/* delta table */
+table.delta { width: 100%; border-collapse: collapse; font-size: 0.78125rem; }
+table.delta th, table.delta td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--sr-border-subtle); vertical-align: top; }
+table.delta th { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sr-text-muted); font-weight: 700; }
+table.delta td.n { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+table.delta .sci { color: var(--sr-text-gray); font-style: italic; }
+.scrollx { overflow-x: auto; }
+
+.callout {
+  border-left: 3px solid var(--sr-accent); background: var(--sr-accent-bg);
+  padding: 12px 15px; border-radius: 0 8px 8px 0; margin: 0 0 16px;
+  font-size: 0.8125rem; color: var(--sr-text); max-width: 74ch;
+}
+.callout strong { font-weight: 700; }
+.callout.warn { border-left-color: var(--sr-warning); background: var(--sr-warning-bg); }
+
+.strike { text-decoration: line-through; text-decoration-thickness: 1px; opacity: 0.55; }
+
+ul.tight { margin: 0 0 16px; padding-left: 20px; font-size: 0.8125rem; color: var(--sr-text-muted); max-width: 74ch; }
+ul.tight li { margin-bottom: 5px; }
+ul.tight strong { color: var(--sr-text); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+}
+@media (max-width: 640px) {
+  .sr-count-rule { min-height: 2.75rem; }
+  .wrap { padding: 20px 14px 56px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="docbar">
+    <div>
+      <h1>Report-As Countability</h1>
+      <p>Design refinement, Stage 2. Four control labels and the notes behind them. Nothing visual changes.</p>
+    </div>
+    <button class="themebtn" id="tt" type="button" aria-pressed="false">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4"/></svg>
+      <span id="ttl">Dark theme</span>
+    </button>
+  </div>
+
+  <div class="callout">
+    <strong>One noun, two verbs.</strong> The excluded set is no longer nameable as three kinds of thing, so the labels stop trying. They use the word the code and the help text already use, <span class="inline-code">forms</span>, with <strong>Count</strong> where the control moves a number and <strong>Show</strong> where it moves rows. This joins the sentence v0.5.87 already ships and which is still correct under the new rule: <em>"Counts leave out forms that don't count toward a life list, including escapees."</em>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <h2 class="sec">1 · Statistics tab header</h2>
+  <p class="note">The checkbox stacks under its v0.5.87 sibling. The sibling's own note records that <span class="inline-code">Count escapees</span> was chosen for "the clean parallel with its neighbour", so the replacement keeps the <span class="inline-code">Count &lt;plural noun&gt;</span> shape. No helper line is added: the header has no room and the sibling carries none either.</p>
+
+  <div class="ba">
+    <div class="pane now">
+      <div class="tag"><span class="dot"></span>Today</div>
+      <div class="body">
+        <div class="statshead">
+          <div>
+            <h3><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Statistics</h3>
+            <p class="sub">1,284 checklists · eBird backup: 2 days ago</p>
+          </div>
+          <div class="sr-count-rules">
+            <label class="sr-count-rule"><input type="checkbox"> Count spuh, slash &amp; hybrids</label>
+            <label class="sr-count-rule"><input type="checkbox"> Count escapees</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane next">
+      <div class="tag"><span class="dot"></span>Proposed</div>
+      <div class="body">
+        <div class="statshead">
+          <div>
+            <h3><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>Statistics</h3>
+            <p class="sub">1,284 checklists · eBird backup: 2 days ago</p>
+          </div>
+          <div class="sr-count-rules">
+            <label class="sr-count-rule"><input type="checkbox"> Count all forms</label>
+            <label class="sr-count-rule"><input type="checkbox"> Count escapees</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <h2 class="sec">2 · Calendar settling row</h2>
+  <p class="note">The helper keeps examples, but opens them with <em>"like"</em>. A closed list presented as a definition is what goes stale; an open example teaches without claiming completeness.</p>
+
+  <div class="ba">
+    <div class="pane now">
+      <div class="tag"><span class="dot"></span>Today</div>
+      <div class="body" style="padding:0">
+        <div class="settlingrow" style="border-radius:0">
+          <button class="swsm" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Count spuh, slash &amp; hybrids</button>
+          <p class="helper">Spuh / slash / hybrid forms aren't countable species; off by default.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane next">
+      <div class="tag"><span class="dot"></span>Proposed</div>
+      <div class="body" style="padding:0">
+        <div class="settlingrow" style="border-radius:0">
+          <button class="swsm" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Count all forms</button>
+          <p class="helper">Forms that don't count toward a life list, like a spuh or a hybrid. Off by default.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top:14px">Two further Calendar strings move with it. The day popup note <span class="inline-code">Spuh / slash / hybrids included in the species &amp; individual counts</span> becomes <span class="inline-code">All forms included in the species and individual counts</span>, and the sub-header suffix <span class="inline-code">, spuh/slash/hybrids included</span> becomes <span class="inline-code">, all forms included</span>.</p>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <h2 class="sec">3 · Multimedia and Species Detail toolbars</h2>
+  <div class="callout warn">
+    <strong>This is the widening call.</strong> Today <span class="inline-code">Show sp./slash</span> runs the display primitive that omits hybrids, so a hybrid row renders while the same tab's <span class="inline-code">X of N species</span> count excludes it. Widening makes rows and count agree by construction. <span class="inline-code">Show subspecies</span> is a separate control and is deliberately left alone, and left first, so the more specific axis is read first.
+  </div>
+
+  <div class="ba">
+    <div class="pane now">
+      <div class="tag"><span class="dot"></span>Today · Species Detail</div>
+      <div class="body">
+        <div class="toolbar">
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show subspecies</button>
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show sp./slash</button>
+          <span class="countright">612 species</span>
+        </div>
+        <div class="divider"></div>
+        <p class="helper">Hybrid rows such as <strong>Brewster's Warbler (hybrid)</strong> stay visible with this off, but are not in the 612.</p>
+      </div>
+    </div>
+
+    <div class="pane next">
+      <div class="tag"><span class="dot"></span>Proposed · Species Detail</div>
+      <div class="body">
+        <div class="toolbar">
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show subspecies</button>
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show all forms</button>
+          <span class="countright">614 species</span>
+        </div>
+        <div class="divider"></div>
+        <p class="helper">Rows and the count now agree. <strong>Brewster's Warbler (hybrid)</strong> is one press away, and the label names a superset so the press is discoverable.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="ba" style="margin-top:14px">
+    <div class="pane now">
+      <div class="tag"><span class="dot"></span>Today · Multimedia</div>
+      <div class="body">
+        <div class="toolbar">
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show subspecies</button>
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show sp./slash</button>
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show non-bird</button>
+          <span class="pillsep"></span>
+          <span class="countright">438 of 612 species</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="pane next">
+      <div class="tag"><span class="dot"></span>Proposed · Multimedia</div>
+      <div class="body">
+        <div class="toolbar">
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show subspecies</button>
+          <button class="tog" role="switch" aria-checked="true" type="button"><span class="track"><span class="knob"></span></span>Show all forms</button>
+          <button class="tog" role="switch" aria-checked="false" type="button"><span class="track"><span class="knob"></span></span>Show non-bird</button>
+          <span class="pillsep"></span>
+          <span class="countright">440 of 614 species</span>
+        </div>
+        <div class="divider"></div>
+        <p class="helper">Shown here in its <strong>on</strong> state so the accent track and knob position are visible against the shipped tokens.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <h2 class="sec">4 · The same-tab asymmetry, stated</h2>
+  <p class="note">Media documentation coverage and Frivolous Lists ignore the header checkbox, today and after. That is principled: both are <em>about</em> the canonical life list, and a coverage percentage whose denominator the reader can inflate with <span class="inline-code">Gull sp.</span> asks a question with no answer. What is wrong is the published claim that the checkbox decides what counts "across every card". The note already renders in both places; it becomes unconditional and gains one sentence.</p>
+
+  <div class="ba">
+    <div class="pane now">
+      <div class="tag"><span class="dot"></span>Today · Media coverage</div>
+      <div class="body">
+        <div class="tiles">
+          <div class="tile"><div class="lbl">Documented</div><div class="val">438</div></div>
+          <div class="tile"><div class="lbl">Coverage</div><div class="val">71.6%</div></div>
+        </div>
+        <div style="height:12px"></div>
+        <p class="sr-count-rule-note">Counts leave out forms that don't count toward a life list, including escapees.</p>
+        <p class="helper" style="color:var(--sr-error)">Renders only once escapees are resolved. Nothing explains why the header checkbox leaves these two figures still.</p>
+      </div>
+    </div>
+
+    <div class="pane next">
+      <div class="tag"><span class="dot"></span>Proposed · Media coverage</div>
+      <div class="body">
+        <div class="tiles">
+          <div class="tile"><div class="lbl">Documented</div><div class="val">440</div></div>
+          <div class="tile"><div class="lbl">Coverage</div><div class="val">71.7%</div></div>
+        </div>
+        <div style="height:12px"></div>
+        <p class="sr-count-rule-note">Counts leave out forms that don't count toward a life list, including escapees. This figure always uses countable species, whichever way Count all forms is set.</p>
+        <p class="helper">Always rendered. Before escapees resolve, the first sentence drops its final clause and reads <span class="inline-code">Counts leave out forms that don't count toward a life list.</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────────────────────── -->
+  <h2 class="sec">5 · Why no explanatory panel</h2>
+  <p class="note">Re-derived independently against the bundled snapshot rather than taken from the brief. The v0.5.87 escapee panel was built for a number that only ever fell, resolved over the network in about ten seconds, and needed seven status states. This rule is offline, instant, deterministic, and mostly moves the number <strong>up</strong>.</p>
+
+  <div class="ba">
+    <div class="pane next">
+      <div class="tag"><span class="dot"></span>Newly counts · 88 names into 59 species</div>
+      <div class="body scrollx">
+        <table class="delta">
+          <thead><tr><th>Name</th><th>Counts as</th></tr></thead>
+          <tbody>
+            <tr><td>Canada Goose (moffitti/maxima)</td><td class="sci">Canada Goose</td></tr>
+            <tr><td>Redpoll (Common/Hoary)</td><td class="sci">Redpoll</td></tr>
+            <tr><td>Dark-eyed Junco (Slate-colored/cismontanus)</td><td class="sci">Dark-eyed Junco</td></tr>
+            <tr><td>Iceland Gull (thayeri/kumlieni)</td><td class="sci">Iceland Gull</td></tr>
+            <tr><td>Red-tailed Hawk (calurus/abieticola)</td><td class="sci">Red-tailed Hawk</td></tr>
+            <tr><td>Song Sparrow (melodia/atlantica)</td><td class="sci">Song Sparrow</td></tr>
+          </tbody>
+        </table>
+        <p class="helper" style="margin-top:10px">Bread-and-butter North American birds. A birder is far more likely to meet this direction than the other.</p>
+      </div>
+    </div>
+
+    <div class="pane now">
+      <div class="tag"><span class="dot"></span>Stops counting · 81 names</div>
+      <div class="body scrollx">
+        <table class="delta">
+          <thead><tr><th>Kind</th><th class="n">Count</th><th>Reachable?</th></tr></thead>
+          <tbody>
+            <tr><td>(undescribed form) / (unrecognized species)</td><td class="n">53</td><td class="sci">essentially never</td></tr>
+            <tr><td>Genus-level spuh with a parenthetical</td><td class="n">25</td><td class="sci">essentially never</td></tr>
+            <tr><td>Named hybrid carrying no " x "</td><td class="n">3</td><td>Brewster's, Lawrence's</td></tr>
+          </tbody>
+        </table>
+        <p class="helper" style="margin-top:10px">Only <strong>3</strong> are names a birder plausibly holds, and two of those are famous warbler hybrids the birder already knows are hybrids. Nothing is deleted: <strong>Show all forms</strong> puts them back on screen, and they stay on the Life List.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="sec">6 · The one rule, as the help text will state it</h2>
+  <div class="callout">
+    SnowRaven follows eBird's own rule for what counts as a species. <strong>A form that leaves the species in doubt does not count</strong> (a spuh, a slash, a hybrid, an undescribed form). <strong>A form that only leaves the subspecies in doubt counts as its parent species.</strong>
+  </div>
+  <ul class="tight">
+    <li>One rule, stated once. It matches what the code now does and explains <strong>both</strong> directions of the delta without a table.</li>
+    <li>It retires the <span class="strike">intergrade-named-inside-a-trailing-parenthetical</span> explanation that appears in four separate help passages, because eBird's data now answers what that mechanism was inferring.</li>
+    <li>Eleven <span class="inline-code">docs/HELP.md</span> passages change in the same edit, along with the matching claims in <span class="inline-code">README.md</span> and <span class="inline-code">website/index.html</span>.</li>
+  </ul>
+
+</div>
+
+<script>
+(function () {
+  var b = document.getElementById('tt'), l = document.getElementById('ttl'), r = document.documentElement;
+  b.addEventListener('click', function () {
+    var dark = r.getAttribute('data-theme') === 'dark';
+    r.setAttribute('data-theme', dark ? 'light' : 'dark');
+    b.setAttribute('aria-pressed', String(!dark));
+    l.textContent = dark ? 'Dark theme' : 'Light theme';
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[role="switch"]'), function (s) {
+    s.addEventListener('click', function () {
+      s.setAttribute('aria-checked', s.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    });
+  });
+})();
+</script>
+</body>
+</html>
+</content>
