@@ -5,6 +5,15 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Four-build Spool bundle: two backend guard hardenings, a dev-toolchain advisory fix, and a prototype-chain hardening (complete — August 2026, v0.5.90)
+
+Four queued builds shipped as one release, none of them visible: every real checklist id, request, and bird name behaves exactly as before.
+
+- **The eBird checklist-id shape guard has a length ceiling on both halves of the app.** The backend constant and all six browser-side twins agree on `S` plus 1-15 digits and are asserted against each other so they cannot drift; an absurdly long digit run can no longer reach an outbound eBird request, and the ceiling matches the persisted escapee store's own key guard so an id can no longer pass every check and then be silently discarded by the store.
+- **The checklist route refuses a malformed id before asking eBird**, exactly as the weather and tide routes always have — the same shared check, the same 400, applied as the handler's first act, with no request the shipped app can make affected.
+- **Desktop taxonomy lookups can no longer be confused by a bird named after a JavaScript built-in.** Every lookup keyed by a CSV-derived name or eBird code asks only for keys really in the table, and the returned maps are built without a prototype, so a name like `constructor` misses cleanly instead of reading a language built-in.
+- **The build-only nanoid advisory is cleared**, with the shipped app proven byte-identical, so release preflights report zero vulnerabilities again; nothing about the app itself changed.
+
 ### Countability follows eBird's `reportAs` field (complete — August 2026, v0.5.89)
 
 What counts as a species is decided by eBird's own taxonomy rather than by the shape of the name: a form that leaves the species in doubt does not count (a spuh, a slash, a hybrid, an undescribed form), and a form that only leaves the subspecies in doubt counts as its parent species. One rule replaces three near-identical string-shape predicates, so Statistics, the Calendar, county Completeness, and the Multimedia count no longer disagree about the same bird.
