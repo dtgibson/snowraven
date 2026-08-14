@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.90] - 2026-08-14
+
+Three pieces of hardening you will never see. (Shipped as a Spool bundle of 4 builds.)
+
+### Notes
+- **The eBird checklist ID check now has a length ceiling on both halves of the app.** A checklist ID is the letter S followed by digits, and SnowRaven checks that shape before an ID is used anywhere. The check had no upper bound on the digits, so an absurdly long run of them still counted as well formed and could reach an outbound request to eBird. The backend and all six places the browser makes the same check now agree on a ceiling of 15 digits, comfortably above any ID eBird has ever issued, and they are asserted against each other so they cannot drift apart. Nothing changes for any real checklist ID.
+- **Fetching a checklist now refuses a malformed ID before asking eBird.** The weather and tide routes have always checked the ID's shape first and answered a bad one immediately; the checklist route passed it through and let eBird say no. It now applies the same check as its siblings, in the same place. No request the shipped app can make is affected, since the app already checks the shape before calling.
+- **A bird literally named "constructor" can no longer confuse the desktop app's taxonomy lookups.** Species names from your CSV are used to look up codes and sort order in bundled tables, and a handful of words (constructor, toString, and their relatives) are special to the language those tables are built in, so a name matching one of them could read a built-in function instead of a bird. Every such lookup on the desktop path now asks only for names that are really in the table. No real bird name changes its answer.
+
 ## [0.5.89] - 2026-08-13
 
 SnowRaven now follows eBird's own rule for what counts as a species, instead of working it out from the shape of the name.
