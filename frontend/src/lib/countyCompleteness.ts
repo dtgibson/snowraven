@@ -13,7 +13,7 @@
 // data-driven breaks.
 
 import type { ObservationEntry } from '../types'
-import { isNonCountableSpecies, normalizeSpeciesName } from './speciesUtils'
+import { isNonCountableForm, normalizeSpeciesName } from './speciesUtils'
 import { countyKeyFromState } from './countyBoundaries'
 import type { CountyMetric } from './countyShading'
 
@@ -45,7 +45,7 @@ export interface CountyLocalCompleteness {
   stateProvince: string
   /** Display county name. */
   county: string
-  /** X: DISTINCT countable species (isNonCountableSpecies), subspecies collapsed. */
+  /** X: DISTINCT countable species (isNonCountableForm), subspecies collapsed. */
   countableCount: number
   /** Normalized DISTINCT countable common names (targets subtraction + code resolve). */
   countableNames: string[]
@@ -166,10 +166,10 @@ export function completenessPercent(x: number, y: number): number {
 
 /**
  * Build the per-county local completeness map from the loaded backup, keyed by
- * `countyKey(stusps, name)` (FR-12 — never name-only). Countable = species-level
- * normalized names with spuh/slash/hybrid excluded (`isNonCountableSpecies`,
- * FR-07); subspecies collapse via `normalizeSpeciesName`. `recentNew` ranks each
- * county's species by their FIRST in-county date, newest first (FR-21).
+ * `countyKey(stusps, name)` (FR-12 — never name-only). Countable = the forms
+ * eBird counts toward a species list (`isNonCountableForm`, FR-07); subspecies
+ * collapse via `normalizeSpeciesName`. `recentNew` ranks each county's species by
+ * their FIRST in-county date, newest first (FR-21).
  */
 export function buildCountyCompletenessLocal(
   observations: ObservationEntry[],
@@ -202,8 +202,12 @@ export function buildCountyCompletenessLocal(
     const key = countyKeyFromState(o.stateProvince, o.county)
     if (!key) continue
     const norm = normalizeSpeciesName(o.commonName)
-    // The escapee rule composes with the countable-name predicate (FR-05).
-    if (isNonCountableSpecies(norm) || excludedNames.has(norm)) continue
+    // Two rules, two inputs, deliberately: the form rule takes the RAW name
+    // (the form eBird judges only exists there, so `norm` would lose
+    // "Brewster's Warbler (hybrid)"), the escapee rule takes the NORMALIZED
+    // name (its cache is keyed per species). They compose; neither replaces the
+    // other (FR-05).
+    if (isNonCountableForm(o.commonName) || excludedNames.has(norm)) continue
     let w = work.get(key)
     if (!w) {
       w = { stateProvince: o.stateProvince!, county: o.county!, firstDates: new Map() }

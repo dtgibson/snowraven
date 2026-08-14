@@ -18,7 +18,7 @@ import { formatDate } from '../lib/formatDate'
 import { computeFrivolousLists } from '../lib/frivolousLists'
 import type { NameListResult, GroupedListResult, RainbowEntry, SpeciesTick } from '../lib/frivolousLists'
 import type { ObservationEntry } from '../types'
-import { COUNT_RULE_SENTENCE } from '../lib/exoticCopy'
+import { COUNT_RULE_SENTENCE, COUNT_RULE_SENTENCE_NO_ESCAPEES, ALWAYS_COUNTABLE_NOTE } from '../lib/exoticCopy'
 
 interface Props {
   observations: ObservationEntry[]
@@ -192,12 +192,14 @@ export function FrivolousListsSections({ observations, codeFor, hasEntryFor, onO
   const { isHotspot } = useHotspotSet()
   return (
     <>
-      {/* FR-33: where a count reflects the escapee rule, the surface makes the
-          rule legible. Rendered only when the exclusion is actually in force, so
-          an unresolved cache adds no copy. */}
-      {excludedNames.size > 0 && (
-        <p className="sr-count-rule-note">{COUNT_RULE_SENTENCE}</p>
-      )}
+      {/* Where a count reflects a count rule, the surface makes the rule legible.
+          UNCONDITIONAL since the countability build: the form exclusion is always
+          in force here, so there is always something to account for, where the
+          escapee half still depends on a resolution that may never have run. */}
+      <p className="sr-count-rule-note">
+        {excludedNames.size > 0 ? COUNT_RULE_SENTENCE : COUNT_RULE_SENTENCE_NO_ESCAPEES}{' '}
+        {ALWAYS_COUNTABLE_NOTE}
+      </p>
       <NameList title="Avian American" list={data.avianAmerican} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />
       <Divider />
       <NameList title="California Dreamer" list={data.californiaDreamer} codeFor={codeFor} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} />

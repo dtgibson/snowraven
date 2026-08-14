@@ -25,7 +25,8 @@ import { ChecklistLink } from './ChecklistLink'
 import { HotspotLink } from './HotspotLink'
 import { useHotspotSet } from '../lib/useHotspotSet'
 import type { ObservationEntry, MediaType } from '../types'
-import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
+import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
+import { SHOW_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 import { formatDate } from '../lib/formatDate'
@@ -109,7 +110,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
   const handleToggleSpuh = () => {
     const nextShowSpuh = !showSpuh
-    if (!nextShowSpuh && selectedSpecies && isSpuhOrSlash(selectedSpecies)) {
+    if (!nextShowSpuh && selectedSpecies && !countableKeys.has(selectedSpecies)) {
       selectSpecies(null)
     }
     setShowSpuh(nextShowSpuh)
@@ -186,15 +187,24 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
 
   // ── Derived data ───────────────────────────────────────────────────────
 
-  const { sciNameMap, sortedSpeciesList } = useMemo(() => {
-    if (phase.tag !== 'ready') return { sciNameMap: new Map<string, string>(), sortedSpeciesList: [] }
+  const { sciNameMap, sortedSpeciesList, countableKeys } = useMemo(() => {
+    if (phase.tag !== 'ready') return { sciNameMap: new Map<string, string>(), sortedSpeciesList: [], countableKeys: new Set<string>() }
 
     const seen = new Map<string, string>()   // name → first sci name
     const orders = new Map<string, number>() // name → min taxon order
 
+    // Countability is a monotone OR over the RAW names behind each key: countable
+    // if AT LEAST ONE observation under it counts. It must be decided from
+    // `o.commonName`, because under "Show subspecies" off the key is the
+    // normalized base and the form the rule judges is already gone from it
+    // ("Brewster's Warbler (hybrid)" collapses to "Brewster's Warbler", which
+    // reads exactly like a species). Same shape as the escapee rule.
+    const countableKeys = new Set<string>()
+
     for (const o of phase.observations) {
       const key = mergeSubspecies ? normalizeSpeciesName(o.commonName) : o.commonName
       if (!seen.has(key)) seen.set(key, o.scientificName)
+      if (!isNonCountableForm(o.commonName)) countableKeys.add(key)
       const order = taxonOrders[o.commonName.toLowerCase()] ?? taxonOrders[key.toLowerCase()] ?? Infinity
       const current = orders.get(key) ?? Infinity
       if (order < current) orders.set(key, order)
@@ -207,13 +217,13 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
       return a.localeCompare(b)
     })
 
-    return { sciNameMap: seen, sortedSpeciesList: sorted }
+    return { sciNameMap: seen, sortedSpeciesList: sorted, countableKeys }
   }, [phase, taxonOrders, mergeSubspecies])
 
-  // Apply spuh/slash filter
+  // Apply the countable-form filter ("Show all forms").
   const displaySpeciesList = useMemo(
-    () => showSpuh ? sortedSpeciesList : sortedSpeciesList.filter(name => !isSpuhOrSlash(name)),
-    [sortedSpeciesList, showSpuh]
+    () => showSpuh ? sortedSpeciesList : sortedSpeciesList.filter(name => countableKeys.has(name)),
+    [sortedSpeciesList, showSpuh, countableKeys]
   )
 
   // Select a species and scroll the detail back to the top (used by in-tab
@@ -475,7 +485,7 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           the .sr-input-16 combobox directly beneath them (globals.css). */}
       <div className="sr-ctl-row" style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexShrink: 0, flexWrap: 'wrap' }}>
         <ToggleSwitch label="Show subspecies" checked={!mergeSubspecies} onChange={handleToggleMerge} />
-        <ToggleSwitch label="Show sp./slash" checked={showSpuh} onChange={handleToggleSpuh} />
+        <ToggleSwitch label={SHOW_FORMS_TOGGLE_LABEL} checked={showSpuh} onChange={handleToggleSpuh} />
         <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
           {displaySpeciesList.length} species
         </span>

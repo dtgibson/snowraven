@@ -1,5 +1,5 @@
 import type { LifeListEntry } from './parseLifeList'
-import { isNonCountableObservedName, truncateAtFirstParen } from './speciesUtils'
+import { isNonCountableForm, truncateAtFirstParen } from './speciesUtils'
 
 export interface MLExportRow {
   catalogId: string
@@ -149,7 +149,7 @@ export function parseMLExport(text: string): MLExportResult {
     if (!rawId || !/^\d+$/.test(rawId)) continue
 
     const rawName = col(cols, commonNameIdx)
-    if (!rawName || isNonCountableObservedName(rawName)) continue
+    if (!rawName || isNonCountableForm(rawName)) continue
     const commonName = truncateAtFirstParen(rawName)
 
     const format = col(cols, formatIdx)

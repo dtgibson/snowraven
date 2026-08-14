@@ -41,6 +41,7 @@
 import { writeFile, mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { deriveCountability, guard as guardCountability } from './build-countability.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..')
@@ -169,6 +170,20 @@ async function run() {
     `  version=${bundle.version} generated=${bundle.generated} | ` +
     `raw=${counts.raw} byCode=${counts.byCode} bySci=${counts.bySci} ` +
     `byCom=${counts.byCom} byOrder=${counts.byOrder} reportAs=${counts.reportAs}`
+  )
+
+  // The countability artifact is derived from the bundle we just built, in the
+  // SAME run, so the two can never drift across an annual Clements revision. It
+  // is what `lib/speciesUtils.ts` reads to decide what counts toward a species
+  // list; see `build-countability.mjs` for what it contains and why it is only
+  // the 169 corrections rather than all 17,891 verdicts.
+  const countability = deriveCountability(bundle)
+  guardCountability(countability)
+  const countabilityTarget = join(REPO, 'frontend/src/assets/ebird-countability.json')
+  await writeFile(countabilityTarget, JSON.stringify(countability))
+  console.log(
+    `wrote ${countabilityTarget}\n  countable=${countability.countable.length} ` +
+    `nonCountable=${countability.nonCountable.length} (over ${countability.names} published names)`
   )
 }
 

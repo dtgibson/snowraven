@@ -61,7 +61,7 @@ describe('filterObservations', () => {
   })
 })
 
-// A life-list COUNT excludes spuh, slash AND hybrids (`isNonCountableSpecies`),
+// A life-list COUNT excludes spuh, slash AND hybrids (`isNonCountableForm`),
 // not just spuh/slash. Hybrids used to survive this filter and inflate every
 // derived species total on Statistics and the Map Explorer's county aggregates.
 describe('filterObservations — hybrids never inflate a species count', () => {

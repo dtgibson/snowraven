@@ -10,6 +10,7 @@
 // not just what the network is doing.
 
 import type { ProvenanceStatus } from './useExoticProvenance'
+import { COUNT_FORMS_TOGGLE_LABEL } from './countabilityCopy'
 
 /**
  * The ONE sentence reused wherever a count reflects the escapee rule (FR-33,
@@ -24,8 +25,49 @@ import type { ProvenanceStatus } from './useExoticProvenance'
  * On the Calendar it renders as plain text with no link and no fetch, which
  * preserves that tab's zero-network guarantee (FR-35, QA-40).
  */
-export const COUNT_RULE_SENTENCE =
-  "Counts leave out forms that don't count toward a life list, including escapees."
+export const COUNT_RULE_SENTENCE = countRuleSentence(true)
+
+/**
+ * The same sentence with the escapee clause dropped, for a surface that renders
+ * the rule BEFORE or WITHOUT any escapee resolution, where naming escapees would
+ * over-claim. Newly needed because the form exclusion is now always in force on
+ * the two fixed-scope surfaces, so their note is unconditional while the escapee
+ * half still depends on a network pass that may never have run.
+ */
+export const COUNT_RULE_SENTENCE_NO_ESCAPEES = countRuleSentence(false)
+
+/**
+ * The two rule sentences are ONE base plus an optional clause, so they are
+ * generated rather than written twice (design-system.md's manifest rule: when a
+ * preference's copy multiplies, generate every string from one source). Writing
+ * them as two literals would let the shared half drift on the next edit, which is
+ * precisely the failure the rule exists to prevent.
+ */
+function countRuleSentence(includingEscapees: boolean): string {
+  const base = "Counts leave out forms that don't count toward a life list"
+  return includingEscapees ? `${base}, including escapees.` : `${base}.`
+}
+
+/**
+ * The sentence that makes the Statistics same-tab asymmetry visible instead of
+ * leaving it a silent surprise: media documentation coverage and Frivolous Lists
+ * apply the countable rule unconditionally, so the header checkbox does not move
+ * them.
+ *
+ * That asymmetry is principled rather than accidental. Both metrics are ABOUT the
+ * canonical life list, not about what was recorded: a coverage percentage whose
+ * denominator the reader can inflate with "Gull sp." is asking "have you
+ * photographed a spuh", which is not a question that has an answer. v0.5.87
+ * extended the same asymmetry to escapees in three separate comments, each
+ * phrased "exactly as it already ignores the include-spuh toggle". Unifying the
+ * predicate made the asymmetry more visible; it did not make it wrong.
+ *
+ * It names the control in the control's own words so a reader can connect the
+ * sentence to the checkbox they just clicked without a link, which is why it
+ * imports the label rather than repeating it.
+ */
+export const ALWAYS_COUNTABLE_NOTE =
+  `This figure always uses countable species, whichever way ${COUNT_FORMS_TOGGLE_LABEL} is set.`
 
 /**
  * The county Completeness caption, replacing "spuhs, slashes & hybrids don't
@@ -59,8 +101,11 @@ export const ESCAPEE_LEAD_ON =
   'eBird tags these as Exotic: Escapee. They are counted here because Count escapees is on.'
 
 /** The toggle's own label. Chosen over "Count eBird escapees" for the clean
- *  parallel with its neighbour "Count spuh, slash & hybrids", which likewise
- *  names its classes without attribution. The eBird attribution is made once,
+ *  parallel with its stacked neighbour, which likewise names what it counts
+ *  without attribution. That neighbour is now `COUNT_FORMS_TOGGLE_LABEL`
+ *  ("Count all forms"), renamed in the countability build; the parallel this
+ *  label was chosen for was deliberately preserved through that rename, so this
+ *  reason still holds. The eBird attribution is made once,
  *  precisely, in the rule line. The label names only the class it governs and
  *  claims no parity beyond FR-01 (FR-29, QA-34). */
 export const ESCAPEE_TOGGLE_LABEL = 'Count escapees'

@@ -149,7 +149,7 @@ describe('Calendar — grids and controls (QA-13/24/25/48)', () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
     fireEvent.click(screen.getByRole('button', { name: 'Total count' }))
-    const formsSwitch = screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ })
+    const formsSwitch = screen.getByRole('switch', { name: /Count all forms/ })
     // NOT disabled under Total count (unlike Checklists)
     expect(formsSwitch.getAttribute('aria-disabled')).not.toBe('true')
     expect(formsSwitch.getAttribute('tabindex')).toBe('0')
@@ -465,7 +465,7 @@ describe('Calendar — spuh toggle (QA-49)', () => {
   it('defaults OFF and is Species-only: dimmed + inert under the Checklists metric', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    const formsSwitch = screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ })
+    const formsSwitch = screen.getByRole('switch', { name: /Count all forms/ })
     expect(formsSwitch.getAttribute('aria-checked')).toBe('false')
 
     // switch to Checklists → the settling row toggle becomes inert (tabindex -1, aria-disabled)
@@ -479,15 +479,15 @@ describe('Calendar — spuh toggle (QA-49)', () => {
     await screen.findByText('January')
     // sub-line before
     expect(screen.getByText(/Species seen each day/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /Count all forms/ }))
     // sub-line now notes forms included
-    expect(screen.getByText(/spuh\/slash\/hybrids included/)).toBeTruthy()
+    expect(screen.getByText(/all forms included/)).toBeTruthy()
   })
 
   it('does not persist any setting through the storage seam (QA-49)', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    fireEvent.click(screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /Count all forms/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Checklists' }))
     fireEvent.click(screen.getByRole('button', { name: 'Compact' }))
     expect(setSetting).not.toHaveBeenCalled()
@@ -528,7 +528,7 @@ describe('Calendar — per-species filter (searchable combobox)', () => {
   it('selecting a species (click) disables the spuh/include-forms toggle and notes it in the sub-line', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    const formsSwitch = screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ })
+    const formsSwitch = screen.getByRole('switch', { name: /Count all forms/ })
     expect(formsSwitch.getAttribute('aria-disabled')).not.toBe('true')
 
     const input = screen.getByRole('combobox', { name: /Filter the calendar to one species/ })
@@ -655,7 +655,7 @@ describe('Calendar — day popup (QA-33/34/37)', () => {
     // Close the popup, flip the include-forms toggle ON, reopen the (now count-2) cell.
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    fireEvent.click(screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /Count all forms/ }))
     // With forms ON the day cell now reads 2 (Robin + gull sp.).
     fireEvent.click(screen.getByRole('button', { name: /Mar 14, 2025: 2\. Open day details/ }))
     dialog = await screen.findByRole('dialog')
@@ -700,7 +700,7 @@ describe('Calendar — header layout (QA-50)', () => {
   it('the spuh toggle sits on its own settling row separate from the primary controls', async () => {
     render(<Calendar {...props} />)
     await screen.findByText('January')
-    const formsSwitch = screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ })
+    const formsSwitch = screen.getByRole('switch', { name: /Count all forms/ })
     const metricBtn = screen.getByRole('button', { name: 'Species' })
     // the settling row (with aria-disabled attr present) is a different container
     // than the one holding the metric SegControl.
@@ -736,8 +736,8 @@ describe('Calendar — no re-read / no re-parse on toggle (QA-04 / QA-41)', () =
     fireEvent.click(screen.getByRole('switch', { name: 'Use Textures' }))
     fireEvent.click(screen.getByRole('switch', { name: 'Use Textures' }))
     // Count-forms on/off (Species metric).
-    fireEvent.click(screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ }))
-    fireEvent.click(screen.getByRole('switch', { name: /Count spuh, slash & hybrids/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /Count all forms/ }))
+    fireEvent.click(screen.getByRole('switch', { name: /Count all forms/ }))
     // Year navigation: previous (2025 → 2024) then All years (combined) and back.
     fireEvent.click(screen.getByRole('button', { name: 'Previous year with data' }))
     fireEvent.click(screen.getByRole('button', { name: 'All years' }))

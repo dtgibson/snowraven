@@ -10,7 +10,8 @@ import type { MLExportRow } from '../lib/parseMLExport'
 import { assetMatchesFacet, buildCatalogAgeSex } from '../lib/mediaStats'
 import type { AgeClass, Sex } from '../lib/mediaStats'
 import { loadEbirdObservations } from '../lib/observationsCache'
-import { normalizeSpeciesName, isSpuhOrSlash } from '../lib/speciesUtils'
+import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
+import { SHOW_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
 import { LifeListTable } from './LifeListTable'
 import { MediaCommentsSection } from './MediaCommentsSection'
 import { hasMediaComment } from '../lib/mediaComments'
@@ -33,10 +34,16 @@ function buildComprehensiveEntries(
   mlRows: MLExportRow[],
   mergeSubspecies: boolean,
 ): LifeListEntry[] {
-  const ebirdMap = new Map<string, { sci: string }>()
+  // `countable` is a monotone OR over the RAW names behind each display key. It has
+  // to be decided here, from `o.commonName`, because under "Show subspecies" off the
+  // key is the normalized base and the form the rule judges is already gone from it.
+  const ebirdMap = new Map<string, { sci: string; countable: boolean }>()
   for (const o of ebirdObs) {
     const name = mergeSubspecies ? normalizeSpeciesName(o.commonName) : o.commonName
-    if (!ebirdMap.has(name)) ebirdMap.set(name, { sci: o.scientificName })
+    const countable = !isNonCountableForm(o.commonName)
+    const existing = ebirdMap.get(name)
+    if (!existing) ebirdMap.set(name, { sci: o.scientificName, countable })
+    else if (countable) existing.countable = true
   }
 
   const ebirdNormalizedSet = new Set<string>()
@@ -62,6 +69,7 @@ function buildComprehensiveEntries(
       taxonomicOrder: Infinity,
       catalogIds,
       isNonBird: false,
+      nonCountable: !data.countable,
     })
   }
 
@@ -361,7 +369,10 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     }
 
     return base.filter(e => {
-      if (!showSpuh && isSpuhOrSlash(e.commonName)) return false
+      // `nonCountable` is decided from the RAW names in buildComprehensiveEntries;
+      // fall back to the display name only for parser-derived entries, which drop
+      // non-countable rows at parse and so never set the flag.
+      if (!showSpuh && (e.nonCountable ?? isNonCountableForm(e.commonName))) return false
       if (!showNonBird && e.isNonBird) return false
       return true
     })
@@ -395,7 +406,10 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
       base = phaseEntries
     }
     return base.filter(e => {
-      if (!showSpuh && isSpuhOrSlash(e.commonName)) return false
+      // `nonCountable` is decided from the RAW names in buildComprehensiveEntries;
+      // fall back to the display name only for parser-derived entries, which drop
+      // non-countable rows at parse and so never set the flag.
+      if (!showSpuh && (e.nonCountable ?? isNonCountableForm(e.commonName))) return false
       if (!showNonBird && e.isNonBird) return false
       return true
     })
@@ -747,7 +761,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
             onChange={() => setMergeSubspecies(v => !v)}
           />
           <ToggleSwitch
-            label="Show sp./slash"
+            label={SHOW_FORMS_TOGGLE_LABEL}
             checked={showSpuh}
             onChange={() => setShowSpuh(v => !v)}
           />

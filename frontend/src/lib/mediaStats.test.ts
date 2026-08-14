@@ -140,16 +140,52 @@ describe('computeMediaStats', () => {
     expect(s.coverage!.withAudio).toBe(1) // robin has audio
   })
 
+  // The passed set is the full recorded-name set (it also drives Species-Detail
+  // linking), so it can contain forms eBird does not count; the denominator must
+  // not. `isNonCountableForm` answers that from `ebird-countability.json` first
+  // and falls back to the name shape, so these fixtures exercise both layers.
+  //
+  // NAMES ARE CANONICALLY CASED ON PURPOSE: the artifact lookup is an exact
+  // string match and eBird's names are canonically cased, so a lowercased
+  // fixture misses both correction sets and reaches the shape fallback ONLY.
+  //
+  // THE TWO CORRECTIONS ARE ASSERTED SEPARATELY, and that is load-bearing rather
+  // than tidiness. Measured: with both in ONE set, stubbing `isNonCountableForm`
+  // down to the bare shape rule leaves this suite GREEN, because the two errors
+  // cancel exactly. Dropping the artifact removes Canada Goose (moffitti/maxima)
+  // from the denominator (the shape rule rejects it on the "/") and adds
+  // Brewster's Warbler (hybrid) to it (the shape rule sees no " sp.", no "/" and
+  // no " x "), for the same total. Split apart, each one goes red on its own.
+  const PLAIN = ['American Robin', 'Bald Eagle', 'Mallard', 'Osprey']
+
   it('excludes spuh / slash / hybrid forms from the coverage life-list total', () => {
-    // The passed set is the full recorded-name set (it also drives Species-Detail
-    // linking), so it can contain non-countable forms; the denominator must not.
+    // The shape-rule layer, on names the artifact does not correct.
     const life = new Set([
-      'american robin', 'bald eagle', 'mallard', 'osprey',
-      'gull sp.', 'greater/lesser scaup', 'mallard x american black duck',
+      ...PLAIN,
+      'Gull sp.', 'Greater/Lesser Scaup', 'Mallard x American Black Duck',
     ])
     const s = computeMediaStats(rows, life)
     expect(s.coverage!.lifeListTotal).toBe(4) // the three non-countable forms dropped
-    expect(s.coverage!.documented).toBe(3)    // unchanged — same documented species
+    expect(s.coverage!.documented).toBe(3)    // unchanged, same documented species
+  })
+
+  it('keeps a name eBird counts that the name shape alone would reject', () => {
+    // `Canada Goose (moffitti/maxima)` is in the artifact's `countable` list: a
+    // subspecies-group slash inside a trailing parenthetical, which leaves the
+    // subspecies in doubt but not the species. It belongs in the denominator.
+    const life = new Set([...PLAIN, 'Canada Goose (moffitti/maxima)'])
+    const s = computeMediaStats(rows, life)
+    expect(s.coverage!.lifeListTotal).toBe(5)
+    expect(s.coverage!.documented).toBe(3)
+  })
+
+  it('drops a name eBird rejects that the name shape alone would count', () => {
+    // `Brewster's Warbler (hybrid)` is in the artifact's `nonCountable` list: a
+    // named hybrid carrying no " x ", so nothing in the string gives it away.
+    const life = new Set([...PLAIN, "Brewster's Warbler (hybrid)"])
+    const s = computeMediaStats(rows, life)
+    expect(s.coverage!.lifeListTotal).toBe(4)
+    expect(s.coverage!.documented).toBe(3)
   })
 
   it('finds the busiest media day and the longest streak with its dates', () => {

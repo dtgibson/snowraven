@@ -10,8 +10,8 @@
 // the day popup). Both show the whole year, only the cell size and what each cell
 // carries differ; the overview is read-only (the toggle is the only way to switch
 // views). The toggle governs at ALL widths (phones included), so both distinct views
-// are reachable on mobile. A low-emphasis "Count spuh, slash & hybrids" toggle
-// optionally admits non-countable forms into the Species / Total count metrics.
+// are reachable on mobile. A low-emphasis "Count all forms" toggle optionally
+// admits the forms eBird does not count into the Species / Total count metrics.
 //
 // Frontend-only, offline, zero new network. Pure derivation lives in lib/calendar.ts;
 // the DOM crosshatch density in lib/calendarTextures.ts. See pipeline/calendar-tab.
@@ -28,6 +28,9 @@ import { storage } from '../lib/storage'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { useProvenanceLookup } from '../lib/useProvenanceLookup'
 import { COUNT_RULE_SENTENCE } from '../lib/exoticCopy'
+import {
+  COUNT_FORMS_TOGGLE_LABEL, COUNT_FORMS_HELPER, COUNT_FORMS_POPUP_NOTE, COUNT_FORMS_SUFFIX,
+} from '../lib/countabilityCopy'
 import { formatDate } from '../lib/formatDate'
 import { ChecklistLink } from './ChecklistLink'
 import { computeCountyTiers, type CountyTiers } from '../lib/countyShading'
@@ -606,7 +609,7 @@ function DayPopup({ cell, view, includeForms, showFormsNote, onClose }: {
           <div>
             <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--sr-text)', letterSpacing: '-0.01em' }}>{dateLabel}</div>
             {combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Across all years</div>}
-            {showFormsNote && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>Spuh / slash / hybrids included in the species &amp; individual counts</div>}
+            {showFormsNote && !combined && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{COUNT_FORMS_POPUP_NOTE}</div>}
           </div>
           <button
             ref={closeRef}
@@ -934,7 +937,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
     : metric === 'total'
       ? (combined ? 'Individuals recorded on each calendar day' : 'Individuals recorded each day')
       : (combined ? 'Species ever recorded on each calendar day' : 'Species seen each day')
-  const formsSuffix = (metric === 'species' || metric === 'total') && !speciesFilterActive && includeForms ? ', spuh/slash/hybrids included' : ''
+  const formsSuffix = (metric === 'species' || metric === 'total') && !speciesFilterActive && includeForms ? COUNT_FORMS_SUFFIX : ''
   const speciesSuffix = speciesFilterActive ? ` · ${selectedSpecies} only` : ''
   const viewSub = `${metricPhrase}${formsSuffix}${speciesSuffix} · ${daysBirded.toLocaleString()} ${daysBirded === 1 ? 'day' : 'days'} birded`
 
@@ -1034,7 +1037,7 @@ export function Calendar({ onGoToSettings, filesVersion }: {
           <Switch label="Use Textures" checked={textures} onChange={() => setTextures(v => !v)} />
         </div>
 
-        {/* Settling row: the spuh/slash/hybrid toggle — Species-only, dimmed + inert under Checklists */}
+        {/* Settling row: the Count all forms toggle — Species-only, dimmed + inert under Checklists */}
         <div
           className="sr-wrap-flex"
           aria-disabled={formsDisabled || undefined}
@@ -1046,9 +1049,9 @@ export function Calendar({ onGoToSettings, filesVersion }: {
             pointerEvents: formsDisabled ? 'none' : 'auto',
           }}
         >
-          <Switch small label="Count spuh, slash & hybrids" checked={includeForms} onChange={() => setIncludeForms(v => !v)} disabled={formsDisabled} />
+          <Switch small label={COUNT_FORMS_TOGGLE_LABEL} checked={includeForms} onChange={() => setIncludeForms(v => !v)} disabled={formsDisabled} />
           <p style={{ margin: 0, fontSize: '0.6875rem', lineHeight: 1.35, color: 'var(--sr-text-muted)' }}>
-            Spuh / slash / hybrid forms aren't countable species; off by default.
+            {COUNT_FORMS_HELPER}
           </p>
           {/* FR-33: the Species metric reflects the escapee rule once Statistics
               has resolved it, so the rule is stated here rather than left to be

@@ -1,4 +1,4 @@
-import { isNonCountableObservedName, truncateAtFirstParen } from './speciesUtils'
+import { isNonCountableForm, truncateAtFirstParen } from './speciesUtils'
 
 export interface LifeListEntry {
   commonName: string
@@ -6,6 +6,25 @@ export interface LifeListEntry {
   taxonomicOrder: number
   catalogIds: string[]
   isNonBird?: boolean
+  /**
+   * True when eBird counts NONE of the raw observed names behind this entry.
+   *
+   * `commonName` here is a DISPLAY name, and under "Show subspecies" off it is the
+   * normalized base, which destroys the form the countability rule judges:
+   * "Brewster's Warbler (hybrid)" collapses to "Brewster's Warbler", which reads
+   * exactly like a species. So the verdict has to be carried alongside the name
+   * rather than recomputed from it.
+   *
+   * Monotone OR over the entry's raw names: countable if AT LEAST ONE counts.
+   * That is the same shape as the escapee rule (a species counts if one of its
+   * observations does), and it is what makes a merged entry behave sensibly: a
+   * birder holding both "Redpoll (Common/Hoary)" and a plain "Redpoll" has a
+   * countable Redpoll either way.
+   *
+   * Optional because the CSV parsers drop non-countable rows at parse time, so
+   * entries they produce are countable by construction and leave it undefined.
+   */
+  nonCountable?: boolean
 }
 
 function parseCSVLine(line: string): string[] {
@@ -71,7 +90,7 @@ export function parseLifeList(text: string): LifeListEntry[] {
     const cols = parseCSVLine(line)
 
     const rawName = col(cols, commonNameIdx)
-    if (!rawName || isNonCountableObservedName(rawName)) continue
+    if (!rawName || isNonCountableForm(rawName)) continue
     const commonName = truncateAtFirstParen(rawName)
 
     const rawTaxOrder = col(cols, taxonomicOrderIdx)

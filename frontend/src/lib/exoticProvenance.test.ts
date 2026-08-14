@@ -219,7 +219,7 @@ describe('buildCoverIndex (FR-05, FR-07, FR-10, QA-11, QA-15)', () => {
   })
 
   it('keeps a countable INTERGRADE, because it takes the RAW exported name', () => {
-    // `isNonCountableObservedName` tests " x " on the NORMALIZED name, so an
+    // `isNonCountableForm` tests " x " on the NORMALIZED name, so an
     // intraspecific intergrade stays countable while a true hybrid does not.
     // Using the normalized-name predicate here would erase the species outright
     // when the intergrade is a birder's only record of it.

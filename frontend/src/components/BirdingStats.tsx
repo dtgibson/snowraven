@@ -17,7 +17,8 @@ import { jumpTo } from '../lib/scroll'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import type { MLExportRow } from '../lib/parseMLExport'
-import { normalizeSpeciesName } from '../lib/speciesUtils'
+import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
+import { COUNT_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
 import { regionName } from '../lib/regionNames'
 import { BirdName } from './BirdName'
 import {
@@ -257,6 +258,25 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
     () => new Set(effectiveObs.map(o => normalizeSpeciesName(o.commonName))),
     [effectiveObs],
   )
+  // The same set with the forms eBird does not count already dropped. The form
+  // rule has to run on the RAW name, BEFORE normalization, because that is the
+  // only place the form survives: "Brewster's Warbler (hybrid)" normalizes to
+  // "Brewster's Warbler", which reads exactly like a species. Media
+  // documentation coverage is the consumer; it must not disagree with the
+  // Species tile about what a species is, on the same tab.
+  //
+  // Deliberately NOT derived from `filteredObs`: coverage applies the countable
+  // rule unconditionally, independent of the "Count all forms" toggle, exactly
+  // as it already ignores it for escapees (FR-30, FR-34). Depending only on
+  // `effectiveObs` is what keeps the toggle out of this memo.
+  const countableBackboneNames = useMemo(() => {
+    const names = new Set<string>()
+    for (const o of effectiveObs) {
+      if (isNonCountableForm(o.commonName)) continue
+      names.add(normalizeSpeciesName(o.commonName))
+    }
+    return names
+  }, [effectiveObs])
   const hasEntryFor = (name: string) => backboneNames.has(normalizeSpeciesName(name))
   // Normalized taxon-code lookup so the (normalized) names in Stats lists resolve
   // to a code even when the resolved map is keyed by the original (subspecies) name.
@@ -358,8 +378,8 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   // independent of the toggle, exactly as it already ignores the include-spuh
   // toggle (FR-30, FR-34, QA-39).
   const mediaStats = useMemo(
-    () => computeMediaStats(effectiveMl, backboneNames, excludedNames),
-    [effectiveMl, backboneNames, excludedNames],
+    () => computeMediaStats(effectiveMl, countableBackboneNames, excludedNames),
+    [effectiveMl, countableBackboneNames, excludedNames],
   )
 
   // Fun stats
@@ -472,7 +492,7 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
               onChange={e => setIncludeSpuh(e.target.checked)}
               style={{ accentColor: 'var(--sr-accent)', width: 14, height: 14 }}
             />
-            Count spuh, slash &amp; hybrids
+            {COUNT_FORMS_TOGGLE_LABEL}
           </label>
           <label className="sr-count-rule">
             <input

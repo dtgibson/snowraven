@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 0.5.88">v0.5.88</span>
+        <span class="version-pill" aria-label="Version 0.5.89">v0.5.89</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -237,8 +237,14 @@
               collections, just for fun.
             </p>
             <p>
-              Two count rules sit in the tab header, both off by default. One decides
-              whether spuhs, slashes, and hybrids count. The other, Count escapees,
+              Two count rules sit in the tab header, both off by default.
+              One, Count all forms, follows eBird's own rule for what counts as a species:
+              a form that leaves the species in doubt does not count (a spuh, a slash, a
+              hybrid, an undescribed form), while a form that only leaves the subspecies
+              in doubt counts as its parent species. It moves the Species tile and most
+              of the cards, though media documentation coverage and the Frivolous Lists
+              always use countable species, whichever way it is set, and say so where
+              their figures appear. The other, Count escapees,
               follows eBird's own life-list rule: Naturalized and Provisional exotics
               count toward a life list, Escapee does not. SnowRaven works out which of
               your birds eBird tags as escapees by asking about the smallest set of your
@@ -385,8 +391,10 @@
               within a fixed width, and <strong>Pin code labels</strong> keeps the row of code
               headings in view as you scroll down a long species list, so you always know which
               column a circle sits in. It is off by default and per-session, resetting on relaunch.
-              True interspecies hybrids remain excluded, while an intergrade named inside a
-              trailing parenthetical counts as its parent species. On a phone, in either view,
+              What counts as a species follows eBird's own rule: a form that leaves the
+              species in doubt does not count (a spuh, a slash, a hybrid, an undescribed
+              form), while a form that only leaves the subspecies in doubt counts as its
+              parent species. On a phone, in either view,
               the columns tighten to dot-width so more fit at once, and the species-name column
               stays fixed on the left as you scroll the codes sideways in the normal view. Long
               filter meanings wrap inside their pills, and a long bird name can wrap above its
@@ -663,7 +671,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v0.5.88 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v0.5.89 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

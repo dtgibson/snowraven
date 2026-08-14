@@ -8,7 +8,7 @@
 // the parent via normalizeSpeciesName, so a subspecies entry still ticks its list.
 
 import type { ObservationEntry } from '../types'
-import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
+import { normalizeSpeciesName, isNonCountableForm } from './speciesUtils'
 
 /** Shared no-exclusion default (see computeFrivolousLists). */
 const EMPTY_EXCLUDED: ReadonlySet<string> = new Set<string>()
@@ -136,17 +136,32 @@ export interface FrivolousListsData {
   rainbowConnection: { rows: RainbowEntry[]; filled: number; total: number; complete: boolean }
 }
 
-/** Names we never count: spuh ("… sp."), slash ("A/B"), or " x " hybrids — the
- *  canonical countable-life-list predicate, not a re-inlined copy of it.
+/** Names we never count: the forms eBird does not count toward a species list.
  *
- *  NOTE: this is called with a RAW `commonName` (see below), so unlike the count paths
- *  in birdingStats/calendar it does NOT use `isNonCountableObservedName`. That is
- *  deliberate and preserves long-standing behavior exactly: an intraspecific intergrade
- *  ("Northern Flicker (Yellow-shafted x Red-shafted)") does not tick a themed list here,
- *  even though it now counts as its parent species on Statistics and the Calendar.
- *  Aligning the two is a behavior change to a playful feature, not part of this fix. */
+ *  This is called with a RAW `commonName`, which is now the RIGHT input rather
+ *  than a deliberate deviation. It used to be the one place that classified a raw
+ *  name with the normalized-name predicate, which cost this feature its
+ *  intergrades: "Northern Flicker (Yellow-shafted x Red-shafted)" ticked nothing
+ *  here while counting as its parent species on Statistics and the Calendar. One
+ *  rule with one input removes the disagreement rather than documenting it.
+ *
+ *  NO TEST CAN CURRENTLY REJECT normalizing the argument here, recorded rather
+ *  than left for someone to rediscover. Mutating this to
+ *  `isNonCountableForm(normalizeSpeciesName(name))` leaves the whole suite green,
+ *  because the only names the two forms disagree about are the 81 eBird publishes
+ *  and does not count, and none of their base names appears on any themed list
+ *  (swept against the shipped lists: zero overlap). The mutation therefore admits
+ *  a name into `recorded` that no list ever reads, so it is behaviour-neutral
+ *  TODAY rather than an untested defect.
+ *
+ *  It stays the raw name anyway, because adding one themed entry naming such a
+ *  base would make it live with nothing failing. The predicate's own guarantee is
+ *  carried by `countableForms.test.ts` and `speciesUtils.test.ts`; the raw-input
+ *  requirement is carried by `exoticRuleSurfaces.test.ts` plus the Calendar,
+ *  county-completeness and media-coverage guards, each of which DOES go red on
+ *  this same mutation. */
 function isExcludedName(name: string): boolean {
-  return isNonCountableSpecies(name)
+  return isNonCountableForm(name)
 }
 
 /** True if `a` is an earlier first-sighting than `b`. Earliest date wins; ties

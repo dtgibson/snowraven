@@ -1,5 +1,5 @@
 import { BREEDING_CODE_MAP, BREEDING_CODES } from './breedingCodes'
-import { isNonCountableObservedName, truncateAtFirstParen } from './speciesUtils'
+import { isNonCountableForm, truncateAtFirstParen } from './speciesUtils'
 
 export interface BreedingEntry {
   commonName: string
@@ -125,7 +125,7 @@ export function deriveBreedingRows(observations: readonly BreedingObsInput[]): B
   const rows: BreedingCodeRow[] = []
   for (const o of observations) {
     const rawName = o.commonName?.trim() ?? ''
-    if (!rawName || isNonCountableObservedName(rawName)) continue
+    if (!rawName || isNonCountableForm(rawName)) continue
     const code = o.breedingCode ?? ''
     if (!code || !BREEDING_CODE_MAP.has(code)) continue
     rows.push({
@@ -175,7 +175,7 @@ export function parseBreedingCodes(content: string): BreedingData {
     if (cols.length === 1 && cols[0].trim() === '') continue
 
     const rawName = cols[commonNameIdx]?.trim() ?? ''
-    if (!rawName || isNonCountableObservedName(rawName)) continue
+    if (!rawName || isNonCountableForm(rawName)) continue
 
     const name = truncateAtFirstParen(rawName)
     const sciName = sciNameIdx !== -1 ? (cols[sciNameIdx]?.trim() ?? '') : ''

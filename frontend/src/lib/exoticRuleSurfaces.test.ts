@@ -22,7 +22,7 @@ import { computeMediaStats } from './mediaStats'
 import { buildCountyCompletenessLocal } from './countyCompleteness'
 import { buildDayCells } from './calendar'
 import { computeFrivolousLists } from './frivolousLists'
-import { isNonCountableObservedName, isNonCountableSpecies, isSpuhOrSlash, normalizeSpeciesName } from './speciesUtils'
+import { isNonCountableForm, isNonCountableNameShape, normalizeSpeciesName } from './speciesUtils'
 import type { MLExportRow } from './parseMLExport'
 
 const NONE: ReadonlySet<string> = new Set<string>()
@@ -193,42 +193,55 @@ describe('Frivolous Lists (FR-36, QA-41)', () => {
 
 // ── The predicates the rule composes with are unchanged ───────────────────────
 
-describe('the existing countable predicates are untouched (FR-05, QA-09)', () => {
-  it('behaves identically on every shape they classify', () => {
-    // The escapee rule is a SECOND predicate on the same value. If any of these
-    // moved, a surface would silently change what it counts for a reason that
+describe('the countable-form predicate the rule composes with (FR-05, QA-09)', () => {
+  it('classifies every shape the escapee rule sits beside', () => {
+    // The escapee rule is a SECOND predicate on the same value. If this one moved
+    // unnoticed, a surface would silently change what it counts for a reason that
     // has nothing to do with exotics.
-    // RAW exported names, as they arrive from the CSV.
+    //
+    // This block used to assert that THREE predicates were untouched. The
+    // countability build replaced all three with one rule taking one input, so what
+    // is pinned now is that rule's answers, plus the FALLBACK it degrades to, plus
+    // the two cases where the two disagree.
     const raw = [
       'Gull sp.', 'Greater/Lesser Scaup', 'Mallard x American Black Duck',
       'American Robin', "Yellow-rumped Warbler (Myrtle x Audubon's)",
       'Mallard (Domestic type)', "Xantus's Hummingbird",
     ]
-    // ...and the same names after normalization, which is the value
-    // `isNonCountableSpecies` is specified to take.
-    const normalized = raw.map(normalizeSpeciesName)
+    expect(raw.map(isNonCountableForm)).toEqual([true, true, true, false, false, false, false])
+    // On these seven the convention agrees with eBird, which is why the fallback is
+    // safe for a name eBird does not publish.
+    expect(raw.map(isNonCountableNameShape)).toEqual([true, true, true, false, false, false, false])
 
-    expect(raw.map(isSpuhOrSlash)).toEqual([true, true, false, false, false, false, false])
-    expect(normalized.map(isNonCountableSpecies)).toEqual([true, true, true, false, false, false, false])
-    // The raw-name variant is deliberately ASYMMETRIC: its " x " half tests the
-    // NORMALIZED name, which is what keeps a countable INTERGRADE while still
-    // dropping a true hybrid. That is the case that discriminates the two, and
-    // "fixing" the asymmetry is a silent data-loss bug: it would erase the
-    // species outright when the intergrade is a birder's only record of it.
-    expect(raw.map(isNonCountableObservedName)).toEqual([true, true, true, false, false, false, false])
-    // The discriminating case, stated on its own so it cannot be lost in the
-    // array above: the SAME predicate answers differently either side of
-    // normalization, so which one a call site uses is load-bearing.
-    const intergrade = "Yellow-rumped Warbler (Myrtle x Audubon's)"
-    expect(isNonCountableSpecies(intergrade)).toBe(true)          // raw: wrong here
-    expect(isNonCountableObservedName(intergrade)).toBe(false)    // raw: correct here
+    // The two names where they DISAGREE, stated on their own so they cannot be lost
+    // in an array. These are what make the rule more than a rename.
+    const admitted = 'Canada Goose (moffitti/maxima)'
+    expect(isNonCountableNameShape(admitted)).toBe(true)   // shape rejects it
+    expect(isNonCountableForm(admitted)).toBe(false)       // eBird counts it
+
+    const rejected = "Brewster's Warbler (hybrid)"
+    expect(isNonCountableNameShape(rejected)).toBe(false)  // shape counts it
+    expect(isNonCountableForm(rejected)).toBe(true)        // eBird does not
   })
 
-  it('the cover path uses the RAW-name variant, matching filterObservations', () => {
-    // A surface holding a raw CSV name must use the raw-name predicate. Using
-    // the normalized one here would erase an intergrade outright when it is a
-    // birder's only record of that species.
+  it('normalizing the input first would lose the direction-B forms', () => {
+    // Why the rule takes the RAW exported name. Normalization destroys the form,
+    // and the form is the whole question: "Brewster's Warbler" reads exactly like a
+    // species and no rule can tell it from one. Passing `norm` at a call site
+    // holding a raw name is the mistake this pins.
+    const rejected = "Brewster's Warbler (hybrid)"
+    expect(isNonCountableForm(rejected)).toBe(true)
+    expect(isNonCountableForm(normalizeSpeciesName(rejected))).toBe(false)
+  })
+
+  it('the cover path passes the RAW name, matching filterObservations', () => {
+    // A surface holding a raw CSV name must pass it through unnormalized. The
+    // intergrade would be erased outright by a normalized " x " test when it is a
+    // birder's only record of that species; the direction-B hybrid would be
+    // wrongly counted. One fixture for each direction.
     const intergrade = o("Yellow-rumped Warbler (Myrtle x Audubon's)", 'S1')
     expect(filterObservations([intergrade], false)).toHaveLength(1)
+    const namedHybrid = o("Brewster's Warbler (hybrid)", 'S2')
+    expect(filterObservations([namedHybrid], false)).toHaveLength(0)
   })
 })

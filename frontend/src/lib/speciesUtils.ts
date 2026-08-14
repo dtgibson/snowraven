@@ -315,53 +315,115 @@ export const __MEMO_LIMITS_FOR_TESTS = {
   longCharBudget: MEMO_LONG_CHAR_BUDGET,
 } as const
 
-export function isSpuhOrSlash(name: string): boolean {
-  return name.endsWith(' sp.') || name.includes('/')
+// ─── Countability ────────────────────────────────────────────────────────────
+//
+// Whether a bird recorded under a given name counts toward a species list is
+// eBird's question, and eBird answers it in the taxonomy with `reportAs`. A
+// published name counts when its code is itself a species, or when `reportAs`
+// resolves it to one. Stated as a birder reads it: AMBIGUITY ABOUT WHICH SPECIES
+// DOES NOT COUNT, AMBIGUITY ABOUT WHICH SUBSPECIES COUNTS AS THE PARENT.
+//
+// This replaced three string-shape predicates (`isSpuhOrSlash`,
+// `isNonCountableSpecies`, `isNonCountableObservedName`) that inferred the answer
+// from the name and were wrong in BOTH directions against eBird's own data:
+//
+//   88 names eBird counts and shape rejected, folding into 59 parent species.
+//      Subspecies-group slashes inside a trailing parenthetical, and ordinary for
+//      a North American birder: "Canada Goose (moffitti/maxima)", "Redpoll
+//      (Common/Hoary)", "Dark-eyed Junco (Slate-colored/cismontanus)".
+//   81 names eBird rejects and shape counted. 3 named hybrids carrying no " x "
+//      ("Brewster's Warbler (hybrid)", "Lawrence's Warbler (hybrid)", "Bogota
+//      Sunangel (hybrid)"), 25 spuhs with a parenthetical after the " sp.", and
+//      53 undescribed or unrecognized forms. That last group is not two tidy
+//      suffixes: 48 "(undescribed form)", 4 "(unrecognized species)", and one
+//      "(undescribed Panay form)".
+//
+// The second direction had not been recorded anywhere before this build: a birder
+// holding Brewster's Warbler had it counting as a species.
+//
+// WHY THE SHAPE RULE IS STILL HERE, AND WHAT IT IS NOW FOR. It is no longer an
+// inference; it is eBird's own naming convention, and it is the FALLBACK for a
+// name eBird does not publish. Shipping a verdict for all 17,891 published names
+// costs ~105 KB gzipped, and this module is statically reachable from `App.tsx`,
+// so that rides first paint. The convention reproduces eBird's verdict on 17,722
+// of those names, so we ship the convention plus the 169 corrections (2.6 KB
+// gzipped) instead. `countableForms.test.ts` asserts the pair equals the full
+// `reportAs` lookup NAME BY NAME over the whole snapshot, so the compression is
+// verified rather than argued. Listing the other 2,523 non-countable names would
+// add ~19 KB gzipped to first paint and change no answer.
+//
+// The fallback is deliberately NOT "an unknown name counts". A name can arrive
+// from an older taxonomy revision or a since-renamed species, and the convention
+// classifies those the way it always has, so anything eBird does not publish
+// behaves exactly as it did before this build. (The v0.5.87 escapee precedent
+// runs the other way, defaulting an unresolved species to COUNTING, and it does
+// not transfer: there an unresolved name would erase a bird the birder really
+// saw, and the resolution is a live network pass that starts empty. This lookup
+// is complete the moment the module loads.)
+import countabilityArtifact from '../assets/ebird-countability.json'
+
+/** Names eBird publishes and COUNTS that the naming convention would reject. */
+const EBIRD_COUNTS: ReadonlySet<string> = new Set(countabilityArtifact.countable)
+/** Names eBird publishes and REJECTS that the naming convention would count. */
+const EBIRD_REJECTS: ReadonlySet<string> = new Set(countabilityArtifact.nonCountable)
+
+/**
+ * eBird's naming convention, read off the name alone: a form whose name leaves
+ * the species in doubt carries " sp.", a "/", or an " x ".
+ *
+ * The " x " half tests the NORMALIZED name and the other two test the name as
+ * given. That asymmetry is v0.5.83's and it is retained deliberately, because it
+ * is still right for the names this function now judges (ones eBird does not
+ * publish): a trailing parenthetical can carry its own " x " for an
+ * intraspecific intergrade, which is a perfectly countable bird.
+ *
+ *   "Mallard x American Black Duck (hybrid)"     base has " x "  -> not countable
+ *   "Yellow-rumped Warbler (Myrtle x Audubon's)" base does not   -> countable
+ *
+ * What v0.5.83 could NOT do from the name alone was tell a subspecies-group
+ * slash inside a parenthetical ("Canada Goose (moffitti/maxima)", countable)
+ * from a species-level slash ("Greater/Lesser Scaup", not countable). It said so,
+ * and left the 88 names excluded pending a product decision. That decision is
+ * this build, and it is answered from eBird's data rather than from the string.
+ *
+ * Exported for the guards only. Production code calls `isNonCountableForm`.
+ */
+export function isNonCountableNameShape(name: string): boolean {
+  return (
+    name.endsWith(' sp.') ||
+    name.includes('/') ||
+    normalizeSpeciesName(name).includes(' x ')
+  )
 }
 
-// A countable life-list species excludes spuh ("Gull sp."), slash ("Greater/Lesser
-// Scaup"), AND hybrids ("Mallard x American Black Duck") — the same rule the eBird/ML
-// parsers and Frivolous Lists apply. `isSpuhOrSlash` deliberately omits the hybrid
-// case (it's the minimal display-filter primitive behind the "Show sp./slash" display
-// toggles in LifeList/SpeciesDetail), so anything that needs a true "life list" count
-// must use this instead.
-//
-// IMPORTANT: this tests the string it is GIVEN, and gives the wrong answer for
-// intergrades when that string is a raw exported name — so every life-list COUNT path
-// must pass an already-normalized name, or better, call `isNonCountableObservedName`
-// below, which owns the raw-name case. The one deliberate raw-name caller is
-// `frivolousLists.ts`, which classifies raw names on purpose (see the note there);
-// that is not a pattern to copy.
-export function isNonCountableSpecies(name: string): boolean {
-  return isSpuhOrSlash(name) || name.includes(' x ')
+/**
+ * THE countability rule. True when eBird does not count a bird recorded under
+ * this name toward a species list.
+ *
+ * PASS THE NAME AS EXPORTED, with its trailing parenthetical intact. The form is
+ * what eBird is judging, and the form only exists in the raw name. A normalized
+ * name still answers correctly for every case the convention covers, plus every
+ * direction-A form (whose base is a species eBird counts), so the predicate is
+ * safe on either input. The one place the two genuinely differ is the 56
+ * direction-B names whose base name is NOT itself ambiguous: normalized,
+ * "Brewster's Warbler (hybrid)" becomes "Brewster's Warbler", which no rule can
+ * tell from a species. `countableForms.test.ts` measures that boundary exactly
+ * rather than leaving it as a caution.
+ *
+ * This single function replaced the raw/normalized predicate PAIR. Collapsing
+ * that pair was a silent data-loss bug before this build, and v0.5.83 said so at
+ * length; what discharges the warning is not care but the sweep, which shows the
+ * 36 intergrades it protected stay countable here and names the discriminating
+ * case that goes red on a revert.
+ */
+export function isNonCountableForm(name: string): boolean {
+  if (EBIRD_REJECTS.has(name)) return true
+  if (EBIRD_COUNTS.has(name)) return false
+  return isNonCountableNameShape(name)
 }
 
-// The countable-life-list predicate for a RAW observed name, i.e. `commonName` straight
-// off an eBird export, before `normalizeSpeciesName` has stripped its trailing
-// parenthetical. Count paths must use THIS, not `isNonCountableSpecies` on a raw name.
-//
-// Why the distinction is load-bearing: the hybrid marker is a " x " in the BASE name,
-// but a trailing parenthetical can contain its own " x " for an intraspecific
-// intergrade, which is a perfectly countable bird:
-//
-//   "Mallard x American Black Duck (hybrid)"    → base "Mallard x American Black Duck"
-//                                                 → a true inter-species hybrid, NOT countable
-//   "Yellow-rumped Warbler (Myrtle x Audubon's)" → base "Yellow-rumped Warbler"
-//                                                 → a countable Yellow-rumped Warbler
-//
-// Testing the raw name conflates the two and silently drops 36 such intergrades in the
-// current eBird taxonomy (Northern Flicker (Yellow-shafted x Red-shafted), Dark-eyed
-// Junco (Oregon x Pink-sided), Green-winged Teal (Eurasian x American), Redpoll
-// (Common x Hoary), …), which erases the species outright when the intergrade is a
-// birder's only record of it.
-//
-// The two halves deliberately test DIFFERENT strings, and that asymmetry is the point:
-//   - the " x " hybrid check runs on the NORMALIZED name, so a parenthetical intergrade
-//     is judged on its base species;
-//   - the spuh/slash check runs on the RAW name, preserving today's behavior for
-//     subspecies-group slashes ("Canada Goose (moffitti/maxima)"), which stay excluded.
-// Normalizing the slash check too would newly ADMIT 88 such names and raise people's
-// life-list totals — a product decision, not a mechanical fix, so it is not done here.
-export function isNonCountableObservedName(rawName: string): boolean {
-  return isSpuhOrSlash(rawName) || normalizeSpeciesName(rawName).includes(' x ')
-}
+/** The artifact's provenance, so a guard can pin it to the taxonomy snapshot it
+ *  was derived from. A countability artifact built from a different revision
+ *  than the shipped snapshot is the one way this can silently go stale. */
+export const COUNTABILITY_VERSION: string = countabilityArtifact.version
+

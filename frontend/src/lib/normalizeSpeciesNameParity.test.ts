@@ -19,7 +19,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import {
   normalizeSpeciesName,
-  isNonCountableObservedName,
+  isNonCountableNameShape,
   truncateAtFirstParen,
 } from './speciesUtils'
 import { enumerateProbes, SPECIES_NAME_ALPHABET, SPECIES_NAME_PROBE_LEN } from './regexSweepGuards'
@@ -238,9 +238,16 @@ describe('normalizeSpeciesName honours each piece of the pattern it replaced', (
 })
 
 describe('the countable-name asymmetry is unmoved', () => {
-  // `isNonCountableObservedName` calls `normalizeSpeciesName` on a RAW exported name, and
+  // `isNonCountableNameShape` calls `normalizeSpeciesName` on a RAW exported name, and
   // its deliberate asymmetry decides whether 36 countable intergrades survive. A shift in
   // normalization would silently move life-list totals, so sweep rather than spot-check.
+  //
+  // This tests the SHAPE rule, not `isNonCountableForm`. The countability build made the
+  // shape rule the FALLBACK for a name eBird does not publish, and put eBird's own
+  // `reportAs` verdict in front of it. The shape rule is what still consumes
+  // `normalizeSpeciesName`, so it is what this file's parity question is actually about,
+  // and it is byte-identical to the predicate this block was written against.
+  // `countableForms.test.ts` owns the separate question of what the full rule answers.
   const isSpuhOrSlashLocal = (n: string): boolean => n.endsWith(' sp.') || n.includes('/')
   const shippedRegexPredicate = (n: string): boolean =>
     isSpuhOrSlashLocal(n) || shippedRegexNormalize(n).includes(' x ')
@@ -259,7 +266,7 @@ describe('the countable-name asymmetry is unmoved', () => {
   it('classifies every snapshot string exactly as the regex did', () => {
     expect(commonNames.length).toBeGreaterThan(10000)
     expect(
-      snapshotStrings.filter((s) => shippedRegexPredicate(s) !== isNonCountableObservedName(s)),
+      snapshotStrings.filter((s) => shippedRegexPredicate(s) !== isNonCountableNameShape(s)),
     ).toEqual([])
   })
 
@@ -282,14 +289,14 @@ describe('the countable-name asymmetry is unmoved', () => {
       'Dark-eyed Junco (Oregon x Pink-sided)',
       'Green-winged Teal (Eurasian x American)',
     ]) {
-      expect(isNonCountableObservedName(kept)).toBe(false)
+      expect(isNonCountableNameShape(kept)).toBe(false)
     }
     for (const dropped of [
       'Mallard x American Black Duck (hybrid)',
       'Western x Glaucous-winged Gull (hybrid)',
       'American Herring/Vega/European Herring x Glaucous Gull (hybrid)',
     ]) {
-      expect(isNonCountableObservedName(dropped)).toBe(true)
+      expect(isNonCountableNameShape(dropped)).toBe(true)
     }
   })
 })

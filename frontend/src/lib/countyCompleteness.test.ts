@@ -107,6 +107,20 @@ describe('buildCountyCompletenessLocal — X + recent-new from the backup', () =
     expect(new Set(entry.countableNames)).toEqual(new Set(['Canada Goose', 'Song Sparrow']))
   })
 
+  it('judges the RAW exported name, not the normalized one (report-as)', () => {
+    // Same discriminating pair as the Calendar and Statistics filters, so this
+    // surface cannot silently drift out of agreement with them about what a
+    // species is. Passing `norm` to the predicate must turn this red.
+    const local = buildCountyCompletenessLocal([
+      obs({ commonName: 'American Robin', scientificName: 'Turdus migratorius' }),
+      obs({ commonName: "Brewster's Warbler (hybrid)" }),        // eBird does not count it
+      obs({ commonName: 'Canada Goose (moffitti/maxima)' }),     // eBird counts it as Canada Goose
+    ])
+    const entry = local.get(countyKey('CA', 'Santa Clara'))!
+    expect(new Set(entry.countableNames)).toEqual(new Set(['American Robin', 'Canada Goose']))
+    expect(entry.countableCount).toBe(2)
+  })
+
   it('keys by the (state, county) composite — same-named counties never merge (FR-12)', () => {
     const local = buildCountyCompletenessLocal([
       obs({ county: 'Washington', stateProvince: 'US-MN', commonName: 'Canada Goose' }),

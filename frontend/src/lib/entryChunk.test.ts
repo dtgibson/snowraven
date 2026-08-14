@@ -21,10 +21,56 @@ import { fileURLToPath } from 'node:url'
 const SRC = fileURLToPath(new URL('../', import.meta.url))        // frontend/src/
 const APP = resolve(SRC, 'App.tsx')
 
+/**
+ * Strip comments before scanning, tracking string and template state so a URL's
+ * `//` is never mistaken for a line comment.
+ *
+ * NOT defensive tidiness. Without it, the word "import" or "export" inside a
+ * prose comment starts the lazy specifier match, which then runs forward to the
+ * NEXT real `from '...'` and reports an edge that does not exist. Its sibling
+ * `exoticProvenanceGraph.test.ts` hit exactly that on its first run, and
+ * CLAUDE.md has recorded since v0.5.87 that THIS file still carried the
+ * weakness. Closed here because report-as-countability adds a new always-loaded
+ * asset, which is precisely what this file exists to police.
+ */
+function stripComments(code: string): string {
+  let out = ''
+  let i = 0
+  while (i < code.length) {
+    const c = code[i]
+    if (c === '/' && code[i + 1] === '/') {
+      while (i < code.length && code[i] !== '\n') i += 1
+      continue
+    }
+    if (c === '/' && code[i + 1] === '*') {
+      i += 2
+      while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i += 1
+      i += 2
+      continue
+    }
+    if (c === '"' || c === "'" || c === '`') {
+      const quote = c
+      out += c
+      i += 1
+      while (i < code.length && code[i] !== quote) {
+        if (code[i] === '\\') { out += code[i]; i += 1 }
+        if (i < code.length) { out += code[i]; i += 1 }
+      }
+      out += quote
+      i += 1
+      continue
+    }
+    out += c
+    i += 1
+  }
+  return out
+}
+
 // Static import / re-export specifiers in a TS/TSX source, EXCLUDING:
 //  - dynamic `import(` (needs whitespace after `import`, so `import(` never matches)
 //  - type-only `import type` / `export type` (erased at build — no runtime edge)
-function staticSpecifiers(code: string): string[] {
+function staticSpecifiers(source: string): string[] {
+  const code = stripComments(source)
   const specs: string[] = []
   const fromRe = /(?:import|export)\s+[\s\S]*?\sfrom\s*['"]([^'"]+)['"]/g
   let m: RegExpExecArray | null
@@ -105,6 +151,24 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
     // map-free assertion would pass vacuously.
     expect(has('lib/shareCopyPreference.ts')).toBe(true)
     expect(has('lib/shareLocation.ts')).toBe(true)
+  })
+
+  it('the 1.7 MB taxonomy snapshot stays off the entry graph (report-as-countability)', () => {
+    // Live risk since the countability build: the shipped rule is derived FROM
+    // that snapshot, so the obvious "simplification" is to import it here and
+    // compute the verdict at load. It is dynamic-imported by taxonomyService for
+    // a reason, and a static edge would put 1.7 MB on first paint.
+    expect(has('assets/ebird-taxonomy.json')).toBe(false)
+  })
+
+  it('the countability artifact IS on the entry graph, and is the small one', () => {
+    // Guards the guard above: the rule really is statically resolved (no load
+    // order, no flicker, no async predicate), and the file carrying it is the
+    // 169-name corrections list rather than a full verdict table. If this ever
+    // grows past a few tens of KB, the compression has been abandoned.
+    expect(has('assets/ebird-countability.json')).toBe(true)
+    const artifact = readFileSync(resolve(SRC, 'assets/ebird-countability.json'), 'utf8')
+    expect(artifact.length).toBeLessThan(20_000)
   })
 
   it('methodology sanity: the known-lazy AtlasLayer / ca-atlas-blocks are also absent', () => {

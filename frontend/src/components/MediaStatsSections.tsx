@@ -13,7 +13,7 @@ import { fmt, formatSpanLength, mlBehaviorCatalogUrl } from '../lib/statsFormat'
 import { formatDate, formatDateRange } from '../lib/formatDate'
 import { speciesWithYoung, sortSpeciesAgeCoverage, behaviorTagSlug, BREEDING_BEHAVIOR_TIER } from '../lib/mediaStats'
 import type { MediaStats, AgeClass, Sex, AgeSort } from '../lib/mediaStats'
-import { COUNT_RULE_SENTENCE } from '../lib/exoticCopy'
+import { COUNT_RULE_SENTENCE, COUNT_RULE_SENTENCE_NO_ESCAPEES, ALWAYS_COUNTABLE_NOTE } from '../lib/exoticCopy'
 
 const GRID = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '8px 12px' } as const
 // At a glance only: a wider column floor so the date-range sub-lines
@@ -194,12 +194,17 @@ export function MediaStatsSections({ stats, renderName, taxonOrderFor, userId, e
             <BarRow label="Audio" value={s.coverage.withAudio} max={s.coverage.lifeListTotal} pctOf={s.coverage.lifeListTotal} color="var(--sr-graph-audio)" labelWidth={48} />
             <BarRow label="Video" value={s.coverage.withVideo} max={s.coverage.lifeListTotal} pctOf={s.coverage.lifeListTotal} color="var(--sr-graph-video)" labelWidth={48} />
           </div>
-          {/* FR-33: this denominator applies the escapee rule unconditionally,
-              independent of the Statistics "Count escapees" toggle, so the rule
-              is stated here rather than left to be discovered. */}
-          {escapeesExcluded && (
-            <p className="sr-count-rule-note" style={{ marginTop: 10, marginBottom: 0 }}>{COUNT_RULE_SENTENCE}</p>
-          )}
+          {/* This denominator applies BOTH count rules unconditionally,
+              independent of the two Statistics header checkboxes, so both are
+              stated here rather than left to be discovered.
+              The note is now UNCONDITIONAL, where it used to render only once an
+              escapee had been found: the FORM exclusion is always in force, so
+              there is always something to account for. The escapee clause still
+              is not, which is why the sentence has an escapee-free variant. */}
+          <p className="sr-count-rule-note" style={{ marginTop: 10, marginBottom: 0 }}>
+            {escapeesExcluded ? COUNT_RULE_SENTENCE : COUNT_RULE_SENTENCE_NO_ESCAPEES}{' '}
+            {ALWAYS_COUNTABLE_NOTE}
+          </p>
         </>
       )}
 

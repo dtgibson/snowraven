@@ -4,7 +4,7 @@
 
 import type { ObservationEntry, ChecklistEntry } from '../types'
 import type { MLExportRow } from './parseMLExport'
-import { normalizeSpeciesName, isNonCountableObservedName } from './speciesUtils'
+import { normalizeSpeciesName, isNonCountableForm } from './speciesUtils'
 import { BREEDING_CODE_MAP } from './breedingCodes'
 import { hasTideBlock, hasSnowravenWeatherBlock, hasRaincrowWeatherBlock } from './commentBlocks'
 
@@ -63,19 +63,16 @@ export function formatPeriodLabel(key: string, granularity: PeriodGranularity): 
 
 // ── Filtering ───────────────────────────────────────────────────────────────
 
-/** Drop non-countable entries — spuh ("Gull sp."), slash ("Greater/Lesser Scaup"),
- *  and " x " hybrids ("Mallard x American Black Duck") — unless the user opts to
- *  include them. Everything downstream of this filter is a COUNT (life list, per-
- *  checklist species counts, milestones, county aggregates), so it uses the canonical
- *  countable-life-list predicate, never the bare `isSpuhOrSlash` display primitive
- *  (which omits hybrids).
+/** Drop the forms eBird does not count toward a species list, unless the user opts
+ *  to include them. Everything downstream of this filter is a COUNT (life list,
+ *  per-checklist species counts, milestones, county aggregates).
  *
- *  `commonName` here is the RAW exported name, so this takes the raw-name variant:
- *  `isNonCountableObservedName` normalizes before testing for " x ", which keeps
- *  countable intergrades like "Yellow-rumped Warbler (Myrtle x Audubon's)" while still
- *  dropping true hybrids. See its doc comment for why the two differ. */
+ *  `commonName` here is the RAW exported name, which is what `isNonCountableForm`
+ *  wants: the form is what eBird is judging and the form only exists in the raw
+ *  name. That keeps "Canada Goose (moffitti/maxima)" counting as Canada Goose and
+ *  "Brewster's Warbler (hybrid)" not counting at all. */
 export function filterObservations(rawObs: ObservationEntry[], includeSpuh: boolean): ObservationEntry[] {
-  return includeSpuh ? rawObs : rawObs.filter(o => !isNonCountableObservedName(o.commonName))
+  return includeSpuh ? rawObs : rawObs.filter(o => !isNonCountableForm(o.commonName))
 }
 
 // ── Derivations ───────────────────────────────────────────────────────────────

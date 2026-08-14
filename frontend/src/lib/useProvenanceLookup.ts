@@ -20,10 +20,12 @@ import { getSnapshot, loadSnapshot, subscribe } from './exoticProvenanceCache'
  * The normalized common names that are currently classified escapee-only AND
  * whose every carrying checklist in `observations` has already been consulted.
  *
- * Compose it with the surface's existing countable-name predicate; never replace
- * that predicate (FR-05):
+ * Compose it with the surface's existing countable-form predicate; never replace
+ * that predicate (FR-05). Note the two take DIFFERENT inputs, which is not a
+ * slip: the form rule needs the RAW exported name (the form only exists there),
+ * while this set is keyed by normalized name.
  *
- *     if (isNonCountableSpecies(norm) || excludedNames.has(norm)) continue
+ *     if (isNonCountableForm(o.commonName) || excludedNames.has(norm)) continue
  *
  * `observations` should be a stable array reference (the loaded backup), because
  * the confirmation pass is O(rows) and is memoized on it.

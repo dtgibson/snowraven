@@ -97,6 +97,30 @@ describe('buildDayCells — year view (QA-08/09/10/11)', () => {
     expect(c.checklistCount).toBe(2) // S1, S2
   })
 
+  it('judges the RAW exported name, so a named hybrid does not count (report-as)', () => {
+    // The discriminating case for the call site's INPUT. "Brewster's Warbler
+    // (hybrid)" carries no " x " and no "/", so its base name reads exactly like a
+    // species: normalizing before classifying silently counts it. eBird does not.
+    // Passing `norm` here instead of `o.commonName` must turn this red.
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: "Brewster's Warbler (hybrid)" }),
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),
+    ], view)
+    const c = cells.get('2024-03-14')!
+    expect(c.speciesCount).toBe(1)              // the Robin only
+    expect(c.speciesCountWithForms).toBe(2)     // both, under "Count all forms"
+  })
+
+  it('counts a subspecies-group slash as its parent species (report-as direction A)', () => {
+    // The other direction, and the one most birders will actually notice: eBird
+    // counts "Canada Goose (moffitti/maxima)" as Canada Goose. The old string rule
+    // saw the "/" and excluded it.
+    const cells = buildDayCells([
+      obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'Canada Goose (moffitti/maxima)' }),
+    ], view)
+    expect(cells.get('2024-03-14')!.speciesCount).toBe(1)
+  })
+
   it('excludes spuh/slash/hybrid from countable speciesCount, counts them in withForms (QA-10)', () => {
     const cells = buildDayCells([
       obs({ date: '2024-03-14', submissionId: 'S1', commonName: 'American Robin' }),

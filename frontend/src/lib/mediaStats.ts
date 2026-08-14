@@ -10,7 +10,7 @@
 //  - Time:      "HMM"/"HHMM" 24h clock                     (e.g. "643" = 06:43)
 
 import type { MLExportRow } from './parseMLExport'
-import { normalizeSpeciesName, isNonCountableSpecies } from './speciesUtils'
+import { normalizeSpeciesName, isNonCountableForm } from './speciesUtils'
 import { isWsChar, isAsciiDigitChar, isLineTerminatorChar } from './charClasses'
 
 /** Shared no-exclusion default so a caller that supplies no escapee set keeps
@@ -318,6 +318,19 @@ interface SpeciesAgg {
 
 export function computeMediaStats(
   rows: MLExportRow[],
+  /** The recorded life list as NORMALIZED common names.
+   *
+   *  The caller is expected to have already dropped observations whose RAW name
+   *  eBird does not count, because that is the only place the form is visible:
+   *  "Brewster's Warbler (hybrid)" normalizes to "Brewster's Warbler", which no
+   *  rule can tell from a species. `BirdingStats` passes
+   *  `countableBackboneNames` for exactly this reason.
+   *
+   *  The `isNonCountableForm` filter below is kept anyway, and is not redundant
+   *  bookkeeping: it catches every form that IS visible in a normalized name
+   *  ("Gull sp.", "Greater/Lesser Scaup"), so this function is still correct on
+   *  its own for a caller that passes a raw recorded-name set. The two layers
+   *  have different reach, stated here so neither is later removed as duplicate. */
   lifeListNames?: Set<string>,
   /** Normalized names classified eBird Exotic: Escapee. Applied to the coverage
    *  denominator UNCONDITIONALLY, independent of the Statistics "Count escapees"
@@ -400,9 +413,8 @@ export function computeMediaStats(
   }
 
   // Coverage vs. the life list (normalized common names). The denominator must be the
-  // user's COUNTABLE life list: the passed set is the full recorded-name set (correct
-  // for Species-Detail linking, where it originates), so it can carry non-countable
-  // forms — spuh ("Gull sp."), slash ("Greater/Lesser Scaup"), hybrids ("Mallard x …").
+  // user's COUNTABLE life list: a recorded-name set can carry forms eBird does not
+  // count — spuh ("Gull sp."), slash ("Greater/Lesser Scaup"), hybrids ("Mallard x …").
   // Counting those overstated N in "X of N life-list species documented with media" and
   // understated the percentage. Drop them from both the denominator and the numerator.
   let coverage: MediaStats['coverage'] = null
@@ -410,7 +422,7 @@ export function computeMediaStats(
     // The escapee rule composes with the countable-name predicate; it never
     // replaces it (FR-05). Both the denominator and the numerator drop the
     // excluded names, because the numerator is filtered against `countable`.
-    const countable = [...lifeListNames].filter(n => !isNonCountableSpecies(n) && !excludedNames.has(n))
+    const countable = [...lifeListNames].filter(n => !isNonCountableForm(n) && !excludedNames.has(n))
     if (countable.length > 0) {
       // Case-insensitive match: both sides are normalized eBird names, but guard
       // against any casing drift between the eBird and ML name sources.

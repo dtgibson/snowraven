@@ -2,6 +2,25 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.89] - 2026-08-13
+
+SnowRaven now follows eBird's own rule for what counts as a species, instead of working it out from the shape of the name.
+
+The rule, in one sentence: a form that leaves the species in doubt does not count (a spuh, a slash, a hybrid, an undescribed form), and a form that only leaves the subspecies in doubt counts as its parent species. That is eBird's own distinction, and it has been sitting in the taxonomy SnowRaven already ships offline.
+
+Most totals go up. 88 names that eBird counts were being left out, folding into 59 parent species, and they are ordinary birds: `Canada Goose (moffitti/maxima)`, `Redpoll (Common/Hoary)`, `Dark-eyed Junco (Slate-colored/cismontanus)`, `Iceland Gull (thayeri/kumlieni)`, `Red-tailed Hawk (calurus/abieticola)`, `Song Sparrow (melodia/atlantica)`.
+
+A few go down. 81 names were being counted that eBird does not count: three named hybrids whose names give no hint they are hybrids (`Brewster's Warbler (hybrid)`, `Lawrence's Warbler (hybrid)`, `Bogota Sunangel (hybrid)`), 25 spuhs, and 53 undescribed or unrecognized forms. They stay on your Life List; only the count changes.
+
+The same number now appears everywhere. Statistics, the Calendar, county Completeness, and the Multimedia count previously applied three slightly different rules and could disagree about the same bird.
+
+Changed:
+
+- **Count spuh, slash & hybrids** is now **Count all forms** (Statistics and Calendar), and **Show sp./slash** is now **Show all forms** (Multimedia and Species Detail). The old labels named a set that no longer exists.
+- The two **Show all forms** toggles now govern the whole set, so the rows you see and that tab's "X of N species" count agree. They used to leave hybrids visible while the count excluded them.
+- Media documentation coverage and Frivolous Lists now say on screen that they always use countable species, whichever way **Count all forms** is set. That was already true and the help text said otherwise.
+- Countability works fully offline, as before. Nothing new is fetched.
+
 ## [0.5.88] - 2026-08-12
 
 Two backend input checks now enforce exactly what they claim to. Nothing you can see changes.

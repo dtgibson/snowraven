@@ -424,4 +424,31 @@ describe('copy hygiene (FR-44, QA-50)', () => {
     }
     expect(rendered.length).toBeGreaterThanOrEqual(7)
   })
+
+  it('no user-facing string in countabilityCopy contains an em dash', async () => {
+    // `lib/countabilityCopy.ts` holds the count-rule labels and the Calendar
+    // strings, and its header comment claims this sweep reaches it. It did not:
+    // the sweep above imports `exoticCopy` only, and the two modules are
+    // deliberately separate (countabilityCopy rides the entry chunk, exoticCopy
+    // is lazy), so nothing pulled the second one in. That claim is now true.
+    const copy = await import('../lib/countabilityCopy')
+    const strings: string[] = []
+    for (const [, value] of Object.entries(copy)) {
+      if (typeof value === 'string') strings.push(value)
+    }
+    for (const s of strings) {
+      expect(s.includes('—'), s).toBe(false)
+      expect(s.includes('’'), s).toBe(false)   // straight apostrophes only
+    }
+    // Non-vacuity, in both directions a rename could empty this. The count
+    // pins the module's size, and the two membership checks pin the constants
+    // by VALUE, so renaming an export away from the sweep fails here rather
+    // than silently shrinking the swept set to nothing.
+    expect(strings.length).toBeGreaterThanOrEqual(5)
+    expect(strings).toContain(copy.COUNT_FORMS_TOGGLE_LABEL)
+    expect(strings).toContain(copy.SHOW_FORMS_TOGGLE_LABEL)
+    expect(strings).toContain(copy.COUNT_FORMS_HELPER)
+    expect(strings).toContain(copy.COUNT_FORMS_POPUP_NOTE)
+    expect(strings).toContain(copy.COUNT_FORMS_SUFFIX)
+  })
 })

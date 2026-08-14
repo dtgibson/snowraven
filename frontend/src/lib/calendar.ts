@@ -7,7 +7,7 @@
 // daysInMonth / dayOfWeek / isValidCalendarDay are arithmetic.
 
 import type { ObservationEntry } from '../types'
-import { normalizeSpeciesName, isNonCountableObservedName } from './speciesUtils'
+import { normalizeSpeciesName, isNonCountableForm } from './speciesUtils'
 
 /** Shared no-exclusion default (see buildDayCells). */
 const EMPTY_EXCLUDED: ReadonlySet<string> = new Set<string>()
@@ -199,12 +199,12 @@ export function buildDayCells(
       work.set(bucketKey, w)
     }
     const n = individualsOf(o.count) // "X"/blank/null → 0 (Statistics-consistent)
-    // Raw-name variant deliberately: `o.commonName` still carries its trailing
-    // parenthetical here, so an intergrade ("Yellow-rumped Warbler (Myrtle x
-    // Audubon's)") must be judged on its base species and stay countable. Note this
-    // canNOT be `isNonCountableSpecies(norm)` — normalizing the slash check too would
-    // newly admit subspecies-group slashes. Same rule as Statistics' filter.
-    const countable = !isNonCountableObservedName(o.commonName) && !excludedNames.has(norm)
+    // The RAW name deliberately: `o.commonName` still carries its trailing
+    // parenthetical here, and the parenthetical IS the form eBird is judging.
+    // Passing `norm` would lose the 56 forms whose base name reads like an
+    // ordinary species ("Brewster's Warbler (hybrid)"). Same rule as Statistics'
+    // filter, and the same rule the four CSV parsers apply.
+    const countable = !isNonCountableForm(o.commonName) && !excludedNames.has(norm)
     w.withForms.add(norm)
     w.totalWithForms += n
     if (countable) {
