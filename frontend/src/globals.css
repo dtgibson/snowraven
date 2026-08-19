@@ -204,6 +204,32 @@
   --sr-share-pin: #B4341F;
   --sr-share-pin-ink: #FFFFFF;
 
+  /* Searched-area indicator (search-this-area). Map-anchored: only ever drawn on
+     the always-light Positron basemap, so declared IDENTICALLY in :root and
+     [data-theme="dark"] — the same posture as --sr-share-pin, --sr-map-pin-* and
+     the county ramp. This duplication is the design, not an oversight;
+     theme-flipping would wash the ring out over a light base and would invert the
+     scrim into a LIGHTENING wash in dark mode, which is not what it means.
+     No text is ever painted on either fill, so no on-fill text pair is minted.
+
+     #B4341F is the same value as --sr-share-pin, already measured at 5.38:1 on
+     Positron land (#F2F1EC) — comfortably past the 3:1 WCAG 1.4.11 bar for a
+     non-text graphic, with the margin that keeps it legible over satellite.
+     Reusing the measured value rather than minting a near-neighbour is
+     deliberate: the two never co-occur as a data class (the share pin is a
+     planted flag, this is a boundary line), shape distinguishes them, and one
+     red-orange in the palette is one fewer to keep audited. Red-orange at all
+     because it is the last free hue on this canvas: green is sighting pins and
+     the search-centre pin, amber is personal locations, violet is target pins,
+     blue is rank, purple is the breeding ramp, green again is the county ramp,
+     and slate is every boundary line.
+     #0F1117 is --sr-text's light value: the app's own ink, never pure black,
+     which is the house rule for every shadow and overlay in this codebase.
+     Both are -rgb triplets rather than hex because both are consumed at an alpha
+     (0.95 / 0.20 / 0.18) — the repo's rgba(var(--sr-*-rgb), a) pattern. */
+  --sr-search-area-rgb: 180, 52, 31;
+  --sr-search-area-scrim-rgb: 15, 17, 23;
+
   /* Firsts & Milestones chips (Statistics) — light tinted chips, deliberately
      identical in both themes. -date values darkened to ≥4.5:1 on the darker
      gradient stop; -num/-check verified (tier-1 num is 20px bold = large text). */
@@ -422,6 +448,13 @@
      to check here. */
   --sr-share-pin: #B4341F;
   --sr-share-pin-ink: #FFFFFF;
+
+  /* Searched-area indicator — same values as :root BY DESIGN (map-anchored; see
+     the :root comment). No text is ever painted on either fill, so the "a surface
+     that is light in both themes must not host theme-following text" rule has
+     nothing to check here. */
+  --sr-search-area-rgb: 180, 52, 31;
+  --sr-search-area-scrim-rgb: 15, 17, 23;
 
   /* Firsts & Milestones chips — dark-tinted tiles for dark mode. The :root values
      are intentionally near-white; reusing them here made the badges glare as white
@@ -1205,12 +1238,27 @@ h1, h2, h3, h4, h5, h6 {
   .sr-pinnote--enter { animation: none; }
 }
 
-/* Map Explorer (non-fullscreen) panel height. Replaces the inline
-   calc(100vh - 178px) magic number: dvh tracks the mobile browser toolbar, the
-   offset (app chrome) shrinks on phones, and a min-height keeps the map usable
-   on short/landscape viewports (the page scrolls rather than the map vanishing). */
-.sr-map-explorer-panel { height: calc(100dvh - 178px); min-height: 340px; }
-@media (max-width: 640px) { .sr-map-explorer-panel { height: calc(100dvh - 132px); } }
+/* Map Explorer (non-fullscreen) panel height. dvh tracks the mobile browser
+   toolbar, and a min-height keeps the map usable on short/landscape viewports
+   (the page scrolls rather than the map vanishing).
+
+   The subtracted term is the app chrome — body safe-area padding + header + tab
+   nav above, footer below — and it is MEASURED, not assumed. `--sr-map-chrome`
+   is published on <main> by lib/mapPanelChrome.ts; the literals here are only
+   the pre-measurement fallback, so first paint is byte-identical to what it was
+   before the measurement existed.
+
+   The literals were also simply wrong, which is why they are no longer the
+   answer: measured in Chromium and WebKit, the real chrome is 252px at 1434px
+   wide, 223px at 1600px and 228px on a 402px phone, so the page overflowed its
+   own viewport by 74px, 45px and 96px and the map's three round buttons sat
+   15.5px (desktop) / 37.5px (phone) below the window bottom. The overflow did not
+   move with viewport HEIGHT (74px at 900, 1236 and 1600px tall), which is the
+   signature of a fixed constant. And the chrome is all text, so it grows with the
+   in-app text scale: across the five widths and four scales measured it runs from
+   223px to 484px, so no single number can be right at 100% and at 200%. */
+.sr-map-explorer-panel { height: calc(100dvh - var(--sr-map-chrome, 178px)); min-height: 340px; }
+@media (max-width: 640px) { .sr-map-explorer-panel { height: calc(100dvh - var(--sr-map-chrome, 132px)); } }
 
 /* iOS compact chrome (preview-driven composition fixes, user-requested at the
    live simulator preview — pipeline/mobile-app/decisions.md). Both classes are
@@ -1234,7 +1282,11 @@ h1, h2, h3, h4, h5, h6 {
       media-tier rule. min-height keeps a usable map (with page scroll) on
       short landscape-phone viewports. */
 .sr-map-explorer-panel.sr-map-panel-ios {
-  height: calc(100dvh - 112px - env(safe-area-inset-top, 0px));
+  /* The measured value already contains the safe-area inset: it is the distance
+     from the DOCUMENT's top to <main>, and `.sr-ios-app body`'s padding-top is
+     inside that distance. The env() survives only in the fallback, where it is
+     still doing the job it was written for. */
+  height: calc(100dvh - var(--sr-map-chrome, calc(112px + env(safe-area-inset-top, 0px))));
   min-height: 300px;
 }
 
@@ -1756,6 +1808,188 @@ h1, h2, h3, h4, h5, h6 {
   from { opacity: 0; transform: translateY(-6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Search this area ────────────────────────────────────────────────────────
+   (feature: search-this-area)
+
+   The map answers three questions in three places, split by INTERACTIVITY
+   rather than by feature. The top-centre anchor holds only transient
+   pointer-events:none STATEMENTS — the shipped loading chip and the new
+   search-outcome line — because on a 320px phone at 200% text scale anything
+   there passes over the top-right layers switcher, which is acceptable only
+   while the switcher stays fully operable underneath. The ACTION lives where
+   this map's other actions live: the bottom FAB cluster.
+
+   This block sits AFTER the whole .sr-map-fab / state-rule sequence above on
+   purpose. That sequence's source order is load-bearing (see the long note at
+   .sr-map-fab); nothing here participates in it, and appending rather than
+   interleaving is what keeps that true. */
+
+/* The control's row. Same mechanism as .sr-map-geo-error's: flex: 0 0 100% in
+   the bottom-anchored cluster, so the row grows the cluster UPWARD, consumes
+   none of the FAB row's measured 4.00px of horizontal slack at 320px / 200%,
+   and no shipped button moves. The cluster's own row-gap is the gap, its
+   justify-content the alignment, its max-width the cap.
+
+   THE ROW GOES BELOW .sr-map-geo-error, NOT ABOVE IT, and the order is a
+   decision rather than an accident. Because the cluster is bottom-anchored, a
+   row placed below the location-failure row has an offset from the bottom that
+   is INVARIANT to whether a location failure is on screen. That is exactly the
+   property the geo-error row's own comment exists to protect ("the retry button
+   never moves under the user's finger"), and a failed search's retry is this
+   control. Placing it first would move it whenever a location failure appeared
+   or cleared.
+
+   No pointer-events: auto here: the shipped `.sr-map-fab-cluster button` rule is
+   a descendant selector and already re-enables a <button> nested one level
+   deeper. */
+.sr-map-search-area-row {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+/* THE CONTROL. The map-chrome family everything else floating on this canvas
+   belongs to — same shadow, same 20px pill, same padding rhythm as the loading
+   chip — escalated to the app's shipped "pressable / active" treatment: accent
+   ink on the accent tint inside the strong accent border, which is what
+   .sr-share-drop-btn[aria-pressed="true"] already wears.
+
+   Deliberately NOT an accent-FILLED slab. A solid accent fill on this canvas
+   means SIGHTING PIN, so a filled control would read as data rather than as
+   chrome — and the accent-filled .sr-map-filters-btn sits in this same cluster
+   on a phone, so two labelled pills need two different weights to stay two
+   different jobs. */
+.sr-map-search-area-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  max-width: 100%;
+  padding: 7px 15px;
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  border: 1px solid var(--sr-accent-border-strong);
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+  white-space: nowrap;
+  /* Origin-aware: the control grows UP out of a bottom-anchored cluster, so it
+     scales from its bottom edge. The top-anchored outcome line does the
+     opposite (it reuses the shipped sr-map-geo-in). */
+  transform-origin: bottom center;
+  animation: sr-search-area-arrive 190ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 120ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 120ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-map-search-area-btn svg { flex: none; }
+.sr-map-search-area-btn:hover {
+  background: var(--sr-surface);
+  border-color: var(--sr-accent);
+}
+/* FR-24's retained already-searched state. aria-disabled, NEVER the `disabled`
+   attribute: disabling a focused button drops focus to <body>, which is the
+   exact failure this state exists to prevent (the .sr-map-locate-btn precedent).
+   The arrive animation is suppressed because nothing arrived — the control the
+   user is looking at is the one they just pressed.
+
+   (0,2,0) against the hover rule's (0,2,0), so it is SOURCE ORDER that makes the
+   muted surface beat the hover surface. The :hover pair below is (0,3,0) and
+   holds regardless, which is why both are written: the second is the guarantee,
+   the first keeps the un-hovered case reading correctly wherever these sit.) */
+.sr-map-search-area-btn[aria-disabled="true"] {
+  background: var(--sr-surface);
+  color: var(--sr-text-muted);
+  border-color: var(--sr-border);
+  cursor: default;
+  animation: none;
+}
+.sr-map-search-area-btn[aria-disabled="true"]:hover {
+  background: var(--sr-surface);
+  border-color: var(--sr-border);
+}
+
+/* The end state IS the resting state, so the app's global
+   prefers-reduced-motion block collapsing this to ~1us loses nothing, and no
+   per-component reduced-motion query may be added (the standing note at the Pin
+   Share block). The GL paint transitions in SearchedAreaLayer.tsx are NOT
+   reached by that block and read matchMedia themselves. */
+@keyframes sr-search-area-arrive {
+  from { opacity: 0; transform: translateY(8px) scale(0.965); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* The search-outcome live region — the top-centre statement slot's second
+   occupant, mutually exclusive in time with the loading chip (every handler
+   clears the outcome before its fetch, and FR-14 suppresses the control exactly
+   while the chip is up, so single occupancy is structural).
+
+   ANCHORED left:12px / right:12px AND CENTRING ITS CHILD — deliberately NOT the
+   chip's `left: 50%; transform: translateX(-50%)`. An absolutely positioned box
+   with only `left` set shrink-to-fits against the space from that edge, so the
+   50% form gives a WRAPPING message half the map width; it was measured at 8
+   lines where 4 were expected. The chip gets away with it because it is
+   effectively single-line. This one is not.
+
+   THERE IS DELIBERATELY NO `:empty { display: none }` RULE HERE, and none may be
+   added — the same prohibition, for the same reason, as .sr-map-geo-error above.
+   This is a role="status" live region, `display: none` removes an element from
+   the ACCESSIBILITY TREE rather than merely from view, and a region hidden while
+   idle is inserted into the tree at the instant its first content arrives, which
+   is the documented way to make a live region fail to announce. It would break
+   EVERY announcement here, not just the first, because each handler empties the
+   region before its fetch. If this ever needs hiding visually, it must be the
+   .sr-only clip/1px idiom. Guarded by lib/mapSearchAreaCss.test.ts. */
+.sr-map-search-status {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 1050;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* The message card: one element, two variants. A result reads as neutral map
+   chrome; a failure re-tokenizes the SAME node to the already-audited error pair
+   (--sr-error on --sr-error-bg, 4.82:1 light / 7.07:1 dark) and adds an icon —
+   never a second card in a second place, and never a duplicate .sr-only
+   announcer, which would put the same sentence in the reading order twice.
+   pointer-events: none on the node as well as the container, because this box
+   sits over the layers switcher and every tap must reach it (the entire
+   justification for taking the top-centre anchor at all).
+   14px radius, between the chip's 20px pill and the geo-error card's 12px: it
+   reads as a pill when the sentence is short and as a card when it wraps. */
+.sr-map-search-status-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 24rem;
+  padding: 6px 13px;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--sr-text-muted);
+  text-align: center;
+  pointer-events: none;
+  animation: sr-map-geo-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-map-search-status-msg--error {
+  background: var(--sr-error-bg);
+  border-color: var(--sr-error-border);
+  color: var(--sr-error);
+  text-align: left;
+}
+.sr-map-search-status-msg--error svg { flex: none; margin-top: 0.18em; }
 
 /* ── Pin Share ───────────────────────────────────────────────────────────────
    Drop a transient pin with a right-click / long-press, read its coordinates,
@@ -2472,6 +2706,19 @@ select:focus-visible {
      the uniform-map-fabs extraction. */
   .sr-map-fab--std     { width: 2.75rem; height: 2.75rem; }
   .sr-map-fab--compact { width: 2.5rem;  height: 2.5rem;  }
+
+  /* "Search this area": let the label WRAP on a phone rather than push its row.
+     The row is full width, so a wrapped label grows the cluster upward exactly
+     as a wrapped location-failure message does, and no disc moves. The ~44px
+     touch posture comes from .sr-touch-target on the element (min-height beats
+     nothing here — the control declares no height — so the box simply grows).
+     Nothing re-declares the font size: 0.8125rem is already above the 16px iOS
+     focus-zoom threshold's concern (this is a button, not a form control) and
+     tracks in-app text scale on its own. */
+  .sr-map-search-area-btn { white-space: normal; text-align: center; }
+  /* The outcome card is already bounded by its container's 12px side anchors, so
+     the desktop 24rem cap is the one thing that can exceed a 320px phone. */
+  .sr-map-search-status-msg { max-width: 100%; }
   /* The copy button reaches the same posture. Re-stated at the compact
      specificity (0,2,0) because the base compact rule would otherwise outrank
      the .sr-touch-target min-height the button also carries, silently leaving

@@ -5,6 +5,13 @@ import type { MLExportRow } from './parseMLExport'
 import type { ObservationEntry } from '../types'
 
 export type ViewMode = 'sightings' | 'hotspots' | 'targets' | 'lifers'
+
+// The three views that search around a shared centre at a shared radius.
+// My Sightings is excluded structurally rather than by convention: it renders
+// the user's own loaded data with no live search and no centre, so there is
+// nothing for "Search this area" to re-run there (feature: search-this-area).
+export type CenterViewMode = Extract<ViewMode, 'hotspots' | 'targets' | 'lifers'>
+
 export type DisplayMode = 'pins' | 'heatmap'
 
 // Session-only Pins-mode point sizing: 'normal' is byte-identical to the

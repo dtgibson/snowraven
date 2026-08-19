@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 0.5.90">v0.5.90</span>
+        <span class="version-pill" aria-label="Version 0.5.91">v0.5.91</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -319,7 +319,21 @@
               their exact coordinate and a Labels / Dots toggle, so you can collapse the marker
               chips to clean dots for an overview of where the birds are. Set a time range and radius, search a place name, use
               your location, or right-click the map (long-press on touch) to drop a pin and
-              search from there. The map's own controls carry the same three round buttons on
+              search from there. Move or zoom the map away from the last search and a Search this area
+              button appears on the map, wherever there is room for it above the map's own
+              corner buttons, re-running that view's search over the area you are looking at in
+              one press. It works out both the center and the radius from the view, sizing the
+              circle so everything on screen falls inside it, rounding up to one of the
+              sidebar's own four radius sizes and stopping at 25 miles. The center is written
+              into the sidebar's coordinate boxes and your Radius setting is left alone, so the
+              size searched and the size shown there can differ. The area the search actually covered is drawn on the map, with the
+              ground outside it gently dimmed, so you can see at a glance whether the pins in
+              front of you are the answer to what you are looking at. Once pressed, a second press cannot
+              stack a second lookup: a keyboard press leaves the button in place, greyed out
+              and inert and announced as already searched, while a click or tap may instead
+              let it leave the corner. Either way it goes live again as soon as you move the
+              map somewhere new. Panning on
+              its own never searches: nothing is sent until you press. The map's own controls carry the same three round buttons on
               every view that shows a map, so sharing a spot, centering on where you are, and
               going fullscreen never cost a trip through the filters panel, and if location is
               off or denied the reason and the fix appear on the map itself. Switch between street, satellite, and topo basemaps, with a
@@ -671,7 +685,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v0.5.90 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v0.5.91 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

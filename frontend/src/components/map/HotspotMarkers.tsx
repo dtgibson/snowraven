@@ -23,7 +23,7 @@ export function hotspotKindForImage(id: string): HotspotKind | null {
   return null
 }
 
-export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
+export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = true }: {
   pins: HotspotPin[]
   hiddenKinds: Set<HotspotPin['kind']>
   // Lifted to the parent (locId) so the keyboard sidebar list and the teardrop
@@ -31,12 +31,48 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect }: {
   // kinds were hidden.)
   sel: string | null
   onSelect: (locId: string | null) => void
+  /**
+   * Frame the results when the pin count changes. Default TRUE, so every shipped
+   * route (the sidebar Find button, the place-name search, "Use my location", a
+   * dropped or dragged centre pin, a view-mode change) behaves exactly as it
+   * always has — each of those sets a centre that may be nowhere near the screen,
+   * and framing is the only way the user sees what they asked for.
+   *
+   * FALSE for one caller: a search whose centre and radius were DERIVED FROM the
+   * current viewport ("Search this area"). Two reasons, and the first is a bug
+   * this fixes rather than a preference.
+   *
+   * 1. THE FEEDBACK LOOP. The derived radius covers the viewport, and this fit
+   *    sets the viewport to cover the results, and the results span the searched
+   *    circle. A rectangle circumscribing points spread across a circle of radius
+   *    r has a half-diagonal approaching r*sqrt(2), so the post-fit viewport is
+   *    reliably LARGER than the circle just searched and the next derived rung
+   *    comes out one step higher. The control, which is offered exactly when the
+   *    derived values differ from the recorded ones, therefore re-offered itself
+   *    immediately after every successful press, and each press ratcheted the
+   *    radius (5 -> 10 -> 25) for one unrequested lookup per step. Measured: a
+   *    press sending dist=16 re-framed zoom 11.276 -> 10.321 and the next press
+   *    sent dist=40. No geometric predicate can fix that, because the app's own
+   *    re-frame and a deliberate user zoom-out produce the same viewport; the
+   *    only honest cut is not to move the map in the first place.
+   * 2. THERE IS NOTHING TO FRAME. When the framing produced the search, the
+   *    results are already on screen by construction — that is FR-08's covering
+   *    invariant. And in the capped case (FR-09) the re-frame actively destroys
+   *    the one thing the drawn circle exists to say: it zooms to the results, so
+   *    the circle that should read visibly smaller than the screen ends up
+   *    matching it, and the user never sees that the answer was partial.
+   */
+  autoFit?: boolean
 }) {
   const map = useMap().current
   const fitKey = pins.length
 
+  // `autoFit` is deliberately NOT in the dep list. React re-creates this closure
+  // every render but only RUNS it when a dep changes, so the guard reads the
+  // current value at the moment a new pin set arrives — while a later flip of the
+  // flag on its own cannot retro-frame a result set that has already landed.
   useEffect(() => {
-    if (!map || pins.length === 0) return
+    if (!map || pins.length === 0 || !autoFit) return
     if (pins.length === 1) {
       map.flyTo({ center: [pins[0].lng, pins[0].lat], zoom: 12, duration: 0 })
     } else {

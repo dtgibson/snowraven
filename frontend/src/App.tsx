@@ -33,6 +33,7 @@ import { WeatherBacklog } from './components/WeatherBacklog'
 import { loadEbirdObservations } from './lib/observationsCache'
 import { buildChecklistRows, type ChecklistRowData } from './lib/checklistsTab'
 import { useEmbeddedMediaPreference } from './lib/useEmbeddedMediaPreference'
+import { useMapPanelChrome } from './lib/mapPanelChrome'
 
 // Lazy chunks. The map (maplibre-gl ~270 KB gz), stats (recharts ~112 KB gz), Species
 // Detail, and Help are kept out of the entry bundle so first paint is light. Named
@@ -220,6 +221,17 @@ export default function App() {
     preferenceSaving: embeddedMediaPreferenceSaving,
     setDisableEmbeddedMedia,
   } = useEmbeddedMediaPreference()
+
+  // The Map Explorer panel's height is `calc(100dvh - <chrome>)`, and the chrome
+  // is measured rather than assumed — the constant it replaces under-counted the
+  // real header + tab nav + footer by 45 to 135px at the default text size and by
+  // up to 352px at 200%, pushing the map's own buttons below the bottom of the
+  // window, and no single number could have been right at both. These two refs
+  // are the whole of what the measurement needs: everything above <main>, and
+  // everything below it.
+  const mainRef = useRef<HTMLElement>(null)
+  const footerRef = useRef<HTMLParagraphElement>(null)
+  useMapPanelChrome(mainRef, footerRef)
 
   const handleFilesSaved = useCallback(() => setFilesVersion(v => v + 1), [])
 
@@ -723,7 +735,7 @@ export default function App() {
       </div>
 
       {/* Weather tab content */}
-      <main id="sr-main" tabIndex={-1} style={{ outline: 'none' }}>
+      <main id="sr-main" ref={mainRef} tabIndex={-1} style={{ outline: 'none' }}>
       {/* Persistent (always-mounted) polite region for the lazy-tab loading state,
           living OUTSIDE every Suspense boundary so it pre-exists its text change —
           the TabLoading fallbacks push their label here via context (F068). The
@@ -1341,7 +1353,7 @@ export default function App() {
       {/* Footer */}
       {/* Padding lives in .sr-app-footer (globals.css) so the iOS home-indicator
           safe-area inset can extend the bottom padding (NFR-07, mobile-app). */}
-      <p inert={chromeInert} role="contentinfo" className="sr-app-footer sr-pad-x-trim" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', flexShrink: 0 }}>
+      <p ref={footerRef} inert={chromeInert} role="contentinfo" className="sr-app-footer sr-pad-x-trim" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--sr-text-footer)', flexShrink: 0 }}>
         <OutboundLink
           href="https://github.com/dtgibson/snowraven"
           style={{ color: 'inherit', textDecoration: 'none' }}

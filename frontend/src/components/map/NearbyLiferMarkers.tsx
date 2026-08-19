@@ -21,7 +21,7 @@ import type { NearbyLiferLocation } from '../../lib/mapExplorerTypes'
 
 export type MarkerMode = 'labels' | 'dots'
 
-export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, onSelect, markerMode = 'labels' }: {
+export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, onSelect, markerMode = 'labels', autoFit = true }: {
   pins: NearbyLiferLocation[]
   // name → eBird taxon code, for the BirdName favicons (a no-op when absent).
   speciesCodeMap: Record<string, string>
@@ -34,12 +34,18 @@ export function NearbyLiferMarkers({ pins, speciesCodeMap, onOpenSpecies, sel, o
   // 'labels' = the full name chip; 'dots' = only the locator dot, label hidden.
   // The real <button> + aria-label + popup are unchanged in either mode.
   markerMode?: MarkerMode
+  /** Frame the results when the pin count changes. Default TRUE (every shipped
+   *  route). FALSE only for a search whose centre and radius were derived from the
+   *  current viewport, where re-framing feeds the derivation its own output and
+   *  ratchets the radius one lookup at a time — the full argument, and why this is
+   *  not in the dep list below, is on HotspotMarkers' identical prop. */
+  autoFit?: boolean
 }) {
   const map = useMap().current
   const fitKey = pins.length
 
   useEffect(() => {
-    if (!map || pins.length === 0) return
+    if (!map || pins.length === 0 || !autoFit) return
     if (pins.length === 1) {
       map.flyTo({ center: [pins[0].lng, pins[0].lat], zoom: 12, duration: 0 })
     } else {

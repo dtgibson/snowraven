@@ -1,0 +1,1426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search This Area — SnowRaven design</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   REVIEW-PAGE SHELL  (--pg-*)
+   This is the document you are reading, NOT the app. Deliberately a deep,
+   green-tinted slate so the light and dark app frames below read as artefacts
+   sitting on a table, never as page chrome. Nothing here ships.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --pg-bg:        #0A100E;
+  --pg-bg-2:      #0E1714;
+  --pg-surface:   #121C18;
+  --pg-surface-2: #16221D;
+  --pg-line:      #1F2F29;
+  --pg-line-2:    #2A3D36;
+  --pg-text:      #E9F1ED;
+  --pg-muted:     #93A79E;
+  --pg-faint:     #6C817A;
+  --pg-accent:    #3FD996;
+  --pg-warn:      #E8A33D;
+  --pg-mark:      #E2603F;
+
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  line-height: 1.62;
+  color: var(--pg-text);
+  background: var(--pg-bg);
+  background-image:
+    radial-gradient(120ch 60ch at 12% -10%, rgba(63, 217, 150, 0.10), transparent 70%),
+    radial-gradient(90ch 50ch at 96% 4%, rgba(226, 96, 63, 0.09), transparent 68%),
+    linear-gradient(180deg, var(--pg-bg-2) 0%, var(--pg-bg) 46%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; }
+
+/* ── Type roles ───────────────────────────────────────────────────────────── */
+.eyebrow {
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.13em;
+  text-transform: uppercase; color: var(--pg-accent); margin: 0 0 14px;
+}
+h1 {
+  font-size: clamp(2.1rem, 5.2vw, 3.4rem); line-height: 1.03;
+  letter-spacing: -0.035em; font-weight: 700; margin: 0 0 18px; max-width: 20ch;
+}
+h1 em { font-style: normal; color: var(--pg-accent); }
+h2 {
+  font-size: 1.375rem; line-height: 1.25; letter-spacing: -0.018em;
+  font-weight: 680; margin: 0 0 10px;
+}
+h3 {
+  font-size: 0.9375rem; line-height: 1.35; letter-spacing: -0.006em;
+  font-weight: 660; margin: 0 0 6px;
+}
+.lede { font-size: 1.0625rem; line-height: 1.6; color: var(--pg-muted); max-width: 66ch; margin: 0; }
+p { margin: 0 0 12px; }
+p:last-child { margin-bottom: 0; }
+.muted { color: var(--pg-muted); }
+.faint { color: var(--pg-faint); }
+.small { font-size: 0.8125rem; line-height: 1.55; }
+code, .mono { font-family: var(--font-mono); font-size: 0.84em; }
+code {
+  background: rgba(63, 217, 150, 0.09); color: #A9E8CC;
+  padding: 0.12em 0.42em; border-radius: 5px;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
+header.hero { padding: 72px 0 40px; }
+.hero-meta {
+  display: flex; flex-wrap: wrap; gap: 10px 22px; margin-top: 26px;
+  font-size: 0.75rem; color: var(--pg-faint);
+}
+.hero-meta b { color: var(--pg-muted); font-weight: 600; }
+
+/* ── Section rhythm ───────────────────────────────────────────────────────── */
+section { padding: 40px 0 0; }
+.sec-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+.sec-num {
+  font-family: var(--font-mono); font-size: 0.6875rem; color: var(--pg-accent);
+  border: 1px solid var(--pg-line-2); border-radius: 5px; padding: 2px 7px; flex: none;
+}
+.rule { height: 1px; background: var(--pg-line); border: 0; margin: 56px 0 0; }
+
+/* ── Decision list (editorial, not a card grid) ───────────────────────────── */
+.decisions { border-top: 1px solid var(--pg-line); }
+.decision {
+  display: grid; grid-template-columns: minmax(min(230px, 100%), 0.9fr) 2.1fr;
+  gap: 6px 40px; padding: 22px 0; border-bottom: 1px solid var(--pg-line);
+}
+.decision > div:first-child { display: flex; flex-direction: column; gap: 6px; }
+.decision .verdict {
+  font-size: 0.75rem; font-weight: 650; color: var(--pg-accent);
+  letter-spacing: 0.01em;
+}
+@media (max-width: 720px) { .decision { grid-template-columns: 1fr; gap: 8px; } }
+
+/* ── Demo stage ───────────────────────────────────────────────────────────── */
+.stage {
+  background: var(--pg-surface);
+  border: 1px solid var(--pg-line);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 24px 60px -30px rgba(0,0,0,0.8);
+}
+.controls { display: flex; flex-wrap: wrap; gap: 16px 26px; align-items: flex-start; margin-bottom: 16px; }
+.ctlgroup { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.ctlgroup > span {
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--pg-faint);
+}
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.seg button {
+  font: inherit; font-size: 0.75rem; font-weight: 560; line-height: 1.2;
+  padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  color: var(--pg-muted); background: var(--pg-surface-2);
+  border: 1px solid var(--pg-line-2);
+  transition: background 130ms cubic-bezier(0.16,1,0.3,1), color 130ms cubic-bezier(0.16,1,0.3,1), border-color 130ms cubic-bezier(0.16,1,0.3,1);
+}
+.seg button:hover { background: #1B2A24; color: var(--pg-text); }
+.seg button[aria-pressed="true"] {
+  background: rgba(63,217,150,0.13); color: var(--pg-accent); border-color: rgba(63,217,150,0.45);
+}
+.seg button:focus-visible { outline: 2px solid var(--pg-accent); outline-offset: 2px; }
+
+.stage-note {
+  margin-top: 14px; padding: 12px 14px; border-radius: 10px;
+  background: var(--pg-surface-2); border: 1px solid var(--pg-line);
+  border-left: 3px solid var(--pg-accent);
+  font-size: 0.8125rem; line-height: 1.55; color: var(--pg-muted);
+}
+.stage-note b { color: var(--pg-text); font-weight: 620; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   APP TOKEN SCOPE  (--sr-*)
+   Verbatim from frontend/src/globals.css :root and [data-theme="dark"].
+   Two tokens are NEW and proposed by this design; they are marked.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.sr-app {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  --sr-border: #E4E4E7;
+  --sr-border-medium: #C4C4CE;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+  --sr-error: #D31F1F;
+  --sr-error-bg: #FEF2F2;
+  --sr-error-border: #FECACA;
+
+  /* NEW — map-anchored, declared IDENTICALLY in both themes (same posture as
+     --sr-share-pin and the county ramp: the canvas is the always-light Positron
+     basemap regardless of app theme). */
+  --sr-search-area-rgb: 180, 52, 31;
+  --sr-search-area-scrim-rgb: 15, 17, 23;
+
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-sans);
+  color: var(--sr-text);
+}
+.sr-app[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-medium: #3F3F46;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+  --sr-error: #F87171;
+  --sr-error-bg: #1C0505;
+  --sr-error-border: #7F1D1D;
+  /* identical by design — see above */
+  --sr-search-area-rgb: 180, 52, 31;
+  --sr-search-area-scrim-rgb: 15, 17, 23;
+}
+
+/* Positron basemap simulation. NOT app tokens: the real basemap is vector tiles
+   from OpenFreeMap and is always light in both app themes, which is exactly what
+   these values reproduce. Declared on every map surface, desktop frame and phone
+   alike, so a dark-theme frame still shows a light basemap the way the app does. */
+.mapframe, .phone {
+  --map-land: #F4F3EF;
+  --map-land-2: #EAE8E1;
+  --map-water: #C6D9E6;
+  --map-water-2: #B8CFDE;
+  --map-park: #DDE9D4;
+  --map-road: #FFFFFF;
+  --map-road-casing: #E1DFD7;
+  --map-motorway: #F7EDC8;
+  --map-motorway-casing: #E4D6A4;
+  --map-label: #6E6C66;
+  --map-label-water: #7C93A3;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE MAP FRAME AND ITS CHROME
+   ═══════════════════════════════════════════════════════════════════════════ */
+.mapframe {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--sr-border);
+  background: var(--map-water);
+  isolation: isolate;
+}
+.mapframe.desktop { aspect-ratio: 16 / 9.4; min-height: 420px; }
+
+.basemap { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.pan {
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: 450px 280px;
+}
+
+/* Searched-area indicator ------------------------------------------------- */
+/* Scrim: everything OUTSIDE the searched circle, gently dimmed with the app's
+   own ink (never pure black). Sits above the basemap, below every pin. */
+.sa-scrim {
+  fill: rgba(var(--sr-search-area-scrim-rgb), 0.18);
+  transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Halo: a soft wide underlay so the edge reads over pale streets AND dark
+   satellite imagery without needing a fill. */
+.sa-halo {
+  fill: none;
+  stroke: rgba(var(--sr-search-area-rgb), 0.20);
+  stroke-width: 9;
+  transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Core: the dashed edge. Dash is the one line idiom unused elsewhere on this
+   map (county lines and atlas grids are solid), so shape carries the meaning. */
+.sa-ring {
+  fill: none;
+  stroke: rgba(var(--sr-search-area-rgb), 0.95);
+  stroke-width: 2.5;
+  stroke-dasharray: 9 7;
+  stroke-linecap: round;
+  transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1) 60ms;
+}
+
+/* Map chrome — values lifted from the shipped .sr-map-* rules ------------- */
+.layers {
+  position: absolute; top: 8px; right: 8px; z-index: 1;
+  display: flex; flex-direction: column; gap: 7px; padding: 7px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  max-width: calc(100% - 16px);
+}
+.layers-seg {
+  display: inline-flex; flex-wrap: wrap; gap: 2px;
+  background: var(--sr-surface-subtle); border-radius: 7px; padding: 2px;
+}
+.layers-seg span {
+  padding: 4px 10px; border-radius: 5px; font-size: 0.75rem; font-weight: 500;
+  color: var(--sr-text-muted); white-space: nowrap;
+}
+.layers-seg span.on {
+  background: var(--sr-surface); color: var(--sr-text); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+.layers-trails {
+  display: flex; align-items: center; gap: 6px; padding: 0 2px;
+  font-size: 0.75rem; color: var(--sr-text);
+}
+.layers-box {
+  width: 0.8125em; height: 0.8125em; border-radius: 3px; flex: none;
+  border: 1px solid var(--sr-border-medium);
+}
+
+/* ── THE TOP-CENTRE STATEMENT SLOT ──────────────────────────────────────────
+   The shipped loading chip and the new outcome region share this one anchor and
+   are mutually exclusive in time (each handler clears the outcome before its
+   fetch, so the chip always has the slot to itself). BOTH are
+   pointer-events: none, and that is precisely what earns them this position:
+   on a 320px phone at 200% text scale anything here passes over the top-right
+   layers switcher, which is only acceptable while the switcher stays fully
+   operable underneath. No interactive control may take this anchor.
+
+   A note the Engineer must not lose: this slot is anchored `left: 12px;
+   right: 12px` and centres its child, NOT `left: 50%; transform:
+   translateX(-50%)` the way the shipped chip is. An abspos box with only `left`
+   set shrink-to-fits against the space from that edge, so the 50% form gives a
+   wrapping message HALF the map width — measured here as 8 lines where 4 were
+   expected. The chip gets away with it because it is `white-space: nowrap`. */
+.searchstatus {
+  position: absolute; top: 12px; left: 12px; right: 12px;
+  z-index: 1050;
+  display: flex; justify-content: center;
+  pointer-events: none;
+}
+.chip {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 1050; max-width: calc(100% - 24px); pointer-events: none;
+  display: flex; align-items: center; gap: 6px; padding: 5px 12px;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  font-size: 0.75rem; color: var(--sr-text-muted);
+  pointer-events: none; text-align: center; white-space: normal;
+  animation: sa-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* 0.7s linear infinite is the app's shipped `.spin` verbatim (globals.css:636).
+   An indeterminate spinner is neither an enter nor an exit transition, so the
+   sub-300ms rule does not apply to it; matching the shipped value is what keeps
+   this chip a faithful reproduction rather than a redesign of it. */
+.chip svg { flex: none; animation: sa-spin 0.7s linear infinite; }
+
+/* ── THE CONTROL'S ROW IN THE SHIPPED FAB CLUSTER ───────────────────────────
+   The control is an ACTION, so it lives where this map's other actions live,
+   as its own full-width row above the location-failure row already there.
+   flex: 0 0 100% is the whole mechanism: a row consumes none of the FAB row's
+   measured 4.00px of horizontal slack, and because the cluster is
+   bottom-anchored it grows UPWARD, so no shipped button moves and the retry
+   never shifts under the user's finger. The cluster's own row-gap is the gap,
+   its justify-content is the alignment, its max-width is the cap, and
+   .sr-ios-app .sr-map-fab-cluster is the bottom safe-area inset a
+   bottom-anchored control needs (NFR-02) — an existing rule, not a new one. */
+.cl-row { flex: 0 0 100%; display: flex; justify-content: flex-end; pointer-events: none; }
+.cl-row > * { pointer-events: auto; }
+
+/* The FR-25 live region. One element, two colour variants, sized by content. */
+.outcome { display: flex; justify-content: center; max-width: 100%; pointer-events: none; }
+.outcome-msg {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 13px; max-width: 24rem;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  font-size: 0.75rem; line-height: 1.4; color: var(--sr-text-muted);
+  text-align: center;
+  animation: sa-in 190ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.outcome-msg.is-error {
+  background: var(--sr-error-bg); border-color: var(--sr-error-border);
+  color: var(--sr-error); text-align: left;
+}
+.outcome-msg.is-error svg { flex: none; margin-top: 0.18em; }
+
+/* THE CONTROL. Same map-chrome family as everything else floating on this
+   canvas — same shadow, 20px pill, same padding rhythm — escalated to accent ink
+   on the accent tint inside the strong accent border, which is the app's own
+   shipped "this one is pressable / active" treatment
+   (.sr-share-drop-btn[aria-pressed]). Not an accent-FILLED slab: solid green
+   blobs on this canvas are sighting pins. */
+.stbtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 7px 15px; max-width: 100%;
+  font-family: inherit; font-size: 0.8125rem; font-weight: 600; line-height: 1.25;
+  color: var(--sr-accent);
+  background: var(--sr-accent-bg);
+  border: 1px solid var(--sr-accent-border-strong);
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  cursor: pointer; white-space: nowrap;
+  /* Origin-aware: the control lives in a bottom-anchored cluster and grows
+     upward out of it, so it scales from its BOTTOM edge. The outcome line, which
+     is top-anchored, does the opposite. */
+  transform-origin: bottom center;
+  animation: sa-arrive 190ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 120ms cubic-bezier(0.16,1,0.3,1), border-color 120ms cubic-bezier(0.16,1,0.3,1);
+}
+.stbtn svg { flex: none; }
+.stbtn:hover { background: var(--sr-surface); border-color: var(--sr-accent); }
+.stbtn:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.stbtn[aria-disabled="true"] {
+  color: var(--sr-text-muted); background: var(--sr-surface);
+  border-color: var(--sr-border); cursor: default; animation: none;
+}
+
+/* FAB cluster — shipped geometry, reproduced for collision checking. */
+.fabs {
+  position: absolute; bottom: 20px; right: 16px; z-index: 1050;
+  display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center;
+  gap: 10px; row-gap: 10px; max-width: calc(100% - 32px); pointer-events: none;
+}
+.fab {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 2.25rem; height: 2.25rem; border-radius: 50%;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  color: var(--sr-text-muted); box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  pointer-events: auto;
+}
+.fab svg { width: 1.0625rem; height: 1.0625rem; }
+.filters-pill {
+  display: none; align-items: center; gap: 6px; height: 36px; padding: 0 14px;
+  border-radius: 18px; background: var(--sr-surface); border: 1px solid var(--sr-border);
+  color: var(--sr-text); font-size: 0.75rem; font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18); pointer-events: auto;
+}
+
+/* Map pins ---------------------------------------------------------------- */
+.pin-hot { fill: var(--sr-accent); stroke: #FFFFFF; stroke-width: 1.4; }
+.pin-personal { fill: #C6890F; stroke: #FFFFFF; stroke-width: 1.4; }
+.pin-center-ring { fill: none; stroke: var(--sr-accent); stroke-width: 2; }
+.pin-center-dot { fill: var(--sr-accent); }
+.pinlabel {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 600;
+  fill: #34302B; paint-order: stroke; stroke: rgba(255,255,255,0.9); stroke-width: 3px;
+}
+
+/* Basemap SVG paint ------------------------------------------------------- */
+.b-water { fill: var(--map-water); }
+.b-land { fill: var(--map-land); }
+.b-land2 { fill: var(--map-land-2); }
+.b-park { fill: var(--map-park); }
+.b-road-casing { fill: none; stroke: var(--map-road-casing); stroke-linecap: round; }
+.b-road { fill: none; stroke: var(--map-road); stroke-linecap: round; }
+.b-mw-casing { fill: none; stroke: var(--map-motorway-casing); stroke-linecap: round; stroke-width: 7; }
+.b-mw { fill: none; stroke: var(--map-motorway); stroke-linecap: round; stroke-width: 5; }
+.b-label {
+  font-family: var(--font-sans); fill: var(--map-label);
+  font-size: 12px; font-weight: 600; letter-spacing: 0.09em;
+}
+.b-label-sm { font-size: 10px; letter-spacing: 0.06em; font-weight: 500; }
+.b-label-water {
+  font-family: var(--font-sans); fill: var(--map-label-water);
+  font-size: 12px; font-style: italic; letter-spacing: 0.04em;
+}
+
+/* ── Motion ───────────────────────────────────────────────────────────────── */
+@keyframes sa-in     { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes sa-arrive { from { opacity: 0; transform: translateY(8px) scale(0.965); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes sa-spin   { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The app's shipped global block, verbatim (globals.css:2277). Every animation
+     in this feature has an END state that IS its resting state, so collapsing
+     them loses nothing and no per-component reduced-motion query is needed.
+     The GL paint transitions are NOT reached by this: SearchedAreaLayer must
+     read matchMedia in its effect and pass duration 0. */
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHONE FRAMES
+   320px wide, fullscreen map, iOS. --s is the in-app text scale: every type
+   size and every touch box is written as calc(<rem> * var(--s)), which is what
+   the real ≤640 rules do (rem against a root that --sr-text-scale multiplies).
+   ═══════════════════════════════════════════════════════════════════════════ */
+.phones { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+.phone-unit { display: flex; flex-direction: column; gap: 10px; }
+.phone-cap { font-size: 0.75rem; color: var(--pg-muted); max-width: 320px; }
+.phone-cap b { color: var(--pg-text); font-weight: 620; display: block; margin-bottom: 2px; }
+
+.phone {
+  --s: 1;
+  --inset-top: 59px;
+  width: 320px; height: 660px; flex: none;
+  position: relative; overflow: hidden;
+  border-radius: 30px; border: 1px solid var(--pg-line-2);
+  background: #050807;   /* device bezel — tinted toward the page hue, not pure black */
+  box-shadow: 0 30px 70px -34px rgba(0,0,0,0.9);
+}
+.phone[data-scale="2"] { --s: 2; }
+
+/* The fullscreen panel: padding-top = the safe-area inset. padding-bottom is
+   deliberately omitted, exactly as the shipped rule omits it. */
+.phone-panel { position: absolute; inset: 0; padding-top: var(--inset-top); }
+/* The map area div — the positioned ancestor every absolute child resolves
+   against. Already inside the safe area on all three padded sides. */
+.phone-maparea { position: relative; width: 100%; height: 100%; overflow: hidden; }
+
+.island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 118px; height: 34px; border-radius: 17px; background: #050807; z-index: 40;
+}
+.inset-guide {
+  position: absolute; top: 0; left: 0; right: 0; height: var(--inset-top);
+  z-index: 30; pointer-events: none;
+  border-bottom: 1px dashed rgba(226, 96, 63, 0.85);
+  background: repeating-linear-gradient(135deg, rgba(226,96,63,0.13) 0 6px, transparent 6px 12px);
+}
+.inset-tag {
+  position: absolute; left: 8px; bottom: 3px; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.06em; color: #E2603F; text-transform: uppercase;
+}
+
+/* Phone-tier sizing: every declaration below is the ≤640 rule, scaled. */
+.phone .layers-seg span,
+.phone .layers-trails { font-size: calc(0.75rem * var(--s)); }
+.phone .chip { font-size: calc(0.75rem * var(--s)); }
+.phone .outcome-msg { font-size: calc(0.75rem * var(--s)); max-width: 100%; }
+.phone .stbtn {
+  font-size: calc(0.8125rem * var(--s));
+  min-height: calc(2.75rem * var(--s));   /* .sr-touch-target, ≤640 tier */
+  white-space: normal; text-align: center;
+}
+.phone .fab {
+  width: calc(2.75rem * var(--s)); height: calc(2.75rem * var(--s));
+}
+.phone .fab svg { width: calc(1.0625rem * var(--s)); height: calc(1.0625rem * var(--s)); }
+.phone .filters-pill {
+  display: inline-flex; height: auto; min-height: calc(2.75rem * var(--s));
+  font-size: calc(0.75rem * var(--s)); padding: 0 calc(0.875rem * var(--s));
+  border-radius: calc(1.375rem * var(--s));
+}
+.phone .filters-pill svg { width: calc(0.875rem * var(--s)); height: calc(0.875rem * var(--s)); }
+.phone .layers-box { width: calc(0.8125rem * var(--s)); height: calc(0.8125rem * var(--s)); }
+/* The cluster's 10px gap is deliberately NOT scaled: that fixed value is what
+   leaves the row its measured 4.00px of slack at 320px / 200%. Scaling it to
+   20px wraps a disc onto a second row and misrepresents the shipped geometry. */
+
+/* iOS safe-area inset for the BOTTOM-anchored cluster. The top-anchored status
+   column gets none: it would double-inset. */
+.phone .fabs { bottom: calc(20px + 34px); }
+
+/* ── Anatomy / notes ──────────────────────────────────────────────────────── */
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 26px 40px; }
+.notelist { list-style: none; margin: 0; padding: 0; }
+.notelist li {
+  padding: 11px 0 11px 22px; border-bottom: 1px solid var(--pg-line);
+  position: relative; font-size: 0.875rem; line-height: 1.55; color: var(--pg-muted);
+}
+.notelist li::before {
+  content: ''; position: absolute; left: 0; top: 1.05em;
+  width: 7px; height: 7px; border-radius: 2px; background: var(--pg-line-2);
+}
+.notelist li b { color: var(--pg-text); font-weight: 620; }
+.notelist li:last-child { border-bottom: 0; }
+
+.swatchrow { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 0 0; }
+.swatch { display: flex; align-items: center; gap: 9px; font-size: 0.75rem; color: var(--pg-muted); }
+.swatch i {
+  width: 26px; height: 26px; border-radius: 7px; display: block; flex: none;
+  border: 1px solid var(--pg-line-2);
+}
+
+.flag {
+  border: 1px solid rgba(232, 163, 61, 0.34); background: rgba(232, 163, 61, 0.08);
+  border-radius: 12px; padding: 16px 18px; margin-top: 22px;
+}
+.flag h3 { color: var(--pg-warn); }
+.flag p { color: var(--pg-muted); font-size: 0.875rem; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+    </symbol>
+    <symbol id="i-maximize" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>
+    </symbol>
+    <symbol id="i-locate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 12h3"/><path d="M19 12h3"/><path d="M12 2v3"/><path d="M12 19v3"/><circle cx="12" cy="12" r="7"/>
+    </symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+    </symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="eyebrow">SnowRaven &middot; Map Explorer &middot; Stage 4 design</p>
+    <h1>Pan the map. <em>Search what you can see.</em></h1>
+    <p class="lede">
+      One labelled control on the map surface re-runs the active view's eBird search
+      over the viewport you are looking at. And because a circle can never be a
+      rectangle, the map says plainly which part of what you see was actually covered.
+    </p>
+    <div class="hero-meta">
+      <span><b>Feature</b> search-this-area</span>
+      <span><b>Views</b> Hotspots &middot; Nearby Lifers &middot; Media Targets</span>
+      <span><b>Bar</b> 320px at 200% text scale, iOS fullscreen, both themes</span>
+      <span><b>New tokens</b> 2</span>
+    </div>
+  </header>
+
+  <hr class="rule">
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">01</span><h2>The four calls</h2></div>
+    <div class="decisions">
+
+      <div class="decision">
+        <div>
+          <h3>Where the control lives</h3>
+          <span class="verdict">Its own row in the FAB cluster</span>
+        </div>
+        <div class="muted small">
+          <p>
+            I built the top-centre pill first, because that is the idiom and it is
+            what the PRD assumed. Measured in Chromium at 320px it puts a persistent,
+            tappable control over the layers switcher: 206 by 31px at 100% text scale
+            and 294 by 148px at 200%, where it buries the switcher completely. That
+            disqualifies it. The split that works is by <em>interactivity</em>, not by
+            feature: the top-centre anchor keeps only transient
+            <code>pointer-events: none</code> statements (the shipped loading chip,
+            and now the outcome line), and the control goes where this map's other
+            actions already live, as its own full-width row in the FAB cluster. It
+            consumes none of that row's measured 4.00px of slack, the cluster grows
+            upward so no shipped button moves, and it inherits the
+            <code>.sr-ios-app</code> bottom inset a bottom-anchored control needs
+            rather than adding a new rule. Measured overlap with the switcher: zero,
+            at every scale.
+          </p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <div>
+          <h3>What the searched area looks like</h3>
+          <span class="verdict">Dim what wasn't searched; dash the edge</span>
+        </div>
+        <div class="muted small">
+          <p>
+            A ring alone would be invisible in the ordinary case: a covering radius
+            circumscribes the viewport, so straight after a press the circle is off
+            screen entirely. Dimming the ground <em>outside</em> the circle inverts
+            that: nothing dims when the search covers what you see, and the moment it
+            does not, the uncovered ground greys out. The edge itself is a dashed
+            red-orange ring over a soft halo, dash being the one line idiom this map
+            does not already use for a real boundary.
+          </p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <div>
+          <h3>How a failure reads in 96px</h3>
+          <span class="verdict">Same element, error tokens, retry never moves</span>
+        </div>
+        <div class="muted small">
+          <p>
+            Not a second card in a second place. The outcome region is one element
+            that is a pill when the text is short and a block when it is long; a
+            failure only changes its colour tokens and adds an icon. The 96px figure
+            was measured against the location-failure strings, which are long
+            instructions; the longest message <em>this</em> feature can produce is 73
+            characters and wraps to four lines at 320px and 200%. The retry is the
+            control, which has already returned to the exact place it was before the
+            press, because the record was not written and the cluster never moves a
+            button. Nothing is truncated, duplicated into a hidden announcer, or sent
+            somewhere else to be read.
+          </p>
+        </div>
+      </div>
+
+      <div class="decision">
+        <div>
+          <h3>Motion</h3>
+          <span class="verdict">One curve, 190ms, arrive only</span>
+        </div>
+        <div class="muted small">
+          <p>
+            The control arrives with the app's own shipped map-chrome entrance
+            (<code>190ms cubic-bezier(0.16, 1, 0.3, 1)</code>, from
+            <code>sr-map-geo-in</code>), growing upward out of the cluster it is
+            anchored to. It has no exit: the chip appearing <em>is</em> the
+            feedback, and a fade would delay it. The area indicator fades up over
+            220ms with the dashed edge landing 60ms behind the halo, so the ground
+            settles and then the edge sharpens. A result line clears itself after six
+            seconds; a failure stays until the next search.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">02</span><h2>The map, state by state</h2></div>
+    <p class="lede small" style="margin-bottom:20px">
+      Alameda County, East Bay. Click through the states; the map really pans and
+      zooms between them, and the indicator is drawn to scale.
+    </p>
+
+    <div class="stage">
+      <div class="controls">
+        <div class="ctlgroup">
+          <span>State</span>
+          <div class="seg" id="state-seg">
+            <button type="button" data-state="searched" aria-pressed="true">1 &middot; Just searched</button>
+            <button type="button" data-state="moved" aria-pressed="false">2 &middot; Panned away</button>
+            <button type="button" data-state="loading" aria-pressed="false">3 &middot; In flight</button>
+            <button type="button" data-state="capped" aria-pressed="false">4 &middot; Capped at 25 mi</button>
+            <button type="button" data-state="failed" aria-pressed="false">5 &middot; Failed</button>
+          </div>
+        </div>
+        <div class="ctlgroup">
+          <span>View</span>
+          <div class="seg" id="view-seg">
+            <button type="button" data-view="hotspots" aria-pressed="true">Hotspots</button>
+            <button type="button" data-view="lifers" aria-pressed="false">Nearby Lifers</button>
+            <button type="button" data-view="targets" aria-pressed="false">Media Targets</button>
+          </div>
+        </div>
+        <div class="ctlgroup">
+          <span>Review only</span>
+          <div class="seg">
+            <button type="button" id="hold-btn" aria-pressed="true">Hold result line</button>
+          </div>
+        </div>
+        <div class="ctlgroup">
+          <span>Theme</span>
+          <div class="seg" id="theme-seg">
+            <button type="button" data-theme="light" aria-pressed="true">Light</button>
+            <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="sr-app" id="app-d" data-theme="light">
+        <div class="mapframe desktop" id="frame-d" data-state="searched">
+          <svg class="basemap" viewBox="0 0 900 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <g class="pan" id="pan-d">
+              <!-- Water ground -->
+              <rect x="-3000" y="-3000" width="7000" height="7000" class="b-water"/>
+              <!-- East Bay landmass -->
+              <path class="b-land" d="M 296 -200 C 322 -60, 300 60, 338 128 C 372 190, 322 236, 352 292
+                C 372 330, 340 372, 370 424 C 396 470, 366 512, 398 560 L 420 2600 L 4200 2600 L 4200 -2600 Z"/>
+              <!-- Hills band -->
+              <path class="b-land2" d="M 560 -200 C 600 40, 588 210, 636 360 C 668 462, 660 520, 700 560 L 4200 2600 L 4200 -2600 Z" opacity="0.75"/>
+              <!-- Alameda island -->
+              <path class="b-land" d="M 330 318 C 372 306, 436 306, 470 322 C 488 332, 486 356, 462 366
+                C 418 382, 356 378, 330 358 C 318 348, 318 322, 330 318 Z"/>
+              <!-- Lake Merritt -->
+              <path class="b-water" d="M 452 232 C 470 224, 488 232, 490 248 C 492 266, 474 276, 458 270 C 444 264, 440 240, 452 232 Z"/>
+              <!-- Regional parks -->
+              <path class="b-park" d="M 552 84 C 598 66, 646 92, 640 134 C 634 176, 578 190, 550 166 C 528 146, 524 96, 552 84 Z"/>
+              <path class="b-park" d="M 620 240 C 674 226, 716 258, 704 300 C 692 342, 636 352, 610 326 C 590 306, 592 250, 620 240 Z"/>
+              <path class="b-park" d="M 566 402 C 616 388, 660 416, 650 456 C 640 496, 586 506, 562 482 C 542 462, 542 412, 566 402 Z"/>
+              <path class="b-park" d="M 780 140 C 826 128, 862 156, 852 194 C 842 232, 792 240, 772 216 C 756 196, 758 148, 780 140 Z"/>
+
+              <!-- Bay Bridge -->
+              <path class="b-road-casing" stroke-width="5" d="M 300 128 L 40 62"/>
+              <path class="b-road" stroke-width="3" d="M 300 128 L 40 62"/>
+
+              <!-- I-880 -->
+              <path class="b-mw-casing" d="M 320 -180 C 348 -60, 330 90, 372 216 C 410 330, 392 434, 428 560"/>
+              <path class="b-mw" d="M 320 -180 C 348 -60, 330 90, 372 216 C 410 330, 392 434, 428 560"/>
+              <!-- I-580 -->
+              <path class="b-mw-casing" d="M 470 -180 C 520 -40, 498 168, 560 292 C 612 396, 600 470, 646 560"/>
+              <path class="b-mw" d="M 470 -180 C 520 -40, 498 168, 560 292 C 612 396, 600 470, 646 560"/>
+
+              <!-- Arterials -->
+              <g class="b-road-casing" stroke-width="4">
+                <path d="M 350 176 L 700 118"/><path d="M 372 260 L 760 214"/>
+                <path d="M 398 344 L 800 304"/><path d="M 424 442 L 820 404"/>
+                <path d="M 456 -40 C 470 120, 500 300, 520 560"/>
+                <path d="M 600 -40 C 626 160, 660 340, 690 560"/>
+              </g>
+              <g class="b-road" stroke-width="2.4">
+                <path d="M 350 176 L 700 118"/><path d="M 372 260 L 760 214"/>
+                <path d="M 398 344 L 800 304"/><path d="M 424 442 L 820 404"/>
+                <path d="M 456 -40 C 470 120, 500 300, 520 560"/>
+                <path d="M 600 -40 C 626 160, 660 340, 690 560"/>
+              </g>
+
+              <!-- Eastern valley, so the dimmed ground has real geography under it -->
+              <path class="b-park" d="M 960 300 C 1030 280, 1090 322, 1076 372 C 1062 424, 986 438, 954 404 C 928 376, 930 312, 960 300 Z"/>
+              <path class="b-park" d="M 1120 96 C 1180 80, 1232 116, 1220 160 C 1208 206, 1142 216, 1114 190 C 1092 168, 1094 106, 1120 96 Z"/>
+              <path class="b-water" d="M 906 92 C 946 78, 986 100, 980 128 C 974 158, 924 168, 902 148 C 886 132, 888 100, 906 92 Z"/>
+              <g class="b-road-casing" stroke-width="4">
+                <path d="M 830 150 L 1360 96"/><path d="M 850 268 L 1380 224"/>
+                <path d="M 872 392 L 1400 348"/><path d="M 900 502 L 1420 462"/>
+                <path d="M 980 -40 C 1004 150, 1032 330, 1058 560"/>
+                <path d="M 1200 -40 C 1222 160, 1250 340, 1276 560"/>
+              </g>
+              <g class="b-road" stroke-width="2.4">
+                <path d="M 830 150 L 1360 96"/><path d="M 850 268 L 1380 224"/>
+                <path d="M 872 392 L 1400 348"/><path d="M 900 502 L 1420 462"/>
+                <path d="M 980 -40 C 1004 150, 1032 330, 1058 560"/>
+                <path d="M 1200 -40 C 1222 160, 1250 340, 1276 560"/>
+              </g>
+              <path class="b-mw-casing" d="M 900 -180 C 940 -20, 962 200, 1010 360 C 1050 490, 1046 520, 1078 720"/>
+              <path class="b-mw" d="M 900 -180 C 940 -20, 962 200, 1010 360 C 1050 490, 1046 520, 1078 720"/>
+              <text class="b-label b-label-sm" x="1090" y="140">LAFAYETTE</text>
+              <text class="b-label b-label-sm" x="1004" y="352">WALNUT CREEK</text>
+              <text class="b-label b-label-sm" x="1160" y="470">DANVILLE</text>
+
+              <!-- Place labels -->
+              <text class="b-label-water" x="118" y="330" transform="rotate(-13 118 330)">San Francisco Bay</text>
+              <text class="b-label" x="486" y="152">BERKELEY</text>
+              <text class="b-label" x="470" y="300">OAKLAND</text>
+              <text class="b-label b-label-sm" x="386" y="348">ALAMEDA</text>
+              <text class="b-label b-label-sm" x="546" y="470">SAN LEANDRO</text>
+              <text class="b-label b-label-sm" x="740" y="200">ORINDA</text>
+
+              <!-- ── The searched-area indicator ────────────────────────────
+                   Scrim below every pin (NFR-07), inert (its ids appear in
+                   neither MARKER_LAYERS nor INTERACTIVE_MAP_LAYERS). -->
+              <g id="mark-d">
+                <!-- A world polygon whose interior ring is the searched circle,
+                     even-odd filled. This is the same shape the GL fill takes:
+                     one Polygon, outer ring the world, inner ring the search
+                     circle, so the hole needs no mask and no second source. -->
+                <path class="sa-scrim" fill-rule="evenodd"
+                      d="M -3000 -3000 H 4000 V 4000 H -3000 Z
+                         M 450 280 m -545 0 a 545 545 0 1 0 1090 0 a 545 545 0 1 0 -1090 0 Z"/>
+                <circle class="sa-halo" cx="450" cy="280" r="545"/>
+                <circle class="sa-ring" cx="450" cy="280" r="545"/>
+              </g>
+
+              <!-- Search centre (the shipped centre pin, unchanged) -->
+              <g id="centre-d">
+                <circle class="pin-center-ring" cx="450" cy="280" r="9"/>
+                <circle class="pin-center-dot" cx="450" cy="280" r="3.2"/>
+              </g>
+
+              <!-- Hotspot pins -->
+              <g id="pins-d">
+                <g transform="translate(452,244)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="464" y="240">Lake Merritt</text>
+
+                <g transform="translate(372,318)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="384" y="314">Middle Harbor Shoreline</text>
+
+                <g transform="translate(348,344)"><path class="pin-personal" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="360" y="368">Crab Cove</text>
+
+                <g transform="translate(438,398)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="450" y="394">Arrowhead Marsh</text>
+
+                <g transform="translate(596,138)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="608" y="134">Sibley Volcanic Preserve</text>
+
+                <g transform="translate(658,286)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="670" y="282">Redwood Regional Park</text>
+
+                <g transform="translate(604,440)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="616" y="436">Lake Chabot</text>
+
+                <g transform="translate(510,116)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="522" y="112">Tilden Regional Park</text>
+
+                <g transform="translate(800,168)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <text class="pinlabel" x="812" y="164">Briones Reservoir</text>
+              </g>
+            </g>
+          </svg>
+
+          <!-- Layers switcher (shipped, top-right) -->
+          <div class="layers">
+            <div class="layers-seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div>
+            <div class="layers-trails"><span class="layers-box"></span>Trails</div>
+          </div>
+
+          <!-- The shipped loading chip keeps its own top-centre anchor. -->
+          <div class="chip" id="chip-d" role="status" hidden>
+            <svg width="13" height="13" aria-hidden="true"><use href="#i-loader"/></svg>
+            <span id="chip-text-d">Finding hotspots&hellip;</span>
+          </div>
+
+          <!-- The FR-25 live region, in the same top-centre slot. -->
+          <div class="searchstatus">
+            <div class="outcome" id="outcome-d" role="status" aria-live="polite">
+              <span class="outcome-msg" id="outcome-msg-d">14 hotspots found in this area.</span>
+            </div>
+          </div>
+
+          <!-- FAB cluster (shipped, bottom-right) with two NEW full-width rows
+               above the shipped location-failure row. -->
+          <div class="fabs">
+            <div class="cl-row">
+              <button type="button" class="stbtn" id="stbtn-d" hidden
+                      aria-label="Search this area for hotspots">
+                <svg width="14" height="14" aria-hidden="true"><use href="#i-search"/></svg>
+                Search this area
+              </button>
+            </div>
+            <span class="fab"><svg aria-hidden="true"><use href="#i-pin"/></svg></span>
+            <span class="fab"><svg aria-hidden="true"><use href="#i-locate"/></svg></span>
+            <span class="fab"><svg aria-hidden="true"><use href="#i-maximize"/></svg></span>
+            <span class="filters-pill"><svg width="14" height="14" aria-hidden="true"><use href="#i-filter"/></svg>Filters</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="stage-note" id="stage-note">
+        <b>Just searched.</b> The derived radius covers the viewport, so the circle
+        circumscribes the screen and its edge is off the map. Nothing is dimmed,
+        which is the honest reading: everything you can see was searched. The
+        control is gone because the record now matches the viewport, and the
+        outcome line is the confirmation.
+      </p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">03</span><h2>320px, fullscreen, iOS</h2></div>
+    <p class="lede small" style="margin-bottom:22px">
+      The bar this feature is judged at. The hatched band is the Dynamic Island
+      safe-area inset the fullscreen panel already pads; the status column is a
+      top-anchored child of the map area, so it sits inside that padding without
+      adding any of its own.
+    </p>
+
+    <div class="phones">
+
+      <div class="phone-unit">
+        <div class="phone sr-app" data-theme="light" data-scale="1">
+          <div class="phone-panel">
+            <div class="phone-maparea">
+              <svg class="basemap" viewBox="0 0 340 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect x="-2000" y="-2000" width="5000" height="5000" class="b-water"/>
+                <path class="b-land" d="M 60 -200 C 84 -40, 60 90, 96 168 C 126 234, 84 288, 112 350 C 136 402, 104 452, 132 620 L 2600 2600 L 2600 -2600 Z"/>
+                <path class="b-land2" d="M 214 -200 C 246 60, 236 250, 276 420 C 300 522, 296 580, 320 620 L 2600 2600 L 2600 -2600 Z" opacity="0.75"/>
+                <path class="b-park" d="M 216 96 C 258 80, 300 106, 292 146 C 284 186, 234 198, 210 176 C 190 158, 190 106, 216 96 Z"/>
+                <path class="b-park" d="M 250 300 C 296 288, 336 316, 326 354 C 316 392, 266 402, 244 378 C 226 358, 228 310, 250 300 Z"/>
+                <path class="b-mw-casing" d="M 84 -180 C 110 -40, 92 120, 132 250 C 172 380, 152 500, 186 620"/>
+                <path class="b-mw" d="M 84 -180 C 110 -40, 92 120, 132 250 C 172 380, 152 500, 186 620"/>
+                <g class="b-road-casing" stroke-width="4">
+                  <path d="M 104 200 L 330 158"/><path d="M 122 320 L 340 288"/><path d="M 140 452 L 340 420"/>
+                </g>
+                <g class="b-road" stroke-width="2.4">
+                  <path d="M 104 200 L 330 158"/><path d="M 122 320 L 340 288"/><path d="M 140 452 L 340 420"/>
+                </g>
+                <text class="b-label-water" x="6" y="480" transform="rotate(-14 6 480)">San Francisco Bay</text>
+                <text class="b-label b-label-sm" x="176" y="252">OAKLAND</text>
+                <text class="b-label b-label-sm" x="206" y="500">SAN LEANDRO</text>
+                <path class="sa-scrim" fill-rule="evenodd"
+                      d="M -2000 -2000 H 3000 V 3000 H -2000 Z
+                         M 10 300 m -250 0 a 250 250 0 1 0 500 0 a 250 250 0 1 0 -500 0 Z"/>
+                <circle class="sa-halo" cx="10" cy="300" r="250"/>
+                <circle class="sa-ring" cx="10" cy="300" r="250"/>
+                <g transform="translate(126,336)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <g transform="translate(168,268)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <g transform="translate(112,430)"><path class="pin-personal" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+              </svg>
+
+              <div class="layers">
+                <div class="layers-seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div>
+                <div class="layers-trails"><span class="layers-box"></span>Trails</div>
+              </div>
+
+              <div class="searchstatus">
+                <div class="outcome" role="status" aria-live="polite">
+                  <span class="outcome-msg">14 hotspots found in this area.</span>
+                </div>
+              </div>
+
+              <div class="fabs">
+                <div class="cl-row">
+                  <button type="button" class="stbtn" aria-label="Search this area for hotspots">
+                    <svg width="14" height="14" aria-hidden="true"><use href="#i-search"/></svg>
+                    Search this area
+                  </button>
+                </div>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-pin"/></svg></span>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-locate"/></svg></span>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-maximize"/></svg></span>
+                <span class="filters-pill"><svg aria-hidden="true"><use href="#i-filter"/></svg>Filters</span>
+              </div>
+            </div>
+          </div>
+          <div class="inset-guide"><span class="inset-tag">safe-area-inset-top &middot; 59px</span></div>
+          <div class="island"></div>
+        </div>
+        <p class="phone-cap"><b>320px &middot; 100% text &middot; light</b>
+          Panned east. The circle's edge is on screen at the left and the ground
+          beyond it is dimmed. The control sits above the FAB discs, 365px clear of
+          the layers switcher; the result line takes the chip's slot and clears
+          itself after six seconds.</p>
+      </div>
+
+      <div class="phone-unit">
+        <div class="phone sr-app" data-theme="dark" data-scale="2">
+          <div class="phone-panel">
+            <div class="phone-maparea">
+              <svg class="basemap" viewBox="0 0 340 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect x="-2000" y="-2000" width="5000" height="5000" class="b-water"/>
+                <path class="b-land" d="M 60 -200 C 84 -40, 60 90, 96 168 C 126 234, 84 288, 112 350 C 136 402, 104 452, 132 620 L 2600 2600 L 2600 -2600 Z"/>
+                <path class="b-land2" d="M 214 -200 C 246 60, 236 250, 276 420 C 300 522, 296 580, 320 620 L 2600 2600 L 2600 -2600 Z" opacity="0.75"/>
+                <path class="b-park" d="M 216 96 C 258 80, 300 106, 292 146 C 284 186, 234 198, 210 176 C 190 158, 190 106, 216 96 Z"/>
+                <path class="b-park" d="M 250 300 C 296 288, 336 316, 326 354 C 316 392, 266 402, 244 378 C 226 358, 228 310, 250 300 Z"/>
+                <path class="b-mw-casing" d="M 84 -180 C 110 -40, 92 120, 132 250 C 172 380, 152 500, 186 620"/>
+                <path class="b-mw" d="M 84 -180 C 110 -40, 92 120, 132 250 C 172 380, 152 500, 186 620"/>
+                <g class="b-road-casing" stroke-width="4">
+                  <path d="M 104 200 L 330 158"/><path d="M 122 320 L 340 288"/><path d="M 140 452 L 340 420"/>
+                </g>
+                <g class="b-road" stroke-width="2.4">
+                  <path d="M 104 200 L 330 158"/><path d="M 122 320 L 340 288"/><path d="M 140 452 L 340 420"/>
+                </g>
+                <text class="b-label-water" x="6" y="480" transform="rotate(-14 6 480)">San Francisco Bay</text>
+                <text class="b-label b-label-sm" x="176" y="252">OAKLAND</text>
+                <path class="sa-scrim" fill-rule="evenodd"
+                      d="M -2000 -2000 H 3000 V 3000 H -2000 Z
+                         M 10 300 m -250 0 a 250 250 0 1 0 500 0 a 250 250 0 1 0 -500 0 Z"/>
+                <circle class="sa-halo" cx="10" cy="300" r="250"/>
+                <circle class="sa-ring" cx="10" cy="300" r="250"/>
+                <g transform="translate(126,336)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+                <g transform="translate(168,268)"><path class="pin-hot" d="M0 0 c-6.6 -8 -9.5 -12.5 -9.5 -17 a9.5 9.5 0 1 1 19 0 c0 4.5 -2.9 9 -9.5 17 Z"/><circle cx="0" cy="-17" r="3.4" fill="#fff"/></g>
+              </svg>
+
+              <div class="layers">
+                <div class="layers-seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div>
+                <div class="layers-trails"><span class="layers-box"></span>Trails</div>
+              </div>
+
+              <div class="searchstatus">
+                <div class="outcome" role="status" aria-live="polite">
+                  <span class="outcome-msg">14 hotspots found in this area.</span>
+                </div>
+              </div>
+
+              <div class="fabs">
+                <div class="cl-row">
+                  <button type="button" class="stbtn" aria-label="Search this area for hotspots">
+                    <svg width="14" height="14" aria-hidden="true"><use href="#i-search"/></svg>
+                    Search this area
+                  </button>
+                </div>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-pin"/></svg></span>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-locate"/></svg></span>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-maximize"/></svg></span>
+                <span class="filters-pill"><svg aria-hidden="true"><use href="#i-filter"/></svg>Filters</span>
+              </div>
+            </div>
+          </div>
+          <div class="inset-guide"><span class="inset-tag">safe-area-inset-top &middot; 59px</span></div>
+          <div class="island"></div>
+        </div>
+        <p class="phone-cap"><b>320px &middot; 200% text &middot; dark</b>
+          Everything doubles: the control's touch box reaches 88px and the discs
+          reach 88px, leaving the shipped row its 4px of slack with the Filters pill
+          wrapped beneath. The cluster still clears the switcher by 91px. Only the
+          result line passes over it, and only while it is on screen.</p>
+      </div>
+
+      <div class="phone-unit">
+        <div class="phone sr-app" data-theme="light" data-scale="2">
+          <div class="phone-panel">
+            <div class="phone-maparea">
+              <svg class="basemap" viewBox="0 0 340 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                <rect x="-2000" y="-2000" width="5000" height="5000" class="b-water"/>
+                <path class="b-land" d="M 60 -200 C 84 -40, 60 90, 96 168 C 126 234, 84 288, 112 350 C 136 402, 104 452, 132 620 L 2600 2600 L 2600 -2600 Z"/>
+                <path class="b-land2" d="M 214 -200 C 246 60, 236 250, 276 420 C 300 522, 296 580, 320 620 L 2600 2600 L 2600 -2600 Z" opacity="0.75"/>
+                <path class="b-park" d="M 250 300 C 296 288, 336 316, 326 354 C 316 392, 266 402, 244 378 C 226 358, 228 310, 250 300 Z"/>
+                <path class="b-mw-casing" d="M 84 -180 C 110 -40, 92 120, 132 250 C 172 380, 152 500, 186 620"/>
+                <path class="b-mw" d="M 84 -180 C 110 -40, 92 120, 132 250 C 172 380, 152 500, 186 620"/>
+                <g class="b-road-casing" stroke-width="4"><path d="M 122 320 L 340 288"/><path d="M 140 452 L 340 420"/></g>
+                <g class="b-road" stroke-width="2.4"><path d="M 122 320 L 340 288"/><path d="M 140 452 L 340 420"/></g>
+                <text class="b-label-water" x="6" y="480" transform="rotate(-14 6 480)">San Francisco Bay</text>
+              </svg>
+
+              <div class="layers">
+                <div class="layers-seg"><span class="on">Map</span><span>Satellite</span><span>Topo (US)</span></div>
+                <div class="layers-trails"><span class="layers-box"></span>Trails</div>
+              </div>
+
+              <div class="searchstatus">
+                <div class="outcome" role="status" aria-live="polite">
+                  <span class="outcome-msg is-error">
+                    <svg width="14" height="14" aria-hidden="true"><use href="#i-alert"/></svg>
+                    Can't reach the SnowRaven server. Make sure it's running, then try again.
+                  </span>
+                </div>
+              </div>
+
+              <div class="fabs">
+                <div class="cl-row">
+                  <button type="button" class="stbtn" aria-label="Search this area for hotspots">
+                    <svg width="14" height="14" aria-hidden="true"><use href="#i-search"/></svg>
+                    Search this area
+                  </button>
+                </div>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-pin"/></svg></span>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-locate"/></svg></span>
+                <span class="fab"><svg aria-hidden="true"><use href="#i-maximize"/></svg></span>
+                <span class="filters-pill"><svg aria-hidden="true"><use href="#i-filter"/></svg>Filters</span>
+              </div>
+            </div>
+          </div>
+          <div class="inset-guide"><span class="inset-tag">safe-area-inset-top &middot; 59px</span></div>
+          <div class="island"></div>
+        </div>
+        <p class="phone-cap"><b>320px &middot; 200% text &middot; failure</b>
+          The worst case, drawn honestly: the longest real message this feature can
+          produce (73 characters), at the largest text scale, on the narrowest phone.
+          Four lines, ink inside the content box, and the retry waiting in the place
+          it never left. The card covers the switcher while it is up, and passes
+          every tap through to it.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-head"><span class="sec-num">04</span><h2>Anatomy</h2></div>
+    <div class="grid2">
+
+      <div>
+        <h3 style="margin-bottom:12px">The control</h3>
+        <ul class="notelist">
+          <li><b>Visible text</b> is exactly &ldquo;Search this area&rdquo; on all three
+            views, with a Lucide <code>Search</code> glyph at 14px. The accessible
+            name adds the view: <em>&hellip;for hotspots</em>, <em>&hellip;for recent
+            sightings</em>, <em>&hellip;for nearby lifers</em>, each containing the
+            visible text verbatim.</li>
+          <li><b>Colour</b> is accent ink on <code>--sr-accent-bg</code> inside a
+            <code>--sr-accent-border-strong</code> hairline: the app's own shipped
+            &ldquo;pressed / active&rdquo; treatment, not a new one. Deliberately not
+            an accent-filled slab, because solid accent circles on this canvas are
+            sighting pins.</li>
+          <li><b>Shape</b> is the loading chip's 20px pill with the same shadow, so
+            all the floating chrome on this canvas reads as one family.</li>
+          <li><b>Touch</b> reaches <code>2.75rem</code> min-height in the &le;640
+            tier and scales with in-app text, matching the FAB row.</li>
+          <li><b>The retained state</b> (focus held through a press) keeps the same
+            box in muted tokens with <code>aria-disabled</code>, never the
+            <code>disabled</code> attribute.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 style="margin-bottom:12px">The searched area</h3>
+        <ul class="notelist">
+          <li><b>Two new tokens</b>, both map-anchored and declared identically in
+            both themes, the same posture as <code>--sr-share-pin</code> and the
+            county ramp: <code>--sr-search-area-rgb</code> and
+            <code>--sr-search-area-scrim-rgb</code>.</li>
+          <li><b>Red-orange is the one free hue on this canvas.</b> Green is pins,
+            amber is personal locations, violet is targets, blue is rank, purple is
+            the breeding ramp, green again is the county ramp, slate is every
+            boundary line.</li>
+          <li><b>Three layers, all inert.</b> A scrim fill outside the circle, a soft
+            halo stroke, and the dashed edge, inserted below the marker layers and
+            named in neither interaction list.</li>
+          <li><b>The scrim is always on, not just when capped.</b> When the search
+            covers the view it is entirely off screen and costs nothing; the moment
+            you zoom out or pan, it appears exactly where it means something.</li>
+          <li><b>The centre needs no new mark.</b> The shipped search-centre pin is
+            already there, and an accent dot inside a red-orange ring reads as
+            centre-and-extent without a word of explanation.</li>
+        </ul>
+        <div class="swatchrow" style="margin-top:16px">
+          <span class="swatch"><i style="background:#B4341F"></i><code>--sr-search-area</code> #B4341F</span>
+          <span class="swatch"><i style="background:rgba(15,17,23,0.13); box-shadow: inset 0 0 0 20px #F4F3EF;"></i>scrim at 13%</span>
+        </div>
+      </div>
+
+      <div>
+        <h3 style="margin-bottom:12px">The outcome line</h3>
+        <ul class="notelist">
+          <li><b>One element, two variants.</b> Neutral surface for a result, error
+            tokens plus an <code>AlertCircle</code> for a failure. Nothing about the
+            shape changes; only its colours and how many lines the text needs.</li>
+          <li><b>It is the announced node.</b> No duplicate <code>.sr-only</code>
+            announcer, no truncation, no second location. What is read is what is on
+            screen.</li>
+          <li><b>Every route announces</b>, not just this control, so the sidebar
+            Find button and a dropped centre pin get the same confirmation on a
+            phone where the sidebar is not on screen.</li>
+          <li><b>Cleared at the top of each handler</b>, before the fetch, so the
+            slot is empty exactly while the loading chip occupies it. That is what
+            makes single occupancy structural rather than remembered.</li>
+          <li><b>A result clears itself after six seconds; a failure does not.</b>
+            A count is a confirmation and the ring on the map is the durable answer,
+            so the line has no reason to become permanent furniture over the layers
+            switcher. A failure is an unresolved state and stays until the next
+            search.</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 style="margin-bottom:12px">Motion</h3>
+        <ul class="notelist">
+          <li><b>Control arrives</b> &mdash; opacity and <code>translateY(8px)
+            scale(0.965)</code> to rest, 190ms, <code>cubic-bezier(0.16, 1, 0.3,
+            1)</code>, <code>transform-origin: bottom center</code>: it grows up out
+            of the cluster. The top-anchored outcome line does the opposite, from
+            <code>translateY(-6px)</code>.</li>
+          <li><b>Control leaves</b> &mdash; instantly, no exit. The chip taking its
+            place is the feedback; a fade would only delay it.</li>
+          <li><b>Outcome line</b> &mdash; the same 190ms entrance, replayed for free
+            on a repeat because the sequence-keyed child remounts. The visual cue and
+            the announcement stay in lockstep by construction.</li>
+          <li><b>The area</b> &mdash; a 220ms opacity rise on the scrim and halo with
+            the dashed edge landing 60ms behind, so the ground settles and then the
+            edge sharpens. Delivered as MapLibre paint-property transitions
+            (<code>line-opacity-transition</code>), not a rAF loop.</li>
+          <li><b>Reduced motion</b> &mdash; the DOM pieces inherit the app's global
+            collapse for free, because every end state is the resting state. The GL
+            transitions are <em>not</em> covered by CSS, so the layer must read
+            <code>matchMedia('(prefers-reduced-motion: reduce)')</code> in its effect
+            and use a duration of 0.</li>
+          <li><b>No hover-scale, no pulse, no stagger.</b> Hover is a 120ms
+            background shift and nothing else.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="flag">
+      <h3>What was measured, and what still needs measuring</h3>
+      <p>
+        Every geometric claim on this page was measured in Chromium against these
+        frames, element box and text ink against the map area's content box, never
+        <code>document.scrollWidth</code>. That is what rejected the top-centre pill:
+        it read as fine in the markup and buried the layers switcher on screen.
+      </p>
+      <p>
+        Two things still need measuring against the real app rather than this
+        reproduction. The cluster's height with the control row added, at 200% on the
+        shortest supported phone, including a simultaneous location-failure row. And
+        the scrim's 18% wash over satellite imagery and over an active county or
+        atlas shading ramp, where a dark base and a tinted overlay both eat it.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  var COPY = {
+    hotspots: {
+      label: 'Search this area for hotspots',
+      chip: 'Finding hotspots…',
+      ok: '14 hotspots found in this area.',
+      capped: '9 hotspots found in this area.',
+      fail: "Can't reach the SnowRaven server. Make sure it's running, then try again."
+    },
+    lifers: {
+      label: 'Search this area for nearby lifers',
+      chip: 'Finding nearby lifers…',
+      ok: '6 locations with nearby lifers found in this area.',
+      capped: '3 locations with nearby lifers found in this area.',
+      fail: 'eBird API key not configured. Add it in Settings.'
+    },
+    targets: {
+      label: 'Search this area for recent sightings',
+      chip: 'Finding sightings…',
+      ok: '21 recent sightings found in this area.',
+      capped: '11 recent sightings found in this area.',
+      fail: "You're offline. This needs a connection."
+    }
+  };
+
+  // Map transform per state: [translateX, translateY, scale]
+  // [translateX, translateY, scale] on the map group. The searched circle never
+  // moves; the map moves under it, which is the whole point of FR-18.
+  var PAN = {
+    searched: [0, 0, 1],
+    moved:    [-420, -30, 1],
+    loading:  [-420, -30, 1],
+    capped:   [0, 0, 0.42],
+    failed:   [-420, -30, 1]
+  };
+
+  var NOTES = {
+    searched: '<b>Just searched.</b> The derived radius covers the viewport, so the circle circumscribes the screen and its edge is off the map. Nothing is dimmed, which is the honest reading: everything you can see was searched. The control is gone because the record now matches the viewport, and the outcome line is the confirmation.',
+    moved: '<b>Panned away.</b> The circle stayed put while the map moved under it, so its edge is now on screen and the ground beyond it has greyed out. The control has arrived in the FAB cluster, above the discs and exactly where it will be every time. The pins you are looking at are visibly the answer to a different question.',
+    loading: '<b>In flight.</b> The control is suppressed so a second press cannot stack a second lookup, and the outcome line was cleared before the fetch, which is what leaves the top-centre slot to the chip alone.',
+    capped: '<b>Capped at 25 miles.</b> The viewport wanted more than the derived cap allows, so the circle is visibly smaller than the screen and the scrim says which pins are outside the answer. This is the case the indicator exists for; it is why the circle is never allowed to claim the whole view.',
+    failed: '<b>Failed.</b> The same outcome element in error tokens, carrying the real message the sidebar also shows. The record was not written, so the control is already back, in the place it never really left: the retry is one press, in the corner your thumb was already resting in, with no trip to the sidebar.'
+  };
+
+  var frame = document.getElementById('frame-d');
+  var app = document.getElementById('app-d');
+  var pan = document.getElementById('pan-d');
+  var mark = document.getElementById('mark-d');
+  var centre = document.getElementById('centre-d');
+  var pins = document.getElementById('pins-d');
+  var chip = document.getElementById('chip-d');
+  var chipText = document.getElementById('chip-text-d');
+  var outcome = document.getElementById('outcome-d');
+  var outMsg = document.getElementById('outcome-msg-d');
+  var btn = document.getElementById('stbtn-d');
+  var note = document.getElementById('stage-note');
+
+  var state = 'searched';
+  var view = 'hotspots';
+  var seq = 0;
+  // A result line clears itself after six seconds; a failure does not. "Hold" is
+  // a review affordance for this page only — it freezes the line so it can be
+  // inspected, and is not part of the design.
+  var hold = true;
+  var DISMISS_MS = 6000;
+  var dismissTimer = null;
+
+  function pressGroup(id, attr, value) {
+    var g = document.getElementById(id);
+    var bs = g.querySelectorAll('button');
+    for (var i = 0; i < bs.length; i++) {
+      bs[i].setAttribute('aria-pressed', String(bs[i].getAttribute(attr) === value));
+    }
+  }
+
+  function setMessage(html, isError) {
+    // The house contract: the region is permanent, only its keyed child changes,
+    // so an identical repeat is still a real DOM mutation and still announces.
+    seq += 1;
+    outcome.innerHTML = '';
+    if (!html) return;
+    var span = document.createElement('span');
+    span.className = 'outcome-msg' + (isError ? ' is-error' : '');
+    span.dataset.seq = String(seq);
+    if (isError) {
+      span.innerHTML = '<svg width="14" height="14" aria-hidden="true"><use href="#i-alert"/></svg>';
+      span.appendChild(document.createTextNode(html));
+    } else {
+      span.textContent = html;
+    }
+    outcome.appendChild(span);
+    outMsg = span;
+
+    if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
+    if (!isError && !hold) {
+      dismissTimer = setTimeout(function () { outcome.innerHTML = ''; }, DISMISS_MS);
+    }
+  }
+
+  function render() {
+    var c = COPY[view];
+    var p = PAN[state];
+
+    frame.setAttribute('data-state', state);
+    pan.setAttribute('transform', 'translate(' + p[0] + ',' + p[1] + ') scale(' + p[2] + ')');
+
+    // The indicator is ALWAYS mounted once a record exists. Nothing hides it in
+    // the "just searched" state: the circle simply circumscribes the viewport, so
+    // its edge is off screen and no ground is dimmed. Geometry does the work.
+    mark.style.opacity = '1';
+    centre.style.opacity = '1';
+    pins.style.opacity = state === 'loading' ? '0.45' : '1';
+
+    chip.hidden = state !== 'loading';
+    chipText.textContent = c.chip;
+
+    if (state === 'loading') {
+      setMessage('', false);
+    } else if (state === 'failed') {
+      setMessage(c.fail, true);
+    } else if (state === 'capped') {
+      setMessage(c.capped, false);
+    } else {
+      setMessage(c.ok, false);
+    }
+
+    var showBtn = (state === 'moved' || state === 'capped' || state === 'failed');
+    btn.hidden = !showBtn;
+    btn.setAttribute('aria-label', c.label);
+
+    note.innerHTML = NOTES[state];
+  }
+
+  document.getElementById('state-seg').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    state = b.getAttribute('data-state');
+    pressGroup('state-seg', 'data-state', state);
+    render();
+  });
+  document.getElementById('view-seg').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    view = b.getAttribute('data-view');
+    pressGroup('view-seg', 'data-view', view);
+    render();
+  });
+  document.getElementById('hold-btn').addEventListener('click', function (e) {
+    hold = !hold;
+    e.currentTarget.setAttribute('aria-pressed', String(hold));
+    render();
+  });
+  document.getElementById('theme-seg').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    var t = b.getAttribute('data-theme');
+    pressGroup('theme-seg', 'data-theme', t);
+    app.setAttribute('data-theme', t);
+  });
+
+  // Pressing the mock control walks the real sequence: dispatch, chip, answer.
+  btn.addEventListener('click', function () {
+    state = 'loading'; pressGroup('state-seg', 'data-state', 'loading'); render();
+    setTimeout(function () {
+      state = 'searched'; pressGroup('state-seg', 'data-state', 'searched'); render();
+    }, 1100);
+  });
+
+  mark.style.transition = 'opacity 220ms cubic-bezier(0.16, 1, 0.3, 1)';
+  centre.style.transition = 'opacity 220ms cubic-bezier(0.16, 1, 0.3, 1)';
+  pins.style.transition = 'opacity 190ms cubic-bezier(0.16, 1, 0.3, 1)';
+  render();
+})();
+</script>
+
+</body>
+</html>

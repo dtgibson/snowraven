@@ -31,6 +31,13 @@ import { mapContentClass } from '../lib/mapFullscreen'
 import { getCurrentLocation, describeLocationError } from '../lib/location'
 import type { LocationError } from '../lib/location'
 import { geoErrorReducer, GEO_ERROR_NONE } from '../lib/geoErrorState'
+import { deriveSearchArea, shouldOfferSearchArea, RUNGS, type SearchRecord } from '../lib/searchArea'
+import { useSearchControlFit } from '../lib/useSearchControlFit'
+import {
+  searchOutcomeReducer, searchOutcomeMessage, searchAreaSearchedLabel,
+  SEARCH_OUTCOME_NONE, SEARCH_OUTCOME_DISMISS_MS, SEARCH_AREA_LABEL, SEARCH_AREA_TEXT,
+} from '../lib/searchOutcomeState'
+import { SearchedAreaLayer } from './map/SearchedAreaLayer'
 import { SnowMap } from './SnowMap'
 import { AtlasLayer } from './AtlasLayer'
 import type { AtlasData } from '../lib/atlasBlocks'
@@ -51,7 +58,7 @@ import { formatDate } from '../lib/formatDate'
 import { BirdName } from './BirdName'
 import { HotspotLink } from './HotspotLink'
 import type {
-  ViewMode, DisplayMode, PointSize, MapPhase, BreedingFilter,
+  ViewMode, CenterViewMode, DisplayMode, PointSize, MapPhase, BreedingFilter,
   HotspotPin, TargetPin, DisplayTargetPin, LocationGroup, NearbyLiferLocation,
 } from '../lib/mapExplorerTypes'
 import {
@@ -349,6 +356,122 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // Scopes the keyboard-accessible in-view marker lists to what's on screen.
   const [mapBounds, setMapBounds]             = useState<MarkerBounds | null>(null)
   const handleBounds                          = useCallback((b: MarkerBounds) => setMapBounds(b), [])
+
+  // ── Search this area ────────────────────────────────────────────────────────
+  // Everything a press would SEND, derived from the viewport the map already
+  // reports: the centre, the covering radius snapped up the RUNGS ladder, and
+  // whether the cap bit. `deriveSearchArea` takes the PADDED bounds and unpads
+  // internally, so "one reading, one unpad" is structural: this feature adds no
+  // second `map.getBounds()` call and no second `moveend` listener (FR-06).
+  //
+  // Pure, O(1), and re-run once per moveend rather than per render. No clock on
+  // this path at all — no Date.now(), no new Date() — so react-hooks/purity is
+  // satisfied by construction (NFR-04, NFR-13).
+  const derivedArea = useMemo(() => deriveSearchArea(mapBounds), [mapBounds])
+
+  // The record a press WOULD write, which is exactly what it would send.
+  //
+  // `capped` is dropped here deliberately: it describes the DERIVATION, not the
+  // request, and FR-12 says the record holds exactly the three values that went
+  // out. Keeping it would make two records with the same lat/lng/radius compare
+  // unequal on a field neither search ever sent.
+  //
+  // The press sends these same values through `applyCenter`, and the record the
+  // handlers write is built from the arguments they were called with — so the
+  // control cannot be offered on the strength of one radius and then send
+  // another. That is the FR-11 property the explicit radius argument exists for;
+  // see the comment on `handleFindHotspots`.
+  const pendingSearch = useMemo<SearchRecord | null>(
+    () => (derivedArea
+      ? { lat: derivedArea.lat, lng: derivedArea.lng, radiusMi: derivedArea.radiusMi }
+      : null),
+    [derivedArea],
+  )
+
+  // FR-12 / FR-19. What each centre view actually searched, session-only,
+  // starting empty and never persisted (FR-28). One map rather than three
+  // useStates: "show the incoming view's record, or nothing" becomes a lookup,
+  // and there is one write shape instead of three. Records are NOT cleared on a
+  // view switch, so switching back restores that view's circle.
+  const [searchRecords, setSearchRecords] = useState<Partial<Record<CenterViewMode, SearchRecord>>>({})
+  /**
+   * Per view: did the results currently on the map come from a search whose
+   * centre and radius were DERIVED FROM the viewport ("Search this area")?
+   *
+   * Deliberately NOT a fourth field on SearchRecord. That record is compared for
+   * equality by the moved predicate and drawn by the indicator, and widening it
+   * would make two searches of the same circle compare unequal over a fact that
+   * has nothing to do with where the user is looking (the reason stated on
+   * SearchRecord itself).
+   *
+   * Written by the three handlers, in the same batch as the pins, so the marker
+   * component sees the right value on the very render its new key remounts it —
+   * which is the render whose effect would otherwise re-frame the map out from
+   * under the search record it just wrote. Same three-site invariant as the
+   * record write, and for the same reason: every route to a search funnels
+   * through one of those handlers.
+   *
+   * SCOPE: this is per RESULT SET, not per press. It stays true for as long as
+   * the results on screen came from a viewport-derived search, so it suppresses
+   * EVERY re-fit trigger on that view for that whole time, not only the press
+   * that produced it. A changed pin count is one such trigger on all three
+   * views. A DISPLAY FILTER is another on two of them: Media Targets and Nearby
+   * Lifers each pass a FILTERED derivative as `pins` (`displayedTargetPins`,
+   * `displayedLiferLocations`), so the fit key moves when Nearby Lifers' Time
+   * Range, or Media Targets' Time Range or media-type filter, changes — and that
+   * re-fit is suppressed here too, which is what stops a filter change yanking
+   * the map away from a circle the user is still reading.
+   *
+   * Hotspots is NOT a third such case, and that is worth stating because it
+   * looks like one. It passes the UNFILTERED `hotspotPins` and applies
+   * `hiddenKinds` as a GL filter expression inside the layer, so hiding a kind
+   * never moves its fit key and there is no filter-driven re-fit there to
+   * suppress. Measured per surface rather than reasoned about: with `autoFit`
+   * true a filter change re-fits on Media Targets and Nearby Lifers and does
+   * nothing on Hotspots; with it false, none of the three moves.
+   */
+  const [framedByViewport, setFramedByViewport] = useState<Partial<Record<CenterViewMode, boolean>>>({})
+
+  // FR-25. The search outcome plus its announcement sequence — see
+  // lib/searchOutcomeState.ts for why this is a reducer (dispatch is stable AND
+  // recognized as stable by exhaustive-deps, so announcing from the three fetch
+  // handlers changes none of their dependency arrays).
+  const [outcome, setSearchOutcome] = useReducer(searchOutcomeReducer, SEARCH_OUTCOME_NONE)
+
+  // A RESULT dismisses itself; a FAILURE persists until the next search clears
+  // it. The dimmed area is the durable answer and the count is a confirmation,
+  // which has no reason to become permanent furniture over the layers switcher.
+  // Keyed on `seq` so a repeat announcement restarts the clock, and the cleanup
+  // is what "cleared on any new announcement" means. A timer, never a
+  // render-time clock read (NFR-04).
+  useEffect(() => {
+    if (!outcome.text || outcome.kind !== 'result') return
+    const id = window.setTimeout(() => setSearchOutcome(''), SEARCH_OUTCOME_DISMISS_MS)
+    return () => window.clearTimeout(id)
+  }, [outcome.text, outcome.kind, outcome.seq])
+
+  // FR-24. Whether the control stays mounted, in its already-searched state,
+  // after a press that would otherwise unmount it under the user's focus.
+  // Reset at THREE call sites rather than by a useEffect mirror (the convention
+  // this component already states at the setViewMode site): the button's own
+  // onBlur, a view switch, and opening the Filters overlay — the last two can
+  // unmount the button without a blur ever firing.
+  const [retainSearchBtn, setRetainSearchBtn] = useState(false)
+
+  // OI-01 / QA-31. Whether the control row has room between the shipped disc
+  // line and whichever of the map area's top edge or the layers switcher's
+  // controls comes lower down. On an ordinary map area this is always true and
+  // nothing about the approved design changes; on a 320px phone at 150%+ text
+  // scale the map area is shorter than the SHIPPED cluster already needs, and
+  // the control yields rather than being drawn outside the map or over a
+  // control the user still has to be able to press.
+  const mapAreaRef = useRef<HTMLDivElement>(null)
+  const fabClusterRef = useRef<HTMLDivElement>(null)
+  const searchAreaRowRef = useRef<HTMLDivElement>(null)
+  // Declared up here with the other hooks rather than beside the render gate it
+  // feeds: this component has an early return for the loading phase, so a hook
+  // called down there would be a conditional one.
+  const searchAreaFits = useSearchControlFit(mapAreaRef, fabClusterRef, searchAreaRowRef)
 
   // Marker selection lifted out of the marker components, so a focusable sidebar
   // row opens the SAME <Popup> a pin click does (one owner per mode). null = no
@@ -893,13 +1016,41 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // ── Actions ───────────────────────────────────────────────────────────────────
 
-  const handleFindHotspots = useCallback(async (overrideLat?: number, overrideLng?: number) => {
+  // THE RADIUS IS ALWAYS `radius`, ON EVERY ROUTE INTO THESE HANDLERS.
+  //
+  // `overrideRadius` (all three handlers): FR-11. "Search this area" derives its
+  // own radius from the viewport, and that derived value is what goes out — while
+  // `radius` goes on holding whatever the user set in the sidebar, because a
+  // press deliberately does not touch their setting (see `applyCenter`).
+  //
+  // So the argument is not a same-tick staleness workaround, and reading `radius`
+  // off the closure instead would not be a rare race: the two values genuinely
+  // differ on essentially every derived press, so the request would carry the
+  // wrong distance every time. Passing it explicitly is what makes the value
+  // sent, the value recorded and the value DRAWN provably the same number.
+  // Optional: every shipped caller omits it and gets the state value exactly as
+  // before (FR-27).
+  //
+  // `fromViewport` (all three handlers): this search's centre came from the
+  // current map viewport, so its results are already framed and the marker layer
+  // must not re-frame them. Optional and falsy by default, so every existing
+  // caller behaves exactly as before (FR-27) — including the pin drop and drag,
+  // whose props are typed `(lat, lng) => void` and which invoke with exactly two
+  // arguments, so they cannot reach either of these trailing parameters.
+  const handleFindHotspots = useCallback(async (overrideLat?: number, overrideLng?: number, overrideRadius?: number, fromViewport?: boolean) => {
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
     if (isNaN(latNum) || isNaN(lngNum)) { setHotspotsError(validationError('Enter a valid latitude and longitude.')); return }
-    setHotspotsLoading(true); setHotspotsError(null)
+    // Clearing before the fetch is what leaves the top-centre slot to the
+    // loading chip alone: the outcome and the chip are then mutually exclusive
+    // in time by construction rather than by remembering to check.
+    setHotspotsLoading(true); setHotspotsError(null); setSearchOutcome('')
     try {
-      const distKm = Math.round(radius * 1.60934)
+      // `!== undefined`, never a truthiness check: 0 is not a radius this app
+      // can produce, but a truthy test would silently swap a future 0 for the
+      // state value, and the guard costs nothing.
+      const radiusMi = overrideRadius !== undefined ? overrideRadius : radius
+      const distKm = Math.round(radiusMi * 1.60934)
       const data = await transport.get<{ locId: string; locName: string; lat: number; lng: number }[]>('/map/hotspots', {
         lat: String(latNum), lng: String(lngNum), dist: String(distKm),
       })
@@ -913,24 +1064,51 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         return { kind: 'unvisited' as const, locId: h.locId, locName: h.locName, lat: h.lat, lng: h.lng }
       })
 
-      // Add personal locations within radius
+      // Add personal locations within radius.
+      // The only place in the three handlers where the radius is read for
+      // something other than distKm, and it must read `radiusMi` rather than
+      // `radius`: on a derived press those two differ and STAY different, since
+      // a press no longer moves the sidebar's Radius control. Using the state
+      // value here would filter the personal pins against the sidebar's circle
+      // while eBird was asked about the derived one, so the map would show
+      // personal locations from a circle nothing was ever searched over. Same
+      // circle, one variable.
       for (const [locId, loc] of obsLocationsByLocId.entries()) {
         if (hotspotLocIds.has(locId)) continue
-        if (distanceMiles(latNum, lngNum, loc.lat, loc.lng) <= radius) {
+        if (distanceMiles(latNum, lngNum, loc.lat, loc.lng) <= radiusMi) {
           pins.push({ kind: 'personal', locId, locName: loc.locName, lat: loc.lat, lng: loc.lng, obsCount: loc.count, lastVisit: loc.lastDate })
         }
       }
 
       setHiddenKinds(new Set())
       setHotspotPins(pins); setLegendVisible(true)
+      // FR-15 collapses to a three-site invariant because every route to a
+      // search funnels through one of these handlers. The write is the last
+      // statement of the success path — never in `finally`, which runs on
+      // failure too (FR-16), and never before the `await`. The values written
+      // are the handler's own locals, captured before the await, so panning
+      // mid-flight cannot change what gets recorded (FR-23). Keyed by the
+      // HANDLER, never by `viewMode`: at the view-mode-change call site the new
+      // mode's handler runs while `viewMode` still holds the OLD value, so a
+      // viewMode-keyed write would file the search under the view just left.
+      setSearchRecords(prev => ({ ...prev, hotspots: { lat: latNum, lng: lngNum, radiusMi } }))
+      // Same batch as setHotspotPins above, so the remounted marker layer reads
+      // this on its first render. Written UNCONDITIONALLY (not only when true):
+      // a sidebar search after a viewport-derived one must get its framing back.
+      setFramedByViewport(prev => ({ ...prev, hotspots: fromViewport === true }))
+      // Counts what the SEARCH returned (personal locations included — every pin
+      // here is displayed, since setHiddenKinds was just reset).
+      setSearchOutcome(searchOutcomeMessage('hotspots', pins.length))
     } catch (err) {
-      setHotspotsError(classifyOverlayError(err, 'Failed to fetch hotspots.'))
+      const e = classifyOverlayError(err, 'Failed to fetch hotspots.')
+      setHotspotsError(e)            // unchanged sidebar rendering path (FR-22)
+      setSearchOutcome({ text: e.message, kind: 'error' })
     } finally {
       setHotspotsLoading(false)
     }
   }, [lat, lng, radius, visitedLocIds, obsLocationsByLocId])
 
-  const handleFindSightings = useCallback(async (overrideLat?: number, overrideLng?: number) => {
+  const handleFindSightings = useCallback(async (overrideLat?: number, overrideLng?: number, overrideRadius?: number, fromViewport?: boolean) => {
     setTargetTypeFilter(new Set())
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
@@ -958,34 +1136,47 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     }
     if (!codes) { setTargetsError(validationError('No eBird species codes found for the selected species.')); return }
 
-    setTargetsLoading(true); setTargetsError(null)
+    setTargetsLoading(true); setTargetsError(null); setSearchOutcome('')
     try {
-      const distKm = Math.round(radius * 1.60934)
+      const radiusMi = overrideRadius !== undefined ? overrideRadius : radius
+      const distKm = Math.round(radiusMi * 1.60934)
       const pins = await transport.get<TargetPin[]>('/map/recent-obs', {
         lat: String(latNum), lng: String(lngNum), dist: String(distKm), codes,
       })
       setTargetPins(pins)
+      setSearchRecords(prev => ({ ...prev, targets: { lat: latNum, lng: lngNum, radiusMi } }))
+      setFramedByViewport(prev => ({ ...prev, targets: fromViewport === true }))
+      // What the SEARCH returned, deliberately not a post-filter count. The
+      // persistent Time Range and media-type filters can hide rows the search
+      // returned, but computing a filtered count here would couple this handler
+      // to four filter states and would go stale the instant a filter changed
+      // with no new search. The sentence is about the search, not the filter row.
+      setSearchOutcome(searchOutcomeMessage('targets', pins.length))
     } catch (err) {
-      setTargetsError(classifyOverlayError(err, 'Failed to fetch recent sightings.'))
+      const e = classifyOverlayError(err, 'Failed to fetch recent sightings.')
+      setTargetsError(e)
+      setSearchOutcome({ text: e.message, kind: 'error' })
     } finally {
       setTargetsLoading(false)
     }
   }, [lat, lng, radius, phase, targetSpecies, speciesCodeMap, manualTargets])
 
-  const handleFindLifers = useCallback(async (overrideLat?: number, overrideLng?: number) => {
+  const handleFindLifers = useCallback(async (overrideLat?: number, overrideLng?: number, overrideRadius?: number, fromViewport?: boolean) => {
     const latNum = overrideLat ?? parseFloat(lat)
     const lngNum = overrideLng ?? parseFloat(lng)
     if (isNaN(latNum) || isNaN(lngNum)) { setLifersError(validationError('Enter a valid latitude and longitude.')); return }
     if (phase.tag !== 'ready') { setLifersError(validationError('Load your eBird backup in Settings to find nearby lifers.')); return }
-    setLifersLoading(true); setLifersError(null)
+    setLifersLoading(true); setLifersError(null); setSearchOutcome('')
     try {
-      const distKm = Math.round(radius * 1.60934)
+      const radiusMi = overrideRadius !== undefined ? overrideRadius : radius
+      const distKm = Math.round(radiusMi * 1.60934)
       // No `codes` param ⇒ the route returns all species in the radius; we then
       // subtract the user's life list and group by location client-side.
       const records = await transport.get<TargetPin[]>('/map/recent-obs', {
         lat: String(latNum), lng: String(lngNum), dist: String(distKm),
       })
-      setLiferPins(buildNearbyLifers(records, recordedNames, latNum, lngNum))
+      const locations = buildNearbyLifers(records, recordedNames, latNum, lngNum)
+      setLiferPins(locations)
       // recent-obs records already carry eBird speciesCode, so favicons need no
       // extra taxonomy call — merge name → code from the records.
       if (records.length > 0) {
@@ -995,8 +1186,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           return next
         })
       }
+      setSearchRecords(prev => ({ ...prev, lifers: { lat: latNum, lng: lngNum, radiusMi } }))
+      setFramedByViewport(prev => ({ ...prev, lifers: fromViewport === true }))
+      // LOCATIONS, not records — the noun this view's sentence names, and what
+      // the view actually plots.
+      setSearchOutcome(searchOutcomeMessage('lifers', locations.length))
     } catch (err) {
-      setLifersError(classifyOverlayError(err, 'Failed to fetch nearby lifers.'))
+      const e = classifyOverlayError(err, 'Failed to fetch nearby lifers.')
+      setLifersError(e)
+      setSearchOutcome({ text: e.message, kind: 'error' })
     } finally {
       setLifersLoading(false)
     }
@@ -1028,15 +1226,44 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // long-press), then re-run the active view's search — the "drop a pin to see
   // what's there" path. Session-only: it updates the in-session center, never the
   // saved default (map-defaults), exactly like "Use my location".
-  const applyCenter = useCallback((latNum: number, lngNum: number) => {
+  //
+  // `radiusMi` (FR-10, FR-11): "Search this area" derives a radius as well as a
+  // centre. The CENTRE is adopted into the sidebar's coordinate boxes below; the
+  // RADIUS is FORWARDED TO THE HANDLER AND NOWHERE ELSE.
+  //
+  // THIS FUNCTION MUST NEVER CALL setRadius. The user was asked whether a press
+  // should also move their Radius setting and chose to keep it: the sidebar's
+  // Radius control belongs to the user, and only that control writes it. So the
+  // radius a press SENDS and the radius the sidebar SHOWS are allowed to differ,
+  // deliberately — the drawn searched-area circle (FR-17) is what tells the user
+  // the size that was actually used, and the sidebar goes on saying what they
+  // set. A `setRadius` call here would silently overwrite their setting on every
+  // press; MapExplorerSearchThisArea.test.tsx pins its absence structurally.
+  //
+  // Forwarding it explicitly is now load-bearing in a STRONGER way than when the
+  // sidebar was adopting it. Before, the two agreed after the write and the
+  // argument only bridged a same-tick staleness. Now they genuinely differ, so a
+  // handler reading `radius` off its own closure would send the wrong distance on
+  // every single press rather than on a first one — see the handlers' comment.
+  //
+  // OPTIONAL, and `!== undefined` rather than a truthiness test at the point of
+  // use inside each handler. Every shipped caller omits it and gets the state
+  // radius exactly as before: the pin drop and drag (`onDrop={applyCenter}` /
+  // `onMove={applyCenter}`) are typed `(lat: number, lng: number) => void` and
+  // invoke with exactly two arguments (useMapLongPressDrop.ts, MapControls.tsx),
+  // so they cannot reach either trailing parameter and keep their results fit —
+  // the shipped behaviour. Only the "Search this area" press passes both.
+  //
+  // `fromViewport` is forwarded, not interpreted.
+  const applyCenter = useCallback((latNum: number, lngNum: number, radiusMi?: number, fromViewport?: boolean) => {
     setLat(latNum.toFixed(5))
     setLng(lngNum.toFixed(5))
     if (viewMode === 'hotspots') {
-      if (!hotspotsLoading && hasEbirdKey !== false) handleFindHotspots(latNum, lngNum)
+      if (!hotspotsLoading && hasEbirdKey !== false) handleFindHotspots(latNum, lngNum, radiusMi, fromViewport)
     } else if (viewMode === 'targets') {
-      if (!targetsLoading && hasEbirdKey !== false && phase.tag === 'ready') handleFindSightings(latNum, lngNum)
+      if (!targetsLoading && hasEbirdKey !== false && phase.tag === 'ready') handleFindSightings(latNum, lngNum, radiusMi, fromViewport)
     } else if (viewMode === 'lifers') {
-      if (!lifersLoading && hasEbirdKey !== false && phase.tag === 'ready') handleFindLifers(latNum, lngNum)
+      if (!lifersLoading && hasEbirdKey !== false && phase.tag === 'ready') handleFindLifers(latNum, lngNum, radiusMi, fromViewport)
     }
   }, [viewMode, hotspotsLoading, targetsLoading, lifersLoading, hasEbirdKey, phase, handleFindHotspots, handleFindSightings, handleFindLifers])
 
@@ -1109,8 +1336,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const RadiusControl = (
     <div style={{ marginBottom: 16 }}>
       <SidebarLabel>Radius</SidebarLabel>
+      {/* Derived from RUNGS rather than a second literal copy of the same
+          ladder. Two copies in two files is the drift hazard VIEWPORT_PAD_FRAC's
+          own comment was written about, and a drift HERE would desynchronize
+          what "Search this area" snaps to from what this control can display —
+          exactly the disagreement FR-10 forbids. Renders byte-identically: same
+          four options, same labels, same order, pinned by a component test. */}
       <SegControl
-        options={[{ value: '5', label: '5 mi' }, { value: '10', label: '10 mi' }, { value: '25', label: '25 mi' }, { value: '50', label: '50 mi' }]}
+        options={RUNGS.map(r => ({ value: String(r), label: `${r} mi` }))}
         value={String(radius)}
         onChange={v => setRadius(Number(v))}
       />
@@ -2153,6 +2386,55 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       ? 'Close the location popup'
       : 'Copy the search center location'
 
+  // ── "Search this area" — the render gate (FR-01) ──────────────────────────
+  const centerViewMode = isCenterView ? (viewMode as CenterViewMode) : null
+  const activeRecord = centerViewMode ? searchRecords[centerViewMode] ?? null : null
+  const activeLoading = viewMode === 'hotspots' ? hotspotsLoading
+    : viewMode === 'targets' ? targetsLoading
+      : viewMode === 'lifers' ? lifersLoading : false
+  // Reproduces applyCenter's per-view precondition, NOT the stricter
+  // targetsFetchDisabled the view-mode switch uses, so the press behaves exactly
+  // like a pin drop. The pre-existing discrepancy between the two is deliberately
+  // left alone (the PRD puts reconciling it out of scope).
+  const activeRunnable = viewMode === 'hotspots'
+    ? hasEbirdKey !== false
+    : (viewMode === 'targets' || viewMode === 'lifers')
+      ? (hasEbirdKey !== false && phase.tag === 'ready')
+      : false
+  // FR-13 as shipped: a press would SEND something different from the record
+  // (a different rung, or a centre moved past the tolerance) AND the viewport is
+  // not already inside the recorded circle. Both conjuncts earn their place —
+  // see shouldOfferSearchArea for why neither alone is the question the user is
+  // asking, and in particular why the first is what stops a CAPPED search
+  // offering the control forever on a map nobody has moved.
+  const searchMoved = shouldOfferSearchArea(pendingSearch, activeRecord, mapBounds)
+  // All six conditions, in the PRD's order. The control appears only when it
+  // would do something different from the last search, and never fires on its
+  // own — panning and zooming issue no request at all.
+  //
+  // `searchAreaFits` is the seventh, added by the Stage-5 rework and NOT a
+  // seventh FR-01 condition in spirit: the other six ask whether a search would
+  // do anything, this one asks whether the control has anywhere to be. It is
+  // true on every map area of ordinary height. See useSearchControlFit.
+  const showSearchArea =
+    isCenterView && mapMounted && !sidebarOpen && activeRunnable && !activeLoading && searchMoved
+    && searchAreaFits
+  // FR-24. Note this re-asserts the three SCOPE conditions: `retainSearchBtn`
+  // overrides only the moved and in-flight conditions, the two the press itself
+  // flips, and never the view, the map, or the overlay. Without that a retained
+  // ghost could survive onto a view where the control has no meaning.
+  //
+  // `searchAreaFits` is re-asserted here for the same reason the three SCOPE
+  // conditions are. The retained box is `aria-disabled`, not `disabled`, so it
+  // is still a hit target: left ungated it would put an unpressable control
+  // back over the layers switcher and reopen exactly the defect the gate above
+  // closes. It cannot cost a focused user their place, because the gate's
+  // inputs (the map area's height, the disc line, the switcher) do not move
+  // when the control is pressed — only a resize, a rotation or a text-scale
+  // change can flip it, and each of those relayouts the page anyway.
+  const showRetained = !showSearchArea && retainSearchBtn
+    && isCenterView && mapMounted && !sidebarOpen && searchAreaFits
+
   // ── Layout ────────────────────────────────────────────────────────────────────
 
   return (
@@ -2183,6 +2465,11 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 // render, the shape this repo already rejected for the shading
                 // exclusion (nextShadingState).
                 setGeoError('')
+                // Same posture, same reason: a view switch can unmount the
+                // "Search this area" button without ever firing its blur, and a
+                // stale flag would show a phantom disabled control on the view
+                // the user just moved to. Reset site 2 of 3.
+                setRetainSearchBtn(false)
                 if (mode === 'hotspots' || mode === 'targets' || mode === 'lifers') {
                   const latNum = parseFloat(lat)
                   const lngNum = parseFloat(lng)
@@ -2264,8 +2551,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {viewMode === 'lifers'   && lifersSidebar}
         </div>
 
-        {/* Map area */}
-        <div style={{ flex: 1, position: 'relative' }}>
+        {/* Map area. The ref is the CONTAINER half of the OI-01 fit measurement
+            (useSearchControlFit) — the box the control row must stay inside,
+            and the subtree the layers switcher is looked up in. */}
+        <div ref={mapAreaRef} style={{ flex: 1, position: 'relative' }}>
           {/* Loading chip over the canvas while a search is in flight — the
               sidebar button already shows "Finding…", but on mobile (sidebar
               closed) the map itself gave no signal. */}
@@ -2278,6 +2567,38 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {viewMode === 'hotspots' ? 'Finding hotspots…' : viewMode === 'targets' ? 'Finding sightings…' : 'Finding nearby lifers…'}
             </div>
           )}
+          {/* The search-outcome live region (FR-25) — the top-centre statement
+              slot's second occupant, sharing the anchor with the loading chip
+              above and mutually exclusive with it in time (each handler clears
+              the outcome before its fetch).
+
+              Rendered ALWAYS, never hidden while idle — `display: none` removes
+              an element from the ACCESSIBILITY TREE, which is the documented way
+              to make a live region fail to announce, and a stylesheet guard
+              rejects any rule that would. Only its CHILD changes, keyed by
+              outcome.seq, because React bails out reconciling identical text and
+              aria-live fires on mutation: two searches of two different areas
+              that both find 3 hotspots are exactly that case, and here it is
+              reachable in a few presses. NOTHING else may render inside the
+              container, so its textContent is exactly the sentence read aloud.
+
+              A failure re-tokenizes THIS node rather than opening a second card
+              somewhere else: on a phone the sidebar is off screen, so the
+              message must be visible, and when it is visible the visible node
+              and the announced node must be the same node. */}
+          <div className="sr-map-search-status" role="status" aria-live="polite">
+            {outcome.text ? (
+              <span
+                key={outcome.seq}
+                className={outcome.kind === 'error'
+                  ? 'sr-map-search-status-msg sr-map-search-status-msg--error'
+                  : 'sr-map-search-status-msg'}
+              >
+                {outcome.kind === 'error' ? <AlertCircle size={14} aria-hidden="true" /> : null}
+                {outcome.text}
+              </span>
+            ) : null}
+          </div>
           {/* Floating map controls, hidden while the mobile sidebar overlay is
               open. Fullscreen toggle shows on all widths; the Filters button is
               mobile-only (CSS). They sit in a flex cluster so they never overlap
@@ -2291,7 +2612,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               overlay still hides every FAB (FR-12) and SharePin still sees a
               null host and renders no button. Empty, the cluster is a 0x0
               pointer-events:none box. */}
-          <div className="sr-map-fab-cluster">
+          <div ref={fabClusterRef} className="sr-map-fab-cluster">
             {/* The location-failure message: its own full-width row at the TOP
                 of this bottom-anchored cluster, so a message extends the cluster
                 UPWARD and every button's position is byte-identical with and
@@ -2321,6 +2642,63 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             </div>
             {!sidebarOpen && (
               <>
+              {/* "Search this area" — the fragment's FIRST child, which is what
+                  satisfies FR-04 BY POSITION: there is no duplicated
+                  `!sidebarOpen` condition to write and none that can drift from
+                  the one the shipped discs already use. DOM order equals visual
+                  order equals tab order, with no CSS `order` anywhere.
+
+                  It sits AFTER .sr-map-geo-error (rendered above, outside this
+                  fragment) and BEFORE the discs. Deliberate: the cluster is
+                  bottom-anchored, so a row below the location-failure row keeps
+                  an offset from the bottom that is invariant to whether a
+                  location failure is on screen — the same property the geo-error
+                  row's own comment protects, and the one that matters most here,
+                  since a failed search's retry IS this control. */}
+              {(showSearchArea || showRetained) && centerViewMode && (
+                <div ref={searchAreaRowRef} className="sr-map-search-area-row">
+                  <button
+                    type="button"
+                    tabIndex={0}
+                    className="sr-map-search-area-btn sr-touch-target"
+                    /* aria-disabled, NEVER the `disabled` attribute: disabling a
+                       focused button drops focus to <body>, which is the exact
+                       failure FR-24 exists to prevent. */
+                    aria-disabled={showRetained}
+                    aria-label={showRetained
+                      ? searchAreaSearchedLabel(centerViewMode)
+                      : SEARCH_AREA_LABEL[centerViewMode]}
+                    onClick={e => {
+                      // The no-op in the retained state.
+                      if (!showSearchArea || !pendingSearch) return
+                      // Read in an EVENT HANDLER, never in render. It
+                      // distinguishes the keyboard case (the control holds
+                      // focus, so removing it would drop focus off the map) from
+                      // the WKWebView pointer case (it never took focus, and
+                      // FR-24 permits removing it immediately).
+                      if (document.activeElement === e.currentTarget) setRetainSearchBtn(true)
+                      // Centre AND radius, both derived and both SENT (FR-11).
+                      // The centre is also adopted into the sidebar's
+                      // coordinate boxes (FR-10); the radius is NOT — the user
+                      // asked to keep their Radius setting, so the sent radius
+                      // and the sidebar's may differ and the drawn circle is
+                      // what reports the size actually searched. Passing the
+                      // radius rather than letting the handler read state is
+                      // what makes the value sent and the value drawn the same
+                      // number.
+                      //
+                      // The fourth argument is what stops the results fit from
+                      // moving the map out from under the record this press is
+                      // about to write. See HotspotMarkers' `autoFit`.
+                      applyCenter(pendingSearch.lat, pendingSearch.lng, pendingSearch.radiusMi, true)
+                    }}
+                    onBlur={() => setRetainSearchBtn(false)}
+                  >
+                    <Search size={14} strokeWidth={2.2} aria-hidden="true" />
+                    {SEARCH_AREA_TEXT}
+                  </button>
+                </div>
+              )}
               {/* Pin Share's drop button portals in here, so it is the FIRST item
                   of this row (Pin, Fullscreen, Filters), no new corner is claimed
                   and the .sr-ios-app safe-area handling is inherited. The slot is
@@ -2450,7 +2828,9 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               <button tabIndex={0}
                 ref={filtersButtonRef}
                 className="sr-map-filters-btn sr-touch-target"
-                onClick={() => setSidebarOpen(true)}
+                /* Reset site 3 of 3: opening Filters unmounts the "Search this
+                   area" button the same way a view switch does, with no blur. */
+                onClick={() => { setRetainSearchBtn(false); setSidebarOpen(true) }}
                 aria-label="Open map filters"
               >
                 <Filter size={14} strokeWidth={2.5} />
@@ -2508,6 +2888,23 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
               {detectedLocation && !centerPinShown && <DetectedLocationPin position={detectedLocation} />}
               {isCenterView && (
                 <>
+                  {/* The searched area, drawn from the RECORD and never from the
+                      live viewport, so panning moves the map under a stationary
+                      circle. Per-view falls out of the lookup above, and
+                      isCenterView already excludes My Sightings; records are not
+                      cleared on a view switch, so switching back restores that
+                      view's circle. Inert by construction — see the component. */}
+                  {/* `rampActive` is the SAME expression BasemapDesaturation
+                      takes above, so the two map effects that respond to a
+                      shading ramp can never disagree about whether one is on.
+                      It backs the scrim off to where it cannot push a county or
+                      atlas tier past its neighbour (OI-02). */}
+                  {activeRecord && (
+                    <SearchedAreaLayer
+                      record={activeRecord}
+                      rampActive={shadeByCounty || shadeByBreeding}
+                    />
+                  )}
                   {/* Untouched: this IS the drop-to-search path (QA-54 asks a
                       reviewer to confirm it is literally the same code as before). */}
                   <CenterPinDropper onDrop={applyCenter} />
@@ -2546,13 +2943,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <SightingMarkers locations={filteredLocations} displayMode={displayMode} pointSize={pointSize} heatIntensity={heatIntensity} shadingFillId={atlasEnabled && shadeByBreeding ? 'sr-atlas-fill' : countyLinesEnabled && shadeByCounty ? 'sr-county-fill' : undefined} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />
               )}
               {viewMode === 'hotspots' && hotspotPins && (
-                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} />
+                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} autoFit={framedByViewport.hotspots !== true} />
               )}
               {viewMode === 'targets' && targetPins && (
-                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} sel={selectedTargetLocId} onSelect={setSelectedTargetLocId} markerMode={targetMarkerMode} />
+                <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} sel={selectedTargetLocId} onSelect={setSelectedTargetLocId} markerMode={targetMarkerMode} autoFit={framedByViewport.targets !== true} />
               )}
               {viewMode === 'lifers' && liferPins && (
-                <NearbyLiferMarkers key={`${displayedLiferLocations.length}-${liferWindow}`} pins={displayedLiferLocations} speciesCodeMap={speciesCodeMap} onOpenSpecies={onOpenSpecies} sel={selectedLiferLocId} onSelect={setSelectedLiferLocId} markerMode={liferMarkerMode} />
+                <NearbyLiferMarkers key={`${displayedLiferLocations.length}-${liferWindow}`} pins={displayedLiferLocations} speciesCodeMap={speciesCodeMap} onOpenSpecies={onOpenSpecies} sel={selectedLiferLocId} onSelect={setSelectedLiferLocId} markerMode={liferMarkerMode} autoFit={framedByViewport.lifers !== true} />
               )}
             </SnowMap>
           )}

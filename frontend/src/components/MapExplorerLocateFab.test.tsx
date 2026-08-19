@@ -30,6 +30,12 @@ vi.mock('react-map-gl/maplibre', () => ({
   useMap: () => ({ current: null }),
   Marker: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
   Popup: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  // Source/Layer cover the SearchedAreaLayer this component now mounts once a
+  // view has a search record (feature: search-this-area). No assertion in this
+  // file changed; the mock simply covers the whole surface the component tree
+  // touches, so the real layer renders inertly here rather than being hidden.
+  Source: ({ children }: { children?: ReactNode }) => <>{children}</>,
+  Layer: () => null,
 }))
 vi.mock('./SnowMap', () => ({ SnowMap: ({ children }: { children?: ReactNode }) => <div data-testid="snowmap">{children}</div> }))
 vi.mock('./AtlasLayer', () => ({ AtlasLayer: () => null }))

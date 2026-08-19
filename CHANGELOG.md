@@ -2,6 +2,22 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.91] - 2026-08-19
+
+Search the part of the map you are actually looking at, in one press.
+
+### Added
+- **A "Search this area" button on the Map Explorer.** On Hotspots, Nearby Lifers and Media Targets, pan or zoom somewhere new and the button appears on the map. Press it and that view's search runs again over what is on screen, without a trip through the Filters panel. It re-runs whichever of the three you are on, so there is one button to learn rather than three.
+
+  The center comes from the middle of your view, and the radius is the smallest of 5, 10, 25 or 50 miles that covers the whole view, capped at 25. Zoomed in, it uses 5. The center is adopted into the sidebar's coordinate boxes, but your Radius setting is left alone, so the circle drawn on the map is what tells you the size that was actually used.
+
+  A search area is a circle and the map is a rectangle, so the two can never match exactly. After a search the ground outside the searched circle is gently dimmed, with a dashed edge marking the boundary once it comes into view. Nothing dims while the circle covers what you can see. Panning and zooming never search on their own: nothing is sent until you press, and pressing twice without moving the map costs one lookup rather than two.
+
+  On the narrowest phones at the larger text sizes the map can end up too short to hold another row of buttons, and the button stays away rather than covering a control you still need to press. Everything it does remains available the way it always was, through **Filters** and **Find**.
+
+### Fixed
+- **The map no longer runs off the bottom of the screen.** The Map Explorer panel worked from a fixed guess at how much room the app's own header and tabs take up, and the guess was too small, so the round buttons in the map's bottom-right corner could sit below the edge of the window until you scrolled down. It now measures the space it actually has, which also covers the two cases a fixed number could never get right: the tab strip folding into a dropdown on a narrower window, and the larger text sizes. On a 320 pixel phone at the largest text size the map holds to a minimum height instead, so a little scrolling remains there by design.
+
 ## [0.5.90] - 2026-08-14
 
 Three pieces of hardening you will never see. (Shipped as a Spool bundle of 4 builds.)
