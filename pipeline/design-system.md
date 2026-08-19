@@ -29,6 +29,7 @@ never promotional.
 - **County choropleth ramp:** `--sr-county-{1..10}` (+ `-rgb` triplets) — a sequential single-hue green ramp (light `#C3E8D1` → deep `#1A5C38`, geometric-luminance-spaced so every adjacent step stays legible, deepening toward `--sr-accent-strong`) for a magnitude choropleth drawn on a map (Map Explorer county shading). Use THIS ramp — not the purple `--sr-tier` breeding ramp — for any new map magnitude choropleth, so it reads as "how many" and stays visually distinct from the breeding-atlas overlay when both are on. The ten steps serve BOTH tier mappings — quantile classes for count metrics and fixed 0–100% bands for absolute-scale metrics (Completeness) — and the same steps drive the Use Textures density hatch and the popup progress-bar fill (each county's bar filled with its own band token). Declared IDENTICALLY in both themes because the map canvas is the always-light Positron basemap regardless of app theme (same posture as the map-pin / rank / milestone on-map tokens; theme-flipping would wash the fills out over a light base). On-map fills use the solid color at `fill-opacity ~0.85`; the unrecorded tier is outline-only (`fill-opacity 0`, still hit-tested). Legend swatches use the solid color with a `--sr-border-medium` ring; legend text uses the theme-flipping `--sr-text` / `--sr-text-muted` (AA). There is no on-fill map text, so no on-fill text pair is minted.
 - **Calendar day-shade ramp (text-bearing):** `--sr-cal-{1..5}` (+ `-rgb`) with one white on-cell number `--sr-cal-fg` (`#FFFFFF`) — a sequential deep-green ramp (`#357E56 → #0C271A`) sized so the single on-fill number clears WCAG AA (≥4.5:1) on EVERY tier. Use THIS ramp — not the fill-only county ramp — whenever a shade cell CARRIES TEXT ON THE FILL: a fill-only ramp can't guarantee on-fill text contrast at every step (a mid ramp fill is a dead zone for any single text color), so a text-bearing surface gets its own ramp with a locked class count (here 5, forced by the AA + adjacency math) and one re-tuned on-fill text token. Declared IDENTICALLY in both themes (same posture as the county / map-pin / milestone on-surface tokens; theme-flipping would break the on-fill contrast guarantee). The steps also drive the colorblind crosshatch companion — a DOM CSS `repeating-linear-gradient` (`calHatchCss` over the `-rgb` tokens; the DOM analogue of the map's MapLibre-sprite hatch, reusing only the pure monotonic density shape). Guard the pair with a parse-the-tokens test asserting on-fill text ≥4.5:1 on every tier in both themes (the county ramp's contrast test omits this because it has no on-fill text).
 - **Share pin:** `--sr-share-pin` (#B4341F) + `--sr-share-pin-ink` (#FFFFFF) — the transient user-planted map pin. Declared IDENTICALLY in both themes (map-anchored: only ever drawn on the always-light Positron basemap, same posture as `--sr-map-pin-*` / `--sr-rank-pin-*` / the county ramp; theme-flipping would wash it out over a light base). 5.38:1 on Positron land, 6.08:1 for the ink notch — both clear the 3:1 WCAG 1.4.11 bar for a non-text graphic with the margin that keeps it legible over satellite too. No text is painted on the fill, so no on-fill text pair is minted.
+- **Searched-area indicator:** `--sr-search-area-rgb` (180, 52, 31) for the boundary of an area the app has actually queried, and `--sr-search-area-scrim-rgb` (15, 17, 23) for the wash over everything outside it. Both are `-rgb` triplets because both are only ever consumed at an alpha, and both are declared IDENTICALLY in `:root` and `[data-theme="dark"]` — the same map-anchored posture as `--sr-share-pin` / `--sr-map-pin-*` / `--sr-rank-pin-*` / the county ramp. The edge deliberately REUSES `--sr-share-pin`'s audited `#B4341F` rather than minting a near-neighbour: the two never co-occur as a data class (a planted flag against a boundary line) and shape already distinguishes them, so one red-orange in the palette is one fewer to keep audited. The scrim is `--sr-text`'s light value, the app's own ink and never pure black, which is the house rule for every shadow and overlay here. **Show a covered area by dimming what was NOT covered, rather than by drawing its boundary**, whenever the boundary can be off screen exactly when the feature is working — geometry then does the work and there is no visibility state to get wrong. **Its alpha is decided by what the scrim sits ON TOP OF, so it is settled by measuring the rendered stack, not by reasoning about the token**: over an active choropleth ramp the wash also moves that ramp's tiers, and a ramp guarded only at ~1.21:1 adjacency has little to give. Painting the scrim below the fills is not the answer (it blocks 85% of the mark exactly where the claim matters) — enforce the layer order, re-asserted on `styledata`, and pick the alpha against the rendered tiers. No text is painted on either fill, so no on-fill text pair is minted.
 - **Sticky band haze:** `--sr-sticky-shadow` — the soft drop shadow under a header that has pinned over content scrolling beneath it, paired with an inset `--sr-border-medium` bottom line. A full-value shadow token (same convention as `--sr-card-shadow`), and one of the tokens that is NOT theme-identical: dark gets its own deeper value, because a light 12% haze is invisible against `--sr-bg` `#09090B`. Both values are tinted with the app's own ink, never pure black. The band's boundary is visual reinforcement only, not the means of identifying the component or its state (the header is identified by its text, the pinned state by the control's `aria-pressed` and its visible pressed styling), so it is deliberately a hairline at about 1.65:1 rather than a 3:1 rule that would read as a divider and break the register.
 - **Rule:** every color via `var(--sr-*)`; new tokens go in BOTH themes before
   use; rgba alphas via the `-rgb` triplet pattern. **Before minting a new map
@@ -37,7 +38,13 @@ never promotional.
   Statistics rank square; amber and violet are Map Explorer's personal and
   target pins. When no color is free everywhere, let SHAPE carry the
   distinction and mint a token only to keep the new shape from reading as an
-  existing data class.
+  existing data class. **On the Map Explorer canvas the palette is now
+  spent**: green is sighting pins, the search-centre pin and the rank circle;
+  amber is personal locations; violet is target pins; blue is rank; purple is
+  the breeding ramp; green again is the county ramp; slate is every boundary
+  line; and red-orange is the planted share pin and the searched-area edge.
+  A further map mark should expect to reuse an audited hue with a distinct
+  shape rather than to find a free one.
 
 ## Type
 Inter / system-ui. Three working roles: headline (1.125rem/700, -0.01em),
@@ -109,7 +116,30 @@ italic at 0.71875rem `--sr-text-gray`.
   narrows, tightens padding and caps its body, but keeps every label, the mode
   line, the failure text and `Select all` — the same full-density-degradation
   rule as the inline-media placeholder, and the body cap floors at the
-  touch-target size rather than shrinking the action out of reach.
+  touch-target size rather than shrinking the action out of reach. **The map surface
+  has two anchors and they split by INTERACTIVITY, not by feature.** The
+  top-centre anchor holds only transient `pointer-events: none` statements (the
+  loading chip, a search-outcome line), because at 320px and 200% text scale
+  anything there passes over the top-right layers switcher — tolerable only
+  while the switcher stays fully operable underneath, which is true of a
+  statement and false of a control. Every ACTION lives in the bottom FAB
+  cluster. Beside the corner icon buttons and the full-width message row, the
+  cluster also hosts a full-width **action** row on the same mechanism
+  (`flex: 0 0 100%`, the cluster's own `row-gap` / `justify-content` /
+  `max-width` doing the work): it is where a labelled action goes when the
+  action needs words rather than a glyph, it spends none of the disc row's
+  horizontal slack, and it inherits the cluster's bottom safe-area inset
+  rather than needing a rule of its own. Two transferable rules come with it.
+  **A row whose position must be stable under a neighbouring row's appearance
+  goes BELOW that neighbour**, because the cluster is bottom-anchored and grows
+  upward — that is what keeps a retry sitting where the thumb left it whatever
+  else appears. And **a labelled action in this cluster takes the accent-TINTED
+  active treatment, never the accent-filled slab**: a solid accent fill on this
+  canvas means sighting pin, and the accent-filled Filters pill already sits in
+  the same cluster, so two labelled pills in one place need two weights. Where
+  a new row genuinely has nowhere to fit, WITHHOLD it and leave its function
+  reachable where it already was — measured against a term the control cannot
+  itself move, never gated at a fixed breakpoint.
 - **Inline media (ML embeds):** Macaulay Library `.../asset/<id>/embed` iframe in
   a `.sr-media-grid` (3-up → 1 col ≤640), `.sr-media-iframe` footprint. Height is a
   modifier class per surface, and each surface keeps its own classes so the two can
