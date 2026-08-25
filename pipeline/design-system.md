@@ -30,6 +30,34 @@ never promotional.
 - **Calendar day-shade ramp (text-bearing):** `--sr-cal-{1..5}` (+ `-rgb`) with one white on-cell number `--sr-cal-fg` (`#FFFFFF`) — a sequential deep-green ramp (`#357E56 → #0C271A`) sized so the single on-fill number clears WCAG AA (≥4.5:1) on EVERY tier. Use THIS ramp — not the fill-only county ramp — whenever a shade cell CARRIES TEXT ON THE FILL: a fill-only ramp can't guarantee on-fill text contrast at every step (a mid ramp fill is a dead zone for any single text color), so a text-bearing surface gets its own ramp with a locked class count (here 5, forced by the AA + adjacency math) and one re-tuned on-fill text token. Declared IDENTICALLY in both themes (same posture as the county / map-pin / milestone on-surface tokens; theme-flipping would break the on-fill contrast guarantee). The steps also drive the colorblind crosshatch companion — a DOM CSS `repeating-linear-gradient` (`calHatchCss` over the `-rgb` tokens; the DOM analogue of the map's MapLibre-sprite hatch, reusing only the pure monotonic density shape). Guard the pair with a parse-the-tokens test asserting on-fill text ≥4.5:1 on every tier in both themes (the county ramp's contrast test omits this because it has no on-fill text).
 - **Share pin:** `--sr-share-pin` (#B4341F) + `--sr-share-pin-ink` (#FFFFFF) — the transient user-planted map pin. Declared IDENTICALLY in both themes (map-anchored: only ever drawn on the always-light Positron basemap, same posture as `--sr-map-pin-*` / `--sr-rank-pin-*` / the county ramp; theme-flipping would wash it out over a light base). 5.38:1 on Positron land, 6.08:1 for the ink notch — both clear the 3:1 WCAG 1.4.11 bar for a non-text graphic with the margin that keeps it legible over satellite too. No text is painted on the fill, so no on-fill text pair is minted.
 - **Searched-area indicator:** `--sr-search-area-rgb` (180, 52, 31) for the boundary of an area the app has actually queried, and `--sr-search-area-scrim-rgb` (15, 17, 23) for the wash over everything outside it. Both are `-rgb` triplets because both are only ever consumed at an alpha, and both are declared IDENTICALLY in `:root` and `[data-theme="dark"]` — the same map-anchored posture as `--sr-share-pin` / `--sr-map-pin-*` / `--sr-rank-pin-*` / the county ramp. The edge deliberately REUSES `--sr-share-pin`'s audited `#B4341F` rather than minting a near-neighbour: the two never co-occur as a data class (a planted flag against a boundary line) and shape already distinguishes them, so one red-orange in the palette is one fewer to keep audited. The scrim is `--sr-text`'s light value, the app's own ink and never pure black, which is the house rule for every shadow and overlay here. **Show a covered area by dimming what was NOT covered, rather than by drawing its boundary**, whenever the boundary can be off screen exactly when the feature is working — geometry then does the work and there is no visibility state to get wrong. **Its alpha is decided by what the scrim sits ON TOP OF, so it is settled by measuring the rendered stack, not by reasoning about the token**: over an active choropleth ramp the wash also moves that ramp's tiers, and a ramp guarded only at ~1.21:1 adjacency has little to give. Painting the scrim below the fills is not the answer (it blocks 85% of the mark exactly where the claim matters) — enforce the layer order, re-asserted on `styledata`, and pick the alpha against the rendered tiers. No text is painted on either fill, so no on-fill text pair is minted.
+- **Hotspot value ramp:** `--sr-hotspot-{1..5}` (#2C89AA → #0E2A47) — a sequential
+  cyan-blue ramp for the Hotspots view's color modes (personal species / checklists,
+  community recent activity), strictly luminance-monotonic with every adjacent step
+  ≥1.2:1, plus the off-ramp state tokens: `--sr-hotspot-unanswered` (gray, paired
+  with a dashed stroke ring on the sprite), `--sr-hotspot-zero` (the hollow "asked,
+  zero" rim — ONE token deliberately serving both the personal-zero and
+  community-quiet states, whose wording differs but whose visual idea is the same;
+  two identical-valued tokens would be a name waiting to drift),
+  `--sr-hotspot-nodata` (pale "never birded by you") and its non-guarded companion
+  `--sr-hotspot-pale` (the hollow inner disc). Declared IDENTICALLY in both themes
+  (map-anchored, same posture as the county ramp / share pin). Two rules travel
+  with it. **A state that must read as ABSENCE may be a pale fill whose ≥3:1
+  boundary is supplied by its stroke ring rather than by the fill** — any
+  guard-compliant dark fill inevitably reads as "something", the very confusion the
+  state exists to prevent (the pin-scale twin of the county overlay's outline-only
+  unrecorded tier). Its contrast guard then encodes the REPLACEMENT clauses (pale
+  fill ≥3:1 vs the other state fills and ramp step 1; ring ≥3:1 vs land and vs the
+  fill itself), never the uniform clause it deviates from, with the land reference
+  bound to `TINT_GRASS` specifically — the stated binding case and the documented
+  map-pin practice; an all-tints sweep fails the approved ramp, and the other TINT
+  imports stay live so a rename breaks loudly (`hotspotContrast.test.ts`). And **at
+  teardrop-pin scale the colorblind path is luminance + structure + words, not
+  texture** — a county-style density crosshatch does not resolve on a 28px bulb, so
+  the color-independent reading is the grayscale-ordered ramp, the structural
+  states (dashed = not checked, hollow = zero, pale = never birded), the kind glyph
+  on every pin (white on ramp/unanswered fills, dark slate on the two
+  pale-centered states), and the popup + in-view list carrying every value in
+  words. No text is painted on the fills, so no on-fill text pair is minted.
 - **Sticky band haze:** `--sr-sticky-shadow` — the soft drop shadow under a header that has pinned over content scrolling beneath it, paired with an inset `--sr-border-medium` bottom line. A full-value shadow token (same convention as `--sr-card-shadow`), and one of the tokens that is NOT theme-identical: dark gets its own deeper value, because a light 12% haze is invisible against `--sr-bg` `#09090B`. Both values are tinted with the app's own ink, never pure black. The band's boundary is visual reinforcement only, not the means of identifying the component or its state (the header is identified by its text, the pinned state by the control's `aria-pressed` and its visible pressed styling), so it is deliberately a hairline at about 1.65:1 rather than a 3:1 rule that would read as a divider and break the register.
 - **Rule:** every color via `var(--sr-*)`; new tokens go in BOTH themes before
   use; rgba alphas via the `-rgb` triplet pattern. **Before minting a new map
@@ -42,9 +70,10 @@ never promotional.
   spent**: green is sighting pins, the search-centre pin and the rank circle;
   amber is personal locations; violet is target pins; blue is rank; purple is
   the breeding ramp; green again is the county ramp; slate is every boundary
-  line; and red-orange is the planted share pin and the searched-area edge.
-  A further map mark should expect to reuse an audited hue with a distinct
-  shape rather than to find a free one.
+  line; red-orange is the planted share pin and the searched-area edge; and
+  cyan-blue is the hotspot value ramp — the last family that was distinct from
+  all of these at pin scale. A further map mark should expect to reuse an
+  audited hue with a distinct shape rather than to find a free one.
 
 ## Type
 Inter / system-ui. Three working roles: headline (1.125rem/700, -0.01em),
