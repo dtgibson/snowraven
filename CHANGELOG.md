@@ -2,6 +2,17 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.0] - 2026-08-25
+
+SnowRaven goes to the public App Store. The version jumps deliberately from 0.5.93 to 1.0.0 for the debut (a one-time jump, user decision at the design review); the regular incremental rhythm continues upward from here.
+
+### Added
+- **The iOS app is submitted to the public App Store.** Everything between "on TestFlight every version" and "findable on the App Store" ships in this release: the committed listing record (`appstore/LISTING.md`, with the full copy, the "Data Not Collected" privacy label reasoning, age-rating and content-rights answers), the App Review package (`appstore/REVIEW_NOTES.md`, with a keyless-first reviewer script and a hosted synthetic demo dataset at `snowraven.dtgibson.com/demo/`), App Store screenshot tooling (`website/tools/capture-appstore.mjs`) with committed iPhone and iPad screenshot sets captured from the synthetic demo data, and the App Store submission documented as a standing leg of every release. No app behavior changes; the app itself is the one that has shipped on TestFlight all along.
+- **A dedicated privacy policy page on the website.** `snowraven.dtgibson.com/privacy.html` carries the full privacy policy, section for section with the repository's `PRIVACY_POLICY.md`, led by the App Store privacy label and what backs it. The homepage privacy section and footer link to it.
+
+### Changed
+- **The privacy policy now covers the iOS app**: where files live on iPhone and iPad (the app's on-device sandbox), the iOS location permission prompt and how to change it, a new "iOS App" section, and the App Store update path. The in-app help's "Updating SnowRaven" section says the same: on iPhone and iPad, updates arrive through the App Store, with no in-app update step.
+
 ## [0.5.93] - 2026-08-24
 
 A new app icon, and gentler eBird manners everywhere on the map.

@@ -1,16 +1,16 @@
 # SnowRaven Privacy Policy
 
-**Effective date:** August 4, 2026
+**Effective date:** August 25, 2026
 
 ## Overview
 
-SnowRaven is a self-hosted birding tools app. It runs as a standalone desktop app (macOS and Windows) or on your own machine such as a Raspberry Pi. This policy describes what happens to your data. The short version: it stays with you.
+SnowRaven is a self-hosted birding tools app. It runs as a standalone desktop app (macOS and Windows), as an app on iPhone and iPad, or on your own machine such as a Raspberry Pi. This policy describes what happens to your data. The short version: it stays with you.
 
 ## Your Data Stays on Your Device
 
 SnowRaven keeps your data on your own device by choice and design. You keep it, and you control it.
 
-- Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export) are stored only on your device (in the desktop app's local data directory), or on your own machine when you self-host the web/Pi version. They are never uploaded to the developer or to any service the developer runs.
+- Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad), or on your own machine when you self-host the web/Pi version. They are never uploaded to the developer or to any service the developer runs.
 - All processing of your eBird and media files happens locally, on your own device, while you use the app.
 - There is no SnowRaven account, no login, and no SnowRaven-operated server sitting between you and your data.
 - You can delete your stored files and keys at any time from the Settings tab, or by removing the app's data directory.
@@ -42,6 +42,8 @@ When you use a location control (the location button on the map, "Use my locatio
 
 One thing worth saying plainly, because the paragraph above is easy to read as more than it claims: centering the map on you moves the map to where you are, and the map then draws that area, which means it requests map tiles for it. Your coordinates are not sent to the tile provider, but the tiles you request are for the area around you, and the provider sees your IP address and which part of the map you are looking at, exactly as described in "Map Tiles" below. That is true of panning the map there by hand as well. It is the normal behavior of any map, and it is the one outward consequence of centering on yourself.
 
+On iPhone and iPad, the first time you tap "Use my location" iOS shows the system location permission prompt ("SnowRaven uses your location to center the map on your current position"). SnowRaven requests location only while you're using the app, never in the background. You can allow or deny it, and change your choice at any time in Settings → Privacy & Security → Location Services. Denying it leaves everything else working: you can always type coordinates or search for a place by name.
+
 ## Map Tiles
 
 The maps in SnowRaven are drawn using map tiles served by third-party providers. As you pan and zoom, your device requests the tiles for the area you are viewing directly from these providers, so, like any website that displays a map, they receive your IP address and which part of the map you are looking at. No SnowRaven server is involved, no API key or account is used, and the developer adds no tracking and keeps no copy. You choose which base map is active with the layer switcher, and only the active layers' tiles are requested. Tiles come from:
@@ -50,6 +52,10 @@ The maps in SnowRaven are drawn using map tiles served by third-party providers.
 - **Esri** (`server.arcgisonline.com`): the "Satellite" base map. See [Esri's privacy statement](https://www.esri.com/en-us/privacy/overview).
 - **USGS: The National Map** (`basemap.nationalmap.gov`): the "Topo (US)" base map (United States only); a U.S. government service.
 - **Waymarked Trails** (`tile.waymarkedtrails.org`): the optional "Trails" overlay. See [waymarkedtrails.org](https://hiking.waymarkedtrails.org/).
+
+## iOS App
+
+The iOS/iPadOS app is the same local-first application: your files, keys, and settings live in the app's sandbox on your device, are included in your device/iCloud backups under the iOS defaults, and are removed when you delete the app. The app collects nothing and adds no service connections beyond those listed above.
 
 ## Embedded Bird Media and Link Icons
 
@@ -62,7 +68,9 @@ No key or account is used for these loads, no developer-operated server is invol
 
 ## Software Updates
 
-SnowRaven checks whether a newer version is available by requesting the latest release information from GitHub (`api.github.com`). In the desktop apps, choosing **Check For Updates** then downloads the new version directly from GitHub's release assets and installs it in place. As with any request to a website, GitHub receives your IP address when these checks and downloads happen. No API key or account is used, no SnowRaven server is involved, and the developer adds no tracking and keeps no copy. Downloaded updates are cryptographically verified before they are installed. See [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+In the desktop and web/Pi versions, SnowRaven checks whether a newer version is available by requesting the latest release information from GitHub (`api.github.com`). In the desktop apps, choosing **Check For Updates** then downloads the new version directly from GitHub's release assets and installs it in place. As with any request to a website, GitHub receives your IP address when these checks and downloads happen. No API key or account is used, no SnowRaven server is involved, and the developer adds no tracking and keeps no copy. Downloaded updates are cryptographically verified before they are installed. See [GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
+
+On iPhone and iPad, updates are delivered through the App Store (or TestFlight for pre-release builds). The iOS app contains no self-update mechanism of its own and does not make the GitHub update check described above.
 
 ## Children
 

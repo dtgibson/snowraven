@@ -65,3 +65,39 @@ npx playwright install chromium
 
 Then review the site, update any feature copy in `../index.html`, and commit
 `website/` (the `demo-data/`, `shots/`, and `node_modules/` here are git-ignored).
+
+## App Store screenshots
+
+`capture-appstore.mjs` is a second consumer of the same pipeline (shared
+helpers in `capture-lib.mjs`). It captures the committed App Store screenshot
+sets from the same demo-data-backed instance — steps 1 and 2 above are
+identical, then:
+
+```
+BASE=http://localhost:1620 node capture-appstore.mjs   # -> ../../appstore/screenshots/{iphone-6.9,ipad-13}/*.png
+```
+
+- Six shots per device family, in the listing order (Map Explorer with the
+  Jamaica Bay popup open, Statistics, Weather & Tide, Calendar, Species
+  Detail, Breeding Codes), light theme.
+- Sizes: iPhone 6.9-inch `1320x2868` (viewport 440x956 at scale 3) and iPad
+  13-inch `2064x2752` (viewport 1032x1376 at scale 2) — the one required size
+  per family App Store Connect accepts and scales down (re-verify the
+  accepted-size list at submission time; the constants and their reasoning
+  live at the top of `capture-appstore.mjs`).
+- Output is PNG (what ASC accepts); `process-img.mjs` is not part of this
+  path. Every image is dimension-verified after capture and any failed shot
+  fails the run.
+- The PNGs are **committed** under `appstore/screenshots/` (unlike this
+  directory's git-ignored `shots/`), so the listing set is reviewable and
+  regenerable. Re-run when the photographed UI changes, review every image by
+  eye (demo-data names only), and commit the new set.
+- The weather shot performs a live lookup (real public coastal checklist via
+  `CHECKLIST`) and, unlike `capture.mjs`, does **not** trim the attribution
+  lines: an App Store screenshot shows the app's real output, untouched.
+
+The reviewer demo dataset hosted at `../demo/` (see `appstore/REVIEW_NOTES.md`)
+is the same generator's output: after changing `gen-demo-data.mjs`, re-run it
+and copy `demo-data/ebird-backup.csv` and `demo-data/ml-export.csv` over
+`../demo/snowraven-demo-ebird-backup.csv` and
+`../demo/snowraven-demo-ml-export.csv` in the same edit.

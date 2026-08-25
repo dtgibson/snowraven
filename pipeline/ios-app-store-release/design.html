@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SnowRaven iOS App Store Release, Design Preview (Stage 4)</title>
+<style>
+  /* ------------------------------------------------------------------
+     Design preview for the ios-app-store-release feature.
+     This page is a SKETCH of the App Store listing and the privacy page.
+     It is not an Apple page and does not imitate App Store chrome.
+     Light-only by choice: the store's default preview and the planned
+     screenshot set are light theme, so the review happens in light.
+     ------------------------------------------------------------------ */
+  :root {
+    --bg: #F7F9F8;
+    --surface: #FFFFFF;
+    --surface-subtle: #F0F4F1;
+    --ink: #10171F;
+    --muted: #58635C;
+    --faint: #75807A;
+    --border: #E1E8E3;
+    --border-strong: #CBD6CF;
+    --accent: #2D8653;
+    --accent-strong: #1A5C38;
+    --accent-bg: #E8F5EE;
+    --accent-rgb: 45, 134, 83;
+    --band-bg: #0C1F17;
+    --band-surface: rgba(255, 255, 255, .055);
+    --band-border: rgba(255, 255, 255, .12);
+    --band-text: #E8EFE9;
+    --band-muted: #9FB3A7;
+    --band-accent: #59D499;
+    --warn-bg: #FDF6E7;
+    --warn-border: #EAD9AE;
+    --warn-ink: #6B5416;
+    --shadow: 0 1px 2px rgba(16, 23, 31, .05), 0 10px 28px rgba(16, 23, 31, .07);
+    --shadow-lg: 0 4px 14px rgba(16, 23, 31, .08), 0 26px 60px rgba(16, 23, 31, .12);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1000px 460px at 82% -6%, rgba(var(--accent-rgb), .10), transparent 62%),
+      radial-gradient(760px 400px at 4% 2%, rgba(var(--accent-rgb), .05), transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.15; letter-spacing: -0.012em; margin: 0; color: var(--ink); }
+  h1 { font-size: clamp(1.9rem, 1.3rem + 2.2vw, 2.9rem); }
+  h2 { font-size: clamp(1.45rem, 1.15rem + 1.1vw, 1.9rem); }
+  h3 { font-size: 1.14rem; }
+  p { margin: 0; }
+  a { color: var(--accent-strong); text-decoration: none; }
+  a:hover { color: var(--accent); }
+  :focus-visible { outline: 3px solid rgba(var(--accent-rgb), .45); outline-offset: 2px; border-radius: 6px; }
+  .wrap { width: 100%; max-width: 1120px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 36px); }
+
+  /* ---------- Preview header ---------- */
+  .dp-head { padding: 30px 0 8px; }
+  .dp-brandline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dp-mark {
+    width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(155deg, #2F9059, #1A5C38);
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-family: var(--display); font-weight: 700; font-size: 1.05rem; letter-spacing: .01em;
+    box-shadow: var(--shadow);
+  }
+  .dp-title { font-family: var(--body); font-weight: 700; font-size: 1.1rem; letter-spacing: -0.01em; }
+  .dp-title .acc { color: var(--accent); }
+  .dp-stagechip {
+    font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--warn-ink); background: var(--warn-bg); border: 1px solid var(--warn-border);
+    border-radius: 999px; padding: 3px 11px;
+  }
+  .dp-head h1 { margin-top: 18px; max-width: 760px; }
+  .dp-lede { margin-top: 12px; max-width: 680px; color: var(--muted); font-size: 1.02rem; }
+  .dp-disclaim { margin-top: 10px; font-size: .84rem; color: var(--faint); }
+
+  /* ---------- Sticky section nav ---------- */
+  .dp-nav {
+    position: sticky; top: 0; z-index: 50; margin-top: 22px;
+    background: color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter: saturate(150%) blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .dp-nav-inner { display: flex; gap: 4px; overflow-x: auto; padding: 8px 0; }
+  .dp-nav a {
+    color: var(--muted); font-size: .88rem; font-weight: 600; white-space: nowrap;
+    padding: 7px 13px; border-radius: 999px; transition: background .15s ease, color .15s ease;
+  }
+  .dp-nav a:hover { color: var(--ink); background: var(--surface-subtle); }
+  .dp-nav a.on { color: var(--accent-strong); background: var(--accent-bg); }
+
+  section { padding: clamp(40px, 5vw, 64px) 0 0; }
+  .sec-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    font-size: .76rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-strong);
+  }
+  .sec-eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .14); }
+  .sec-sub { margin-top: 10px; color: var(--muted); max-width: 720px; }
+
+  /* ---------- Store sketch layout ---------- */
+  .store-grid { display: grid; grid-template-columns: minmax(320px, 430px) 1fr; gap: clamp(24px, 4vw, 52px); align-items: start; margin-top: 26px; }
+  .store-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 22px;
+    box-shadow: var(--shadow-lg); overflow: hidden;
+  }
+  .store-tag {
+    display: flex; align-items: center; gap: 8px; padding: 9px 16px;
+    background: var(--warn-bg); border-bottom: 1px solid var(--warn-border);
+    color: var(--warn-ink); font-size: .76rem; font-weight: 600;
+  }
+  .store-body { padding: 20px 18px 22px; }
+  .app-row { display: grid; grid-template-columns: 76px 1fr; gap: 14px; align-items: center; }
+  .app-icon {
+    width: 76px; height: 76px; border-radius: 17px;
+    background: linear-gradient(150deg, #2F9059 0%, #227249 55%, #164B2E 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-family: var(--display); font-weight: 700; font-size: 1.9rem;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22), var(--shadow);
+  }
+  .app-name { font-size: 1.22rem; font-weight: 700; letter-spacing: -0.01em; font-family: var(--body); }
+  .app-sub { color: var(--muted); font-size: .9rem; margin-top: 1px; }
+  .get-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .get-pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: .86rem;
+    border: none; border-radius: 999px; padding: 7px 22px; cursor: pointer;
+    transition: background .15s ease, transform .12s ease;
+  }
+  .get-pill:hover { background: var(--accent-strong); transform: translateY(-1px); }
+  .get-pill:active { transform: translateY(0); }
+  .get-note { color: var(--faint); font-size: .78rem; }
+  .meta-strip {
+    display: flex; justify-content: space-between; gap: 8px; margin-top: 18px; padding: 12px 4px;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  .meta-cell { text-align: center; flex: 1; min-width: 0; }
+  .meta-k { font-size: .66rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); }
+  .meta-v { font-size: .92rem; font-weight: 600; color: var(--muted); margin-top: 2px; }
+
+  /* Screenshot carousel */
+  .shots-rail {
+    display: flex; gap: 12px; margin-top: 18px; padding-bottom: 8px;
+    overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  }
+  .shots-rail figure { margin: 0; flex: 0 0 auto; scroll-snap-align: start; }
+  .shots-rail svg {
+    width: 172px; height: auto; display: block; border-radius: 12px;
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .shots-rail figcaption { font-size: .72rem; color: var(--faint); text-align: center; margin-top: 6px; }
+
+  .desc-block { margin-top: 18px; }
+  .desc-block h4 { margin: 0 0 8px; font-size: .8rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); font-family: var(--body); }
+  .desc-text { color: var(--muted); font-size: .9rem; white-space: pre-wrap; }
+  details.desc-more > summary {
+    cursor: pointer; list-style: none; color: var(--accent-strong); font-weight: 600; font-size: .88rem; margin-top: 8px;
+  }
+  details.desc-more > summary::-webkit-details-marker { display: none; }
+  details.desc-more > summary::after { content: " ▾"; font-size: .8em; }
+  details.desc-more[open] > summary::after { content: " ▴"; }
+  details.desc-more .desc-text { margin-top: 8px; animation: descIn .22s ease-out; }
+  @keyframes descIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+  .privacy-card {
+    margin-top: 20px; border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface-subtle); padding: 16px;
+  }
+  .privacy-card .pc-head { display: flex; align-items: center; gap: 9px; }
+  .privacy-card .pc-head svg { width: 20px; height: 20px; color: var(--accent-strong); flex-shrink: 0; }
+  .privacy-card .pc-title { font-weight: 700; font-size: .95rem; }
+  .privacy-card .pc-big { font-family: var(--display); font-size: 1.35rem; font-weight: 600; margin-top: 10px; }
+  .privacy-card p { color: var(--muted); font-size: .86rem; margin-top: 8px; }
+  .info-rows { margin-top: 20px; }
+  .info-rows h4 { margin: 0 0 4px; font-size: .8rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--faint); font-family: var(--body); }
+  .info-row { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: .88rem; }
+  .info-row:last-child { border-bottom: none; }
+  .info-row .k { color: var(--faint); flex-shrink: 0; }
+  .info-row .v { color: var(--muted); text-align: right; min-width: 0; overflow-wrap: anywhere; }
+
+  /* Annotation notes column */
+  .notes-col { display: flex; flex-direction: column; gap: 14px; }
+  .note {
+    background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm); padding: 15px 17px; box-shadow: var(--shadow);
+  }
+  .note h3 { font-size: 1.02rem; margin-bottom: 6px; }
+  .note p { color: var(--muted); font-size: .9rem; }
+  .note p + p { margin-top: 8px; }
+  .note .chip {
+    display: inline-block; font-family: var(--mono); font-size: .78rem; color: var(--accent-strong);
+    background: var(--accent-bg); border-radius: 6px; padding: 1px 7px;
+  }
+
+  /* ---------- Copy section ---------- */
+  .copy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 26px; }
+  .field {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .field.wide { grid-column: 1 / -1; }
+  .field-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .field-head h3 { font-size: 1.05rem; }
+  .count {
+    font-family: var(--mono); font-size: .76rem; color: var(--accent-strong);
+    background: var(--accent-bg); border-radius: 999px; padding: 2px 10px; white-space: nowrap;
+  }
+  .field .val { font-size: 1.02rem; color: var(--ink); }
+  .field .why { margin-top: 9px; color: var(--muted); font-size: .88rem; }
+  .alts { margin: 10px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .alts li { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: .9rem; color: var(--muted); border-top: 1px dashed var(--border); padding-top: 6px; }
+  .alts .c { font-family: var(--mono); font-size: .74rem; color: var(--faint); }
+  .kw-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .kw-chips span {
+    font-family: var(--mono); font-size: .8rem; color: var(--ink);
+    background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 999px; padding: 3px 11px;
+  }
+  .full-desc {
+    white-space: pre-wrap; color: var(--ink); font-size: .95rem; line-height: 1.62;
+    background: var(--surface-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 18px 20px; max-height: 430px; overflow-y: auto;
+  }
+
+  /* ---------- Screenshot plan ---------- */
+  .plan-table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  .plan-scroll { overflow-x: auto; margin-top: 20px; border-radius: var(--radius); }
+  .plan-table th, .plan-table td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: .9rem; vertical-align: top; }
+  .plan-table th { background: var(--surface-subtle); font-size: .74rem; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); }
+  .plan-table tr:last-child td { border-bottom: none; }
+  .plan-table .n { font-family: var(--display); font-size: 1.2rem; color: var(--accent-strong); }
+  .plan-table td svg { width: 56px; height: auto; border-radius: 6px; border: 1px solid var(--border); display: block; }
+  .plan-note { color: var(--muted); font-size: .88rem; }
+  .dims { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 18px; }
+  .dim-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 15px 17px; box-shadow: var(--shadow); font-size: .9rem; color: var(--muted); }
+  .dim-card strong { color: var(--ink); display: block; margin-bottom: 4px; }
+  .dim-card code { font-family: var(--mono); font-size: .82rem; color: var(--accent-strong); }
+
+  /* ---------- Privacy page preview ---------- */
+  .browser {
+    margin-top: 26px; border-radius: var(--radius); overflow: hidden;
+    background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-lg);
+  }
+  .browser-bar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+    background: var(--surface-subtle); border-bottom: 1px solid var(--border);
+  }
+  .browser-bar .tl { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+  .browser-bar .url {
+    flex: 1; min-width: 0; font-family: var(--mono); font-size: .78rem; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* The preview inside faithfully uses the WEBSITE's system-font idiom, not this
+     document's serif display: the privacy page ships on styles.css. */
+  .pp { font-family: var(--body); }
+  .pp * { font-family: inherit; }
+  .pp-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 26px; border-bottom: 1px solid var(--border); }
+  .pp-brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.02rem; letter-spacing: -0.02em; color: var(--ink); }
+  .pp-brand .m { width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(150deg, #2F9059, #1A5C38); display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: .62rem; font-weight: 700; }
+  .pp-brand .acc { color: var(--accent); }
+  .pp-back { font-size: .84rem; font-weight: 600; color: var(--muted); }
+  .pp-hero { padding: 40px 26px 28px; max-width: 780px; margin-inline: auto; }
+  .pp-hero .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: .74rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-strong); }
+  .pp-hero .eyebrow i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(var(--accent-rgb), .14); }
+  .pp-hero h1 { font-family: var(--body); font-weight: 700; font-size: clamp(1.7rem, 1.3rem + 1.4vw, 2.3rem); letter-spacing: -0.02em; margin-top: 10px; }
+  .pp-hero .date { color: var(--faint); font-size: .9rem; margin-top: 8px; }
+  .pp-band { background: var(--band-bg); color: var(--band-text); padding: 30px 26px; }
+  .pp-band-inner { max-width: 780px; margin-inline: auto; }
+  .pp-band h2 { font-family: var(--body); color: #fff; font-weight: 700; font-size: 1.35rem; letter-spacing: -0.015em; }
+  .pp-band .label-line { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .pp-band .label-line svg { width: 22px; height: 22px; color: var(--band-accent); flex-shrink: 0; }
+  .pp-band .label-chip { font-size: .74rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--band-accent); }
+  .pp-band p { color: var(--band-muted); font-size: .94rem; margin-top: 10px; max-width: 640px; }
+  .pp-points { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .pp-points li { background: var(--band-surface); border: 1px solid var(--band-border); border-radius: 10px; padding: 11px 13px; font-size: .84rem; }
+  .pp-points strong { display: block; color: #fff; font-size: .88rem; margin-bottom: 2px; }
+  .pp-points span { color: var(--band-muted); }
+  .pp-prose { max-width: 780px; margin-inline: auto; padding: 30px 26px 36px; }
+  .pp-prose h2 { font-family: var(--body); font-weight: 700; font-size: 1.3rem; letter-spacing: -0.015em; margin: 26px 0 10px; }
+  .pp-prose h2:first-child { margin-top: 0; }
+  .pp-prose p, .pp-prose li { color: var(--muted); font-size: .96rem; }
+  .pp-prose p + p { margin-top: 10px; }
+  .pp-prose ul { margin: 10px 0 0; padding-left: 22px; }
+  .pp-prose li + li { margin-top: 6px; }
+  .pp-ellipsis {
+    max-width: 780px; margin: 0 auto; padding: 0 26px 34px;
+  }
+  .pp-ellipsis .box { border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 16px 20px; background: var(--surface-subtle); }
+  .pp-ellipsis .box p { color: var(--muted); font-size: .88rem; }
+  .pp-ellipsis ol { margin: 10px 0 0; padding-left: 22px; color: var(--muted); font-size: .9rem; column-count: 2; column-gap: 32px; }
+  .pp-ellipsis li { margin-bottom: 4px; break-inside: avoid; }
+  .pp-ellipsis .new { color: var(--accent-strong); font-weight: 600; }
+
+  .foot { margin-top: clamp(48px, 6vw, 72px); border-top: 1px solid var(--border); padding: 26px 0 42px; color: var(--faint); font-size: .85rem; }
+
+  @media (max-width: 900px) {
+    .store-grid, .copy-grid, .dims { grid-template-columns: 1fr; }
+    .field.wide { grid-column: auto; }
+    .pp-ellipsis ol { column-count: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition-duration: .001ms !important; animation-duration: .001ms !important; }
+    .get-pill:hover { transform: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="dp-head">
+  <div class="wrap">
+    <div class="dp-brandline">
+      <span class="dp-mark" aria-hidden="true">SR</span>
+      <span class="dp-title">Snow<span class="acc">Raven</span> · iOS App Store Release</span>
+      <span class="dp-stagechip">Design preview · Stage 4</span>
+    </div>
+    <h1>The listing, as a birder will meet it</h1>
+    <p class="dp-lede">
+      Four things to react to: the product page sketch and its copy, the full listing fields with
+      their character budgets, the screenshot set and its order, and the new privacy policy page
+      for the website. Everything below is real draft copy, no placeholders.
+    </p>
+    <p class="dp-disclaim">
+      This page is a design sketch, not an Apple page. Layout and chrome are deliberately generic;
+      only the words, the screenshot plan, and the privacy page design are the deliverables.
+    </p>
+  </div>
+</header>
+
+<nav class="dp-nav" aria-label="Preview sections">
+  <div class="wrap dp-nav-inner">
+    <a href="#listing" class="on">Product page</a>
+    <a href="#copy">Listing copy</a>
+    <a href="#shots">Screenshots</a>
+    <a href="#privacy">Privacy page</a>
+  </div>
+</nav>
+
+<!-- Shared screenshot sketches (SVG symbols, reused in the carousel and the plan table) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- 1. Map Explorer -->
+    <symbol id="shot-map" viewBox="0 0 200 434">
+      <rect width="200" height="434" rx="0" fill="#F7F9F8"/>
+      <rect width="200" height="44" fill="#FFFFFF"/>
+      <rect x="12" y="12" width="20" height="20" rx="5" fill="#E8F5EE"/>
+      <path d="M17 22l5-4 5 4 -5 4z" fill="#2D8653"/>
+      <text x="40" y="26" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#10171F">Map Explorer</text>
+      <rect x="0" y="44" width="200" height="1" fill="#E1E8E3"/>
+      <!-- map ground -->
+      <rect x="0" y="45" width="200" height="389" fill="#EDF2EC"/>
+      <path d="M0 300 C40 280 70 320 110 305 C150 290 180 320 200 310 L200 434 L0 434 Z" fill="#DCE9F5"/>
+      <path d="M20 45 L28 140 L90 180 L84 260" stroke="#D3DDD4" stroke-width="3" fill="none"/>
+      <path d="M200 90 L130 120 L120 210 L160 280" stroke="#D3DDD4" stroke-width="3" fill="none"/>
+      <path d="M60 45 L64 110 M110 45 L100 95 L140 150" stroke="#E0E7E0" stroke-width="2" fill="none"/>
+      <!-- sighting circles -->
+      <circle cx="66" cy="150" r="10" fill="#2D8653" opacity=".85"/>
+      <circle cx="104" cy="196" r="7" fill="#2D8653" opacity=".8"/>
+      <circle cx="142" cy="132" r="5" fill="#2D8653" opacity=".75"/>
+      <circle cx="88" cy="248" r="6" fill="#2D8653" opacity=".8"/>
+      <circle cx="150" cy="236" r="9" fill="#2D8653" opacity=".85"/>
+      <circle cx="52" cy="212" r="4" fill="#2D8653" opacity=".7"/>
+      <!-- hotspot teardrops -->
+      <path d="M124 268 c0 -7 10 -7 10 0 c0 5 -5 8 -5 12 c0 -4 -5 -7 -5 -12z" fill="#2C89AA"/>
+      <path d="M58 288 c0 -7 10 -7 10 0 c0 5 -5 8 -5 12 c0 -4 -5 -7 -5 -12z" fill="#0E2A47"/>
+      <path d="M160 180 c0 -7 10 -7 10 0 c0 5 -5 8 -5 12 c0 -4 -5 -7 -5 -12z" fill="#5FA8C4"/>
+      <!-- popup chip -->
+      <rect x="30" y="316" width="150" height="34" rx="8" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="40" y="330" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="700" fill="#10171F">Jamaica Bay Wildlife Refuge</text>
+      <text x="40" y="342" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#58635C">62 species · 14 checklists</text>
+      <!-- FAB cluster -->
+      <circle cx="176" cy="386" r="13" fill="#FFFFFF" stroke="#CBD6CF"/>
+      <circle cx="176" cy="414" r="13" fill="#FFFFFF" stroke="#CBD6CF"/>
+      <rect x="170" y="382" width="12" height="8" rx="2" fill="none" stroke="#58635C" stroke-width="1.6"/>
+      <circle cx="176" cy="414" r="4" fill="none" stroke="#58635C" stroke-width="1.6"/>
+      <circle cx="176" cy="414" r="1.5" fill="#58635C"/>
+    </symbol>
+    <!-- 2. Statistics -->
+    <symbol id="shot-stats" viewBox="0 0 200 434">
+      <rect width="200" height="434" fill="#F7F9F8"/>
+      <rect width="200" height="44" fill="#FFFFFF"/>
+      <rect x="12" y="12" width="20" height="20" rx="5" fill="#E8F5EE"/>
+      <path d="M16 26 l4 -6 4 3 5 -8" stroke="#2D8653" stroke-width="1.8" fill="none"/>
+      <text x="40" y="26" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#10171F">Statistics</text>
+      <rect x="0" y="44" width="200" height="1" fill="#E1E8E3"/>
+      <!-- tiles -->
+      <rect x="12" y="58" width="84" height="52" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="22" y="76" font-family="Helvetica, Arial, sans-serif" font-size="7.5" fill="#75807A">LIFE LIST</text>
+      <text x="22" y="98" font-family="Georgia, serif" font-size="19" font-weight="700" fill="#1A5C38">149</text>
+      <rect x="104" y="58" width="84" height="52" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="114" y="76" font-family="Helvetica, Arial, sans-serif" font-size="7.5" fill="#75807A">CHECKLISTS</text>
+      <text x="114" y="98" font-family="Georgia, serif" font-size="19" font-weight="700" fill="#10171F">87</text>
+      <!-- growth chart card -->
+      <rect x="12" y="122" width="176" height="120" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="22" y="140" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="700" fill="#10171F">Life list growth</text>
+      <polyline points="24,224 46,216 66,206 88,186 108,178 130,160 152,156 176,148" stroke="#2D8653" stroke-width="2.4" fill="none"/>
+      <polyline points="24,224 46,216 66,206 88,186 108,178 130,160 152,156 176,148 176,232 24,232" fill="#2D8653" opacity=".1"/>
+      <!-- top species bars -->
+      <rect x="12" y="254" width="176" height="150" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="22" y="272" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="700" fill="#10171F">Top species</text>
+      <text x="22" y="290" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#58635C">Northern Cardinal</text>
+      <rect x="22" y="295" width="130" height="7" rx="3.5" fill="#2D8653"/>
+      <text x="22" y="316" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#58635C">Song Sparrow</text>
+      <rect x="22" y="321" width="112" height="7" rx="3.5" fill="#2D8653" opacity=".82"/>
+      <text x="22" y="342" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#58635C">American Robin</text>
+      <rect x="22" y="347" width="96" height="7" rx="3.5" fill="#2D8653" opacity=".64"/>
+      <text x="22" y="368" font-family="Helvetica, Arial, sans-serif" font-size="8" fill="#58635C">Red-winged Blackbird</text>
+      <rect x="22" y="373" width="84" height="7" rx="3.5" fill="#2D8653" opacity=".5"/>
+    </symbol>
+    <!-- 3. Weather & Tide -->
+    <symbol id="shot-weather" viewBox="0 0 200 434">
+      <rect width="200" height="434" fill="#F7F9F8"/>
+      <rect width="200" height="44" fill="#FFFFFF"/>
+      <rect x="12" y="12" width="20" height="20" rx="5" fill="#E8F5EE"/>
+      <path d="M18 24 a4 4 0 1 1 8 -1 a3 3 0 1 1 1 6 h-8 a3.5 3.5 0 0 1 -1 -5z" fill="none" stroke="#2D8653" stroke-width="1.6"/>
+      <text x="40" y="26" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#10171F">Weather &amp; Tide</text>
+      <rect x="0" y="44" width="200" height="1" fill="#E1E8E3"/>
+      <!-- checklist input -->
+      <rect x="12" y="58" width="132" height="26" rx="7" fill="#FFFFFF" stroke="#CBD6CF"/>
+      <text x="20" y="75" font-family="Menlo, monospace" font-size="8.5" fill="#58635C">S151449030</text>
+      <rect x="150" y="58" width="38" height="26" rx="7" fill="#2D8653"/>
+      <text x="158" y="75" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="700" fill="#FFFFFF">Look up</text>
+      <!-- weather card -->
+      <rect x="12" y="96" width="176" height="150" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="22" y="116" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="700" fill="#10171F">Jamaica Bay Wildlife Refuge · May 24, 6:41 AM</text>
+      <text x="22" y="138" font-family="Menlo, monospace" font-size="8.5" fill="#58635C">57-63°F, clear sky</text>
+      <text x="22" y="154" font-family="Menlo, monospace" font-size="8.5" fill="#58635C">Wind 8 mph NW (gentle breeze)</text>
+      <text x="22" y="170" font-family="Menlo, monospace" font-size="8.5" fill="#58635C">Humidity 64%, dew point 48°F</text>
+      <text x="22" y="186" font-family="Menlo, monospace" font-size="8.5" fill="#58635C">Sunrise 5:32 AM, sunset 8:14 PM</text>
+      <rect x="22" y="200" width="94" height="24" rx="7" fill="#E8F5EE"/>
+      <text x="30" y="215" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="700" fill="#1A5C38">Copy weather + tide</text>
+      <!-- tide card -->
+      <rect x="12" y="258" width="176" height="126" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="22" y="278" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="700" fill="#10171F">Tide · NOAA 8516945, Kings Point</text>
+      <text x="22" y="296" font-family="Menlo, monospace" font-size="8.5" fill="#58635C">3.1 ft and rising</text>
+      <path d="M22 350 C40 320 58 320 76 336 C94 352 112 352 130 332 C148 314 166 316 180 330" stroke="#2C89AA" stroke-width="2" fill="none"/>
+      <circle cx="104" cy="345" r="3.4" fill="#2C89AA"/>
+      <text x="22" y="372" font-family="Menlo, monospace" font-size="7.5" fill="#75807A">Low 12:44 AM 0.4 ft · High 7:02 AM 5.3 ft</text>
+    </symbol>
+    <!-- 4. Calendar -->
+    <symbol id="shot-calendar" viewBox="0 0 200 434">
+      <rect width="200" height="434" fill="#F7F9F8"/>
+      <rect width="200" height="44" fill="#FFFFFF"/>
+      <rect x="12" y="12" width="20" height="20" rx="5" fill="#E8F5EE"/>
+      <rect x="17" y="17" width="10" height="10" rx="2" fill="none" stroke="#2D8653" stroke-width="1.6"/>
+      <text x="40" y="26" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#10171F">Calendar · 2026</text>
+      <rect x="0" y="44" width="200" height="1" fill="#E1E8E3"/>
+    </symbol>
+    <!-- 5. Species Detail -->
+    <symbol id="shot-species" viewBox="0 0 200 434">
+      <rect width="200" height="434" fill="#F7F9F8"/>
+      <rect width="200" height="44" fill="#FFFFFF"/>
+      <rect x="12" y="12" width="20" height="20" rx="5" fill="#E8F5EE"/>
+      <path d="M17 27 c2 -8 8 -10 10 -9 c0 0 -1 3 -3 4 c2 0 3 1 3 1 c-4 6 -8 5 -10 4z" fill="#2D8653"/>
+      <text x="40" y="26" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#10171F">Species Detail</text>
+      <rect x="0" y="44" width="200" height="1" fill="#E1E8E3"/>
+      <text x="12" y="70" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#10171F">Northern Cardinal</text>
+      <text x="12" y="84" font-family="Georgia, serif" font-size="9" font-style="italic" fill="#75807A">Cardinalis cardinalis</text>
+      <rect x="12" y="96" width="84" height="44" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="20" y="112" font-family="Helvetica, Arial, sans-serif" font-size="7" fill="#75807A">SIGHTINGS</text>
+      <text x="20" y="131" font-family="Georgia, serif" font-size="15" font-weight="700" fill="#1A5C38">57</text>
+      <rect x="104" y="96" width="84" height="44" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="112" y="112" font-family="Helvetica, Arial, sans-serif" font-size="7" fill="#75807A">FIRST SEEN</text>
+      <text x="112" y="131" font-family="Helvetica, Arial, sans-serif" font-size="10.5" font-weight="700" fill="#10171F">Mar 2019</text>
+      <rect x="12" y="152" width="176" height="92" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="22" y="170" font-family="Helvetica, Arial, sans-serif" font-size="8.5" font-weight="700" fill="#10171F">Sightings over time</text>
+      <polyline points="24,226 44,218 64,224 84,204 104,214 124,192 144,200 164,186 178,190" stroke="#2D8653" stroke-width="2.2" fill="none"/>
+      <rect x="12" y="256" width="176" height="96" rx="9" fill="#EDF2EC" stroke="#E1E8E3"/>
+      <circle cx="70" cy="296" r="7" fill="#2D8653" opacity=".85"/>
+      <circle cx="120" cy="316" r="5" fill="#2D8653" opacity=".8"/>
+      <circle cx="150" cy="286" r="4" fill="#2D8653" opacity=".7"/>
+      <text x="22" y="344" font-family="Helvetica, Arial, sans-serif" font-size="7.5" fill="#58635C">Everywhere you have seen it</text>
+      <rect x="12" y="364" width="56" height="42" rx="8" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <rect x="72" y="364" width="56" height="42" rx="8" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <rect x="132" y="364" width="56" height="42" rx="8" fill="#FFFFFF" stroke="#E1E8E3"/>
+      <text x="24" y="388" font-family="Helvetica, Arial, sans-serif" font-size="7" fill="#75807A">PHOTO</text>
+      <text x="86" y="388" font-family="Helvetica, Arial, sans-serif" font-size="7" fill="#75807A">AUDIO</text>
+      <text x="146" y="388" font-family="Helvetica, Arial, sans-serif" font-size="7" fill="#75807A">VIDEO</text>
+    </symbol>
+    <!-- 6. Breeding Codes -->
+    <symbol id="shot-breeding" viewBox="0 0 200 434">
+      <rect width="200" height="434" fill="#F7F9F8"/>
+      <rect width="200" height="44" fill="#FFFFFF"/>
+      <rect x="12" y="12" width="20" height="20" rx="5" fill="#E8F5EE"/>
+      <path d="M16 27 C16 19 28 23 28 16 M28 27 C28 21 16 22 16 16" stroke="#2D8653" stroke-width="1.5" fill="none"/>
+      <text x="40" y="26" font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="700" fill="#10171F">Breeding Codes</text>
+      <rect x="0" y="44" width="200" height="1" fill="#E1E8E3"/>
+    </symbol>
+  </defs>
+</svg>
+
+<main class="wrap">
+
+  <!-- ============================== 1. PRODUCT PAGE SKETCH ============================== -->
+  <section id="listing" aria-labelledby="listing-h">
+    <p class="sec-eyebrow"><span class="dot"></span>Section 1</p>
+    <h2 id="listing-h">The product page, sketched</h2>
+    <p class="sec-sub">
+      How the listing reads top to bottom: name, subtitle, the free install, screenshots,
+      description, and the privacy label a privacy-conscious birder will look for first.
+    </p>
+
+    <div class="store-grid">
+      <div class="store-card" role="img" aria-label="Sketch of the SnowRaven App Store product page: name, subtitle, Get button, screenshots, description, and a Data Not Collected privacy card.">
+        <div class="store-tag">Sketch of the store product page. Not an Apple page.</div>
+        <div class="store-body">
+          <div class="app-row">
+            <div class="app-icon" aria-hidden="true">SR</div>
+            <div>
+              <div class="app-name">SnowRaven</div>
+              <div class="app-sub">Your birding data, explored</div>
+            </div>
+          </div>
+          <div class="get-row">
+            <button class="get-pill" type="button">Get</button>
+            <span class="get-note">Free · No in-app purchases</span>
+          </div>
+          <div class="meta-strip">
+            <div class="meta-cell"><div class="meta-k">Age</div><div class="meta-v">4+</div></div>
+            <div class="meta-cell"><div class="meta-k">Category</div><div class="meta-v">Reference</div></div>
+            <div class="meta-cell"><div class="meta-k">Developer</div><div class="meta-v">Dave Gibson</div></div>
+            <div class="meta-cell"><div class="meta-k">Price</div><div class="meta-v">Free</div></div>
+          </div>
+
+          <div class="shots-rail" tabindex="0" role="group" aria-label="Planned screenshots, in listing order. Scroll sideways to see all six.">
+            <figure><svg viewBox="0 0 200 434" aria-label="Screenshot 1 sketch: Map Explorer"><use href="#shot-map"/></svg><figcaption>1 · Map Explorer</figcaption></figure>
+            <figure><svg viewBox="0 0 200 434" aria-label="Screenshot 2 sketch: Statistics"><use href="#shot-stats"/></svg><figcaption>2 · Statistics</figcaption></figure>
+            <figure><svg viewBox="0 0 200 434" aria-label="Screenshot 3 sketch: Weather and Tide"><use href="#shot-weather"/></svg><figcaption>3 · Weather &amp; Tide</figcaption></figure>
+            <figure>
+              <svg viewBox="0 0 200 434" aria-label="Screenshot 4 sketch: Calendar">
+                <use href="#shot-calendar"/>
+                <!-- month mini-grids drawn here so the symbol stays light -->
+                <g>
+                  <text x="12" y="66" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="700" fill="#10171F">Apr</text>
+                  <g transform="translate(12,72)">
+                    <rect width="84" height="66" rx="6" fill="#FFFFFF" stroke="#E1E8E3"/>
+                    <g>
+                      <rect x="6" y="6" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="17" y="6" width="9" height="9" rx="2" fill="#357E56"/><rect x="28" y="6" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="39" y="6" width="9" height="9" rx="2" fill="#26603F"/><rect x="50" y="6" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="61" y="6" width="9" height="9" rx="2" fill="#357E56"/><rect x="72" y="6" width="9" height="9" rx="2" fill="#EDF2EC"/>
+                      <rect x="6" y="17" width="9" height="9" rx="2" fill="#357E56"/><rect x="17" y="17" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="28" y="17" width="9" height="9" rx="2" fill="#193F2A"/><rect x="39" y="17" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="50" y="17" width="9" height="9" rx="2" fill="#26603F"/><rect x="61" y="17" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="72" y="17" width="9" height="9" rx="2" fill="#357E56"/>
+                      <rect x="6" y="28" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="17" y="28" width="9" height="9" rx="2" fill="#26603F"/><rect x="28" y="28" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="39" y="28" width="9" height="9" rx="2" fill="#0C271A"/><rect x="50" y="28" width="9" height="9" rx="2" fill="#357E56"/><rect x="61" y="28" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="72" y="28" width="9" height="9" rx="2" fill="#26603F"/>
+                      <rect x="6" y="39" width="9" height="9" rx="2" fill="#357E56"/><rect x="17" y="39" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="28" y="39" width="9" height="9" rx="2" fill="#26603F"/><rect x="39" y="39" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="50" y="39" width="9" height="9" rx="2" fill="#193F2A"/><rect x="61" y="39" width="9" height="9" rx="2" fill="#357E56"/><rect x="72" y="39" width="9" height="9" rx="2" fill="#EDF2EC"/>
+                      <rect x="6" y="50" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="17" y="50" width="9" height="9" rx="2" fill="#357E56"/><rect x="28" y="50" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="39" y="50" width="9" height="9" rx="2" fill="#26603F"/><rect x="50" y="50" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="61" y="50" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="72" y="50" width="9" height="9" rx="2" fill="#357E56"/>
+                    </g>
+                  </g>
+                  <text x="104" y="66" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="700" fill="#10171F">May</text>
+                  <g transform="translate(104,72)">
+                    <rect width="84" height="66" rx="6" fill="#FFFFFF" stroke="#E1E8E3"/>
+                    <g>
+                      <rect x="6" y="6" width="9" height="9" rx="2" fill="#26603F"/><rect x="17" y="6" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="28" y="6" width="9" height="9" rx="2" fill="#357E56"/><rect x="39" y="6" width="9" height="9" rx="2" fill="#0C271A"/><rect x="50" y="6" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="61" y="6" width="9" height="9" rx="2" fill="#26603F"/><rect x="72" y="6" width="9" height="9" rx="2" fill="#357E56"/>
+                      <rect x="6" y="17" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="17" y="17" width="9" height="9" rx="2" fill="#193F2A"/><rect x="28" y="17" width="9" height="9" rx="2" fill="#357E56"/><rect x="39" y="17" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="50" y="17" width="9" height="9" rx="2" fill="#0C271A"/><rect x="61" y="17" width="9" height="9" rx="2" fill="#357E56"/><rect x="72" y="17" width="9" height="9" rx="2" fill="#EDF2EC"/>
+                      <rect x="6" y="28" width="9" height="9" rx="2" fill="#357E56"/><rect x="17" y="28" width="9" height="9" rx="2" fill="#26603F"/><rect x="28" y="28" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="39" y="28" width="9" height="9" rx="2" fill="#193F2A"/><rect x="50" y="28" width="9" height="9" rx="2" fill="#357E56"/><rect x="61" y="28" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="72" y="28" width="9" height="9" rx="2" fill="#26603F"/>
+                      <rect x="6" y="39" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="17" y="39" width="9" height="9" rx="2" fill="#357E56"/><rect x="28" y="39" width="9" height="9" rx="2" fill="#26603F"/><rect x="39" y="39" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="50" y="39" width="9" height="9" rx="2" fill="#357E56"/><rect x="61" y="39" width="9" height="9" rx="2" fill="#193F2A"/><rect x="72" y="39" width="9" height="9" rx="2" fill="#EDF2EC"/>
+                      <rect x="6" y="50" width="9" height="9" rx="2" fill="#357E56"/><rect x="17" y="50" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="28" y="50" width="9" height="9" rx="2" fill="#357E56"/><rect x="39" y="50" width="9" height="9" rx="2" fill="#26603F"/><rect x="50" y="50" width="9" height="9" rx="2" fill="#EDF2EC"/><rect x="61" y="50" width="9" height="9" rx="2" fill="#357E56"/><rect x="72" y="50" width="9" height="9" rx="2" fill="#EDF2EC"/>
+                    </g>
+                  </g>
+                  <text x="12" y="160" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="700" fill="#10171F">Jun</text>
+                  <g transform="translate(12,166)"><rect width="84" height="66" rx="6" fill="#FFFFFF" stroke="#E1E8E3"/><rect x="6" y="6" width="72" height="53" rx="4" fill="#EDF2EC"/><rect x="17" y="17" width="9" height="9" rx="2" fill="#357E56"/><rect x="50" y="28" width="9" height="9" rx="2" fill="#26603F"/><rect x="28" y="39" width="9" height="9" rx="2" fill="#357E56"/></g>
+                  <text x="104" y="160" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="700" fill="#10171F">Jul</text>
+                  <g transform="translate(104,166)"><rect width="84" height="66" rx="6" fill="#FFFFFF" stroke="#E1E8E3"/><rect x="6" y="6" width="72" height="53" rx="4" fill="#EDF2EC"/><rect x="39" y="17" width="9" height="9" rx="2" fill="#357E56"/><rect x="61" y="39" width="9" height="9" rx="2" fill="#357E56"/></g>
+                  <text x="12" y="254" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="700" fill="#10171F">Aug</text>
+                  <g transform="translate(12,260)"><rect width="84" height="66" rx="6" fill="#FFFFFF" stroke="#E1E8E3"/><rect x="6" y="6" width="72" height="53" rx="4" fill="#EDF2EC"/><rect x="28" y="17" width="9" height="9" rx="2" fill="#357E56"/><rect x="50" y="39" width="9" height="9" rx="2" fill="#26603F"/></g>
+                  <text x="104" y="254" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="700" fill="#10171F">Sep</text>
+                  <g transform="translate(104,260)"><rect width="84" height="66" rx="6" fill="#FFFFFF" stroke="#E1E8E3"/><rect x="6" y="6" width="72" height="53" rx="4" fill="#EDF2EC"/><rect x="17" y="17" width="9" height="9" rx="2" fill="#26603F"/><rect x="39" y="28" width="9" height="9" rx="2" fill="#0C271A"/><rect x="61" y="50" width="9" height="9" rx="2" fill="#357E56"/></g>
+                  <text x="12" y="352" font-family="Helvetica, Arial, sans-serif" font-size="7.5" fill="#58635C">Each day shaded by species seen</text>
+                </g>
+              </svg>
+              <figcaption>4 · Calendar</figcaption>
+            </figure>
+            <figure><svg viewBox="0 0 200 434" aria-label="Screenshot 5 sketch: Species Detail"><use href="#shot-species"/></svg><figcaption>5 · Species Detail</figcaption></figure>
+            <figure>
+              <svg viewBox="0 0 200 434" aria-label="Screenshot 6 sketch: Breeding Codes">
+                <use href="#shot-breeding"/>
+                <g>
+                  <g font-family="Helvetica, Arial, sans-serif" font-size="7" fill="#75807A">
+                    <text x="70" y="66">NB</text><text x="92" y="66">CN</text><text x="114" y="66">NY</text><text x="136" y="66">FY</text><text x="158" y="66">FL</text><text x="180" y="66">ON</text>
+                  </g>
+                  <g font-family="Helvetica, Arial, sans-serif" font-size="7.5" fill="#10171F">
+                    <text x="12" y="86">Am. Robin</text>
+                    <text x="12" y="112">Carolina Wren</text>
+                    <text x="12" y="138">N. Cardinal</text>
+                    <text x="12" y="164">Osprey</text>
+                    <text x="12" y="190">Tree Swallow</text>
+                    <text x="12" y="216">Barn Swallow</text>
+                    <text x="12" y="242">House Wren</text>
+                    <text x="12" y="268">Killdeer</text>
+                  </g>
+                  <g>
+                    <circle cx="74" cy="83" r="5" fill="#7C5CBF"/><circle cx="118" cy="83" r="5" fill="#5B3FA8"/><circle cx="162" cy="83" r="5" fill="#9B7FD4"/>
+                    <circle cx="96" cy="109" r="5" fill="#7C5CBF"/><circle cx="140" cy="109" r="5" fill="#5B3FA8"/>
+                    <circle cx="74" cy="135" r="5" fill="#9B7FD4"/><circle cx="140" cy="135" r="5" fill="#7C5CBF"/><circle cx="184" cy="135" r="5" fill="#5B3FA8"/>
+                    <circle cx="118" cy="161" r="5" fill="#42307D"/><circle cx="184" cy="161" r="5" fill="#7C5CBF"/>
+                    <circle cx="74" cy="187" r="5" fill="#5B3FA8"/><circle cx="96" cy="187" r="5" fill="#9B7FD4"/><circle cx="162" cy="187" r="5" fill="#42307D"/>
+                    <circle cx="96" cy="213" r="5" fill="#7C5CBF"/><circle cx="184" cy="213" r="5" fill="#9B7FD4"/>
+                    <circle cx="118" cy="239" r="5" fill="#5B3FA8"/><circle cx="140" cy="239" r="5" fill="#42307D"/>
+                    <circle cx="74" cy="265" r="5" fill="#9B7FD4"/><circle cx="162" cy="265" r="5" fill="#7C5CBF"/>
+                  </g>
+                  <g stroke="#E1E8E3"><line x1="12" y1="94" x2="192" y2="94"/><line x1="12" y1="120" x2="192" y2="120"/><line x1="12" y1="146" x2="192" y2="146"/><line x1="12" y1="172" x2="192" y2="172"/><line x1="12" y1="198" x2="192" y2="198"/><line x1="12" y1="224" x2="192" y2="224"/><line x1="12" y1="250" x2="192" y2="250"/></g>
+                  <rect x="12" y="286" width="176" height="60" rx="9" fill="#FFFFFF" stroke="#E1E8E3"/>
+                  <text x="22" y="304" font-family="Helvetica, Arial, sans-serif" font-size="8" font-weight="700" fill="#10171F">Tier legend</text>
+                  <circle cx="28" cy="318" r="4" fill="#9B7FD4"/><text x="38" y="321" font-family="Helvetica, Arial, sans-serif" font-size="7.5" fill="#58635C">Possible</text>
+                  <circle cx="88" cy="318" r="4" fill="#7C5CBF"/><text x="98" y="321" font-family="Helvetica, Arial, sans-serif" font-size="7.5" fill="#58635C">Probable</text>
+                  <circle cx="28" cy="334" r="4" fill="#5B3FA8"/><text x="38" y="337" font-family="Helvetica, Arial, sans-serif" font-size="7.5" fill="#58635C">Confirmed</text>
+                </g>
+              </svg>
+              <figcaption>6 · Breeding Codes</figcaption>
+            </figure>
+          </div>
+
+          <div class="desc-block">
+            <h4>Description</h4>
+            <p class="desc-text">SnowRaven is a birding data explorer for the records you already keep. Import your own eBird backup and Macaulay Library export, and years of checklists become maps, statistics, and histories you can wander through in the field or at home.
+
+Everything runs on your device. There is no account to create, no server in the middle, and nothing is collected about you.</p>
+            <details class="desc-more">
+              <summary>Read the full description in Section 2</summary>
+              <p class="desc-text">The complete 2,706-character draft, with every field and its budget, is laid out in the Listing copy section below.</p>
+            </details>
+          </div>
+
+          <div class="privacy-card">
+            <div class="pc-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+              <span class="pc-title">App Privacy</span>
+            </div>
+            <p class="pc-big">Data Not Collected</p>
+            <p>The developer does not collect any data from this app. SnowRaven has no analytics, no accounts, and no developer server; requests you make go directly to the bird and weather services, with your own keys.</p>
+            <p><a href="#privacy">Privacy policy: snowraven.dtgibson.com/privacy.html</a></p>
+          </div>
+
+          <div class="info-rows">
+            <h4>Information</h4>
+            <div class="info-row"><span class="k">Provider</span><span class="v">Dave Gibson</span></div>
+            <div class="info-row"><span class="k">Category</span><span class="v">Reference · Weather</span></div>
+            <div class="info-row"><span class="k">Compatibility</span><span class="v">iPhone, iPad</span></div>
+            <div class="info-row"><span class="k">Price</span><span class="v">Free, no in-app purchases</span></div>
+            <div class="info-row"><span class="k">Version</span><span class="v">1.0.0 for the debut (lockstep everywhere), build 1</span></div>
+            <div class="info-row"><span class="k">Copyright</span><span class="v">2026 Dave Gibson</span></div>
+            <div class="info-row"><span class="k">Support</span><span class="v">github.com/dtgibson/snowraven</span></div>
+            <div class="info-row"><span class="k">Website</span><span class="v">snowraven.dtgibson.com</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes-col">
+        <div class="note">
+          <h3>Name and subtitle</h3>
+          <p>The name is plain <span class="chip">SnowRaven</span>, verified for availability in App Store Connect before any other metadata work; a qualified fallback is used only if forced, and logged.</p>
+          <p>The subtitle <span class="chip">Your birding data, explored</span> (27 of 30 characters) says whose data it is and what the app does with it, in the site's register. Per the voice rules, neither field mentions eBird or Macaulay; those names appear only in the description and keywords, as compatibility statements.</p>
+        </div>
+        <div class="note">
+          <h3>The privacy label is the second headline</h3>
+          <p>For the birder in US-02, "Data Not Collected" is the claim that decides the install. The sketch places the App Privacy card directly after the description so the label and the policy link read as part of the pitch, which for this app they genuinely are.</p>
+        </div>
+        <div class="note">
+          <h3>Category: Reference, then Weather</h3>
+          <p>Primary <strong>Reference</strong>: the app is a reference companion over your own records (life list, species history, breeding codes, taxonomy). Secondary <strong>Weather</strong>: the founding feature is the weather and tide lookup. Alternatives considered: Lifestyle (too broad, says nothing) and Navigation (the map serves the data, not routing). Say the word if you want either swapped.</p>
+        </div>
+        <div class="note">
+          <h3>Version: 1.0.0 for the debut</h3>
+          <p>The public debut ships as 1.0.0 on every platform at once, a deliberate one-time jump from 0.5.x (user decision at the design review). The single-version lockstep is unchanged, and after this release the regular incremental rhythm continues upward from 1.0.0; versions never go back below it, since Apple and the desktop updater both require each release's number to increase.</p>
+        </div>
+        <div class="note">
+          <h3>Icon</h3>
+          <p>The sketch's green square stands in for the shipped v0.5.93 app icon (the serif SR with the raven's head, already flattened opaque and accepted by Apple's validator). No new icon work in this feature.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 2. LISTING COPY ============================== -->
+  <section id="copy" aria-labelledby="copy-h">
+    <p class="sec-eyebrow"><span class="dot"></span>Section 2</p>
+    <h2 id="copy-h">Every field, with its budget</h2>
+    <p class="sec-sub">
+      This is the draft that lands in <code style="font-family: var(--mono); font-size:.9em;">appstore/LISTING.md</code> and then in App Store Connect,
+      field for field. Character counts are exact. No em dashes anywhere, per the standing sweep.
+    </p>
+
+    <div class="copy-grid">
+      <div class="field">
+        <div class="field-head"><h3>App name</h3><span class="count">9 / 30</span></div>
+        <p class="val">SnowRaven</p>
+        <p class="why">Availability verified in App Store Connect first (FR-03). Fallback only if forced: "SnowRaven Birding Tools", logged in decisions.</p>
+      </div>
+      <div class="field">
+        <div class="field-head"><h3>Subtitle</h3><span class="count">27 / 30</span></div>
+        <p class="val">Your birding data, explored</p>
+        <p class="why">Alternates, if this one does not sit right:</p>
+        <ul class="alts">
+          <li><span>Explore your own birding data</span><span class="c">29 / 30</span></li>
+          <li><span>Your birding records, explored</span><span class="c">30 / 30</span></li>
+        </ul>
+      </div>
+      <div class="field wide">
+        <div class="field-head"><h3>Promotional text</h3><span class="count">164 / 170</span></div>
+        <p class="val">Free and open source, with no account, no ads, and no tracking. Import the exports you already have and see years of your own birding from new angles, even offline.</p>
+        <p class="why">Editable without review, so it can carry release notes color later. Deliberately names no third-party service: the strict reading of the voice rule keeps eBird and Macaulay to the description and keywords only.</p>
+      </div>
+      <div class="field wide">
+        <div class="field-head"><h3>Description</h3><span class="count">2,706 / 4,000</span></div>
+        <div class="full-desc">SnowRaven is a birding data explorer for the records you already keep. Import your own eBird backup and Macaulay Library export, and years of checklists become maps, statistics, and histories you can wander through in the field or at home.
+
+Everything runs on your device. There is no account to create, no server in the middle, and nothing is collected about you.
+
+WHAT'S INSIDE
+
+• Weather &amp; Tide: paste an eBird checklist ID and get a clean, ready-to-paste weather summary, with the historical tide from the nearest NOAA station. Current conditions and forecasts work too.
+• Statistics: life list totals and growth, firsts and milestones, temporal and geographic patterns, media documentation coverage, and a few playful lists.
+• Map Explorer: your sightings on an interactive map, with an optional heatmap, nearby hotspots, county shading, and a breeding atlas overlay.
+• Species Detail: your complete history with any species, including graphs, top locations, field notes, and your own recent photos, audio, and video.
+• Calendar: a year of your birding as twelve month grids, each day shaded by how busy it was.
+• Multimedia: your life list as a media checklist, showing photo, audio, and video coverage for every species.
+• Breeding Codes: every species you have recorded breeding evidence for, laid out as a color-coded matrix.
+• Named Birds: tag an individual bird in a species comment and SnowRaven follows it across your checklists.
+• Checklists and List Comparer: search every comment you have written, and compare lists or checklists side by side.
+
+Once your data has loaded, the maps and every analytical tab keep working offline.
+
+PRIVACY
+
+SnowRaven collects nothing: no analytics, no telemetry, no crash reporting, no ads, and no accounts. Your files, settings, and API keys stay on your device. When you ask for live data, the app talks directly to the service that has it, using your own free API keys where one is needed. The full privacy policy is at snowraven.dtgibson.com/privacy.html.
+
+WHAT YOU'LL NEED
+
+Most tools read the free data export you can download from your eBird account, plus an optional Macaulay Library export. Live lookups use two free API keys, entered once in Settings: an eBird key, and an OpenWeather key for weather. Tides, maps, and every offline analysis work without any key.
+
+SnowRaven is an independent, free, open source project. It works alongside eBird and the Macaulay Library, building on the exports they let you download, so you can look at your own observations from new angles. It is not affiliated with, or endorsed by, the Cornell Lab of Ornithology. Also available free for Mac and Windows, and as a self-hosted web app, at snowraven.dtgibson.com.</div>
+        <p class="why">Structure: what it is, the privacy sentence early, the ten tools, offline, privacy in full, what you need (honest about keys), and the alongside-eBird closing with the explicit non-affiliation sentence. Every eBird and Macaulay mention is a compatibility statement about your own data.</p>
+      </div>
+      <div class="field wide">
+        <div class="field-head"><h3>Keywords</h3><span class="count">97 / 100</span></div>
+        <div class="kw-chips">
+          <span>bird</span><span>life list</span><span>ebird</span><span>checklist</span><span>tide</span><span>weather</span><span>hotspot</span><span>species</span><span>birdwatching</span><span>lifer</span><span>bird list</span><span>macaulay</span>
+        </div>
+        <p class="why">Comma-separated, no spaces after commas. Skips words already indexed from the name and subtitle (birding, data). "ebird" and "macaulay" ride as compatibility terms, which the voice rules allow in keywords.</p>
+      </div>
+      <div class="field">
+        <div class="field-head"><h3>URLs</h3><span class="count">3 fields</span></div>
+        <p class="val" style="font-size:.95rem;">Marketing: snowraven.dtgibson.com<br/>Support: github.com/dtgibson/snowraven<br/>Privacy: snowraven.dtgibson.com/privacy.html</p>
+        <p class="why">GitHub issues are the real support channel. The privacy URL must be live before submission; the page ships in Phase A.</p>
+      </div>
+      <div class="field">
+        <div class="field-head"><h3>Copyright, price, rating</h3><span class="count">record</span></div>
+        <p class="val" style="font-size:.95rem;">2026 Dave Gibson · Free, no monetization of any kind · Age 4+ expected</p>
+        <p class="why">The age questionnaire is answered honestly (no user-generated content shared between users, external links open in the system browser); answers land in the committed record.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 3. SCREENSHOT PLAN ============================== -->
+  <section id="shots" aria-labelledby="shots-h">
+    <p class="sec-eyebrow"><span class="dot"></span>Section 3</p>
+    <h2 id="shots-h">Six screenshots, clean, in this order</h2>
+    <p class="sec-sub">
+      Real captures of the real app over the synthetic demo dataset (a fictional birder at public
+      northeast-US hotspots), light theme, via the existing capture pipeline. The sketches above
+      stand in for the six; here is the order and why.
+    </p>
+
+    <div class="plan-scroll">
+    <table class="plan-table">
+      <thead>
+        <tr><th>#</th><th>Sketch</th><th>Surface</th><th>What it must show</th><th>Why this slot</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="n">1</td>
+          <td><svg viewBox="0 0 200 434" aria-hidden="true"><use href="#shot-map"/></svg></td>
+          <td><strong>Map Explorer</strong></td>
+          <td class="plan-note">Sighting points and hotspot pins around the demo birder's New York area, one hotspot popup open (Jamaica Bay Wildlife Refuge).</td>
+          <td class="plan-note">The first shot is most of the search result. A map of your own birding says the whole idea in one glance, and it is the required map view.</td>
+        </tr>
+        <tr>
+          <td class="n">2</td>
+          <td><svg viewBox="0 0 200 434" aria-hidden="true"><use href="#shot-stats"/></svg></td>
+          <td><strong>Statistics</strong></td>
+          <td class="plan-note">Life list total, checklist count, the growth chart, top species. The demo dataset's 149 species read as a believable life list.</td>
+          <td class="plan-note">Shots 1 and 2 appear together in search results: your birding, mapped and measured. Required statistics view.</td>
+        </tr>
+        <tr>
+          <td class="n">3</td>
+          <td><svg viewBox="0 0 200 434" aria-hidden="true"><use href="#shot-weather"/></svg></td>
+          <td><strong>Weather &amp; Tide</strong></td>
+          <td class="plan-note">A looked-up checklist with the formatted weather block and the NOAA tide, plus the one-press copy action.</td>
+          <td class="plan-note">The founding feature and the one no other birding app has. Placed third so the first swipe lands on it.</td>
+        </tr>
+        <tr>
+          <td class="n">4</td>
+          <td style="min-width:64px;"><span class="plan-note" style="font-size:.76rem;">(calendar sketch in carousel)</span></td>
+          <td><strong>Calendar</strong></td>
+          <td class="plan-note">A year as twelve shaded month grids; migration weeks visibly busy, mid-summer visibly quiet.</td>
+          <td class="plan-note">The most instantly legible "shape of your year" surface; strong at thumbnail size.</td>
+        </tr>
+        <tr>
+          <td class="n">5</td>
+          <td><svg viewBox="0 0 200 434" aria-hidden="true"><use href="#shot-species"/></svg></td>
+          <td><strong>Species Detail</strong></td>
+          <td class="plan-note">Northern Cardinal from the demo data: stats, sightings-over-time, the per-species map, media row.</td>
+          <td class="plan-note">Depth: one species, everything you know about it. Answers "what do I get for one bird".</td>
+        </tr>
+        <tr>
+          <td class="n">6</td>
+          <td style="min-width:64px;"><span class="plan-note" style="font-size:.76rem;">(matrix sketch in carousel)</span></td>
+          <td><strong>Breeding Codes</strong></td>
+          <td class="plan-note">The color-coded species-by-code matrix with its tier legend.</td>
+          <td class="plan-note">Signals serious-birder depth to the reader who swipes all the way; distinct from everything before it.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="dims">
+      <div class="dim-card">
+        <strong>iPhone set</strong>
+        6.9-inch, portrait, <code>1320 x 2868</code> px (Playwright viewport <code>440 x 956</code> at scale 3). All six shots, this order. At 440 CSS px the phone tier governs and the tab nav is the dropdown, which is honestly what an iPhone shows.
+      </div>
+      <div class="dim-card">
+        <strong>iPad set</strong>
+        13-inch, portrait, <code>2064 x 2752</code> px (viewport <code>1032 x 1376</code> at scale 2). The same six surfaces in the same order, re-captured at tablet width so layouts are genuinely iPad (US-04: no stretched phone shots).
+      </div>
+      <div class="dim-card">
+        <strong>Clean frames, no captions</strong>
+        The shots ship as unadorned app captures: no marketing frames, no caption bands, no device bezels. Three reasons. The voice is informative, not promotional, and caption bands are where promotional voice creeps in. Each tab already opens with its own titled header, so the screen names itself. And clean captures regenerate byte-for-byte from the committed pipeline when the UI changes, with no per-release caption artwork to maintain or drift.
+      </div>
+      <div class="dim-card">
+        <strong>Capture rules</strong>
+        Light theme (the store default). Synthetic demo data only, backend pointed at it with <code>SR_DATA_DIR</code>, never the real export. Config committed beside the existing <code>website/tools/</code> capture tooling so QA can re-run it. Every visible place and species name must exist in the generated demo dataset.
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 4. PRIVACY PAGE ============================== -->
+  <section id="privacy" aria-labelledby="privacy-h">
+    <p class="sec-eyebrow"><span class="dot"></span>Section 4</p>
+    <h2 id="privacy-h">The privacy policy page</h2>
+    <p class="sec-sub">
+      A new <code style="font-family: var(--mono); font-size:.9em;">website/privacy.html</code> in the site's existing idiom: same stylesheet, system fonts,
+      no third-party requests. It carries PRIVACY_POLICY.md word for word, section for section,
+      with one addition of design: a lead band that puts the store label's claim, and what backs it,
+      before the legal text. Below is the page's top, rendered faithfully.
+    </p>
+
+    <div class="browser">
+      <div class="browser-bar">
+        <span class="tl"></span><span class="tl"></span><span class="tl"></span>
+        <span class="url">https://snowraven.dtgibson.com/privacy.html</span>
+      </div>
+      <div class="pp">
+        <div class="pp-header">
+          <span class="pp-brand"><span class="m">SR</span>Snow<span class="acc">Raven</span></span>
+          <span class="pp-back">← Back to snowraven.dtgibson.com</span>
+        </div>
+        <div class="pp-hero">
+          <span class="eyebrow"><i></i>Privacy</span>
+          <h1>SnowRaven Privacy Policy</h1>
+          <p class="date">Effective date: August 4, 2026 · Updated with the iOS App Store release</p>
+        </div>
+        <div class="pp-band">
+          <div class="pp-band-inner">
+            <div class="label-line">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+              <span class="label-chip">App Store privacy label</span>
+            </div>
+            <h2>Data Not Collected</h2>
+            <p>
+              That is SnowRaven's privacy label on the App Store, and this page is the long form of why
+              it is true: no analytics, no telemetry, no accounts, no third-party SDKs, and no server the
+              developer runs. Requests you make go directly from your device to the bird and weather
+              services, with your own keys, and no one retains them.
+            </p>
+            <ul class="pp-points">
+              <li><strong>No accounts</strong><span>Nothing to sign up for</span></li>
+              <li><strong>No tracking</strong><span>Zero analytics or telemetry</span></li>
+              <li><strong>Keys &amp; data stay local</strong><span>On your device only</span></li>
+              <li><strong>No developer server</strong><span>There is no SnowRaven cloud</span></li>
+            </ul>
+          </div>
+        </div>
+        <div class="pp-prose">
+          <h2>Overview</h2>
+          <p>
+            SnowRaven is a self-hosted birding tools app. It runs as a standalone desktop app (macOS and
+            Windows), as an app on iPhone and iPad, or on your own machine such as a Raspberry Pi. This
+            policy describes what happens to your data. The short version: it stays with you.
+          </p>
+          <h2>Your Data Stays on Your Device</h2>
+          <p>SnowRaven keeps your data on your own device by choice and design. You keep it, and you control it.</p>
+          <ul>
+            <li>Your API keys, app settings, and the files you upload (your eBird backup and Macaulay Library export) are stored only on your device (in the desktop app's local data directory, or in the iOS app's on-device sandbox on iPhone and iPad), or on your own machine when you self-host the web/Pi version. They are never uploaded to the developer or to any service the developer runs.</li>
+            <li>All processing of your eBird and media files happens locally, on your own device, while you use the app.</li>
+            <li>There is no SnowRaven account, no login, and no SnowRaven-operated server sitting between you and your data.</li>
+            <li>You can delete your stored files and keys at any time from the Settings tab, or by removing the app's data directory.</li>
+          </ul>
+          <h2>No Data Collection</h2>
+          <p>SnowRaven collects nothing about you.</p>
+          <ul>
+            <li>No analytics, usage tracking, or telemetry of any kind.</li>
+            <li>No crash-reporting services.</li>
+            <li>No advertising networks.</li>
+            <li>No accounts, profiles, or identifiers.</li>
+          </ul>
+        </div>
+        <div class="pp-ellipsis">
+          <div class="box">
+            <p>
+              The page continues with the remaining sections of PRIVACY_POLICY.md, in this order, with
+              identical text and the same treatment as above (the parity test asserts the set and order):
+            </p>
+            <ol>
+              <li>Connections to Bird and Weather Services</li>
+              <li>Your Location <span class="new">(gains the iOS location-permission paragraph)</span></li>
+              <li>Map Tiles</li>
+              <li class="new">iOS App (new section, added at launch)</li>
+              <li>Embedded Bird Media and Link Icons</li>
+              <li>Software Updates <span class="new">(gains the App Store update path)</span></li>
+              <li>Children</li>
+              <li>Changes to This Policy</li>
+              <li>Contact</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes-col" style="margin-top: 18px;">
+      <div class="note">
+        <h3>Design choices worth naming</h3>
+        <p>The lead band reuses the homepage's dark privacy band, so the two pages read as one site and the "Data Not Collected" story is the first thing on screen, per US-02. The band is presentation only; the h2 sections below it mirror PRIVACY_POLICY.md exactly, so the recommended parity test has a clean structure to assert against.</p>
+        <p>One sequencing observation for the build, not a redesign: the schema places the iOS policy additions in Phase B (on approval), but Apple's reviewer reads this page during review. My recommendation is to ship the iOS App section and the two marked additions in Phase A with the page itself, since they describe behavior that is already true on TestFlight today. Flagged for the Engineer and the decisions record either way.</p>
+      </div>
+      <div class="note">
+        <h3>Also on the site</h3>
+        <p>The homepage's privacy section and footer gain a "Read the full privacy policy" link to this page, and at launch the platforms section presents iPhone and iPad as installable with the App Store link. No other homepage redesign; the version pill rules are unchanged.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>
+      SnowRaven · ios-app-store-release · Stage 4 design preview. Drafted against the approved PRD and
+      schema; copy destined for appstore/LISTING.md, appstore/screenshots/, and website/privacy.html.
+      This preview is a sketch and contains no Apple trademarks, chrome, or real personal data.
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Section nav highlight. Calm and passive; no scroll hijacking.
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll('.dp-nav a'));
+    var map = {};
+    links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+    if ('IntersectionObserver' in window) {
+      var obs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) {
+            links.forEach(function (a) { a.classList.remove('on'); });
+            var a = map[e.target.id];
+            if (a) a.classList.add('on');
+          }
+        });
+      }, { rootMargin: '-40% 0px -55% 0px' });
+      ['listing', 'copy', 'shots', 'privacy'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) obs.observe(el);
+      });
+    }
+  })();
+</script>
+</body>
+</html>

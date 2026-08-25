@@ -610,3 +610,5 @@ SnowRaven keeps working without a connection. Every analytical tab and every map
 In the Mac and Windows desktop apps, click **Check For Updates** in the footer. If a newer version is available, click **Install update**, and the app downloads and applies it, then prompts you to relaunch. Updates are cryptographically verified, so they are safe even though the Windows build is not yet code-signed.
 
 In web/Pi installations, the footer also checks for updates; to apply one, run `./update.sh` in your SnowRaven directory (or `git pull` and rebuild), which pulls the latest code, rebuilds the frontend, updates dependencies, and restarts the service.
+
+On iPhone and iPad, updates arrive through the App Store (or TestFlight for pre-release builds), like any other iOS app. There is nothing to do in SnowRaven itself: the app has no in-app update step on iOS.
