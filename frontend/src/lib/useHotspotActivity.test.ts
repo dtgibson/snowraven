@@ -57,6 +57,7 @@ import {
   ACTIVITY_START_SPACING_DEFAULT_MS, _setActivityStartSpacingMsForTests,
   EBIRD_RATE_LIMIT_DETAIL,
 } from './rateLimit'
+import { ebirdWaitMs, noteEbirdRateLimit, _resetEbirdGateForTests } from './ebirdGate'
 import type { HotspotPin } from './mapExplorerTypes'
 import type { MarkerBounds } from './markersInView'
 
@@ -90,6 +91,10 @@ async function flush() {
 beforeEach(() => {
   disk.docs.clear()
   activityCache._resetHotspotActivityCacheForTests()
+  // The pacing state is the SHARED module-scoped gate as of v0.5.93 (it
+  // deliberately survives pass restarts and hook remounts in production, so
+  // tests must reset it explicitly).
+  _resetEbirdGateForTests()
   net.calls.length = 0
   net.inFlight = 0
   net.maxInFlight = 0
@@ -457,6 +462,37 @@ describe('eBird 429 pacing (the pre-deploy revision: a 429 is a brief slowdown, 
     expect(Object.isFrozen(emitted)).toBe(true)
     expect(emitted.rateLimited).toBe(true)
     expect(emitted.phase).toBe('running')
+  })
+
+  // ── The v0.5.93 shared gate: the cooldown crosses surfaces in BOTH directions ──
+
+  it('a cooldown opened by a single-shot map lookup pauses the activity pass (key-global, inbound)', async () => {
+    // Another governed surface (hotspot search, county completeness) hit a
+    // 429 with a 5 s Retry-After. A pass starting now must not fire a single
+    // request inside the window, and must say it is rate limited from its
+    // first emission.
+    noteEbirdRateLimit(rateLimit429(5), Date.now(), 0)
+    const { result } = renderController({ pins: [pin('L1'), pin('L2')] })
+    await tick(0)
+    expect(net.calls.length).toBe(0)
+    expect(result.current.status.rateLimited).toBe(true)
+    await tick(4900)
+    expect(net.calls.length).toBe(0)
+    await tick(300)
+    await tick(0)
+    expect(net.calls.length).toBe(2)
+    expect(result.current.status.phase).toBe('done')
+  })
+
+  it("the controller's own 429 opens the gate the single-shot lookups read (key-global, outbound)", async () => {
+    net.impl = async () => { throw rateLimit429(30) }
+    renderController({ pins: [pin('L1')] })
+    await tick(0)
+    expect(net.calls.length).toBe(1)
+    // The shared gate now reports a wait ≈ the server-named 30 s window: a
+    // transport-gated lookup starting now would hold. (Red under the pre-fix
+    // hook, whose cooldown lived in per-instance refs no other surface read.)
+    expect(ebirdWaitMs(Date.now())).toBeGreaterThan(29000)
   })
 })
 

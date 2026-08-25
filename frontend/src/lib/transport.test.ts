@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { clearNetworkCache } from './networkCache';
+import { noteEbirdRateLimit, _resetEbirdGateForTests } from './ebirdGate';
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   clearNetworkCache();
+  // The gate's pacing state is module-scoped by design (key-global); reset it
+  // so one test's start stamp or cooldown never paces the next test.
+  _resetEbirdGateForTests();
 });
 
 describe('WebTransport.get', () => {
@@ -124,6 +128,89 @@ describe('short-TTL network cache (transport seam)', () => {
     await transport.get('/version/check');
     await transport.get('/version/check');
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the eBird pacing gate at the transport chokepoint (v0.5.93)', () => {
+  // Fake timers: every assertion is on whether a call has RESOLVED before /
+  // after advancing the clock, never on wall time.
+  beforeEach(() => {
+    vi.useFakeTimers();
+    _resetEbirdGateForTests();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('a governed lookup during an open cooldown waits it out instead of firing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, json: () => Promise.resolve({ regionCode: 'US-CA-085', speciesCount: 0, species: [] }),
+    }));
+    const { transport } = await import('./transport');
+    noteEbirdRateLimit(Object.assign(new Error('x'), { status: 429, retryAfterSec: 5 }), Date.now(), 0);
+    let resolved = false;
+    const call = transport.get('/map/county-species', { regionCode: 'US-CA-085' })
+      .then(r => { resolved = true; return r; });
+    await vi.advanceTimersByTimeAsync(4900);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(200);
+    await call;
+    expect(resolved).toBe(true);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('a short-TTL cache hit never consults the gate (resolves inside an open cooldown)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, json: () => Promise.resolve([{ locId: 'L1' }]),
+    }));
+    const { transport } = await import('./transport');
+    const params = { lat: '38.5', lng: '-121.5', dist: '40' };
+    await transport.get('/map/hotspots', params).then(
+      r => r, async () => { await vi.runAllTimersAsync(); return null; },
+    );
+    // Prime done (one fetch). Open a long cooldown, then repeat the SAME call:
+    // it must resolve from cache with no timer advance and no second fetch.
+    noteEbirdRateLimit(Object.assign(new Error('x'), { status: 429, retryAfterSec: 60 }), Date.now(), 0);
+    const hit = await transport.get('/map/hotspots', params);
+    expect(hit).toEqual([{ locId: 'L1' }]);
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('/map/hotspot-activity is NOT transport-gated (the controller owns its enforcement)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, json: () => Promise.resolve({ locId: 'L1', species: [] }),
+    }));
+    const { transport } = await import('./transport');
+    noteEbirdRateLimit(Object.assign(new Error('x'), { status: 429, retryAfterSec: 60 }), Date.now(), 0);
+    // Resolves with NO timer advance: the transport applied no gate wait.
+    const res = await transport.get('/map/hotspot-activity', { locId: 'L1' });
+    expect(res).toEqual({ locId: 'L1', species: [] });
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('a 429 on a governed lookup opens the shared cooldown and the gate retries it (bounded), success lands', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false, status: 429,
+        headers: { get: (n: string) => (n === 'Retry-After' ? '3' : null) },
+        json: () => Promise.resolve({ detail: 'limited' }),
+      })
+      .mockResolvedValue({ ok: true, json: () => Promise.resolve([]) });
+    vi.stubGlobal('fetch', fetchMock);
+    const { transport } = await import('./transport');
+    let resolved = false;
+    const call = transport.get('/map/hotspots', { lat: '1', lng: '2', dist: '5' })
+      .then(r => { resolved = true; return r; });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // Inside the server-named 3 s window the retry has not fired.
+    await vi.advanceTimersByTimeAsync(2900);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(200);
+    await expect(call).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

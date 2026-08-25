@@ -46,6 +46,12 @@ import * as activityCache from './hotspotActivityCache'
 // each pump (it is a mutable test seam, the HOTSPOT_ACTIVITY_MAX_ENTRIES
 // pattern); the pure helpers ride the same namespace for one import site.
 import * as rateLimit from './rateLimit'
+// The cooldown/spacing STATE is the shared key-global gate (ebirdGate.ts,
+// the v0.5.93 extension): this controller keeps its own pump enforcement,
+// but a 429 recorded here slows the single-shot map lookups and vice versa.
+import {
+  ebirdGateState, ebirdWaitMs, noteEbirdStart, noteEbirdRateLimit, noteEbirdSuccess,
+} from './ebirdGate'
 import type { HotspotPin } from './mapExplorerTypes'
 import type { MarkerBounds } from './markersInView'
 
@@ -131,17 +137,11 @@ export function useHotspotActivity({ active, pins, mapBounds, searchCenter, hasE
   const lastEmitRef = useRef(0)
 
   // ── 429 pacing state (the pre-deploy revision; policy in lib/rateLimit.ts) ──
-  // The cooldown is a property of the KEY, not the pass: cooldownUntil / wave /
-  // lastStart survive pass restarts (a new search during a cooldown paces too);
-  // only the per-hotspot retry counts reset per pass.
-  /** No request may START before this ms epoch (0 = no cooldown). */
-  const cooldownUntilRef = useRef(0)
-  /** Consecutive 429 WAVES (a wave = a 429 arriving outside any active
-   *  cooldown); drives the bounded exponential. Reset by a post-cooldown
-   *  success. */
-  const cooldownWaveRef = useRef(0)
-  /** ms epoch of the last request start (global start spacing). */
-  const lastStartRef = useRef(0)
+  // The cooldown is a property of the KEY, not the pass — and as of v0.5.93
+  // not even of this hook: cooldownUntil / wave / lastStart live in the
+  // shared module-scoped gate (ebirdGate.ts), so they survive pass restarts
+  // AND are shared with the transport-gated single-shot lookups. Only the
+  // per-hotspot retry counts are pass-local.
   /** 429 retry count per locId, this pass. */
   const rateLimitAttemptsRef = useRef<Map<string, number>>(new Map())
   /** The single scheduled pump wakeup (spacing or cooldown), so a paused pass
@@ -228,8 +228,9 @@ export function useHotspotActivity({ active, pins, mapBounds, searchCenter, hasE
         // still inside the window (a request that started before the 429
         // landed) proves nothing about the limiter — leave both alone.
         let resumed = false
-        if (Date.now() >= cooldownUntilRef.current) {
-          cooldownWaveRef.current = 0
+        const successNow = Date.now()
+        noteEbirdSuccess(successNow)
+        if (successNow >= ebirdGateState().cooldownUntil) {
           if (p.rateLimited) {
             p.rateLimited = false
             resumed = true
@@ -240,15 +241,11 @@ export function useHotspotActivity({ active, pins, mapBounds, searchCenter, hasE
       })
       .catch(err => {
         if (rateLimit.isRateLimitError(err)) {
-          // The cooldown is registered even for a superseded generation (refs
-          // only, nothing rendered): the 429 is a fact about the KEY, and a
-          // new pass must pace too.
-          const now = Date.now()
-          if (now >= cooldownUntilRef.current) cooldownWaveRef.current += 1
-          const delay = rateLimit.cooldownDelayMs(
-            cooldownWaveRef.current, rateLimit.retryAfterMsFrom(err), Math.random(),
-          )
-          cooldownUntilRef.current = Math.max(cooldownUntilRef.current, now + delay)
+          // The cooldown is registered even for a superseded generation
+          // (shared gate state only, nothing rendered): the 429 is a fact
+          // about the KEY, and a new pass — and every gated single-shot
+          // lookup — must pace too.
+          noteEbirdRateLimit(err, Date.now(), Math.random())
           if (gen !== genRef.current) return
           const attempts = (rateLimitAttemptsRef.current.get(locId) ?? 0) + 1
           rateLimitAttemptsRef.current.set(locId, attempts)
@@ -307,20 +304,19 @@ export function useHotspotActivity({ active, pins, mapBounds, searchCenter, hasE
       // Two gates on every request START: the shared key-global 429 cooldown
       // (one pause for the whole queue, never per-slot) and the global start
       // spacing (never two starts closer than ACTIVITY_START_SPACING_MS — a
-      // live binding; the mutable test seam). Wait for whichever ends later,
-      // then resume exactly where the pass left off.
+      // live binding; the mutable test seam). Both read the SHARED gate
+      // (ebirdGate.ts), so a 429 from a single-shot map lookup pauses this
+      // pass too. Wait for whichever ends later, then resume exactly where
+      // the pass left off.
       const now = Date.now()
-      const wait = Math.max(
-        cooldownUntilRef.current - now,
-        lastStartRef.current + rateLimit.ACTIVITY_START_SPACING_MS - now,
-      )
+      const wait = ebirdWaitMs(now)
       if (wait > 0) {
         schedulePump(gen, wait)
         return
       }
       const locId = queueRef.current.shift()!
       if (loadingRef.current.has(locId)) continue
-      lastStartRef.current = now
+      noteEbirdStart(now)
       launch(gen, locId)
     }
   }
@@ -411,8 +407,9 @@ export function useHotspotActivity({ active, pins, mapBounds, searchCenter, hasE
         latestAnswerAt,
         // A pass starting inside a live key-global cooldown is already going
         // slower — say so from its first emission (cleared by the first
-        // post-cooldown answer).
-        rateLimited: Date.now() < cooldownUntilRef.current,
+        // post-cooldown answer). The read is the SHARED gate, so a cooldown
+        // opened by a single-shot map lookup shows here too.
+        rateLimited: Date.now() < ebirdGateState().cooldownUntil,
         // FR-14's no-key state without spending a single request that must
         // fail identically; retry() re-checks after a key is added.
         error: toFetch.length > 0 && hasEbirdKey === false

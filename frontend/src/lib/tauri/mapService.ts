@@ -15,6 +15,33 @@ async function ebirdHeaders(): Promise<Record<string, string>> {
   return { 'X-eBirdApiToken': key };
 }
 
+/** The one non-ok mapping for every eBird call in this service (v0.5.93,
+ *  extending the activity route's 429 contract to all of them): a 429 keeps
+ *  the rate-limit shape — status 429, the shared fixture detail, and a
+ *  validated bounded retryAfterSec (never the raw header) — so the shared
+ *  gate (lib/ebirdGate.ts) can pace and retry; anything else non-ok maps to
+ *  the generic 502 shape. Mirrors backend routers/map.py
+ *  _raise_ebird_http_error — keep both in lockstep (single-sourcing prevents
+ *  the copies drifting, so each caller ALSO keeps its own route-level test —
+ *  the v0.5.88 rule: a dropped call site must turn its own test red). */
+function throwEbirdHttpError(res: { status: number; headers: { get(name: string): string | null } }): never {
+  if (res.status === 429) {
+    const retryAfterSec = parseRetryAfterSeconds(res.headers.get('Retry-After'));
+    throw Object.assign(
+      new Error(EBIRD_RATE_LIMIT_DETAIL),
+      {
+        status: 429,
+        detail: EBIRD_RATE_LIMIT_DETAIL,
+        ...(retryAfterSec !== null ? { retryAfterSec } : {}),
+      }
+    );
+  }
+  throw Object.assign(
+    new Error(`eBird API error: ${res.status}`),
+    { status: 502, detail: `eBird API error: ${res.status}` }
+  );
+}
+
 export interface Hotspot {
   locId: string;
   locName: string;
@@ -26,12 +53,7 @@ export async function getHotspots(lat: number, lng: number, dist: number): Promi
   const headers = await ebirdHeaders();
   const url = `${EBIRD_BASE}/ref/hotspot/geo?lat=${lat}&lng=${lng}&dist=${dist}&back=30&fmt=json`;
   const res = await tauriFetch(url, { headers });
-  if (!res.ok) {
-    throw Object.assign(
-      new Error(`eBird API error: ${res.status}`),
-      { status: 502, detail: `eBird API error: ${res.status}` }
-    );
-  }
+  if (!res.ok) throwEbirdHttpError(res);
   return res.json() as Promise<Hotspot[]>;
 }
 
@@ -41,12 +63,7 @@ export async function getHotspotRegion(regionCode: string): Promise<string[]> {
   const headers = await ebirdHeaders();
   const url = `${EBIRD_BASE}/ref/hotspot/${encodeURIComponent(regionCode)}?fmt=json`;
   const res = await tauriFetch(url, { headers });
-  if (!res.ok) {
-    throw Object.assign(
-      new Error(`eBird API error: ${res.status}`),
-      { status: 502, detail: `eBird API error: ${res.status}` }
-    );
-  }
+  if (!res.ok) throwEbirdHttpError(res);
   const data = await res.json() as Array<{ locId?: string }>;
   return data.map(h => h.locId).filter((id): id is string => !!id);
 }
@@ -77,12 +94,7 @@ export async function getCountySpecies(regionCode: string): Promise<CountySpecie
   const headers = await ebirdHeaders();
   const url = `${EBIRD_BASE}/product/spplist/${encodeURIComponent(regionCode)}`;
   const res = await tauriFetch(url, { headers });
-  if (!res.ok) {
-    throw Object.assign(
-      new Error(`eBird API error: ${res.status}`),
-      { status: 502, detail: `eBird API error: ${res.status}` }
-    );
-  }
+  if (!res.ok) throwEbirdHttpError(res);
   const raw = await res.json() as unknown;
   const codes = Array.isArray(raw) ? raw.filter((c): c is string => typeof c === 'string') : [];
   const { collapseToSpeciesList } = await import('./taxonomyService');
@@ -110,28 +122,9 @@ export async function getHotspotActivity(locId: string): Promise<HotspotActivity
   const headers = await ebirdHeaders();
   const url = `${EBIRD_BASE}/data/obs/${encodeURIComponent(locId)}/recent?back=30&fmt=json`;
   const res = await tauriFetch(url, { headers });
-  if (!res.ok) {
-    // A 429 is the rate-limit shape, kept distinguishable from the generic
-    // error so the activity pass can pace itself instead of shedding the
-    // hotspot (parity with the FastAPI route's own 429 — the shared fixture's
-    // rateLimit rows pin both). retryAfterSec is attached only when the
-    // header parses (validated + bounded, never the raw string).
-    if (res.status === 429) {
-      const retryAfterSec = parseRetryAfterSeconds(res.headers.get('Retry-After'));
-      throw Object.assign(
-        new Error(EBIRD_RATE_LIMIT_DETAIL),
-        {
-          status: 429,
-          detail: EBIRD_RATE_LIMIT_DETAIL,
-          ...(retryAfterSec !== null ? { retryAfterSec } : {}),
-        }
-      );
-    }
-    throw Object.assign(
-      new Error(`eBird API error: ${res.status}`),
-      { status: 502, detail: `eBird API error: ${res.status}` }
-    );
-  }
+  // The 429 branch is the shared throwEbirdHttpError (parity with the FastAPI
+  // route's own 429 — the shared fixture's rateLimit rows pin both transports).
+  if (!res.ok) throwEbirdHttpError(res);
   const raw = await res.json() as unknown;
   return { locId, species: reduceActivityRecords(raw) };
 }
@@ -158,12 +151,7 @@ async function fetchRecentObsRaw(
   const headers = await ebirdHeaders();
   const url = `${EBIRD_BASE}/data/obs/geo/recent?lat=${lat}&lng=${lng}&dist=${dist}&back=30&fmt=json`;
   const res = await tauriFetch(url, { headers });
-  if (!res.ok) {
-    throw Object.assign(
-      new Error(`eBird API error: ${res.status}`),
-      { status: 502, detail: `eBird API error: ${res.status}` }
-    );
-  }
+  if (!res.ok) throwEbirdHttpError(res);
   return res.json() as Promise<Array<Record<string, unknown>>>;
 }
 

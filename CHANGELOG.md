@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.93] - 2026-08-24
+
+A new app icon, and gentler eBird manners everywhere on the map.
+
+### Changed
+- **A new app icon.** The SR mark gains the raven: a white serif "SR" with the raven's head worked into the S, on the same clover green the app has always used. It replaces the old icon everywhere one shows: the macOS Dock and Finder (drawn on Apple's icon grid, so it sits at the same size as every native app), the Windows taskbar and installer, the iOS home screen, and the browser tab. The web app's favicon and the SnowRaven website's mark, which had carried a different bird glyph that never matched the desktop icon, now match it too.
+- **The eBird rate-limit courtesy now covers every eBird lookup the Map Explorer makes.** v0.5.92 taught the Recent activity pass to slow down and retry when eBird asks, but the hotspot search, Nearby Lifers, Media Targets, and county Completeness shared the same key without sharing the pause, so one of them could still fail during a slowdown. All of them now share one pace: request starts are spaced, a slow-down request from eBird pauses everything briefly, and a lookup that lands during the pause waits it out and answers instead of failing. Cached answers are untouched and never wait.
+
 ## [0.5.92] - 2026-08-24
 
 Color the hotspot pins by what you want to know.

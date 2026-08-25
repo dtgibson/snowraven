@@ -1,5 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -436,3 +438,99 @@ def test_county_species_unreachable_is_502(monkeypatch):
         resp = client.get("/map/county-species?regionCode=US-CA-085")
     assert resp.status_code == 502
     assert "reach" in resp.json()["detail"].lower()
+
+
+# ── The 429 contract, per route (v0.5.93 cooldown extension) ──────────────────
+# Every eBird-backed route in this router now shares _raise_ebird_http_error:
+# an upstream 429 re-surfaces AS a 429 with the shared detail and a
+# re-serialized bounded Retry-After, never the generic 502 and never the raw
+# header. The helper is single-sourced, so these tests exist PER ROUTE (the
+# v0.5.88 rule: single-sourcing prevents the copies drifting, not a call site
+# being dropped — mutating one route back to the generic 502 must turn only
+# that route's test red). The full Retry-After row matrix stays in
+# test_hotspot_activity.py; here each route pins the branch is wired.
+
+_RATE_LIMIT_DETAIL = "eBird is limiting requests right now. Try again in a moment."
+
+
+def _mock_429_client(retry_after):
+    request = httpx.Request("GET", "https://api.ebird.org/v2/x")
+    headers = {} if retry_after is None else {"Retry-After": retry_after}
+    response = httpx.Response(429, request=request, headers=headers)
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError("err", request=request, response=response)
+    )
+    instance = AsyncMock()
+    instance.get.return_value = mock_resp
+    return instance
+
+
+def _route_cases():
+    return [
+        ("/map/hotspots", {"lat": 44.9, "lng": -93.0, "dist": 25}),
+        ("/map/hotspot-region", {"regionCode": "US-CA"}),
+        ("/map/county-species", {"regionCode": "US-CA-085"}),
+        ("/map/recent-obs", {"lat": 44.9, "lng": -93.0, "dist": 25}),
+    ]
+
+
+@pytest.mark.parametrize("path,params", _route_cases())
+def test_upstream_429_is_429_on_every_governed_route(monkeypatch, path, params):
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    with patch("routers.map.get_client", return_value=_mock_429_client(None)):
+        resp = client.get(path, params=params)
+    assert resp.status_code == 429
+    assert resp.json()["detail"] == _RATE_LIMIT_DETAIL
+    assert "retry-after" not in {k.lower() for k in resp.headers}
+
+
+@pytest.mark.parametrize("path,params", _route_cases())
+def test_upstream_429_reserializes_retry_after_on_every_governed_route(monkeypatch, path, params):
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    with patch("routers.map.get_client", return_value=_mock_429_client("7")):
+        resp = client.get(path, params=params)
+    assert resp.status_code == 429
+    assert resp.headers["Retry-After"] == "7"
+
+
+@pytest.mark.parametrize("path,params", _route_cases())
+def test_upstream_429_caps_oversized_retry_after_on_every_governed_route(monkeypatch, path, params):
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    with patch("routers.map.get_client", return_value=_mock_429_client("999")):
+        resp = client.get(path, params=params)
+    assert resp.status_code == 429
+    assert resp.headers["Retry-After"] == "60"
+
+
+@pytest.mark.parametrize("path,params", _route_cases())
+def test_a_500_still_maps_to_502_on_every_governed_route(monkeypatch, path, params):
+    # The 429 branch must not widen the sibling shape.
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    request = httpx.Request("GET", "https://api.ebird.org/v2/x")
+    response = httpx.Response(500, request=request)
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock(
+        side_effect=httpx.HTTPStatusError("err", request=request, response=response)
+    )
+    instance = AsyncMock()
+    instance.get.return_value = mock_resp
+    with patch("routers.map.get_client", return_value=instance):
+        resp = client.get(path, params=params)
+    assert resp.status_code == 502
+
+
+def test_recent_obs_429_is_not_cached(monkeypatch):
+    """A 429 must never stick in the codes-independent recent-obs cache: the
+    next call at the same key re-fetches (errors-never-cached, extended to the
+    new branch)."""
+    monkeypatch.setenv("EBIRD_API_KEY", "test-key")
+    params = {"lat": 40.0, "lng": -100.0, "dist": 10}
+    with patch("routers.map.get_client", return_value=_mock_429_client(None)):
+        first = client.get("/map/recent-obs", params=params)
+    assert first.status_code == 429
+    ok = _mock_client(MOCK_EBIRD_RESPONSE)
+    with patch("routers.map.get_client", return_value=ok):
+        second = client.get("/map/recent-obs", params=params)
+    assert second.status_code == 200
+    assert ok.get.call_count == 1

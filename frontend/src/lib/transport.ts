@@ -1,5 +1,6 @@
 import { isTauri } from './platform';
 import { cachedGet, networkCacheKey } from './networkCache';
+import { gatedEbirdCall } from './ebirdGate';
 import { isOfflineError } from './offlineDetect';
 import { parseRetryAfterSeconds } from './rateLimit';
 import * as replayStore from './replayStore';
@@ -222,6 +223,17 @@ class TauriTransport implements TransportAdapter {
 // at their one common chokepoint. Errors are never cached (see networkCache).
 const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/map/hotspot-region']);
 
+// The eBird-backed single-shot lookups governed by the shared key-global
+// pacing gate (lib/ebirdGate.ts): spaced starts + the one 429 cooldown +
+// bounded retries, on BOTH runtimes at this one chokepoint. The gate wraps
+// the LOADER — below the short-TTL cache — so a cache hit never waits.
+// /map/hotspot-activity is deliberately absent: the activity controller
+// (useHotspotActivity) enforces the same contract for it over the same
+// shared state, and one request gets exactly one enforcement point.
+const EBIRD_GATED_PATHS = new Set([
+  '/map/hotspots', '/map/recent-obs', '/map/hotspot-region', '/map/county-species',
+]);
+
 class CachedTransport implements TransportAdapter {
   private inner: TransportAdapter;
 
@@ -230,10 +242,13 @@ class CachedTransport implements TransportAdapter {
   }
 
   get<T>(path: string, params?: Record<string, string>): Promise<T> {
+    const load = EBIRD_GATED_PATHS.has(path)
+      ? () => gatedEbirdCall(() => this.inner.get<T>(path, params))
+      : () => this.inner.get<T>(path, params);
     if (CACHED_GET_PATHS.has(path)) {
-      return cachedGet(networkCacheKey(path, params), () => this.inner.get<T>(path, params));
+      return cachedGet(networkCacheKey(path, params), load);
     }
-    return this.inner.get<T>(path, params);
+    return load();
   }
 
   // Opt-in replay (1c). On a successful live GET, persist the result to the

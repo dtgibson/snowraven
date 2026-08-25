@@ -42,6 +42,28 @@ def _parse_retry_after_seconds(value) -> int | None:
     return min(n, _RETRY_AFTER_CAP_SEC)
 
 
+def _raise_ebird_http_error(exc: httpx.HTTPStatusError):
+    """The one non-2xx mapping for every eBird call in this router (v0.5.93,
+    extending the hotspot-activity route's 429 contract to all of them): an
+    upstream 429 is re-surfaced AS a 429 with the shared fixture detail and a
+    re-serialized bounded Retry-After (the upstream header is never reflected
+    raw), so the client's shared gate (lib/ebirdGate.ts) can pace and retry;
+    anything else maps to the generic 502 shape. Twin: lib/tauri/mapService.ts
+    throwEbirdHttpError — keep both in lockstep (each route also keeps its own
+    429 test, the v0.5.88 per-consumer rule)."""
+    if exc.response.status_code == 429:
+        retry_after = _parse_retry_after_seconds(exc.response.headers.get("Retry-After"))
+        raise HTTPException(
+            status_code=429,
+            detail=_RATE_LIMIT_DETAIL,
+            headers={"Retry-After": str(retry_after)} if retry_after is not None else None,
+        )
+    raise HTTPException(
+        status_code=502,
+        detail=f"eBird API error: {exc.response.status_code}",
+    )
+
+
 def _api_key() -> str:
     key = os.getenv("EBIRD_API_KEY", "")
     if not key:
@@ -65,10 +87,7 @@ async def get_hotspots(lat: float, lng: float, dist: int = 25):
         )
         resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"eBird API error: {exc.response.status_code}",
-        )
+        _raise_ebird_http_error(exc)
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
     return resp.json()
@@ -93,10 +112,7 @@ async def get_hotspot_region(
         )
         resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"eBird API error: {exc.response.status_code}",
-        )
+        _raise_ebird_http_error(exc)
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
     return [h["locId"] for h in resp.json() if h.get("locId")]
@@ -124,10 +140,7 @@ async def get_county_species(
         )
         resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"eBird API error: {exc.response.status_code}",
-        )
+        _raise_ebird_http_error(exc)
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
 
@@ -179,25 +192,9 @@ async def get_hotspot_activity(
         )
         resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        if exc.response.status_code == 429:
-            # Re-surface the rate limit AS a 429 so the client's activity pass
-            # can pace itself (brief slowdown + bounded retries) instead of
-            # shedding the hotspot as a generic error. Retry-After is
-            # re-serialized from a validated bounded integer — the upstream
-            # header value is never reflected raw (and the body is our own
-            # fixed detail, never eBird's).
-            retry_after = _parse_retry_after_seconds(
-                exc.response.headers.get("Retry-After")
-            )
-            raise HTTPException(
-                status_code=429,
-                detail=_RATE_LIMIT_DETAIL,
-                headers={"Retry-After": str(retry_after)} if retry_after is not None else None,
-            )
-        raise HTTPException(
-            status_code=502,
-            detail=f"eBird API error: {exc.response.status_code}",
-        )
+        # Re-surfaced through the shared helper: 429 AS 429 with the fixture
+        # detail + re-serialized bounded Retry-After, else the generic 502.
+        _raise_ebird_http_error(exc)
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
 
@@ -255,10 +252,7 @@ async def _fetch_recent_obs_raw(lat: float, lng: float, dist: int, key: str) -> 
         )
         resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail=f"eBird API error: {exc.response.status_code}",
-        )
+        _raise_ebird_http_error(exc)
     except httpx.RequestError:
         raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
     return resp.json()
