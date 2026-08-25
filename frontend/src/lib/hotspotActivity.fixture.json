@@ -1,0 +1,60 @@
+{
+  "comment": "Shared dual-transport parity fixture for GET /map/hotspot-activity (NFR-09, QA-34). Driven by BOTH backend/tests/test_hotspot_activity.py and lib/hotspotActivity.parity.test.ts. raw -> reduced pins the reduction (duplicate species with out-of-order dates, a record missing speciesCode, an empty speciesCode, a non-string obsDt, a missing obsDt, an empty obsDt, a non-object row); locIdValidation rows must agree on both transports, including the trailing-newline and non-ASCII-digit rows. rateLimit pins the 429 contract (the pre-deploy pacing revision): the identical detail string on both transports, and the Retry-After parse rows both parsers (lib/rateLimit.ts parseRetryAfterSeconds and routers/map.py _parse_retry_after_seconds) must agree on member by member -- seconds form only, 1-3 digits, zero and HTTP-date and padded forms are null (default backoff), values over 60 cap to 60.",
+  "locId": "L123456",
+  "raw": [
+    { "speciesCode": "amecro", "comName": "American Crow", "obsDt": "2026-08-22 07:10", "howMany": 3 },
+    { "speciesCode": "sonspa", "comName": "Song Sparrow", "obsDt": "2026-08-10 06:00" },
+    { "speciesCode": "amecro", "comName": "American Crow", "obsDt": "2026-08-24 09:00" },
+    { "speciesCode": "amecro", "comName": "American Crow", "obsDt": "2026-08-01 05:00" },
+    { "comName": "No species code here", "obsDt": "2026-08-20 08:00" },
+    { "speciesCode": "", "obsDt": "2026-08-20 08:00" },
+    { "speciesCode": "rebnut", "obsDt": 20260820 },
+    { "speciesCode": "dowwoo" },
+    { "speciesCode": "norfli", "obsDt": "" },
+    "not-an-object",
+    { "speciesCode": "bkcchi", "comName": "Black-capped Chickadee", "obsDt": "2026-08-23 12:00" }
+  ],
+  "reduced": [
+    { "speciesCode": "amecro", "obsDt": "2026-08-24 09:00" },
+    { "speciesCode": "sonspa", "obsDt": "2026-08-10 06:00" },
+    { "speciesCode": "bkcchi", "obsDt": "2026-08-23 12:00" }
+  ],
+  "locIdValidation": [
+    { "locId": "L123456", "valid": true },
+    { "locId": "L1", "valid": true },
+    { "locId": "L1234567890", "valid": true },
+    { "locId": "L12345678901", "valid": false },
+    { "locId": "L", "valid": false },
+    { "locId": "l123", "valid": false },
+    { "locId": "123", "valid": false },
+    { "locId": "L12x3", "valid": false },
+    { "locId": "L123\n", "valid": false },
+    { "locId": "L٠١٢", "valid": false },
+    { "locId": "L123/../x", "valid": false },
+    { "locId": "", "valid": false }
+  ],
+  "rateLimit": {
+    "detail": "eBird is limiting requests right now. Try again in a moment.",
+    "retryAfterRows": [
+      { "header": "1", "seconds": 1 },
+      { "header": "7", "seconds": 7 },
+      { "header": "59", "seconds": 59 },
+      { "header": "60", "seconds": 60 },
+      { "header": "61", "seconds": 60 },
+      { "header": "999", "seconds": 60 },
+      { "header": "0", "seconds": null },
+      { "header": "1234", "seconds": null },
+      { "header": " 7", "seconds": null },
+      { "header": "7 ", "seconds": null },
+      { "header": "7\n", "seconds": null },
+      { "header": "7.5", "seconds": null },
+      { "header": "-1", "seconds": null },
+      { "header": "+7", "seconds": null },
+      { "header": "٧", "seconds": null },
+      { "header": "Wed, 21 Oct 2026 07:28:00 GMT", "seconds": null },
+      { "header": "junk", "seconds": null },
+      { "header": "", "seconds": null },
+      { "header": null, "seconds": null }
+    ]
+  }
+}

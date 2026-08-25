@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Color-Coded Hotspots · SnowRaven Design Direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   SnowRaven token layer (mock mirror of globals.css)
+   Map-anchored tokens are identical in both themes on purpose:
+   the map canvas is the always-light Positron basemap.
+   ================================================================ */
+:root {
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  --sr-text: #0F1117;
+  --sr-text-muted: #52525B;
+  --sr-text-gray: #71717A;
+  --sr-text-disabled: #A1A1AA;
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #EFEFF1;
+  --sr-border-medium: #D4D4D8;
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E7F4EC;
+  --sr-on-accent: #FFFFFF;
+  --sr-warn-bg: #FEF7E8;
+  --sr-warn-border: #EBD9AE;
+  --sr-warn-text: #6B4E11;
+  --sr-card-shadow: 0 1px 3px rgba(15, 17, 23, 0.07);
+
+  /* ── NEW: hotspot color-mode ramp (map-anchored, theme-identical) ── */
+  --sr-hotspot-1: #2C89AA;   /* lightest ramp step · 3.27:1 vs TINT_GRASS */
+  --sr-hotspot-2: #24709A;
+  --sr-hotspot-3: #1C5883;
+  --sr-hotspot-4: #153F63;
+  --sr-hotspot-5: #0E2A47;   /* deepest · most species */
+  /* ── NEW: off-ramp state tokens ── */
+  --sr-hotspot-unanswered: #6A6A72;  /* solid zinc + DASHED ring */
+  --sr-hotspot-zero: #565661;        /* the hollow rim; shared by zero + quiet */
+  --sr-hotspot-nodata: #EDE9E3;      /* pale "empty pin"; ring supplies boundary */
+  --sr-hotspot-pale: #F1EEE8;        /* hollow-center inner disc */
+
+  /* shipped map pin tokens (unchanged) */
+  --sr-map-pin-visited: #2D8653;
+  --sr-map-pin-unvisited: #5B7FA6;
+  --sr-map-pin-personal: #B0701B;
+  --sr-map-pin-stroke: #3F3F46;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #1F1F23;
+  --sr-surface-faint: #141417;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8B8B94;
+  --sr-text-disabled: #56565E;
+  --sr-border: #27272A;
+  --sr-border-subtle: #202023;
+  --sr-border-medium: #3A3A40;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #6EE7B7;
+  --sr-accent-bg: #0B2E20;
+  --sr-on-accent: #052E16;
+  --sr-warn-bg: #2A2210;
+  --sr-warn-border: #4D3F1B;
+  --sr-warn-text: #E8C56E;
+  --sr-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  /* hotspot + map pin tokens deliberately identical (always-light basemap) */
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+body {
+  /* The app's shipped stack resolves to the system face (Inter is unbundled),
+     so the mock renders app surfaces with the same effective stack. */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+  background: var(--sr-bg);
+  color: var(--sr-text);
+  font-size: 0.84375rem;
+  line-height: 1.55;
+  transition: background 160ms ease-out, color 160ms ease-out;
+}
+/* subtle atmosphere behind the frame, tinted with the brand hue */
+.frame-bg {
+  position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(1100px 500px at 85% -5%, rgba(44, 137, 170, 0.06), transparent 60%),
+    radial-gradient(900px 480px at -10% 30%, rgba(39, 116, 72, 0.05), transparent 55%),
+    var(--sr-bg);
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 80px; }
+
+/* ── presentation frame typography ── */
+.disp { font-family: "Bricolage Grotesque", -apple-system, "Segoe UI", sans-serif; letter-spacing: -0.015em; }
+h1 { font-size: 2rem; font-weight: 800; line-height: 1.12; }
+.kicker {
+  font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--sr-accent); margin-bottom: 8px;
+}
+.sub { color: var(--sr-text-muted); font-size: 0.9375rem; max-width: 68ch; margin-top: 10px; }
+h2.sect {
+  font-family: "Bricolage Grotesque", -apple-system, "Segoe UI", sans-serif;
+  font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em;
+  margin: 56px 0 6px;
+}
+.sect-sub { color: var(--sr-text-muted); font-size: 0.84375rem; margin-bottom: 18px; max-width: 74ch; }
+
+.header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.frame-actions { display: flex; gap: 8px; flex-shrink: 0; padding-top: 6px; }
+.frame-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 0.75rem; font-weight: 600;
+  color: var(--sr-text); background: var(--sr-surface);
+  border: 1px solid var(--sr-border-medium); border-radius: 8px;
+  padding: 7px 12px; cursor: pointer;
+  transition: background 120ms ease-out, border-color 120ms ease-out;
+}
+.frame-btn:hover { background: var(--sr-surface-subtle); }
+.frame-btn:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+.hintbar {
+  margin-top: 22px; display: flex; flex-wrap: wrap; gap: 8px 18px;
+  font-size: 0.75rem; color: var(--sr-text-muted);
+  border: 1px dashed var(--sr-border-medium); border-radius: 10px;
+  padding: 10px 14px; background: var(--sr-surface-faint);
+}
+.hintbar b { color: var(--sr-text); font-weight: 600; }
+
+/* ================================================================
+   The app mock: Map Explorer panel
+   ================================================================ */
+.app-panel {
+  margin-top: 18px;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  box-shadow: var(--sr-card-shadow);
+  overflow: hidden;
+}
+.app-topbar {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 16px; border-bottom: 1px solid var(--sr-border);
+  background: var(--sr-surface);
+}
+.app-topbar .t { font-weight: 700; font-size: 0.875rem; letter-spacing: -0.01em; }
+.viewpills { display: flex; gap: 6px; }
+.viewpill {
+  font-size: 0.71875rem; font-weight: 600; color: var(--sr-text-muted);
+  border: 1px solid var(--sr-border); border-radius: 15px;
+  padding: 4px 11px; background: var(--sr-surface); cursor: default;
+}
+.viewpill.on { color: var(--sr-on-accent); background: var(--sr-accent); border-color: var(--sr-accent); }
+.viewnote { margin-left: auto; font-size: 0.6875rem; color: var(--sr-text-gray); font-style: italic; }
+
+.app-body { display: flex; min-height: 620px; }
+.sidebar {
+  width: 292px; flex-shrink: 0; border-right: 1px solid var(--sr-border);
+  padding: 14px 16px; overflow-y: auto; max-height: 680px;
+  background: var(--sr-surface);
+}
+.maparea { flex: 1; position: relative; background: #F1EEE7; overflow: hidden; }
+.maparea svg.base { display: block; width: 100%; height: 100%; }
+
+/* sidebar primitives (house patterns) */
+.sb-label {
+  font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 6px;
+}
+.sb-block { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--sr-border); }
+.sb-note { font-size: 0.6875rem; color: var(--sr-text-muted); font-style: italic; margin-bottom: 8px; }
+.mockrow {
+  display: flex; align-items: center; gap: 7px;
+  border: 1px solid var(--sr-border); border-radius: 6px;
+  color: var(--sr-text-gray); font-size: 0.78125rem;
+  padding: 7px 10px; margin-bottom: 8px; background: var(--sr-surface-faint);
+}
+.findbtn {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  width: 100%; height: 36px; border: none; border-radius: 6px;
+  background: var(--sr-accent); color: var(--sr-on-accent);
+  font: inherit; font-size: 0.8125rem; font-weight: 500; cursor: pointer;
+  margin-bottom: 4px;
+  transition: filter 120ms ease-out;
+}
+.findbtn:hover { filter: brightness(1.06); }
+.findbtn:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+/* ── NEW: Color pins by ── */
+.modegrid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.modepill {
+  font: inherit; font-size: 0.75rem; font-weight: 600;
+  color: var(--sr-text); background: var(--sr-surface);
+  border: 1px solid var(--sr-border-medium); border-radius: 15px;
+  min-height: 30px; padding: 4px 10px; cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.modepill:hover { background: var(--sr-surface-subtle); }
+.modepill[aria-pressed="true"] {
+  background: var(--sr-accent); color: var(--sr-on-accent); border-color: var(--sr-accent);
+}
+.modepill:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+
+.windowrow {
+  overflow: hidden; max-height: 0; opacity: 0;
+  transition: max-height 180ms ease-out, opacity 160ms ease-out, margin 180ms ease-out;
+  margin-top: 0;
+}
+.windowrow.open { max-height: 120px; opacity: 1; margin-top: 8px; }
+.winpills { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.winlabel { font-size: 0.6875rem; color: var(--sr-text-muted); margin-bottom: 4px; }
+.status {
+  margin-top: 8px; font-size: 0.71875rem; color: var(--sr-text-muted);
+  min-height: 1.2em; display: flex; align-items: center; gap: 6px;
+}
+.status .spin {
+  width: 11px; height: 11px; border: 2px solid var(--sr-border-medium);
+  border-top-color: var(--sr-accent); border-radius: 50%; flex-shrink: 0;
+  /* rotation period of a continuous loading spinner (the app's Loader2 twin),
+     not an enter/exit transition, so the UI-motion ceiling does not apply */
+  animation: rot 1s linear infinite;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+.progress-track {
+  margin-top: 5px; height: 3px; border-radius: 2px;
+  background: var(--sr-border-subtle); overflow: hidden;
+}
+.progress-fill {
+  height: 100%; width: 0%; border-radius: 2px;
+  background: var(--sr-accent);
+  transition: width 200ms ease-out;
+}
+
+/* legend */
+.legend-title { font-size: 0.75rem; font-weight: 600; margin-bottom: 8px; }
+.legend-title .win { color: var(--sr-text-muted); font-weight: 500; }
+.lgrow { display: flex; align-items: center; gap: 9px; margin-bottom: 5px; }
+.lgrow .rng { font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.lgrow .meaning { font-size: 0.75rem; color: var(--sr-text-muted); }
+.lgrow-kind {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px; width: 100%;
+  background: none; border: none; padding: 0; cursor: pointer; text-align: left;
+  font: inherit; transition: opacity 120ms ease-out;
+}
+.lgrow-kind .nm { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+.lgrow-kind .ct { font-size: 0.75rem; color: var(--sr-text-muted); margin-left: 6px; }
+.lgrow-kind[aria-pressed="false"] { opacity: 0.4; }
+.lgrow-kind:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; border-radius: 4px; }
+.kindchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.kindchip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: inherit; font-size: 0.71875rem; font-weight: 600; color: var(--sr-text);
+  border: 1px solid var(--sr-border-medium); border-radius: 15px;
+  min-height: 26px; padding: 2px 10px; background: var(--sr-surface); cursor: pointer;
+  transition: opacity 120ms ease-out, background 120ms ease-out;
+}
+.kindchip:hover { background: var(--sr-surface-subtle); }
+.kindchip[aria-pressed="false"] { opacity: 0.4; }
+.kindchip:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.kindchip .cticon { font-size: 0.71875rem; color: var(--sr-text-muted); letter-spacing: -1px; }
+.kindchip .ctn { color: var(--sr-text-muted); font-weight: 500; }
+
+/* in-view list */
+.ivrow {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  font: inherit; text-align: left; background: none; border: none;
+  padding: 5px 8px; margin-bottom: 1px; border-radius: 6px; cursor: pointer;
+  transition: background 120ms ease-out;
+}
+.ivrow:hover { background: var(--sr-surface-subtle); }
+.ivrow:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.ivrow .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--sr-map-pin-stroke); }
+.ivrow .dot.hollow { background: var(--sr-hotspot-pale) !important; border: 2.5px solid var(--sr-hotspot-zero); width: 8px; height: 8px; }
+.ivrow .dot.dashed { border: 1.5px dashed var(--sr-map-pin-stroke); }
+.ivrow .txt { min-width: 0; flex: 1; }
+.ivrow .nm {
+  font-size: 0.78125rem; color: var(--sr-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ivrow .sec { font-size: 0.6875rem; color: var(--sr-text-muted); }
+.ivrow .val {
+  font-size: 0.71875rem; font-variant-numeric: tabular-nums; font-weight: 600;
+  color: var(--sr-text); flex-shrink: 0;
+}
+.ivrow .val.mut { color: var(--sr-text-muted); font-weight: 500; }
+
+/* map pins */
+.pin {
+  position: absolute; width: 28px; height: 40px;
+  background: none; border: none; padding: 0; cursor: pointer;
+  transform: translate(-14px, -40px);
+  transition: filter 140ms ease-out;
+}
+.pin svg { display: block; overflow: visible; }
+.pin svg .bulb { transition: fill 180ms ease-out; }
+.pin:hover { filter: brightness(1.1) drop-shadow(0 2px 3px rgba(15,17,23,0.35)); }
+.pin:focus-visible { outline: none; }
+.pin:focus-visible svg .bulb { stroke-width: 3; }
+.pin.arrive svg { animation: arrive 220ms cubic-bezier(0.16, 1, 0.3, 1); transform-origin: 14px 40px; }
+@keyframes arrive { from { transform: scale(0.82); } to { transform: scale(1); } }
+.pin[data-hidden="1"] { display: none; }
+
+/* popup */
+.popup {
+  position: absolute; z-index: 30; width: 232px;
+  background: var(--sr-surface); color: var(--sr-text);
+  border: 1px solid var(--sr-border); border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(15, 17, 23, 0.18);
+  padding: 10px 12px;
+  transform: translate(-50%, -100%);
+  transform-origin: 50% 100%;
+  animation: popin 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes popin { from { opacity: 0; transform: translate(-50%, -100%) scale(0.92); } to { opacity: 1; transform: translate(-50%, -100%) scale(1); } }
+.popup::after {
+  content: ""; position: absolute; left: 50%; bottom: -6px;
+  width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg);
+  background: var(--sr-surface);
+  border-right: 1px solid var(--sr-border); border-bottom: 1px solid var(--sr-border);
+}
+/* shared popup content classes (the live popup AND the state gallery cards) */
+.pname { font-weight: 700; font-size: 0.8125rem; margin-bottom: 7px; overflow-wrap: anywhere; }
+.modeline { display: flex; align-items: baseline; gap: 7px; font-size: 0.78125rem; font-weight: 600; margin-bottom: 4px; }
+.modeline .sw { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; align-self: center; border: 1px solid var(--sr-map-pin-stroke); }
+.shipped { font-size: 0.75rem; color: var(--sr-accent); margin-bottom: 3px; }
+.mut { font-size: 0.71875rem; color: var(--sr-text-muted); margin-bottom: 3px; }
+.ebd { font-size: 0.75rem; color: var(--sr-accent); font-weight: 500; cursor: pointer; }
+.ebd:hover { text-decoration: underline; }
+.popup .close {
+  position: absolute; top: 6px; right: 6px; width: 20px; height: 20px;
+  border: none; background: none; color: var(--sr-text-muted); font-size: 0.875rem;
+  cursor: pointer; border-radius: 4px; line-height: 1;
+}
+.popup .close:hover { background: var(--sr-surface-subtle); }
+.popup .close:focus-visible { outline: 2px solid var(--sr-accent); }
+.ptag {
+  display: inline-block; background: var(--sr-warn-bg); border: 1px solid var(--sr-warn-border);
+  color: var(--sr-warn-text); border-radius: 4px; padding: 2px 6px;
+  font-size: 0.6875rem; font-weight: 600; margin-bottom: 7px;
+}
+
+/* map chrome */
+.maplabel { font-size: 10px; fill: #8A8577; letter-spacing: 0.14em; font-weight: 600; }
+.waterlabel { font-size: 11px; fill: #7C93A6; font-style: italic; letter-spacing: 0.08em; }
+
+/* ================================================================
+   Frame sections below the mock
+   ================================================================ */
+.cardgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.card {
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 12px; padding: 16px; box-shadow: var(--sr-card-shadow);
+}
+.card h3 { font-size: 0.8125rem; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.005em; }
+.card .cap { font-size: 0.75rem; color: var(--sr-text-muted); }
+
+.swatchrow { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.swx { text-align: center; font-size: 0.65625rem; color: var(--sr-text-muted); width: 76px; line-height: 1.35; }
+.swx .chip { height: 44px; border-radius: 8px; border: 1px solid var(--sr-border-medium); margin-bottom: 6px; }
+.swx .hex { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.625rem; color: var(--sr-text-gray); margin: 1px 0; }
+.swx b { display: block; color: var(--sr-text); font-size: 0.6875rem; }
+.swx .note { display: block; }
+
+.gsrow { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.gsrow .gs { filter: grayscale(1); }
+.pinfig { text-align: center; width: 62px; font-size: 0.625rem; color: var(--sr-text-muted); line-height: 1.3; }
+.pinfig svg { display: block; margin: 0 auto 5px; }
+
+.coex { display: flex; gap: 14px; flex-wrap: wrap; }
+.coexcard { border-radius: 10px; overflow: hidden; border: 1px solid var(--sr-border); position: relative; width: 250px; height: 130px; }
+.coexcard .lbl {
+  position: absolute; left: 8px; bottom: 6px; font-size: 0.65625rem;
+  color: #3A3A40; background: rgba(255,255,255,0.82); border-radius: 4px; padding: 1px 6px;
+}
+
+/* states gallery: mini sidebars */
+.stategrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 14px; }
+.ministate {
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 12px;
+  padding: 14px; box-shadow: var(--sr-card-shadow); font-size: 0.78125rem;
+}
+.ministate .tag {
+  display: inline-block; font-size: 0.625rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--sr-text-gray); margin-bottom: 10px;
+}
+.msgbox {
+  display: flex; gap: 8px; align-items: flex-start;
+  border-radius: 8px; padding: 9px 11px; font-size: 0.75rem;
+  background: var(--sr-warn-bg); border: 1px solid var(--sr-warn-border); color: var(--sr-warn-text);
+  margin: 8px 0;
+}
+.msgbox .ic { flex-shrink: 0; margin-top: 1px; }
+.retrybtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: 0.75rem; font-weight: 600;
+  color: var(--sr-accent); background: var(--sr-accent-bg);
+  border: 1px solid var(--sr-accent); border-radius: 15px;
+  min-height: 30px; padding: 4px 13px; cursor: pointer;
+  transition: filter 120ms ease-out;
+}
+.retrybtn:hover { filter: brightness(0.97); }
+.retrybtn:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.mutline { font-size: 0.71875rem; color: var(--sr-text-muted); margin-top: 7px; }
+
+/* popup gallery */
+.popgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 14px; }
+.popcard {
+  background: var(--sr-surface); border: 1px solid var(--sr-border); border-radius: 8px;
+  box-shadow: var(--sr-card-shadow); padding: 10px 12px; position: relative;
+}
+.popcard .tag {
+  font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--sr-text-gray); margin-bottom: 8px;
+}
+
+.decision-list { list-style: none; }
+.decision-list li {
+  padding: 10px 0; border-bottom: 1px solid var(--sr-border-subtle);
+  font-size: 0.8125rem;
+}
+.decision-list li:last-child { border-bottom: none; }
+.decision-list b { font-weight: 700; }
+.decision-list .why { color: var(--sr-text-muted); font-size: 0.75rem; margin-top: 2px; }
+.pill-inline {
+  display: inline-block; font-size: 0.625rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; border-radius: 4px; padding: 1px 6px; margin-right: 6px;
+  background: var(--sr-accent-bg); color: var(--sr-accent); border: 1px solid var(--sr-accent);
+}
+.pill-inline.q { background: var(--sr-warn-bg); color: var(--sr-warn-text); border-color: var(--sr-warn-border); }
+
+@media (max-width: 900px) {
+  .app-body { flex-direction: column; }
+  .sidebar { width: 100%; max-height: none; border-right: none; border-bottom: 1px solid var(--sr-border); }
+  .maparea { min-height: 480px; }
+}
+</style>
+</head>
+<body>
+<div class="frame-bg" aria-hidden="true"></div>
+<div class="wrap">
+
+  <!-- ============ Header ============ -->
+  <div class="header-row">
+    <div>
+      <div class="kicker">SnowRaven · Map Explorer · Design direction 1</div>
+      <h1 class="disp">Color-Coded Hotspots</h1>
+      <p class="sub">The Hotspots view learns three new questions: how deep is my coverage here, how often do I bird here, and where are birds being seen right now. One new sidebar control, a cyan-blue ramp that stays out of the county green and atlas purple, and honest states for everything that is not a number.</p>
+    </div>
+    <div class="frame-actions">
+      <button class="frame-btn" id="themeToggle" aria-pressed="false">Dark theme</button>
+      <button class="frame-btn" id="resetCache" title="Clears the demo activity cache so the progressive first fetch replays">Replay first fetch</button>
+    </div>
+  </div>
+
+  <div class="hintbar">
+    <span><b>Try it:</b> switch the four modes in the sidebar</span>
+    <span>click <b>Recent activity</b> and watch answers arrive pin by pin</span>
+    <span>flip <b>Week / 30 days</b> (zero new requests, one cached call serves both)</span>
+    <span>click any pin for its popup</span>
+    <span>click <b>Garin Regional Park</b> on Week, then on 30 days</span>
+    <span>the map canvas stays light in dark theme, exactly like the real basemap</span>
+  </div>
+
+  <!-- ============ The interactive mock ============ -->
+  <div class="app-panel">
+    <div class="app-topbar">
+      <span class="t">Map Explorer</span>
+      <div class="viewpills" aria-hidden="true">
+        <span class="viewpill on">Hotspots</span>
+        <span class="viewpill">My Sightings</span>
+        <span class="viewpill">Nearby Lifers</span>
+        <span class="viewpill">Media Targets</span>
+      </div>
+      <span class="viewnote">Color modes live on the Hotspots view only. Other views are unchanged.</span>
+    </div>
+    <div class="app-body">
+
+      <!-- ── Sidebar ── -->
+      <div class="sidebar">
+        <div class="mockrow" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Search city, address, or place
+        </div>
+        <div class="mockrow" aria-hidden="true">Center: 37.6017, -122.0663 · Radius: 15 mi</div>
+        <button class="findbtn" tabindex="0">Find Hotspots</button>
+        <div class="sb-note" style="margin-bottom:0">19 hotspots and 2 personal locations found.</div>
+
+        <!-- ── NEW: Color pins by ── -->
+        <div class="sb-block">
+          <div class="sb-label">Color pins by</div>
+          <div class="modegrid" role="group" aria-label="Color pins by">
+            <button class="modepill" data-mode="default"      tabindex="0">Visited status</button>
+            <button class="modepill" data-mode="mySpecies"    tabindex="0">My species</button>
+            <button class="modepill" data-mode="myChecklists" tabindex="0">My checklists</button>
+            <button class="modepill" data-mode="activity"     tabindex="0">Recent activity</button>
+          </div>
+          <div class="windowrow" id="windowRow">
+            <div class="winlabel">Time window</div>
+            <div class="winpills" role="group" aria-label="Activity time window">
+              <button class="modepill" data-win="7"  tabindex="0">Week</button>
+              <button class="modepill" data-win="30" tabindex="0">30 days</button>
+            </div>
+            <div class="status" id="statusLine" aria-live="polite"></div>
+            <div class="progress-track" id="progressTrack" style="display:none"><div class="progress-fill" id="progressFill"></div></div>
+          </div>
+        </div>
+
+        <!-- ── Legend ── -->
+        <div class="sb-block">
+          <div class="sb-label">Legend</div>
+          <div id="legendBody"></div>
+        </div>
+
+        <!-- ── Hotspots in view ── -->
+        <div class="sb-block">
+          <div class="sb-label">Hotspots in view</div>
+          <div class="sb-note">Select a hotspot to open its details on the map. Updates as you pan or zoom.</div>
+          <div id="inviewList"></div>
+        </div>
+      </div>
+
+      <!-- ── Map ── -->
+      <div class="maparea" id="mapArea">
+        <svg class="base" viewBox="0 0 830 680" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <!-- land -->
+          <rect x="0" y="0" width="830" height="680" fill="#F1EEE7"/>
+          <!-- grass wash inland -->
+          <path d="M250,0 L830,0 L830,680 L340,680 C330,600 320,520 300,460 C275,390 248,330 252,250 C255,160 245,80 250,0 Z" fill="#E9EEE4" opacity="0.7"/>
+          <!-- bay water -->
+          <path d="M0,0 L250,0 C245,80 255,160 252,250 C248,330 275,390 300,460 C320,520 330,600 340,680 L0,680 Z" fill="#C9D8E4"/>
+          <!-- Alameda island -->
+          <path d="M282,258 C300,244 340,240 362,252 C378,262 376,282 356,290 C330,300 296,296 284,282 C276,272 274,264 282,258 Z" fill="#F1EEE7"/>
+          <!-- Bay Farm -->
+          <path d="M356,300 C372,294 390,300 392,314 C394,326 380,334 366,330 C352,326 348,308 356,300 Z" fill="#F1EEE7"/>
+          <!-- Lake Merritt -->
+          <path d="M372,178 C380,170 396,170 400,180 C404,190 394,198 384,196 C374,194 368,186 372,178 Z" fill="#C9D8E4"/>
+          <!-- Lake Chabot -->
+          <path d="M560,330 C570,324 582,328 582,338 C582,348 570,352 562,346 C556,340 554,334 560,330 Z" fill="#C9D8E4"/>
+          <!-- park patches -->
+          <path d="M430,28 C480,18 540,32 548,66 C556,100 510,122 462,114 C420,106 402,64 430,28 Z" fill="#C4E2CF"/>
+          <path d="M492,120 C530,112 566,126 568,152 C570,178 534,190 502,180 C474,170 468,136 492,120 Z" fill="#CFE7D8"/>
+          <path d="M500,268 C544,258 592,272 596,306 C600,340 556,360 514,350 C478,340 470,290 500,268 Z" fill="#C4E2CF"/>
+          <path d="M508,428 C550,418 596,430 600,464 C604,498 562,516 522,506 C488,496 480,450 508,428 Z" fill="#CFE7D8"/>
+          <path d="M606,520 C650,508 700,522 704,558 C708,594 664,614 622,602 C586,590 578,544 606,520 Z" fill="#C4E2CF"/>
+          <path d="M352,568 C382,558 414,566 418,590 C422,614 392,628 364,620 C340,612 334,584 352,568 Z" fill="#CFE7D8"/>
+          <!-- roads -->
+          <path d="M300,60 C340,180 360,300 400,420 C430,510 470,600 500,680" stroke="#E4DDCE" stroke-width="4" fill="none"/>
+          <path d="M330,0 C400,120 470,220 560,300 C620,352 680,420 720,500" stroke="#E4DDCE" stroke-width="3" fill="none"/>
+          <!-- labels -->
+          <text class="waterlabel" x="80" y="290" transform="rotate(-72 80 290)">S A N&#160;&#160;F R A N C I S C O&#160;&#160;B A Y</text>
+          <text class="maplabel" x="330" y="86">BERKELEY</text>
+          <text class="maplabel" x="398" y="216">OAKLAND</text>
+          <text class="maplabel" x="300" y="278" font-size="8.5">ALAMEDA</text>
+          <text class="maplabel" x="430" y="404">HAYWARD</text>
+          <text class="maplabel" x="470" y="640">FREMONT</text>
+        </svg>
+        <div id="pinLayer"></div>
+        <div id="popupHost"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ Ramp & tokens ============ -->
+  <h2 class="sect">The ramp and its states</h2>
+  <p class="sect-sub">A new cyan-blue token family, <code style="font-family:ui-monospace,Menlo,monospace;font-size:0.78em">--sr-hotspot-1..5</code>, declared identically in both themes because it only ever paints on the always-light basemap. Luminance falls monotonically (every step at least 1.33:1 from its neighbor, every fill at least 3:1 against the palest land tint), so the scale reads in grayscale with no texture needed at pin size. Whatever is not a number never borrows the ramp: it gets structure instead of hue.</p>
+
+  <div class="cardgrid">
+    <div class="card" style="grid-column: 1 / -1;">
+      <div class="swatchrow" id="swatchRow"></div>
+    </div>
+    <div class="card" style="grid-column: 1 / -1;">
+      <h3>Grayscale proof, and the structural cues</h3>
+      <div class="gsrow" id="grayRow"></div>
+      <p class="cap" style="margin-top:10px">In grayscale the five classes still order themselves. The three off-ramp states never rely on their gray: <b>not checked yet</b> wears a dashed ring, <b>zero and quiet</b> are hollow, and <b>never birded</b> is a pale, empty pin, the same "unrecorded means unfilled" idea the county overlay already taught. The visited check and unvisited dots ride every pin, so "an active hotspot I have never visited" stays a readable combination.</p>
+    </div>
+    <div class="card">
+      <h3>Over the county green</h3>
+      <div class="coex">
+        <div class="coexcard" id="coexCounty"></div>
+      </div>
+      <p class="cap" style="margin-top:8px">The cyan-blue family sits apart from the county ramp's greens, so pins stay legible when county shading is on.</p>
+    </div>
+    <div class="card">
+      <h3>Over the atlas purple</h3>
+      <div class="coex">
+        <div class="coexcard" id="coexAtlas"></div>
+      </div>
+      <p class="cap" style="margin-top:8px">Same over the breeding-atlas tiers. The dark stroke ring keeps every pin bounded on any fill.</p>
+    </div>
+  </div>
+
+  <!-- ============ Mode 3 working states ============ -->
+  <h2 class="sect">Recent activity, working honestly</h2>
+  <p class="sect-sub">Mode 3 asks eBird one bounded question per hotspot and caches the answer for six hours. Everything that can go wrong has its own words, keeps whatever already arrived, and offers a retry that never re-runs the hotspot search.</p>
+
+  <div class="stategrid">
+    <div class="ministate">
+      <span class="tag">Checking</span>
+      <div class="sb-label">Color pins by</div>
+      <div class="modegrid" aria-hidden="true">
+        <span class="modepill" style="cursor:default">Visited status</span>
+        <span class="modepill" style="cursor:default" aria-pressed="true">Recent activity</span>
+      </div>
+      <div class="status" style="margin-top:10px"><span class="spin"></span> Checking activity: 14 of 19 hotspots</div>
+      <div class="progress-track"><div class="progress-fill" style="width:74%"></div></div>
+      <p class="mutline">Cached answers color first, then the rest arrive a few at a time. Pins not yet answered stay in the dashed not-checked gray.</p>
+    </div>
+
+    <div class="ministate">
+      <span class="tag">Offline</span>
+      <div class="msgbox"><span class="ic">⚠</span> You're offline. This needs a connection.</div>
+      <p class="mutline">Showing cached activity for 11 hotspots, fetched 9:40 AM. 8 more stay in the not-checked gray until you're back online.</p>
+      <button class="retrybtn" tabindex="0" style="margin-top:9px">↻ Retry</button>
+      <p class="mutline">My species and My checklists still work fully offline.</p>
+    </div>
+
+    <div class="ministate">
+      <span class="tag">No eBird key</span>
+      <div class="msgbox"><span class="ic">⚠</span> eBird API key not configured. Add it in Settings.</div>
+      <p class="mutline">Recent activity needs your own eBird key. Pins stay in the not-checked gray until one is added.</p>
+      <button class="retrybtn" tabindex="0" style="margin-top:9px">↻ Retry</button>
+    </div>
+
+    <div class="ministate">
+      <span class="tag">Lookup failed</span>
+      <div class="msgbox"><span class="ic">⚠</span> Something went wrong. Please try again.</div>
+      <p class="mutline">12 hotspots kept the answers that already arrived. Retry re-asks only the 7 that failed.</p>
+      <button class="retrybtn" tabindex="0" style="margin-top:9px">↻ Retry</button>
+    </div>
+
+    <div class="ministate">
+      <span class="tag">Large searches</span>
+      <div class="status" style="margin-top:2px">Checked the 200 hotspots nearest your search center.</div>
+      <p class="mutline">14 more stay in the not-checked gray. Search a smaller area to cover them. Cached hotspots never count against the 200.</p>
+    </div>
+
+    <div class="ministate">
+      <span class="tag">Cached</span>
+      <div class="status" style="margin-top:2px">Activity from cache, fetched 9:40 AM.</div>
+      <p class="mutline">Re-selecting the mode, re-running the search, or flipping Week and 30 days inside six hours recolors instantly with zero new requests. One fetch per hotspot answers both windows.</p>
+    </div>
+  </div>
+
+  <!-- ============ Popup states ============ -->
+  <h2 class="sect">The popup, state by state</h2>
+  <p class="sect-sub">Every pin's number, or the honest reason there is none, in words. The shipped popup content stays; the mode line joins it. The "Hotspots in view" list carries the same reading, so nothing here depends on perceiving color.</p>
+  <div class="popgrid" id="popGallery"></div>
+
+  <!-- ============ Decisions ============ -->
+  <h2 class="sect">Decisions taken in this direction</h2>
+  <p class="sect-sub">React to any of these. Changing them now is fast and free.</p>
+  <div class="card">
+    <ul class="decision-list">
+      <li><span class="pill-inline">Decided</span><b>Zero and quiet share one fill.</b>
+        <div class="why">"Asked, and the answer is zero" is one visual idea: the hollow pin. They never appear in the same mode, and the popup words differ ("only spuh and slash entries" versus "no reports in this window"). Confirming the Architect's shared token.</div></li>
+      <li><span class="pill-inline">Decided</span><b>Never-birded is a pale, empty pin, not a dark gray.</b>
+        <div class="why">No data must read as absence, and any dark fill inevitably reads as "something." The dark ring carries its visibility, the shipped teardrop practice. This deviates from one clause of the planned contrast guard (the pale fill is under 3:1 against land by design, with the ring supplying the boundary), logged in decisions.md for the Engineer's guard to encode.</div></li>
+      <li><span class="pill-inline">Decided</span><b>Colorblind path: luminance plus structure, no per-tier texture.</b>
+        <div class="why">A county-style density hatch does not resolve on a 28px teardrop. The ramp is strictly luminance-monotonic (grayscale-ordered), the off-ramp states are structural (dashed, hollow, pale), the kind glyph rides every pin, and the popup and in-view list state every value in words.</div></li>
+      <li><span class="pill-inline">Decided</span><b>Activating a mode reveals the legend.</b>
+        <div class="why">The legend is the scale's explanation; a new coloring with a closed legend is a riddle. Kind filters stay one press away as glyph chips, since color no longer encodes kind while a mode is active.</div></li>
+      <li><span class="pill-inline q">Note</span><b>Mode 3 counts eBird's taxa as returned.</b>
+        <div class="why">The Architect flagged this: recent-activity counts mirror eBird's own tallies with no countable-form collapse, so the popup label says "species reported," matching what eBird would show for the same window.</div></li>
+      <li><span class="pill-inline q">Note</span><b>Phone tier.</b>
+        <div class="why">The mode grid and window pills join the sidebar's filter block under .sr-ctl-row, every pill at the 16px floor and 44px touch posture at 640px and below, wrapping two-up. The mock presents desktop; the spec carries the phone rules.</div></li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+/* ================================================================
+   Data: a realistic Alameda County search (fictional counts/ids)
+   ================================================================ */
+const HOTSPOTS = [
+  { id:'L127440', name:'Cesar Chavez Park',                              kind:'visited',   x:285, y:66,  my:{sp:64,  cl:12}, act:{w:29, m:51}, raw:71,  last:'Aug 11, 2026' },
+  { id:'L302019', name:'Berkeley Aquatic Park',                          kind:'visited',   x:300, y:112, my:{sp:58,  cl:9},  act:{w:22, m:43}, raw:63,  last:'Jul 27, 2026' },
+  { id:'L166095', name:'Tilden Regional Park',                           kind:'visited',   x:474, y:70,  my:{sp:71,  cl:23}, act:{w:26, m:49}, raw:78,  last:'Aug 2, 2026'  },
+  { id:'L748112', name:'Emeryville Marina',                              kind:'visited',   x:278, y:150, my:{sp:41,  cl:6},  act:{w:18, m:37}, raw:44,  last:'Jun 14, 2026' },
+  { id:'L516020', name:'Sibley Volcanic Regional Preserve',              kind:'unvisited', x:528, y:150, act:{w:9,  m:21} },
+  { id:'L438831', name:'Middle Harbor Shoreline Park',                   kind:'unvisited', x:298, y:222, act:{w:35, m:66} },
+  { id:'L281062', name:'Lake Merritt',                                   kind:'visited',   x:388, y:172, my:{sp:76,  cl:44}, act:{w:33, m:58}, raw:81,  last:'Aug 20, 2026' },
+  { id:'L488210', name:'Crab Cove, Crown Memorial State Beach',          kind:'visited',   x:296, y:262, my:{sp:47,  cl:7},  act:{w:16, m:29}, raw:51,  last:'May 30, 2026' },
+  { id:'L905311', name:'Elsie Roemer Bird Sanctuary',                    kind:'visited',   x:352, y:288, my:{sp:54,  cl:11}, act:{w:0,  m:0},  raw:57,  last:'Jul 6, 2026'  },
+  { id:'L242043', name:'Arrowhead Marsh, MLK Jr. Regional Shoreline',    kind:'visited',   x:388, y:302, my:{sp:96,  cl:31}, act:{w:41, m:74}, raw:104, last:'Aug 17, 2026' },
+  { id:'L603580', name:'Anthony Chabot Regional Park',                   kind:'visited',   x:546, y:308, my:{sp:49,  cl:8},  act:{w:14, m:32}, raw:52,  last:'Apr 19, 2026' },
+  { id:'L389014', name:'Hayward Regional Shoreline',                     kind:'visited',   x:340, y:400, my:{sp:88,  cl:19}, act:{w:47, m:83}, raw:95,  last:'Aug 22, 2026' },
+  { id:'L620957', name:'Eden Landing Ecological Reserve',                kind:'unvisited', x:362, y:462, act:{w:38, m:69} },
+  { id:'L771806', name:'Garin Regional Park',                            kind:'unvisited', x:548, y:452, act:{w:0,  m:4}  },
+  { id:'L849771', name:'Quarry Lakes Regional Recreation Area',          kind:'visited',   x:500, y:512, my:{sp:83,  cl:27}, act:{w:31, m:57}, raw:89,  last:'Aug 8, 2026'  },
+  { id:'L295126', name:'Alameda Creek Regional Trail, Niles',            kind:'visited',   x:556, y:540, my:{sp:2,   cl:1},  act:{w:6,  m:15}, raw:3,   last:'Feb 3, 2026'  },
+  { id:'L640022', name:'Coyote Hills Regional Park',                     kind:'visited',   x:392, y:566, my:{sp:142, cl:52}, act:{w:52, m:91}, raw:156, last:'Aug 23, 2026' },
+  { id:'L455310', name:'Ardenwood Historic Farm',                        kind:'visited',   x:462, y:588, my:{sp:0,   cl:1},  act:{w:12, m:26}, raw:1,   last:'Mar 22, 2026' },
+  { id:'L662394', name:'Sunol Regional Wilderness',                      kind:'unvisited', x:652, y:552, act:{w:11, m:24} },
+  { id:'P1',      name:'Backyard, Fruitvale',                            kind:'personal',  x:438, y:246, obs:214, last:'Aug 24, 2026' },
+  { id:'P2',      name:'Office window, Emeryville',                      kind:'personal',  x:312, y:168, obs:37,  last:'Aug 21, 2026' },
+];
+
+const RAMP   = ['var(--sr-hotspot-1)','var(--sr-hotspot-2)','var(--sr-hotspot-3)','var(--sr-hotspot-4)','var(--sr-hotspot-5)'];
+const KIND   = { visited:'var(--sr-map-pin-visited)', unvisited:'var(--sr-map-pin-unvisited)', personal:'var(--sr-map-pin-personal)' };
+const TEARDROP = 'M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z';
+const MODE_LABEL = { default:'Visited status', mySpecies:'My species', myChecklists:'My checklists', activity:'Recent activity' };
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const state = {
+  mode: 'default',
+  win: 7,                       // 7 | 30
+  hidden: new Set(),
+  answers: new Map(),           // id -> {w, m, at}
+  fetchedOnce: false,
+  running: false,
+  selected: 'L242043',
+  cachedNote: false,
+};
+
+/* ── quantile classing (mirrors computeCountyTiers, maxClasses 5) ── */
+function quantileClasses(values, k = 5) {
+  const v = [...values].sort((a, b) => a - b);
+  const distinct = [...new Set(v)];
+  const n = Math.min(k, distinct.length);
+  if (n === 0) return [];
+  const ubs = [];
+  for (let i = 1; i <= n; i++) ubs.push(v[Math.min(v.length - 1, Math.ceil(i * v.length / n) - 1)]);
+  return [...new Set(ubs)];
+}
+function tierFor(val, ubs) {
+  for (let i = 0; i < ubs.length; i++) if (val <= ubs[i]) return i + 1;
+  return ubs.length;
+}
+
+/* ── the per-pin reading (mirrors hotspotReading) ── */
+function valueFor(p) {
+  if (state.mode === 'mySpecies')    return p.my ? p.my.sp : null;
+  if (state.mode === 'myChecklists') return p.my ? p.my.cl : null;
+  if (state.mode === 'activity') {
+    const a = state.answers.get(p.id);
+    if (!a) return null;
+    return state.win === 7 ? a.w : a.m;
+  }
+  return null;
+}
+function currentTiers() {
+  const vals = [];
+  for (const p of HOTSPOTS) {
+    if (p.kind === 'personal') continue;
+    const v = valueFor(p);
+    if (v !== null && v > 0) vals.push(v);
+  }
+  return quantileClasses(vals, 5);
+}
+function reading(p, tiers) {
+  if (p.kind === 'personal') return { state: 'personal' };
+  if (state.mode === 'default') return { state: 'default' };
+  if (state.mode === 'activity') {
+    const a = state.answers.get(p.id);
+    if (!a) return { state: 'unanswered' };
+    const v = state.win === 7 ? a.w : a.m;
+    if (v === 0) return { state: 'quiet', at: a.at };
+    return { state: 'ramp', tier: tierFor(v, tiers), value: v, at: a.at };
+  }
+  if (!p.my) return { state: 'noData' };
+  const v = state.mode === 'mySpecies' ? p.my.sp : p.my.cl;
+  if (v === 0) return { state: 'zero' };
+  return { state: 'ramp', tier: tierFor(v, tiers), value: v };
+}
+
+/* ── pin SVG ── */
+function glyphSvg(kind, color) {
+  if (kind === 'visited')
+    return `<path d="M8 15L12 19L20 11" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if (kind === 'unvisited')
+    return `<circle cx="10" cy="13" r="3.5" fill="${color}"/><circle cx="18" cy="13" r="3.5" fill="${color}"/>`;
+  return `<path d="M14 6L15.5 11L20.5 11L16.5 14.2L18 19L14 16L10 19L11.5 14.2L7.5 11L12.5 11Z" fill="${color}"/>`;
+}
+function pinSvg(p, r, opts = {}) {
+  const w = opts.w || 28, h = opts.h || 40;
+  const stroke = 'var(--sr-map-pin-stroke)';
+  let fill = KIND[p.kind], dash = '', inner = '', glyphColor = '#FFFFFF';
+  if (r.state === 'ramp')       fill = RAMP[r.tier - 1];
+  else if (r.state === 'unanswered') { fill = 'var(--sr-hotspot-unanswered)'; dash = 'stroke-dasharray="3 2.6"'; }
+  else if (r.state === 'quiet' || r.state === 'zero') {
+    fill = 'var(--sr-hotspot-zero)';
+    inner = `<circle cx="14" cy="14" r="8.5" fill="var(--sr-hotspot-pale)"/>`;
+    glyphColor = '#43424A';
+  }
+  else if (r.state === 'noData') { fill = 'var(--sr-hotspot-nodata)'; glyphColor = '#52525B'; }
+  return `<svg width="${w}" height="${h}" viewBox="0 0 28 40" role="img">
+    <path class="bulb" d="${TEARDROP}" fill="${fill}" stroke="${stroke}" stroke-width="1.5" ${dash}/>
+    ${inner}${glyphSvg(p.kind, glyphColor)}
+  </svg>`;
+}
+
+/* ── mode + status wording ── */
+function fmtWin() { return state.win === 7 ? 'week' : '30 days'; }
+function modeLineFor(p, r) {
+  if (r.state === 'ramp') {
+    if (state.mode === 'mySpecies')    return { sw: RAMP[r.tier-1], text: `My species: ${r.value}` };
+    if (state.mode === 'myChecklists') return { sw: RAMP[r.tier-1], text: `My checklists: ${r.value}` };
+    return { sw: RAMP[r.tier-1], text: `${r.value} species reported in the last ${fmtWin()}` };
+  }
+  if (r.state === 'zero')       return { sw: 'var(--sr-hotspot-pale)', text: 'My species: 0' };
+  if (r.state === 'noData')     return { sw: 'var(--sr-hotspot-nodata)', text: 'You have not birded this hotspot' };
+  if (r.state === 'quiet')      return { sw: 'var(--sr-hotspot-pale)', text: `No species reported in the last ${fmtWin()}` };
+  if (r.state === 'unanswered') return { sw: 'var(--sr-hotspot-unanswered)', text: 'Activity not checked yet' };
+  return null;
+}
+
+/* ================================================================
+   Rendering
+   ================================================================ */
+const pinLayer  = document.getElementById('pinLayer');
+const popupHost = document.getElementById('popupHost');
+const pinEls    = new Map();
+
+/* Pins are built ONCE and patched in place, so the bulb's fill cross-fades on a
+   mode switch instead of the node being recreated (the GL layer's analogue:
+   readings are props, never part of the remount key). */
+function buildPins() {
+  const sorted = [...HOTSPOTS].sort((a, b) => a.y - b.y);
+  let html = '';
+  for (const p of sorted) {
+    html += `<button class="pin" data-id="${p.id}" data-hidden="0" tabindex="0"
+      style="left:${(p.x/830*100)}%; top:${(p.y/680*100)}%" aria-label="${p.name}">
+      <svg width="28" height="40" viewBox="0 0 28 40" role="img">
+        <path class="bulb" d="${TEARDROP}" stroke="var(--sr-map-pin-stroke)" stroke-width="1.5"/>
+        <circle class="inner" cx="14" cy="14" r="8.5" fill="var(--sr-hotspot-pale)" style="display:none"/>
+        <g class="glyph">${glyphSvg(p.kind, '#FFFFFF')}</g>
+      </svg></button>`;
+  }
+  pinLayer.innerHTML = html;
+  pinLayer.querySelectorAll('.pin').forEach(el => {
+    pinEls.set(el.dataset.id, {
+      btn: el,
+      bulb: el.querySelector('.bulb'),
+      inner: el.querySelector('.inner'),
+      glyph: el.querySelector('.glyph'),
+    });
+    el.addEventListener('click', () => {
+      state.selected = state.selected === el.dataset.id ? null : el.dataset.id;
+      renderPopup(); renderList();
+    });
+  });
+}
+
+function paintPins(arrivedId) {
+  const tiers = currentTiers();
+  for (const p of HOTSPOTS) {
+    const P = pinEls.get(p.id);
+    if (!P) continue;
+    const r = reading(p, tiers);
+    let fill = KIND[p.kind], dash = false, inner = false, glyphColor = '#FFFFFF';
+    if (r.state === 'ramp') fill = RAMP[r.tier - 1];
+    else if (r.state === 'unanswered') { fill = 'var(--sr-hotspot-unanswered)'; dash = true; }
+    else if (r.state === 'quiet' || r.state === 'zero') { fill = 'var(--sr-hotspot-zero)'; inner = true; glyphColor = '#43424A'; }
+    else if (r.state === 'noData') { fill = 'var(--sr-hotspot-nodata)'; glyphColor = '#52525B'; }
+    P.bulb.style.fill = fill;
+    if (dash) P.bulb.setAttribute('stroke-dasharray', '3 2.6');
+    else P.bulb.removeAttribute('stroke-dasharray');
+    P.inner.style.display = inner ? '' : 'none';
+    P.glyph.querySelectorAll('path, circle').forEach(n => {
+      if (p.kind === 'visited') n.style.stroke = glyphColor; else n.style.fill = glyphColor;
+    });
+    P.btn.dataset.hidden = state.hidden.has(p.kind) ? '1' : '0';
+    if (arrivedId === p.id && !reducedMotion) {
+      P.btn.classList.remove('arrive'); void P.btn.offsetWidth; P.btn.classList.add('arrive');
+    }
+  }
+  renderPopup();
+}
+
+function renderPopup() {
+  const p = HOTSPOTS.find(h => h.id === state.selected);
+  if (!p || state.hidden.has(p.kind)) { popupHost.innerHTML = ''; return; }
+  const tiers = currentTiers();
+  const r = reading(p, tiers);
+  const ml = modeLineFor(p, r);
+  let body = `<div class="pname">${p.name}</div>`;
+  if (ml) body += `<div class="modeline"><span class="sw" style="background:${ml.sw}"></span><span>${ml.text}</span></div>`;
+  if (r.state === 'zero')  body += `<div class="mut">Only spuh and slash entries so far.</div>`;
+  if (r.state === 'quiet') body += `<div class="mut">Quiet right now. An answer, not a gap.</div>`;
+  if (r.state === 'ramp' && state.mode === 'activity' && state.cachedNote)
+    body += `<div class="mut">From cache, fetched 9:40 AM.</div>`;
+  if (p.kind === 'personal') {
+    body += `<div class="ptag">Personal Location</div>
+      <div class="mut">${p.obs} observations</div>
+      <div class="mut">Last visit: ${p.last}</div>`;
+  } else if (p.kind === 'visited') {
+    body += `<div class="shipped">${p.raw} species recorded</div>
+      <div class="mut">Last visit: ${p.last}</div>
+      <span class="ebd" role="link" tabindex="0">View on eBird <span aria-hidden="true">→</span></span>`;
+  } else {
+    body += `<span class="ebd" role="link" tabindex="0">View on eBird <span aria-hidden="true">→</span></span>`;
+  }
+  popupHost.innerHTML = `<div class="popup" style="left:${(p.x/830*100)}%; top: calc(${(p.y/680*100)}% - 46px)">
+    <button class="close" aria-label="Close popup">×</button>${body}</div>`;
+  popupHost.querySelector('.close').addEventListener('click', () => { state.selected = null; renderPopup(); });
+}
+
+/* legend */
+function legendMini(p, r) { return pinSvg(p, r, { w: 18, h: 26 }); }
+function renderLegend() {
+  const el = document.getElementById('legendBody');
+  const tiers = currentTiers();
+  const counts = { visited:0, unvisited:0, personal:0 };
+  HOTSPOTS.forEach(p => counts[p.kind]++);
+
+  if (state.mode === 'default') {
+    let html = `<div class="sb-note">Click a row to hide or show that pin category.</div>`;
+    for (const [label, kind] of [['Visited','visited'],['Unvisited','unvisited'],['Personal','personal']]) {
+      const pressed = !state.hidden.has(kind);
+      html += `<button class="lgrow-kind" data-kind="${kind}" aria-pressed="${pressed}" tabindex="0">
+        ${pinSvg({kind}, {state:'default'}, {w:22, h:31})}
+        <span><span class="nm">${label}</span><span class="ct">${counts[kind]}</span></span></button>`;
+    }
+    el.innerHTML = html;
+  } else {
+    const unit = state.mode === 'myChecklists' ? 'your checklists' : 'your countable species';
+    const title = state.mode === 'activity'
+      ? `Recent activity <span class="win">· species in the last ${fmtWin()}</span>`
+      : `${MODE_LABEL[state.mode]} <span class="win">· ${unit} per hotspot, this search</span>`;
+    let html = `<div class="legend-title">${title}</div>`;
+
+    // ramp rows with true per-class ranges
+    const classVals = tiers.map(() => []);
+    for (const p of HOTSPOTS) {
+      if (p.kind === 'personal') continue;
+      const v = valueFor(p);
+      if (v !== null && v > 0) classVals[tierFor(v, tiers) - 1].push(v);
+    }
+    tiers.forEach((ub, i) => {
+      const vs = classVals[i];
+      const mn = vs.length ? Math.min(...vs) : ub, mx = vs.length ? Math.max(...vs) : ub;
+      const rng = mn === mx ? `${mn}` : `${mn}–${mx}`;
+      html += `<div class="lgrow">${legendMini({kind:'visited'}, {state:'ramp', tier:i+1})}<span class="rng">${rng}</span></div>`;
+    });
+
+    // states in effect
+    if (state.mode !== 'activity') {
+      html += `<div class="lgrow">${legendMini({kind:'unvisited'}, {state:'noData'})}<span class="meaning">Not birded by you</span></div>`;
+      if (state.mode === 'mySpecies' && HOTSPOTS.some(p => p.my && p.my.sp === 0))
+        html += `<div class="lgrow">${legendMini({kind:'visited'}, {state:'zero'})}<span class="meaning">Visited, 0 countable species</span></div>`;
+    } else {
+      const anyQuiet = HOTSPOTS.some(p => { const a = state.answers.get(p.id); return a && (state.win === 7 ? a.w : a.m) === 0; });
+      const anyUnanswered = HOTSPOTS.some(p => p.kind !== 'personal' && !state.answers.get(p.id));
+      if (anyQuiet)      html += `<div class="lgrow">${legendMini({kind:'visited'}, {state:'quiet'})}<span class="meaning">Quiet, no reports in this window</span></div>`;
+      if (anyUnanswered) html += `<div class="lgrow">${legendMini({kind:'unvisited'}, {state:'unanswered'})}<span class="meaning">Not checked yet</span></div>`;
+    }
+    html += `<div class="lgrow">${legendMini({kind:'personal'}, {state:'personal'})}<span class="meaning">Personal location</span></div>`;
+
+    // kind filter chips (FR-23 keeps working under a mode)
+    html += `<div class="sb-note" style="margin:10px 0 0">Show or hide kinds. Glyphs carry the kind while a mode is active.</div>
+      <div class="kindchips">
+        <button class="kindchip" data-kind="visited"   aria-pressed="${!state.hidden.has('visited')}"   tabindex="0"><span class="cticon">✓</span> Visited <span class="ctn">${counts.visited}</span></button>
+        <button class="kindchip" data-kind="unvisited" aria-pressed="${!state.hidden.has('unvisited')}" tabindex="0"><span class="cticon">••</span> Unvisited <span class="ctn">${counts.unvisited}</span></button>
+        <button class="kindchip" data-kind="personal"  aria-pressed="${!state.hidden.has('personal')}"  tabindex="0"><span class="cticon">★</span> Personal <span class="ctn">${counts.personal}</span></button>
+      </div>`;
+    el.innerHTML = html;
+  }
+  el.querySelectorAll('[data-kind]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const k = btn.dataset.kind;
+      state.hidden.has(k) ? state.hidden.delete(k) : state.hidden.add(k);
+      renderAll();
+    });
+  });
+}
+
+/* in-view list */
+function renderList() {
+  const el = document.getElementById('inviewList');
+  const tiers = currentTiers();
+  const order = { visited: 0, unvisited: 1, personal: 2 };
+  const shown = HOTSPOTS.filter(p => !state.hidden.has(p.kind))
+    .sort((a, b) => order[a.kind] - order[b.kind] || a.name.localeCompare(b.name))
+    .slice(0, 8);
+  let html = '';
+  for (const p of shown) {
+    const r = reading(p, tiers);
+    let dot = `background:${KIND[p.kind]}`, dotCls = '';
+    let sec = p.kind === 'visited' ? `Visited · ${p.raw} species`
+            : p.kind === 'personal' ? `Personal location · ${p.obs} observations` : 'Unvisited hotspot';
+    let val = '';
+    if (r.state === 'ramp') { dot = `background:${RAMP[r.tier-1]}`; val = `<span class="val">${r.value}</span>`; }
+    else if (r.state === 'noData') { dot = `background:var(--sr-hotspot-nodata)`; val = `<span class="val mut">not birded</span>`; }
+    else if (r.state === 'zero' || r.state === 'quiet') { dotCls = ' hollow'; val = `<span class="val mut">0</span>`; }
+    else if (r.state === 'unanswered') { dot = `background:var(--sr-hotspot-unanswered)`; dotCls = ' dashed'; val = `<span class="val mut">…</span>`; }
+    html += `<button class="ivrow" data-id="${p.id}" tabindex="0" aria-pressed="${state.selected === p.id}">
+      <span class="dot${dotCls}" style="${dot}"></span>
+      <span class="txt"><span class="nm">${p.name}</span><span class="sec">${sec}</span></span>${val}</button>`;
+  }
+  html += `<div class="sb-note" style="margin-top:6px">Showing 8 of ${HOTSPOTS.length}. Every pin's value or state is read here too, no color needed.</div>`;
+  el.innerHTML = html;
+  el.querySelectorAll('.ivrow').forEach(rw => rw.addEventListener('click', () => {
+    state.selected = rw.dataset.id; renderPopup(); renderList();
+  }));
+}
+
+/* status line */
+function setStatus(html, showTrack, pct) {
+  document.getElementById('statusLine').innerHTML = html;
+  const track = document.getElementById('progressTrack');
+  track.style.display = showTrack ? 'block' : 'none';
+  if (showTrack) document.getElementById('progressFill').style.width = (pct || 0) + '%';
+}
+
+/* mode 3 progressive pass */
+let passTimer = null;
+function runActivityPass() {
+  const targets = HOTSPOTS.filter(p => p.kind !== 'personal');
+  if (state.fetchedOnce) {   // cache hit: instant recolor, zero requests
+    targets.forEach(p => state.answers.set(p.id, { w: p.act.w, m: p.act.m, at: '9:40 AM' }));
+    state.cachedNote = true;
+    setStatus('Activity from cache, fetched 9:40 AM.', false);
+    renderAll();
+    return;
+  }
+  state.running = true; state.cachedNote = false;
+  state.answers.clear();
+  renderAll();
+  const queue = [...targets].sort(() => Math.random() - 0.5);
+  let done = 0;
+  const total = queue.length;
+  const step = () => {
+    if (state.mode !== 'activity') { state.running = false; return; }  // FR-17: stop launching
+    const batch = queue.splice(0, reducedMotion ? total : 1);
+    for (const p of batch) {
+      state.answers.set(p.id, { w: p.act.w, m: p.act.m, at: 'just now' });
+      done++;
+    }
+    const last = batch[batch.length - 1];
+    setStatus(`<span class="spin"></span> Checking activity: ${done} of ${total} hotspots`, true, done / total * 100);
+    paintPins(last ? last.id : null); renderLegend(); renderList();
+    if (queue.length > 0) passTimer = setTimeout(step, reducedMotion ? 10 : 150);
+    else {
+      state.running = false; state.fetchedOnce = true;
+      setStatus(`All ${total} hotspots checked just now.`, false);
+    }
+  };
+  setStatus(`<span class="spin"></span> Checking activity: 0 of ${total} hotspots`, true, 0);
+  passTimer = setTimeout(step, reducedMotion ? 10 : 350);
+}
+
+/* master render */
+function renderAll() {
+  document.querySelectorAll('.modepill[data-mode]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode)));
+  document.querySelectorAll('.modepill[data-win]').forEach(b =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.win) === state.win)));
+  document.getElementById('windowRow').classList.toggle('open', state.mode === 'activity');
+  paintPins(); renderLegend(); renderList();
+}
+
+/* ── wiring ── */
+document.querySelectorAll('.modepill[data-mode]').forEach(b => b.addEventListener('click', () => {
+  if (state.mode === b.dataset.mode) return;
+  clearTimeout(passTimer);
+  state.mode = b.dataset.mode;
+  if (state.mode !== 'activity') { state.running = false; setStatus('', false); }
+  renderAll();
+  if (state.mode === 'activity') runActivityPass();
+}));
+document.querySelectorAll('.modepill[data-win]').forEach(b => b.addEventListener('click', () => {
+  state.win = Number(b.dataset.win);
+  if (state.mode === 'activity' && !state.running && state.answers.size > 0)
+    setStatus(state.cachedNote ? 'Activity from cache, fetched 9:40 AM. Window switches never refetch.'
+                               : 'Window switched. Zero new requests, one cached call answers both.', false);
+  renderAll();
+}));
+document.getElementById('resetCache').addEventListener('click', () => {
+  clearTimeout(passTimer);
+  state.fetchedOnce = false; state.answers.clear(); state.cachedNote = false;
+  if (state.mode === 'activity') runActivityPass(); else renderAll();
+});
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const root = document.documentElement;
+  const dark = root.getAttribute('data-theme') !== 'dark';
+  root.setAttribute('data-theme', dark ? 'dark' : 'light');
+  const btn = document.getElementById('themeToggle');
+  btn.textContent = dark ? 'Light theme' : 'Dark theme';
+  btn.setAttribute('aria-pressed', String(dark));
+});
+
+/* ================================================================
+   Frame sections
+   ================================================================ */
+// swatches
+(function () {
+  const rows = [
+    ['Class 1', '#2C89AA', 'fewest'], ['Class 2', '#24709A', ''], ['Class 3', '#1C5883', ''],
+    ['Class 4', '#153F63', ''], ['Class 5', '#0E2A47', 'most'],
+    ['Not checked', '#6A6A72', 'dashed ring'], ['Zero / quiet', '#565661', 'hollow'],
+    ['Never birded', '#EDE9E3', 'pale, ring-bounded'],
+  ];
+  document.getElementById('swatchRow').innerHTML = rows.map(([nm, hex, note]) =>
+    `<div class="swx"><div class="chip" style="background:${hex}"></div><b>${nm}</b><span class="hex">${hex}</span>${note ? `<span class="note">${note}</span>` : ''}</div>`
+  ).join('');
+})();
+
+// grayscale + structural strip
+(function () {
+  const figs = [];
+  for (let t = 1; t <= 5; t++)
+    figs.push({ p: { kind: 'visited' }, r: { state: 'ramp', tier: t }, cap: `Class ${t}` });
+  figs.push({ p: { kind: 'unvisited' }, r: { state: 'unanswered' }, cap: 'Not checked (dashed)' });
+  figs.push({ p: { kind: 'visited' },   r: { state: 'quiet' },      cap: 'Zero or quiet (hollow)' });
+  figs.push({ p: { kind: 'unvisited' }, r: { state: 'noData' },     cap: 'Never birded (pale)' });
+  figs.push({ p: { kind: 'personal' },  r: { state: 'personal' },   cap: 'Personal (shipped)' });
+  const mk = gs => figs.map(f =>
+    `<div class="pinfig ${gs ? 'gs' : ''}">${pinSvg(f.p, f.r)}<span>${f.cap}</span></div>`).join('');
+  document.getElementById('grayRow').innerHTML =
+    mk(false) + `<div style="width:1px;align-self:stretch;background:var(--sr-border)"></div>` + mk(true);
+})();
+
+// coexistence cards
+(function () {
+  const pins = (xs) => xs.map(([x, y, t, k]) =>
+    `<div style="position:absolute;left:${x}px;top:${y}px;transform:translate(-14px,-40px)">${pinSvg({ kind: k }, { state: 'ramp', tier: t })}</div>`).join('');
+  document.getElementById('coexCounty').innerHTML =
+    `<div style="position:absolute;inset:0;background:#F1EEE7">
+       <div style="position:absolute;inset:0 40% 0 0;background:#5FA47B;opacity:0.85"></div>
+       <div style="position:absolute;inset:0 0 0 60%;background:#2E7A52;opacity:0.85"></div>
+     </div>` + pins([[50,105,1,'visited'],[125,98,3,'unvisited'],[205,108,5,'visited']]) +
+    `<div class="lbl">County shading on</div>`;
+  document.getElementById('coexAtlas').innerHTML =
+    `<div style="position:absolute;inset:0;background:#F1EEE7">
+       <div style="position:absolute;inset:0 40% 0 0;background:#C084FC;opacity:0.55"></div>
+       <div style="position:absolute;inset:0 0 0 60%;background:#3B0764;opacity:0.55"></div>
+     </div>` + pins([[50,105,1,'visited'],[125,98,3,'unvisited'],[205,108,5,'visited']]) +
+    `<div class="lbl">Atlas shading on</div>`;
+})();
+
+// popup gallery
+(function () {
+  const card = (tag, body) => `<div class="popcard"><div class="tag">${tag}</div>${body}</div>`;
+  const sw = c => `<span class="sw" style="background:${c}"></span>`;
+  const g = [];
+  g.push(card('My species · on the ramp', `
+    <div class="pname">Coyote Hills Regional Park</div>
+    <div class="modeline">${sw('#0E2A47')}<span>My species: 142</span></div>
+    <div class="shipped">156 species recorded</div>
+    <div class="mut">Last visit: Aug 23, 2026</div>
+    <span class="ebd">View on eBird <span aria-hidden="true">→</span></span>`));
+  g.push(card('My species · visited, zero countable', `
+    <div class="pname">Ardenwood Historic Farm</div>
+    <div class="modeline">${sw('#F1EEE8')}<span>My species: 0</span></div>
+    <div class="mut">Only spuh and slash entries so far.</div>
+    <div class="shipped">1 species recorded</div>
+    <div class="mut">Last visit: Mar 22, 2026</div>`));
+  g.push(card('Any personal mode · never birded', `
+    <div class="pname">Eden Landing Ecological Reserve</div>
+    <div class="modeline">${sw('#EDE9E3')}<span>You have not birded this hotspot</span></div>
+    <span class="ebd">View on eBird <span aria-hidden="true">→</span></span>`));
+  g.push(card('Recent activity · current', `
+    <div class="pname">Hayward Regional Shoreline</div>
+    <div class="modeline">${sw('#153F63')}<span>47 species reported in the last week</span></div>
+    <div class="shipped">88 species recorded</div>
+    <div class="mut">Last visit: Aug 22, 2026</div>
+    <span class="ebd">View on eBird <span aria-hidden="true">→</span></span>`));
+  g.push(card('Recent activity · cached', `
+    <div class="pname">Quarry Lakes Regional Recreation Area</div>
+    <div class="modeline">${sw('#1C5883')}<span>57 species reported in the last 30 days</span></div>
+    <div class="mut">From cache, fetched 9:40 AM.</div>
+    <span class="ebd">View on eBird <span aria-hidden="true">→</span></span>`));
+  g.push(card('Recent activity · quiet', `
+    <div class="pname">Elsie Roemer Bird Sanctuary</div>
+    <div class="modeline">${sw('#F1EEE8')}<span>No species reported in the last week</span></div>
+    <div class="mut">Quiet right now. An answer, not a gap.</div>
+    <span class="ebd">View on eBird <span aria-hidden="true">→</span></span>`));
+  g.push(card('Recent activity · not checked yet', `
+    <div class="pname">Sunol Regional Wilderness</div>
+    <div class="modeline">${sw('#6A6A72')}<span>Activity not checked yet</span></div>
+    <span class="ebd">View on eBird <span aria-hidden="true">→</span></span>`));
+  g.push(card('Any mode · personal location', `
+    <div class="pname">Backyard, Fruitvale</div>
+    <div class="ptag">Personal Location</div>
+    <div class="mut">214 observations</div>
+    <div class="mut">Last visit: Aug 24, 2026</div>
+    <div class="mut">Personal pins keep their orange star in every mode.</div>`));
+  document.getElementById('popGallery').innerHTML = g.join('');
+})();
+
+/* Escape closes the popup (one close path, the house overlay rule) */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && state.selected) { state.selected = null; renderPopup(); renderList(); }
+});
+
+/* boot */
+buildPins();
+renderAll();
+</script>
+</body>
+</html>

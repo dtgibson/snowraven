@@ -1,5 +1,6 @@
 import asyncio
 import os
+import re
 import time
 from urllib.parse import quote
 
@@ -12,6 +13,33 @@ from routers.taxonomy import collapse_to_species_list
 router = APIRouter()
 
 _EBIRD_BASE = "https://api.ebird.org/v2"
+
+# ── The hotspot-activity 429 contract (the pre-deploy pacing revision) ────────
+# Identical on both transports (fixture-locked: hotspotActivity.fixture.json
+# rateLimit — the Tauri twin throws the same detail string).
+_RATE_LIMIT_DETAIL = "eBird is limiting requests right now. Try again in a moment."
+
+_RETRY_AFTER_CAP_SEC = 60
+# Seconds form only, 1-3 digits (length-bounded). Explicit [0-9], never \d
+# (Python's \d matches Unicode digits — the v0.5.54 twinned-guard rule), and
+# fullmatch, the house form for a hand-called guard (a trailing newline must
+# not pass — the pydantic pattern= carve-out does NOT apply here, this is
+# stdlib re, not a Rust-regex constraint).
+_RETRY_AFTER_RE = re.compile(r"[0-9]{1,3}")
+
+
+def _parse_retry_after_seconds(value) -> int | None:
+    """Twin of frontend lib/rateLimit.ts parseRetryAfterSeconds — the shared
+    fixture's rateLimit.retryAfterRows pin both member by member. Returns
+    bounded whole seconds, or None for absent/malformed/zero (an HTTP-date
+    form parses as None; the client's default backoff covers it). Values over
+    the cap are capped, not rejected."""
+    if not isinstance(value, str) or _RETRY_AFTER_RE.fullmatch(value) is None:
+        return None
+    n = int(value)
+    if n < 1:
+        return None
+    return min(n, _RETRY_AFTER_CAP_SEC)
 
 
 def _api_key() -> str:
@@ -112,6 +140,91 @@ async def get_county_species(
         # an honest, retryable server error instead of a Y that counted nothing.
         raise HTTPException(status_code=502, detail="Could not load the eBird taxonomy. Try again.")
     return {"regionCode": regionCode, "speciesCount": len(species), "species": species}
+
+
+@router.get("/map/hotspot-activity")
+async def get_hotspot_activity(
+    locId: str = Query(..., min_length=2, max_length=11, pattern=r"^L[0-9]{1,10}$"),
+):
+    """Recent community activity for ONE public hotspot: eBird
+    data/obs/{locId}/recent with back=30 (eBird accepts a locId as the region
+    code — the same accepts-a-narrow-region pattern county-species uses with
+    product/spplist). Response is reduced to one (speciesCode, obsDt) pair per
+    species — the most recent report of each — from which the client derives
+    both the 30-day and 7-day counts (one call serves both windows, FR-16).
+
+    SSRF: the only interpolated value is locId, constrained to ^L[0-9]{1,10}$ —
+    a character class that cannot express a scheme, host, credential, '?', '@',
+    or path separator, so the destination cannot be steered; quote(locId,
+    safe='') is belt-and-braces. `back` is a fixed literal (no numeric query
+    params at all, which satisfies the bounded-numeric-params rule by having
+    none). The shared client does not follow redirects, and the upstream body
+    is reduced, never reflected. The pattern uses explicit [0-9] (never \\d —
+    pydantic's Rust regex treats \\d as Unicode digits) and stays a `pattern=`
+    constraint (the documented carve-out: the Rust engine rejects a trailing
+    newline itself; do NOT "fix" it toward fullmatch). Desktop twin:
+    mapService.getHotspotActivity — keep both in lockstep (shared fixture
+    parity test, frontend/src/lib/hotspotActivity.fixture.json). Deliberately
+    NOT in the frontend's CACHED_GET_PATHS: the 6-hour persistent
+    hotspotActivityCache is the single caching layer for this route (no backend
+    in-process cache either — one caching layer per call)."""
+    key = _api_key()
+    client = get_client()
+    try:
+        resp = await client.get(
+            f"{_EBIRD_BASE}/data/obs/{quote(locId, safe='')}/recent",
+            params={"back": 30, "fmt": "json"},
+            headers={"X-eBirdApiToken": key},
+            timeout=10.0,
+        )
+        resp.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 429:
+            # Re-surface the rate limit AS a 429 so the client's activity pass
+            # can pace itself (brief slowdown + bounded retries) instead of
+            # shedding the hotspot as a generic error. Retry-After is
+            # re-serialized from a validated bounded integer — the upstream
+            # header value is never reflected raw (and the body is our own
+            # fixed detail, never eBird's).
+            retry_after = _parse_retry_after_seconds(
+                exc.response.headers.get("Retry-After")
+            )
+            raise HTTPException(
+                status_code=429,
+                detail=_RATE_LIMIT_DETAIL,
+                headers={"Retry-After": str(retry_after)} if retry_after is not None else None,
+            )
+        raise HTTPException(
+            status_code=502,
+            detail=f"eBird API error: {exc.response.status_code}",
+        )
+    except httpx.RequestError:
+        raise HTTPException(status_code=502, detail="Could not reach the eBird API.")
+
+    raw = resp.json()
+    # Reduce: keep a record only when speciesCode and obsDt are both non-empty
+    # strings; dedupe by speciesCode keeping the lexicographically greatest
+    # obsDt (ISO-style dates compare correctly as strings — the documented
+    # /map/recent-obs reasoning); first-seen order (dict insertion), matching
+    # the JS twin's Map insertion order. Nothing else from upstream crosses.
+    best: dict[str, str] = {}
+    if isinstance(raw, list):
+        for obs in raw:
+            if not isinstance(obs, dict):
+                continue
+            code = obs.get("speciesCode")
+            obs_dt = obs.get("obsDt")
+            if not isinstance(code, str) or not code:
+                continue
+            if not isinstance(obs_dt, str) or not obs_dt:
+                continue
+            prev = best.get(code)
+            if prev is None or obs_dt > prev:
+                best[code] = obs_dt
+    return {
+        "locId": locId,
+        "species": [{"speciesCode": c, "obsDt": d} for c, d in best.items()],
+    }
 
 
 # ── Codes-independent recent-obs cache (TIDY #3) ──────────────────────────────

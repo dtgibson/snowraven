@@ -2,6 +2,19 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [0.5.92] - 2026-08-24
+
+Color the hotspot pins by what you want to know.
+
+### Added
+- **Three opt-in color modes for the Map Explorer's Hotspots view.** A new "Color pins by" control in the Hotspots panel recolors the pins by **My species** (how many countable species you have personally reported at each hotspot), **My checklists** (how many checklists you have submitted there), or **Recent activity** (how many species the whole eBird community has reported there in the last week or last 30 days). The shipped visited / unvisited / personal coloring stays the default, and nothing changes until you opt in. The choice is per-session, resetting on relaunch.
+
+  Values land on a five-class cyan-blue ramp whose breaks are quantiles of the current result set, so the busiest and quietest hotspots in view separate cleanly. The legend reveals itself when a mode turns on and shows each class's true value range, and the hotspot popup and the "Hotspots in view" list state each pin's number in words, so the reading never depends on perceiving color. The visited / unvisited distinction stays on every pin as its glyph, and the legend's hide/show filters keep working as glyph chips.
+
+  My species and My checklists work fully offline from your loaded backup: switching among them and the default issues no network requests at all. My species counts by the app's usual countable rule (subspecies fold into species; spuhs and slashes do not count), so its number can honestly differ from the popup's raw "species recorded" line; both render, labeled.
+
+  Recent activity asks eBird about each public hotspot in the current result set, with your own key, device to provider. One call answers both windows, so flipping Week and 30 days never refetches. Fetching is bounded (four at a time, at most 200 hotspots per search, on your screen first, then nearest your search center) and gently paced, and if eBird asks the app to slow down, the pass pauses briefly, says so in the progress line, and resumes on its own; a hotspot that stays rate limited through its retries lands in the honest "not checked yet" state, and Retry re-asks it. Answers are cached for six hours across sessions, and pins color one by one as they arrive. The four honest non-values can never be confused: a hollow pin means "asked, zero" (in your data, or quietly, in the community's), a dashed gray pin means "not checked yet", and a pale pin means "never birded by you". Offline, a missing eBird key, and a lookup failure each say exactly what is wrong, previously fetched values still show with their fetched time, and Retry re-asks only what is missing without re-running the hotspot search.
+
 ## [0.5.91] - 2026-08-19
 
 Search the part of the map you are actually looking at, in one press.

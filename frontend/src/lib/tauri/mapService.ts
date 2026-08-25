@@ -1,6 +1,11 @@
 import { tauriFetch } from './http';
 import { storage } from '../storage';
 import { cachedGet } from '../networkCache';
+import {
+  HOTSPOT_ACTIVITY_LOC_ID_RE, reduceActivityRecords,
+  type HotspotActivityPayload,
+} from '../hotspotActivity';
+import { EBIRD_RATE_LIMIT_DETAIL, parseRetryAfterSeconds } from '../rateLimit';
 
 const EBIRD_BASE = 'https://api.ebird.org/v2';
 
@@ -83,6 +88,52 @@ export async function getCountySpecies(regionCode: string): Promise<CountySpecie
   const { collapseToSpeciesList } = await import('./taxonomyService');
   const species = await collapseToSpeciesList(codes);
   return { regionCode, speciesCount: species.length, species };
+}
+
+/** Recent community activity for ONE public hotspot: eBird
+ *  data/obs/{locId}/recent with back=30, reduced to one (speciesCode, obsDt)
+ *  pair per species — the most recent report of each. Mirrors backend
+ *  GET /map/hotspot-activity (dual-transport parity — keep both in lockstep;
+ *  the shared fixture hotspotActivity.fixture.json pins reduction AND id
+ *  validation on both transports). The locId guard is the single-sourced
+ *  compiled HOTSPOT_ACTIVITY_LOC_ID_RE (JS `$` never matches before a trailing
+ *  newline, so anchor parity with the backend's Rust-regex `pattern=` holds by
+ *  construction). Deliberately NOT in CACHED_GET_PATHS: the 6-hour persistent
+ *  hotspotActivityCache is the single caching layer for this call. */
+export async function getHotspotActivity(locId: string): Promise<HotspotActivityPayload> {
+  if (!HOTSPOT_ACTIVITY_LOC_ID_RE.test(locId)) {
+    throw Object.assign(
+      new Error('Invalid hotspot location id.'),
+      { status: 422, detail: 'Invalid hotspot location id.' }
+    );
+  }
+  const headers = await ebirdHeaders();
+  const url = `${EBIRD_BASE}/data/obs/${encodeURIComponent(locId)}/recent?back=30&fmt=json`;
+  const res = await tauriFetch(url, { headers });
+  if (!res.ok) {
+    // A 429 is the rate-limit shape, kept distinguishable from the generic
+    // error so the activity pass can pace itself instead of shedding the
+    // hotspot (parity with the FastAPI route's own 429 — the shared fixture's
+    // rateLimit rows pin both). retryAfterSec is attached only when the
+    // header parses (validated + bounded, never the raw string).
+    if (res.status === 429) {
+      const retryAfterSec = parseRetryAfterSeconds(res.headers.get('Retry-After'));
+      throw Object.assign(
+        new Error(EBIRD_RATE_LIMIT_DETAIL),
+        {
+          status: 429,
+          detail: EBIRD_RATE_LIMIT_DETAIL,
+          ...(retryAfterSec !== null ? { retryAfterSec } : {}),
+        }
+      );
+    }
+    throw Object.assign(
+      new Error(`eBird API error: ${res.status}`),
+      { status: 502, detail: `eBird API error: ${res.status}` }
+    );
+  }
+  const raw = await res.json() as unknown;
+  return { locId, species: reduceActivityRecords(raw) };
 }
 
 export interface RecentObs {

@@ -182,11 +182,14 @@ function strokeColor(): string {
   return v || PIN_STROKE_FALLBACK
 }
 
-// White glyph per kind, matching the legend SVGs in MapExplorer: a check for
-// visited, two dots for unvisited, a star for personal.
-function drawGlyph(ctx: CanvasRenderingContext2D, kind: HotspotKind): void {
-  ctx.fillStyle = '#fff'
-  ctx.strokeStyle = '#fff'
+// Glyph per kind, matching the legend SVGs in MapExplorer: a check for
+// visited, two dots for unvisited, a star for personal. Default white; the
+// mode sprites flip it to a dark slate on the two pale-centered states
+// (design-spec, decisions.md item 6) — the default call sites are unchanged,
+// so the shipped kind sprites stay byte-identical.
+function drawGlyph(ctx: CanvasRenderingContext2D, kind: HotspotKind, color = '#fff'): void {
+  ctx.fillStyle = color
+  ctx.strokeStyle = color
   if (kind === 'visited') {
     ctx.lineWidth = 2.5
     ctx.lineCap = 'round'
@@ -253,5 +256,130 @@ export function teardropImageData(kind: HotspotKind, dpr: number): ImageData {
   ctx.lineWidth = 1.5
   ctx.stroke(teardrop)
   drawGlyph(ctx, kind)
+  return ctx.getImageData(0, 0, canvas.width, canvas.height)
+}
+
+// ── Hotspot color-mode sprites (color-coded-hotspots) ──────────────────────────
+//
+// The FIXED 16-sprite table for the Hotspots view's opt-in color modes
+// (schema.md / design-spec.md): 5 ramp tiers × 2 kinds, quiet × 2 kinds,
+// unanswered × 2 kinds, plus nodata (never-birded is unvisited by
+// construction) and zero (visited-with-zero is visited by construction).
+// Mode fills REPLACE the kind fill; the kind survives as the baked glyph
+// (FR-22). Fills read the --sr-hotspot-* tokens at bake time (theme
+// MutationObserver re-bake, same contract as the kind sprites); the glyph
+// colors on the two pale-centered states are sprite-baked literals under the
+// basemap-anchored GL exception (design-spec "Sprite-baked glyph literals").
+
+export type HotspotModeSpriteKey =
+  | 't1-visited' | 't2-visited' | 't3-visited' | 't4-visited' | 't5-visited'
+  | 't1-unvisited' | 't2-unvisited' | 't3-unvisited' | 't4-unvisited' | 't5-unvisited'
+  | 'quiet-visited' | 'quiet-unvisited'
+  | 'unanswered-visited' | 'unanswered-unvisited'
+  | 'nodata'
+  | 'zero'
+
+export const HOTSPOT_MODE_SPRITE_KEYS: HotspotModeSpriteKey[] = [
+  't1-visited', 't2-visited', 't3-visited', 't4-visited', 't5-visited',
+  't1-unvisited', 't2-unvisited', 't3-unvisited', 't4-unvisited', 't5-unvisited',
+  'quiet-visited', 'quiet-unvisited',
+  'unanswered-visited', 'unanswered-unvisited',
+  'nodata',
+  'zero',
+]
+
+/** Sprite id per mode key (referenced by the mode icon-image match). */
+export const HOTSPOT_MODE_IMAGE_ID: Record<HotspotModeSpriteKey, string> =
+  Object.fromEntries(HOTSPOT_MODE_SPRITE_KEYS.map(k => [k, `sr-pin-mode-${k}`])) as Record<HotspotModeSpriteKey, string>
+
+/** The hollow "answered zero" inner disc (zero + quiet states) — exported so
+ *  the sidebar legend minis derive from the SAME geometry the sprites bake
+ *  (the CountyDensitySwatch same-source precedent, NFR-10). */
+export const HOTSPOT_HOLLOW_DISC = { cx: 14, cy: 14, r: 8.5 } as const
+
+/** The unanswered state's dashed ring pattern. */
+export const HOTSPOT_DASH_PATTERN: readonly [number, number] = [3, 2.6]
+
+/** Sprite-baked glyph literals (design-spec): dark slate on the hollow pale
+ *  disc; dark gray on the nodata fill; white everywhere else. */
+export const HOTSPOT_GLYPH_ON_PALE = '#43424A'
+export const HOTSPOT_GLYPH_ON_NODATA = '#52525B'
+
+// Basemap-anchored fallbacks (theme-identical by design), used only when
+// getComputedStyle is unavailable or a token is missing (tests, very early
+// paint). Values = the design-spec token values.
+const HOTSPOT_TOKEN_FALLBACK: Record<string, string> = {
+  'hotspot-1': '#2C89AA',
+  'hotspot-2': '#24709A',
+  'hotspot-3': '#1C5883',
+  'hotspot-4': '#153F63',
+  'hotspot-5': '#0E2A47',
+  'hotspot-unanswered': '#6A6A72',
+  'hotspot-zero': '#565661',
+  'hotspot-nodata': '#EDE9E3',
+  'hotspot-pale': '#F1EEE8',
+}
+
+function hotspotToken(name: string): string {
+  const fallback = HOTSPOT_TOKEN_FALLBACK[name] ?? '#000000'
+  if (typeof document === 'undefined') return fallback
+  const v = getComputedStyle(document.documentElement).getPropertyValue(`--sr-${name}`).trim()
+  return v || fallback
+}
+
+/** The teardrop FILL token name for a mode sprite key. zero and quiet share
+ *  --sr-hotspot-zero deliberately (one semantic answer, distinct wording —
+ *  decisions.md item 1). */
+function modeFillTokenName(key: HotspotModeSpriteKey): string {
+  if (key === 'nodata') return 'hotspot-nodata'
+  if (key === 'zero' || key.startsWith('quiet')) return 'hotspot-zero'
+  if (key.startsWith('unanswered')) return 'hotspot-unanswered'
+  return `hotspot-${key.charAt(1)}` // t1..t5 → hotspot-1..hotspot-5
+}
+
+/** The KIND whose glyph a mode sprite bakes (FR-22's non-color channel):
+ *  nodata is unvisited by construction, zero is visited by construction. */
+export function modeSpriteKind(key: HotspotModeSpriteKey): Exclude<HotspotKind, 'personal'> {
+  if (key === 'nodata') return 'unvisited'
+  if (key === 'zero') return 'visited'
+  return key.endsWith('-visited') ? 'visited' : 'unvisited'
+}
+
+/**
+ * Build a mode teardrop sprite as ImageData: same 28×40 teardrop and dark
+ * stroke ring as the kind sprites; the mode state supplies the fill (ramp
+ * tier / zero / nodata / unanswered), the hollow inner disc on zero + quiet,
+ * the dashed ring on unanswered, and the glyph color. Same regenerate-on-
+ * theme-change contract as teardropImageData.
+ */
+export function modeTeardropImageData(key: HotspotModeSpriteKey, dpr: number): ImageData {
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(TEARDROP_W * dpr)
+  canvas.height = Math.round(TEARDROP_H * dpr)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('2D canvas context unavailable')
+  ctx.scale(dpr, dpr)
+  const teardrop = new Path2D(TEARDROP)
+  ctx.fillStyle = hotspotToken(modeFillTokenName(key))
+  ctx.fill(teardrop)
+  ctx.strokeStyle = strokeColor()
+  ctx.lineWidth = 1.5
+  const dashed = key.startsWith('unanswered')
+  if (dashed) ctx.setLineDash([...HOTSPOT_DASH_PATTERN])
+  ctx.stroke(teardrop)
+  if (dashed) ctx.setLineDash([])
+
+  const hollow = key === 'zero' || key.startsWith('quiet')
+  if (hollow) {
+    ctx.beginPath()
+    ctx.arc(HOTSPOT_HOLLOW_DISC.cx, HOTSPOT_HOLLOW_DISC.cy, HOTSPOT_HOLLOW_DISC.r, 0, Math.PI * 2)
+    ctx.fillStyle = hotspotToken('hotspot-pale')
+    ctx.fill()
+  }
+
+  const glyphColor = hollow ? HOTSPOT_GLYPH_ON_PALE
+    : key === 'nodata' ? HOTSPOT_GLYPH_ON_NODATA
+    : '#fff'
+  drawGlyph(ctx, modeSpriteKind(key), glyphColor)
   return ctx.getImageData(0, 0, canvas.width, canvas.height)
 }

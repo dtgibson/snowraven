@@ -23,7 +23,7 @@ import type { MediaFilter } from '../lib/observationMedia'
 import type { ObservationEntry } from '../types'
 import { BREEDING_CODES } from '../lib/breedingCodes'
 import { transport, TransportError } from '../lib/transport'
-import { classifyLiveError, OFFLINE_MESSAGE_SHORT, type LiveErrorKind } from '../lib/offlineMessage'
+import { classifyLiveError, formatLoadedTime, OFFLINE_MESSAGE_SHORT, type LiveErrorKind } from '../lib/offlineMessage'
 import { OfflineMessage } from './OfflineMessage'
 import { storage } from '../lib/storage'
 import { isIOS } from '../lib/platform'
@@ -62,11 +62,18 @@ import type {
   HotspotPin, TargetPin, DisplayTargetPin, LocationGroup, NearbyLiferLocation,
 } from '../lib/mapExplorerTypes'
 import {
+  buildHotspotPersonalStats, computeHotspotTiers, hotspotReading, readingSpriteKey,
+  hotspotLegendModel, hotspotPopupModeLine, hotspotListValue,
+  type HotspotColorMode, type ActivityWindow, type HotspotReading,
+} from '../lib/hotspotColorModes'
+import { useHotspotActivity } from '../lib/useHotspotActivity'
+import { HotspotModeControl } from './map/HotspotModeControl'
+import {
   distanceMiles, recencyTier, tierColors, radiusToZoom,
   MEDIA_ICONS, TEARDROP_HTML, SELECT_STYLE,
 } from '../lib/mapExplorerFormat'
 import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
-import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch, CountyCompletenessLegend } from './map/MapSidebarUI'
+import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch, CountyCompletenessLegend, HotspotModeMiniPin, HotspotModeDot, type HotspotModeMiniVariant } from './map/MapSidebarUI'
 import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
 import { SharePin } from './map/SharePin'
 import { SharePopup } from './map/SharePopup'
@@ -112,6 +119,24 @@ const SESSION_NOW_MS = Date.now()
 
 /** Stable empty reference for the passive provenance read before data loads. */
 const EMPTY_OBSERVATIONS: ObservationEntry[] = []
+
+/** Stable empty reference for the activity controller while no hotspot search
+ *  exists (a fresh array per render would re-trigger its pass effect). */
+const EMPTY_HOTSPOT_PINS: HotspotPin[] = []
+
+/** reading.state → the legend/list mini variant (zero and quiet share the
+ *  hollow drawing by design — one semantic answer, distinct wording). */
+function miniVariantFor(reading: HotspotReading): HotspotModeMiniVariant | null {
+  switch (reading.state) {
+    case 'ramp': return 'ramp'
+    case 'zero':
+    case 'quiet': return 'hollow'
+    case 'noData': return 'nodata'
+    case 'unanswered': return 'unanswered'
+    case 'personal': return 'personal'
+    default: return null
+  }
+}
 
 // A classified overlay error — the kind drives the OfflineMessage icon + token
 // palette + role so offline / no-key / server-error get three distinct, more-
@@ -301,6 +326,24 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   const [hotspotsError, setHotspotsError]     = useState<OverlayError | null>(null)
   const [legendVisible, setLegendVisible]     = useState(false)
   const [hiddenKinds, setHiddenKinds]         = useState<Set<HotspotPin['kind']>>(new Set())
+
+  // Hotspot color modes (color-coded-hotspots) — session-only plain useState
+  // (FR-02/NFR-08, the Point Size convention): survives tab switches because
+  // the tab stays mounted, resets on relaunch, never the storage seam.
+  const [hotspotColorMode, setHotspotColorMode] = useState<HotspotColorMode>('default')
+  const [activityWindow, setActivityWindow]     = useState<ActivityWindow>(7)
+  // True after a Week ↔ 30 days flip within the current result set — drives
+  // the zero-request confirmation sentence; reset on a mode change and on a
+  // new result set (the render-adjustment below).
+  const [hotspotWindowFlipped, setHotspotWindowFlipped] = useState(false)
+  // React's "adjusting state when a prop changes" pattern (a bare setState
+  // during render — the shareViewMode shape above): a NEW result set clears
+  // the flip flag so a stale confirmation can't outlive the pass it described.
+  const [flipResultSet, setFlipResultSet] = useState(hotspotPins)
+  if (flipResultSet !== hotspotPins) {
+    setFlipResultSet(hotspotPins)
+    setHotspotWindowFlipped(false)
+  }
 
   // Atlas block overlay state (California Breeding Bird Atlas)
   const [atlasEnabled, setAtlasEnabled]       = useState(false)
@@ -1013,6 +1056,129 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     localByCounty: countyLocalCompleteness,
     hasEbirdKey,
   })
+
+  // ── Hotspot color modes (color-coded-hotspots) ───────────────────────────────
+
+  // FR-05/FR-06: the countable-rule personal stats — deliberately NOT the
+  // shipped obsLocationsByLocId.species set (raw-name, no countable rule; it
+  // keeps feeding the shipped popup line). One O(n) pass, memoized.
+  const hotspotPersonalStats = useMemo(
+    () => (phase.tag === 'ready' ? buildHotspotPersonalStats(phase.observations) : null),
+    [phase],
+  )
+
+  // The search centre for the activity pass's proximity ordering (FR-19).
+  const hotspotSearchCenter = useMemo(() => {
+    const latNum = parseFloat(lat)
+    const lngNum = parseFloat(lng)
+    return isNaN(latNum) || isNaN(lngNum) ? null : { lat: latNum, lng: lngNum }
+  }, [lat, lng])
+
+  // The mode-3 controller: inert (zero requests in any form) unless Recent
+  // activity is the selected mode on the Hotspots view with a result set.
+  const activityView = useHotspotActivity({
+    active: viewMode === 'hotspots' && hotspotColorMode === 'activity' && (hotspotPins?.length ?? 0) > 0,
+    pins: hotspotPins ?? EMPTY_HOTSPOT_PINS,
+    mapBounds,
+    searchCenter: hotspotSearchCenter,
+    hasEbirdKey,
+  })
+
+  // FR-20: quantile tiers over the CURRENT result set's nonzero active-mode
+  // values — recomputed on result set / mode / window / answered-set changes
+  // (progressive arrivals reshape the breaks, honestly).
+  const hotspotTiers = useMemo(() => {
+    if (hotspotColorMode === 'default' || !hotspotPins) return computeHotspotTiers([])
+    const values: number[] = []
+    for (const p of hotspotPins) {
+      if (p.kind === 'personal') continue
+      if (hotspotColorMode === 'activity') {
+        const a = activityView.countFor(p.locId)
+        if (a) {
+          const v = activityWindow === 7 ? a.count7 : a.count30
+          if (v > 0) values.push(v)
+        }
+      } else if (hotspotPersonalStats) {
+        const s = hotspotPersonalStats.get(p.locId)
+        if (s) {
+          const v = hotspotColorMode === 'mySpecies' ? s.species : s.checklists
+          if (v > 0) values.push(v)
+        }
+      }
+    }
+    return computeHotspotTiers(values)
+  }, [hotspotColorMode, hotspotPins, hotspotPersonalStats, activityView, activityWindow])
+
+  // ONE reading source for every surface — the pin fill, the popup, the
+  // in-view list, and the legend states all call this (NFR-10: the legend
+  // cannot drift from the map because there is nothing separate to drift).
+  const hotspotReadingFor = useCallback(
+    (pin: HotspotPin): HotspotReading =>
+      hotspotReading(pin, hotspotColorMode, activityWindow, hotspotTiers, hotspotPersonalStats, activityView.countFor),
+    [hotspotColorMode, activityWindow, hotspotTiers, hotspotPersonalStats, activityView],
+  )
+
+  // The layer's cls map (locId → mode sprite key). Null in default mode — the
+  // marker layer then takes its shipped path byte-identical (FR-03).
+  const hotspotModeCls = useMemo(() => {
+    if (hotspotColorMode === 'default' || !hotspotPins) return null
+    const m = new Map<string, string>()
+    for (const p of hotspotPins) m.set(p.locId, readingSpriteKey(hotspotReadingFor(p), p.kind))
+    return m
+  }, [hotspotColorMode, hotspotPins, hotspotReadingFor])
+
+  // Which off-ramp states exist in the current result set (legend rows appear
+  // only when in effect, FR-24).
+  const hotspotStatesInEffect = useMemo(() => {
+    const s = { noData: false, zero: false, quiet: false, unanswered: false }
+    if (hotspotColorMode === 'default' || !hotspotPins) return s
+    for (const p of hotspotPins) {
+      const r = hotspotReadingFor(p)
+      if (r.state === 'noData') s.noData = true
+      else if (r.state === 'zero') s.zero = true
+      else if (r.state === 'quiet') s.quiet = true
+      else if (r.state === 'unanswered') s.unanswered = true
+    }
+    return s
+  }, [hotspotColorMode, hotspotPins, hotspotReadingFor])
+
+  // The popup's mode line (FR-25) — handed to HotspotMarkers so the popup
+  // reads the same hotspotReading as everything else.
+  const hotspotPopupExtra = useCallback((pin: HotspotPin) => {
+    const line = hotspotPopupModeLine(hotspotReadingFor(pin), hotspotColorMode, formatLoadedTime, pin.kind)
+    if (!line) return null
+    const swatchBg = line.swatch === 'ramp' ? `var(--sr-hotspot-${line.tier ?? 1})`
+      : line.swatch === 'pale' ? 'var(--sr-hotspot-pale)'
+      : line.swatch === 'nodata' ? 'var(--sr-hotspot-nodata)'
+      : 'var(--sr-hotspot-unanswered)'
+    return (
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 3, border: '1px solid var(--sr-map-pin-stroke)', background: swatchBg, flexShrink: 0 }} />
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>{line.primary}</span>
+        </div>
+        {line.secondary && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 3 }}>{line.secondary}</div>}
+        {line.cachedLine && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 3 }}>{line.cachedLine}</div>}
+        {/* FR-22 / QA-23: the visited-state line for unvisited pins, muted,
+            closing the mode block (the count and its provenance stay
+            contiguous above it). */}
+        {line.visitedLine && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 3 }}>{line.visitedLine}</div>}
+      </div>
+    )
+  }, [hotspotReadingFor, hotspotColorMode])
+
+  // Mode selection: activating any color mode auto-reveals the legend (FR-24,
+  // the Designer's call — a new scale with a closed legend is a riddle).
+  const handleHotspotModeChange = useCallback((m: HotspotColorMode) => {
+    setHotspotColorMode(m)
+    setHotspotWindowFlipped(false)
+    if (m !== 'default') setLegendVisible(true)
+  }, [])
+
+  const handleActivityWindowChange = useCallback((w: ActivityWindow) => {
+    if (w !== activityWindow) setHotspotWindowFlipped(true)
+    setActivityWindow(w)
+  }, [activityWindow])
 
   // ── Actions ───────────────────────────────────────────────────────────────────
 
@@ -1858,45 +2024,126 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         <OfflineMessage kind={hotspotsError.kind} message={hotspotsError.message} compact style={{ marginBottom: 10 }} />
       )}
 
-      {/* Legend — visible after first successful fetch */}
+      {/* Color pins by (color-coded-hotspots, FR-01/FR-04 — Hotspots view only) */}
+      <HotspotModeControl
+        mode={hotspotColorMode}
+        onModeChange={handleHotspotModeChange}
+        window={activityWindow}
+        onWindowChange={handleActivityWindowChange}
+        status={hotspotPins && hotspotPins.length > 0 ? activityView.status : null}
+        windowFlipped={hotspotWindowFlipped}
+        onRetry={activityView.retry}
+      />
+
+      {/* Legend — visible after first successful fetch; auto-revealed by a mode
+          activation (FR-24). Default shape when no color mode is active; the
+          mode legend (classes + states in effect + personal + kind chips)
+          while one is. */}
       {legendVisible && hotspotPins && hotspotPins.length > 0 && (
         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--sr-border)' }}>
           <SidebarLabel>Legend</SidebarLabel>
-          <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', fontStyle: 'italic', marginBottom: 8 }}>
-            Click a row to hide or show that pin category.
-          </div>
-          {([
-            { label: 'Visited',   kind: 'visited' as const },
-            { label: 'Unvisited', kind: 'unvisited' as const },
-            { label: 'Personal',  kind: 'personal' as const },
-          ] as { label: string; kind: HotspotPin['kind'] }[])
-            .filter(row => hotspotPins.some(p => p.kind === row.kind))
-            .map(row => {
-              const count = hotspotPins.filter(p => p.kind === row.kind).length
-              const isHidden = hiddenKinds.has(row.kind)
-              return (
-                <button tabIndex={0}
-                  key={row.label}
-                  aria-pressed={!isHidden}
-                  onClick={() => setHiddenKinds(prev => {
-                    const next = new Set(prev)
-                    if (next.has(row.kind)) next.delete(row.kind); else next.add(row.kind)
-                    return next
-                  })}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
-                    width: '100%', background: 'none', border: 'none', padding: 0,
-                    cursor: 'pointer', opacity: isHidden ? 0.4 : 1, textAlign: 'left',
-                  }}
-                >
-                  <div dangerouslySetInnerHTML={{ __html: TEARDROP_HTML[row.kind] }} style={{ flexShrink: 0, width: 28, height: 40 }} />
-                  <div>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{row.label}</span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginLeft: 6 }}>{count}</span>
+          {hotspotColorMode === 'default' ? (
+            <>
+              <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', fontStyle: 'italic', marginBottom: 8 }}>
+                Click a row to hide or show that pin category.
+              </div>
+              {([
+                { label: 'Visited',   kind: 'visited' as const },
+                { label: 'Unvisited', kind: 'unvisited' as const },
+                { label: 'Personal',  kind: 'personal' as const },
+              ] as { label: string; kind: HotspotPin['kind'] }[])
+                .filter(row => hotspotPins.some(p => p.kind === row.kind))
+                .map(row => {
+                  const count = hotspotPins.filter(p => p.kind === row.kind).length
+                  const isHidden = hiddenKinds.has(row.kind)
+                  return (
+                    <button tabIndex={0}
+                      key={row.label}
+                      aria-pressed={!isHidden}
+                      onClick={() => setHiddenKinds(prev => {
+                        const next = new Set(prev)
+                        if (next.has(row.kind)) next.delete(row.kind); else next.add(row.kind)
+                        return next
+                      })}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8,
+                        width: '100%', background: 'none', border: 'none', padding: 0,
+                        cursor: 'pointer', opacity: isHidden ? 0.4 : 1, textAlign: 'left',
+                      }}
+                    >
+                      <div dangerouslySetInnerHTML={{ __html: TEARDROP_HTML[row.kind] }} style={{ flexShrink: 0, width: 28, height: 40 }} />
+                      <div>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--sr-text)' }}>{row.label}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--sr-text-muted)', marginLeft: 6 }}>{count}</span>
+                      </div>
+                    </button>
+                  )
+                })}
+            </>
+          ) : (() => {
+            const model = hotspotLegendModel(hotspotColorMode, activityWindow, hotspotTiers, hotspotStatesInEffect)
+            const stateMini: Record<string, HotspotModeMiniVariant> = { noData: 'nodata', zero: 'hollow', quiet: 'hollow', unanswered: 'unanswered' }
+            return (
+              <>
+                <div style={{ fontSize: '0.75rem', marginBottom: 8, lineHeight: 1.4 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--sr-text)' }}>{model.title}</span>
+                  <span style={{ color: 'var(--sr-text-muted)' }}> · {model.subtitle}</span>
+                </div>
+                {model.classes.map(row => (
+                  <div key={row.tier} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+                    <HotspotModeMiniPin variant="ramp" tier={row.tier} />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)', fontVariantNumeric: 'tabular-nums' }}>
+                      {row.min === row.max ? row.min.toLocaleString() : `${row.min.toLocaleString()}–${row.max.toLocaleString()}`}
+                    </span>
                   </div>
-                </button>
-              )
-            })}
+                ))}
+                {model.states.map(s => (
+                  <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+                    <HotspotModeMiniPin variant={stateMini[s.key]} />
+                    <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>{s.label}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
+                  <HotspotModeMiniPin variant="personal" />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)' }}>Personal location</span>
+                </div>
+                {/* The kind hide/show filters keep working under a mode (FR-23);
+                    color no longer encodes kind, so the glyph carries it. */}
+                <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', fontStyle: 'italic', margin: '10px 0 8px' }}>
+                  Show or hide kinds. Glyphs carry the kind while a mode is active.
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {([
+                    { label: 'Visited',   glyph: '✓',  kind: 'visited' as const },
+                    { label: 'Unvisited', glyph: '••', kind: 'unvisited' as const },
+                    { label: 'Personal',  glyph: '★',  kind: 'personal' as const },
+                  ] as { label: string; glyph: string; kind: HotspotPin['kind'] }[])
+                    .filter(row => hotspotPins.some(p => p.kind === row.kind))
+                    .map(row => {
+                      const count = hotspotPins.filter(p => p.kind === row.kind).length
+                      const isHidden = hiddenKinds.has(row.kind)
+                      return (
+                        <button tabIndex={0}
+                          key={row.label}
+                          type="button"
+                          className="sr-hotspot-kind-chip sr-touch-target"
+                          aria-pressed={!isHidden}
+                          onClick={() => setHiddenKinds(prev => {
+                            const next = new Set(prev)
+                            if (next.has(row.kind)) next.delete(row.kind); else next.add(row.kind)
+                            return next
+                          })}
+                        >
+                          <span aria-hidden="true">{row.glyph}</span>
+                          {row.label}
+                          <span style={{ color: 'var(--sr-text-muted)', fontWeight: 400 }}>{count}</span>
+                        </button>
+                      )
+                    })}
+                </div>
+              </>
+            )
+          })()}
         </div>
       )}
 
@@ -1970,6 +2217,23 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
             : 'Unvisited hotspot'}
           getDotColor={p => `var(--sr-map-${p.kind})`}
           getDotLabel={p => p.kind === 'visited' ? 'Visited' : p.kind === 'personal' ? 'Personal location' : 'Unvisited'}
+          /* While a color mode is active the rows carry the state-matched dot
+             and the right-aligned value column (FR-26 — the keyboard/no-color
+             reading path); with the default selected both props are absent and
+             the list renders exactly as shipped. */
+          getLeading={hotspotColorMode !== 'default' ? (p => {
+            const v = miniVariantFor(hotspotReadingFor(p))
+            const r = hotspotReadingFor(p)
+            return v ? <HotspotModeDot variant={v} tier={r.state === 'ramp' ? r.tier : undefined} /> : null
+          }) : undefined}
+          getTrailing={hotspotColorMode !== 'default' ? (p => {
+            const v = hotspotListValue(hotspotReadingFor(p))
+            return v ? (
+              <span style={{ flexShrink: 0, fontSize: '0.71875rem', fontVariantNumeric: 'tabular-nums', color: v.muted ? 'var(--sr-text-muted)' : 'var(--sr-text)', fontWeight: v.muted ? 400 : 600 }}>
+                {v.text}
+              </span>
+            ) : null
+          }) : undefined}
           onActivate={openHotspotFromList}
           collapsed={!!inviewCollapsed['hotspots']}
           onToggleCollapsed={() => toggleInview('hotspots')}
@@ -2943,7 +3207,10 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 <SightingMarkers locations={filteredLocations} displayMode={displayMode} pointSize={pointSize} heatIntensity={heatIntensity} shadingFillId={atlasEnabled && shadeByBreeding ? 'sr-atlas-fill' : countyLinesEnabled && shadeByCounty ? 'sr-county-fill' : undefined} sel={selectedSightingLocId} onSelect={setSelectedSightingLocId} />
               )}
               {viewMode === 'hotspots' && hotspotPins && (
-                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} autoFit={framedByViewport.hotspots !== true} />
+                /* modeCls + popupExtra are PROPS — never in the key (a mode or
+                   window switch is a cosmetic in-place re-render: no remount,
+                   no re-fit, no popup dismissal — NFR-04). */
+                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} autoFit={framedByViewport.hotspots !== true} modeCls={hotspotModeCls} popupExtra={hotspotColorMode !== 'default' ? hotspotPopupExtra : undefined} />
               )}
               {viewMode === 'targets' && targetPins && (
                 <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} sel={selectedTargetLocId} onSelect={setSelectedTargetLocId} markerMode={targetMarkerMode} autoFit={framedByViewport.targets !== true} />

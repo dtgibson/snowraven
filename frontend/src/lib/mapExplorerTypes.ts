@@ -27,6 +27,12 @@ export type MapPhase =
 
 export type BreedingFilter = 'all' | 'possible' | 'probable' | 'confirmed'
 
+// Hotspot color-mode state types (color-coded-hotspots) — defined beside the
+// classification logic in lib/hotspotColorModes.ts, re-exported here so the
+// Map Explorer's shared-types import surface stays one place (schema.md:
+// additive types on this module).
+export type { HotspotColorMode, ActivityWindow } from './hotspotColorModes'
+
 export type HotspotPin =
   | { kind: 'visited';   locId: string; locName: string; lat: number; lng: number; speciesCount: number; lastVisit: string }
   | { kind: 'unvisited'; locId: string; locName: string; lat: number; lng: number }

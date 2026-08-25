@@ -1,6 +1,7 @@
 import { isTauri } from './platform';
 import { cachedGet, networkCacheKey } from './networkCache';
 import { isOfflineError } from './offlineDetect';
+import { parseRetryAfterSeconds } from './rateLimit';
 import * as replayStore from './replayStore';
 
 // A GET that may fall back to a last-loaded ("replayed") copy when the device is
@@ -24,12 +25,17 @@ export interface TransportAdapter {
 export class TransportError extends Error {
   readonly status: number;
   readonly detail?: string;
+  /** Bounded whole seconds parsed from a 429 response's Retry-After header
+   *  (the eBird pacing contract — lib/rateLimit.ts); undefined when the
+   *  response carried none or it was malformed. */
+  readonly retryAfterSec?: number;
 
-  constructor(message: string, status: number, detail?: string) {
+  constructor(message: string, status: number, detail?: string, retryAfterSec?: number) {
     super(message);
     this.name = 'TransportError';
     this.status = status;
     this.detail = detail;
+    this.retryAfterSec = retryAfterSec;
   }
 }
 
@@ -42,7 +48,14 @@ class WebTransport implements TransportAdapter {
     if (!res.ok) {
       let detail: string | undefined;
       try { detail = (await res.json() as { detail?: string }).detail; } catch { /* ok */ }
-      throw new TransportError(`Transport error: ${res.status}`, res.status, detail);
+      // On a 429 ONLY, Retry-After rides the error so the consumer can honor
+      // the server's wait (the eBird pacing contract — lib/rateLimit.ts).
+      // Same-origin, so the header is readable; parse is validated + bounded,
+      // never the raw string.
+      const retryAfterSec = res.status === 429
+        ? parseRetryAfterSeconds(res.headers.get('Retry-After')) ?? undefined
+        : undefined;
+      throw new TransportError(`Transport error: ${res.status}`, res.status, detail, retryAfterSec);
     }
     return res.json() as Promise<T>;
   }
@@ -149,6 +162,14 @@ class TauriTransport implements TransportAdapter {
     if (path === '/map/county-species') {
       const { getCountySpecies } = await import('./tauri/mapService');
       return getCountySpecies(params?.regionCode ?? '') as Promise<T>;
+    }
+
+    // NOT in CACHED_GET_PATHS: the 6-hour persistent hotspotActivityCache owns
+    // caching for this path — a second 90 s layer would just shadow it (one
+    // caching layer per call, the /map/county-species precedent).
+    if (path === '/map/hotspot-activity') {
+      const { getHotspotActivity } = await import('./tauri/mapService');
+      return getHotspotActivity(params?.locId ?? '') as Promise<T>;
     }
 
     // NOT in CACHED_GET_PATHS: lib/mlEmbedGate.ts owns this call's caching with

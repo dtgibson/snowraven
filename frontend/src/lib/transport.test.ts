@@ -24,6 +24,37 @@ describe('WebTransport.get', () => {
     const { transport } = await import('./transport');
     await expect(transport.get('/weather')).rejects.toThrow('Transport error: 404');
   });
+
+  it('a 429 carries the parsed bounded Retry-After on the TransportError (eBird pacing contract)', async () => {
+    // The web call site of the shared parser — pinned per-consumer (the Tauri
+    // twin's call site is pinned in hotspotActivity.parity.test.ts).
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 429,
+      headers: { get: (n: string) => (n === 'Retry-After' ? '7' : null) },
+      json: () => Promise.resolve({ detail: 'eBird is limiting requests right now. Try again in a moment.' }),
+    }));
+    const { transport } = await import('./transport');
+    await expect(transport.get('/map/hotspot-activity', { locId: 'L1' })).rejects.toMatchObject({
+      status: 429,
+      retryAfterSec: 7,
+      detail: 'eBird is limiting requests right now. Try again in a moment.',
+    });
+  });
+
+  it('a 429 with a malformed Retry-After carries none (undefined, never the raw string)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 429,
+      headers: { get: () => 'Wed, 21 Oct 2026 07:28:00 GMT' },
+      json: () => Promise.resolve({ detail: 'x' }),
+    }));
+    const { transport } = await import('./transport');
+    const err = await transport.get('/map/hotspot-activity', { locId: 'L1' }).then(
+      () => { throw new Error('expected rejection'); },
+      (e: unknown) => e as { status: number; retryAfterSec?: number },
+    );
+    expect(err.status).toBe(429);
+    expect(err.retryAfterSec).toBeUndefined();
+  });
 });
 
 describe('short-TTL network cache (transport seam)', () => {

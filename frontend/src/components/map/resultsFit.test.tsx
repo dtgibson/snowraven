@@ -63,6 +63,7 @@ vi.mock('react-map-gl/maplibre', () => ({
 vi.mock('../../lib/mapPins', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   teardropImageData: () => ({}) as ImageData,
+  modeTeardropImageData: () => ({}) as ImageData,
 }))
 
 const hotspots: HotspotPin[] = [

@@ -5,6 +5,7 @@ import { AlertCircle, ChevronDown } from 'lucide-react'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 import { countyHatchSpec, type CountyTier } from '../../lib/countyTextures'
 import { COMPLETENESS_BANDS } from '../../lib/countyCompleteness'
+import { TEARDROP, HOTSPOT_HOLLOW_DISC, HOTSPOT_DASH_PATTERN } from '../../lib/mapPins'
 
 export function SegControl({ options, value, onChange, ariaLabel }: {
   options: { value: string; label: string }[]
@@ -56,7 +57,7 @@ export function SidebarLabel({ children }: { children: React.ReactNode }) {
 // and pans the map. role="list"/"listitem" + an explicit aria-label make the
 // purpose clear to a screen-reader user. Capped, with an over-cap "zoom in" hint
 // mirroring the atlas overlay.
-export function InViewMarkerList<T>({ heading, instructions, items, total, overCap, selectedId, getId, getPrimary, getSecondary, getDotColor, getDotLabel, onActivate, collapsed = false, onToggleCollapsed, panelId }: {
+export function InViewMarkerList<T>({ heading, instructions, items, total, overCap, selectedId, getId, getPrimary, getSecondary, getDotColor, getDotLabel, getLeading, getTrailing, onActivate, collapsed = false, onToggleCollapsed, panelId }: {
   heading: string
   instructions: string
   items: T[]
@@ -69,6 +70,13 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
   /** Optional leading colour swatch (e.g. hotspot kind / sighting marker colour). */
   getDotColor?: (item: T) => string
   getDotLabel?: (item: T) => string
+  /** Optional leading node that REPLACES the colour dot (color-coded-hotspots:
+   *  the state-matched mode dot, FR-26). Absent → the shipped dot rendering,
+   *  byte-identical. */
+  getLeading?: (item: T) => React.ReactNode
+  /** Optional right-aligned trailing value column (color-coded-hotspots: the
+   *  active-mode value or state, FR-26). Absent → the shipped row, unchanged. */
+  getTrailing?: (item: T) => React.ReactNode
   onActivate: (item: T) => void
   /** When onToggleCollapsed is set, the heading becomes a collapse disclosure
    *  (chevron + aria-expanded) and the body collapses via grid-rows + inert,
@@ -120,7 +128,7 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
                       border: `1px solid ${isSelected ? 'var(--sr-accent-border)' : 'transparent'}`,
                     }}
                   >
-                    {dot && (
+                    {getLeading ? getLeading(item) : dot && (
                       <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: dot, flexShrink: 0 }} aria-hidden="true">
                         {getDotLabel && <span className="sr-only">{getDotLabel(item)}</span>}
                       </span>
@@ -137,6 +145,7 @@ export function InViewMarkerList<T>({ heading, instructions, items, total, overC
                         {getSecondary(item)}
                       </span>
                     </span>
+                    {getTrailing?.(item)}
                   </button>
                 </li>
               )
@@ -239,6 +248,62 @@ export function CountyCompletenessLegend({ useTextures }: { useTextures: boolean
       </div>
     </div>
   )
+}
+
+// ── Hotspot color-mode legend minis + in-view dots (color-coded-hotspots) ─────
+// Both derive from the SAME geometry the sprites bake (TEARDROP path,
+// HOTSPOT_HOLLOW_DISC, HOTSPOT_DASH_PATTERN — lib/mapPins) and read the same
+// --sr-hotspot-* tokens, so the legend cannot drift from the map (the
+// CountyDensitySwatch same-source precedent, NFR-10).
+
+export type HotspotModeMiniVariant = 'ramp' | 'hollow' | 'nodata' | 'unanswered' | 'personal'
+
+/** The mode legend's mini teardrop (18×26 for class rows; the states gallery
+ *  uses the same drawing). Decorative — the row text carries the meaning. */
+export function HotspotModeMiniPin({ variant, tier, width = 18 }: { variant: HotspotModeMiniVariant; tier?: number; width?: number }) {
+  const height = Math.round(width * (40 / 28))
+  const fill = variant === 'ramp' ? `var(--sr-hotspot-${tier ?? 1})`
+    : variant === 'hollow' ? 'var(--sr-hotspot-zero)'
+    : variant === 'nodata' ? 'var(--sr-hotspot-nodata)'
+    : variant === 'unanswered' ? 'var(--sr-hotspot-unanswered)'
+    : 'var(--sr-map-personal)'
+  return (
+    <svg width={width} height={height} viewBox="0 0 28 40" aria-hidden="true" style={{ flexShrink: 0, display: 'block' }}>
+      <path
+        d={TEARDROP}
+        style={{ fill }}
+        stroke="var(--sr-map-pin-stroke)"
+        strokeWidth={1.5}
+        strokeDasharray={variant === 'unanswered' ? HOTSPOT_DASH_PATTERN.join(' ') : undefined}
+      />
+      {variant === 'hollow' && (
+        <circle cx={HOTSPOT_HOLLOW_DISC.cx} cy={HOTSPOT_HOLLOW_DISC.cy} r={HOTSPOT_HOLLOW_DISC.r} style={{ fill: 'var(--sr-hotspot-pale)' }} />
+      )}
+      {variant === 'personal' && (
+        <polygon points="14,6 15.5,11 20.5,11 16.5,14.2 18,19 14,16 10,19 11.5,14.2 7.5,11 12.5,11" fill="white" />
+      )}
+    </svg>
+  )
+}
+
+/** The in-view list's state-matched leading dot while a mode is active
+ *  (FR-26): ramp fill / hollow (pale disc + zero rim) / dashed unanswered /
+ *  ring-bounded nodata / the shipped personal dot. Decorative — the trailing
+ *  value column and the secondary line carry the reading in words. */
+export function HotspotModeDot({ variant, tier }: { variant: HotspotModeMiniVariant; tier?: number }) {
+  if (variant === 'hollow') {
+    return <span aria-hidden="true" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--sr-hotspot-pale)', border: '2.5px solid var(--sr-hotspot-zero)', flexShrink: 0, boxSizing: 'content-box' }} />
+  }
+  if (variant === 'unanswered') {
+    return <span aria-hidden="true" style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: 'var(--sr-hotspot-unanswered)', border: '1.5px dashed var(--sr-map-pin-stroke)', flexShrink: 0, boxSizing: 'content-box' }} />
+  }
+  if (variant === 'nodata') {
+    return <span aria-hidden="true" style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: 'var(--sr-hotspot-nodata)', border: '1px solid var(--sr-map-pin-stroke)', flexShrink: 0, boxSizing: 'content-box' }} />
+  }
+  if (variant === 'personal') {
+    return <span aria-hidden="true" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: 'var(--sr-map-personal)', flexShrink: 0 }} />
+  }
+  return <span aria-hidden="true" style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: `var(--sr-hotspot-${tier ?? 1})`, flexShrink: 0 }} />
 }
 
 // Legend / in-view swatch previewing a COUNTY tier's crosshatch density (when the

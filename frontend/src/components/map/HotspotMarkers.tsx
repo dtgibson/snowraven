@@ -2,11 +2,15 @@
 // MapExplorer.tsx in a behavior-preserving split). Rendered inside <SnowMap>
 // (useMap context) — keep its call site (incl. key={hotspotPins.length}) unchanged.
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, type ReactNode } from 'react'
 import { Source, Layer, Popup, useMap } from 'react-map-gl/maplibre'
-import type { FilterSpecification, MapMouseEvent, MapStyleImageMissingEvent, SymbolLayerSpecification } from 'maplibre-gl'
+import type { ExpressionSpecification, FilterSpecification, MapMouseEvent, MapStyleImageMissingEvent, SymbolLayerSpecification } from 'maplibre-gl'
 import type { FeatureCollection, Point } from 'geojson'
-import { HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData, updateMapCursor, type HotspotKind } from '../../lib/mapPins'
+import {
+  HOTSPOT_KINDS, HOTSPOT_IMAGE_ID, teardropImageData, updateMapCursor,
+  HOTSPOT_MODE_SPRITE_KEYS, HOTSPOT_MODE_IMAGE_ID, modeTeardropImageData,
+  type HotspotKind, type HotspotModeSpriteKey,
+} from '../../lib/mapPins'
 import { hatchPixelRatio } from '../../lib/atlasTextures'
 import { formatDate } from '../../lib/formatDate'
 import { OutboundLink } from '../OutboundLink'
@@ -23,7 +27,29 @@ export function hotspotKindForImage(id: string): HotspotKind | null {
   return null
 }
 
-export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = true }: {
+/** Reverse mode-sprite lookup: image id → mode sprite key, null for foreign
+ *  ids — the same ownership contract as hotspotKindForImage, extended over the
+ *  color-mode sprite table (NFR-03). */
+// eslint-disable-next-line react-refresh/only-export-components -- pure lookup tested directly; lives here beside the handler that wraps it
+export function hotspotModeSpriteKeyForImage(id: string): HotspotModeSpriteKey | null {
+  for (const key of HOTSPOT_MODE_SPRITE_KEYS) {
+    if (HOTSPOT_MODE_IMAGE_ID[key] === id) return key
+  }
+  return null
+}
+
+// The mode icon-image expression: a match over the `cls` feature property.
+// Personal pins keep the SHIPPED personal sprite (FR-21); the fallback is the
+// neutral unanswered-unvisited so a defect renders as "not checked", never as
+// a value. Module-level constant — it depends on nothing per-render.
+const MODE_ICON_IMAGE = [
+  'match', ['get', 'cls'],
+  ...HOTSPOT_MODE_SPRITE_KEYS.flatMap(key => [key, HOTSPOT_MODE_IMAGE_ID[key]]),
+  'personal', HOTSPOT_IMAGE_ID.personal,
+  HOTSPOT_MODE_IMAGE_ID['unanswered-unvisited'],
+] as unknown as ExpressionSpecification
+
+export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = true, modeCls = null, popupExtra }: {
   pins: HotspotPin[]
   hiddenKinds: Set<HotspotPin['kind']>
   // Lifted to the parent (locId) so the keyboard sidebar list and the teardrop
@@ -63,6 +89,23 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
    *    matching it, and the user never sees that the answer was partial.
    */
   autoFit?: boolean
+  /**
+   * Color-coded hotspots (feature): locId → mode sprite key while a color mode
+   * is active; null/absent = the DEFAULT mode, whose render path is
+   * byte-identical to the pre-mode build (FR-03 — the regression guard in
+   * HotspotMarkers.test.tsx pins the layout, filter, and feature properties).
+   * A PROP, never folded into the marker set's remount key: a mode/window
+   * switch is a cosmetic in-place re-render — no remount, no re-fit, no popup
+   * dismissal (NFR-04, the v0.5.59 markerMode rule).
+   */
+  modeCls?: ReadonlyMap<string, string> | null
+  /**
+   * The popup's mode line (FR-25), rendered directly under the hotspot name
+   * while a mode is active. Owned by the parent so the popup, legend, and
+   * in-view list all derive from the SAME hotspotReading source (NFR-10).
+   * Absent → the shipped popup, unchanged.
+   */
+  popupExtra?: (pin: HotspotPin) => ReactNode
 }) {
   const map = useMap().current
   const fitKey = pins.length
@@ -85,13 +128,20 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
 
   // One GL symbol layer over a GeoJSON source replaces the per-pin DOM teardrop
   // divs (hundreds of positioned nodes re-laid-out every frame during pan/zoom).
-  const fc = useMemo<FeatureCollection<Point, { locId: string; kind: HotspotPin['kind'] }>>(() => ({
+  // With a color mode active each feature gains a `cls` property (its mode
+  // sprite key); in default mode the properties are exactly {locId, kind} —
+  // byte-identical to the shipped build (FR-03).
+  const fc = useMemo<FeatureCollection<Point, { locId: string; kind: HotspotPin['kind']; cls?: string }>>(() => ({
     type: 'FeatureCollection',
-    features: pins.map(p => ({
-      type: 'Feature', properties: { locId: p.locId, kind: p.kind },
-      geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
-    })),
-  }), [pins])
+    features: pins.map(p => {
+      const cls = modeCls?.get(p.locId)
+      return {
+        type: 'Feature' as const,
+        properties: cls !== undefined ? { locId: p.locId, kind: p.kind, cls } : { locId: p.locId, kind: p.kind },
+        geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+      }
+    }),
+  }), [pins, modeCls])
 
   // Register the teardrop sprites at effect time; regenerate on a light/dark
   // theme change (colors read the --sr-map-* tokens at bake time — same
@@ -112,17 +162,37 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
         if (map.hasImage(id)) map.updateImage(id, img)
         else map.addImage(id, img, { pixelRatio: dpr })
       }
+      // The color-mode sprites, registered UNCONDITIONALLY beside the kind
+      // trio (never gated on the active mode or isStyleLoaded — the shipped
+      // contract): a mode switch is then a pure icon-image swap with every
+      // sprite already present, and the theme MutationObserver re-bake below
+      // covers the whole table.
+      for (const key of HOTSPOT_MODE_SPRITE_KEYS) {
+        const id = HOTSPOT_MODE_IMAGE_ID[key]
+        const img = modeTeardropImageData(key, dpr)
+        if (map.hasImage(id)) map.updateImage(id, img)
+        else map.addImage(id, img, { pixelRatio: dpr })
+      }
     }
     addAll()
     // Safety net (MapLibre's canonical mechanism): if the style ever asks for
     // one of OUR sprites before addAll has run — a style swap, an ordering we
-    // haven't met — bake and add that image on demand. Foreign ids are ignored.
+    // haven't met — bake and add that image on demand. Foreign ids are ignored
+    // (both reverse lookups answer ONLY this component's own hardcoded ids).
     const onMissing = (e: MapStyleImageMissingEvent) => {
       if (cancelled) return
+      if (map.hasImage(e.id)) return
       const kind = hotspotKindForImage(e.id)
-      if (!kind || map.hasImage(e.id)) return
-      const dpr = hatchPixelRatio()
-      map.addImage(e.id, teardropImageData(kind, dpr), { pixelRatio: dpr })
+      if (kind) {
+        const dpr = hatchPixelRatio()
+        map.addImage(e.id, teardropImageData(kind, dpr), { pixelRatio: dpr })
+        return
+      }
+      const modeKey = hotspotModeSpriteKeyForImage(e.id)
+      if (modeKey) {
+        const dpr = hatchPixelRatio()
+        map.addImage(e.id, modeTeardropImageData(modeKey, dpr), { pixelRatio: dpr })
+      }
     }
     map.on('styleimagemissing', onMissing)
     const obs = new MutationObserver(addAll)
@@ -159,8 +229,12 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
     [hiddenKinds],
   )
 
+  // Default mode: the SHIPPED expression, byte-identical (FR-03 — the
+  // regression guard pins it). Mode active: a match over the per-feature cls.
   const symbolLayout: SymbolLayerSpecification['layout'] = {
-    'icon-image': ['match', ['get', 'kind'], 'visited', HOTSPOT_IMAGE_ID.visited, 'unvisited', HOTSPOT_IMAGE_ID.unvisited, HOTSPOT_IMAGE_ID.personal],
+    'icon-image': modeCls
+      ? MODE_ICON_IMAGE
+      : ['match', ['get', 'kind'], 'visited', HOTSPOT_IMAGE_ID.visited, 'unvisited', HOTSPOT_IMAGE_ID.unvisited, HOTSPOT_IMAGE_ID.personal],
     'icon-anchor': 'bottom',
     // DOM markers always showed every pin regardless of overlap; keep that.
     'icon-allow-overlap': true,
@@ -178,6 +252,9 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
         <Popup longitude={selPin.lng} latitude={selPin.lat} anchor="bottom" offset={42} onClose={() => onSelect(null)} closeButton={false} closeOnClick={false} maxWidth="260px">
           <div style={{ minWidth: 190 }}>
             <div className="sr-wrap-anywhere" style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: 8 }}>{selPin.locName}</div>
+            {/* The mode line (FR-25) — parent-owned so every surface reads the
+                same hotspotReading; absent in default mode (shipped popup). */}
+            {popupExtra?.(selPin)}
             {selPin.kind === 'visited' && (
               <>
                 <div style={{ fontSize: '0.75rem', color: 'var(--sr-accent)', marginBottom: 3 }}>{selPin.speciesCount} species recorded</div>

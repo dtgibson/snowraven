@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 0.5.91">v0.5.91</span>
+        <span class="version-pill" aria-label="Version 0.5.92">v0.5.92</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -296,7 +296,17 @@
             <p>
               An interactive map of your sightings with an optional heatmap, nearby eBird
               hotspots colored by whether you've visited them, media targets, and a California
-              Breeding Bird Atlas overlay. Optional county lines draw US county boundaries over
+              Breeding Bird Atlas overlay. The hotspot pins can also be colored, opt-in, by
+              what you want to know: My species and My checklists color each hotspot by your
+              own countable species or checklist count there, entirely offline from your
+              loaded backup, and Recent activity colors them by how many species the whole
+              eBird community reported at each hotspot in the last week or 30 days, fetched
+              with your own key a few hotspots at a time and cached on your device for six
+              hours, so the busiest hotspots near you stand out at a glance. The values ride
+              a five-class blue ramp with a legend showing each class's true range, a hollow
+              pin honestly means "asked, and the answer is zero", a dashed gray pin means
+              "not checked yet", and the popup and keyboard list state every number in
+              words, so the reading never depends on color alone. Optional county lines draw US county boundaries over
               the current view, kept crisp and accurate at every zoom because they come straight
               from the map's own tiles, and can shade each county by how many species (or checklists) you've
               recorded there, drawn from your own loaded backup, with a legend, a popup per county,
@@ -685,7 +695,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v0.5.91 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v0.5.92 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

@@ -106,6 +106,36 @@
   --sr-county-9-rgb: 37,106,67;
   --sr-county-10-rgb: 26,92,56;
 
+  /* Hotspot color-mode ramp + states (color-coded-hotspots) — the cyan-blue
+     5-class ramp for the Hotspots view's opt-in color modes, deliberately
+     apart from the county green, atlas purple, and personal amber (FR-27).
+     Map-anchored to the always-light basemap, so declared IDENTICALLY in both
+     themes (the --sr-map-pin-* posture). Strictly luminance-monotonic
+     (grayscale-ordered, NFR-02); every fill ≥3:1 vs TINT_GRASS except
+     --sr-hotspot-nodata, whose 3:1 boundary is ring-supplied BY DESIGN
+     ("never birded" must read as absence — decisions.md item 2); zero and
+     quiet SHARE --sr-hotspot-zero (one semantic answer, distinct wording —
+     decisions.md item 1); --sr-hotspot-pale is the hollow-center inner disc,
+     an inner surface never a pin boundary. Guarded by hotspotContrast.test.ts. */
+  --sr-hotspot-1: #2C89AA;           /* 3.27:1 vs land */
+  --sr-hotspot-2: #24709A;           /* 4.46:1 */
+  --sr-hotspot-3: #1C5883;           /* 6.21:1 */
+  --sr-hotspot-4: #153F63;           /* 8.95:1 */
+  --sr-hotspot-5: #0E2A47;           /* 11.95:1 (most active, darkest) */
+  --sr-hotspot-unanswered: #6A6A72;  /* not checked — solid fill + dashed sprite ring */
+  --sr-hotspot-zero: #565661;        /* answered-zero hollow rim (zero AND quiet) */
+  --sr-hotspot-nodata: #EDE9E3;      /* never birded — pale; ring supplies the boundary */
+  --sr-hotspot-pale: #F1EEE8;        /* hollow-center inner disc (non-guarded companion) */
+  --sr-hotspot-1-rgb: 44,137,170;
+  --sr-hotspot-2-rgb: 36,112,154;
+  --sr-hotspot-3-rgb: 28,88,131;
+  --sr-hotspot-4-rgb: 21,63,99;
+  --sr-hotspot-5-rgb: 14,42,71;
+  --sr-hotspot-unanswered-rgb: 106,106,114;
+  --sr-hotspot-zero-rgb: 86,86,97;
+  --sr-hotspot-nodata-rgb: 237,233,227;
+  --sr-hotspot-pale-rgb: 241,238,232;
+
   /* Grays */
   --sr-gray-300: #D1D5DB;
   --sr-gray-400: #8E8E96;      /* toggle off-track — darkened from #D4D4D8 for ≥3:1 non-text vs surface AND the white knob (3.25) */
@@ -369,6 +399,31 @@
   --sr-county-9-rgb: 37,106,67;
   --sr-county-10-rgb: 26,92,56;
 
+  /* Hotspot color-mode ramp + states — IDENTICAL to :root by design
+     (basemap-anchored, the --sr-map-pin-* / --sr-county-* posture: these only
+     ever paint on the always-light basemap). No on-fill text rides any pin
+     fill, so the "same as :root" trap from the milestone post-mortem does not
+     apply — the AA question is the ≥3:1 non-text boundary, guarded in
+     hotspotContrast.test.ts for both blocks. */
+  --sr-hotspot-1: #2C89AA;
+  --sr-hotspot-2: #24709A;
+  --sr-hotspot-3: #1C5883;
+  --sr-hotspot-4: #153F63;
+  --sr-hotspot-5: #0E2A47;
+  --sr-hotspot-unanswered: #6A6A72;
+  --sr-hotspot-zero: #565661;
+  --sr-hotspot-nodata: #EDE9E3;
+  --sr-hotspot-pale: #F1EEE8;
+  --sr-hotspot-1-rgb: 44,137,170;
+  --sr-hotspot-2-rgb: 36,112,154;
+  --sr-hotspot-3-rgb: 28,88,131;
+  --sr-hotspot-4-rgb: 21,63,99;
+  --sr-hotspot-5-rgb: 14,42,71;
+  --sr-hotspot-unanswered-rgb: 106,106,114;
+  --sr-hotspot-zero-rgb: 86,86,97;
+  --sr-hotspot-nodata-rgb: 237,233,227;
+  --sr-hotspot-pale-rgb: 241,238,232;
+
   /* Grays */
   --sr-gray-300: #3F3F46;
   --sr-gray-400: #6E6E78;      /* toggle off-track — lightened from #52525B for ≥3:1 vs surface (3.51) and the white knob (5.04) */
@@ -505,6 +560,113 @@
 
 /* In-view marker list rows (Map Explorer keyboard path to the GL markers) */
 .sr-inview-row:hover { background: var(--sr-surface-subtle); }
+
+/* ── Hotspot color-mode controls (color-coded-hotspots) ───────────────────────
+   The "Color pins by" block in the Hotspots sidebar: a fixed 2-up pill grid
+   (2×2 at every width — responsive by construction, no breakpoint math), the
+   mode-3 window reveal (the house grid-rows collapse on a lifted class; the
+   global prefers-reduced-motion block collapses the transition), the retry
+   pill, and the 3px progress track. Colors are tokens; the pills carry
+   .sr-touch-target (≤640 ~44px posture) and sit inside .sr-ctl-row (the
+   phone-tier 16px control-font floor reaches them as descendants). */
+.sr-hotspot-mode-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.sr-hotspot-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 15px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  border: 1px solid var(--sr-border-medium);
+  cursor: pointer;
+  transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+.sr-hotspot-mode-pill:hover { background: var(--sr-surface-subtle); }
+/* Source order: the selected state must beat :hover (same specificity would
+   tie without it — the aria-pressed rule comes AFTER the hover rule on
+   purpose, the .sr-map-fab source-order convention). */
+.sr-hotspot-mode-pill[aria-pressed="true"] {
+  background: var(--sr-accent);
+  color: var(--sr-on-accent);
+  border-color: var(--sr-accent);
+}
+.sr-hotspot-mode-pill:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 2px;
+}
+.sr-hotspot-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 180ms ease-out;
+}
+.sr-hotspot-reveal--open { grid-template-rows: 1fr; }
+.sr-hotspot-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 12px;
+  margin-top: 8px;
+  border-radius: 15px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--sr-accent-bg);
+  color: var(--sr-accent);
+  border: 1px solid var(--sr-accent);
+  cursor: pointer;
+  transition: filter 120ms ease-out;
+}
+.sr-hotspot-retry:hover { filter: brightness(0.96); }
+.sr-hotspot-retry:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 2px;
+}
+.sr-hotspot-progress-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--sr-border-subtle);
+  overflow: hidden;
+}
+.sr-hotspot-progress-fill {
+  height: 100%;
+  background: var(--sr-accent);
+  transition: width 200ms ease-out;
+}
+/* The legend's kind hide/show chips while a mode is active (FR-23): color no
+   longer encodes kind, so the glyph carries it. Off = 0.4 opacity, the same
+   dimming the shipped legend rows use. */
+.sr-hotspot-kind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 3px 10px;
+  border-radius: 15px;
+  font-size: 0.71875rem;
+  font-weight: 600;
+  font-family: inherit;
+  background: var(--sr-surface);
+  color: var(--sr-text);
+  border: 1px solid var(--sr-border-medium);
+  cursor: pointer;
+  transition: background 120ms ease-out, opacity 120ms ease-out;
+}
+.sr-hotspot-kind-chip:hover { background: var(--sr-surface-subtle); }
+.sr-hotspot-kind-chip[aria-pressed="false"] { opacity: 0.4; }
+.sr-hotspot-kind-chip:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 2px;
+}
 
 /* Brand-styled basemap switcher (the SnowMap base/overlay control) — an absolutely
    positioned panel inside the MapLibre map. Segmented base selector + a trails
