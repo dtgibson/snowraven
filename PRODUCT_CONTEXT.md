@@ -5,6 +5,14 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### New app icon + map-wide eBird rate-limit cooldown (complete — August 2026, v0.5.93)
+
+Two user-clustered improvements shipped as one release. The app icon is the new SR mark (a white serif "SR" with the raven's head worked into the S, on the brand clover green #2D8653) on every icon surface — macOS Dock/Finder (drawn on Apple's icon grid so it sits at native-app size), Windows taskbar/installer, all 36 committed iOS PNGs (flattened opaque; the TestFlight upload passed Apple's validation first try), the dormant Android set, the web favicon, and the website's favicon + header logo, which now match the app for the first time. And the v0.5.92 eBird pacing contract now governs every eBird lookup the Map Explorer makes.
+
+- **The pacing state is one shared key-global gate, `lib/ebirdGate.ts`**, read and written by two enforcers with one enforcement point per request: the activity controller's pump (unchanged) for `/map/hotspot-activity`, and the transport chokepoint's `gatedEbirdCall` for `/map/hotspots`, `/map/recent-obs`, `/map/hotspot-region`, and `/map/county-species` (serialized 150 ms-spaced starts, cooldown wait-out, the same bounded retries). A 429 anywhere slows everything on the key, in both directions. The gate sits below `CACHED_GET_PATHS`, so a cache hit never waits.
+- **Both transports surface a 429 AS a 429 on every governed route** with the shared detail and a validated, bounded, re-serialized Retry-After (one shared mapper per transport, per-route tests kept), and a 429 is never cached by any layer.
+- The icon master artwork is committed under `pipeline/ebird-cooldown-and-app-icon/icon-source/`; the three brand SVGs are built from the traced vector master on the rounded green tile.
+
 ### Color-coded hotspots on the Map Explorer (complete — August 2026, v0.5.92)
 
 Three opt-in color modes for the Hotspots view's pins, behind a "Color pins by" control: **My species** and **My checklists** (the gap-finding views: how thin or deep the user's own coverage is at each hotspot) and **Recent activity** (the where-is-the-action view: species reported by the whole eBird community at each hotspot over the last week or last 30 days). The shipped visited / unvisited / personal coloring stays the default and is byte-identical when no mode is selected, pinned by a red-first regression guard on the layer's layout, filter, and feature properties. The mode choice is per-session, resetting on relaunch.

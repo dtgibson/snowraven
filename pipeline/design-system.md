@@ -247,7 +247,13 @@ focus guard belongs on the focusable itself, not on its container.
 ## References
 brand.md (founding visual identity, #2D8653, dtgibson.com reference);
 `frontend/src/globals.css` (authoritative values); the Multimedia, Breeding
-Codes, Species Detail, and Named Birds tabs as pattern exemplars.
+Codes, Species Detail, and Named Birds tabs as pattern exemplars. The app
+icon / brand mark is the serif SR with the raven's head in the S on the
+brand green; its master artwork (vector trace, full-bleed and rounded
+rasters, icns/ico) lives in `pipeline/ebird-cooldown-and-app-icon/
+icon-source/` — regenerate every platform icon from it, never from a
+derived asset (iOS from the FullBleed sources, flattened opaque; macOS on
+the Apple icon grid; the web and website SVGs from the traced master).
 
 ## Rationale
 The green stays grounded and natural, not corporate; restraint is the brand.
