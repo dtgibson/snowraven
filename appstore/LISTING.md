@@ -250,8 +250,12 @@ content it displays:
 - The app implies no affiliation with or endorsement by the Cornell Lab of
   Ornithology, and the description says so explicitly.
 
-### Review key
+### Review keys
 
-A dedicated free eBird API key for App Review is supplied **only** in the App
-Store Connect review-notes field at submission time. No API key of any kind is
-committed to this repository. See `appstore/REVIEW_NOTES.md`.
+No API key of any kind is committed to this repository or supplied to Apple
+for review (user decision, 2026-08-25: eBird keys are personally linked, and
+the app's value is fully demonstrable without one; this supersedes the earlier
+plan to supply a dedicated review key). The review notes walk the reviewer
+through every tab on the hosted demo dataset; the keyless tide and base maps
+work immediately, and the optional keyed lookups show the app's first-class
+no-key states. See `appstore/REVIEW_NOTES.md`.

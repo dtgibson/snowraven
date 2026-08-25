@@ -2,14 +2,11 @@
 
 This file is the committed source for the App Store Connect **App Review
 Information** notes field. The text under "Notes for the reviewer" is pasted
-into that field at submission time, with the one bracketed placeholder filled
-in there and only there. No API key of any kind is ever committed to this
-repository.
-
-**Placeholder rule:** `[REVIEW EBIRD API KEY]` below is filled in by the
-account holder inside App Store Connect at submission time, with a dedicated
-free eBird API key created for review. If that key is ever rotated, only the
-App Store Connect field changes; this file does not.
+into that field verbatim at submission time and fits the field's 4,000
+character limit as committed. No API key of any kind is committed to this
+repository or supplied to Apple: the review posture is key-free (user
+decision, 2026-08-25; eBird keys are personally linked, and the app's value
+is fully demonstrable without one).
 
 ---
 
@@ -23,14 +20,14 @@ literal truth: no analytics, no telemetry, no third-party SDKs).
 
 Because the app is built around the user's own exported data, we host a
 synthetic demo dataset (a fictional birder at public northeast-US hotspots)
-so you can exercise every feature without an eBird account:
+so you can exercise every feature without any account or key:
 
 - Demo eBird backup:
   https://snowraven.dtgibson.com/demo/snowraven-demo-ebird-backup.csv
 - Demo Macaulay Library export:
   https://snowraven.dtgibson.com/demo/snowraven-demo-ml-export.csv
 
-STEP 1: IMPORT THE DEMO DATA (no key needed)
+STEP 1: IMPORT THE DEMO DATA
 
 1. In Safari on the test device, download both CSV files above (long-press
    each link and choose Download Linked File, or open and tap the share/
@@ -42,7 +39,7 @@ STEP 1: IMPORT THE DEMO DATA (no key needed)
 3. Every analysis tab now works from the imported files alone, fully
    offline.
 
-STEP 2: THE KEYLESS FEATURES (most of the app)
+STEP 2: THE FULL EXPERIENCE, NO KEY NEEDED
 
 4. Statistics: life list totals and growth, milestones, patterns, media
    coverage, and the playful lists at the bottom. All computed on device.
@@ -50,29 +47,24 @@ STEP 2: THE KEYLESS FEATURES (most of the app)
    its checklists. Deliberately zero-network.
 6. Species Detail: pick a species (for example Northern Cardinal) for its
    full history, graphs, and a map of every observation.
-7. Map Explorer: the demo birder's sightings on an interactive map; tap a
-   location in "Sightings in view" (in Filters) to open its popup.
+7. Map Explorer: the demo birder's sightings on an interactive map with
+   keyless base maps; tap a location in "Sightings in view" (in Filters) to
+   open its popup.
 8. Breeding Codes, Multimedia, Named Birds, Checklists: each reads only the
    imported files.
 9. Weather tab, Predict mode: choose a coastal spot and a time to see a NOAA
    tide prediction. Tides need no key at all.
 
-STEP 3: THE KEYED FEATURES (with the review key below)
+ABOUT THE OPTIONAL KEYED LOOKUPS
 
-10. In Settings, paste this eBird API key (a dedicated free review key tied
-    to a developer-controlled eBird account, supplied for review only):
-    [REVIEW EBIRD API KEY]
-11. Map Explorer, Hotspots view: Find Hotspots shows nearby public eBird
-    hotspots; Nearby Lifers maps recently reported species the demo birder
-    has not recorded.
-12. Weather tab: paste any public eBird checklist ID (for example S354229002)
-    to look up its location and the historical tide.
-
-We have deliberately NOT supplied an OpenWeather key. The weather half of a
-lookup then shows the app's honest "no key configured" state, which is
-first-class product behavior, not an error: SnowRaven treats missing keys,
-offline, and provider failures as designed states with clear messages. Every
-feature above works without it.
+A few live lookups (nearby eBird hotspots and sightings, current weather and
+forecasts) use the user's own free eBird or OpenWeather key, entered once in
+Settings. We supply no review key: those keys are personal, and the app's
+no-key states are first-class designed behavior, not errors. Opening a keyed
+feature without a key shows a clear message naming the free key it needs and
+where it goes. SnowRaven treats missing keys, offline, and provider failures
+as designed states with honest messages; everything above shows the app's
+full value without any credential.
 
 ABOUT THE MACAULAY LIBRARY EMBEDS
 
@@ -98,10 +90,10 @@ infrastructure capable of receiving anything.
 
 ## Why the script is ordered this way (repo-side record, not pasted)
 
-- **Keyless first (FR-15):** the imported demo data plus the keyless tide
-  demonstrate the app's value before any credential enters the picture, and
-  they are the answer to the minimum-functionality question: the app is full,
-  not thin, the moment data is imported.
+- **Keyless throughout (FR-15):** the imported demo data plus the keyless
+  tide and base maps demonstrate the app's full value with no credential at
+  all, and they are the answer to the minimum-functionality question: the
+  app is full, not thin, the moment data is imported.
 - **The three risk areas are answered in advance (FR-16):**
   - *Minimum functionality / external-data dependence:* answered by the
     hosted demo dataset, the import walkthrough, and the first-class
@@ -113,12 +105,11 @@ infrastructure capable of receiving anything.
     frame. SnowRaven works alongside Cornell's services, never around their
     protection.
   - *User-supplied keys / sign-in-less design:* no account exists by design,
-    keys are the user's own, and there is no login to demo. A dedicated free
-    review key is supplied in the notes field only.
-- **No OpenWeather review key (PRD open question 3 default):** the honest
-  no-key state is shown deliberately as evidence of the app's designed
-  degraded states, and it keeps a card-backed credential out of the review
-  package.
+    keys are the user's own, and there is no login to demo. No review key of
+    any kind is supplied (user decision, 2026-08-25, superseding the earlier
+    plan to supply a dedicated eBird review key): the keys are personal, and
+    the honest no-key states are deliberate evidence of the app's designed
+    degraded states.
 - **Demo dataset (FR-17):** generated by `website/tools/gen-demo-data.mjs`
   (deterministic, fictional birder, public hotspots only), committed under
   `website/demo/`, and served by the existing GitHub Pages deploy at the
