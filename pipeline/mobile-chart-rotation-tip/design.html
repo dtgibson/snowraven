@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mobile Chart Tip — SnowRaven design refinement</title>
+<style>
+  /* ===== SnowRaven tokens (verbatim from frontend/src/globals.css) ===== */
+  :root, [data-theme="light"] {
+    --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA; --sr-text: #0F1117; --sr-text-muted: #6B6B74;
+    --sr-text-gray: #6B7280; --sr-border: #E4E4E7; --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE; --sr-accent: #277448; --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE; --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-on-accent: #FFFFFF; --sr-quote-bg: #EFF1F3; --sr-quote-border: #E0E2E6;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-graph-individuals: #2D8653;
+    /* mockup chrome only (not app tokens) */
+    --mock-canvas: linear-gradient(180deg, #F2F5F3 0%, #E9EEEB 100%);
+    --mock-ink: #22262B; --mock-ink-muted: #5A6069; --mock-panel: #FFFFFF;
+    --mock-border: #DDE2DE;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B; --sr-surface: #18181B; --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F; --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA;
+    --sr-text-gray: #8A8A92; --sr-border: #27272A; --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46; --sr-accent: #34D399; --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16; --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-on-accent: #052E16; --sr-quote-bg: #2E2E33; --sr-quote-border: #3A3A40;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+    --sr-graph-individuals: #34D399;
+    --mock-canvas: linear-gradient(180deg, #101314 0%, #0B0E0F 100%);
+    --mock-ink: #E8EAED; --mock-ink-muted: #9BA1A8; --mock-panel: #16191B;
+    --mock-border: #2A2F2C;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    /* Design-system face: Inter / system-ui (established SnowRaven system — deliberate doctrine deviation, logged) */
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: var(--mock-canvas); color: var(--mock-ink);
+    min-height: 100%; padding: 28px 20px 60px;
+  }
+
+  /* ===== Mockup chrome ===== */
+  .frame-head { max-width: 1060px; margin: 0 auto 22px; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: space-between; }
+  .frame-head h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.015em; }
+  .frame-head .sub { color: var(--mock-ink-muted); font-size: 0.83rem; margin-top: 5px; max-width: 560px; line-height: 1.5; }
+  .chrome-actions { display: flex; gap: 8px; }
+  .chrome-btn {
+    font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--mock-border);
+    background: var(--mock-panel); color: var(--mock-ink);
+    transition: background 140ms ease-out;
+  }
+  .chrome-btn:hover { background: var(--sr-surface-subtle); }
+  .stage { max-width: 1060px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 30px; justify-content: center; align-items: flex-start; }
+
+  .phone-col { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  .phone-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mock-ink-muted); }
+
+  /* Phone shell */
+  .phone {
+    width: 375px; border-radius: 34px; padding: 10px;
+    background: #101214; box-shadow: 0 22px 50px rgba(10,20,14,0.28), 0 3px 10px rgba(10,20,14,0.18);
+  }
+  [data-theme="dark"] .phone { background: #26292d; }
+  .screen {
+    background: var(--sr-bg); border-radius: 26px; overflow: hidden;
+    height: 660px; display: flex; flex-direction: column; position: relative;
+  }
+  .statusbar { flex: none; height: 34px; display: flex; align-items: center; justify-content: center; }
+  .statusbar .island { width: 108px; height: 24px; border-radius: 999px; background: #101214; }
+  .screen-scroll { flex: 1; overflow-y: auto; padding: 10px 14px 20px; scrollbar-width: none; }
+  .screen-scroll::-webkit-scrollbar { display: none; }
+
+  /* ===== App surfaces (house patterns) ===== */
+  .tab-header { display: flex; gap: 10px; align-items: flex-start; padding: 6px 2px 14px; }
+  .tab-header .tile {
+    flex: none; width: 30px; height: 30px; border-radius: 8px;
+    background: var(--sr-accent); color: var(--sr-on-accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tab-header h2 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; color: var(--sr-text); }
+  .tab-header p { font-size: 0.8125rem; color: var(--sr-text-muted); margin-top: 2px; line-height: 1.45; }
+  .entry-sci { font-style: italic; font-size: 0.71875rem; color: var(--sr-text-gray); margin-top: 1px; }
+
+  .card {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; box-shadow: var(--sr-card-shadow); margin-bottom: 14px; overflow: hidden;
+  }
+  .card-head { display: flex; gap: 8px; align-items: center; padding: 12px 16px 0; }
+  .card-head .mini-tile { flex: none; width: 22px; height: 22px; border-radius: 6px; background: var(--sr-accent-bg); color: var(--sr-accent); display: flex; align-items: center; justify-content: center; }
+  .card-head h3 { font-size: 0.875rem; font-weight: 700; color: var(--sr-text); }
+  .card-body { padding: 14px 16px 14px; }
+  .axis-label { font-size: 0.6875rem; color: var(--sr-text-muted); letter-spacing: 0.01em; display: block; margin-bottom: 10px; }
+  .chart-note { font-size: 0.71875rem; color: var(--sr-text-gray); margin-top: 10px; line-height: 1.5; }
+  svg text { font-family: inherit; }
+
+  /* ===== THE TIP (the designed element) ===== */
+  .sr-chart-tip-wrap { overflow: hidden; }
+  .sr-chart-tip {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--sr-surface-faint);
+    border: 1px solid var(--sr-border);
+    border-radius: 10px;
+    padding: 10px 6px 10px 12px;
+    margin-bottom: 14px;
+  }
+  .sr-chart-tip .tip-icon { flex: none; color: var(--sr-text-muted); margin-top: 2px; }
+  .sr-chart-tip .tip-text { flex: 1; min-width: 0; }
+  .sr-chart-tip .tip-kicker {
+    display: block; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: var(--sr-text-gray); margin-bottom: 2px;
+  }
+  .sr-chart-tip .tip-body { font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text-muted); }
+  .sr-chart-tip .tip-dismiss {
+    flex: none; appearance: none; border: 0; background: transparent; cursor: pointer;
+    color: var(--sr-text-muted); border-radius: 8px;
+    width: 32px; height: 32px; margin: -4px 0 0 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 140ms ease-out, color 140ms ease-out;
+  }
+  .sr-chart-tip .tip-dismiss:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+  .sr-chart-tip .tip-dismiss:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 1px; }
+
+  /* Dismiss collapse: ease-out, 220ms, honoring reduced motion */
+  .sr-chart-tip-wrap { transition: height 220ms ease-out, opacity 180ms ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .sr-chart-tip-wrap { transition: none; }
+    .chrome-btn, .sr-chart-tip .tip-dismiss { transition: none; }
+  }
+
+  /* ===== Annotation panel ===== */
+  .notes {
+    width: 375px; max-width: 100%; background: var(--mock-panel);
+    border: 1px solid var(--mock-border); border-radius: 16px; padding: 18px 20px;
+    font-size: 0.8rem; line-height: 1.55; color: var(--mock-ink);
+  }
+  .notes h3 { font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mock-ink-muted); margin-bottom: 10px; }
+  .notes ul { list-style: none; }
+  .notes li { padding: 7px 0; border-top: 1px solid var(--mock-border); }
+  .notes li:first-child { border-top: 0; padding-top: 0; }
+  .notes b { font-weight: 650; }
+  .restore-row { margin-top: 12px; }
+  .restore-link { font: inherit; font-size: 0.78rem; font-weight: 600; color: var(--sr-accent); background: none; border: 0; cursor: pointer; padding: 4px 0; }
+  .restore-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="frame-head">
+  <div>
+    <h1>Mobile Chart Tip</h1>
+    <div class="sub">A one-time, dismissible hint above the first chart on Statistics and Species Detail.
+    Phone widths only. Dismissing it removes it for good on that page. Try the dismiss button on either phone.</div>
+  </div>
+  <div class="chrome-actions">
+    <button class="chrome-btn" id="themeToggle" type="button">Dark theme</button>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- ============ PHONE 1 — STATISTICS ============ -->
+  <div class="phone-col">
+    <div class="phone-label">Statistics</div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><div class="island"></div></div>
+      <div class="screen-scroll">
+
+        <div class="tab-header">
+          <div class="tile">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 15v3"/><path d="M12 9v9"/><path d="M17 5v13"/></svg>
+          </div>
+          <div>
+            <h2>Statistics</h2>
+            <p>Your birding by the numbers, from your loaded eBird backup.</p>
+          </div>
+        </div>
+
+        <!-- THE TIP — sits directly above the first chart card -->
+        <div class="sr-chart-tip-wrap" data-tip>
+          <div class="sr-chart-tip" role="note" aria-label="Tip about chart viewing options">
+            <span class="tip-icon" aria-hidden="true">
+              <!-- lucide smartphone, rotated hint -->
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>
+            </span>
+            <span class="tip-text">
+              <span class="tip-kicker">Tip</span>
+              <span class="tip-body">Charts get more room in landscape. Rotate your device for a wider view, or open SnowRaven's desktop app if you have it.</span>
+            </span>
+            <button class="tip-dismiss" type="button" aria-label="Dismiss this tip" data-dismiss>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- First chart card: Checklist duration -->
+        <div class="card">
+          <div class="card-head">
+            <div class="mini-tile">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <h3>Checklist Duration</h3>
+          </div>
+          <div class="card-body">
+            <span class="axis-label">Checklists per duration bin</span>
+            <svg viewBox="0 0 320 150" width="100%" height="150" role="img" aria-label="Checklist duration histogram. Most checklists run 15 to 60 minutes.">
+              <g stroke="var(--sr-border-subtle)" stroke-dasharray="3 3">
+                <line x1="30" y1="14" x2="312" y2="14"/><line x1="30" y1="52" x2="312" y2="52"/>
+                <line x1="30" y1="90" x2="312" y2="90"/><line x1="30" y1="128" x2="312" y2="128"/>
+              </g>
+              <g fill="var(--sr-graph-individuals)">
+                <rect x="34"  y="66" width="20" height="62" rx="2"/>
+                <rect x="60"  y="22" width="20" height="106" rx="2"/>
+                <rect x="86"  y="14" width="20" height="114" rx="2"/>
+                <rect x="112" y="38" width="20" height="90" rx="2"/>
+                <rect x="138" y="62" width="20" height="66" rx="2"/>
+                <rect x="164" y="84" width="20" height="44" rx="2"/>
+                <rect x="190" y="98" width="20" height="30" rx="2"/>
+                <rect x="216" y="108" width="20" height="20" rx="2"/>
+                <rect x="242" y="116" width="20" height="12" rx="2"/>
+                <rect x="268" y="122" width="20" height="6" rx="2"/>
+              </g>
+              <g font-size="9" fill="var(--sr-text-muted)">
+                <text x="30" y="142">0:15</text><text x="86" y="142">0:45</text>
+                <text x="142" y="142">1:15</text><text x="198" y="142">1:45</text>
+                <text x="254" y="142">2:15</text>
+                <text x="8" y="17">40</text><text x="8" y="55">30</text>
+                <text x="8" y="93">20</text><text x="8" y="131">10</text>
+              </g>
+            </svg>
+            <div class="chart-note">1,178 of 1,246 checklists carry a usable duration. Average 1 h 04 m.</div>
+          </div>
+        </div>
+
+        <!-- Second chart card, cut by the fold -->
+        <div class="card">
+          <div class="card-head">
+            <div class="mini-tile">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M3 3v18h18"/><path d="M7 15v3"/><path d="M12 9v9"/><path d="M17 5v13"/></svg>
+            </div>
+            <h3>Lists by Observer Count</h3>
+          </div>
+          <div class="card-body">
+            <span class="axis-label">1 obs · 1,034 lists (83%)</span>
+          </div>
+        </div>
+
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============ PHONE 2 — SPECIES DETAIL ============ -->
+  <div class="phone-col">
+    <div class="phone-label">Species Detail</div>
+    <div class="phone"><div class="screen">
+      <div class="statusbar"><div class="island"></div></div>
+      <div class="screen-scroll">
+
+        <div class="tab-header">
+          <div class="tile">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h.01"/><path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/><path d="m20 7 2 .5-2 .5"/><path d="M10 18v3"/><path d="M14 17.75V21"/><path d="M7 18a6 6 0 0 0 3.84-10.61"/></svg>
+          </div>
+          <div>
+            <h2>Acorn Woodpecker</h2>
+            <div class="entry-sci">Melanerpes formicivorus</div>
+          </div>
+        </div>
+
+        <!-- THE TIP — same element, same placement rule -->
+        <div class="sr-chart-tip-wrap" data-tip>
+          <div class="sr-chart-tip" role="note" aria-label="Tip about chart viewing options">
+            <span class="tip-icon" aria-hidden="true">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></svg>
+            </span>
+            <span class="tip-text">
+              <span class="tip-kicker">Tip</span>
+              <span class="tip-body">Charts get more room in landscape. Rotate your device for a wider view, or open SnowRaven's desktop app if you have it.</span>
+            </span>
+            <button class="tip-dismiss" type="button" aria-label="Dismiss this tip" data-dismiss>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Sightings Over Time -->
+        <div class="card">
+          <div class="card-head">
+            <div class="mini-tile">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            </div>
+            <h3>Sightings Over Time</h3>
+          </div>
+          <div class="card-body">
+            <span class="axis-label">Individuals per month</span>
+            <svg viewBox="0 0 320 150" width="100%" height="150" role="img" aria-label="Sightings over time line chart. Individuals per month, peaking in May.">
+              <g stroke="var(--sr-border-subtle)" stroke-dasharray="3 3">
+                <line x1="30" y1="14" x2="312" y2="14"/><line x1="30" y1="52" x2="312" y2="52"/>
+                <line x1="30" y1="90" x2="312" y2="90"/><line x1="30" y1="128" x2="312" y2="128"/>
+              </g>
+              <polyline fill="none" stroke="var(--sr-graph-individuals)" stroke-width="2.5" stroke-linejoin="round"
+                points="34,108 62,96 90,74 118,42 146,20 174,34 202,58 230,72 258,92 286,104 310,112"/>
+              <g fill="var(--sr-graph-individuals)" stroke="var(--sr-surface)" stroke-width="1.5">
+                <circle cx="34" cy="108" r="3"/><circle cx="62" cy="96" r="3"/><circle cx="90" cy="74" r="3"/>
+                <circle cx="118" cy="42" r="3"/><circle cx="146" cy="20" r="3"/><circle cx="174" cy="34" r="3"/>
+                <circle cx="202" cy="58" r="3"/><circle cx="230" cy="72" r="3"/><circle cx="258" cy="92" r="3"/>
+                <circle cx="286" cy="104" r="3"/><circle cx="310" cy="112" r="3"/>
+              </g>
+              <g font-size="9" fill="var(--sr-text-muted)">
+                <text x="28" y="142">Jan</text><text x="112" y="142">Apr</text>
+                <text x="196" y="142">Jul</text><text x="282" y="142">Oct</text>
+                <text x="8" y="17">16</text><text x="8" y="55">12</text>
+                <text x="10" y="93">8</text><text x="10" y="131">4</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="mini-tile">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            </div>
+            <h3>Checklists Over Time</h3>
+          </div>
+          <div class="card-body">
+            <span class="axis-label">Checklists per month</span>
+          </div>
+        </div>
+
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ============ BEHAVIOR NOTES ============ -->
+  <div class="notes">
+    <h3>How it behaves</h3>
+    <ul>
+      <li><b>Phones only.</b> Renders in the ≤640px tier, the app's established phone boundary. Tablets and desktops never see it.</li>
+      <li><b>Once per page.</b> Statistics and Species Detail each show it once, above their first chart. One shared component, one placement rule.</li>
+      <li><b>Dismissed means gone.</b> The X collapses it (220ms ease-out; instant under reduced motion) and writes a per-page flag through the storage seam, so it survives relaunches on every platform and never returns.</li>
+      <li><b>A note, not a nag.</b> Quiet surface, muted text, no accent color, no buttons that steer. Both options are named; the reader decides. Charts are untouched.</li>
+      <li><b>Accessible.</b> role="note" with a label, a named 32px dismiss control with a visible focus ring, AA contrast in both themes, text scales with the in-app Text Size setting.</li>
+    </ul>
+    <div class="restore-row">
+      <button class="restore-link" id="restoreTips" type="button" hidden>Bring the tips back (mockup only)</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Theme toggle
+  var themeBtn = document.getElementById('themeToggle');
+  themeBtn.addEventListener('click', function () {
+    var root = document.documentElement;
+    var dark = root.getAttribute('data-theme') === 'dark';
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+    themeBtn.textContent = dark ? 'Dark theme' : 'Light theme';
+  });
+
+  // Dismiss with ease-out collapse (reduced-motion: instant)
+  var restoreBtn = document.getElementById('restoreTips');
+  function collapse(wrap) {
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) { wrap.hidden = true; restoreBtn.hidden = false; return; }
+    wrap.style.height = wrap.scrollHeight + 'px';
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        wrap.style.height = '0px'; wrap.style.opacity = '0';
+      });
+    });
+    wrap.addEventListener('transitionend', function done(e) {
+      if (e.propertyName !== 'height') return;
+      wrap.hidden = true; wrap.removeEventListener('transitionend', done);
+      restoreBtn.hidden = false;
+    });
+  }
+  document.querySelectorAll('[data-dismiss]').forEach(function (btn) {
+    btn.addEventListener('click', function () { collapse(btn.closest('[data-tip]')); });
+  });
+  restoreBtn.addEventListener('click', function () {
+    document.querySelectorAll('[data-tip]').forEach(function (w) {
+      w.hidden = false; w.style.height = ''; w.style.opacity = '';
+    });
+    restoreBtn.hidden = true;
+  });
+</script>
+</body>
+</html>

@@ -474,10 +474,20 @@ export function dedupedFetchChecklist(
   submissionId: string,
   admissible: ReadonlySet<string>,
   loader: () => Promise<readonly ProvenanceObservation[]>,
+  opts?: {
+    /** Skip the fresh-ledger short-circuit for THIS call: the controller has
+     *  determined the entry is a false positive — consulted under a cover that
+     *  could not admit a species it carries, so the ledger says "fetched"
+     *  while the species index holds no answer (see carriersNeedingRefetch in
+     *  exoticProvenance.ts). The in-flight dedupe and the merge are unchanged,
+     *  so a forced refetch is still one bounded request with one write path. */
+    refetch?: boolean
+  },
 ): Promise<{ fromNetwork: boolean }> {
   return (async () => {
     const store = await ensureLoaded()
-    if (Object.hasOwn(store.checklists, submissionId)
+    if (!opts?.refetch
+      && Object.hasOwn(store.checklists, submissionId)
       && Date.now() - store.checklists[submissionId] < PROVENANCE_TTL_MS) {
       return { fromNetwork: false }
     }

@@ -3239,6 +3239,61 @@ select:focus-visible {
   display: flex;
 }
 
+/* ── Mobile chart tip (ChartViewTip.tsx) ─────────────────────────────────
+   One-time dismissible note above the first chart on Statistics and Species
+   Detail. Phones only by RENDER BRANCH (useIsPhone), so no media tier here.
+   Accent-free by design: green means actionable, and this only informs. */
+.sr-chart-tip-wrap {
+  overflow: hidden;
+  transition: height 220ms ease-out, opacity 180ms ease-out;
+}
+.sr-chart-tip {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--sr-surface-faint);
+  border: 1px solid var(--sr-border);
+  border-radius: 10px;
+  padding: 10px 6px 10px 12px;
+  margin-bottom: 14px;
+}
+.sr-chart-tip-icon { flex: none; color: var(--sr-text-muted); margin-top: 2px; }
+.sr-chart-tip-text { flex: 1; min-width: 0; }
+.sr-chart-tip-kicker {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--sr-text-gray);
+  margin-bottom: 2px;
+}
+.sr-chart-tip-body {
+  display: block;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--sr-text-muted);
+}
+/* Dismiss keeps the global button:focus-visible ring; .sr-touch-target raises
+   the hit area in the phone tier it always renders in. */
+.sr-chart-tip-dismiss {
+  flex: none;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--sr-text-muted);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  margin-top: -4px;
+  transition: background 140ms ease-out, color 140ms ease-out;
+}
+.sr-chart-tip-dismiss:hover { background: var(--sr-surface-subtle); color: var(--sr-text); }
+@media (prefers-reduced-motion: reduce) {
+  .sr-chart-tip-wrap, .sr-chart-tip-dismiss { transition: none; }
+}
+
 /* Small-phone tier — stack inline rows that can't shrink further (action rows,
    native date/time field pairs) and trim padding harder. Must follow the 640px
    block so it wins at ≤480. */

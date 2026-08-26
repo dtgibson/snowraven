@@ -39,6 +39,7 @@ import { extractUserId, mlCatalogLink, resolveMediaLinkTaxonCode } from '../lib/
 import { RecentMediaEmbed } from './RecentMediaEmbed'
 import { SectionCard, SectionHead, StatLabel, StatValueLink } from './speciesDetail/ui'
 import { SightingsGraph } from './speciesDetail/SightingsGraph'
+import { ChartViewTip } from './ChartViewTip'
 import { HeatmapLayer } from './speciesDetail/HeatmapLayer'
 import { MapBoundsFitter } from './speciesDetail/MapBoundsFitter'
 import { SharePin } from './map/SharePin'
@@ -898,6 +899,10 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
               </SectionCard>
             )
           })()}
+
+          {/* One-time mobile chart tip (phones only; renders only where the
+              graphs do, directly above the first one) */}
+          {hasGraphData && <ChartViewTip page="species-detail" />}
 
           {/* Sightings Over Time + Checklists Over Time + Media Over Time graphs */}
           <SightingsGraph data={graphResult.data} interval={graphResult.interval} viewMode={viewMode} hasML={hasML} />

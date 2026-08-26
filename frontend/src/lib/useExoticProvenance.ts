@@ -30,7 +30,7 @@ import { isOfflineError } from './offlineDetect'
 import { formatDate } from './formatDate'
 import { SUBMISSION_ID_RE } from '../components/speciesDetail/ui'
 import {
-  buildProvenanceLookup, greedyCover, remainingSpecies,
+  buildProvenanceLookup, carriersNeedingRefetch, greedyCover, remainingSpecies,
   EMPTY_LOOKUP, type CoverIndex, type ProvenanceLookup,
 } from './exoticProvenance'
 import {
@@ -249,11 +249,20 @@ export function useExoticProvenance(
 
       for (let round = 0; round < MAX_ROUNDS; round += 1) {
         const nowMs = Date.now()
-        const consulted = new Set(consultedSet(nowMs))
-        for (const id of attempted) consulted.add(id)
-
         const remaining = remainingSpecies(getSnapshot(), idx, parked)
         if (remaining.length === 0) break
+
+        const consulted = new Set(consultedSet(nowMs))
+        // A fresh ledger entry does not stand for a recordless cover species
+        // (see carriersNeedingRefetch) — drop those ids so the cover can
+        // re-select them, and remember them so the cache chokepoint (whose own
+        // fresh-ledger short-circuit would otherwise refuse the wave's pick)
+        // is told the refetch is intended. `attempted` is re-added AFTER the
+        // drop, so a checklist this pass already fetched is never fetched
+        // twice.
+        const staleLedger = carriersNeedingRefetch(getSnapshot(), idx, remaining)
+        for (const id of staleLedger) consulted.delete(id)
+        for (const id of attempted) consulted.add(id)
 
         const budget = MAX_REQUESTS_PER_PASS - issued
         if (budget <= 0) { reason = 'pass-budget'; cap = MAX_REQUESTS_PER_PASS; break }
@@ -311,7 +320,7 @@ export function useExoticProvenance(
             attempted.add(id)
             issued += 1
             try {
-              await dedupedFetchChecklist(id, admissible, () => fetchProvenance(id))
+              await dedupedFetchChecklist(id, admissible, () => fetchProvenance(id), { refetch: staleLedger.has(id) })
               done += 1
             } catch {
               failed += 1
@@ -381,7 +390,12 @@ export function useExoticProvenance(
     }
     startedForRef.current = index
 
-    if (open.length === 0 || isFreshFor(carriers, nowMs)) {
+    // A fresh ledger is only a reason to skip the pass when every open species
+    // also HAS a record to classify from — a recordless cover species means the
+    // ledger was written under a cover that could not admit it, and the pass
+    // must run to heal the store (see carriersNeedingRefetch).
+    const stale = carriersNeedingRefetch(getSnapshot(), index, open)
+    if (open.length === 0 || (stale.size === 0 && isFreshFor(carriers, nowMs))) {
       const resolved = buildProvenanceLookup(getSnapshot(), index)
       settle(
         getSnapshot().species.size === 0

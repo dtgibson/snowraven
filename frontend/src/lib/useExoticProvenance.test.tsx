@@ -491,3 +491,59 @@ describe('the live region\'s announcement rate is bounded (Auditor finding 4)', 
     await waitFor(() => expect(kind()).toBe('complete'))
   })
 })
+
+// ── The recordless-species refetch (the v1.0.1 zero-escapees repair) ─────────
+describe('a recordless cover species re-opens its consulted checklist', () => {
+  // A store SEEDED at the seam must use keys that survive the load-path
+  // guards: the harness's default `c-${norm}` codes carry uppercase and a
+  // space, which SPECIES_CODE_KEY_RE drops on load — that silent drop is
+  // exactly what these two tests must not be built on.
+  const codeReal = (norm: string): string | undefined =>
+    norm === 'Muscovy Duck' ? 'musduc' : norm === 'Mallard' ? 'mallar3' : undefined
+
+  it('refetches the fresh-in-ledger carrier, records the answer, and excludes the escapee', async () => {
+    // The pre-fix store shape, byte-for-byte: the carrier was consulted (fresh
+    // ledger entry), the neighbor species got its token, and the escapee got
+    // NOTHING because the cover of that era could not admit it. Before the
+    // repair the auto-start read this as "already fresh", made zero requests,
+    // and completed with zero escapees.
+    const now = Date.now()
+    seamDoc.value = {
+      version: 1,
+      checklists: { S1: now },
+      order: ['S1'],
+      species: { mallar3: { seen: ['|'], n: 1, at: now } },
+      speciesOrder: ['mallar3'],
+      excludedNames: [],
+    }
+    responses.set('S1', [
+      { speciesCode: 'musduc', exoticCategory: 'X', userDoNotCount: 'DNC' },
+      { speciesCode: 'mallar3' },
+    ])
+    const index = buildCoverIndex([o('Muscovy Duck', 'S1'), o('Mallard', 'S1')], codeReal)
+    render(<Harness index={index} />)
+    await waitFor(() => expect(kind()).toBe('complete'))
+    expect(requested).toEqual(['/checklists/S1?provenance'])
+    expect(screen.getByTestId('excluded').textContent).toBe('Muscovy Duck')
+  })
+
+  it('does NOT refetch when every cover species has a record (the fresh-skip stays intact)', async () => {
+    const now = Date.now()
+    seamDoc.value = {
+      version: 1,
+      checklists: { S1: now },
+      order: ['S1'],
+      species: {
+        musduc: { seen: ['X|DNC'], n: 1, at: now },
+        mallar3: { seen: ['|'], n: 1, at: now },
+      },
+      speciesOrder: ['musduc', 'mallar3'],
+      excludedNames: ['Muscovy Duck'],
+    }
+    const index = buildCoverIndex([o('Muscovy Duck', 'S1'), o('Mallard', 'S1')], codeReal)
+    render(<Harness index={index} />)
+    await waitFor(() => expect(kind()).toBe('complete'))
+    expect(requested).toEqual([])
+    expect(screen.getByTestId('excluded').textContent).toBe('Muscovy Duck')
+  })
+})

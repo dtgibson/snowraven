@@ -150,6 +150,8 @@ Graph options control the Sightings Over Time and Media Over Time charts that ap
 - Interval: Weekly, Monthly, or Yearly.
 - Per Period / Cumulative: switches between counts per period and a running total.
 
+On a phone, a small one-time tip appears above the graphs: charts get more room in landscape, so you can rotate your device for a wider view, or open the desktop app if you have it. It is a suggestion only. Dismissing it hides it on this tab for good, and the choice is saved on your device, so it does not return after a relaunch. Tablets and desktops never show it.
+
 County and date-range filters appear in the toolbar when your eBird backup contains county data. Active filters apply to all sections including the map, comments, breeding codes, and media counts.
 
 A **Named Individuals** section appears when this species has birds you've named in your checklist comments with a `[name:…]` tag (see the Named Birds tab). Each individual lists its sightings with checklist links and the comment.
@@ -159,6 +161,8 @@ A **Named Individuals** section appears when this species has birds you've named
 ## Statistics
 
 The Statistics tab shows a comprehensive analytics dashboard built from your eBird backup. A jump-nav at the top links to each section. The cards are described below. The eBird backup is required for all of them; the Media card additionally requires your ML export.
+
+On a phone, a small one-time tip appears above the first chart: charts get more room in landscape, so you can rotate your device for a wider view, or open the desktop app if you have it. It is a suggestion only. Dismissing it hides it on this tab for good, and the choice is saved on your device, so it does not return after a relaunch. Tablets and desktops never show it.
 
 A **Count all forms** checkbox in the tab header decides what counts as a species. It is off by default, so the numbers you see are countable life-list counts. SnowRaven follows eBird's own rule for what counts as a species. A form that leaves the species in doubt does not count: a spuh (`Gull sp.`), a slash (`Greater/Lesser Scaup`), a hybrid (`Mallard x American Black Duck`), an undescribed form. A form that only leaves the subspecies in doubt counts as its parent species, so `Redpoll (Common/Hoary)` counts as a Redpoll and `Dark-eyed Junco (Oregon)` counts as a Dark-eyed Junco. Turn the checkbox on to include those forms in the counts as well. It is the same rule, and the same wording, as the Calendar tab's switch.
 

@@ -11,6 +11,7 @@ import {
 import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
 import { SharePin } from './map/SharePin'
+import { ChartViewTip } from './ChartViewTip'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
 import { jumpTo } from '../lib/scroll'
@@ -141,11 +142,23 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         // species) so the BirdName favicons appear consistently across all Stats
         // lists — not just for species that happen to have Macaulay media.
         const seenNames = new Map<string, string>()
+        // Each raw name AND its normalized parent go into the batch. The
+        // codes lookup is species-only on both transports, so a bird recorded
+        // ONLY as a form ("Swan Goose (Domestic type)") never resolves by its
+        // raw name — and a species that resolves nowhere is invisible to the
+        // escapee cover (it classified 'unknown' and silently counted; the
+        // v1.0.1 zero-escapees fix) and shows no favicons. The parent name
+        // resolves via the species map, and normTaxon below hands its code to
+        // every normalized-name consumer.
         for (const o of observations) {
           if (!seenNames.has(o.commonName)) seenNames.set(o.commonName, o.scientificName)
+          const parent = normalizeSpeciesName(o.commonName)
+          if (parent !== o.commonName && !seenNames.has(parent)) seenNames.set(parent, '')
         }
         for (const r of mlRows) {
           if (!seenNames.has(r.commonName)) seenNames.set(r.commonName, r.scientificName)
+          const parent = normalizeSpeciesName(r.commonName)
+          if (parent !== r.commonName && !seenNames.has(parent)) seenNames.set(parent, '')
         }
         // Frivolous Lists shows its hardcoded birds whether or not the user has
         // recorded them; resolve their codes too so the eBird / Birds of the World
@@ -532,6 +545,9 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
         </div>
       ) : (
       <>
+      {/* One-time mobile chart tip (phones only; sits above the first chart) */}
+      <ChartViewTip page="statistics" />
+
       {/* ── Section 1: Life List Totals ─────────────────────────────────────── */}
       <SectionCard title="Life List Totals" icon={<BarChart2 size={16} />}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(7.5rem, 1fr))', gap: 0 }}>

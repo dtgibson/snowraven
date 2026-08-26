@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.1] - 2026-08-26
+
+### Added
+- **A small one-time tip above the charts on Statistics and Species Detail, on phones only.** Charts can feel cramped on a narrow portrait screen, so the first visit to each of those tabs offers a quiet note: charts get more room in landscape, so you can rotate your device for a wider view, or open the desktop app if you have it. It is a suggestion only, with nothing pushed. One tap dismisses it, the choice is saved on your device, and it never returns on that tab. Tablets and desktops never see it.
+
+### Fixed
+- **The escapee check finds a bird recorded only as a "(Domestic type)" form again.** The Statistics escapee check maps each bird's name to its eBird species code before asking eBird about it, and a bird recorded only as a domestic form (a Muscovy Duck, a Graylag Goose, a Swan Goose) never resolved, so the check silently skipped it, reported zero escapees, and the species count ran high. The name lookup now also carries each form's plain species name, so those birds resolve to their parent species and are checked like any other. An installation that already ran the broken check heals itself: a checklist the check consulted without getting an answer for one of its species is consulted again on the next Statistics visit, once, and the store is right from then on.
+
 ## [1.0.0] - 2026-08-25
 
 SnowRaven goes to the public App Store. The version jumps deliberately from 0.5.93 to 1.0.0 for the debut (a one-time jump, user decision at the design review); the regular incremental rhythm continues upward from here.

@@ -13,7 +13,7 @@ import { describe, it, expect } from 'vitest'
 import type { ObservationEntry } from '../types'
 import {
   EMPTY_SNAPSHOT, ESCAPEE_CATEGORY,
-  buildCoverIndex, buildProvenanceLookup, categoryOfToken, classCounts,
+  buildCoverIndex, buildProvenanceLookup, carriersNeedingRefetch, categoryOfToken, classCounts,
   classifySpecies, confirmExcludedNames, greedyCover, remainingSpecies,
   seenToken, tokenCounts,
   type ProvenanceSnapshot, type SpeciesProvenanceRecord,
@@ -462,5 +462,45 @@ describe('the escapee token is the one that does not count', () => {
       const ch = String.fromCharCode(c)
       expect(tokenCounts(`${ch}|`)).toBe(ch !== 'X')
     }
+  })
+})
+
+// ── The recordless-species refetch (the v1.0.1 zero-escapees repair) ─────────
+//
+// A ledger entry does not stand for a species with no record: that shape can
+// only arise from a pass whose cover failed to admit the species (the
+// domestic-form name-join gap), and left alone it freezes the wrong answer for
+// the full ledger TTL. These pin the healing helper AND the harmless cases, so
+// the refetch can neither be dropped (first test red on a revert) nor widened
+// (the stay-green cases reject a helper that refetches everything).
+describe('carriersNeedingRefetch (recordless cover species re-open their ledger entries)', () => {
+  const index = buildCoverIndex(
+    [obs('Swan Goose (Domestic type)', 'S1'), obs('Mallard', 'S1'), obs('Mallard', 'S2')],
+    codeFor,
+  )
+
+  it('returns the consulted carriers of a cover species with NO record', () => {
+    // S1 was consulted, Mallard got its token, Swan Goose got nothing: the
+    // pre-fix store shape, byte-for-byte.
+    const snap = snapshot({ mallar3: rec(['|']) }, ['S1'])
+    expect(carriersNeedingRefetch(snap, index, ['swagoo'])).toEqual(new Set(['S1']))
+  })
+
+  it('returns nothing for a species that HAS a record, however classified', () => {
+    const snap = snapshot({ swagoo: rec(['X|DNC']), mallar3: rec(['|']) }, ['S1'])
+    expect(carriersNeedingRefetch(snap, index, ['swagoo', 'mallar3'])).toEqual(new Set())
+  })
+
+  it('returns nothing when the carriers were never consulted (plain unknown, no desync)', () => {
+    const snap = snapshot({}, [])
+    expect(carriersNeedingRefetch(snap, index, ['swagoo'])).toEqual(new Set())
+  })
+
+  it('only the recordless species reopens a shared checklist, not its neighbors', () => {
+    // S1 carries both; Mallard resolved. Only Swan Goose's absence reopens S1,
+    // and S2 (Mallard-only) stays closed.
+    const snap = snapshot({ mallar3: rec(['|']) }, ['S1', 'S2'])
+    const stale = carriersNeedingRefetch(snap, index, remainingSpecies(snap, index, new Set()))
+    expect(stale).toEqual(new Set(['S1']))
   })
 })
