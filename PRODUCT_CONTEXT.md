@@ -5,6 +5,10 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### Mobile chart tip + escapee domestic-form repair (complete — August 2026, v1.0.1)
+
+On phones, Statistics and Species Detail each show a one-time dismissible tip above their charts (rotate to landscape, or use the desktop app; neutral, never steering), persisted per page through the storage seam via a `chartTipDismissed` map; tablets and desktops never mount it (`components/ChartViewTip.tsx`, `useIsPhone` render-branch). And the escapee check finds domestic-form-only birds again: the Statistics taxonomy batch sends each raw name plus its normalized parent (the species-only `codes` maps cannot resolve a "(Domestic type)" name, so those species never entered the escapee cover and the tab read zero escapees), and a store poisoned by a broken pass heals itself — a fresh ledger entry never stands for a recordless cover species (`carriersNeedingRefetch` + explicit `refetch` intent at `dedupedFetchChecklist`). The App Store submission was replaced in review so the store debut carries the fix (submission ba87ba7a, releasing on approval; Phase B keys off it).
+
 ### iOS App Store release (complete — August 2026, v1.0.0; store availability pending Apple approval)
 
 SnowRaven is distributed through the public iOS App Store: the 1.0.0 debut (a deliberate one-time jump from 0.5.93; the incremental rhythm continues upward from it, never below) shipped to every platform at once and is submitted to Apple, releasing immediately on approval. App behavior is unchanged on every platform — what this feature built is the store presence and the standing pipeline behind it.
