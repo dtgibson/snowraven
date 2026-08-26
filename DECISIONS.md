@@ -4,6 +4,22 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## The App Store debut is 1.0.0, key-free at review, free forever, and never allowed to block the other platforms — 2026-08-25 (v1.0.0)
+
+**Decision: shipped and submitted**, as `d962473` (feature) + `bc50769` (iOS stamp) + `bbd920c` (key-free review notes), tag `v1.0.0`, released to macOS, Windows, the website, and TestFlight; App Store review submission `c9da4d53` read back WAITING_FOR_REVIEW, releaseType AFTER_APPROVAL. A distribution feature, deliberately: the entire `frontend/src` diff is one test-only parity guard and `src-tauri` moved only the version, so what shipped is the listing record, the compliance record, the review package, the screenshot pipeline, the first-party privacy page, and the release-rhythm change — not app behavior.
+
+**The debut ships as 1.0.0, and versions can never go below it again (user decision at the design gate, superseding the strategic brief's original "no artificial 1.0" position).** One deliberate jump from 0.5.93 to 1.0.0 on every platform at once — the single-version lockstep is unchanged — then the standing incremental rhythm continues upward from 1.0.0 (1.0.1, 1.0.2, …; patch by default, exactly as before). The floor is structural, not stylistic: App Store Connect requires each submitted version to increase, and the desktop updater's latest.json comparison would strand 1.0.0 installs behind any release carrying a lower number. There is no route back to 0.x.
+
+**The App Review posture is key-free and phone-minimal (user decision at the deploy gate).** No eBird key of any kind goes to Apple — a key is personally linked — and no key is committed anywhere; the review script walks the reviewer through the hosted demo dataset and the keyless features first (tide, base maps, every offline analytic), then presents key entry and the honest no-key states as the first-class design they are, and answers the three review-risk areas (minimum functionality, Macaulay embeds, sign-in-less operation) plainly rather than hiding them. Apple structurally requires a review contact phone (the API refuses the record without one); it lives only in the ASC record, never in the repo or pipeline.
+
+**Free with no monetization of any kind, on the store as everywhere.** The founding "free public good" identity carries unchanged — no paid tier, IAP, ads, or donations — which also keeps the Paid Applications agreement and the entire IAP review surface out of the picture.
+
+**Release immediately on approval; a rejection stalls only the App Store leg.** No phased rollout: phasing serves large installed bases, and delaying a privacy-first app's fixes serves no one. Desktop, web, and TestFlight ship on their own schedule every release, Apple's review latency trails behind, and a rejection becomes a fix-forward item in the next release — never a rollback or delay of the other platforms.
+
+**The privacy label "Data Not Collected" is a standing claim with PRIVACY_POLICY.md's weight, and availability is claimed only when true.** The label's reasoning was re-verified against the shipped 1.0.0 code before entry (no analytics, telemetry, accounts, or third-party SDKs; nothing leaves the device except user-initiated calls with the user's own keys), and any future feature that would change the label is a listing change in the same release, exactly as the privacy-policy rule already works. Phase A makes no App Store availability claim anywhere; the exact on-approval edits (README, website, the founding product-brief amendment) are staged in `pipeline/ios-app-store-release/phase-b-availability.md`. The PRIVACY_POLICY.md iOS additions shipped early, in Phase A, on the Designer's adopted flag: Apple reads the privacy page during review, and every added sentence describes behavior already true on TestFlight.
+
+---
+
 ## One enforcement point per request, shared state across all of them — and the app icon finally means something — 2026-08-25 (v0.5.93)
 
 **Decision: shipped**, as `7a8bbcd` (feature) + `5150494` (iOS stamp), released as v0.5.93 to macOS, Windows, the website and TestFlight. Two user-clustered improvements: the v0.5.92 eBird pacing contract extended to every eBird lookup the Map Explorer makes, and a new app icon (the serif SR with the raven's head worked into the S, on the brand clover green) across every icon surface, unifying the web favicon and website mark with the desktop icon for the first time.

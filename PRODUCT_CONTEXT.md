@@ -5,6 +5,15 @@ It records what has been built and key decisions made during development.
 
 ## Features Built
 
+### iOS App Store release (complete — August 2026, v1.0.0; store availability pending Apple approval)
+
+SnowRaven is distributed through the public iOS App Store: the 1.0.0 debut (a deliberate one-time jump from 0.5.93; the incremental rhythm continues upward from it, never below) shipped to every platform at once and is submitted to Apple, releasing immediately on approval. App behavior is unchanged on every platform — what this feature built is the store presence and the standing pipeline behind it.
+
+- **The listing, compliance record, and review package are committed artifacts**: `appstore/LISTING.md` (every listing field with verified counts, the "Data Not Collected" privacy-label reasoning, age rating, categories Reference + Weather, free with no monetization) and `appstore/REVIEW_NOTES.md` (a key-free reviewer script over the hosted demo dataset and the keyless features, within ASC's 4,000-char ceiling). The reviewer demo dataset at `website/demo/` is the deterministic generator's own output.
+- **The privacy policy has a first-party page**: `website/privacy.html` is Apple's privacy policy URL, mirroring PRIVACY_POLICY.md (which gained its iOS App section, sandbox-storage and location-permission clauses, and the App Store update path); `privacyPageParity.test.ts` pins the section set, order, and anchors so the two cannot drift.
+- **Screenshots are a regenerable pipeline**: `website/tools/capture-appstore.mjs` captures both device families at Apple's required sizes from the synthetic demo dataset, dimension-verified, committed under `appstore/screenshots/`.
+- **The App Store is a standing release leg**: after `release.sh` and the TestFlight upload, the same uploaded build is submitted for review; a rejection stalls only the store leg, fix-forward. The availability prose (README, website, founding product brief) is staged in the pipeline's `phase-b-availability.md` and lands on approval day.
+
 ### New app icon + map-wide eBird rate-limit cooldown (complete — August 2026, v0.5.93)
 
 Two user-clustered improvements shipped as one release. The app icon is the new SR mark (a white serif "SR" with the raven's head worked into the S, on the brand clover green #2D8653) on every icon surface — macOS Dock/Finder (drawn on Apple's icon grid so it sits at native-app size), Windows taskbar/installer, all 36 committed iOS PNGs (flattened opaque; the TestFlight upload passed Apple's validation first try), the dormant Android set, the web favicon, and the website's favicon + header logo, which now match the app for the first time. And the v0.5.92 eBird pacing contract now governs every eBird lookup the Map Explorer makes.
