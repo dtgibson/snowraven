@@ -126,6 +126,45 @@ export function computeNamedBirds(observations: ObservationEntry[]): NamedBird[]
   return [...map.values()]
 }
 
+export interface NamedBirdLocation {
+  location: string       // display name (as first written for this individual)
+  locationId: string     // the id of the first sighting seen at this name ('' when absent)
+  count: number          // this individual's sightings at this location
+}
+
+/**
+ * Where ONE named individual has been recorded, ranked by that individual's own
+ * sighting count then name. This is deliberately NOT the species' locations: the
+ * input is a single bird's `sightings`, every one of which carries its `[name:…]`
+ * tag, so a Mallard named Winky ranks Winky's places and not every Mallard's.
+ *
+ * Grouped by location NAME, keeping the first id seen for it — the same grouping
+ * `computeLocationsSorted` (Species Detail's Top Locations) uses, so the two
+ * surfaces can't disagree about what counts as one place.
+ *
+ * A sighting whose export carries no location name is skipped rather than
+ * bucketed under '': an empty row would be unreadable and unlinkable, and the
+ * report row above it already omits the location in exactly that case. An
+ * individual with no located sightings therefore returns [] and the caller
+ * renders nothing, which mirrors the map's absence for a bird with no coords.
+ *
+ * Counts are per SIGHTING, and `computeNamedBirds` already collapses a
+ * parent+subspecies pair from one checklist into a single sighting, so these
+ * numbers sum to the card's own sighting count (minus any unlocated ones).
+ */
+export function computeNamedBirdLocations(sightings: NamedSighting[]): NamedBirdLocation[] {
+  const counts = new Map<string, NamedBirdLocation>()
+  for (const s of sightings) {
+    const location = s.location.trim()
+    if (!location) continue
+    const existing = counts.get(location)
+    if (existing) existing.count++
+    else counts.set(location, { location, locationId: s.locationId, count: 1 })
+  }
+  return [...counts.values()].sort((a, b) =>
+    b.count !== a.count ? b.count - a.count : a.location.localeCompare(b.location))
+}
+
 /**
  * Sort named birds for display. Every option carries a name tie-break so equal
  * primary keys don't jitter.
