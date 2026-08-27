@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SnowRaven — Named Birds top locations</title>
+<style>
+  :root {
+    --sr-text-scale: 1;
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-disabled: #A1A1AA;
+    --sr-text-gray: #6B7280;
+    --sr-border: #E4E4E7;
+    --sr-border-subtle: #F4F4F5;
+    --sr-border-medium: #C4C4CE;
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-quote-bg: #EFF1F3;
+    --sr-quote-border: #E0E2E6;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --sr-map-land: #E8EBE6;
+    --sr-map-water: #CFDDE8;
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-disabled: #52525B;
+    --sr-text-gray: #8A8A92;
+    --sr-border: #27272A;
+    --sr-border-subtle: #1F1F23;
+    --sr-border-medium: #3F3F46;
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --sr-quote-bg: #1F1F23;
+    --sr-quote-border: #2A2A2F;
+    --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--sr-bg);
+    color: var(--sr-text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- mockup chrome (not part of the app) ---- */
+  .page { max-width: 1180px; margin: 0 auto; padding: 28px 22px 90px; }
+  .doc-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 6px; }
+  .doc-mark {
+    width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+    background: var(--sr-accent-bg); color: var(--sr-accent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  h1 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 3px; }
+  .doc-sub { font-size: 0.84375rem; color: var(--sr-text-muted); margin: 0; line-height: 1.55; max-width: 70ch; }
+  .rule { height: 1px; background: var(--sr-border); margin: 26px 0 24px; border: 0; }
+  h2.sec {
+    font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--sr-text-muted); margin: 0 0 4px;
+  }
+  .sec-note { font-size: 0.8125rem; color: var(--sr-text-muted); line-height: 1.6; margin: 0 0 16px; max-width: 74ch; }
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 22px; align-items: start; }
+  .lane-label {
+    font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--sr-text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .lane-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sr-text-disabled); }
+  .lane-label.is-new .dot { background: var(--sr-accent); }
+  .lane-label.is-new { color: var(--sr-accent); }
+  .theme-toggle {
+    position: fixed; top: 14px; right: 16px; z-index: 20;
+    display: flex; gap: 5px; padding: 4px; border-radius: 10px;
+    background: var(--sr-surface); border: 1px solid var(--sr-border); box-shadow: var(--sr-card-shadow);
+  }
+  .theme-toggle button {
+    height: 28px; padding: 0 11px; border-radius: 7px; border: none; background: transparent;
+    color: var(--sr-text-muted); font-family: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer;
+    transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1), color 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .theme-toggle button[aria-pressed="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+  .phone-frame { width: 320px; border: 1px solid var(--sr-border-medium); border-radius: 14px; padding: 10px; background: var(--sr-bg); }
+  .phone-caption { font-size: 0.71875rem; color: var(--sr-text-muted); margin: 0 0 8px; }
+
+  /* ---- the real card ---- */
+  .card {
+    border: 1px solid var(--sr-border); border-radius: 10px; overflow: hidden;
+    background: var(--sr-surface); box-shadow: var(--sr-card-shadow);
+  }
+  .card-head {
+    display: flex; align-items: baseline; gap: 8px; row-gap: 4px; flex-wrap: wrap; width: 100%;
+    padding: 11px 13px; border: none; background: transparent; text-align: left;
+    font-family: inherit; cursor: pointer;
+  }
+  .chev { color: var(--sr-text-muted); flex-shrink: 0; display: inline-flex; align-self: center; }
+  .bird-name { font-size: 0.9375rem; font-weight: 700; color: var(--sr-text); letter-spacing: -0.01em; }
+  .species { font-size: 0.84375rem; font-weight: 500; color: var(--sr-accent); }
+  .head-right { margin-left: auto; display: flex; align-items: baseline; flex-wrap: wrap; gap: 13px; flex-shrink: 0; }
+  .dates { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .dates .range { font-size: 0.75rem; color: var(--sr-text-gray); white-space: nowrap; }
+  .dates .span { font-size: 0.6875rem; color: var(--sr-text-muted); white-space: nowrap; }
+  .count { font-size: 0.75rem; font-weight: 700; color: var(--sr-accent); white-space: nowrap; }
+  .card-body { border-top: 1px solid var(--sr-border-subtle); background: var(--sr-surface-faint); }
+
+  .report { padding: 10px 14px 11px 36px; border-bottom: 1px solid var(--sr-border-subtle); }
+  .report-line { display: flex; align-items: center; gap: 0; min-width: 0; margin-bottom: 4px; }
+  .report-date { font-size: 0.75rem; font-weight: 600; color: var(--sr-text); flex-shrink: 0; }
+  .sep { font-size: 0.75rem; color: var(--sr-text-disabled); flex-shrink: 0; padding: 0 7px; }
+  .loc { font-size: 0.75rem; color: var(--sr-text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  a.loc, a.loc-link { color: var(--sr-accent); text-decoration: none; }
+  a.loc:hover, a.loc-link:hover { text-decoration: underline; }
+  .checklist { flex-shrink: 0; font-size: 0.75rem; font-weight: 600; color: var(--sr-accent); text-decoration: none; }
+  .checklist:hover { text-decoration: underline; }
+  .quote {
+    font-size: 0.8125rem; color: var(--sr-text); line-height: 1.55;
+    background: var(--sr-quote-bg); border: 1px solid var(--sr-quote-border);
+    border-left: 3px solid var(--sr-accent-border); border-radius: 7px;
+    padding: 8px 11px; margin-top: 5px; overflow-wrap: anywhere;
+  }
+
+  /* micro-label shared by every in-card section (map, media, and now locations) */
+  .micro {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 7px;
+    font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--sr-text-muted);
+  }
+
+  /* ---- THE NEW BLOCK ---- */
+  .locblock { padding: 12px 14px 2px; }
+  .locblock--last { padding-bottom: 14px; }
+  .locrow {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 1px solid var(--sr-border-subtle);
+  }
+  .locrow:last-of-type { border-bottom: none; }
+  .locrank {
+    font-size: 0.6875rem; color: var(--sr-text-muted);
+    min-width: 16px; flex-shrink: 0; text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .locname { font-size: 0.75rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .locname.plain { color: var(--sr-text-muted); }
+  .loccount { font-size: 0.6875rem; color: var(--sr-text-muted); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .locsingle { display: flex; align-items: center; gap: 8px; padding: 3px 0 1px; }
+  .locsingle .locname { flex: 0 1 auto; }
+  .showall {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; padding: 9px 0 10px; margin-top: 2px;
+    border: none; border-top: 1px solid var(--sr-border-subtle); background: transparent;
+    font-family: inherit; font-size: 0.75rem; font-weight: 500; color: var(--sr-accent);
+    cursor: pointer; border-radius: 0 0 6px 6px;
+    transition: background 140ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .showall:hover { background: var(--sr-accent-bg); }
+  .showall:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+  .showall svg { transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .showall[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+  .mapwrap { padding: 12px 14px 14px; }
+  .fakemap {
+    height: 220px; border-radius: 10px; border: 1px solid var(--sr-border); overflow: hidden;
+    background:
+      radial-gradient(circle at 26% 34%, rgba(255,255,255,0.55), transparent 42%),
+      linear-gradient(150deg, var(--sr-map-water) 0%, var(--sr-map-water) 24%, var(--sr-map-land) 24.6%, var(--sr-map-land) 100%);
+    position: relative;
+  }
+  .fakemap .pin { position: absolute; width: 17px; height: 24px; transform: translate(-50%, -100%); }
+  .fakemap .scalebar {
+    position: absolute; left: 10px; bottom: 9px; font-size: 0.625rem; color: #3f3f46;
+    background: rgba(255,255,255,0.82); padding: 2px 6px; border-radius: 4px;
+  }
+  .hidden { display: none !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="theme-toggle" role="group" aria-label="Preview theme">
+  <button type="button" data-set-theme="light" aria-pressed="true">Light</button>
+  <button type="button" data-set-theme="dark" aria-pressed="false">Dark</button>
+</div>
+
+<div class="page">
+
+  <div class="doc-head">
+    <div class="doc-mark" aria-hidden="true">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+    </div>
+    <div>
+      <h1>Top locations, per named bird</h1>
+      <p class="doc-sub">A ranked list of where one named individual has actually been recorded, sitting between its reports and its map on the Named Birds tab. Built only from that bird's own tagged sightings.</p>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <h2 class="sec">The change, in place</h2>
+  <p class="sec-note">Winky's card, expanded. Today the reports run straight into the map; the birder counts rows to work out where Winky actually hangs out. The new block answers it directly, in the same micro-label idiom the map and media sections already use.</p>
+
+  <div class="compare">
+    <div>
+      <div class="lane-label"><span class="dot"></span>Today</div>
+      <div class="card">
+        <div class="card-head">
+          <span class="chev" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+          <span class="bird-name">Winky</span>
+          <span class="species">Mallard</span>
+          <span class="head-right">
+            <span class="dates"><span class="range">Mar 4, 2023 – Aug 12, 2026</span><span class="span">3 yrs. 5 mos.</span></span>
+            <span class="count">14 sightings</span>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="report">
+            <div class="report-line">
+              <span class="report-date">Aug 12, 2026</span><span class="sep">·</span>
+              <a class="loc" href="#">Lake Merritt--Embarcadero</a><span class="sep">·</span>
+              <a class="checklist" href="#">S238104417</a>
+            </div>
+            <div class="quote">Drake with the drooping left eyelid again, same corner of the pergola. [name:Winky]</div>
+          </div>
+          <div class="report">
+            <div class="report-line">
+              <span class="report-date">Jul 29, 2026</span><span class="sep">·</span>
+              <a class="loc" href="#">Lake Merritt--Embarcadero</a><span class="sep">·</span>
+              <a class="checklist" href="#">S236994120</a>
+            </div>
+            <div class="quote">[name:Winky] loafing on the float with eight other drakes.</div>
+          </div>
+          <div class="mapwrap">
+            <div class="micro">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+              Where Winky has been seen
+            </div>
+            <div class="fakemap">
+              <svg class="pin" style="left:38%; top:44%" viewBox="0 0 28 40" aria-hidden="true"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" fill="#277448"/><circle cx="14" cy="14" r="5" fill="white"/></svg>
+              <svg class="pin" style="left:57%; top:62%" viewBox="0 0 28 40" aria-hidden="true"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" fill="#277448"/><circle cx="14" cy="14" r="5" fill="white"/></svg>
+              <span class="scalebar">1 km</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="lane-label is-new"><span class="dot"></span>With top locations</div>
+      <div class="card">
+        <div class="card-head">
+          <span class="chev" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+          <span class="bird-name">Winky</span>
+          <span class="species">Mallard</span>
+          <span class="head-right">
+            <span class="dates"><span class="range">Mar 4, 2023 – Aug 12, 2026</span><span class="span">3 yrs. 5 mos.</span></span>
+            <span class="count">14 sightings</span>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="report">
+            <div class="report-line">
+              <span class="report-date">Aug 12, 2026</span><span class="sep">·</span>
+              <a class="loc" href="#">Lake Merritt--Embarcadero</a><span class="sep">·</span>
+              <a class="checklist" href="#">S238104417</a>
+            </div>
+            <div class="quote">Drake with the drooping left eyelid again, same corner of the pergola. [name:Winky]</div>
+          </div>
+          <div class="report">
+            <div class="report-line">
+              <span class="report-date">Jul 29, 2026</span><span class="sep">·</span>
+              <a class="loc" href="#">Lake Merritt--Embarcadero</a><span class="sep">·</span>
+              <a class="checklist" href="#">S236994120</a>
+            </div>
+            <div class="quote">[name:Winky] loafing on the float with eight other drakes.</div>
+          </div>
+
+          <!-- NEW -->
+          <div class="locblock">
+            <div class="micro">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              Top locations
+            </div>
+            <div class="locrow"><span class="locrank">1.</span><a class="locname loc-link" href="#">Lake Merritt--Embarcadero</a><span class="loccount">9 sightings</span></div>
+            <div class="locrow"><span class="locrank">2.</span><a class="locname loc-link" href="#">Lakeside Park</a><span class="loccount">3 sightings</span></div>
+            <div class="locrow"><span class="locrank">3.</span><span class="locname plain">Home — back fence</span><span class="loccount">1 sighting</span></div>
+            <div class="locrow"><span class="locrank">4.</span><a class="locname loc-link" href="#">Middle Harbor Shoreline Park</a><span class="loccount">1 sighting</span></div>
+          </div>
+
+          <div class="mapwrap">
+            <div class="micro">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+              Where Winky has been seen
+            </div>
+            <div class="fakemap">
+              <svg class="pin" style="left:38%; top:44%" viewBox="0 0 28 40" aria-hidden="true"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" fill="#277448"/><circle cx="14" cy="14" r="5" fill="white"/></svg>
+              <svg class="pin" style="left:57%; top:62%" viewBox="0 0 28 40" aria-hidden="true"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" fill="#277448"/><circle cx="14" cy="14" r="5" fill="white"/></svg>
+              <span class="scalebar">1 km</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <h2 class="sec">Long lists, and the shapes that aren't lists</h2>
+  <p class="sec-note">Five rows show by default. A bird with more gets the same expander the app already uses on Species Detail's Top Locations, scaled to the card. A bird recorded in only one place gets a sentence instead of a ranking of one, and a bird whose export carries no location names shows no block at all — the same way its map is absent when it has no coordinates.</p>
+
+  <div class="compare">
+    <div>
+      <div class="lane-label is-new"><span class="dot"></span>Eleven locations, collapsed and expanded</div>
+      <div class="card">
+        <div class="card-head">
+          <span class="chev" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+          <span class="bird-name">one-leg-pete</span>
+          <span class="species">Western Gull</span>
+          <span class="head-right">
+            <span class="dates"><span class="range">Nov 18, 2021 – Aug 3, 2026</span><span class="span">4 yrs. 8 mos.</span></span>
+            <span class="count">41 sightings</span>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="locblock locblock--last">
+            <div class="micro">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              Top locations
+            </div>
+            <div class="locrow"><span class="locrank">1.</span><a class="locname loc-link" href="#">Berkeley Marina</a><span class="loccount">14 sightings</span></div>
+            <div class="locrow"><span class="locrank">2.</span><a class="locname loc-link" href="#">Point Isabel Regional Shoreline</a><span class="loccount">8 sightings</span></div>
+            <div class="locrow"><span class="locrank">3.</span><a class="locname loc-link" href="#">Cesar Chavez Park</a><span class="loccount">5 sightings</span></div>
+            <div class="locrow"><span class="locrank">4.</span><a class="locname loc-link" href="#">Emeryville Marina</a><span class="loccount">4 sightings</span></div>
+            <div class="locrow"><span class="locrank">5.</span><a class="locname loc-link" href="#">Middle Harbor Shoreline Park</a><span class="loccount">3 sightings</span></div>
+            <div class="js-more hidden">
+              <div class="locrow"><span class="locrank">6.</span><a class="locname loc-link" href="#">Alameda--Crab Cove</a><span class="loccount">2 sightings</span></div>
+              <div class="locrow"><span class="locrank">7.</span><a class="locname loc-link" href="#">Arrowhead Marsh</a><span class="loccount">1 sighting</span></div>
+              <div class="locrow"><span class="locrank">8.</span><a class="locname loc-link" href="#">Bay Farm Island Shoreline</a><span class="loccount">1 sighting</span></div>
+              <div class="locrow"><span class="locrank">9.</span><span class="locname plain">Ferry queue, Jack London Sq.</span><span class="loccount">1 sighting</span></div>
+              <div class="locrow"><span class="locrank">10.</span><a class="locname loc-link" href="#">Lake Merritt--Embarcadero</a><span class="loccount">1 sighting</span></div>
+              <div class="locrow"><span class="locrank">11.</span><a class="locname loc-link" href="#">Richmond--Point Molate Beach Park</a><span class="loccount">1 sighting</span></div>
+            </div>
+            <button type="button" class="showall js-toggle" aria-expanded="false">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              <span class="js-toggle-label">Show all 11 locations</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <p class="phone-caption" style="margin-top:10px">Click the expander — it behaves exactly as the mockup will in the app.</p>
+    </div>
+
+    <div>
+      <div class="lane-label is-new"><span class="dot"></span>One location · no locations</div>
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head">
+          <span class="chev" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+          <span class="bird-name">Notch</span>
+          <span class="species">Anna's Hummingbird</span>
+          <span class="head-right">
+            <span class="dates"><span class="range">Jan 9, 2026 – Aug 20, 2026</span><span class="span">7 mos.</span></span>
+            <span class="count">6 sightings</span>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="locblock locblock--last">
+            <div class="micro">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              Top locations
+            </div>
+            <div class="locsingle">
+              <span class="locname plain" style="white-space:normal">Every sighting at <strong style="font-weight:600; color:var(--sr-text)">Home — patio feeders</strong>.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="chev" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+          <span class="bird-name">Scruff</span>
+          <span class="species">California Scrub-Jay</span>
+          <span class="head-right">
+            <span class="dates"><span class="range">Feb 2, 2024 – May 6, 2025</span><span class="span">1 yr. 3 mos.</span></span>
+            <span class="count">4 sightings</span>
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="report" style="border-bottom:none">
+            <div class="report-line">
+              <span class="report-date">May 6, 2025</span><span class="sep">·</span>
+              <a class="checklist" href="#">S221880031</a>
+            </div>
+            <div class="quote">Same ragged tail. [name:Scruff]</div>
+          </div>
+        </div>
+      </div>
+      <p class="phone-caption" style="margin-top:10px">No location names in the export, so no block — nothing to rank, nothing added.</p>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <h2 class="sec">Phone, 320px</h2>
+  <p class="sec-note">The narrowest supported width. Long place names ellipsize rather than pushing the count off the row, exactly as the report rows above them already do.</p>
+
+  <div class="phone-frame">
+    <div class="card">
+      <div class="card-head">
+        <span class="chev" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
+        <span class="bird-name">Winky</span>
+        <span class="species">Mallard</span>
+        <span class="head-right">
+          <span class="dates"><span class="range">Mar 4, 2023 – Aug 12, 2026</span><span class="span">3 yrs. 5 mos.</span></span>
+          <span class="count">14 sightings</span>
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="locblock locblock--last">
+          <div class="micro">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            Top locations
+          </div>
+          <div class="locrow"><span class="locrank">1.</span><a class="locname loc-link" href="#">Lake Merritt--Embarcadero</a><span class="loccount">9 sightings</span></div>
+          <div class="locrow"><span class="locrank">2.</span><a class="locname loc-link" href="#">Lakeside Park</a><span class="loccount">3 sightings</span></div>
+          <div class="locrow"><span class="locrank">3.</span><span class="locname plain">Home — back fence</span><span class="loccount">1 sighting</span></div>
+          <div class="locrow"><span class="locrank">4.</span><a class="locname loc-link" href="#">Middle Harbor Shoreline Park</a><span class="loccount">1 sighting</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  document.querySelectorAll('[data-set-theme]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var theme = btn.getAttribute('data-set-theme');
+      document.documentElement.setAttribute('data-theme', theme);
+      document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b === btn));
+      });
+    });
+  });
+
+  document.querySelectorAll('.js-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var block = btn.closest('.locblock');
+      var more = block.querySelector('.js-more');
+      var open = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', String(!open));
+      more.classList.toggle('hidden', open);
+      block.querySelector('.js-toggle-label').textContent = open ? 'Show all 11 locations' : 'Show top 5';
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { ObservationEntry } from '../types'
-import { parseNameTags, computeNamedBirds, sortNamedBirds } from './namedBirds'
+import { parseNameTags, computeNamedBirds, sortNamedBirds, computeNamedBirdLocations } from './namedBirds'
 
 function obs(p: Partial<ObservationEntry> & { submissionId: string }): ObservationEntry {
   return {
@@ -144,5 +144,101 @@ describe('sortNamedBirds', () => {
     it('degrades to name order when orderFor is omitted entirely', () => {
       expect(sortNamedBirds(birds, 'taxonomic').map(b => b.name)).toEqual(['Abby', 'Mid', 'Zelda'])
     })
+  })
+})
+
+
+describe('computeNamedBirdLocations', () => {
+  // One individual's sightings, built the same way the tab builds them, so the
+  // ranking is exercised against real computeNamedBirds output rather than a
+  // hand-written shape that could drift from it.
+  const winky = (extra: ObservationEntry[] = []) => computeNamedBirds([
+    obs({ submissionId: 'S1', date: '2024-01-01', location: 'Lake Merritt', locationId: 'L1', speciesComments: '[name:Winky]' }),
+    obs({ submissionId: 'S2', date: '2024-02-01', location: 'Lake Merritt', locationId: 'L1', speciesComments: '[name:Winky]' }),
+    obs({ submissionId: 'S3', date: '2024-03-01', location: 'Lake Merritt', locationId: 'L1', speciesComments: '[name:Winky]' }),
+    obs({ submissionId: 'S4', date: '2024-04-01', location: 'Arrowhead Marsh', locationId: 'L2', speciesComments: '[name:Winky]' }),
+    obs({ submissionId: 'S5', date: '2024-05-01', location: 'Arrowhead Marsh', locationId: 'L2', speciesComments: '[name:Winky]' }),
+    obs({ submissionId: 'S6', date: '2024-06-01', location: 'Berkeley Marina', locationId: 'L3', speciesComments: '[name:Winky]' }),
+    ...extra,
+  ])[0].sightings
+
+  it('ranks by this individual\u2019s sighting count, keeping each location\u2019s id', () => {
+    expect(computeNamedBirdLocations(winky())).toEqual([
+      { location: 'Lake Merritt', locationId: 'L1', count: 3 },
+      { location: 'Arrowhead Marsh', locationId: 'L2', count: 2 },
+      { location: 'Berkeley Marina', locationId: 'L3', count: 1 },
+    ])
+  })
+
+  it('breaks a count tie alphabetically by location name', () => {
+    const tied = computeNamedBirds([
+      obs({ submissionId: 'S1', location: 'Zebra Pond', locationId: 'L9', speciesComments: '[name:Tie]' }),
+      obs({ submissionId: 'S2', location: 'Apple Creek', locationId: 'L8', speciesComments: '[name:Tie]' }),
+    ])[0].sightings
+    expect(computeNamedBirdLocations(tied).map(l => l.location)).toEqual(['Apple Creek', 'Zebra Pond'])
+  })
+
+  it('counts ONLY this individual, never the whole species', () => {
+    // A second Mallard, unnamed, recorded five times at a place Winky has been
+    // once. The species' top location is Berkeley Marina; Winky's is not.
+    const withSpeciesNoise = winky([
+      obs({ submissionId: 'S7', location: 'Berkeley Marina', locationId: 'L3', speciesComments: 'two drakes' }),
+      obs({ submissionId: 'S8', location: 'Berkeley Marina', locationId: 'L3', speciesComments: '' }),
+      obs({ submissionId: 'S9', location: 'Berkeley Marina', locationId: 'L3', speciesComments: 'pair' }),
+      obs({ submissionId: 'S10', location: 'Berkeley Marina', locationId: 'L3', speciesComments: 'flyover' }),
+    ])
+    expect(computeNamedBirdLocations(withSpeciesNoise)[0]).toEqual({ location: 'Lake Merritt', locationId: 'L1', count: 3 })
+    expect(computeNamedBirdLocations(withSpeciesNoise).find(l => l.location === 'Berkeley Marina')?.count).toBe(1)
+  })
+
+  it('counts a different individual of the same species separately', () => {
+    const both = computeNamedBirds([
+      obs({ submissionId: 'S1', location: 'Lake Merritt', locationId: 'L1', speciesComments: '[name:Winky]' }),
+      obs({ submissionId: 'S2', location: 'Arrowhead Marsh', locationId: 'L2', speciesComments: '[name:Blinky]' }),
+      obs({ submissionId: 'S3', location: 'Arrowhead Marsh', locationId: 'L2', speciesComments: '[name:Blinky]' }),
+    ])
+    const byName = Object.fromEntries(both.map(b => [b.name, computeNamedBirdLocations(b.sightings)]))
+    expect(byName['Winky']).toEqual([{ location: 'Lake Merritt', locationId: 'L1', count: 1 }])
+    expect(byName['Blinky']).toEqual([{ location: 'Arrowhead Marsh', locationId: 'L2', count: 2 }])
+  })
+
+  it('skips sightings with no location name (and blank-only names)', () => {
+    const sparse = computeNamedBirds([
+      obs({ submissionId: 'S1', location: '', locationId: '', speciesComments: '[name:Ghost]' }),
+      obs({ submissionId: 'S2', location: '   ', locationId: '', speciesComments: '[name:Ghost]' }),
+      obs({ submissionId: 'S3', location: 'Real Place', locationId: 'L5', speciesComments: '[name:Ghost]' }),
+    ])[0].sightings
+    expect(computeNamedBirdLocations(sparse)).toEqual([{ location: 'Real Place', locationId: 'L5', count: 1 }])
+  })
+
+  it('returns [] when no sighting carries a location name', () => {
+    const none = computeNamedBirds([
+      obs({ submissionId: 'S1', location: '', locationId: '', speciesComments: '[name:Ghost]' }),
+    ])[0].sightings
+    expect(computeNamedBirdLocations(none)).toEqual([])
+  })
+
+  it('counts one per checklist, so a parent+subspecies pair is not double-counted', () => {
+    // Both rows are the same checklist at the same place, tagged with the same
+    // name — computeNamedBirds collapses them, so the location count is 1 and the
+    // totals still reconcile with the card header.
+    const dupe = computeNamedBirds([
+      obs({ submissionId: 'S1', commonName: 'Mallard', location: 'Lake Merritt', locationId: 'L1', speciesComments: '[name:Winky]' }),
+      obs({ submissionId: 'S1', commonName: 'Mallard (Mexican)', location: 'Lake Merritt', locationId: 'L1', speciesComments: '[name:Winky]' }),
+    ])[0]
+    expect(dupe.sightingCount).toBe(1)
+    expect(computeNamedBirdLocations(dupe.sightings)).toEqual([{ location: 'Lake Merritt', locationId: 'L1', count: 1 }])
+  })
+
+  it('location counts sum to the individual\u2019s located sighting count', () => {
+    const bird = computeNamedBirds([
+      obs({ submissionId: 'S1', location: 'A', locationId: 'L1', speciesComments: '[name:Sum]' }),
+      obs({ submissionId: 'S2', location: 'B', locationId: 'L2', speciesComments: '[name:Sum]' }),
+      obs({ submissionId: 'S3', location: 'B', locationId: 'L2', speciesComments: '[name:Sum]' }),
+      obs({ submissionId: 'S4', location: '', locationId: '', speciesComments: '[name:Sum]' }),
+    ])[0]
+    const located = bird.sightings.filter(s => s.location.trim()).length
+    expect(computeNamedBirdLocations(bird.sightings).reduce((n, l) => n + l.count, 0)).toBe(located)
+    expect(located).toBe(bird.sightingCount - 1)
   })
 })

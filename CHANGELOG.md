@@ -2,7 +2,10 @@
 
 All notable changes to SnowRaven are documented here.
 
-## [1.0.3] - 2026-08-26
+## [1.0.3] - 2026-08-27
+
+### Added
+- **Top locations for a named bird.** An expanded card on the Named Birds tab now ranks the places that individual has actually been recorded, between its reports and its map. The counts come only from the checklists carrying that bird's `[name:…]` tag, never from the species as a whole, so a hotspot where the species floods but your bird turned up once sits where it belongs, and the totals add up to the card's own sighting count. Five places show with a "Show all N locations" control beyond that; a public hotspot name links to its hotspot page on eBird and a personal location stays plain text, as everywhere else in the app. A bird recorded in one place gets a single line naming it rather than a ranking of one, and a bird whose export carries no location names shows no list at all. The Named Individuals section on Species Detail is unchanged: that tab already has its own Top Locations for the whole species.
 
 ### Changed
 - **The bird in the app is now the SnowRaven raven.** The app header and the first-run welcome screen carried a generic outlined bird from an icon library, the last two surfaces whose bird was not the brand's raven. Both now show the same raven silhouette as the app icon, at the same sizes and in the same accent green in both themes. Nothing moves and nothing else changes; the mark stays decorative, and the wordmark still carries the name.

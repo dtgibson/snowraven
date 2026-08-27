@@ -15,6 +15,7 @@ import { buildSightingMarkers } from '../lib/sightingMarkers'
 import { ChecklistLink } from './ChecklistLink'
 import { HotspotLink } from './HotspotLink'
 import { NamedBirdMedia } from './NamedBirdMedia'
+import { NamedBirdLocations } from './NamedBirdLocations'
 import type { NamedBird } from '../lib/namedBirds'
 import type { NamedBirdAsset } from '../lib/namedBirdMedia'
 
@@ -134,6 +135,18 @@ export function NamedBirdRow({ bird, open, onToggle, showSpecies, showMap, rende
               )}
             </div>
           ))}
+
+          {/* Where this individual has been recorded, ranked by its own sighting
+              count — above the map, so the ranked read comes before the spatial
+              one. Named-Birds-tab-only (same `showMap` gate as the map and media);
+              it draws nothing when no sighting carries a location name. */}
+          {showMap && (
+            <NamedBirdLocations
+              sightings={bird.sightings}
+              isHotspot={isHotspot}
+              lastInCard={cardMarkers.length === 0 && !hasML}
+            />
+          )}
 
           {/* Per-individual sightings map — below the reports, only when this bird
               has usable coordinates. The empty-array guard keeps the WebGL context

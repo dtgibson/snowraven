@@ -108,6 +108,26 @@ describe('NamedBirdsTable', () => {
     expect(screen.queryByTestId('snowmap-stub')).toBeNull()
   })
 
+  it('shows the per-individual top-locations block on the tab, ranked from that bird alone', () => {
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
+    expect(screen.queryByText('Top locations')).toBeNull()
+    fireEvent.click(screen.getByText('Pete').closest('button')!)
+    expect(screen.getByText('Top locations')).toBeTruthy()
+    // Pete has one located sighting (Lake Merritt) and one with no location, so the
+    // single-location shape renders and the unlocated sighting is simply left out.
+    expect(screen.getByText('Every sighting at')).toBeTruthy()
+    expect(screen.queryAllByText('Lake Merritt')).toHaveLength(2) // the report row + the block
+  })
+
+  it('renders NO top-locations block for the Species Detail section (multi-open, no singleOpen)', () => {
+    // Species Detail already carries its own species-wide Top Locations above this
+    // section; the per-individual list is tab-only, gated by the same flag as the map.
+    render(<NamedBirdsTable embedAllowed birds={birds} showSpecies={false} />)
+    fireEvent.click(screen.getByText('Pete').closest('button')!)
+    expect(screen.queryByText('Top locations')).toBeNull()
+    expect(screen.queryByText('Every sighting at')).toBeNull()
+  })
+
   it('single-open accordion: opening a second card collapses the first', async () => {
     render(<NamedBirdsTable embedAllowed birds={birds} showSpecies singleOpen orderFor={() => Infinity} renderSpecies={cn => <span>{cn}</span>} />)
     fireEvent.click(screen.getByText('Pete').closest('button')!)
