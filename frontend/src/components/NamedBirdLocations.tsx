@@ -57,15 +57,17 @@ export function NamedBirdLocations({ sightings, isHotspot, lastInCard = false }:
     return (
       <div style={{ padding: lastInCard ? '12px 14px 14px' : '12px 14px 2px' }}>
         {label}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5, padding: '3px 0 1px', fontSize: '0.75rem', color: 'var(--sr-text-muted)' }}>
-          <span>Every sighting at</span>
+        {/* Inline text flow, not a flex row: the sentence's closing period has to
+            sit tight against the location name, and a flex gap would push it off. */}
+        <div className="sr-wrap-anywhere" style={{ padding: '3px 0 1px', fontSize: '0.75rem', lineHeight: 1.6, color: 'var(--sr-text-muted)' }}>
+          Every sighting at{' '}
           <HotspotLink
             locId={only.locationId}
             name={only.location}
             isHotspot={isHotspot(only.locationId)}
             title={only.location}
             style={{ fontSize: '0.75rem', fontWeight: 600 }}
-          />
+          />.
         </div>
       </div>
     )
