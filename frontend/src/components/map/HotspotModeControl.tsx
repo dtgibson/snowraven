@@ -28,9 +28,15 @@ export interface HotspotModeControlProps {
   /** True after a Week ↔ 30 days flip within the current pass/result set. */
   windowFlipped: boolean
   onRetry: () => void
+  /** Use Tier Rings (colorblind-accessible-hotspot-pins): the opt-in
+   *  structural cue on ramp pins. The row is revealed only while a
+   *  non-default mode is active; the VALUE persists through the storage seam
+   *  in MapExplorer (key 'hotspotTierRings', default off). */
+  tierRings: boolean
+  onTierRingsChange: (on: boolean) => void
 }
 
-export function HotspotModeControl({ mode, onModeChange, window: win, onWindowChange, status, windowFlipped, onRetry }: HotspotModeControlProps) {
+export function HotspotModeControl({ mode, onModeChange, window: win, onWindowChange, status, windowFlipped, onRetry, tierRings, onTierRingsChange }: HotspotModeControlProps) {
   const activityUiLive = mode === 'activity' && status !== null && status.phase !== 'idle'
   const sentence = activityUiLive ? activityStatusSentence(status, windowFlipped, formatLoadedTime) : ''
   const running = activityUiLive && status.phase === 'running'
@@ -79,6 +85,42 @@ export function HotspotModeControl({ mode, onModeChange, window: win, onWindowCh
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Use Tier Rings — revealed only while a non-default mode is active,
+          via the same grid-rows collapse + inert idiom as the window row; the
+          role="status" live region below stays OUTSIDE this inert boundary
+          (the v0.5.92 rule). The switch matches the shipped Use Textures
+          idiom; unlike the session-only Use-Textures precedent, the VALUE
+          persists (a user-approved deviation — a vision-linked accessibility
+          preference must not be re-enabled every launch). */}
+      <div className={`sr-hotspot-reveal${mode !== 'default' ? ' sr-hotspot-reveal--open' : ''}`}>
+        <div inert={mode === 'default'} style={{ overflow: 'hidden', minHeight: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12 }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--sr-text)' }}>Use Tier Rings</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={tierRings}
+              aria-label="Use tier rings on hotspot color modes"
+              tabIndex={0}
+              onClick={() => onTierRingsChange(!tierRings)}
+              style={{
+                width: 44, height: 24, borderRadius: 12, border: 'none', flexShrink: 0,
+                background: tierRings ? 'var(--sr-accent)' : 'var(--sr-border-medium)',
+                position: 'relative', cursor: 'pointer', transition: 'background 0.15s',
+              }}
+            >
+              <span style={{
+                position: 'absolute', top: 2, left: tierRings ? 22 : 2, width: 20, height: 20,
+                borderRadius: '50%', background: 'var(--sr-switch-thumb)', transition: 'left 0.15s',
+              }} />
+            </button>
+          </div>
+          <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+            Adds a segmented ring per tier so pins are readable without color.
           </div>
         </div>
       </div>

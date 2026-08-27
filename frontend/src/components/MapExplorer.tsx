@@ -73,7 +73,7 @@ import {
   MEDIA_ICONS, TEARDROP_HTML, SELECT_STYLE,
 } from '../lib/mapExplorerFormat'
 import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
-import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch, CountyCompletenessLegend, HotspotModeMiniPin, HotspotModeDot, type HotspotModeMiniVariant } from './map/MapSidebarUI'
+import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch, CountyCompletenessLegend, HotspotModeMiniPin, HotspotModeDot, HotspotTierBadge, type HotspotModeMiniVariant } from './map/MapSidebarUI'
 import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
 import { SharePin } from './map/SharePin'
 import { SharePopup } from './map/SharePopup'
@@ -336,6 +336,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // the zero-request confirmation sentence; reset on a mode change and on a
   // new result set (the render-adjustment below).
   const [hotspotWindowFlipped, setHotspotWindowFlipped] = useState(false)
+  // Use Tier Rings (colorblind-accessible-hotspot-pins): the opt-in structural
+  // cue on ramp pins. PERSISTED through the storage seam (key
+  // 'hotspotTierRings', default off) — a deliberate, user-approved deviation
+  // from the session-only county/atlas Use-Textures precedent: a vision-linked
+  // accessibility preference must not be re-enabled every launch (pipeline
+  // decisions.md). Never localStorage (the desktop relaunch rule).
+  const [hotspotTierRings, setHotspotTierRings] = useState(false)
   // React's "adjusting state when a prop changes" pattern (a bare setState
   // during render — the shareViewMode shape above): a NEW result set clears
   // the flip flag so a stale confirmation can't outlive the pass it described.
@@ -625,6 +632,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
   // fits to all of the user's sightings. Panning to the saved center would win
   // the async race against that fit and leave the map zoomed in on load. The
   // saved center is applied when the user switches to Hotspots/Targets (below).
+  // Hydrate the persisted Use Tier Rings choice on mount (like the other
+  // persisted settings): default off, only an explicit true flips it, so a
+  // missing or malformed value stays the shipped default.
+  useEffect(() => {
+    storage.getSetting<boolean>('hotspotTierRings')
+      .then(v => { if (v === true) setHotspotTierRings(true) })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     storage.getSetting<{ lat: number; lng: number; dist: number }>('map-defaults')
       .then(data => {
@@ -1154,7 +1170,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     return (
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 3, border: '1px solid var(--sr-map-pin-stroke)', background: swatchBg, flexShrink: 0 }} />
+          {/* Rings on: the ramp reading's swatch becomes the round tier badge
+              (same shared HOTSPOT_TIER_ARC spec as the sprites and legend
+              minis, NFR-10). Rings off, and every non-ramp swatch state in
+              both toggle states: the shipped 10px square, unchanged. */}
+          {line.swatch === 'ramp' && hotspotTierRings
+            ? <HotspotTierBadge tier={line.tier ?? 1} />
+            : <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 3, border: '1px solid var(--sr-map-pin-stroke)', background: swatchBg, flexShrink: 0 }} />}
           <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--sr-text)' }}>{line.primary}</span>
         </div>
         {line.secondary && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 3 }}>{line.secondary}</div>}
@@ -1165,7 +1187,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         {line.visitedLine && <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 3 }}>{line.visitedLine}</div>}
       </div>
     )
-  }, [hotspotReadingFor, hotspotColorMode])
+  }, [hotspotReadingFor, hotspotColorMode, hotspotTierRings])
 
   // Mode selection: activating any color mode auto-reveals the legend (FR-24,
   // the Designer's call — a new scale with a closed legend is a riddle).
@@ -1173,6 +1195,15 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     setHotspotColorMode(m)
     setHotspotWindowFlipped(false)
     if (m !== 'default') setLegendVisible(true)
+  }, [])
+
+  // Use Tier Rings: RENDERING only (the v0.5.59 cosmetic-toggle rule) — a
+  // prop-driven sprite re-bake, never a fetch, never mode/tier/activity state,
+  // never a marker-layer remount. The write through the seam is best-effort:
+  // the in-session value stands even if persistence fails.
+  const handleTierRingsChange = useCallback((on: boolean) => {
+    setHotspotTierRings(on)
+    storage.setSetting('hotspotTierRings', on).catch(() => {})
   }, [])
 
   const handleActivityWindowChange = useCallback((w: ActivityWindow) => {
@@ -2033,6 +2064,8 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         status={hotspotPins && hotspotPins.length > 0 ? activityView.status : null}
         windowFlipped={hotspotWindowFlipped}
         onRetry={activityView.retry}
+        tierRings={hotspotTierRings}
+        onTierRingsChange={handleTierRingsChange}
       />
 
       {/* Legend — visible after first successful fetch; auto-revealed by a mode
@@ -2091,7 +2124,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 </div>
                 {model.classes.map(row => (
                   <div key={row.tier} style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 6 }}>
-                    <HotspotModeMiniPin variant="ramp" tier={row.tier} />
+                    <HotspotModeMiniPin variant="ramp" tier={row.tier} rings={hotspotTierRings} />
                     <span style={{ fontSize: '0.75rem', color: 'var(--sr-text)', fontVariantNumeric: 'tabular-nums' }}>
                       {row.min === row.max ? row.min.toLocaleString() : `${row.min.toLocaleString()}–${row.max.toLocaleString()}`}
                     </span>
@@ -3210,7 +3243,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
                 /* modeCls + popupExtra are PROPS — never in the key (a mode or
                    window switch is a cosmetic in-place re-render: no remount,
                    no re-fit, no popup dismissal — NFR-04). */
-                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} autoFit={framedByViewport.hotspots !== true} modeCls={hotspotModeCls} popupExtra={hotspotColorMode !== 'default' ? hotspotPopupExtra : undefined} />
+                <HotspotMarkers key={hotspotPins.length} pins={hotspotPins} hiddenKinds={hiddenKinds} sel={selectedHotspotLocId} onSelect={setSelectedHotspotLocId} autoFit={framedByViewport.hotspots !== true} modeCls={hotspotModeCls} popupExtra={hotspotColorMode !== 'default' ? hotspotPopupExtra : undefined} tierRings={hotspotTierRings} />
               )}
               {viewMode === 'targets' && targetPins && (
                 <TargetMarkers key={`${targetPins.length}-${targetViewMode}`} pins={displayedTargetPins} speciesCodeMap={speciesCodeMap} hasEntryFor={hasEntryFor} onOpenSpecies={onOpenSpecies} sel={selectedTargetLocId} onSelect={setSelectedTargetLocId} markerMode={targetMarkerMode} autoFit={framedByViewport.targets !== true} />

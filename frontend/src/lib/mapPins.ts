@@ -305,6 +305,82 @@ export const HOTSPOT_DASH_PATTERN: readonly [number, number] = [3, 2.6]
 export const HOTSPOT_GLYPH_ON_PALE = '#43424A'
 export const HOTSPOT_GLYPH_ON_NODATA = '#52525B'
 
+// ── The opt-in tier ring (colorblind-accessible-hotspot-pins) ─────────────────
+//
+// A thin white ring just inside each RAMP pin's rim, split into five fixed
+// segments; a pin's tier fills that many segments clockwise from 12 o'clock,
+// the remainder staying as a faint track. Off by default; rings render on ramp
+// sprites only, so every non-value state, personal pins, and the default
+// visited/unvisited path stay byte-identical in both toggle states.
+
+/** The tier ring's ONE geometry source: consumed by the canvas sprite bake
+ *  below, the sidebar legend minis, and the popup tier badge (MapSidebarUI) —
+ *  the CountyDensitySwatch same-source rule (NFR-10). Never duplicate these
+ *  numbers. The ring sits in the free annulus between the glyph extents (~r 8)
+ *  and the teardrop outline's inner edge (r 13.25); hotspotTierRings.test.ts
+ *  asserts both clearances and the monotonic fill. */
+export const HOTSPOT_TIER_ARC = {
+  cx: 14, cy: 14, r: 11.1, width: 2.4,
+  segments: 5, gapDeg: 16, startDeg: -90, trackAlpha: 0.28,
+} as const
+
+/** The popup mode line's round tier badge (rings on): a bulb circle plus the
+ *  SAME ring segments in a 28×28 viewBox, rendered ~18px. Radii/widths here
+ *  are the badge's only copy; segment angles and the track alpha come from
+ *  HOTSPOT_TIER_ARC. */
+export const HOTSPOT_TIER_BADGE = {
+  viewBox: 28, px: 18, r: 12.4, stroke: 1.5, ringR: 9.4, ringWidth: 3,
+} as const
+
+/** Sprite-baked tier-ring literal in the HOTSPOT_GLYPH_* family (the basemap-
+ *  anchored GL exception): the ring is the same white as the baked kind glyph;
+ *  the unfilled track is this white at HOTSPOT_TIER_ARC.trackAlpha. */
+export const HOTSPOT_TIER_RING_COLOR = '#fff'
+
+export interface HotspotTierArcSegment {
+  /** Start/end angles in radians (canvas convention: 0 at 3 o'clock, clockwise
+   *  positive — startDeg −90 is 12 o'clock). */
+  startRad: number
+  endRad: number
+  /** Filled for this tier. Structurally monotonic BY CONSTRUCTION: segment i
+   *  is filled iff i < tier, so the filled count IS the tier. */
+  filled: boolean
+}
+
+/** The ring's segments for a tier (1..segments): equal arcs clockwise from
+ *  12 o'clock with gapDeg between them, filled count = tier. */
+export function tierArcSegments(tier: number): HotspotTierArcSegment[] {
+  const { segments, gapDeg, startDeg } = HOTSPOT_TIER_ARC
+  const per = 360 / segments
+  const out: HotspotTierArcSegment[] = []
+  for (let i = 0; i < segments; i++) {
+    out.push({
+      startRad: ((startDeg + i * per + gapDeg / 2) * Math.PI) / 180,
+      endRad: ((startDeg + (i + 1) * per - gapDeg / 2) * Math.PI) / 180,
+      filled: i < tier,
+    })
+  }
+  return out
+}
+
+/** One segment as an SVG arc path at radius `r` (default: the sprite ring
+ *  radius). The legend minis and the popup badge draw EXACTLY this string, so
+ *  the SVG surfaces and the canvas bake share one geometry (NFR-10). */
+export function tierArcSegmentPath(seg: HotspotTierArcSegment, r: number = HOTSPOT_TIER_ARC.r): string {
+  const { cx, cy } = HOTSPOT_TIER_ARC
+  const x1 = cx + r * Math.cos(seg.startRad)
+  const y1 = cy + r * Math.sin(seg.startRad)
+  const x2 = cx + r * Math.cos(seg.endRad)
+  const y2 = cy + r * Math.sin(seg.endRad)
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`
+}
+
+/** The ramp tier a mode sprite key encodes (t1..t5 × kind), null for every
+ *  non-value state — rings render on ramp sprites only. */
+export function rampTierOf(key: HotspotModeSpriteKey): number | null {
+  return /^t[1-5]-/.test(key) ? Number(key.charAt(1)) : null
+}
+
 // Basemap-anchored fallbacks (theme-identical by design), used only when
 // getComputedStyle is unavailable or a token is missing (tests, very early
 // paint). Values = the design-spec token values.
@@ -352,7 +428,7 @@ export function modeSpriteKind(key: HotspotModeSpriteKey): Exclude<HotspotKind, 
  * the dashed ring on unanswered, and the glyph color. Same regenerate-on-
  * theme-change contract as teardropImageData.
  */
-export function modeTeardropImageData(key: HotspotModeSpriteKey, dpr: number): ImageData {
+export function modeTeardropImageData(key: HotspotModeSpriteKey, dpr: number, tierRings = false): ImageData {
   const canvas = document.createElement('canvas')
   canvas.width = Math.round(TEARDROP_W * dpr)
   canvas.height = Math.round(TEARDROP_H * dpr)
@@ -368,6 +444,26 @@ export function modeTeardropImageData(key: HotspotModeSpriteKey, dpr: number): I
   if (dashed) ctx.setLineDash([...HOTSPOT_DASH_PATTERN])
   ctx.stroke(teardrop)
   if (dashed) ctx.setLineDash([])
+
+  // The opt-in tier ring: RAMP sprites only, drawn after the fill/stroke and
+  // before the glyph, from the ONE HOTSPOT_TIER_ARC spec. tierRings=false (the
+  // default) is the shipped path bit for bit — hotspotTierRings.test.ts pins
+  // the op stream in both states.
+  if (tierRings) {
+    const tier = rampTierOf(key)
+    if (tier !== null) {
+      ctx.lineWidth = HOTSPOT_TIER_ARC.width
+      ctx.lineCap = 'butt'
+      ctx.strokeStyle = HOTSPOT_TIER_RING_COLOR
+      for (const seg of tierArcSegments(tier)) {
+        ctx.globalAlpha = seg.filled ? 1 : HOTSPOT_TIER_ARC.trackAlpha
+        ctx.beginPath()
+        ctx.arc(HOTSPOT_TIER_ARC.cx, HOTSPOT_TIER_ARC.cy, HOTSPOT_TIER_ARC.r, seg.startRad, seg.endRad)
+        ctx.stroke()
+      }
+      ctx.globalAlpha = 1
+    }
+  }
 
   const hollow = key === 'zero' || key.startsWith('quiet')
   if (hollow) {

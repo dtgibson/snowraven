@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.2] - 2026-08-26
+
+### Added
+- **Tier rings: a colorblind-accessible reading for the hotspot color modes.** A "Use Tier Rings" switch in the Map Explorer's "Color pins by" block adds a thin white ring just inside each ramp pin's rim, split into five fixed segments; a pin's tier fills that many segments clockwise from the top, and the rest stays as a faint track. A tier then reads by extent from across the map, like a clock face, and by count up close, with no reliance on hue or brightness. The legend's mini pins gain the same ring and the popup's small square swatch becomes a round tier badge, all drawn from one shared geometry so the map, legend, and popup can never drift apart. Off by default: the calm shipped ramp is untouched until you switch it on, and because it is a vision-linked reading aid, the choice is remembered between sessions rather than resetting on relaunch. Hollow, dashed, and pale pins, personal pins, and the default visited/unvisited coloring are unchanged in both states.
+
 ## [1.0.1] - 2026-08-26
 
 ### Added

@@ -48,13 +48,16 @@ vi.mock('react-map-gl/maplibre', () => ({
 // Sprite baking needs a 2D canvas context, which jsdom does not provide. The
 // bakers are stubbed (ImageData-shaped sentinel); everything else in mapPins is
 // the real module, so the id tables and reverse lookups under test are genuine.
+// The mode baker records its calls so the tierRings threading is assertable
+// (the ring's own drawing is guarded in lib/hotspotTierRings.test.ts).
+const modeBakeCalls = vi.hoisted(() => [] as unknown[][])
 vi.mock('../../lib/mapPins', async (importOriginal) => {
   const real = await importOriginal<typeof import('../../lib/mapPins')>()
   const fakeImg = { width: 1, height: 1, data: new Uint8ClampedArray(4) }
   return {
     ...real,
     teardropImageData: () => fakeImg,
-    modeTeardropImageData: () => fakeImg,
+    modeTeardropImageData: (...args: unknown[]) => { modeBakeCalls.push(args); return fakeImg },
   }
 })
 
@@ -94,6 +97,7 @@ interface FC { features: { properties: Record<string, unknown> }[] }
 beforeEach(() => {
   layerLog.length = 0
   sourceLog.length = 0
+  modeBakeCalls.length = 0
   mapCtl.map = undefined
 })
 afterEach(() => { cleanup(); vi.clearAllMocks() })
@@ -269,5 +273,37 @@ describe('fit effect and sprites (NFR-04 / NFR-03)', () => {
     expect(map.addImage.mock.calls[0][0]).toBe(HOTSPOT_MODE_IMAGE_ID['quiet-unvisited'])
     onMissing({ id: HOTSPOT_IMAGE_ID.visited })
     expect(map.addImage).toHaveBeenCalledTimes(2)
+  })
+})
+
+// ── 5. Use Tier Rings threading (colorblind-accessible-hotspot-pins) ─────────
+// The ring drawing itself is guarded in lib/hotspotTierRings.test.ts; what
+// this component owes is the WIRING — the flag reaches every mode-sprite bake,
+// defaults off, and a flip is a cosmetic in-place re-bake (the v0.5.59 rule:
+// updateImage, no remount, no re-fit).
+
+describe('tier rings threading (NFR-04 / the v0.5.59 cosmetic-toggle rule)', () => {
+  it('with no prop, every mode-sprite bake receives tierRings=false (shipped default)', () => {
+    const map = mockMap()
+    mapCtl.map = map
+    render(<HotspotMarkers {...baseProps} />)
+    expect(modeBakeCalls.length).toBe(HOTSPOT_MODE_SPRITE_KEYS.length)
+    for (const call of modeBakeCalls) expect(call[2]).toBe(false)
+  })
+
+  it('a tierRings flip re-bakes every mode sprite in place — updateImage, no re-fit', () => {
+    const map = mockMap()
+    map.hasImage = vi.fn(() => true) // already registered → the update path
+    mapCtl.map = map
+    const { rerender } = render(<HotspotMarkers {...baseProps} autoFit tierRings={false} />)
+    expect(map.fitBounds).toHaveBeenCalledTimes(1)
+    modeBakeCalls.length = 0
+    map.updateImage.mockClear()
+    rerender(<HotspotMarkers {...baseProps} autoFit tierRings />)
+    expect(modeBakeCalls.length).toBe(HOTSPOT_MODE_SPRITE_KEYS.length)
+    for (const call of modeBakeCalls) expect(call[2]).toBe(true)
+    expect(map.updateImage).toHaveBeenCalled()
+    // Cosmetic: the fit effect never re-ran, so no reframe and no popup loss.
+    expect(map.fitBounds).toHaveBeenCalledTimes(1)
   })
 })

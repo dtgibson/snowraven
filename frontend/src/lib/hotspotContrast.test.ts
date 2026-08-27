@@ -25,7 +25,12 @@
 //     (off-ramp states distinguishable by more than hue, NFR-02);
 //   • --sr-hotspot-pale is deliberately OUTSIDE the fill clauses (an
 //     inner-disc surface bounded by the zero rim, never a pin boundary against
-//     the map) — presence + theme-identity only.
+//     the map) — presence + theme-identity only;
+//   • the tier-ring white (HOTSPOT_TIER_RING_COLOR, the opt-in Use Tier Rings
+//     cue, colorblind-accessible-hotspot-pins) ≥3:1 against EVERY ramp fill in
+//     both theme blocks — the ring strokes over the fills, step 1 (~4.0:1 as
+//     shipped) is the binding case, and a future ramp retune that lightens a
+//     fill past ~luminance 0.30 must fail here rather than the user's eyes.
 //
 // DORMANT CLAUSE, stated so a future change trips over it: NO TEXT rides any
 // pin fill, so the ≥4.5:1 on-fill text rule (the Calendar precedent) does not
@@ -35,6 +40,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { TINT_PARK, TINT_WOOD, TINT_GRASS, TINT_DEVELOPED } from './mapStyle'
+import { HOTSPOT_TIER_RING_COLOR } from './mapPins'
 
 const css = readFileSync(new URL('../globals.css', import.meta.url), 'utf8')
 
@@ -160,6 +166,23 @@ describe('--sr-hotspot ramp + state tokens (QA-29 / QA-30)', () => {
         expect(contrast(states[i], states[j]), `${STATE_NAMES[i]} vs ${STATE_NAMES[j]}`).toBeGreaterThanOrEqual(1.2)
       }
       expect(contrast(states[i], hexOf(rootBlock, 'sr-hotspot-1')), `${STATE_NAMES[i]} vs step 1`).toBeGreaterThanOrEqual(1.2)
+    }
+  })
+
+  it('the tier-ring white (HOTSPOT_TIER_RING_COLOR) is ≥3:1 against every ramp fill, in both theme blocks', () => {
+    // The opt-in tier ring strokes this white over the ramp fills at pin
+    // scale (colorblind-accessible-hotspot-pins); the lightest fill is the
+    // binding case (step 1, ~4.0:1 as shipped). Both blocks are asserted so
+    // this clause survives even a future retirement of the basemap-anchored
+    // theme-identity clause above.
+    const expand = (hex: string): string =>
+      hex.length === 4 ? `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}` : hex
+    const ringLum = lum(expand(HOTSPOT_TIER_RING_COLOR))
+    for (const [theme, where] of [['root', rootBlock], ['dark', darkBlock]] as const) {
+      for (const t of RAMP) {
+        const c = contrastL(ringLum, lum(hexOf(where, `sr-hotspot-${t}`)))
+        expect(c, `${theme}: ring white vs hotspot-${t}`).toBeGreaterThanOrEqual(3)
+      }
     }
   })
 

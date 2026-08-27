@@ -23,9 +23,16 @@ function renderControl(over: Partial<HotspotModeControlProps> = {}) {
   const props: HotspotModeControlProps = {
     mode: 'default', onModeChange: vi.fn(), window: 7, onWindowChange: vi.fn(),
     status: null, windowFlipped: false, onRetry: vi.fn(),
+    tierRings: false, onTierRingsChange: vi.fn(),
     ...over,
   }
   return { ...render(<HotspotModeControl {...props} />), props }
+}
+
+/** The switch is queried by selector (not getByRole) because half these tests
+ *  exercise it INSIDE an inert boundary. */
+function tierRingsSwitch(container: HTMLElement): HTMLElement {
+  return container.querySelector('[aria-label="Use tier rings on hotspot color modes"]')!
 }
 
 describe('mode selector (FR-01, QA-01)', () => {
@@ -78,6 +85,53 @@ describe('window row (FR-10, QA-09)', () => {
     const { props } = renderControl({ mode: 'activity' })
     fireEvent.click(screen.getByRole('button', { name: '30 days' }))
     expect(props.onWindowChange).toHaveBeenCalledWith(30)
+  })
+})
+
+describe('Use Tier Rings switch (colorblind-accessible-hotspot-pins)', () => {
+  it('is revealed (reveal open, no inert boundary) in every non-default mode', () => {
+    for (const mode of ['mySpecies', 'myChecklists', 'activity'] as const) {
+      const { container } = renderControl({ mode })
+      const sw = tierRingsSwitch(container)
+      expect(sw, mode).toBeTruthy()
+      expect(sw.getAttribute('role')).toBe('switch')
+      const reveal = sw.closest('.sr-hotspot-reveal')!
+      expect(reveal.classList.contains('sr-hotspot-reveal--open'), mode).toBe(true)
+      // Literal-absence rule (the v0.5.87 both-states inert precedent).
+      expect(sw.closest('[inert]'), mode).toBeNull()
+      cleanup()
+    }
+  })
+
+  it('is collapsed + inert in default mode, and the status live region stays OUTSIDE every inert boundary', () => {
+    const { container } = renderControl({ mode: 'default' })
+    const sw = tierRingsSwitch(container)
+    const reveal = sw.closest('.sr-hotspot-reveal')!
+    expect(reveal.classList.contains('sr-hotspot-reveal--open')).toBe(false)
+    expect(sw.closest('[inert]')).toBeTruthy()
+    // The v0.5.92 rule: inert removes a subtree from the accessibility tree,
+    // so the role="status" region must never sit inside one.
+    expect(screen.getByRole('status').closest('[inert]')).toBeNull()
+  })
+
+  it('carries the approved label, explainer, and aria-checked from the persisted value', () => {
+    const { container } = renderControl({ mode: 'mySpecies', tierRings: true })
+    expect(screen.getByText('Use Tier Rings')).toBeTruthy()
+    expect(screen.getByText('Adds a segmented ring per tier so pins are readable without color.')).toBeTruthy()
+    expect(tierRingsSwitch(container).getAttribute('aria-checked')).toBe('true')
+    cleanup()
+    const off = renderControl({ mode: 'mySpecies', tierRings: false })
+    expect(tierRingsSwitch(off.container).getAttribute('aria-checked')).toBe('false')
+  })
+
+  it('a press dispatches the toggled value in both directions', () => {
+    const { container, props } = renderControl({ mode: 'mySpecies', tierRings: false })
+    fireEvent.click(tierRingsSwitch(container))
+    expect(props.onTierRingsChange).toHaveBeenCalledWith(true)
+    cleanup()
+    const second = renderControl({ mode: 'activity', tierRings: true })
+    fireEvent.click(tierRingsSwitch(second.container))
+    expect(second.props.onTierRingsChange).toHaveBeenCalledWith(false)
   })
 })
 

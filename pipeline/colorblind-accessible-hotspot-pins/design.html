@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tier-Ring Hotspot Pins</title>
+<!-- Design direction for the colorblind-accessible-hotspot-pins improvement,
+     revision 2: the tier ring is OPT-IN behind a "Use Tier Rings" switch in the
+     "Color pins by" block (the Use-Textures precedent), per user direction.
+     Type is Inter by deliberate design-system mandate (pipeline/design-system.md:
+     Inter / system-ui is the established house face across 61 shipped versions);
+     the Weft doctrine's distinctive-display rule yields to the project system on
+     specifics. All colors below are the real shipped token values from
+     frontend/src/globals.css; the pin geometry mirrors lib/mapPins.ts exactly. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* SnowRaven light tokens (globals.css :root) */
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-border: #E4E4E7;
+    --sr-border-medium: #C4C4CE;
+    --sr-accent: #277448;
+    --sr-on-accent: #FFFFFF;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-border: rgba(39,116,72,0.25);
+    --sr-switch-thumb: #FFFFFF;
+    /* Map-anchored (theme-identical) */
+    --sr-hotspot-1: #2C89AA;
+    --sr-hotspot-2: #24709A;
+    --sr-hotspot-3: #1C5883;
+    --sr-hotspot-4: #153F63;
+    --sr-hotspot-5: #0E2A47;
+    --sr-hotspot-unanswered: #6A6A72;
+    --sr-hotspot-zero: #565661;
+    --sr-hotspot-nodata: #EDE9E3;
+    --sr-hotspot-pale: #F1EEE8;
+    --sr-map-personal: #B0701B;
+    --sr-map-pin-stroke: #3F3F46;
+    --land: hsl(138, 38%, 89%);   /* TINT_GRASS, lib/mapStyle.ts */
+    --water: #CFDDE4;             /* Positron-water read, scene dressing only */
+    --card-shadow: 0 1px 3px rgba(15,17,23,0.06);
+  }
+  .theme-dark {
+    /* SnowRaven dark tokens (globals.css [data-theme="dark"]); the hotspot and
+       pin-stroke tokens are declared identically in both themes (map-anchored). */
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-border: #27272A;
+    --sr-border-medium: #3F3F46;
+    --sr-accent: #34D399;
+    --sr-on-accent: #052E16;
+    --sr-accent-bg: #052E16;
+    --sr-accent-border: rgba(52,211,153,0.2);
+    --card-shadow: 0 1px 3px rgba(9,9,11,0.55);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background:
+      radial-gradient(1100px 420px at 85% -140px, rgba(39,116,72,0.05), transparent 60%),
+      var(--sr-bg);
+    color: var(--sr-text);
+    line-height: 1.55;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+  .page { max-width: 60rem; margin: 0 auto; }
+
+  /* ── House type roles ── */
+  .h-display { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+  .h-section { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 0.35rem; }
+  .body-copy { font-size: 0.84375rem; color: var(--sr-text-muted); max-width: 44rem; }
+  .microlabel {
+    font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--sr-text-muted);
+  }
+
+  header.masthead { display: flex; align-items: flex-start; gap: 0.875rem; margin-bottom: 2.25rem; }
+  .brand-tile {
+    width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+    background: var(--sr-accent-bg); border: 1px solid var(--sr-accent-border);
+    display: grid; place-items: center; margin-top: 2px;
+  }
+  .masthead .sub { font-size: 0.8125rem; color: var(--sr-text-muted); margin-top: 3px; }
+
+  section { margin-bottom: 2.25rem; }
+  .card {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; box-shadow: var(--card-shadow); padding: 1.25rem 1.375rem;
+  }
+  .caption { font-size: 0.71875rem; color: var(--sr-text-muted); margin-top: 0.625rem; }
+
+  /* ── Anatomy ── */
+  .anatomy { display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
+  .anatomy-pin { flex-shrink: 0; padding: 0.75rem 1.5rem; }
+  .anatomy-notes { flex: 1 1 260px; min-width: 240px; display: grid; gap: 0.875rem; }
+  .anatomy-note { display: flex; gap: 0.625rem; align-items: baseline; }
+  .anatomy-note .idx {
+    font-size: 0.6875rem; font-weight: 700; color: var(--sr-accent);
+    background: var(--sr-accent-bg); border: 1px solid var(--sr-accent-border);
+    border-radius: 999px; width: 18px; height: 18px; flex-shrink: 0;
+    display: inline-grid; place-items: center; transform: translateY(2px);
+  }
+  .anatomy-note p { font-size: 0.8125rem; color: var(--sr-text-muted); }
+  .anatomy-note strong { color: var(--sr-text); font-weight: 600; }
+
+  /* ── The sidebar control mock ── */
+  .control-demo { display: grid; grid-template-columns: minmax(min(16rem, 100%), 19rem) 1fr; gap: 1rem; align-items: stretch; }
+  @media (max-width: 700px) { .control-demo { grid-template-columns: 1fr; } }
+  .sidebar-mock {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; box-shadow: var(--card-shadow); padding: 1rem 1.125rem;
+  }
+  .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+  .mode-pill {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 30px; padding: 4px 10px; border-radius: 15px;
+    font-family: inherit; font-size: 0.75rem; font-weight: 600;
+    background: var(--sr-surface); color: var(--sr-text);
+    border: 1px solid var(--sr-border-medium); cursor: pointer;
+    transition: background 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+  }
+  .mode-pill:hover { background: var(--sr-surface-subtle); }
+  /* Selected beats hover by source order, the app's convention. */
+  .mode-pill[aria-pressed="true"] {
+    background: var(--sr-accent); color: var(--sr-on-accent); border-color: var(--sr-accent);
+  }
+  .mode-pill:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+  .switch-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--sr-border);
+  }
+  .switch-row .lbl { font-size: 0.8125rem; font-weight: 500; }
+  .switch {
+    width: 44px; height: 24px; border-radius: 12px; border: none; flex-shrink: 0;
+    background: var(--sr-border-medium); position: relative; cursor: pointer;
+    transition: background 150ms ease-out;
+  }
+  .switch[aria-checked="true"] { background: var(--sr-accent); }
+  .switch .thumb {
+    position: absolute; top: 2px; left: 2px; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--sr-switch-thumb);
+    box-shadow: 0 1px 2px rgba(15,17,23,0.18);
+    transition: left 150ms ease-out;
+  }
+  .switch[aria-checked="true"] .thumb { left: 22px; }
+  .switch:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+  .switch-note { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 6px; line-height: 1.4; }
+  .live-strip-wrap { display: flex; flex-direction: column; }
+  .live-strip-wrap .land { flex: 1; display: flex; align-items: center; }
+  .state-word { font-weight: 600; color: var(--sr-text); }
+
+  /* ── Map strips ── */
+  .land {
+    background:
+      radial-gradient(340px 200px at 108% 118%, var(--water) 46%, transparent 47%),
+      linear-gradient(rgba(255,255,255,0.28), rgba(255,255,255,0) 55%),
+      var(--land);
+    border: 1px solid var(--sr-border-medium);
+    border-radius: 10px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tier-row {
+    display: flex; justify-content: space-evenly; align-items: flex-end;
+    gap: 0.5rem; padding: 1.125rem 0.75rem 0.875rem; width: 100%;
+  }
+  .tier-cell { display: grid; justify-items: center; gap: 0.4rem; }
+  .tier-cell .rng {
+    font-size: 0.71875rem; color: var(--sr-text); font-variant-numeric: tabular-nums;
+    background: rgba(255,255,255,0.72); border-radius: 5px; padding: 0.05rem 0.4rem;
+  }
+  .strip-title { font-size: 0.71875rem; font-weight: 600; color: var(--sr-text-muted); margin: 0.875rem 0 0.375rem; }
+  .grayscale { filter: grayscale(1); }
+  .compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(20rem, 100%), 1fr)); gap: 1rem; }
+
+  /* ── Scatter scene ── */
+  .scene { height: 250px; }
+  .scene .pin-abs { position: absolute; transform: translate(-50%, -100%); }
+
+  /* ── Theme panels: legend + popup ── */
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(21rem, 100%), 1fr)); gap: 1rem; }
+  .panel {
+    background: var(--sr-surface); border: 1px solid var(--sr-border);
+    border-radius: 12px; box-shadow: var(--card-shadow);
+    padding: 1.125rem 1.25rem; color: var(--sr-text);
+  }
+  .legend-head { font-size: 0.75rem; margin-bottom: 0.5rem; line-height: 1.4; }
+  .legend-head b { font-weight: 700; }
+  .legend-head span { color: var(--sr-text-muted); }
+  .legend-row { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; border-radius: 6px; }
+  .legend-row .val { font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+  .legend-note { font-size: 0.6875rem; color: var(--sr-text-muted); font-style: italic; margin: 10px 0 8px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: inherit; font-size: 0.71875rem; font-weight: 600; color: var(--sr-text);
+    background: var(--sr-surface); border: 1px solid var(--sr-border-medium);
+    border-radius: 999px; padding: 0.25rem 0.625rem; cursor: pointer;
+    display: inline-flex; gap: 5px; align-items: center;
+    transition: background 140ms ease-out, opacity 140ms ease-out;
+  }
+  .chip:hover { background: var(--sr-surface-subtle); }
+  .chip[aria-pressed="false"] { opacity: 0.4; }
+  .chip:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+  .chip .cnt { color: var(--sr-text-muted); font-weight: 400; }
+
+  .popup {
+    margin-top: 1rem; background: var(--sr-surface); border: 1px solid var(--sr-border-medium);
+    border-radius: 10px; box-shadow: 0 4px 14px rgba(15,17,23,0.14);
+    padding: 0.75rem 0.875rem; max-width: 17.5rem; position: relative;
+  }
+  .popup::after {
+    content: ''; position: absolute; left: 24px; bottom: -6px; width: 10px; height: 10px;
+    background: var(--sr-surface); border-right: 1px solid var(--sr-border-medium);
+    border-bottom: 1px solid var(--sr-border-medium); transform: rotate(45deg);
+  }
+  .popup .name { font-size: 0.8125rem; font-weight: 700; }
+  .popup .meta { font-size: 0.71875rem; color: var(--sr-text-muted); margin-top: 2px; }
+  .popup .mode-line {
+    display: flex; align-items: center; gap: 7px; margin-top: 8px; padding-top: 8px;
+    border-top: 1px solid var(--sr-border); font-size: 0.75rem; font-weight: 600;
+  }
+  .popup .mode-sub { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 3px; }
+
+  /* ── States row ── */
+  .states-row { display: flex; gap: 2rem 2.5rem; flex-wrap: wrap; padding: 0.5rem 0.25rem 0; }
+  .state-cell { display: grid; justify-items: center; gap: 0.45rem; }
+  .state-cell .lbl { font-size: 0.71875rem; color: var(--sr-text-muted); text-align: center; max-width: 8.5rem; }
+
+  footer { margin-top: 3rem; font-size: 0.71875rem; color: var(--sr-text-muted); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition-duration: 0.01ms !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="brand-tile" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 28 40"><path d="M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z" fill="#277448"/></svg>
+    </div>
+    <div>
+      <div class="h-display">Hotspot pins you can read without color</div>
+      <div class="sub">Map Explorer &middot; Color pins by &middot; an opt-in tier ring, in the app's Use Textures tradition</div>
+    </div>
+  </header>
+
+  <!-- 1 · The cue -->
+  <section>
+    <div class="h-section">The tier ring</div>
+    <p class="body-copy" style="margin-bottom: 1rem;">
+      Behind a small switch, every ramp pin gains a thin ring just inside its rim, split into
+      five fixed segments. A pin's tier fills that many segments, clockwise from the top; the
+      rest stays as a faint track so you can see how much is left. Nothing new is colored:
+      the ring is the same white as the glyph the pins already carry.
+    </p>
+    <div class="card">
+      <div class="anatomy">
+        <div class="anatomy-pin" id="anatomy-pin"></div>
+        <div class="anatomy-notes">
+          <div class="anatomy-note"><span class="idx">1</span>
+            <p><strong>Filled segments count the tier.</strong> One segment is tier 1, a closed ring is tier 5. From across the map you read extent, like a clock face; up close you can count.</p>
+          </div>
+          <div class="anatomy-note"><span class="idx">2</span>
+            <p><strong>The faint track completes the circle.</strong> It shows the denominator, so three segments read as three of five, not just "some arc".</p>
+          </div>
+          <div class="anatomy-note"><span class="idx">3</span>
+            <p><strong>The glyph still carries the kind.</strong> Check for visited, two dots for unvisited, exactly as shipped. The ring lives in the empty band between glyph and rim, so the two never touch.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">This pin is tier 3, enlarged. The map, legend, and popup all draw the ring from one shared geometry, so they can never drift apart.</p>
+  </section>
+
+  <!-- 2 · The switch -->
+  <section>
+    <div class="h-section">Off by default, yours with one switch</div>
+    <p class="body-copy" style="margin-bottom: 1rem;">
+      The ring is opt-in, exactly like Use Textures on the county and atlas shading: a small
+      switch in the Color pins by block, off by default, and your choice is remembered between
+      sessions. Try it here; the strip follows the switch.
+    </p>
+    <div class="control-demo">
+      <div class="sidebar-mock">
+        <div class="microlabel">Color pins by</div>
+        <div class="mode-grid">
+          <button type="button" class="mode-pill" aria-pressed="false">Visited status</button>
+          <button type="button" class="mode-pill" aria-pressed="true">My species</button>
+          <button type="button" class="mode-pill" aria-pressed="false">My checklists</button>
+          <button type="button" class="mode-pill" aria-pressed="false">Recent activity</button>
+        </div>
+        <div class="switch-row">
+          <span class="lbl">Use Tier Rings</span>
+          <button type="button" class="switch" role="switch" aria-checked="true" aria-label="Use tier rings on hotspot color modes" id="rings-switch">
+            <span class="thumb"></span>
+          </button>
+        </div>
+        <div class="switch-note">
+          Adds a segmented ring per tier so pins are readable without color.
+        </div>
+      </div>
+      <div class="live-strip-wrap">
+        <div class="land"><div class="tier-row" id="row-live"></div></div>
+        <p class="caption">Rings <span class="state-word" id="live-state">on</span>. Switched off, the pins are the shipped look, byte for byte.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · Both states at real size -->
+  <section>
+    <div class="h-section">Both states, at real size</div>
+    <p class="body-copy" style="margin-bottom: 1rem;">
+      My&nbsp;species mode with this search's ranges, at the exact 28&nbsp;px the map uses.
+      Pins draw on the always-light basemap in both app themes.
+    </p>
+    <div class="card">
+      <div class="strip-title" style="margin-top:0;">Switch off &middot; the shipped look, unchanged</div>
+      <div class="land"><div class="tier-row" id="row-off"></div></div>
+      <div class="strip-title">Switch on &middot; the tier ring</div>
+      <div class="land"><div class="tier-row" id="row-on"></div></div>
+      <div class="strip-title">Switch on, enlarged</div>
+      <div class="land"><div class="tier-row" id="row-zoom"></div></div>
+      <p class="caption">Darker still means more in either state; the ring adds the structural reading on top. Tiers 1, 3, and 5 are visited pins, 2 and 4 unvisited, to show the glyph riding along unchanged.</p>
+    </div>
+  </section>
+
+  <!-- 4 · Without color -->
+  <section>
+    <div class="h-section">Now take the color away</div>
+    <p class="body-copy" style="margin-bottom: 1rem;">
+      The same five pins with hue removed, which is roughly the hardest case a colorblind
+      birder faces. With the switch off the middle tiers blur into one another; switched on, every tier states itself.
+    </p>
+    <div class="compare">
+      <div class="card">
+        <div class="strip-title" style="margin-top:0;">Switch off, no hue</div>
+        <div class="land grayscale"><div class="tier-row" id="row-before"></div></div>
+      </div>
+      <div class="card">
+        <div class="strip-title" style="margin-top:0;">Switch on, no hue</div>
+        <div class="land grayscale"><div class="tier-row" id="row-after"></div></div>
+      </div>
+    </div>
+    <p class="caption">Grayscale simulation. Deuteranopia and protanopia keep more difference than this, so this is the floor, not the typical case.</p>
+  </section>
+
+  <!-- 5 · At map density -->
+  <section>
+    <div class="h-section">At map density, still calm</div>
+    <p class="body-copy" style="margin-bottom: 1rem;">
+      A realistic stretch of coast in My&nbsp;species mode with the switch on: ramp pins with
+      rings, the structural states, and a personal location among them. This strip follows the
+      switch above too, so you can compare the two moods directly.
+    </p>
+    <div class="card">
+      <div class="land scene" id="scene"></div>
+      <p class="caption">Rings appear only on ramp pins. Hollow, dashed, and pale states keep their shipped structure, so nothing new competes with them.</p>
+    </div>
+  </section>
+
+  <!-- 6 · Nothing else moves -->
+  <section>
+    <div class="h-section">Nothing else moves</div>
+    <p class="body-copy" style="margin-bottom: 1rem;">
+      The non-value states already read without color and ship exactly as they are, in either
+      switch state. Default visited/unvisited/personal coloring is untouched too.
+    </p>
+    <div class="card">
+      <div class="states-row" id="states-row"></div>
+    </div>
+  </section>
+
+  <!-- 7 · Legend and popup -->
+  <section>
+    <div class="h-section">Legend and popup follow the switch</div>
+    <p class="body-copy" style="margin-bottom: 1rem;">
+      With rings on, the sidebar legend's mini pins gain the same ring and the popup's small
+      square swatch becomes a round tier badge drawn from the same segments; switched off, both
+      keep their shipped look. Left panel is the light theme in My&nbsp;species mode; right is
+      dark in Recent&nbsp;activity mode, both with the switch on.
+    </p>
+    <div class="panels">
+      <div class="panel" id="panel-light"></div>
+      <div class="panel theme-dark" id="panel-dark"></div>
+    </div>
+    <p class="caption">The in-view list's small leading dots stay as shipped in both states: each sits beside its exact number, so the dot never has to be read by color.</p>
+  </section>
+
+  <footer>
+    SnowRaven &middot; design direction, not final &middot; pin geometry and every color are the shipped token values.
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── One geometry spec: the mockup twin of the constants that will live in
+  //    lib/mapPins.ts and be shared by the sprite bake, the legend minis, and
+  //    the popup badge (the CountyDensitySwatch same-source rule, NFR-10). ──
+  var TEARDROP = 'M14 0C6.268 0 0 6.268 0 14c0 5.47 3.078 10.23 7.602 12.651L14 40l6.398-13.349A13.944 13.944 0 0028 14C28 6.268 21.732 0 14 0z';
+  var ARC = { cx: 14, cy: 14, r: 11.1, width: 2.4, segments: 5, gapDeg: 16, startDeg: -90, trackAlpha: 0.28 };
+  var HOLLOW = { cx: 14, cy: 14, r: 8.5 };
+  var DASH = '3 2.6';
+
+  var C = {
+    ramp: ['#2C89AA', '#24709A', '#1C5883', '#153F63', '#0E2A47'],
+    unanswered: '#6A6A72', zero: '#565661', nodata: '#EDE9E3', pale: '#F1EEE8',
+    personal: '#B0701B', stroke: '#3F3F46',
+    glyphOnPale: '#43424A', glyphOnNodata: '#52525B',
+  };
+
+  function segPath(i, r) {
+    var per = 360 / ARC.segments;
+    var s = (ARC.startDeg + i * per + ARC.gapDeg / 2) * Math.PI / 180;
+    var e = (ARC.startDeg + (i + 1) * per - ARC.gapDeg / 2) * Math.PI / 180;
+    var x1 = ARC.cx + r * Math.cos(s), y1 = ARC.cy + r * Math.sin(s);
+    var x2 = ARC.cx + r * Math.cos(e), y2 = ARC.cy + r * Math.sin(e);
+    return 'M ' + x1.toFixed(2) + ' ' + y1.toFixed(2) +
+           ' A ' + r + ' ' + r + ' 0 0 1 ' + x2.toFixed(2) + ' ' + y2.toFixed(2);
+  }
+
+  function ringSVG(tier, r) {
+    var out = '';
+    for (var i = 0; i < ARC.segments; i++) {
+      var on = i < tier;
+      out += '<path d="' + segPath(i, r) + '" fill="none" stroke="#fff"' +
+        (on ? '' : ' stroke-opacity="' + ARC.trackAlpha + '"') +
+        ' stroke-width="' + ARC.width + '" stroke-linecap="butt"/>';
+    }
+    return out;
+  }
+
+  function glyphSVG(kind, color) {
+    if (kind === 'visited') {
+      return '<path d="M8 15 L12 19 L20 11" fill="none" stroke="' + color +
+        '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
+    }
+    if (kind === 'unvisited') {
+      return '<circle cx="10" cy="13" r="3.5" fill="' + color + '"/>' +
+             '<circle cx="18" cy="13" r="3.5" fill="' + color + '"/>';
+    }
+    return '<polygon points="14,6 15.5,11 20.5,11 16.5,14.2 18,19 14,16 10,19 11.5,14.2 7.5,11 12.5,11" fill="' + color + '"/>';
+  }
+
+  // state: 'ramp' | 'hollow' | 'unanswered' | 'nodata' | 'personal'
+  function pinSVG(o) {
+    var width = o.width || 28;
+    var state = o.state || 'ramp';
+    var fill = state === 'ramp' ? C.ramp[(o.tier || 1) - 1]
+      : state === 'hollow' ? C.zero
+      : state === 'unanswered' ? C.unanswered
+      : state === 'nodata' ? C.nodata
+      : C.personal;
+    var s = '<svg width="' + width + '" height="' + Math.round(width * 40 / 28) +
+      '" viewBox="0 0 28 40" aria-hidden="true" style="display:block">';
+    s += '<path d="' + TEARDROP + '" fill="' + fill + '" stroke="' + C.stroke + '" stroke-width="1.5"' +
+      (state === 'unanswered' ? ' stroke-dasharray="' + DASH + '"' : '') + '/>';
+    if (state === 'ramp' && o.ring !== false) s += ringSVG(o.tier || 1, ARC.r);
+    if (state === 'hollow') s += '<circle cx="' + HOLLOW.cx + '" cy="' + HOLLOW.cy + '" r="' + HOLLOW.r + '" fill="' + C.pale + '"/>';
+    var glyphColor = state === 'hollow' ? C.glyphOnPale : state === 'nodata' ? C.glyphOnNodata : '#fff';
+    var kind = o.kind || (state === 'personal' ? 'personal' : 'visited');
+    s += glyphSVG(kind, glyphColor);
+    s += '</svg>';
+    return s;
+  }
+
+  // The popup's round tier badge: bulb circle + the same ring segments
+  // (rings-on state; rings-off keeps the shipped 10px square swatch).
+  function badgeSVG(tier, px) {
+    px = px || 18;
+    var s = '<svg width="' + px + '" height="' + px + '" viewBox="0 0 28 28" aria-hidden="true" style="flex-shrink:0;display:block">';
+    s += '<circle cx="14" cy="14" r="12.4" fill="' + C.ramp[tier - 1] + '" stroke="' + C.stroke + '" stroke-width="1.5"/>';
+    s += ringSVG(tier, 9.4).replace(/stroke-width="[^"]*"/g, 'stroke-width="3"');
+    return s + '</svg>';
+  }
+
+  // ── 1 · anatomy pin ──
+  document.getElementById('anatomy-pin').innerHTML = pinSVG({ tier: 3, kind: 'visited', width: 150 });
+
+  // ── 2/3/4 · tier rows ──
+  var RANGES = ['1–3', '4–8', '9–15', '16–27', '28–64'];
+  var KINDS = ['visited', 'unvisited', 'visited', 'unvisited', 'visited'];
+  function tierRow(el, width, labels, ring) {
+    var html = '';
+    for (var t = 1; t <= 5; t++) {
+      html += '<div class="tier-cell">' +
+        pinSVG({ tier: t, kind: KINDS[t - 1], width: width, ring: ring }) +
+        (labels ? '<span class="rng">' + RANGES[t - 1] + '</span>' : '') +
+        '</div>';
+    }
+    el.innerHTML = html;
+  }
+  tierRow(document.getElementById('row-off'), 28, true, false);
+  tierRow(document.getElementById('row-on'), 28, true, true);
+  tierRow(document.getElementById('row-zoom'), 64, true, true);
+  tierRow(document.getElementById('row-before'), 34, false, false);
+  tierRow(document.getElementById('row-after'), 34, false, true);
+
+  // ── 5 · scatter scene ──
+  var SCENE = [
+    { x: 8,  y: 38, o: { tier: 2, kind: 'visited' } },
+    { x: 16, y: 74, o: { tier: 4, kind: 'visited' } },
+    { x: 22, y: 30, o: { state: 'nodata', kind: 'unvisited' } },
+    { x: 28, y: 58, o: { tier: 1, kind: 'unvisited' } },
+    { x: 35, y: 86, o: { tier: 5, kind: 'visited' } },
+    { x: 41, y: 42, o: { state: 'hollow', kind: 'visited' } },
+    { x: 47, y: 68, o: { tier: 3, kind: 'unvisited' } },
+    { x: 53, y: 26, o: { tier: 1, kind: 'unvisited' } },
+    { x: 60, y: 52, o: { state: 'personal', kind: 'personal' } },
+    { x: 66, y: 82, o: { tier: 2, kind: 'unvisited' } },
+    { x: 72, y: 36, o: { tier: 4, kind: 'visited' } },
+    { x: 79, y: 62, o: { state: 'unanswered', kind: 'unvisited' } },
+    { x: 86, y: 44, o: { tier: 3, kind: 'visited' } },
+    { x: 92, y: 76, o: { tier: 5, kind: 'visited' } },
+  ];
+  function renderScene(ring) {
+    document.getElementById('scene').innerHTML = SCENE.map(function (p) {
+      var opts = Object.assign({}, p.o, { ring: ring });
+      return '<div class="pin-abs" style="left:' + p.x + '%;top:' + p.y + '%">' + pinSVG(opts) + '</div>';
+    }).join('');
+  }
+
+  // ── 2 · the switch drives the live strip and the density scene ──
+  var ringsOn = true;
+  var switchEl = document.getElementById('rings-switch');
+  function renderRingState() {
+    switchEl.setAttribute('aria-checked', String(ringsOn));
+    tierRow(document.getElementById('row-live'), 34, true, ringsOn);
+    renderScene(ringsOn);
+    document.getElementById('live-state').textContent = ringsOn ? 'on' : 'off';
+  }
+  switchEl.addEventListener('click', function () { ringsOn = !ringsOn; renderRingState(); });
+  renderRingState();
+
+  // ── 6 · states row ──
+  var STATES = [
+    { o: { state: 'hollow', kind: 'visited' }, lbl: 'Visited, 0 countable species / quiet' },
+    { o: { state: 'unanswered', kind: 'unvisited' }, lbl: 'Not checked yet' },
+    { o: { state: 'nodata', kind: 'unvisited' }, lbl: 'Not birded by you' },
+    { o: { state: 'personal' }, lbl: 'Personal location' },
+  ];
+  document.getElementById('states-row').innerHTML = STATES.map(function (s) {
+    return '<div class="state-cell">' + pinSVG(Object.assign({ width: 34 }, s.o)) +
+      '<span class="lbl">' + s.lbl + '</span></div>';
+  }).join('');
+
+  // ── 7 · theme panels (rings-on state) ──
+  function miniPin(o) { return pinSVG(Object.assign({ width: 18 }, o)); }
+
+  function legendPanel(cfg) {
+    var h = '<div class="microlabel" style="margin-bottom:10px;">Legend</div>';
+    h += '<div class="legend-head"><b>' + cfg.title + '</b><span> &middot; ' + cfg.subtitle + '</span></div>';
+    for (var t = 1; t <= 5; t++) {
+      h += '<div class="legend-row">' + miniPin({ tier: t, kind: 'visited' }) +
+        '<span class="val">' + cfg.ranges[t - 1] + '</span></div>';
+    }
+    cfg.states.forEach(function (s) {
+      h += '<div class="legend-row">' + miniPin(s.o) + '<span class="val">' + s.lbl + '</span></div>';
+    });
+    h += '<div class="legend-row">' + miniPin({ state: 'personal' }) + '<span class="val">Personal location</span></div>';
+    h += '<div class="legend-note">Show or hide kinds. Glyphs carry the kind while a mode is active.</div>';
+    h += '<div class="chips">' +
+      '<button type="button" class="chip" aria-pressed="true"><span aria-hidden="true">✓</span>Visited<span class="cnt">' + cfg.counts[0] + '</span></button>' +
+      '<button type="button" class="chip" aria-pressed="true"><span aria-hidden="true">••</span>Unvisited<span class="cnt">' + cfg.counts[1] + '</span></button>' +
+      '<button type="button" class="chip" aria-pressed="true"><span aria-hidden="true">★</span>Personal<span class="cnt">' + cfg.counts[2] + '</span></button>' +
+      '</div>';
+    h += '<div class="popup"><div class="name">' + cfg.popup.name + '</div>' +
+      '<div class="meta">' + cfg.popup.meta + '</div>' +
+      '<div class="mode-line">' + badgeSVG(cfg.popup.tier) + '<span>' + cfg.popup.line + '</span></div>' +
+      (cfg.popup.sub ? '<div class="mode-sub">' + cfg.popup.sub + '</div>' : '') +
+      '</div>';
+    return h;
+  }
+
+  document.getElementById('panel-light').innerHTML = legendPanel({
+    title: 'My species', subtitle: 'your countable species per hotspot, this search',
+    ranges: RANGES,
+    states: [
+      { o: { state: 'nodata', kind: 'unvisited' }, lbl: 'Not birded by you' },
+      { o: { state: 'hollow', kind: 'visited' }, lbl: 'Visited, 0 countable species' },
+    ],
+    counts: [41, 87, 3],
+    popup: {
+      name: 'Gilsland Farm Audubon Center',
+      meta: '128 species recorded · Last visit Jun 3, 2026',
+      tier: 3, line: 'My species: 12',
+    },
+  });
+
+  document.getElementById('panel-dark').innerHTML = legendPanel({
+    title: 'Recent activity', subtitle: 'species in the last week',
+    ranges: ['1–5', '6–11', '12–19', '20–33', '34–58'],
+    states: [
+      { o: { state: 'hollow', kind: 'visited' }, lbl: 'Quiet, no reports in this window' },
+      { o: { state: 'unanswered', kind: 'unvisited' }, lbl: 'Not checked yet' },
+    ],
+    counts: [38, 112, 2],
+    popup: {
+      name: 'Scarborough Marsh Audubon Center',
+      meta: 'You have not visited this hotspot',
+      tier: 3, line: '14 species reported in the last week',
+      sub: 'From cache, fetched 7:42 AM.',
+    },
+  });
+
+  // Kind chips: demo the shipped hide/show press state.
+  document.querySelectorAll('.chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chip.setAttribute('aria-pressed', chip.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+    });
+  });
+}());
+</script>
+</body>
+</html>

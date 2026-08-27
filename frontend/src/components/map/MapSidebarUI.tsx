@@ -5,7 +5,11 @@ import { AlertCircle, ChevronDown } from 'lucide-react'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 import { countyHatchSpec, type CountyTier } from '../../lib/countyTextures'
 import { COMPLETENESS_BANDS } from '../../lib/countyCompleteness'
-import { TEARDROP, HOTSPOT_HOLLOW_DISC, HOTSPOT_DASH_PATTERN } from '../../lib/mapPins'
+import {
+  TEARDROP, HOTSPOT_HOLLOW_DISC, HOTSPOT_DASH_PATTERN,
+  HOTSPOT_TIER_ARC, HOTSPOT_TIER_BADGE, HOTSPOT_TIER_RING_COLOR,
+  tierArcSegments, tierArcSegmentPath,
+} from '../../lib/mapPins'
 
 export function SegControl({ options, value, onChange, ariaLabel }: {
   options: { value: string; label: string }[]
@@ -259,8 +263,13 @@ export function CountyCompletenessLegend({ useTextures }: { useTextures: boolean
 export type HotspotModeMiniVariant = 'ramp' | 'hollow' | 'nodata' | 'unanswered' | 'personal'
 
 /** The mode legend's mini teardrop (18×26 for class rows; the states gallery
- *  uses the same drawing). Decorative — the row text carries the meaning. */
-export function HotspotModeMiniPin({ variant, tier, width = 18 }: { variant: HotspotModeMiniVariant; tier?: number; width?: number }) {
+ *  uses the same drawing). Decorative — the row text carries the meaning.
+ *  `rings` (Use Tier Rings, colorblind-accessible-hotspot-pins) draws the
+ *  sprite's segmented tier ring on RAMP minis only, from the shared
+ *  HOTSPOT_TIER_ARC spec — the viewBox coordinates ARE the sprite
+ *  coordinates, so it is literally the same numbers (NFR-10). State/personal
+ *  minis are unchanged in both toggle states. */
+export function HotspotModeMiniPin({ variant, tier, width = 18, rings = false }: { variant: HotspotModeMiniVariant; tier?: number; width?: number; rings?: boolean }) {
   const height = Math.round(width * (40 / 28))
   const fill = variant === 'ramp' ? `var(--sr-hotspot-${tier ?? 1})`
     : variant === 'hollow' ? 'var(--sr-hotspot-zero)'
@@ -276,12 +285,62 @@ export function HotspotModeMiniPin({ variant, tier, width = 18 }: { variant: Hot
         strokeWidth={1.5}
         strokeDasharray={variant === 'unanswered' ? HOTSPOT_DASH_PATTERN.join(' ') : undefined}
       />
+      {variant === 'ramp' && rings && tierArcSegments(tier ?? 1).map((seg, i) => (
+        <path
+          key={i}
+          d={tierArcSegmentPath(seg)}
+          fill="none"
+          stroke={HOTSPOT_TIER_RING_COLOR}
+          strokeOpacity={seg.filled ? 1 : HOTSPOT_TIER_ARC.trackAlpha}
+          strokeWidth={HOTSPOT_TIER_ARC.width}
+          strokeLinecap="butt"
+        />
+      ))}
       {variant === 'hollow' && (
         <circle cx={HOTSPOT_HOLLOW_DISC.cx} cy={HOTSPOT_HOLLOW_DISC.cy} r={HOTSPOT_HOLLOW_DISC.r} style={{ fill: 'var(--sr-hotspot-pale)' }} />
       )}
       {variant === 'personal' && (
         <polygon points="14,6 15.5,11 20.5,11 16.5,14.2 18,19 14,16 10,19 11.5,14.2 7.5,11 12.5,11" fill="white" />
       )}
+    </svg>
+  )
+}
+
+/** The popup mode line's round tier badge while Use Tier Rings is on: the
+ *  bulb circle plus the SAME ring segments as the sprites, drawn from the
+ *  shared HOTSPOT_TIER_ARC / HOTSPOT_TIER_BADGE spec (lib/mapPins — NFR-10,
+ *  one geometry source). Decorative; the mode line's text carries the
+ *  reading. Rings off keeps the shipped 10px square swatch (MapExplorer), and
+ *  the non-ramp swatch states are unchanged in both toggle states. */
+export function HotspotTierBadge({ tier }: { tier: number }) {
+  const vb = HOTSPOT_TIER_BADGE.viewBox
+  return (
+    <svg
+      width={HOTSPOT_TIER_BADGE.px}
+      height={HOTSPOT_TIER_BADGE.px}
+      viewBox={`0 0 ${vb} ${vb}`}
+      aria-hidden="true"
+      style={{ flexShrink: 0, display: 'block' }}
+    >
+      <circle
+        cx={HOTSPOT_TIER_ARC.cx}
+        cy={HOTSPOT_TIER_ARC.cy}
+        r={HOTSPOT_TIER_BADGE.r}
+        style={{ fill: `var(--sr-hotspot-${tier})` }}
+        stroke="var(--sr-map-pin-stroke)"
+        strokeWidth={HOTSPOT_TIER_BADGE.stroke}
+      />
+      {tierArcSegments(tier).map((seg, i) => (
+        <path
+          key={i}
+          d={tierArcSegmentPath(seg, HOTSPOT_TIER_BADGE.ringR)}
+          fill="none"
+          stroke={HOTSPOT_TIER_RING_COLOR}
+          strokeOpacity={seg.filled ? 1 : HOTSPOT_TIER_ARC.trackAlpha}
+          strokeWidth={HOTSPOT_TIER_BADGE.ringWidth}
+          strokeLinecap="butt"
+        />
+      ))}
     </svg>
   )
 }

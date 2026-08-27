@@ -49,7 +49,7 @@ const MODE_ICON_IMAGE = [
   HOTSPOT_MODE_IMAGE_ID['unanswered-unvisited'],
 ] as unknown as ExpressionSpecification
 
-export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = true, modeCls = null, popupExtra }: {
+export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = true, modeCls = null, popupExtra, tierRings = false }: {
   pins: HotspotPin[]
   hiddenKinds: Set<HotspotPin['kind']>
   // Lifted to the parent (locId) so the keyboard sidebar list and the teardrop
@@ -106,6 +106,15 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
    * Absent → the shipped popup, unchanged.
    */
   popupExtra?: (pin: HotspotPin) => ReactNode
+  /**
+   * Use Tier Rings (colorblind-accessible-hotspot-pins): bake the segmented
+   * tier ring into the RAMP mode sprites. Default false = the shipped sprites
+   * bit for bit (hotspotTierRings.test.ts pins it). A PROP, never in the
+   * remount key: a flip re-bakes + updateImage in place (sprite dimensions
+   * unchanged, the theme re-bake path) — no remount, no re-fit, no popup
+   * dismissal (the v0.5.59 cosmetic-toggle rule).
+   */
+  tierRings?: boolean
 }) {
   const map = useMap().current
   const fitKey = pins.length
@@ -169,7 +178,7 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
       // covers the whole table.
       for (const key of HOTSPOT_MODE_SPRITE_KEYS) {
         const id = HOTSPOT_MODE_IMAGE_ID[key]
-        const img = modeTeardropImageData(key, dpr)
+        const img = modeTeardropImageData(key, dpr, tierRings)
         if (map.hasImage(id)) map.updateImage(id, img)
         else map.addImage(id, img, { pixelRatio: dpr })
       }
@@ -191,14 +200,17 @@ export function HotspotMarkers({ pins, hiddenKinds, sel, onSelect, autoFit = tru
       const modeKey = hotspotModeSpriteKeyForImage(e.id)
       if (modeKey) {
         const dpr = hatchPixelRatio()
-        map.addImage(e.id, modeTeardropImageData(modeKey, dpr), { pixelRatio: dpr })
+        map.addImage(e.id, modeTeardropImageData(modeKey, dpr, tierRings), { pixelRatio: dpr })
       }
     }
     map.on('styleimagemissing', onMissing)
     const obs = new MutationObserver(addAll)
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
     return () => { cancelled = true; obs.disconnect(); map.off('styleimagemissing', onMissing) }
-  }, [map])
+    // tierRings IS a dep: a toggle flip re-runs addAll, which regenerates and
+    // updateImage-s every mode sprite in place (same dimensions) — the theme
+    // MutationObserver re-bake path, no remount.
+  }, [map, tierRings])
 
   // Click selects the top teardrop's hotspot; empty-map click closes the popup.
   useEffect(() => {
