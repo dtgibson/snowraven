@@ -254,6 +254,16 @@ rasters, icns/ico) lives in `pipeline/ebird-cooldown-and-app-icon/
 icon-source/` — regenerate every platform icon from it, never from a
 derived asset (iOS from the FullBleed sources, flattened opaque; macOS on
 the Apple icon grid; the web and website SVGs from the traced master).
+In-app, the same raven is the `RavenGlyph` component
+(`frontend/src/components/RavenGlyph.tsx`): an inline single-path SVG,
+`fill="currentColor"` so the caller colors it with a token (`--sr-accent`
+at both sites), square viewBox, a `size` prop driving width and height,
+always `aria-hidden` + `focusable="false"` because the wordmark carries
+the name. Any surface that wants the raven renders that component — never
+a lucide bird, never a second inlined copy of the path. Its master SVG is
+committed separately at `frontend/src/assets/snowraven-bird-glyph.svg`;
+the archival master keeps its baked hex and `<title>`/`<desc>`, which the
+component strips.
 
 ## Rationale
 The green stays grounded and natural, not corporate; restraint is the brand.

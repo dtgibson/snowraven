@@ -24,7 +24,7 @@ SnowRaven is distributed through the public iOS App Store: the 1.0.0 debut (a de
 
 ### New app icon + map-wide eBird rate-limit cooldown (complete — August 2026, v0.5.93)
 
-Two user-clustered improvements shipped as one release. The app icon is the new SR mark (a white serif "SR" with the raven's head worked into the S, on the brand clover green #2D8653) on every icon surface — macOS Dock/Finder (drawn on Apple's icon grid so it sits at native-app size), Windows taskbar/installer, all 36 committed iOS PNGs (flattened opaque; the TestFlight upload passed Apple's validation first try), the dormant Android set, the web favicon, and the website's favicon + header logo, which now match the app for the first time. And the v0.5.92 eBird pacing contract now governs every eBird lookup the Map Explorer makes.
+Two user-clustered improvements shipped as one release. The app icon is the new SR mark (a white serif "SR" with the raven's head worked into the S, on the brand clover green #2D8653) on every icon surface — macOS Dock/Finder (drawn on Apple's icon grid so it sits at native-app size), Windows taskbar/installer, all 36 committed iOS PNGs (flattened opaque; the TestFlight upload passed Apple's validation first try), the dormant Android set, the web favicon, and the website's favicon + header logo. The in-app chrome carries the same raven too: the app header mark and the first-run welcome mark render the raven silhouette in the accent green in both themes, so every surface in the product that shows a bird shows the brand's raven. And the v0.5.92 eBird pacing contract now governs every eBird lookup the Map Explorer makes.
 
 - **The pacing state is one shared key-global gate, `lib/ebirdGate.ts`**, read and written by two enforcers with one enforcement point per request: the activity controller's pump (unchanged) for `/map/hotspot-activity`, and the transport chokepoint's `gatedEbirdCall` for `/map/hotspots`, `/map/recent-obs`, `/map/hotspot-region`, and `/map/county-species` (serialized 150 ms-spaced starts, cooldown wait-out, the same bounded retries). A 429 anywhere slows everything on the key, in both directions. The gate sits below `CACHED_GET_PATHS`, so a cache hit never waits.
 - **Both transports surface a 429 AS a 429 on every governed route** with the shared detail and a validated, bounded, re-serialized Retry-After (one shared mapper per transport, per-route tests kept), and a 429 is never cached by any layer.
@@ -405,8 +405,13 @@ tags (e.g. `[name:Winky]`, `[name:one-leg-pete]`). A new **Named Birds** tab
 lists each named individual (name, species, first/last seen with the elapsed span
 between them — e.g. "1 yr. 2 mos." — and sighting count),
 sortable by name/species/last-seen, each expanding to its checklists (date, eBird
-checklist link, the species comment). The same per-species view appears as a
-**Named Individuals** section on Species Detail. Keyed by name + species (same
+checklist link, the species comment). An expanded card also ranks that
+individual's own locations by sighting count — its name-tagged checklists only,
+never the species' wider history — five deep with a show-all beyond, a single
+naming sentence where there is only one place, and no block at all where the
+export carries no location names. The same per-species view appears as a
+**Named Individuals** section on Species Detail, which omits the locations block
+because that tab has its own species-wide Top Locations. Keyed by name + species (same
 name on two species = two birds); name match is case-insensitive; subspecies fold
 to the parent; one sighting per checklist (deduped by submission id). Pure logic
 in `lib/namedBirds.ts`; shared `components/NamedBirdsTable.tsx`; tab in
