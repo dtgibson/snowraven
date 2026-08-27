@@ -57,6 +57,20 @@ npx playwright install chromium
    BASE=http://localhost:1620 node capture.mjs        # -> ./shots/*.png
    ```
 
+   The Statistics escapee pass is answered from the demo dataset itself (a shared
+   stub in `capture-lib.mjs`, also used by the App Store capture). The demo's
+   submission ids are synthetic and above eBird's live allocation, so a real
+   lookup 404s and the tab would correctly render "eBird could not be reached" —
+   an honest state, and not what the site should show.
+
+   If `backend/.env` carries no usable OpenWeather key, add `WEATHER_REPLAY=1`
+   to serve the weather shot from the app's stored replay result instead of a
+   live call. Note that unlike the App Store capture, the website weather shot's
+   frame INCLUDES the "Offline: showing the last loaded result" cue, so a replay
+   capture is only suitable if you then frame or trim it out. The committed
+   `weather.webp` was captured live; leave it alone unless you have a working
+   key. The run fails rather than publishing a "Weather data unavailable" frame.
+
 4. **Optimize** into the WebP assets the site serves:
 
    ```
@@ -93,8 +107,16 @@ BASE=http://localhost:1620 node capture-appstore.mjs   # -> ../../appstore/scree
   regenerable. Re-run when the photographed UI changes, review every image by
   eye (demo-data names only), and commit the new set.
 - The weather shot performs a live lookup (real public coastal checklist via
-  `CHECKLIST`) and, unlike `capture.mjs`, does **not** trim the attribution
-  lines: an App Store screenshot shows the app's real output, untouched.
+  `CHECKLIST`). Unlike `capture.mjs` it does **not** strip the attribution
+  lines, but as of v1.0.4 it does **unwrap their anchor markup**:
+  `<a href="...">SnowRaven</a>` becomes `SnowRaven`. The app's output box shows
+  exactly what goes on the clipboard, and eBird renders HTML in checklist
+  comments, so the raw tags are correct in the app and read as a rendering bug
+  in a store listing. Unwrapping keeps BOTH attributions in full, including the
+  provider-required NOAA CO-OPS credit, and shows the text a birder actually
+  ends up with once the block is pasted. Nothing is removed. `capture.mjs`
+  still strips those lines outright for the website shot, which is why the two
+  scripts differ here.
 
 The reviewer demo dataset hosted at `../demo/` (see `appstore/REVIEW_NOTES.md`)
 is the same generator's output: after changing `gen-demo-data.mjs`, re-run it

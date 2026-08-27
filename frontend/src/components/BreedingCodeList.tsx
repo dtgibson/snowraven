@@ -15,6 +15,7 @@ import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 import { nextPinnedState, nextViewState } from '../lib/pinnedLabels'
 import type { PinnedLabelsTransition } from '../lib/pinnedLabels'
+import { withNormalizedParents } from '../lib/speciesUtils'
 
 type Phase =
   | { tag: 'loading-saved' }
@@ -144,7 +145,7 @@ export function BreedingCodeList({ onGoToSettings, filesVersion, onOpenSpecies }
     try {
       const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>(
         '/taxonomy/codes',
-        { species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })) }
+        { species: withNormalizedParents(entries.map(e => [e.commonName, e.scientificName])) }
       )
       setTaxonMap(data.codes ?? {})
       setTaxonOrders(data.orders ?? {})

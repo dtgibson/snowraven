@@ -283,7 +283,25 @@ async def get_species_codes(req: CodesRequest) -> dict:
         code = _by_sci.get(item.scientificName.lower()) or _by_com.get(com_lower)
         if code:
             codes[item.commonName] = code
+        # Taxonomic sort, with the SAME scientific-name bridge `code` above already
+        # has. After eBird's annual rollover an export written under the old
+        # revision carries a renamed common name ("Cattle Egret", now "Western
+        # Cattle-Egret"), which misses the common-name-keyed order map entirely —
+        # so the row kept its favicon (resolved through _by_sci) but silently lost
+        # its taxonomic position and fell to the A-Z fallback. Scientific names
+        # survive a common-name rename, so the bridge is a derivation over maps
+        # already loaded: sciName -> code -> CURRENT common name -> order. No
+        # snapshot format change, so both committed copies stay as generated.
+        #
+        # Common name first, so every name that resolves today keeps its exact
+        # current answer and this can only ADD an order where there was none.
+        # Keep in lockstep with getTaxonomyCodes in
+        # frontend/src/lib/tauri/taxonomyService.ts.
         order = _by_order.get(com_lower)
+        if order is None and code:
+            current_name = _by_code.get(code, "")
+            if current_name:
+                order = _by_order.get(current_name.lower())
         if order is not None:
             orders[item.commonName] = order
         # All-category exact-name code (may be an issf/form/domestic code). Prefer the

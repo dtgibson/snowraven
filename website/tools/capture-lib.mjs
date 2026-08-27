@@ -56,3 +56,61 @@ export async function selectTab(p, name) {
   }
   throw new Error(`tab "${name}" not in the nav dropdown — saw: ${seen.join(' | ')}`);
 }
+
+// ---- demo exotic-provenance stub (shared by both capture scripts) ----
+// The Statistics escapee pass asks eBird about each checklist that carries a
+// species. The demo dataset's submission ids are SYNTHETIC and deliberately
+// above eBird's live allocation, so a real lookup 404s and the tab renders its
+// honest "eBird could not be reached" banner — correct behaviour, wrong thing to
+// photograph. Answer those lookups from the demo dataset itself instead.
+//
+// This lived in capture-appstore.mjs alone until v1.0.4, which is why the
+// website capture (older than the escapee feature) started showing the banner
+// the moment its shots were regenerated. One copy, both consumers.
+export async function buildProvenanceStub(base, csvUrl) {
+  const { readFileSync } = await import('node:fs');
+  const csv = readFileSync(csvUrl, 'utf8');
+  const lines = csv.split('\n').slice(1).filter(Boolean);
+  const bySub = new Map(); // subId -> Set(commonName)
+  const names = new Map(); // commonName -> scientificName
+  for (const line of lines) {
+    // The generated CSV only quotes comment fields (cols 20+); cols 0-2 are
+    // plain, so a simple split is safe for them.
+    const cols = line.split(',');
+    const [sub, common, sci] = cols;
+    if (!sub || !sub.startsWith('S')) continue;
+    if (!bySub.has(sub)) bySub.set(sub, new Set());
+    bySub.get(sub).add(common);
+    names.set(common, sci ?? '');
+  }
+  const res = await fetch(`${base}/taxonomy/codes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ species: [...names].map(([commonName, scientificName]) => ({ commonName, scientificName })) }),
+  });
+  const { codes } = await res.json();
+  const missing = [...names.keys()].filter(n => !codes[n]);
+  if (missing.length) throw new Error(`taxonomy codes missing for: ${missing.join(', ')}`);
+  const bySubCodes = new Map();
+  for (const [sub, set] of bySub) {
+    bySubCodes.set(sub, [...set].map(n => ({ speciesCode: codes[n], exoticCategory: '' })));
+  }
+  return bySubCodes;
+}
+
+/** Install the escapee-pass stubs on a context. Playwright resolves a request
+ *  against the MOST RECENTLY registered matching route, so install these before
+ *  any catch-all a caller adds. */
+export async function installProvenanceRoutes(ctx, stub) {
+  await ctx.route('**/checklists/**', async (route) => {
+    const m = route.request().url().match(/\/checklists\/(S\d+)/);
+    const species = (m && stub.get(m[1])) || [];
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ species }) });
+  });
+  // Keep the pass's cache out of the demo store so every run is identical
+  // (a from-cache settle renders a different sentence).
+  await ctx.route('**/settings/exotic-provenance*', async (route) => {
+    if (route.request().method() === 'GET') await route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":"Not Found"}' });
+    else await route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+  });
+}

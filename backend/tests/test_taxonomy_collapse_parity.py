@@ -160,3 +160,20 @@ def test_species_only_codes_miss_form_names(loaded_from_fixture):
     case = loaded_from_fixture["formCodesCases"]
     out = _codes(case["input"])
     assert out["codes"] == case["expectedSpeciesOnlyCodes"]
+
+
+def test_orders_bridge_stale_export_names(loaded_from_fixture):
+    """Taxonomy rename bridge parity (a11y-taxonomy-screenshot-sweep): after eBird's
+    annual rollover a stale export carries a common name the snapshot no longer
+    publishes, while its scientific name is unchanged. `codes` already bridged that
+    through bySci, but `orders` was keyed on the common name alone, so the row kept
+    its favicon and silently lost its taxonomic sort position.
+
+    "Northern Robin" appears nowhere in byOrder — only its scientific name resolves —
+    so a common-name-only lookup returns nothing for it. Pinning the ordinary names in
+    the same map means a bridge that REPLACED the direct lookup rather than backing it
+    up goes red too. Byte-for-byte equal to what the TS getTaxonomyCodes twin asserts
+    on the SAME fixture."""
+    case = loaded_from_fixture["formCodesCases"]
+    out = _codes(case["input"])
+    assert out["orders"] == case["expectedOrders"]

@@ -51,6 +51,7 @@ interface FormCodesCase {
   input: { commonName: string; scientificName: string }[]
   expectedFormCodes: Record<string, string>
   expectedSpeciesOnlyCodes: Record<string, string>
+  expectedOrders: Record<string, number>
 }
 const FORM_CASE = fixture.formCodesCases as unknown as FormCodesCase
 
@@ -109,5 +110,15 @@ describe('getTaxonomyCodes.formCodes — shared-fixture parity (TS twin)', () =>
   it('keeps species-only `codes` byte-identical (form names miss)', async () => {
     const { codes } = await getTaxonomyCodes(FORM_CASE.input)
     expect(codes).toEqual(FORM_CASE.expectedSpeciesOnlyCodes)
+  })
+
+  it('bridges taxonomic order for a stale export name through its scientific name', async () => {
+    // The rename bridge. "Northern Robin" appears nowhere in byOrder — only its
+    // unchanged scientific name resolves — so a common-name-only lookup returns
+    // NOTHING for it and the row falls to the A-Z fallback while still showing a
+    // favicon. Pinning the ordinary names in the same map means a bridge that
+    // REPLACED the direct lookup rather than backing it up also goes red.
+    const { orders } = await getTaxonomyCodes(FORM_CASE.input)
+    expect(orders).toEqual(FORM_CASE.expectedOrders)
   })
 })

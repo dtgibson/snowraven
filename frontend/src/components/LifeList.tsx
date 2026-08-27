@@ -10,7 +10,7 @@ import type { MLExportRow } from '../lib/parseMLExport'
 import { assetMatchesFacet, buildCatalogAgeSex } from '../lib/mediaStats'
 import type { AgeClass, Sex } from '../lib/mediaStats'
 import { loadEbirdObservations } from '../lib/observationsCache'
-import { normalizeSpeciesName, isNonCountableForm } from '../lib/speciesUtils'
+import { normalizeSpeciesName, isNonCountableForm, withNormalizedParents } from '../lib/speciesUtils'
 import { SHOW_FORMS_TOGGLE_LABEL } from '../lib/countabilityCopy'
 import { LifeListTable } from './LifeListTable'
 import { MediaCommentsSection } from './MediaCommentsSection'
@@ -239,7 +239,7 @@ export function LifeList({ onGoToSettings, requestedFilter, onRequestedFilterCon
     try {
       const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number>; formCodes?: Record<string, string> }>(
         '/taxonomy/codes',
-        { species: entries.map(e => ({ commonName: e.commonName, scientificName: e.scientificName })) }
+        { species: withNormalizedParents(entries.map(e => [e.commonName, e.scientificName])) }
       )
       setTaxonMap(data.codes ?? {})
       setFormTaxonMap(data.formCodes ?? {})

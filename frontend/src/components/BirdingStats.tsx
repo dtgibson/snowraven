@@ -816,7 +816,17 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   boxes at 200% scale; the trailing best-day link is allowed to
                   wrap within its box rather than nowrap-overflowing the card. */}
               {temporal.yearRows.map(r => (
-                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 22, minWidth: 0 }}>
+                // .sr-wrap-flex supplies display + flex-wrap + align-items + the
+                // 8px gap (v1.0.4), lifted off the inline style so this row can
+                // break. It is the ONLY bar row with three trailing flexShrink:0
+                // boxes (1.75rem + 2.75rem + 4.5rem = 288px at 200% text scale)
+                // inside a 242px card, so the bar and label both collapsed to 0
+                // and it still overflowed, putting the best-day link 39px past
+                // the viewport. Wrapping moves those boxes to a second line
+                // instead of off the card; at 100% they fit and nothing wraps.
+                // The sibling breeding rows carry one trailing box and are left
+                // alone deliberately — they fit at every measured size.
+                <div key={r.label} className="sr-wrap-flex" style={{ minHeight: 22, minWidth: 0 }}>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', textAlign: 'right', flexShrink: 1, minWidth: 0, width: '2.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.label}</span>
                   <div style={{ flex: 1, minWidth: 0, height: 8, borderRadius: 4, background: 'var(--sr-surface-subtle)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${maxYearChecklists > 0 ? (r.checklists / maxYearChecklists) * 100 : 0}%`, background: 'var(--sr-accent)', borderRadius: 4, transition: 'width 0.3s' }} />
@@ -1812,7 +1822,15 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     })}
                   </div>
                   {breedingFilter === 'all' && (
-                    <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+                    // .sr-wrap-flex supplies display + flex-wrap + align-items and
+                    // carries the 14px gap through --sr-wrap-gap (v1.0.4). The three
+                    // swatch+label groups are 92.34px each at 200% text scale inside
+                    // a 242px card, so the row ran 50.6px past the viewport — the
+                    // largest single contributor to Statistics' leak. Wrapping puts
+                    // the third tier on its own line rather than off the card. This
+                    // legend, NOT the 3-up stat grid above, is the offender: that
+                    // grid's minmax(0, 1fr) tracks already hold at this size.
+                    <div className="sr-wrap-flex" style={{ ['--sr-wrap-gap' as string]: '14px', marginTop: 8 }}>
                       {[
                         { label: 'Confirmed', color: 'var(--sr-tier-4)' },
                         { label: 'Probable', color: 'var(--sr-tier-2)' },

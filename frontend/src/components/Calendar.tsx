@@ -79,8 +79,16 @@ function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
   onChange: (v: T) => void
   ariaLabel: string
 }) {
+  // .sr-seg makes the segments FILL their line once the group wraps (v1.0.4).
+  // The pill paints --sr-surface-subtle behind the whole group, so a wrapped
+  // line that only its widest option reaches left a broad band of empty grey
+  // beside it: at 402px the group is 273px wide with "Total count" alone on
+  // line two, about 166px of dead background. Growing the segments keeps the
+  // pill looking like a control rather than a grey rectangle. Pre-existing
+  // (measured byte-identical on the v1.0.3 build), fixed here because it is the
+  // same family as the rest of this change.
   return (
-    <div className="sr-wrap-flex" role="group" aria-label={ariaLabel}
+    <div className="sr-wrap-flex sr-seg" role="group" aria-label={ariaLabel}
       style={{ ['--sr-wrap-gap' as string]: '2px', background: 'var(--sr-surface-subtle)', borderRadius: 6, padding: 2 }}>
       {options.map(opt => {
         const active = value === opt.value
@@ -88,6 +96,7 @@ function SegControl<T extends string>({ options, value, onChange, ariaLabel }: {
           <button tabIndex={0}
             key={opt.value}
             type="button"
+            className="sr-seg-btn"
             onClick={() => onChange(opt.value)}
             aria-pressed={active}
             title={opt.title}
@@ -206,7 +215,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
         tabIndex={0}
         onClick={() => onOpen(cell, ref.current!)}
         aria-label={`${dateLabel}: birded, 0 ${metric === 'checklists' ? 'checklists' : metric === 'total' ? 'individuals' : 'countable species'}. Open day details`}
-        className="sr-touch-target"
+        className="sr-touch-target sr-cal-day"
         style={{
           ...base, background: 'var(--sr-surface-subtle)', border: '1px solid var(--sr-border-subtle)',
           cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
@@ -234,7 +243,7 @@ function DayCellButton({ desc, textures, metric, onOpen }: {
       tabIndex={0}
       onClick={() => onOpen(cell, ref.current!)}
       aria-label={`${dateLabel}: ${desc.count}. Open day details`}
-      className="sr-touch-target"
+      className="sr-touch-target sr-cal-day"
       style={{
         ...base, ...fill, cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
       }}
@@ -990,9 +999,14 @@ export function Calendar({ onGoToSettings, filesVersion }: {
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Layout LIFTED to classes (v1.0.4): the inline display/align/gap this
+              carried are specificity (1,0,0) and unreachable from a media query,
+              so the group could not be told to wrap on a phone. Values are
+              byte-identical to the inline ones they replace; the phone-tier wrap
+              lives in globals.css beside them. */}
+          <div className="sr-cal-year-group">
             <span style={ctrlLabelStyle}>Year</span>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+            <div className="sr-cal-year-nav">
               <button type="button" onClick={goPrev} disabled={prevDisabled} aria-label="Previous year with data" style={navBtnStyle(prevDisabled)}>
                 <ChevronLeft size={15} strokeWidth={2.4} aria-hidden />
               </button>

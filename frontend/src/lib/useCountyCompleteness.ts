@@ -28,6 +28,7 @@ import {
   type CountyEbirdData, type CountyLocalCompleteness, type CompletenessStatus,
 } from './countyCompleteness'
 import * as completenessCache from './countyCompletenessCache'
+import { withNormalizedParents } from './speciesUtils'
 
 /** OQ-07: fixed eager-fetch concurrency bound. */
 export const EAGER_FETCH_CONCURRENCY = 4
@@ -106,7 +107,7 @@ export function useCountyCompleteness({ active, localByCounty, hasEbirdKey }: Us
       }
     }
     if (seen.size === 0) return
-    const species = [...seen.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
+    const species = withNormalizedParents(seen)
     let cancelled = false
     transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
       .then(data => { if (!cancelled) setCodeByName(data.codes) })

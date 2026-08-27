@@ -263,7 +263,27 @@ export async function getTaxonomyCodes(
       (Object.hasOwn(cache.bySci, sciLower) ? cache.bySci[sciLower] : undefined) ??
       (Object.hasOwn(cache.byCom, comLower) ? cache.byCom[comLower] : undefined);
     if (code) codes[item.commonName] = code;
-    const order = Object.hasOwn(cache.byOrder, comLower) ? cache.byOrder[comLower] : undefined;
+    // Taxonomic sort, with the SAME scientific-name bridge `code` above already
+    // has. After eBird's annual rollover an export written under the old revision
+    // carries a renamed common name ("Cattle Egret", now "Western Cattle-Egret"),
+    // which misses the common-name-keyed order map entirely — so the row kept its
+    // favicon (resolved through bySci) but silently lost its taxonomic position
+    // and fell to the A-Z fallback. Scientific names survive a common-name rename,
+    // so the bridge is a derivation over maps already loaded: sciName -> code ->
+    // CURRENT common name -> order. No snapshot format change.
+    //
+    // Common name first, so every name that resolves today keeps its exact current
+    // answer and this can only ADD an order where there was none. Object.hasOwn on
+    // every CSV-keyed read, per the allowlist-lookup rule above. Keep in lockstep
+    // with get_species_codes in backend/routers/taxonomy.py.
+    let order = Object.hasOwn(cache.byOrder, comLower) ? cache.byOrder[comLower] : undefined;
+    if (order == null && code) {
+      const currentName = Object.hasOwn(cache.byCode, code) ? cache.byCode[code] : undefined;
+      const currentLower = currentName?.toLowerCase();
+      if (currentLower && Object.hasOwn(cache.byOrder, currentLower)) {
+        order = cache.byOrder[currentLower];
+      }
+    }
     if (order != null) orders[item.commonName] = order;
     // All-category exact-name code (may be an issf/form/domestic code), else the
     // species code so a plain species name still resolves here too.

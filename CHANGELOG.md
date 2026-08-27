@@ -2,6 +2,15 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.4] - 2026-08-27
+
+### Fixed
+- **The app no longer drifts sideways on a small phone at the largest text size.** On a 320 pixel screen at 200% text size, four places pushed the whole page sideways so you had to scroll to read them: the Statistics tab (its Rainbow Connection bird names, the breeding tier legend, and the best-day links beside the year bars), the Checklists tab, the Calendar's year controls and day cells, and the Settings section headings. Every tab now holds its width at that size. Where something has to give it gives height rather than width, so a long bird name wraps under itself and keeps both of its links, the breeding legend puts its third tier on a second line, and the Calendar's "All years" button drops below the year stepper. Calendar day cells become a little narrower than they are tall at that size, which is what keeps a whole week on screen; they stay comfortably tappable, and nothing changes at normal text sizes. Wide data tables and the maps still scroll sideways on purpose, as they always have.
+- **The Checklists count was quietly pushing the page sideways.** The 42 pixels it drifted came from an announcement written only for screen readers, which a phone layout rule had accidentally given a real width. It is invisible either way; now it takes no space either.
+- **The Calendar's Species / Checklists / Total count switch no longer leaves a blank grey block on a narrow screen.** When the three options do not fit on one line the switch wraps, and the option left on its own used to sit in a wide band of empty background. The options now spread to fill each line, so it reads as a control rather than a grey rectangle. This was not new in this release; it is fixed here because it is the same kind of problem as the rest of the change.
+- **Birds recorded only as a domestic or subspecies form keep their icon and their place in taxonomic order.** A bird written in your export only as a form name, like a Muscovy Duck recorded as "(Domestic type)", could not be matched to its species on most tabs, so it lost its eBird icon and sorted out of taxonomic order. Named Birds, Multimedia, Breeding Codes, Checklists, List Comparer, Map Explorer and the county completeness list all now look up the parent species alongside the name as written, the way Statistics and Species Detail already did. No count anywhere changes.
+- **An older export keeps its taxonomic order after eBird renames a bird.** eBird revises its taxonomy about once a year, and a bird whose common name changed no longer matched anything in the new list, so rows from an export written before the change fell out of taxonomic order. Scientific names survive a rename, so they are now used to find the bird's current position. Its icon and its exotic-status check already worked this way. Re-downloading your export still gives the most accurate result.
+
 ## [1.0.3] - 2026-08-27
 
 ### Added

@@ -9,6 +9,7 @@ import { ResultsView } from './ResultsView'
 import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 import type { KeyStatus } from '../lib/keyStatus'
+import { withNormalizedParents } from '../lib/speciesUtils'
 
 export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
   onOpenSpecies?: (commonName: string) => void
@@ -81,7 +82,7 @@ export function ListComparer({ onOpenSpecies, keyStatus, onGoToSettings }: {
     try {
       const data = await transport.post<{ codes: Record<string, string> }>(
         '/taxonomy/codes',
-        { species: names.map(n => ({ commonName: n, scientificName: '' })) }
+        { species: withNormalizedParents(names.map(n => [n, ''])) }
       )
       setTaxonMap(data.codes ?? {})
     } catch {

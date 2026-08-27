@@ -199,10 +199,23 @@ describe('null-prototype accumulators (a `__proto__` key is stored, never a sett
     expect(codes['__proto__']).toBe('amerob')
     expect(Object.hasOwn(formCodes, '__proto__')).toBe(true)
     expect(formCodes['__proto__']).toBe('amerob')
-    // byOrder has no own '__proto__' in this fixture → guarded miss, no entry.
-    // (The orders-accumulator own-key write is pinned by the pollution probe
-    // file, whose snapshot carries an own byOrder `__proto__` key.)
-    expect(Object.hasOwn(orders, '__proto__')).toBe(false)
+    // byOrder has no own '__proto__' in this fixture, so the DIRECT lookup is a
+    // guarded miss — but since the taxonomy rename bridge
+    // (a11y-taxonomy-screenshot-sweep) `orders` falls back through the resolved
+    // code to the CURRENT common name, which does have an order. So the write
+    // `orders['__proto__'] = 27616` now happens here, and this file pins the
+    // orders-accumulator own-key write directly rather than deferring it to the
+    // pollution probe file.
+    //
+    // That is the bridge behaving correctly, not a leak: an unrecognized common
+    // name whose scientific name resolves is exactly the stale-export case, and
+    // a hostile name is simply an unrecognized one. It is SAFE because the
+    // accumulator has no prototype — on a plain `{}` this same assignment would
+    // hit the inherited __proto__ setter and be a silent no-op, which is the
+    // property asserted three lines below. Reverting Object.create(null) on
+    // `orders` turns this red.
+    expect(Object.hasOwn(orders, '__proto__')).toBe(true)
+    expect(orders['__proto__']).toBe(27616)
     // The mechanism itself, pinned deliberately: these maps ship with no
     // prototype at all, which is what makes every write an own key.
     expect(Object.getPrototypeOf(codes)).toBe(null)

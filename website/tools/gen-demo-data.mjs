@@ -190,7 +190,24 @@ const FORMATS = ['Photo','Photo','Photo','Photo','Audio','Video'];
 // ---- generate checklists ----
 const startY = 2024, startM = 0; // Jan 2024
 const endDate = new Date(2026, 5, 1); // ~Jun 2026
-let subSeq = 184500000; // S<seq>
+// S<seq>, deliberately ABOVE eBird's live allocation (v1.0.4). These were
+// S1845xxxxx, a plausibly-real range: a reviewer or user who imports the demo
+// data with their own eBird key runs the live exotic-status pass against those
+// ids, which may collide with strangers' real public checklists. Screenshot
+// capture never sent those requests (the Playwright stub answers every lookup
+// before it leaves the machine), so this is about the dataset being IMPORTED,
+// not photographed. At S9xxxxxxxxx they 404 cleanly instead.
+//
+// The value stays within the app's own `^S[0-9]{1,15}$` id guard, so the demo
+// data still exercises every shipped code path. It also gives capture-appstore's
+// demo-dataset guard a STRUCTURAL marker: no real export carries ids this high,
+// so "every submission id is >= 9e9" distinguishes this dataset from a real one
+// without pinning a species or checklist count that legitimately moves.
+//
+// Changing this base does NOT disturb the rest of the dataset: ids are handed
+// out by this counter and never drawn from the seeded PRNG, so every other
+// field is byte-identical across the change.
+let subSeq = 9000000000;
 const seenFirst = new Set();
 const ebirdRows = [];
 const mlRows = [];

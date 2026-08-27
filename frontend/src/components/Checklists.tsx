@@ -18,7 +18,7 @@ import { storage } from '../lib/storage'
 import { transport } from '../lib/transport'
 import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
-import { normalizeSpeciesName } from '../lib/speciesUtils'
+import { normalizeSpeciesName, withNormalizedParents } from '../lib/speciesUtils'
 import { formatDate } from '../lib/formatDate'
 import { protocolName, formatDuration, formatDistance, formatObservers } from '../lib/checklistMeta'
 import {
@@ -456,7 +456,7 @@ export function Checklists({ onGoToSettings, filesVersion, onOpenSpecies }: {
     }
     if (distinct.size === 0) return
     let cancelled = false
-    const species = [...distinct.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
+    const species = withNormalizedParents(distinct)
     transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
       .then(data => { if (!cancelled) setTaxonMap(data.codes ?? {}) })
       .catch(() => { /* favicons absent until next load */ })

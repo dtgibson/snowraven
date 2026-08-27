@@ -11,7 +11,7 @@ import { loadEbirdObservations } from '../lib/observationsCache'
 import { loadMLExport } from '../lib/mlExportCache'
 import { storage } from '../lib/storage'
 import { transport } from '../lib/transport'
-import { normalizeSpeciesName } from '../lib/speciesUtils'
+import { normalizeSpeciesName, withNormalizedParents } from '../lib/speciesUtils'
 import { computeNamedBirds, type NamedBird } from '../lib/namedBirds'
 import { computeNamedBirdMedia } from '../lib/namedBirdMedia'
 import type { MLExportRow } from '../lib/parseMLExport'
@@ -40,8 +40,9 @@ export function NamedBirds({ onGoToSettings, filesVersion, onOpenSpecies, embedA
 
   const fetchTaxonCodes = async (birds: NamedBird[]) => {
     try {
-      const species = [...new Map(birds.map(b => [b.commonName, b.scientificName])).entries()]
-        .map(([commonName, scientificName]) => ({ commonName, scientificName }))
+      // Each raw name plus its normalized parent, so a bird recorded only as a
+      // form still resolves a species code for its favicon and taxonomic sort.
+      const species = withNormalizedParents(birds.map(b => [b.commonName, b.scientificName]))
       const data = await transport.post<{ codes: Record<string, string>; orders: Record<string, number> }>('/taxonomy/codes', { species })
       setTaxonMap(data.codes ?? {})
       setTaxonOrders(data.orders ?? {})

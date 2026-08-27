@@ -52,7 +52,7 @@ import { nextShadingState } from '../lib/shadingExclusion'
 import { computeChecklists, filterObservations } from '../lib/birdingStats'
 import { useHotspotSet } from '../lib/useHotspotSet'
 import { HEAT_INTENSITY_DEFAULT } from '../lib/heat'
-import { normalizeSpeciesName } from '../lib/speciesUtils'
+import { normalizeSpeciesName, withNormalizedParents } from '../lib/speciesUtils'
 import { markersInView, pointNeedsPan, MARKER_LIST_CAP, type MarkerBounds } from '../lib/markersInView'
 import { formatDate } from '../lib/formatDate'
 import { BirdName } from './BirdName'
@@ -702,7 +702,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
       }
       if (targetMap.size === 0) return
 
-      const species = [...targetMap.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
+      const species = withNormalizedParents(targetMap)
       const data = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
       setSpeciesCodeMap(data.codes)
     } catch { /* taxonomy unavailable — gracefully handled at fetch time */ }
@@ -1322,7 +1322,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         const sciMap = new Map(
           (phase.tag === 'ready' ? [...phase.observations] : []).map(o => [o.commonName, o.scientificName]),
         )
-        const species = names.map(n => ({ commonName: n, scientificName: sciMap.get(n) ?? '' }))
+        const species = withNormalizedParents(names.map(n => [n, sciMap.get(n) ?? '']))
         const d = await transport.post<{ codes: Record<string, string> }>('/taxonomy/codes', { species })
         setSpeciesCodeMap(prev => ({ ...prev, ...d.codes }))
         codes = names.map(n => d.codes[n]).filter(Boolean).join(',')

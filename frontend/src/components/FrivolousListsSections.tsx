@@ -160,7 +160,13 @@ function RainbowList({ rows, complete, codeFor, hasEntryFor, onOpenSpecies, isHo
             <span style={COLOR_NAME}>{color}</span>
             {bird ? (
               <>
-                <span style={{ flex: 1, minWidth: 0 }}>
+                {/* .sr-fl-name is the phone-tier wrap hook (v1.0.4). flex:1 +
+                    minWidth:0 correctly let this span crush to the space left
+                    over, but BirdName's own row is nowrap with an indivisible
+                    name+links group, so at 320px/200% a 157.8px name sat in a
+                    54px box and its trailing link ran 59.8px past the viewport.
+                    The class lets the name wrap INSIDE the span; see globals.css. */}
+                <span className="sr-fl-name" style={{ flex: 1 }}>
                   <BirdName commonName={bird.commonName} taxonCode={codeFor(bird.commonName)} hasEntry={hasEntryFor(bird.commonName)} onOpenSpecies={onOpenSpecies} size="sm" />
                 </span>
                 {/* minWidth:0 (not flexShrink:0) so this date+location cluster

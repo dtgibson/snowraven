@@ -1061,6 +1061,21 @@ h1, h2, h3, h4, h5, h6 {
    display:grid can't be reached by a media query). */
 .sr-cal-months { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); }
 
+/* Calendar year stepper — layout lifted out of Calendar.tsx's inline styles so a
+   media query can reach it (an inline style is specificity (1,0,0) and wins over
+   any class rule). These two base rules are byte-identical to the inline values
+   they replace, so desktop rendering is unchanged; the phone-tier wrap is in the
+   <=640 block. */
+.sr-cal-year-group { display: flex; align-items: center; gap: 8px; }
+.sr-cal-year-nav { display: inline-flex; align-items: center; gap: 2px; }
+
+/* Statistics · Rainbow Connection name span. min-width: 0 was an INLINE style on
+   the element (specificity 1,0,0), which silently out-ranked the phone-tier floor
+   below and left that rule completely inert — the failure mode .claude/rules/ui.md
+   names first. Lifted here byte-identical, so desktop is unchanged and the tier
+   override can actually reach it. */
+.sr-fl-name { min-width: 0; }
+
 /* Year-Overview thumbnail in-cell day-of-month label (v0.5.63 — the big MonthGrid cells
    are count-only at EVERY width; the date lives only on the Large thumbnails, which are
    reachable on the phone via the View toggle, v0.5.68). Its sole use is the mini-month
@@ -2975,7 +2990,12 @@ select:focus-visible {
      applies and the sidebar is byte-identical (verified: same fonts, same
      widths, same layout at 641px). */
   .sr-map-sidebar-overlay .sr-field-row { flex-direction: column; align-items: stretch; }
-  .sr-map-sidebar-overlay .sr-field-row > * { width: 100%; }
+  /* :not(.sr-only) for the same reason as the <=480 block's copy below — see the
+     comment there. Prophylactic here (no live region sits in a sidebar field row
+     today) and kept in lockstep deliberately: the two rules re-state the same
+     declarations, so a divergence between them would be the bug returning by
+     the other route. */
+  .sr-map-sidebar-overlay .sr-field-row > *:not(.sr-only) { width: 100%; }
 
   /* Breeding Codes matrix on a phone: narrow each code column from 44px to ~30px
      (the 28px count dot + ~1px breathing room each side), roughly halving the
@@ -2992,6 +3012,28 @@ select:focus-visible {
      the shared BirdName and SpeciesLinks components remain unchanged. */
   .sr-bc-name-col .sr-birdname { width: 100%; max-width: 100%; }
   .sr-bc-name-col .sr-birdname-row { flex-wrap: wrap; }
+
+  /* Statistics · Rainbow Connection name rows (v1.0.4) — the same repair as the
+     Breeding Codes name column directly above, on a second surface, and for the
+     same reason: the row's flex:1 + min-width:0 span DOES crush to the leftover
+     width, but BirdName's row is nowrap with an indivisible name+links group, so
+     at 320px/200% a 157.8px name sat in a 54px box and its trailing link ran
+     59.8px past the viewport. Letting the row wrap drops the two-link group
+     intact below the name rather than outside the card. Wrapping was chosen over
+     truncating because truncating reverses v0.5.56, which made these names
+     visible text precisely so they could be read and tapped. The shared BirdName
+     and SpeciesLinks components stay unchanged. */
+  .sr-fl-name .sr-birdname { width: 100%; max-width: 100%; }
+  .sr-fl-name .sr-birdname-row { flex-wrap: wrap; }
+  /* Wrapping the name row alone left 15.8px: `flex: 1` gives this span a
+     flex-basis of 0, so it never forces its line to break — it just shrinks,
+     and a 54px box cannot hold a bird name at any wrap setting. The floor makes
+     the row break instead of crushing it, and min(8rem, 100%) is the app's
+     self-collapsing idiom (as in .sr-cal-months' minmax(min(230px, 100%), 1fr)):
+     8rem while there is room, never wider than the card, so it can never
+     become the overflow it is here to prevent. Self-limiting — at 100% text
+     scale the row still fits on one line and nothing moves. */
+  .sr-fl-name { min-width: min(8rem, 100%); }
   .sr-bc-code-col { width: 30px; min-width: 30px; }
   /* table-layout: fixed (phone tier ONLY) makes the DECLARED column widths
      authoritative rather than a floor, so the 30px .sr-bc-code-col narrowing
@@ -3104,6 +3146,46 @@ select:focus-visible {
 
   /* New layout hooks collapse to a single column on phones. */
   .sr-grid-2, .sr-grid-3, .sr-grid-4 { grid-template-columns: 1fr; }
+
+  /* Calendar year stepper wraps rather than leaking page scroll (v1.0.4). At
+     320px and 200% text scale the group measured 308.38px inside 238px: the
+     outer group is a flex item at `min-width: auto`, and the inner nav cluster
+     is an inline-flex that never wraps, holding a 74px year readout and three
+     buttons that all grow with the text scale. Its parent already carries
+     .sr-wrap-flex, so the row AROUND it wrapped while the group itself could
+     not. Releasing both automatic minimums lets "All years" drop to its own
+     line; the stepper keeps its line, reading order is unchanged, and nothing
+     moves at 100% because flex only breaks a line that does not fit. */
+  .sr-cal-year-group { flex-wrap: wrap; row-gap: 6px; min-width: 0; }
+  .sr-cal-year-nav { flex-wrap: wrap; row-gap: 6px; min-width: 0; }
+
+  /* Calendar day cells cap to their grid track (v1.0.4). The cell carries
+     aspect-ratio: 1/1 AND .sr-touch-target's min-height: 2.75rem, and the ratio
+     turns that MIN-HEIGHT into WIDTH: 44x44 at 100% text scale, 88x88 at 200%,
+     inside a 32.56px track. Seven 44px squares plus gaps need 326px, so a fully
+     square, fully tappable week has never fitted a 320px phone — it stayed on
+     screen only because the month card is inset, until 200% doubled it and
+     pushed 18.42px past the viewport.
+
+     max-width caps the WIDTH to the track and leaves min-height governing the
+     HEIGHT, so a cell becomes 32.56 x 88 at 200% rather than 88 x 88. The
+     deliberate trade, taken by the user at the design review: the cell stops
+     being square at this one size, and its width falls below the app's own
+     ~44px touch posture — which is WCAG 2.5.5 (AAA), not the AA bar this app
+     targets. It stays well clear of 2.5.8 Target Size (Minimum, AA: 24x24) on
+     both axes, every day of the month stays visible and tappable, and no
+     nested horizontal scrollport is introduced into a page that already
+     scrolls. Height is untouched, so the tap area only loses width. */
+  .sr-cal-day { max-width: 100%; }
+
+  /* A wrapped segmented control fills its lines instead of leaving dead pill
+     background beside the widest option (v1.0.4). Only the CHILDREN grow, so
+     the group still shrink-wraps its content and nothing changes on a line
+     where every segment already fits — including every desktop width, where
+     this tier does not apply at all. `flex: 1 1 auto` rather than a 100% basis:
+     forcing one segment per line would spend vertical space at 402px, where two
+     fit comfortably. */
+  .sr-seg > .sr-seg-btn { flex: 1 1 auto; justify-content: center; }
   /* Calendar Year Overview: single column on a phone (3 → 2 → 1). */
   .sr-cal-year { grid-template-columns: 1fr; }
   /* Calendar big months: a slightly larger min so the day cells stay tappable
@@ -3298,10 +3380,22 @@ select:focus-visible {
    native date/time field pairs) and trim padding harder. Must follow the 640px
    block so it wins at ≤480. */
 @media (max-width: 480px) {
+  /* :not(.sr-only) is load-bearing, not defensive tidying. A universal child
+     selector here reaches the visually-hidden live regions that sit in these
+     rows, and .sr-only is position:absolute — so width:100% resolves against
+     its CONTAINING BLOCK, not the row, giving a 320px box that leaks page
+     horizontal scroll on a phone at every text size. Checklists' shipped
+     `<span class="sr-only" aria-live="polite">368 checklists</span>` measured
+     a right edge of 362 in a 320px viewport: the whole 42px leak. Equal
+     specificity (0,1,0) with .sr-only's own rule meant source order decided
+     it, and this block is later. Third instance of the standing check in
+     .claude/rules/ui.md ("a position:absolute element wider than the viewport
+     leaks PAGE horizontal scroll even when invisible"), after the two fixed
+     in v0.5.37; the first two patched elements, this one narrows a selector. */
   .sr-action-row-stack { flex-direction: column; align-items: stretch; }
-  .sr-action-row-stack > * { width: 100%; }
+  .sr-action-row-stack > *:not(.sr-only) { width: 100%; }
   .sr-field-row { flex-direction: column; align-items: stretch; }
-  .sr-field-row > * { width: 100%; }
+  .sr-field-row > *:not(.sr-only) { width: 100%; }
   .sr-pad-x-trim { padding-left: 12px !important; padding-right: 12px !important; }
   /* Calendar big months: one column on the small-phone tier. */
   .sr-cal-months { grid-template-columns: 1fr; }

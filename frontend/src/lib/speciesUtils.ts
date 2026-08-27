@@ -271,6 +271,37 @@ export function truncateAtFirstParen(name: string): string {
   return name.slice(0, parenIdx).trim()
 }
 
+/** Expand a name→scientificName pairing so every raw name is accompanied by its
+ *  normalized parent, for a `/taxonomy/codes` batch.
+ *
+ *  WHY. `codes` is a SPECIES-ONLY map by contract on both transports, so a bird
+ *  recorded only as a form ("Swan Goose (Domestic type)") resolves no species
+ *  code from its raw name and the consumer silently skips it. v1.0.1 fixed the
+ *  Statistics batch this way after the escapee check read zero; this is the same
+ *  one-line treatment single-sourced for the remaining call sites, whose cost was
+ *  favicons and taxonomic sort position on those rows rather than a count.
+ *
+ *  The RAW name is kept and always emitted first, so `formCodes` consumers (which
+ *  resolve a form to its own issf/domestic code) are unaffected, and `codes` /
+ *  `orders` stay byte-identical for every name that already resolved — the added
+ *  entry is a name the species-only map previously had no row for at all. For a
+ *  plain species name the normalized form is the name itself, so the Map dedupe
+ *  makes this a no-op and the request does not grow.
+ *
+ *  First scientific name wins for a given key, matching the shipped Species
+ *  Detail and Statistics batches this generalizes. */
+export function withNormalizedParents(
+  pairs: Iterable<readonly [string, string]>,
+): { commonName: string; scientificName: string }[] {
+  const seen = new Map<string, string>()
+  for (const [commonName, scientificName] of pairs) {
+    if (!seen.has(commonName)) seen.set(commonName, scientificName)
+    const norm = normalizeSpeciesName(commonName)
+    if (!seen.has(norm)) seen.set(norm, scientificName)
+  }
+  return [...seen.entries()].map(([commonName, scientificName]) => ({ commonName, scientificName }))
+}
+
 // Test-only introspection. Nothing in the app calls these; they exist so the memo's
 // bounds can be asserted against the REAL exported `normalizeSpeciesName` rather than a
 // copy of it, which is the only version of that test worth having.

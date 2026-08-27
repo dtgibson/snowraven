@@ -1,115 +1,213 @@
 {
-  "_comment": "SHARED PARITY FIXTURE for the dual-transport taxonomy-collapse twins: frontend/src/lib/tauri/taxonomyService.ts collapseToSpeciesList and backend/routers/taxonomy.py collapse_to_species_list. Both readers (taxonomyCollapse.parity.test.ts and backend/tests/test_taxonomy_collapse_parity.py) load THIS file and assert the same species-level output, so either twin drifting fails its test. See the change brief (mobile-prep-sweep, tidy #1). rawTaxonomy is the eBird-shaped array both derivations consume; snapshot is the pre-derived 5-map bundle (the TS bundle-floor shape); inputCodes+expected drive the collapse.",
-
-  "version": "parity-fixture-1",
-
-  "rawTaxonomy": [
-    { "speciesCode": "amerob", "comName": "American Robin", "sciName": "Turdus migratorius", "taxonOrder": 27616, "category": "species" },
-    { "speciesCode": "mallar3", "comName": "Mallard", "sciName": "Anas platyrhynchos", "taxonOrder": 265, "category": "species" },
-    { "speciesCode": "rocpig", "comName": "Rock Pigeon", "sciName": "Columba livia", "taxonOrder": 6649, "category": "species" },
-    { "speciesCode": "yerwar", "comName": "Yellow-rumped Warbler", "sciName": "Setophaga coronata", "taxonOrder": 32035, "category": "species" },
-
-    { "speciesCode": "yerwar1", "comName": "Yellow-rumped Warbler (Myrtle)", "sciName": "Setophaga coronata coronata", "taxonOrder": 32036, "category": "issf", "reportAs": "yerwar" },
-    { "speciesCode": "yerwar2", "comName": "Yellow-rumped Warbler (Audubon's)", "sciName": "Setophaga coronata auduboni", "taxonOrder": 32040, "category": "issf", "reportAs": "yerwar" },
-
-    { "speciesCode": "rocpig1", "comName": "Rock Pigeon (Feral Pigeon)", "sciName": "Columba livia (Feral Pigeon)", "taxonOrder": 6650, "category": "domestic", "reportAs": "rocpig" },
-    { "speciesCode": "maldom1", "comName": "Mallard (Domestic type)", "sciName": "Anas platyrhynchos (Domestic type)", "taxonOrder": 266, "category": "domestic", "reportAs": "mallar3" },
-
-    { "speciesCode": "y00934", "comName": "duck sp.", "sciName": "Anatinae sp.", "taxonOrder": 800, "category": "spuh" },
-    { "speciesCode": "amwspa1", "comName": "American Robin/Wood Thrush", "sciName": "Turdus migratorius/Hylocichla mustelina", "taxonOrder": 27700, "category": "slash" },
-    { "speciesCode": "x00001", "comName": "Mallard x American Black Duck (hybrid)", "sciName": "Anas platyrhynchos x rubripes", "taxonOrder": 267, "category": "hybrid" }
-  ],
-
-  "snapshot": {
-    "version": "parity-fixture-1",
-    "generated": "2026-07-01",
-    "bySci": {
-      "turdus migratorius": "amerob",
-      "anas platyrhynchos": "mallar3",
-      "columba livia": "rocpig",
-      "setophaga coronata": "yerwar"
-    },
-    "byCom": {
-      "american robin": "amerob",
-      "mallard": "mallar3",
-      "rock pigeon": "rocpig",
-      "yellow-rumped warbler": "yerwar"
-    },
-    "byOrder": {
-      "american robin": 27616,
-      "mallard": 265,
-      "rock pigeon": 6649,
-      "yellow-rumped warbler": 32035
-    },
-    "byCode": {
-      "amerob": "American Robin",
-      "mallar3": "Mallard",
-      "rocpig": "Rock Pigeon",
-      "yerwar": "Yellow-rumped Warbler",
-      "yerwar1": "Yellow-rumped Warbler (Myrtle)",
-      "yerwar2": "Yellow-rumped Warbler (Audubon's)",
-      "rocpig1": "Rock Pigeon (Feral Pigeon)",
-      "maldom1": "Mallard (Domestic type)",
-      "y00934": "duck sp.",
-      "amwspa1": "American Robin/Wood Thrush",
-      "x00001": "Mallard x American Black Duck (hybrid)"
-    },
-    "reportAs": {
-      "yerwar1": "yerwar",
-      "yerwar2": "yerwar",
-      "rocpig1": "rocpig",
-      "maldom1": "mallar3"
-    }
+ "_comment": "SHARED PARITY FIXTURE for the dual-transport taxonomy-collapse twins: frontend/src/lib/tauri/taxonomyService.ts collapseToSpeciesList and backend/routers/taxonomy.py collapse_to_species_list. Both readers (taxonomyCollapse.parity.test.ts and backend/tests/test_taxonomy_collapse_parity.py) load THIS file and assert the same species-level output, so either twin drifting fails its test. See the change brief (mobile-prep-sweep, tidy #1). rawTaxonomy is the eBird-shaped array both derivations consume; snapshot is the pre-derived 5-map bundle (the TS bundle-floor shape); inputCodes+expected drive the collapse.",
+ "version": "parity-fixture-1",
+ "rawTaxonomy": [
+  {
+   "speciesCode": "amerob",
+   "comName": "American Robin",
+   "sciName": "Turdus migratorius",
+   "taxonOrder": 27616,
+   "category": "species"
   },
-
-  "cases": {
-    "_comment": "inputCodes are raw region-species-list codes in eBird taxonomic order; expected is the species-level collapse: each code -> its reportAs species parent, only species-category parents survive (spuh/slash/hybrid drop), dedupe preserves first-seen order.",
-
-    "inputCodes": [
-      "amerob",
-      "yerwar1",
-      "yerwar2",
-      "yerwar",
-      "rocpig1",
-      "maldom1",
-      "mallar3",
-      "y00934",
-      "amwspa1",
-      "x00001",
-      "amerob"
-    ],
-
-    "expected": [
-      { "speciesCode": "amerob", "commonName": "American Robin" },
-      { "speciesCode": "yerwar", "commonName": "Yellow-rumped Warbler" },
-      { "speciesCode": "rocpig", "commonName": "Rock Pigeon" },
-      { "speciesCode": "mallar3", "commonName": "Mallard" }
-    ]
+  {
+   "speciesCode": "mallar3",
+   "comName": "Mallard",
+   "sciName": "Anas platyrhynchos",
+   "taxonOrder": 265,
+   "category": "species"
   },
-
-  "formCodesCases": {
-    "_comment": "media-catalog-taxon-links parity: the /taxonomy/codes formCodes map (all-category name->code, from inverting byCode) resolves a FORM name to its OWN issf/domestic code (the ON media link) and a species name to the species code, while `codes` (species-only) still misses the form names. Both twins (getTaxonomyCodes / get_species_codes) assert THIS on the shared fixture. The 'constructor' row is the taxonomy-hasown-lookups hostile-name case (v0.5.81 allowlist-lookup rule): a CSV species name that is an Object.prototype member must resolve to NOTHING on both transports — the expected maps carry no entry for it. The Python twin is immune by construction (dict.get has no prototype chain); on the TS twin an unguarded bare index returns the truthy inherited `constructor` function and this row goes red.",
-
-    "input": [
-      { "commonName": "American Robin", "scientificName": "Turdus migratorius" },
-      { "commonName": "Yellow-rumped Warbler", "scientificName": "Setophaga coronata" },
-      { "commonName": "Yellow-rumped Warbler (Myrtle)", "scientificName": "Setophaga coronata coronata" },
-      { "commonName": "Rock Pigeon (Feral Pigeon)", "scientificName": "Columba livia (Feral Pigeon)" },
-      { "commonName": "Mallard (Domestic type)", "scientificName": "Anas platyrhynchos (Domestic type)" },
-      { "commonName": "constructor", "scientificName": "constructor" }
-    ],
-
-    "expectedFormCodes": {
-      "American Robin": "amerob",
-      "Yellow-rumped Warbler": "yerwar",
-      "Yellow-rumped Warbler (Myrtle)": "yerwar1",
-      "Rock Pigeon (Feral Pigeon)": "rocpig1",
-      "Mallard (Domestic type)": "maldom1"
-    },
-
-    "expectedSpeciesOnlyCodes": {
-      "American Robin": "amerob",
-      "Yellow-rumped Warbler": "yerwar"
-    }
+  {
+   "speciesCode": "rocpig",
+   "comName": "Rock Pigeon",
+   "sciName": "Columba livia",
+   "taxonOrder": 6649,
+   "category": "species"
+  },
+  {
+   "speciesCode": "yerwar",
+   "comName": "Yellow-rumped Warbler",
+   "sciName": "Setophaga coronata",
+   "taxonOrder": 32035,
+   "category": "species"
+  },
+  {
+   "speciesCode": "yerwar1",
+   "comName": "Yellow-rumped Warbler (Myrtle)",
+   "sciName": "Setophaga coronata coronata",
+   "taxonOrder": 32036,
+   "category": "issf",
+   "reportAs": "yerwar"
+  },
+  {
+   "speciesCode": "yerwar2",
+   "comName": "Yellow-rumped Warbler (Audubon's)",
+   "sciName": "Setophaga coronata auduboni",
+   "taxonOrder": 32040,
+   "category": "issf",
+   "reportAs": "yerwar"
+  },
+  {
+   "speciesCode": "rocpig1",
+   "comName": "Rock Pigeon (Feral Pigeon)",
+   "sciName": "Columba livia (Feral Pigeon)",
+   "taxonOrder": 6650,
+   "category": "domestic",
+   "reportAs": "rocpig"
+  },
+  {
+   "speciesCode": "maldom1",
+   "comName": "Mallard (Domestic type)",
+   "sciName": "Anas platyrhynchos (Domestic type)",
+   "taxonOrder": 266,
+   "category": "domestic",
+   "reportAs": "mallar3"
+  },
+  {
+   "speciesCode": "y00934",
+   "comName": "duck sp.",
+   "sciName": "Anatinae sp.",
+   "taxonOrder": 800,
+   "category": "spuh"
+  },
+  {
+   "speciesCode": "amwspa1",
+   "comName": "American Robin/Wood Thrush",
+   "sciName": "Turdus migratorius/Hylocichla mustelina",
+   "taxonOrder": 27700,
+   "category": "slash"
+  },
+  {
+   "speciesCode": "x00001",
+   "comName": "Mallard x American Black Duck (hybrid)",
+   "sciName": "Anas platyrhynchos x rubripes",
+   "taxonOrder": 267,
+   "category": "hybrid"
   }
+ ],
+ "snapshot": {
+  "version": "parity-fixture-1",
+  "generated": "2026-07-01",
+  "bySci": {
+   "turdus migratorius": "amerob",
+   "anas platyrhynchos": "mallar3",
+   "columba livia": "rocpig",
+   "setophaga coronata": "yerwar"
+  },
+  "byCom": {
+   "american robin": "amerob",
+   "mallard": "mallar3",
+   "rock pigeon": "rocpig",
+   "yellow-rumped warbler": "yerwar"
+  },
+  "byOrder": {
+   "american robin": 27616,
+   "mallard": 265,
+   "rock pigeon": 6649,
+   "yellow-rumped warbler": 32035
+  },
+  "byCode": {
+   "amerob": "American Robin",
+   "mallar3": "Mallard",
+   "rocpig": "Rock Pigeon",
+   "yerwar": "Yellow-rumped Warbler",
+   "yerwar1": "Yellow-rumped Warbler (Myrtle)",
+   "yerwar2": "Yellow-rumped Warbler (Audubon's)",
+   "rocpig1": "Rock Pigeon (Feral Pigeon)",
+   "maldom1": "Mallard (Domestic type)",
+   "y00934": "duck sp.",
+   "amwspa1": "American Robin/Wood Thrush",
+   "x00001": "Mallard x American Black Duck (hybrid)"
+  },
+  "reportAs": {
+   "yerwar1": "yerwar",
+   "yerwar2": "yerwar",
+   "rocpig1": "rocpig",
+   "maldom1": "mallar3"
+  }
+ },
+ "cases": {
+  "_comment": "inputCodes are raw region-species-list codes in eBird taxonomic order; expected is the species-level collapse: each code -> its reportAs species parent, only species-category parents survive (spuh/slash/hybrid drop), dedupe preserves first-seen order.",
+  "inputCodes": [
+   "amerob",
+   "yerwar1",
+   "yerwar2",
+   "yerwar",
+   "rocpig1",
+   "maldom1",
+   "mallar3",
+   "y00934",
+   "amwspa1",
+   "x00001",
+   "amerob"
+  ],
+  "expected": [
+   {
+    "speciesCode": "amerob",
+    "commonName": "American Robin"
+   },
+   {
+    "speciesCode": "yerwar",
+    "commonName": "Yellow-rumped Warbler"
+   },
+   {
+    "speciesCode": "rocpig",
+    "commonName": "Rock Pigeon"
+   },
+   {
+    "speciesCode": "mallar3",
+    "commonName": "Mallard"
+   }
+  ]
+ },
+ "formCodesCases": {
+  "_comment": "media-catalog-taxon-links parity: the /taxonomy/codes formCodes map (all-category name->code, from inverting byCode) resolves a FORM name to its OWN issf/domestic code (the ON media link) and a species name to the species code, while `codes` (species-only) still misses the form names. Both twins (getTaxonomyCodes / get_species_codes) assert THIS on the shared fixture. The 'constructor' row is the taxonomy-hasown-lookups hostile-name case (v0.5.81 allowlist-lookup rule): a CSV species name that is an Object.prototype member must resolve to NOTHING on both transports — the expected maps carry no entry for it. The Python twin is immune by construction (dict.get has no prototype chain); on the TS twin an unguarded bare index returns the truthy inherited `constructor` function and this row goes red. The 'Northern Robin' row is the taxonomy rename bridge (a11y-taxonomy-screenshot-sweep): a STALE export written under an older revision carries a common name the current snapshot no longer publishes, while its scientific name is unchanged. `codes` already bridged it through bySci, but `orders` was keyed on the common name alone, so the row kept its favicon and silently lost its taxonomic sort position. Both twins now bridge sciName -> code -> CURRENT common name -> order, which is why expectedOrders carries an entry for a name that appears nowhere in byOrder. expectedOrders also pins the ordinary names, so a bridge that accidentally REPLACED the direct lookup would go red too.",
+  "input": [
+   {
+    "commonName": "American Robin",
+    "scientificName": "Turdus migratorius"
+   },
+   {
+    "commonName": "Yellow-rumped Warbler",
+    "scientificName": "Setophaga coronata"
+   },
+   {
+    "commonName": "Yellow-rumped Warbler (Myrtle)",
+    "scientificName": "Setophaga coronata coronata"
+   },
+   {
+    "commonName": "Rock Pigeon (Feral Pigeon)",
+    "scientificName": "Columba livia (Feral Pigeon)"
+   },
+   {
+    "commonName": "Mallard (Domestic type)",
+    "scientificName": "Anas platyrhynchos (Domestic type)"
+   },
+   {
+    "commonName": "constructor",
+    "scientificName": "constructor"
+   },
+   {
+    "commonName": "Northern Robin",
+    "scientificName": "Turdus migratorius"
+   }
+  ],
+  "expectedFormCodes": {
+   "American Robin": "amerob",
+   "Yellow-rumped Warbler": "yerwar",
+   "Yellow-rumped Warbler (Myrtle)": "yerwar1",
+   "Rock Pigeon (Feral Pigeon)": "rocpig1",
+   "Mallard (Domestic type)": "maldom1",
+   "Northern Robin": "amerob"
+  },
+  "expectedSpeciesOnlyCodes": {
+   "American Robin": "amerob",
+   "Yellow-rumped Warbler": "yerwar",
+   "Northern Robin": "amerob"
+  },
+  "expectedOrders": {
+   "American Robin": 27616,
+   "Yellow-rumped Warbler": 32035,
+   "Northern Robin": 27616
+  }
+ }
 }

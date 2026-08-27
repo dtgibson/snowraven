@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SnowRaven · 320px / 200% scroll leaks</title>
+<style>
+/* Real shipped token values, lifted from frontend/src/globals.css so a reviewer
+   is looking at the app's actual colors in both themes, not approximations. */
+:root{
+  --sr-bg:#F9FAFB; --sr-surface:#FFFFFF; --sr-surface-faint:#FAFAFA;
+  --sr-text:#0F1117; --sr-text-muted:#6B6B74; --sr-text-gray:#6B7280;
+  --sr-border:#E4E4E7; --sr-border-subtle:#F4F4F5;
+  --sr-accent:#277448; --sr-accent-bg:#E8F5EE; --sr-accent-border-strong:rgba(39,116,72,0.7);
+  --sr-tier-1:#C084FC; --sr-tier-1-fg:#7C3AED;
+  --sr-cal-3:#205238; --sr-cal-fg:#FFFFFF;
+  --bad:#B42318; --bad-bg:#FEF3F2; --bad-border:#FDA29B;
+  --good:#277448; --good-bg:#E8F5EE;
+}
+:root[data-theme="dark"]{
+  --sr-bg:#09090B; --sr-surface:#18181B; --sr-surface-faint:#1C1C1F;
+  --sr-text:#F4F4F5; --sr-text-muted:#A1A1AA; --sr-text-gray:#8A8A92;
+  --sr-border:#27272A; --sr-border-subtle:#1F1F23;
+  --sr-accent:#34D399; --sr-accent-bg:#052E16; --sr-accent-border-strong:rgba(52,211,153,0.5);
+  --sr-tier-1:#C084FC; --sr-tier-1-fg:#C084FC;
+  --sr-cal-3:#205238; --sr-cal-fg:#FFFFFF;
+  --bad:#FDA29B; --bad-bg:#2A1614; --bad-border:#7A2E27;
+  --good:#34D399; --good-bg:#052E16;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--sr-bg); color:var(--sr-text);
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:0.9375rem; line-height:1.55;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:32px 24px 72px}
+header.top{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:8px}
+h1{font-size:1.5rem;font-weight:700;letter-spacing:-0.015em;margin:0 0 4px}
+.sub{color:var(--sr-text-muted);font-size:0.84375rem;margin:0 0 28px;max-width:62ch}
+h2{font-size:1.125rem;font-weight:700;letter-spacing:-0.01em;margin:36px 0 4px}
+h2 .num{color:var(--sr-text-muted);font-weight:600;font-variant-numeric:tabular-nums;margin-right:8px}
+.lede{color:var(--sr-text-muted);font-size:0.84375rem;margin:0 0 16px;max-width:70ch}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:20px;align-items:start}
+.side{border:1px solid var(--sr-border);border-radius:12px;background:var(--sr-surface);overflow:hidden}
+.side > figcaption{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:9px 12px;font-size:0.71875rem;font-weight:600;letter-spacing:.02em;text-transform:uppercase;
+  border-bottom:1px solid var(--sr-border-subtle);
+}
+.side.before > figcaption{background:var(--bad-bg);color:var(--bad)}
+.side.after  > figcaption{background:var(--good-bg);color:var(--good)}
+.px{font-variant-numeric:tabular-nums;text-transform:none;letter-spacing:0;font-weight:700}
+
+/* The phone frame is a real 320px viewport. `overflow-x:auto` here stands in for
+   the page scrollport, so a "before" panel scrolls sideways exactly as the app
+   does — the leak is demonstrated, not drawn. */
+.phone{width:320px;margin:16px auto;border:1px solid var(--sr-border);border-radius:14px;
+  background:var(--sr-bg);overflow-x:auto;overscroll-behavior-x:contain}
+.phone::-webkit-scrollbar{height:8px}
+.phone::-webkit-scrollbar-thumb{background:var(--bad-border);border-radius:4px}
+.side.after .phone{overflow-x:hidden}
+/* 200% in-app text scale, applied the way the app applies it. */
+.scale2{font-size:2rem}
+.panel{padding:12px;font-size:0.5rem}
+.card{background:var(--sr-surface);border:1px solid var(--sr-border);border-radius:10px;padding:10px;margin-bottom:10px}
+.sect-h{font-size:0.71875em;font-weight:700;color:var(--sr-text-muted);letter-spacing:.04em;text-transform:uppercase;margin:0 0 8px}
+
+/* ---- shared app-ish primitives, sized in em so they track the 200% scale ---- */
+.name-row{display:flex;align-items:center;gap:.5em;padding:.25em .12em;min-height:1.75em}
+.swatch{width:1.1em;height:1.1em;border-radius:50%;flex-shrink:0;background:var(--sr-cal-3)}
+.cluster{display:flex;align-items:center;gap:.5em;min-width:0;flex-shrink:1}
+.birdname{display:inline-flex;align-items:center;gap:.35em;color:var(--sr-text);font-weight:600}
+.icons{display:inline-flex;align-items:center;gap:.25em;flex-shrink:0}
+.ico{width:1.5em;height:1.5em;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--sr-border);border-radius:.3em;color:var(--sr-accent);font-size:.7em;flex-shrink:0}
+.chip-row{display:flex;align-items:center;gap:.5em}
+.chip{display:inline-flex;align-items:center;gap:.4em;padding:.25em .6em;border-radius:1em;
+  background:color-mix(in srgb,var(--sr-tier-1) 12%,transparent);color:var(--sr-tier-1-fg);
+  font-weight:600;font-size:.9em}
+.stat-row{display:flex;align-items:center;gap:.5em;padding:.3em 0}
+.stat-label{color:var(--sr-text-muted);flex-shrink:0}
+.pill-link{display:inline-flex;align-items:center;gap:.35em;color:var(--sr-accent);font-weight:600;
+  border:1px solid var(--sr-border);border-radius:1em;padding:.2em .6em}
+.ctl-row{display:flex;align-items:center;gap:.6em;flex-wrap:wrap;padding:.6em .8em;
+  background:var(--sr-surface-faint);border-bottom:1px solid var(--sr-border-subtle)}
+.ctl-label{font-size:.72em;font-weight:600;color:var(--sr-text-muted);flex-shrink:0}
+.yr-group{display:flex;align-items:center;gap:.5em}
+.yr-nav{display:inline-flex;align-items:center;gap:.12em}
+.nav-btn{width:1.6em;height:1.6em;border:1px solid var(--sr-border);border-radius:.35em;
+  background:var(--sr-surface);color:var(--sr-text-muted);display:inline-flex;align-items:center;justify-content:center}
+.yr-read{min-width:4.6em;text-align:center;font-weight:700;font-variant-numeric:tabular-nums}
+.allyr{font-size:.72em;font-weight:600;height:1.9em;padding:0 .8em;border-radius:1em;margin-left:.4em;
+  border:1.5px solid var(--sr-border);background:var(--sr-surface);color:var(--sr-text-muted);
+  display:inline-flex;align-items:center;flex-shrink:0}
+.daygrid{display:grid;grid-template-columns:repeat(7,1fr);gap:.15em;margin-top:.4em}
+.day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:.2em;
+  font-variant-numeric:tabular-nums;font-size:.8em;border:1px solid transparent}
+.day.on{background:var(--sr-cal-3);color:var(--sr-cal-fg);font-weight:600}
+.day.off{background:var(--sr-border-subtle);color:var(--sr-text-muted)}
+
+/* ================= BEFORE: the shipped constraints, reproduced =================
+   Each rule below is the measured defect, not a caricature. */
+.before .cluster        { }                        /* min-width:0 crushes it … */
+.before .birdname       { white-space:nowrap }     /* … but the row cannot wrap */
+.before .chip           { min-width:auto; white-space:nowrap }
+.before .chip-row       { flex-wrap:nowrap }
+.before .pill-link      { flex-shrink:0; white-space:nowrap }
+.before .stat-row       { flex-wrap:nowrap }
+.before .yr-group       { min-width:auto; flex-shrink:0 }
+.before .yr-nav         { flex-wrap:nowrap }
+.before .day            { min-width:max-content; padding:0 .55em }  /* automatic minimum */
+
+/* ================= AFTER: the released minimums ================================ */
+.after .birdname   { white-space:normal; overflow-wrap:anywhere; min-width:0 }
+.after .cluster    { min-width:0 }
+.after .chip       { min-width:0 }
+.after .chip-row   { flex-wrap:wrap; row-gap:.4em }
+.after .pill-link  { flex-shrink:0; max-width:100% }   /* keep the intent, cap the width */
+.after .stat-row   { flex-wrap:wrap; row-gap:.3em }
+.after .yr-group   { min-width:0; flex-wrap:wrap; row-gap:.4em }
+.after .yr-nav     { flex-wrap:wrap; row-gap:.4em; min-width:0 }
+.after .day        { min-width:0; padding:0 }
+
+.note{border:1px solid var(--sr-border);border-left:3px solid var(--sr-accent);border-radius:8px;
+  background:var(--sr-surface);padding:14px 16px;font-size:0.84375rem;margin:16px 0 0;max-width:78ch}
+.note code,code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em;
+  background:var(--sr-surface-faint);border:1px solid var(--sr-border-subtle);border-radius:4px;padding:.06em .35em}
+.note pre{margin:8px 0 0;overflow-x:auto;background:var(--sr-surface-faint);border:1px solid var(--sr-border-subtle);
+  border-radius:6px;padding:10px}
+.note pre code{background:none;border:none;padding:0}
+table.m{border-collapse:collapse;width:100%;max-width:78ch;font-size:0.84375rem;margin-top:14px}
+table.m th,table.m td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--sr-border-subtle)}
+table.m th{font-size:0.71875rem;text-transform:uppercase;letter-spacing:.03em;color:var(--sr-text-muted);font-weight:600}
+table.m td.n{font-variant-numeric:tabular-nums;font-weight:700;color:var(--bad)}
+table.m td.z{font-variant-numeric:tabular-nums;font-weight:700;color:var(--good)}
+button.theme{margin-left:auto;font:inherit;font-size:0.8125rem;font-weight:600;cursor:pointer;
+  border:1px solid var(--sr-border);background:var(--sr-surface);color:var(--sr-text);
+  border-radius:8px;padding:7px 13px;transition:background 160ms ease-out,border-color 160ms ease-out}
+button.theme:hover{background:var(--sr-surface-faint);border-color:var(--sr-accent)}
+@media (prefers-reduced-motion:reduce){button.theme{transition:none}}
+.hint{font-size:0.71875rem;color:var(--sr-text-muted);margin:8px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>320px / 200% — the last three scroll leaks</h1>
+    </div>
+    <button class="theme" id="t">Toggle theme</button>
+  </header>
+  <p class="sub">Each pair is a real 320px frame at 200% in-app text scale. The
+  <strong>before</strong> side carries the shipped constraints and genuinely scrolls sideways;
+  the <strong>after</strong> side has the automatic minimum released. Colors and type are the
+  app's own tokens in both themes.</p>
+
+  <table class="m">
+    <thead><tr><th>Tab</th><th>Worst element</th><th>Past viewport</th><th>After</th></tr></thead>
+    <tbody>
+      <tr><td>Statistics · Rainbow Connection</td><td>trailing <code>BirdName</code> link</td><td class="n">+59.8px</td><td class="z">0</td></tr>
+      <tr><td>Statistics · Breeding Stats</td><td>“Possible” tier chip</td><td class="n">+50.6px</td><td class="z">0</td></tr>
+      <tr><td>Statistics · Temporal Stats</td><td>“34 best” checklist link</td><td class="n">+39.0px</td><td class="z">0</td></tr>
+      <tr><td>Calendar · Year group</td><td>“All years” pill</td><td class="n">+29.4px</td><td class="z">0</td></tr>
+      <tr><td>Calendar · day cells</td><td>day button in a 32.6px track</td><td class="n">+18.4px</td><td class="z">0</td></tr>
+      <tr><td>Checklists · live region</td><td><code>.sr-only</code> announcement</td><td class="n">+42.0px</td><td class="z">0</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 1 -->
+  <h2><span class="num">01</span>Statistics · Rainbow Connection name rows</h2>
+  <p class="lede">The name cluster is <code>min-width: 0; flex-shrink: 1</code> and duly crushes to 54px,
+  but <code>BirdName</code>'s row is <code>white-space: nowrap</code> with an indivisible two-link group, so
+  157.8px of name hangs out of a 54px box. Letting the name wrap costs a second line and keeps both links,
+  their targets, and their accessible names.</p>
+  <div class="pair">
+    <figure class="side before"><figcaption>Before <span class="px">+59.8px</span></figcaption>
+      <div class="phone"><div class="panel scale2">
+        <div class="card"><p class="sect-h">Rainbow Connection</p>
+          <div class="name-row"><span class="swatch"></span>
+            <span class="cluster"><span class="birdname">Red-breasted Merganser</span>
+              <span class="icons"><span class="ico">e</span><span class="ico">M</span></span></span>
+          </div>
+          <div class="name-row"><span class="swatch" style="background:#B45309"></span>
+            <span class="cluster"><span class="birdname">Yellow-rumped Warbler</span>
+              <span class="icons"><span class="ico">e</span><span class="ico">M</span></span></span>
+          </div>
+        </div>
+      </div></div>
+    </figure>
+    <figure class="side after"><figcaption>After <span class="px">contained</span></figcaption>
+      <div class="phone"><div class="panel scale2">
+        <div class="card"><p class="sect-h">Rainbow Connection</p>
+          <div class="name-row"><span class="swatch"></span>
+            <span class="cluster"><span class="birdname">Red-breasted Merganser</span>
+              <span class="icons"><span class="ico">e</span><span class="ico">M</span></span></span>
+          </div>
+          <div class="name-row"><span class="swatch" style="background:#B45309"></span>
+            <span class="cluster"><span class="birdname">Yellow-rumped Warbler</span>
+              <span class="icons"><span class="ico">e</span><span class="ico">M</span></span></span>
+          </div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <!-- 2 -->
+  <h2><span class="num">02</span>Statistics · Breeding tier chips</h2>
+  <p class="lede">A chip at <code>min-width: auto</code> measures 92.3px inside a 242px row that will not break
+  between chips. The tier vocabulary is four short words, so the row wraps and the chip keeps its size.</p>
+  <div class="pair">
+    <figure class="side before"><figcaption>Before <span class="px">+50.6px</span></figcaption>
+      <div class="phone"><div class="panel scale2">
+        <div class="card"><p class="sect-h">Breeding Stats</p>
+          <div class="chip-row"><span class="chip">Confirmed 18</span><span class="chip">Probable 24</span><span class="chip">Possible 31</span></div>
+        </div>
+      </div></div>
+    </figure>
+    <figure class="side after"><figcaption>After <span class="px">contained</span></figcaption>
+      <div class="phone"><div class="panel scale2">
+        <div class="card"><p class="sect-h">Breeding Stats</p>
+          <div class="chip-row"><span class="chip">Confirmed 18</span><span class="chip">Probable 24</span><span class="chip">Possible 31</span></div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <!-- 3 -->
+  <h2><span class="num">03</span>Statistics · Temporal best-day links</h2>
+  <p class="lede">An inline <code>flex-shrink: 0</code> makes any wrapping class inert — a container that is never
+  narrowed never breaks a line. This is the shape v0.5.82 already recorded, so the remedy is the recorded one:
+  pair it with <code>max-width: 100%</code> rather than deleting the shrink guard.</p>
+  <div class="pair">
+    <figure class="side before"><figcaption>Before <span class="px">+39.0px</span></figcaption>
+      <div class="phone"><div class="panel scale2">
+        <div class="card"><p class="sect-h">Temporal Stats</p>
+          <div class="stat-row"><span class="stat-label">May 2025</span><span class="pill-link">34 best ↗</span></div>
+          <div class="stat-row"><span class="stat-label">Sep 2025</span><span class="pill-link">33 best ↗</span></div>
+        </div>
+      </div></div>
+    </figure>
+    <figure class="side after"><figcaption>After <span class="px">contained</span></figcaption>
+      <div class="phone"><div class="panel scale2">
+        <div class="card"><p class="sect-h">Temporal Stats</p>
+          <div class="stat-row"><span class="stat-label">May 2025</span><span class="pill-link">34 best ↗</span></div>
+          <div class="stat-row"><span class="stat-label">Sep 2025</span><span class="pill-link">33 best ↗</span></div>
+        </div>
+      </div></div>
+    </figure>
+  </div>
+
+  <!-- 4 -->
+  <h2><span class="num">04</span>Calendar · the Year group and the day cells</h2>
+  <p class="lede">Two contributors, one cause. The Year group is a flex item at <code>min-width: auto</code> holding a
+  non-wrapping stepper; the day buttons are floored at min-content inside 32.6px grid tracks. Fixing only the first
+  leaves 18.4px, so both land together. “All years” drops to its own line at 200%; at 100% nothing moves.</p>
+  <div class="pair">
+    <figure class="side before"><figcaption>Before <span class="px">+29.4px / +18.4px</span></figcaption>
+      <div class="phone"><div class="panel scale2" style="padding:0">
+        <div class="ctl-row">
+          <div class="yr-group"><span class="ctl-label">Year</span>
+            <div class="yr-nav"><span class="nav-btn">‹</span><span class="yr-read">2026</span><span class="nav-btn">›</span>
+              <span class="allyr">All years</span></div>
+          </div>
+        </div>
+        <div style="padding:12px"><div class="card"><p class="sect-h">June</p>
+          <div class="daygrid">
+            <span class="day off">1</span><span class="day on">2</span><span class="day off">3</span><span class="day on">4</span>
+            <span class="day off">5</span><span class="day on">6</span><span class="day off">7</span>
+            <span class="day on">8</span><span class="day off">9</span><span class="day on">10</span><span class="day off">11</span>
+            <span class="day on">12</span><span class="day off">13</span><span class="day on">14</span>
+          </div></div></div>
+      </div></div>
+    </figure>
+    <figure class="side after"><figcaption>After <span class="px">contained</span></figcaption>
+      <div class="phone"><div class="panel scale2" style="padding:0">
+        <div class="ctl-row">
+          <div class="yr-group"><span class="ctl-label">Year</span>
+            <div class="yr-nav"><span class="nav-btn">‹</span><span class="yr-read">2026</span><span class="nav-btn">›</span>
+              <span class="allyr">All years</span></div>
+          </div>
+        </div>
+        <div style="padding:12px"><div class="card"><p class="sect-h">June</p>
+          <div class="daygrid">
+            <span class="day off">1</span><span class="day on">2</span><span class="day off">3</span><span class="day on">4</span>
+            <span class="day off">5</span><span class="day on">6</span><span class="day off">7</span>
+            <span class="day on">8</span><span class="day off">9</span><span class="day on">10</span><span class="day off">11</span>
+            <span class="day on">12</span><span class="day off">13</span><span class="day on">14</span>
+          </div></div></div>
+      </div></div>
+    </figure>
+  </div>
+
+  <!-- 5 -->
+  <h2><span class="num">05</span>Checklists · not a design change</h2>
+  <p class="lede">The 42px here is a screen-reader-only announcement being handed a visible layout box. There is
+  nothing to redesign; a selector is reaching an element it was never meant to describe.</p>
+  <div class="note">
+    <p style="margin:0 0 6px"><code>.sr-only</code> is written correctly, then overridden by the phone tier:</p>
+<pre><code>&lt;span class="sr-only" aria-live="polite"&gt;368 checklists&lt;/span&gt;
+
+@media (max-width: 480px) {
+  .sr-field-row &gt; * { width: 100%; }   /* globals.css:3304 */
+}</code></pre>
+    <p style="margin:10px 0 0">Because <code>.sr-only</code> is absolutely positioned, <code>width: 100%</code> resolves
+    against its containing block rather than the row — a 320px box at x=42, right edge 362. Exclude the live region
+    from the stacking rule; the same shape at <code>globals.css:2978</code> takes the same exclusion. Nothing visible
+    changes, and the region keeps its announcement behavior untouched.</p>
+  </div>
+  <p class="hint">Measured in Chromium against the built app on the synthetic demo dataset at 320×720,
+  <code>--sr-text-scale: 2</code>. Probe: <code>overflow-discovery-probe.mjs</code>.</p>
+</div>
+<script>
+  const r = document.documentElement, k = 'sr-design-theme';
+  try { const s = localStorage.getItem(k); if (s) r.dataset.theme = s; } catch (e) {}
+  if (!r.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches) r.dataset.theme = 'dark';
+  document.getElementById('t').addEventListener('click', () => {
+    r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem(k, r.dataset.theme); } catch (e) {}
+  });
+</script>
+</body>
+</html>
