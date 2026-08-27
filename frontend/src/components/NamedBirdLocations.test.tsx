@@ -102,11 +102,12 @@ describe('NamedBirdLocations', () => {
   })
 
   it('renders a sentence, not a ranking of one, for a single-location bird', () => {
-    render(<NamedBirdLocations
+    const { container } = render(<NamedBirdLocations
       sightings={sightingsFor([['Home — patio feeders', '', 6]])}
       isHotspot={noHotspots}
     />)
-    expect(screen.getByText('Every sighting at')).toBeTruthy()
+    // The whole sentence, terminal period included and tight against the name.
+    expect(container.textContent).toContain('Every sighting at Home — patio feeders.')
     expect(screen.getByText('Home — patio feeders')).toBeTruthy()
     // No ranking furniture and no count pill.
     expect(screen.queryByText('1.')).toBeNull()

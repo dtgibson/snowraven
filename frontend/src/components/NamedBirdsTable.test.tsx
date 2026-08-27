@@ -115,7 +115,7 @@ describe('NamedBirdsTable', () => {
     expect(screen.getByText('Top locations')).toBeTruthy()
     // Pete has one located sighting (Lake Merritt) and one with no location, so the
     // single-location shape renders and the unlocated sighting is simply left out.
-    expect(screen.getByText('Every sighting at')).toBeTruthy()
+    expect(document.body.textContent).toContain('Every sighting at Lake Merritt.')
     expect(screen.queryAllByText('Lake Merritt')).toHaveLength(2) // the report row + the block
   })
 
@@ -125,7 +125,7 @@ describe('NamedBirdsTable', () => {
     render(<NamedBirdsTable embedAllowed birds={birds} showSpecies={false} />)
     fireEvent.click(screen.getByText('Pete').closest('button')!)
     expect(screen.queryByText('Top locations')).toBeNull()
-    expect(screen.queryByText('Every sighting at')).toBeNull()
+    expect(document.body.textContent).not.toContain('Every sighting at')
   })
 
   it('single-open accordion: opening a second card collapses the first', async () => {
