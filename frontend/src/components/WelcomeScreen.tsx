@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { Bird, Settings as SettingsIcon, BookOpen, KeyRound, FileUp, ArrowRight } from 'lucide-react'
+import { Settings as SettingsIcon, BookOpen, KeyRound, FileUp, ArrowRight } from 'lucide-react'
+import { RavenGlyph } from './RavenGlyph'
 
 interface WelcomeScreenProps {
   /** Persist "seen" + jump to Settings to begin setup. */
@@ -61,7 +62,9 @@ export function WelcomeScreen({ onGetStarted, onOpenHelp, onDismiss }: WelcomeSc
     >
       <div style={{ maxWidth: 540, width: '100%', textAlign: 'center' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <Bird size={34} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} />
+          {/* aria-hidden lives inside RavenGlyph — this site gains it deliberately
+              (the old lucide bird here lacked it; see the design refinement). */}
+          <RavenGlyph size={34} style={{ color: 'var(--sr-accent)' }} />
           <span style={{ fontSize: '1.875rem', fontWeight: 700, letterSpacing: '-0.6px' }}>
             Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
           </span>

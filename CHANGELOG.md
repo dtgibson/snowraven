@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.3] - 2026-08-26
+
+### Changed
+- **The bird in the app is now the SnowRaven raven.** The app header and the first-run welcome screen carried a generic outlined bird from an icon library, the last two surfaces whose bird was not the brand's raven. Both now show the same raven silhouette as the app icon, at the same sizes and in the same accent green in both themes. Nothing moves and nothing else changes; the mark stays decorative, and the wordmark still carries the name.
+
 ## [1.0.2] - 2026-08-26
 
 ### Added

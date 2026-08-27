@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Custom Raven Glyph — Design Refinement</title>
+<style>
+  /* Tokens mirrored from frontend/src/globals.css — the app's real values.
+     Light and dark are shown side by side, so each panel carries its theme's tokens. */
+  :root {
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --page-bg: #ECEEF1;
+    --page-text: #0F1117;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --page-bg: #101013; --page-text: #F4F4F5; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 24px 64px;
+    background: var(--page-bg); color: var(--page-text);
+    font-family: var(--font-sans);
+    line-height: 1.5;
+  }
+  .sheet { max-width: 1060px; margin: 0 auto; }
+  h1 { font-size: 1.375rem; font-weight: 700; letter-spacing: -0.4px; margin: 0 0 4px; }
+  .sub { font-size: 0.875rem; opacity: 0.65; margin: 0 0 36px; }
+  h2 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.6; margin: 44px 0 12px; }
+  .note { font-size: 0.8125rem; opacity: 0.7; margin: 10px 0 0; max-width: 72ch; }
+
+  /* One comparison block = light panel + dark panel, side by side */
+  .themes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .themes { grid-template-columns: 1fr; } }
+  .panel { border-radius: 12px; padding: 22px 24px; border: 1px solid; }
+  .panel.light {
+    --sr-bg: #F9FAFB; --sr-surface: #FFFFFF; --sr-text: #0F1117; --sr-text-muted: #6B6B74;
+    --sr-border: #E4E4E7; --sr-accent: #277448; --sr-accent-bg: #E8F5EE;
+    background: var(--sr-bg); color: var(--sr-text); border-color: #DCDEE2;
+  }
+  .panel.dark {
+    --sr-bg: #09090B; --sr-surface: #18181B; --sr-text: #F4F4F5; --sr-text-muted: #A1A1AA;
+    --sr-border: #27272A; --sr-accent: #34D399; --sr-accent-bg: rgba(52,211,153,0.12);
+    background: var(--sr-bg); color: var(--sr-text); border-color: #2A2A2E;
+  }
+  .panel-tag { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--sr-text-muted); margin: 0 0 18px; }
+
+  .row { display: flex; align-items: center; gap: 16px; padding: 12px 0; }
+  .row + .row { border-top: 1px dashed var(--sr-border); }
+  .row-label { width: 74px; flex-shrink: 0; font-size: 0.6875rem; font-weight: 600; color: var(--sr-text-muted); }
+
+  /* The app header chrome, reproduced from App.tsx */
+  .mark { display: flex; align-items: center; gap: 10px; }
+  .mark.compact { gap: 7px; }
+  .word { font-size: 1.625rem; font-weight: 700; letter-spacing: -0.6px; color: var(--sr-text); }
+  .mark.compact .word { font-size: 1.125rem; }
+  .mark.welcome .word { font-size: 1.875rem; }
+  .word b { font-weight: 700; color: var(--sr-accent); }
+  .glyph { color: var(--sr-accent); flex-shrink: 0; display: block; }
+  .tagline { font-size: 0.875rem; color: var(--sr-text-muted); margin: 6px 0 0; }
+
+  .headerish { display: flex; flex-direction: column; align-items: center; padding: 10px 0 4px; }
+  .welcomeish { text-align: center; padding: 18px 0 6px; }
+  .welcomeish .headline { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.2px; margin: 14px 0 4px; color: var(--sr-text); }
+  .welcomeish .lede { font-size: 0.875rem; color: var(--sr-text-muted); margin: 0; }
+  .mark.welcome { display: inline-flex; }
+
+  .swatchline { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; padding: 8px 0 2px; }
+  .swatch { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 0.6875rem; color: var(--sr-text-muted); }
+
+  footer { margin-top: 48px; font-size: 0.75rem; opacity: 0.55; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <h1>Custom raven glyph</h1>
+  <p class="sub">The generic lucide bird vs. the SnowRaven raven, at the exact sizes and colors the app renders today. Nothing else on these surfaces changes.</p>
+
+  <!-- Reusable glyph definitions -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="lucide-bird" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M16 7h.01"/>
+          <path d="M3.4 18H12a8 8 0 0 0 8-8V7a4 4 0 0 0-7.28-2.3L2 20"/>
+          <path d="m20 7 2 .5-2 .5"/>
+          <path d="M10 18v3"/>
+          <path d="M14 17.75V21"/>
+          <path d="M7 18a6 6 0 0 0 3.84-10.61"/>
+        </g>
+      </symbol>
+      <symbol id="sr-raven" viewBox="0 0 512 512">
+        <path fill="currentColor" fill-rule="evenodd" clip-rule="evenodd" d="M 150.79 440.77 L 176.47 435.39 L 197.48 429.33 L 213.04 423.88 L 245.73 409.97 L 270.63 397.28 L 296.30 381.80 L 318.09 366.18 L 336.57 350.44 L 352.33 334.58 L 367.31 316.20 L 379.08 297.53 L 385.19 285.08 L 389.91 273.41 L 395.34 253.95 L 396.99 244.61 L 398.12 232.16 L 397.64 214.27 L 393.73 194.04 L 386.46 169.91 L 384.84 159.02 L 385.60 149.68 L 388.70 139.57 L 394.35 130.77 L 399.02 125.85 L 405.25 120.87 L 417.70 113.66 L 430.15 109.05 L 445.71 105.74 L 451.93 105.05 L 464.38 105.06 L 473.72 106.67 L 484.62 111.08 L 485.38 110.77 L 485.11 101.44 L 483.21 95.21 L 479.17 87.44 L 473.72 81.39 L 464.38 74.65 L 449.60 68.35 L 437.93 65.33 L 410.69 60.66 L 402.71 53.19 L 392.02 45.17 L 381.12 38.75 L 373.34 35.08 L 354.67 28.85 L 339.10 26.17 L 322.76 25.37 L 311.09 26.27 L 297.08 28.66 L 288.52 31.10 L 273.74 37.43 L 262.07 44.46 L 253.51 51.19 L 244.65 60.19 L 234.69 73.42 L 226.06 88.21 L 215.97 110.77 L 198.93 152.79 L 199.81 153.14 L 210.71 148.11 L 230.16 141.75 L 241.83 139.37 L 254.28 138.31 L 267.51 138.63 L 281.50 141.12 L 293.19 144.94 L 303.31 150.17 L 311.57 155.91 L 321.42 166.02 L 327.70 175.36 L 332.88 187.08 L 335.35 196.37 L 336.92 208.82 L 336.90 218.94 L 334.38 236.06 L 328.50 255.51 L 319.29 274.96 L 307.20 294.01 L 289.43 316.20 L 271.40 335.03 L 248.84 355.96 L 146.83 440.71 L 147.68 441.18 Z M 361.37 83.54 L 355.44 83.04 L 349.39 79.65 L 345.70 75.76 L 340.28 67.20 L 335.99 63.61 L 331.05 60.97 L 331.32 60.45 L 343.77 60.10 L 354.67 61.50 L 367.12 66.26 L 376.07 72.64 L 374.90 74.46 L 367.89 80.74 Z M 384.80 96.77 L 381.12 97.22 L 379.95 96.77 L 389.68 89.61 L 398.24 84.87 L 409.14 81.06 L 423.14 79.17 L 436.37 79.99 L 446.49 82.49 L 458.16 88.01 L 465.16 93.23 L 467.68 95.99 L 466.72 96.57 L 440.26 94.09 L 416.92 93.78 L 399.02 94.86 Z M 27.07 486.63 L 42.63 480.11 L 57.41 472.78 L 83.87 457.96 L 111.11 441.03 L 146.90 416.35 L 188.78 384.68 L 227.05 353.61 L 252.69 330.99 L 266.74 317.42 L 278.01 305.31 L 291.95 288.19 L 298.64 278.72 L 306.04 266.40 L 311.49 255.51 L 315.26 246.17 L 317.53 239.17 L 319.92 228.27 L 321.08 218.94 L 321.06 210.38 L 320.04 201.82 L 318.42 194.81 L 315.25 187.03 L 311.19 180.03 L 307.72 175.36 L 302.53 170.13 L 295.53 164.95 L 286.97 160.39 L 276.07 156.55 L 269.07 154.98 L 260.51 153.84 L 248.84 153.69 L 231.72 155.87 L 220.82 158.88 L 212.26 162.07 L 203.81 166.02 L 195.15 171.24 L 186.59 177.15 L 176.64 185.48 L 162.41 200.26 L 153.88 211.15 L 143.79 226.74 L 136.73 239.17 L 125.74 261.73 L 109.38 300.64 L 78.90 379.23 L 79.98 379.55 L 90.87 375.49 L 106.44 367.80 L 123.56 357.64 L 148.46 339.41 L 149.24 339.06 L 149.37 339.55 L 133.67 359.67 L 120.96 373.01 L 107.66 384.68 L 87.69 397.91 L 62.88 436.82 L 44.33 463.27 L 26.62 485.84 Z"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <h2>App header — desktop &amp; web (glyph 30px)</h2>
+  <div class="themes">
+    <div class="panel light">
+      <p class="panel-tag">Light theme</p>
+      <div class="row"><span class="row-label">Current</span>
+        <div class="headerish"><div class="mark"><svg class="glyph" width="30" height="30" aria-hidden="true"><use href="#lucide-bird"/></svg><span class="word">Snow<b>Raven</b></span></div><p class="tagline">Self-hosted birding tools and data explorer</p></div>
+      </div>
+      <div class="row"><span class="row-label">New</span>
+        <div class="headerish"><div class="mark"><svg class="glyph" width="30" height="30" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div><p class="tagline">Self-hosted birding tools and data explorer</p></div>
+      </div>
+    </div>
+    <div class="panel dark">
+      <p class="panel-tag">Dark theme</p>
+      <div class="row"><span class="row-label">Current</span>
+        <div class="headerish"><div class="mark"><svg class="glyph" width="30" height="30" aria-hidden="true"><use href="#lucide-bird"/></svg><span class="word">Snow<b>Raven</b></span></div><p class="tagline">Self-hosted birding tools and data explorer</p></div>
+      </div>
+      <div class="row"><span class="row-label">New</span>
+        <div class="headerish"><div class="mark"><svg class="glyph" width="30" height="30" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div><p class="tagline">Self-hosted birding tools and data explorer</p></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Compact header — iOS app (glyph 20px)</h2>
+  <div class="themes">
+    <div class="panel light">
+      <p class="panel-tag">Light theme</p>
+      <div class="row"><span class="row-label">Current</span>
+        <div class="mark compact"><svg class="glyph" width="20" height="20" aria-hidden="true"><use href="#lucide-bird"/></svg><span class="word">Snow<b>Raven</b></span></div>
+      </div>
+      <div class="row"><span class="row-label">New</span>
+        <div class="mark compact"><svg class="glyph" width="20" height="20" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div>
+      </div>
+    </div>
+    <div class="panel dark">
+      <p class="panel-tag">Dark theme</p>
+      <div class="row"><span class="row-label">Current</span>
+        <div class="mark compact"><svg class="glyph" width="20" height="20" aria-hidden="true"><use href="#lucide-bird"/></svg><span class="word">Snow<b>Raven</b></span></div>
+      </div>
+      <div class="row"><span class="row-label">New</span>
+        <div class="mark compact"><svg class="glyph" width="20" height="20" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Welcome screen (glyph 34px)</h2>
+  <div class="themes">
+    <div class="panel light">
+      <p class="panel-tag">Light theme</p>
+      <div class="row"><span class="row-label">Current</span>
+        <div class="welcomeish"><div class="mark welcome"><svg class="glyph" width="34" height="34" aria-hidden="true"><use href="#lucide-bird"/></svg><span class="word">Snow<b>Raven</b></span></div>
+          <p class="headline">Welcome, let's get you set up</p>
+          <p class="lede">SnowRaven turns your own eBird and Macaulay Library exports into a personal birding dashboard.</p></div>
+      </div>
+      <div class="row"><span class="row-label">New</span>
+        <div class="welcomeish"><div class="mark welcome"><svg class="glyph" width="34" height="34" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div>
+          <p class="headline">Welcome, let's get you set up</p>
+          <p class="lede">SnowRaven turns your own eBird and Macaulay Library exports into a personal birding dashboard.</p></div>
+      </div>
+    </div>
+    <div class="panel dark">
+      <p class="panel-tag">Dark theme</p>
+      <div class="row"><span class="row-label">Current</span>
+        <div class="welcomeish"><div class="mark welcome"><svg class="glyph" width="34" height="34" aria-hidden="true"><use href="#lucide-bird"/></svg><span class="word">Snow<b>Raven</b></span></div>
+          <p class="headline">Welcome, let's get you set up</p>
+          <p class="lede">SnowRaven turns your own eBird and Macaulay Library exports into a personal birding dashboard.</p></div>
+      </div>
+      <div class="row"><span class="row-label">New</span>
+        <div class="welcomeish"><div class="mark welcome"><svg class="glyph" width="34" height="34" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div>
+          <p class="headline">Welcome, let's get you set up</p>
+          <p class="lede">SnowRaven turns your own eBird and Macaulay Library exports into a personal birding dashboard.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Optical size check — raven at 100% vs a 90% trim (desktop header slot)</h2>
+  <div class="themes">
+    <div class="panel light">
+      <p class="panel-tag">Light theme</p>
+      <div class="swatchline">
+        <div class="swatch"><div class="mark"><svg class="glyph" width="30" height="30" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div><span>100% — 30px</span></div>
+        <div class="swatch"><div class="mark"><svg class="glyph" width="27" height="27" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div><span>90% — 27px</span></div>
+      </div>
+      <p class="note">The raven fills its box nearly edge to edge where the lucide bird kept ~17% padding, so at equal numbers the raven reads a touch larger. Both options shown; my call is below.</p>
+    </div>
+    <div class="panel dark">
+      <p class="panel-tag">Dark theme</p>
+      <div class="swatchline">
+        <div class="swatch"><div class="mark"><svg class="glyph" width="30" height="30" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div><span>100% — 30px</span></div>
+        <div class="swatch"><div class="mark"><svg class="glyph" width="27" height="27" aria-hidden="true"><use href="#sr-raven"/></svg><span class="word">Snow<b>Raven</b></span></div><span>90% — 27px</span></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Tokens mirrored from globals.css (accent #277448 light / #34D399 dark). The glyph is decorative at both sites (aria-hidden); the wordmark carries the name.</footer>
+</div>
+</body>
+</html>

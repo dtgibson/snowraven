@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, createContext, useContext } from 'react'
-import { Bird, Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList, CalendarDays } from 'lucide-react'
+import { Search, Loader2, ClipboardCopy, Check, AlertCircle, ExternalLink, List, Dna, BookOpen, BarChart2, Tag, ClipboardList, CalendarDays } from 'lucide-react'
 import { transport, TransportError } from './lib/transport'
 import { classifyLiveError, OFFLINE_MESSAGE, NO_KEY_MESSAGE, type LiveErrorKind } from './lib/offlineMessage'
 import { isOfflineError } from './lib/offlineDetect'
@@ -25,6 +25,7 @@ import { NamedBirds } from './components/NamedBirds'
 import { Settings } from './components/Settings'
 import { WelcomeScreen } from './components/WelcomeScreen'
 import { TabNav, type NavItem } from './components/TabNav'
+import { RavenGlyph } from './components/RavenGlyph'
 import { OutboundLink } from './components/OutboundLink'
 // Footer update affordance — renders null on iOS/iPadOS (FR-14, mobile-app).
 import { UpdateFooter, type UpdateStatus } from './components/UpdateFooter'
@@ -715,7 +716,7 @@ export default function App() {
           .sr-header-compact (globals.css). Desktop/web unchanged. */}
       <header inert={chromeInert} className={compactChrome() ? 'sr-header sr-header-compact' : 'sr-header'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 24px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: compactChrome() ? 7 : 10, marginBottom: compactChrome() ? 0 : 6 }}>
-          <Bird size={compactChrome() ? 20 : 30} strokeWidth={1.75} style={{ color: 'var(--sr-accent)' }} aria-hidden="true" />
+          <RavenGlyph size={compactChrome() ? 20 : 30} style={{ color: 'var(--sr-accent)' }} />
           <h1 style={{ fontSize: compactChrome() ? '1.125rem' : '1.625rem', fontWeight: 700, letterSpacing: '-0.6px', margin: 0 }}>
             Snow<span style={{ color: 'var(--sr-accent)' }}>Raven</span>
           </h1>
