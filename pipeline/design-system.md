@@ -234,6 +234,28 @@ italic at 0.71875rem `--sr-text-gray`.
   width and leaves trailing whitespace) so the card hugs the table. The Breeding
   Codes matrix is the exemplar. No new tokens.
 
+- **An expensive answer the app must go and FETCH is a thing you run, not a number
+  that appears.** Where a section's figure costs thousands of provider requests, it
+  is user-initiated and states the cost in plain words BEFORE the first request:
+  how many things will be asked about and roughly how long that will take. It is
+  stoppable at any moment, keeps every answer already paid for, and resumes by
+  asking only about what is still unanswered. Every tally renders WITH its
+  denominator ("3 projects across 412 of 3,300 checklists checked") so a partial
+  answer reads as a floor rather than a finished total, and a section that has
+  never been run shows **no number at all** — not a zero, which is a claim the app
+  has not earned. Progress is a bounded live region plus a bar, both fed from one
+  throttled frozen snapshot. The completed state still offers a re-check, routed
+  through the same fetch chokepoint with a force flag rather than a second write
+  path. Statistics' escapee pass and Projects section are the two exemplars.
+- **A map popup is contained by what its container can ANCHOR, and becomes a sheet
+  when it cannot.** MapLibre's side anchors place a popup EDGE at the click point,
+  so a popup is anchorable only while its width stays under two thirds of the map;
+  past that every click overflows. Cap the width at the anchorable maximum, and
+  below the design's own readable body minimum stop anchoring and pin the popup to
+  the container instead. The sheet is the form that makes a phone-width map usable;
+  the anchored form is unchanged on any map wide enough to hold it, which is every
+  desktop window. The county popup is the exemplar.
+
 ## Accessibility commitments
 Every `<button>` gets explicit `tabIndex={0}` (WKWebView Tab behavior); toggles
 are `role="switch"`; live counts `aria-live="polite"`; visible focus states;
@@ -242,7 +264,11 @@ overlay (or any pinned band) needs its own iOS safe-area inset — it does not i
 the body's, so design it expecting a top inset that the status bar, Dynamic Island,
 and landscape sensor housing occupy, and expect any viewport-height cap inside it to
 be short by exactly that inset. Where a sticky band can cover a focused control, the
-focus guard belongs on the focusable itself, not on its container.
+focus guard belongs on the focusable itself, not on its container. A live region belongs
+OUTSIDE any `inert`-able disclosure that consumes it; where the collapsing content
+IS what would be announced (a legend, a ramp, a table), it carries no live semantics
+at all — announcing a whole reference panel on every open serves no one, and the
+state change that prompted it is already carried by the control's own `aria-pressed`.
 
 ## References
 brand.md (founding visual identity, #2D8653, dtgibson.com reference);
