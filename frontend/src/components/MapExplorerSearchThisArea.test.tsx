@@ -1264,7 +1264,18 @@ describe('the search-outcome live region (QA-27)', () => {
     setBounds(LA)
     await waitFor(() => expect(searchBtn()).toBeTruthy())
     fireEvent.click(searchBtn()!)
-    await waitFor(() => expect(statusRegion().firstElementChild).not.toBe(first))
+    // Wait on the POSITIVE condition, not just node replacement. The handler's
+    // own leading setSearchOutcome('') empties the region first, so a bare
+    // `firstElementChild !== first` is satisfied by the transient null and the
+    // synchronous textContent read below then sees ''. That is the whole of the
+    // intermittent CI failure; it needs the fetch to outlast waitFor's first
+    // poll, which is why it only appears on a loaded runner. Asserting the text
+    // AND the replacement together still rejects node reuse, which is what this
+    // test exists to prove.
+    await waitFor(() => {
+      expect(statusRegion().textContent).toBe('2 hotspots found in this area.')
+      expect(statusRegion().firstElementChild).not.toBe(first)
+    })
     obs.disconnect()
 
     expect(mutations).toBeGreaterThan(0)
