@@ -1002,8 +1002,14 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     if (next && !countyData && !countyLoading) {
       setCountyLoading(true)
       try {
-        const mod = await import('../assets/us-counties.json')
-        setCountyData(((mod as { default?: unknown }).default ?? mod) as unknown as CountyFC)
+        // ONE line, inside the same setCountyLoading/try/catch/finally frame and
+        // with the same 'Loading county boundaries…' copy: the shared loader
+        // (lib/countyGeometry.ts) memoizes the parse in module scope so a second
+        // mount site in the same session issues no second import, and it is
+        // reached by `await import()` at every call site so the geometry stays
+        // two dynamic hops from any host (FR-02).
+        const { loadCountyGeometry } = await import('../lib/countyGeometry')
+        setCountyData(await loadCountyGeometry())
       } catch {
         // Asset failed to load — leave data null; the overlay simply won't draw.
       } finally {

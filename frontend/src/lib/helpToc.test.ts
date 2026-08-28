@@ -67,6 +67,23 @@ describe('in-app Help TOC ↔ docs/HELP.md parity', () => {
     }
   })
 
+  it('the Projects sub-entry exists and resolves to its `###` heading', () => {
+    // FR-58: the heading, the TOC entry and this guard land in the same edit,
+    // which is the whole reason the parity test exists (three sections once
+    // shipped as content and stayed unreachable from the sidebar for versions).
+    const start = helpSrc.indexOf('const TOC')
+    const body = helpSrc.slice(start, helpSrc.indexOf('\n]', start))
+    expect(body).toContain("id: 'projects'")
+    const h3s = helpMd.split('\n').filter(l => l.startsWith('### ')).map(l => l.slice(4).trim())
+    expect(h3s).toContain('Projects')
+    expect(textToId('Projects')).toBe('projects')
+    // ...and it sits under Statistics, between Effort and Outings and Data
+    // Quality, matching the tab's own section order and the jump-nav chip.
+    const order = helpMd.split('\n').filter(l => l.startsWith('### ')).map(l => l.slice(4).trim())
+    expect(order.indexOf('Projects')).toBeGreaterThan(order.indexOf('Effort and Outings'))
+    expect(order.indexOf('Projects')).toBeLessThan(order.indexOf('Data Quality'))
+  })
+
   it('sub-entries reference real `###` headings in HELP.md', () => {
     const subIds = (() => {
       const start = helpSrc.indexOf('const TOC')

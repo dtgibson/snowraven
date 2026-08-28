@@ -31,6 +31,10 @@ import { BirdName } from '../BirdName'
 import { HotspotLink } from '../HotspotLink'
 import { CountyDensitySwatch } from './MapSidebarUI'
 import { updateMapCursor } from '../../lib/mapPins'
+import {
+  countyPopupFit, COUNTY_POPUP_MAX_PX,
+  COUNTY_POPUP_FIT_VARS, COUNTY_POPUP_SHEET_ATTR,
+} from '../../lib/countyPopupFit'
 import { MARKER_LIST_CAP } from '../../lib/markersInView'
 import { countyHatchImageData, countyHatchPixelRatio, countyHatchTierForImage, COUNTY_HATCH_IMAGE_ID, COUNTY_TIERS } from '../../lib/countyTextures'
 
@@ -114,6 +118,18 @@ interface Props {
   /** When true (and shading is on), shaded counties render as a per-tier
    *  crosshatch density instead of flat color (colorblind-accessible mode). */
   useTextures?: boolean
+  /** PER-SPECIES surface (Species Detail, FR-10). The aggregates were built over
+   *  ONE species, so `species` is always 1 and must not be rendered as a count,
+   *  and the popup names the bird instead. Absent (the default) → today's
+   *  all-species presentation, byte-identical.
+   *
+   *  Why a prop rather than composition: the popup is rendered INSIDE this
+   *  component and `CountyPopupTop` is module-private, so the variation cannot
+   *  be supplied from outside. It is opt-in and defaults to today's behavior,
+   *  the same discipline FR-08 imposes on SightingsMap. FR-03's "unmodified" is
+   *  scoped to SHADING BEHAVIOR, which is untouched: same layer ids, same ramp,
+   *  same tiers, same tokens, same cap, same textures. */
+  speciesContext?: { commonName: string } | null
 }
 
 type Selected = { lng: number; lat: number; geoid: string; name: string; stusps: string }
@@ -123,6 +139,7 @@ const EMPTY_FC: FeatureCollection = { type: 'FeatureCollection', features: [] }
 export function CountyLayer({
   data, shade = false, aggregates = null, tiers, metric, completeness = null,
   onOpenSpecies, hasEntryFor, taxonCodeFor, isPublicHotspot, useTextures = false,
+  speciesContext = null,
 }: Props) {
   const map = useMap().current
   const [sel, setSel] = useState<Selected | null>(null)
@@ -250,6 +267,43 @@ export function CountyLayer({
     }
   }, [map])
 
+  // Keep the county popup inside the map it lives in (QA-69). The RULE is in
+  // lib/countyPopupFit.ts, with the MapLibre anchor arithmetic that motivates
+  // it; this is only the measurement and three property writes.
+  //
+  // A DOM WRITE, NEVER `setState` — the repo's established shape for a px value
+  // derived from a ref side effect (`--sr-share-body-cap`, `--sr-map-chrome`).
+  // A resize costs no React render at all, and there is no measure -> render ->
+  // measure loop to reason about, because nothing observed here changes size
+  // when the published values change: the popup is absolutely positioned, so it
+  // never contributes to its container's box.
+  //
+  // A ResizeObserver rather than a media query or a `resize` listener (the
+  // latter is forbidden by name in this repo, and the former could not see
+  // this): the failing configuration is a container width at a given text
+  // scale, and an in-app text-scale change resizes this very element without
+  // the viewport moving at all.
+  useEffect(() => {
+    if (!map) return
+    const el = map.getContainer()
+    let published = ''
+    const measure = () => {
+      const fit = countyPopupFit(el.clientWidth, el.clientHeight)
+      const key = `${fit.maxWidthPx}|${fit.sheet}|${fit.bodyCapPx}`
+      if (key === published) return
+      published = key
+      el.style.setProperty(COUNTY_POPUP_FIT_VARS.maxWidth, `${fit.maxWidthPx}px`)
+      el.style.setProperty(COUNTY_POPUP_FIT_VARS.bodyCap, `${fit.bodyCapPx}px`)
+      if (fit.sheet) el.setAttribute(COUNTY_POPUP_SHEET_ATTR, 'sheet')
+      else el.removeAttribute(COUNTY_POPUP_SHEET_ATTR)
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [map])
+
   // Register the county hatch sprites (for the "Use Textures" fill-pattern) at
   // effect time, AND re-resolve the tier fill colors / regenerate the sprites on a
   // light/dark theme change. One MutationObserver does both (the sprite tint reads
@@ -350,8 +404,30 @@ export function CountyLayer({
             stays on-screen instead of being clipped by the map's
             overflow:hidden. All anchor variants are tip-colored in globals.css. */}
         {sel && (
-          <Popup longitude={sel.lng} latitude={sel.lat} offset={10} closeOnClick={false} onClose={() => setSel(null)} maxWidth="248px">
-            <div className="sr-map-popup-body" style={{ minWidth: 188, maxWidth: 220, fontSize: '0.8125rem' }}>
+          // `maxWidth` here is the CEILING only. The live cap is the
+          // `--sr-county-popup-max` custom property the effect above publishes
+          // on the map container, applied with `!important` in globals.css
+          // because MapLibre writes its own `max-width` as an INLINE style on
+          // the popup element. Keeping this prop at the same 248px means the
+          // two can never disagree about the widest the popup may be.
+          //
+          // The body's min/max widths are the design's own 188/220 and are
+          // unchanged; they moved from inline declarations to
+          // `.sr-county-popup-body` for one reason only — an inline width is
+          // specificity (1,0,0), so the SHEET form could not release the 188px
+          // floor on a map too narrow to hold it. The anchored form keeps the
+          // floor, because COUNTY_POPUP_MIN_PX is defined as exactly that floor
+          // plus the content chrome.
+          <Popup
+            longitude={sel.lng}
+            latitude={sel.lat}
+            offset={10}
+            closeOnClick={false}
+            onClose={() => setSel(null)}
+            maxWidth={`${COUNTY_POPUP_MAX_PX}px`}
+            className="sr-county-popup"
+          >
+            <div className="sr-map-popup-body sr-county-popup-body" style={{ fontSize: '0.8125rem' }}>
               {selRegion ? (
                 <OutboundLink
                   href={`${REGION_URL}${encodeURIComponent(selRegion)}`}
@@ -366,13 +442,29 @@ export function CountyLayer({
               )}
               <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', marginTop: 2 }}>{stateNameFor(sel.stusps)}</div>
 
-              {/* D-402: the count row stays in Completeness mode too; neither
-                  number takes the accent-active state there (metric matches
-                  neither 'species' nor 'records'). */}
-              <div style={{ display: 'flex', gap: 18, marginTop: 9 }}>
-                <CountStat n={selSpecies} label="species" active={metric === 'species'} title="Distinct species you've recorded in this county" />
-                <CountStat n={selRecords} label="checklists" active={metric === 'records'} title="Your checklists in this county, not individual birds counted" />
-              </div>
+              {/* Per-species (FR-10): ONE count, and a caption naming the bird.
+                  The caption is what stops "123 checklists" being read as "all my
+                  checklists in Alameda", and it is why the second count can be
+                  dropped rather than kept as scaffolding — `species` is always 1
+                  over a one-species aggregate, so rendering it would be noise.
+                  D-402: in the all-species case the count row stays in
+                  Completeness mode too; neither number takes the accent-active
+                  state there (metric matches neither 'species' nor 'records'). */}
+              {speciesContext ? (
+                <>
+                  <div style={{ display: 'flex', gap: 18, marginTop: 9 }}>
+                    <CountStat n={selRecords} label="checklists" active title={`Your checklists in this county that reported ${speciesContext.commonName}`} />
+                  </div>
+                  <div style={{ fontSize: '0.625rem', color: 'var(--sr-text-muted)', marginTop: 4 }}>
+                    reporting {speciesContext.commonName}
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', gap: 18, marginTop: 9 }}>
+                  <CountStat n={selSpecies} label="species" active={metric === 'species'} title="Distinct species you've recorded in this county" />
+                  <CountStat n={selRecords} label="checklists" active={metric === 'records'} title="Your checklists in this county, not individual birds counted" />
+                </div>
+              )}
 
               {metric === 'completeness' && completeness ? (
                 <CountyCompletenessPopup
@@ -387,6 +479,7 @@ export function CountyLayer({
                 <CountyPopupTop
                   agg={selAgg}
                   metric={metric}
+                  speciesContext={speciesContext}
                   onOpenSpecies={onOpenSpecies}
                   hasEntryFor={hasEntryFor}
                   taxonCodeFor={taxonCodeFor}
@@ -558,9 +651,12 @@ function CountStat({ n, label, active, title }: { n: number; label: string; acti
 // The popup's contextual top-3 — swaps with the active metric (D-03). Species
 // mode → top species (by record count) via <BirdName>; Records mode → top
 // locations (by checklist count) via <HotspotLink>. Unrecorded → an honest line.
-function CountyPopupTop({ agg, metric, onOpenSpecies, hasEntryFor, taxonCodeFor, isPublicHotspot }: {
+function CountyPopupTop({ agg, metric, speciesContext, onOpenSpecies, hasEntryFor, taxonCodeFor, isPublicHotspot }: {
   agg: CountyAggregate | null
   metric: CountyMetric
+  /** Per-species surface: the top-locations RENDERING is reused verbatim; only
+   *  the caption names the bird (FR-10). */
+  speciesContext?: { commonName: string } | null
   onOpenSpecies?: (commonName: string) => void
   hasEntryFor?: (name: string) => boolean
   taxonCodeFor?: (commonName: string) => string | undefined
@@ -573,13 +669,17 @@ function CountyPopupTop({ agg, metric, onOpenSpecies, hasEntryFor, taxonCodeFor,
   const count = { flex: 'none', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--sr-text-muted)', fontVariantNumeric: 'tabular-nums' } as const
   const li = { display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 } as const
 
-  const species = metric === 'species'
+  // The per-species surface fixes the metric to `records`, so it always takes
+  // the top-LOCATIONS branch; only the caption differs.
+  const species = !speciesContext && metric === 'species'
   const items = species ? (agg?.topSpecies ?? []) : (agg?.topLocations ?? [])
   if (items.length === 0) {
     return (
       <div style={wrap}>
         <div style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)', lineHeight: 1.45 }}>
-          No species recorded here yet.
+          {speciesContext
+            ? `No ${speciesContext.commonName} recorded here yet.`
+            : 'No species recorded here yet.'}
         </div>
       </div>
     )
@@ -588,7 +688,9 @@ function CountyPopupTop({ agg, metric, onOpenSpecies, hasEntryFor, taxonCodeFor,
   return (
     <div style={wrap}>
       <div style={title}>{species ? 'Most-reported species' : 'Top locations'}</div>
-      <div style={caption}>by your checklist count</div>
+      <div style={caption}>
+        {speciesContext ? `by your ${speciesContext.commonName} checklists` : 'by your checklist count'}
+      </div>
       <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
         {species
           ? (agg!.topSpecies).map((s, i) => (

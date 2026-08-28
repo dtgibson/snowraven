@@ -94,12 +94,17 @@ function resolveLocal(spec: string, fromFile: string): string | null {
   return candidates.find(p => existsSync(p) && !p.endsWith('/')) ?? null
 }
 
-// Transitive closure of App.tsx's static graph: resolved local file paths + the
+// Transitive closure of a ROOT's static graph: resolved local file paths + the
 // set of bare (external) specifiers reached.
-function buildClosure(): { files: Set<string>; externals: Set<string> } {
+//
+// Parameterized on the root (county-shading-and-project-stats, FR-21). It was
+// hard-wired to App.tsx, with the Calendar test carrying an ad-hoc copy of the
+// same walk; three subtrees now need it (Calendar, Species Detail, Statistics),
+// so the copy is replaced rather than multiplied.
+function closureFrom(root: string): { files: Set<string>; externals: Set<string> } {
   const files = new Set<string>()
   const externals = new Set<string>()
-  const stack = [APP]
+  const stack = [root]
   while (stack.length) {
     const file = stack.pop()!
     if (files.has(file)) continue
@@ -115,8 +120,13 @@ function buildClosure(): { files: Set<string>; externals: Set<string> } {
   return { files, externals }
 }
 
-const { files, externals } = buildClosure()
-const has = (suffix: string) => [...files].some(f => f.replace(/\\/g, '/').endsWith(suffix))
+const hasIn = (fs: Set<string>, suffix: string) =>
+  [...fs].some(f => f.replace(/\\/g, '/').endsWith(suffix))
+const maplibreIn = (ext: Set<string>) =>
+  [...ext].filter(s => s === 'maplibre-gl' || s.startsWith('react-map-gl'))
+
+const { files, externals } = closureFrom(APP)
+const has = (suffix: string) => hasIn(files, suffix)
 
 describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
   it('App.tsx does not statically import CountyLayer (it is lazy via MapExplorer)', () => {
@@ -125,6 +135,39 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
 
   it('App.tsx does not statically import the county geometry asset', () => {
     expect(has('assets/us-counties.json')).toBe(false)
+  })
+
+  it('App.tsx does not statically import the shared county-geometry loader (FR-21)', () => {
+    // lib/countyGeometry.ts is the ONE load site for the 3.85 MB asset. It is
+    // dependency-free at runtime (its only import is a TYPE import, erased at
+    // build), so it could ride the entry chunk without dragging anything with
+    // it — which is exactly why the negative has to be asserted rather than
+    // inferred from the asset's own absence.
+    expect(has('lib/countyGeometry.ts')).toBe(false)
+  })
+
+  it('the checklist `fields=` flag table stays off the entry chunk (NFR-04, QA-23)', () => {
+    // THE ONE MODULE THAT MADE "NO ENTRY-CHUNK GROWTH" FALSE. `transport.ts` is
+    // in the first-paint set, and it statically imported `lib/checklistFields.ts`
+    // to resolve the flags before handing them to the dynamically-imported
+    // desktop service — putting the whole table on the entry chunk for a mapping
+    // only that service uses. The transport now passes the raw `fields` string
+    // and the service resolves it, so the table rides the lazy chunk with its
+    // only consumer.
+    expect(has('lib/checklistFields.ts')).toBe(false)
+    // Non-vacuity, and the reason this assertion is not trivially true: the
+    // module that USED to import it really is on the entry graph, so the walk
+    // would find the table if the edge were still there.
+    expect(has('lib/transport.ts')).toBe(true)
+  })
+
+  it('the desktop checklist service, which owns the table now, is off it too', () => {
+    // It is reached only through `await import('./tauri/checklistService')`, so
+    // moving the table there costs the entry chunk nothing rather than moving
+    // the weight sideways.
+    expect(has('lib/tauri/checklistService.ts')).toBe(false)
+    const svc = closureFrom(resolve(SRC, 'lib/tauri/checklistService.ts'))
+    expect(hasIn(svc.files, 'lib/checklistFields.ts')).toBe(true)
   })
 
   it('the county-completeness code is only reachable through the lazy Map Explorer (NFR-02)', () => {
@@ -190,26 +233,76 @@ describe('entry-chunk exclusion (NFR-03 / QA-30)', () => {
   })
 
   it('no calendar file statically imports maplibre / SnowMap / SightingsMap (FR-43)', () => {
-    // Walk the Calendar subtree independently and assert it is map-free.
-    const calFile = resolve(SRC, 'components/Calendar.tsx')
-    const seen = new Set<string>()
-    const calExternals = new Set<string>()
-    const stack = [calFile]
-    while (stack.length) {
-      const f = stack.pop()!
-      if (seen.has(f)) continue
-      seen.add(f)
-      if (!/\.tsx?$/.test(f)) continue
-      for (const spec of staticSpecifiers(readFileSync(f, 'utf8'))) {
-        const local = resolveLocal(spec, f)
-        if (local) { if (!seen.has(local)) stack.push(local) }
-        else if (!spec.startsWith('.') && !spec.startsWith('@/')) calExternals.add(spec)
-      }
-    }
-    const calFiles = [...seen].map(p => p.replace(/\\/g, '/'))
+    // Walk the Calendar subtree independently and assert it is map-free. Uses
+    // the shared `closureFrom` rather than the ad-hoc copy of the same walk it
+    // carried before (FR-21).
+    const cal = closureFrom(resolve(SRC, 'components/Calendar.tsx'))
+    const calFiles = [...cal.files].map(p => p.replace(/\\/g, '/'))
     expect(calFiles.some(p => /components\/(SnowMap|SightingsMap)\.tsx$/.test(p))).toBe(false)
-    expect(calFiles.some(p => /components\/map\/CountyLayer\.tsx$/.test(p))).toBe(false)
-    expect([...calExternals].filter(s => s === 'maplibre-gl' || s.startsWith('react-map-gl'))).toEqual([])
+    expect(hasIn(cal.files, 'components/map/CountyLayer.tsx')).toBe(false)
+    expect(maplibreIn(cal.externals)).toEqual([])
+    // Guard the guard: a walk that resolved nothing would satisfy every
+    // negative above. The Calendar really does have a graph.
+    expect(cal.files.size).toBeGreaterThan(10)
+  })
+
+  // ── The two NEW county mount sites (county-shading-and-project-stats, FR-21)
+  // Each host is asserted TWICE and the pair is the point:
+  //   1. the host is absent from App.tsx's static closure — otherwise its now
+  //      STATIC CountyLayer import would drag maplibre onto first paint;
+  //   2. the host's OWN subtree walk actually REACHES CountyLayer, and does NOT
+  //      reach the geometry asset or the shared loader.
+  // Without (2), (1) plus the geometry negatives would pass vacuously on a build
+  // that never wired the overlay at all.
+  //
+  // The static/dynamic split is the inverse of the intuitive reading, and it is
+  // forced by this file's own walker: it follows STATIC edges only, so a DYNAMIC
+  // CountyLayer import would make the guard-the-guard unsatisfiable and fail a
+  // correct implementation. CountyLayer is therefore static at each host and the
+  // GEOMETRY LOADER is dynamic at all three call sites, which is what keeps the
+  // 3.85 MB asset two dynamic hops from any host.
+  const HOSTS: Array<[string, string]> = [
+    ['Species Detail', 'components/SpeciesDetail.tsx'],
+    ['Statistics', 'components/BirdingStats.tsx'],
+  ]
+
+  it.each(HOSTS)('%s is off the App static closure', (_label, host) => {
+    expect(has(host)).toBe(false)
+  })
+
+  it.each(HOSTS)('%s statically reaches CountyLayer (guards the guard)', (_label, host) => {
+    const sub = closureFrom(resolve(SRC, host))
+    expect(hasIn(sub.files, 'components/map/CountyLayer.tsx')).toBe(true)
+    expect(sub.files.size).toBeGreaterThan(20) // a real graph, not a short-circuited one
+  })
+
+  it.each(HOSTS)('%s does NOT statically reach the geometry asset or its loader', (_label, host) => {
+    const sub = closureFrom(resolve(SRC, host))
+    expect(hasIn(sub.files, 'assets/us-counties.json')).toBe(false)
+    expect(hasIn(sub.files, 'lib/countyGeometry.ts')).toBe(false)
+  })
+
+  it.each(HOSTS)('%s reaches no completeness CONTROLLER (FR-16, QA-18)', (_label, host) => {
+    // NOTE the module named here. `lib/countyCompleteness.ts` is the PURE band
+    // table and CANNOT be excluded: CountyLayer statically imports
+    // CountyCompletenessPopup, which value-imports `cacheLineText` / `monthDay`
+    // from it, so a correct implementation necessarily pulls it in. The thing
+    // FR-16 is actually about is the CONTROLLER — the module that fetches
+    // /map/county-species — and that is imported only by MapExplorer.
+    const sub = closureFrom(resolve(SRC, host))
+    expect(hasIn(sub.files, 'lib/useCountyCompleteness.ts')).toBe(false)
+    // Guard the guard for THIS assertion specifically: the pure module IS
+    // reachable, which is what proves the walk is finding CountyLayer's real
+    // subtree rather than stopping short of it.
+    expect(hasIn(sub.files, 'lib/countyCompleteness.ts')).toBe(true)
+  })
+
+  it('the MapExplorer keeps the completeness controller, so the negative above means something', () => {
+    const sub = closureFrom(resolve(SRC, 'components/MapExplorer.tsx'))
+    expect(hasIn(sub.files, 'lib/useCountyCompleteness.ts')).toBe(true)
+    // ...and it too reaches the geometry only dynamically, through the loader.
+    expect(hasIn(sub.files, 'assets/us-counties.json')).toBe(false)
+    expect(hasIn(sub.files, 'lib/countyGeometry.ts')).toBe(false)
   })
 
   it('the mobile-only plugins are dynamic-only — never static on the entry graph (mobile-app NFR-06)', () => {

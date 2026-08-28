@@ -26,6 +26,10 @@ const TOC: { id: string; label: string; sub: boolean }[] = [
   { id: 'weather',              label: 'Weather',                sub: false },
   { id: 'species-detail',       label: 'Species Detail',         sub: false },
   { id: 'statistics',           label: 'Statistics',             sub: false },
+  // The one Statistics sub-entry the TOC carries. Projects is the tab's only
+  // user-initiated network section, so it is the one heading a reader is likely
+  // to go looking for by name rather than by scrolling.
+  { id: 'projects',             label: 'Projects',               sub: true  },
   { id: 'calendar',             label: 'Calendar',               sub: false },
   { id: 'map-explorer',         label: 'Map Explorer',           sub: false },
   { id: 'multimedia',           label: 'Multimedia',             sub: false },

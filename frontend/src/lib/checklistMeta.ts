@@ -17,9 +17,19 @@ const PROTOCOL_NAMES: Record<string, string> = {
   P62: 'Pelagic',
 }
 
+// Both tables below are keyed on eBird-SUPPLIED strings, so every lookup goes
+// through `Object.hasOwn` (county-shading-and-project-stats, FR-57). A bare
+// index on an object literal returns a TRUTHY INHERITED MEMBER for at least
+// twelve strings — 'constructor', '__proto__', 'toString', 'valueOf',
+// 'hasOwnProperty', 'isPrototypeOf', 'toLocaleString',
+// 'propertyIsEnumerable' and the four __define/__lookup accessors — so
+// `TABLE[raw] ?? raw` silently returned an inherited member instead of falling
+// through to the raw input. Production callers are unaffected for every real
+// code; this makes the allowlist visible AT THE POINT OF USE, which a
+// null-prototype construction expression would not.
 export function protocolName(protocolId: string | null | undefined): string {
   if (!protocolId) return ''
-  return PROTOCOL_NAMES[protocolId] ?? protocolId
+  return Object.hasOwn(PROTOCOL_NAMES, protocolId) ? PROTOCOL_NAMES[protocolId] : protocolId
 }
 
 // eBird submission method codes → the app/source shown on the checklist page.
@@ -34,7 +44,8 @@ const APP_NAMES: Record<string, string> = {
 
 export function submissionAppName(code: string | null | undefined): string {
   if (!code) return ''
-  if (APP_NAMES[code]) return APP_NAMES[code]
+  // Indexed TWICE before; both reads now go through the same guard.
+  if (Object.hasOwn(APP_NAMES, code)) return APP_NAMES[code]
   // Unknown but eBird-prefixed → "eBird Xyz"; otherwise show the raw code.
   if (code.startsWith('EBIRD_')) return 'eBird ' + code.slice('EBIRD_'.length)
   return code

@@ -9,12 +9,15 @@
 // Plain React stubs for react-map-gl — no maplibre-gl, no WebGL.
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { render, fireEvent } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { CountyLayer } from './CountyLayer'
 import type { CountyFC } from '../../lib/countyBoundaries'
 import type { CountyTiers } from '../../lib/countyShading'
 import type { CountyCompletenessView } from '../../lib/countyCompleteness'
+import {
+  COUNTY_POPUP_FIT_VARS, COUNTY_POPUP_MAX_PX, COUNTY_POPUP_SHEET_ATTR,
+} from '../../lib/countyPopupFit'
 
 // jsdom has no real 2D canvas context (it returns null + logs "Not implemented"),
 // so the texture-sprite effect's countyHatchImageData would throw on mount. Stub
@@ -34,7 +37,13 @@ const h = vi.hoisted(() => {
   const ctrl = { hasVector: true }
   const layerLog: Record<string, unknown>[] = []
   const sourceLog: Record<string, unknown>[] = []
+  const popupLog: Record<string, unknown>[] = []
+  // A REAL element, because the popup-containment effect measures this box and
+  // publishes onto it. jsdom reports 0x0, which is the "unusable reading" the
+  // geometry rejects, so the effect writes today's shipped fallback.
+  const container = document.createElement('div')
   const map = {
+    getContainer: () => container,
     getLayer: () => undefined,
     getSource: (id: string) => (id === 'openmaptiles' && ctrl.hasVector ? {} : undefined),
     getBounds: () => ({ getWest: () => -123, getSouth: () => 37, getEast: () => -121, getNorth: () => 39 }),
@@ -49,7 +58,7 @@ const h = vi.hoisted(() => {
     flyTo: () => {},
     queryRenderedFeatures: () => [],
   }
-  return { ctrl, layerLog, sourceLog, map }
+  return { ctrl, layerLog, sourceLog, popupLog, container, map }
 })
 
 vi.mock('react-map-gl/maplibre', () => ({
@@ -58,7 +67,7 @@ vi.mock('react-map-gl/maplibre', () => ({
     return <>{children}</>
   },
   Layer: (props: Record<string, unknown>) => { h.layerLog.push(props); return null },
-  Popup: () => null,
+  Popup: (props: Record<string, unknown>) => { h.popupLog.push(props); return null },
   useMap: () => ({ current: h.map }),
 }))
 
@@ -74,7 +83,12 @@ const data = {
 
 const tiers = { tierFor: () => 0 } as unknown as CountyTiers
 
-beforeEach(() => { h.layerLog.length = 0; h.sourceLog.length = 0; h.ctrl.hasVector = true })
+beforeEach(() => {
+  h.layerLog.length = 0; h.sourceLog.length = 0; h.popupLog.length = 0
+  h.ctrl.hasVector = true
+  h.container.removeAttribute('style')
+  h.container.removeAttribute(COUNTY_POPUP_SHEET_ATTR)
+})
 
 describe('CountyLayer — accurate boundary lines from the basemap tiles', () => {
   it('adds an admin_level-6 line on the openmaptiles boundary source at z9+, and caps the bundled line at z9', () => {
@@ -174,5 +188,46 @@ describe('CountyLayer — completeness metric branch', () => {
     expect(src?.data?.features?.[0]?.properties?.tier).toBe(4)   // from the quantile tiers
     expect(summaryFor).not.toHaveBeenCalled()                    // completeness untouched
     expect(view.onViewportCounties).not.toHaveBeenCalled()       // no completeness fetches (QA-22)
+  })
+})
+
+// ── Popup containment wiring (QA-69) ────────────────────────────────────────
+//
+// The RULE is unit-tested in lib/countyPopupFit.test.ts, against a simulation of
+// MapLibre's own anchor selection. What is asserted here is that this component
+// is actually WIRED to it: the popup carries the class the stylesheet selects
+// on, the ceiling it hands MapLibre matches the stylesheet fallback, and the
+// measurement is published on the map container rather than nowhere.
+
+describe('CountyLayer wires the popup to the containment geometry', () => {
+  it('names the popup and its body so the stylesheet can reach them', () => {
+    const { container } = render(
+      <CountyLayer data={data} tiers={tiers} metric="species" shade />,
+    )
+    // No popup until a county is selected. Open one through the keyboard route:
+    // the "Counties in view" disclosure, then a county row inside it.
+    const disclosure = container.querySelector('.sr-county-inview button')
+    expect(disclosure, 'the Counties in view disclosure is rendered').toBeTruthy()
+    fireEvent.click(disclosure!)
+    const row = container.querySelector('.sr-inview-row')
+    expect(row, 'a county row is offered').toBeTruthy()
+    fireEvent.click(row!)
+
+    expect(h.popupLog.length).toBeGreaterThan(0)
+    const popup = h.popupLog[h.popupLog.length - 1]
+    expect(popup.className).toBe('sr-county-popup')
+    // The ceiling handed to MapLibre and the stylesheet's fallback are the same
+    // number, so the two can never disagree about the widest it may be.
+    expect(popup.maxWidth).toBe(`${COUNTY_POPUP_MAX_PX}px`)
+  })
+
+  it('publishes the measurement on the map container', () => {
+    render(<CountyLayer data={data} tiers={tiers} metric="species" />)
+    // jsdom lays nothing out, so the reading is unusable and the geometry
+    // returns the shipped fallback rather than a guess. That is the assertion:
+    // an unmeasured map renders exactly as it always did.
+    expect(h.container.style.getPropertyValue(COUNTY_POPUP_FIT_VARS.maxWidth))
+      .toBe(`${COUNTY_POPUP_MAX_PX}px`)
+    expect(h.container.hasAttribute(COUNTY_POPUP_SHEET_ATTR)).toBe(false)
   })
 })

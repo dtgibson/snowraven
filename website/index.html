@@ -45,7 +45,7 @@
       <a class="brand" href="#top" aria-label="SnowRaven home">
         <img class="brand-mark" src="assets/logo.svg" alt="" width="28" height="28" />
         <span class="brand-name">Snow<span class="brand-accent">Raven</span></span>
-        <span class="version-pill" aria-label="Version 1.0.4">v1.0.4</span>
+        <span class="version-pill" aria-label="Version 1.0.5">v1.0.5</span>
       </a>
 
       <nav class="primary-nav" aria-label="Primary">
@@ -209,6 +209,11 @@
               species you most often see it with, field notes, top locations (public eBird
               hotspots link to their hotspot page, wherever a location name appears in the app),
               sightings-over-time graphs, and a map of every observation, all in one view.
+              A <strong>Counties</strong> switch on that map shades every US county where you
+              have recorded the bird, tinted by how many of your checklists there reported it,
+              so the counties you have birded without finding it stay a plain outline. It is
+              computed from your own file, so it needs no connection and no API key, and it
+              reshades the moment you pick a different species, leaving your Pins or Heatmap choice as you set it.
               A <strong>Recent Media</strong> section plays your most recent photo, audio
               recording, and video of that species inline from the Macaulay Library, each with
               its capture date, a link to the recording itself, and the checklist it came from.
@@ -254,6 +259,21 @@
               checklists that covers every species you have recorded, then names every
               bird it leaves out and why. Those birds stay on your Life List; only the
               count changes. Both are per-session, resetting on relaunch.
+            </p>
+            <p>
+              The Geographic Stats map carries the same <strong>Counties</strong> overlay,
+              shaded by species or by checklists, with numbers that match the county tables
+              beside it, and the Map Explorer's too while Count all forms is off (the Map
+              Explorer always applies the countable-species rule). A <strong>Projects</strong>
+              section reports which eBird projects your
+              checklists were submitted to, the California Breeding Bird Atlas among them.
+              Your backup does not record that at all, so each checklist has to be asked about
+              on its own. Nothing is sent until you press Check projects, and the section tells
+              you the exact cost first: how many requests, and roughly how long. It can be
+              stopped and resumed, answers are stored on your device so an interrupted run
+              picks up where it left off, and every tally is shown with the number of
+              checklists it was drawn from, so a partial answer reads as a floor rather than
+              as a finished total.
             </p>
             <p class="feature-tag">Light or dark, your choice. Dark mode shown.</p>
           </div>
@@ -704,7 +724,7 @@
         Tides from NOAA Tides &amp; Currents. The weather lookup mirrors the format pioneered by
         <a href="https://raincrow.app" target="_blank" rel="noopener">raincrow.app</a>.
       </p>
-      <p class="footer-version">SnowRaven v1.0.4 · Free &amp; open source</p>
+      <p class="footer-version">SnowRaven v1.0.5 · Free &amp; open source</p>
     </div>
   </footer>
 </body>

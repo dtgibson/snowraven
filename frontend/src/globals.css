@@ -2670,6 +2670,87 @@ select:focus-visible {
     min-height: 2.75rem;
   }
 }
+/* ── County popup containment (QA-69) ──────────────────────────────────────
+   The rule and the MapLibre anchor arithmetic behind it are documented in
+   lib/countyPopupFit.ts; `components/map/CountyLayer.tsx` measures the map
+   container and publishes the two custom properties and the sheet attribute
+   read below. Both fall back to the shipped geometry, so a map that has never
+   been measured (jsdom, a pre-layout pass) renders exactly as it always did.
+
+   `!important` on the width is not decoration: MapLibre writes its own
+   `max-width` as an INLINE style on the popup element, and an inline
+   declaration outranks any normal author rule. */
+.maplibregl-popup.sr-county-popup {
+  max-width: var(--sr-county-popup-max, 248px) !important;
+}
+
+/* The body's min/max widths live here rather than inline only so the SHEET rule
+   below can override them; the values are the design's own, unchanged from the
+   inline declarations they replaced.
+
+   THEY MUST BE ABSOLUTE LENGTHS. A percentage min/max inside this box does not
+   mean what it looks like it means: the popup is absolutely positioned and
+   shrink-to-fit, so its used width is derived from its content, and a
+   `min-width: min(188px, 100%)` on the content resolves the `100%` against that
+   used width and collapses to it — a floor that can never bind, which silently
+   narrowed the Map Explorer's popup by 30px at the default text scale.
+
+   The floor is safe here because every ANCHORED popup is at least
+   COUNTY_POPUP_MIN_PX wide, which is defined as exactly this 188px plus the
+   14px + 1px of content padding and border on each side (lib/countyPopupFit.ts).
+   The sheet form is pinned to a container that may be narrower than that, so it
+   — and only it — releases both. */
+.sr-county-popup-body {
+  min-width: 188px;
+  max-width: 220px;
+}
+
+/* THE SHEET FORM. Below the legibility floor no anchor MapLibre can pick keeps
+   the popup inside the map, so it stops being anchored: it is pinned to the
+   container's own inline box, which makes containment a property of
+   left/right/bottom rather than of arithmetic about where the user clicked, and
+   the close button is therefore always reachable.
+
+   Every override here is `!important` against either maplibre-gl.css or the
+   inline `transform` MapLibre writes on every popup update.
+
+   The `z-index` is 1060 for a specific reason rather than a nominal one: it
+   must clear the map's own control containers (z-index 2) AND the shipped
+   "Counties in view" panel (z-index 1050), which is the keyboard route INTO
+   this popup and which, on a 320px-tall map at 200% text scale, occupies the
+   same band the sheet does. A popup the user just opened, and must be able to
+   dismiss, cannot be painted under the control that opened it. It stays below
+   the app's own overlay tier (1200, the tab dropdown and map fullscreen). */
+.maplibregl-map[data-sr-county-popup="sheet"] .maplibregl-popup.sr-county-popup {
+  top: auto !important;
+  bottom: 8px !important;
+  left: 8px !important;
+  right: 8px !important;
+  width: auto !important;
+  transform: none !important;
+  flex-direction: column !important;
+  z-index: 1060;
+}
+.maplibregl-map[data-sr-county-popup="sheet"] .sr-county-popup .maplibregl-popup-tip {
+  display: none;
+}
+.maplibregl-map[data-sr-county-popup="sheet"] .sr-county-popup .maplibregl-popup-content {
+  width: 100%;
+}
+/* The shipped `.sr-map-popup-body` cap is viewport-relative, which is right for
+   an anchored popup and wrong for a sheet: the sheet is bounded by the MAP, and
+   a 60dvh cap inside a 320px-tall map at 200% text scale would be clipped by
+   the container instead of scrolling. The measured cap replaces it. */
+.maplibregl-map[data-sr-county-popup="sheet"] .sr-county-popup-body {
+  max-height: var(--sr-county-popup-cap, 12rem);
+  /* The sheet is pinned to the map's inline box and may be narrower than the
+     anchored floor, so the floor is released HERE rather than weakened above:
+     the body fills whatever the sheet got and never demands 188px of a
+     container that does not have it. */
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Attribution credits also inherit maplibre's fixed 12px — rem-size them */
 .maplibregl-ctrl-attrib { font-size: 0.6875rem; }
 .maplibregl-popup-anchor-top .maplibregl-popup-tip,
@@ -2854,8 +2935,265 @@ select:focus-visible {
 }
 .sr-count-rule:hover { color: var(--sr-accent); }
 
+
+/* ── County shading panel, the two NEW mount sites ───────────────────────────
+   (county-shading-and-project-stats)
+
+   The Map Explorer keeps its sidebar controls untouched. This vocabulary is for
+   Species Detail's Sighting Locations map and Statistics' Geographic Stats map,
+   where the panel sits BENEATH the map: the Heatmap Intensity strip already
+   occupies the above-map slot on Species Detail, and stacking two strips there
+   costs a phone two rows before any map is visible.
+
+   Layout lives here rather than in a React inline style, which is specificity
+   (1,0,0) and unreachable from a media query. Colours are tokens only; this
+   feature mints none, reuses the shipped --sr-county-1..10 ramp unchanged, and
+   paints no new text-on-fill pairing, so it needs no new contrast guard. */
+
+/* Origin-aware reveal: the panel grows downward from the switch that opened it,
+   never a centred fade. Same grid-rows shape as the escapee disclosure and the
+   Map Explorer's collapsed filter panel. The global prefers-reduced-motion block
+   collapses both transitions. */
+.sr-countypanel {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 0; transform-origin: top center;
+}
+.sr-countypanel[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+/* Clipped, not unmounted — which is exactly why the component puts `inert` on
+   this element while closed. */
+.sr-countypanel-inner { overflow: hidden; min-height: 0; }
+.sr-countypanel-pad { padding: 12px 0 0; }
+
+/* Label + trailing control. It WRAPS rather than shrinking the control, so the
+   switch and the segmented group keep their touch targets on a phone. */
+.sr-countypanel-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.sr-countypanel-row > .sr-min0 { flex: 1 1 12rem; min-width: 0; }
+.sr-countypanel-label {
+  font-size: 0.8125rem; font-weight: 500; color: var(--sr-text);
+  overflow-wrap: break-word;
+}
+.sr-countypanel-hint {
+  font-size: 0.6875rem; color: var(--sr-text-muted); line-height: 1.45;
+  margin: 0 0 10px; max-width: 62ch;
+}
+
+/* The quantile legend. Swatch geometry matches the Map Explorer's exactly, so
+   the same ramp reads the same wherever it is drawn. */
+.sr-countylegend { margin-top: 12px; }
+.sr-countylegend-h {
+  font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--sr-text-muted); margin-bottom: 8px;
+  overflow-wrap: break-word;
+}
+.sr-countylegend-row {
+  display: flex; align-items: center; gap: 9px; margin-bottom: 6px; min-width: 0;
+}
+.sr-countylegend-row--none { margin-top: 8px; }
+.sr-countylegend-sw {
+  width: 26px; height: 15px; border-radius: 3px; flex-shrink: 0;
+  border: 1px solid var(--sr-border-medium);
+}
+.sr-countylegend-sw--none { border-style: dashed; background: transparent; }
+.sr-countylegend-row > span:last-child {
+  font-size: 0.75rem; color: var(--sr-text); min-width: 0; overflow-wrap: break-word;
+}
+.sr-countylegend-mut { color: var(--sr-text-muted); }
+.sr-countylegend-note {
+  font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 6px;
+  line-height: 1.45; max-width: 62ch;
+}
+.sr-countylegend-empty {
+  display: flex; gap: 7px; align-items: flex-start; margin-top: 12px;
+  font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.5;
+  max-width: 62ch; min-width: 0;
+}
+.sr-countylegend-empty svg { flex-shrink: 0; margin-top: 1px; }
+
+/* SectionCard's optional trailing action slot (the Counties switch on
+   Statistics). `margin-left: auto` pushes it right in the head row; every
+   existing caller passes no action and renders byte-identically. */
+.sr-cardhead-action {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap; max-width: 100%; min-width: 0;
+}
+
+
+/* ── Projects section (county-shading-and-project-stats) ─────────────────────
+   Structurally the shipped `.sr-exotic` block, renamed: it is the same kind of
+   thing, a number the app has to go and earn, reported honestly while it is
+   still incomplete. Colours are tokens only; the feature mints none and paints
+   no new text-on-fill pairing except the one accent-filled button, whose
+   --sr-accent / --sr-on-accent pair is already an AA-cleared shipped pairing. */
+.sr-proj { display: flex; flex-direction: column; gap: 0.5rem; }
+
+/* Row 1 — the live status, with its actions trailing on the same line. The row
+   WRAPS rather than shrinking the controls, so they keep their touch targets on
+   a phone. */
+.sr-proj-statusrow {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 0.75rem; flex-wrap: wrap;
+}
+
+/* The live region itself. It is `flex` in EVERY state, idle included: a
+   `display: none` on a role="status" removes it from the accessibility tree, so
+   it would be INSERTED along with its first message, which is the documented way
+   to make a live region fail to announce. Never give this selector a hiding
+   display, visibility, or content-visibility. */
+.sr-proj-status {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text);
+  min-height: 1.25rem; flex: 1 1 20rem; min-width: 0;
+  overflow-wrap: break-word;
+}
+.sr-proj-icon { flex-shrink: 0; margin-top: 0.1875rem; }
+.sr-proj-msg { animation: sr-proj-msg-in 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes sr-proj-msg-in {
+  from { opacity: 0; transform: translateY(0.1875rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* The action cluster. `flex-shrink: 0` is PAIRED with a width cap: a pinned
+   flex container is never narrowed, and a container that is never narrowed has
+   no reason to break a line, so `flex-wrap` alone would be inert (the v0.5.82
+   rule). The cap keeps the do-not-get-squeezed intent while letting it wrap. */
+.sr-proj-actions {
+  display: flex; gap: 0.5rem; flex-wrap: wrap; flex-shrink: 0; max-width: 100%;
+}
+.sr-proj-act {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  background: var(--sr-surface-subtle); color: var(--sr-text);
+  border: 1px solid var(--sr-border-input); border-radius: 6px;
+  padding: 0.3125rem 0.625rem; cursor: pointer;
+  transition: background 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-proj-act:hover { background: var(--sr-surface); border-color: var(--sr-accent); color: var(--sr-accent); }
+.sr-proj-act:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+/* The ONE accent fill on this card: the only press that costs eight minutes. */
+.sr-proj-act--primary {
+  background: var(--sr-accent); color: var(--sr-on-accent);
+  border-color: var(--sr-accent); font-weight: 600;
+}
+.sr-proj-act--primary:hover {
+  background: var(--sr-accent-strong); color: var(--sr-on-accent);
+  border-color: var(--sr-accent-strong);
+}
+/* The no-key state's inline navigation to Settings. A button, not an anchor: it
+   changes tab within the app rather than following a URL. */
+.sr-proj-link {
+  background: none; border: none; padding: 0; font: inherit;
+  color: var(--sr-accent); text-decoration: underline; cursor: pointer;
+}
+.sr-proj-link:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; border-radius: 3px; }
+
+/* Row 2 — the definite progress figure. CONDITIONALLY RENDERED by the
+   component, never `hidden` against an author `display`. */
+.sr-proj-progress {
+  display: flex; align-items: center; gap: 0.5rem; margin-top: 0.375rem;
+  max-width: 26rem; flex-wrap: wrap;
+}
+.sr-proj-track {
+  flex: 1 1 8rem; min-width: 0; height: 0.375rem; border-radius: 0.1875rem;
+  background: var(--sr-surface-subtle); overflow: hidden;
+}
+.sr-proj-fill {
+  height: 100%; background: var(--sr-accent); border-radius: 0.1875rem;
+  transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-proj-count {
+  font-size: 0.6875rem; color: var(--sr-text-muted); flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Row 3 — the supporting line: cost, floor, or scope. */
+.sr-proj-rule {
+  font-size: 0.6875rem; line-height: 1.6; color: var(--sr-text-muted);
+  margin: 0; max-width: 62ch;
+}
+.sr-proj-portalnote { margin-bottom: 0.375rem; }
+
+/* Project rows. Name and count share the first line; the meta line takes its own
+   row and can still shrink, so a 320px phone stacks without a truncated tally.
+   No rank numbers: these are contributions, not a ranking. */
+.sr-proj-rows { margin-top: 0.25rem; }
+.sr-proj-row {
+  display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap;
+  min-width: 0; padding: 0.625rem 0; border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-proj-rows > .sr-proj-row:last-child { border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-proj-name {
+  flex: 1 1 12rem; min-width: 0; font-size: 0.8125rem; font-weight: 600;
+  color: var(--sr-text); overflow-wrap: break-word;
+}
+/* An unresolved identifier renders in mono so it reads as an identifier rather
+   than as a name. It is never a link: no endpoint resolves one. */
+.sr-proj-name .raw {
+  font-family: var(--font-mono); font-size: 0.78125rem; font-weight: 600;
+}
+.sr-proj-n {
+  flex: 0 0 auto; font-size: 0.75rem; font-weight: 600; color: var(--sr-text);
+  font-variant-numeric: tabular-nums;
+}
+.sr-proj-meta {
+  flex: 1 1 100%; font-size: 0.6875rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums; overflow-wrap: break-word; min-width: 0;
+  margin-top: 0.125rem;
+}
+.sr-proj-meta .sep { opacity: 0.55; padding: 0 0.15em; }
+.sr-proj-unnamed {
+  flex: 1 1 100%; min-width: 0; font-size: 0.6875rem; color: var(--sr-text-muted);
+  line-height: 1.5; margin-top: 0.125rem; max-width: 62ch; overflow-wrap: break-word;
+}
+
+/* The portal breakdown, visually and semantically subordinate to the projects
+   list above it. */
+.sr-proj-portals { margin-top: 0.25rem; }
+.sr-proj-portalrow {
+  display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.4375rem 0; border-top: 1px solid var(--sr-border-subtle); min-width: 0;
+}
+.sr-proj-portals > .sr-proj-portalrow:last-child { border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-proj-portalrow .nm {
+  flex: 1 1 10rem; min-width: 0; font-size: 0.75rem; color: var(--sr-text);
+  overflow-wrap: break-word;
+}
+.sr-proj-portalrow .nm code {
+  font-family: var(--font-mono); font-size: 0.9em; color: var(--sr-text-muted);
+}
+.sr-proj-portalrow .vl {
+  flex: 0 1 auto; min-width: 0; font-size: 0.75rem; font-weight: 600;
+  color: var(--sr-text); font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
+}
+.sr-proj-portalrow .sh {
+  flex: 1 1 100%; min-width: 0; font-size: 0.6875rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums; overflow-wrap: break-word;
+  margin-top: 0.125rem;
+}
+
+
 @media (max-width: 640px) {
   .sr-header { padding-top: 24px !important; }
+  /* The county panel's rows stack on a phone, and the action slot takes its own
+     line rather than competing with the section title for width. */
+  .sr-cardhead-action { margin-left: 0; width: 100%; }
+  /* Projects rows stack, and every child takes the full width of the column.
+     `:not(.sr-only)` is LOAD-BEARING, not tidying: a universal child selector
+     here would reach a visually-hidden span, and .sr-only is position:absolute,
+     so width:100% would resolve against its containing block and leak page
+     horizontal scroll at every text size (the v1.0.4 rule). */
+  .sr-proj-row, .sr-proj-portalrow { flex-direction: column; align-items: flex-start; gap: 0.125rem; }
+  .sr-proj-row > *:not(.sr-only),
+  .sr-proj-portalrow > *:not(.sr-only) { align-self: stretch; width: 100%; min-width: 0; }
+  /* Phone-tier touch posture for the section's own controls. */
+  .sr-proj-act { min-height: 2.75rem; }
   /* Escapee count rule: the checkbox rows take the touch-target posture on a
      phone. The checkboxes carry no text, so .sr-input-16 does not apply. */
   .sr-count-rule { min-height: 2.75rem; }

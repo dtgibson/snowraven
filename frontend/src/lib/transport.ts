@@ -115,17 +115,29 @@ class TauriTransport implements TransportAdapter {
     // 30-day caching for this path, so a second 90 s layer would only shadow it
     // (one caching layer per call).
     //
-    // `fields=provenance` is a flag on the EXISTING path, not a new endpoint
-    // family (FR-12): it suppresses the second per-checklist eBird call this
-    // seam otherwise makes to resolve a readable location name, which a
-    // provenance pass does not need (FR-13). The response SHAPE is unchanged —
-    // `locName` falls back to the locId exactly as it already does when
-    // resolution fails. The id is sliced off the PATH, so a query string can
-    // never contaminate it.
+    // `fields=` is a flag on the EXISTING path, not a new endpoint family
+    // (FR-12, FR-25): `provenance` suppresses the second per-checklist eBird
+    // call this seam otherwise makes to resolve a readable location name, and
+    // `projects` suppresses that AND the species resolution (a projects sweep
+    // needs neither, and costs exactly one request per checklist). The response
+    // SHAPE is unchanged in both cases — `locName` falls back to the locId
+    // exactly as it already does when resolution fails, and `species: []` is
+    // the stated projects shape. The whole table lives in lib/checklistFields.ts
+    // and is fixture-locked against its Python twin. The id is sliced off the
+    // PATH, so a query string can never contaminate it.
+    //
+    // ALSO deliberately absent from EBIRD_GATED_PATHS below: the projects sweep
+    // is this path's own enforcement point over the same shared gate state (one
+    // request gets exactly one enforcement point), and both sets match with
+    // Set.has on the exact path string, which a prefix route carrying an id
+    // cannot satisfy anyway.
     if (path.startsWith('/checklists/')) {
       const { getChecklist } = await import('./tauri/checklistService');
       const checklistId = path.slice('/checklists/'.length);
-      return getChecklist(checklistId, { skipLocName: params?.fields === 'provenance' }) as Promise<T>;
+      // The raw `fields` string, not resolved flags: `lib/checklistFields.ts`
+      // is imported by the dynamically-loaded service instead, which keeps the
+      // flag table off the entry chunk this module rides (NFR-04, QA-23).
+      return getChecklist(checklistId, params?.fields) as Promise<T>;
     }
 
     if (path === '/version/check') {
@@ -221,7 +233,10 @@ class TauriTransport implements TransportAdapter {
 // from the short-TTL cache instead of re-hitting eBird. Decorating the
 // transport covers BOTH runtimes — web/Pi (FastAPI) and desktop (TS services) —
 // at their one common chokepoint. Errors are never cached (see networkCache).
-const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/map/hotspot-region']);
+// Exported for the path-set hygiene guard (FR-28/QA-29): a source-text
+// assertion cannot see a member added through a variable, so the test reads the
+// real Sets. Nothing in the app imports them.
+export const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/map/hotspot-region']);
 
 // The eBird-backed single-shot lookups governed by the shared key-global
 // pacing gate (lib/ebirdGate.ts): spaced starts + the one 429 cooldown +
@@ -230,7 +245,7 @@ const CACHED_GET_PATHS = new Set(['/map/hotspots', '/map/recent-obs', '/map/hots
 // /map/hotspot-activity is deliberately absent: the activity controller
 // (useHotspotActivity) enforces the same contract for it over the same
 // shared state, and one request gets exactly one enforcement point.
-const EBIRD_GATED_PATHS = new Set([
+export const EBIRD_GATED_PATHS = new Set([
   '/map/hotspots', '/map/recent-obs', '/map/hotspot-region', '/map/county-species',
 ]);
 

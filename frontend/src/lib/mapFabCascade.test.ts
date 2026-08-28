@@ -380,6 +380,8 @@ const NEVER_A_FAB_ANCESTOR: Record<string, string> = {
   'sr-map-layers-seg': 'the basemap switcher segment, top-right of the map; holds only its own three buttons',
   'sr-field-row': 'a stacking wrapper for paired form controls; the cluster is not a form row',
   'sr-action-row-stack': 'a label-plus-action row; same, and it is sidebar/panel furniture',
+  'sr-proj-row': 'a Projects-section result row on the Statistics tab, which mounts no map at all',
+  'sr-proj-portalrow': 'the subordinate portal row in the same section; same reasoning',
   'sr-map-sidebar-overlay': 'the filters sidebar, which the cluster sits outside of (and is hidden while it is open)',
   'maplibregl-ctrl-group': "maplibre's own control stack, injected inside the canvas container",
   'maplibregl-ctrl': 'same, one level up',

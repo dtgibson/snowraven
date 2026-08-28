@@ -186,7 +186,73 @@ def _norm_token(value, pattern) -> str:
     return value if isinstance(value, str) and pattern.fullmatch(value) else ""
 
 
-async def fetch_checklist_species(checklist_id: str, skip_loc_name: bool = False) -> dict:
+# ── The projects seam (county-shading-and-project-stats, FR-24, FR-25) ────────
+# Same posture as the provenance pair above and the SAME two halves of parity.
+# Its JS twin is `normalizeProjectFields` in lib/tauri/checklistService.ts, and
+# ONE shared fixture (frontend/src/lib/checklistProjects.fixture.json) drives
+# both, so neither can drift without its own test failing.
+#
+# TWO TRAPS ARE LIVE HERE IN A WAY THEY WERE NOT FOR exoticCategory, and both
+# appear as fixture ROWS rather than comments:
+#
+#  1. ANCHORS. `re.match(r"^[A-Z0-9_]{1,32}$", "EBIRD\n")` SUCCEEDS, because
+#     Python's `$` matches before a trailing newline; the JS `.test()` twin
+#     rejects it. `fullmatch` with the pattern unanchored in the literal is the
+#     house form (the v0.5.87 rule) and is what makes the two agree.
+#  2. `isinstance(True, int)` is True, so a bare int check would normalize
+#     `projectIds: [True]` to 1 while JS rejects a boolean for free. The
+#     element guard therefore excludes bool EXPLICITLY.
+#
+# And never `int(v)` / `str.isdigit()` on a STRING element: `int("١٠٥٠")` is
+# 1050 under both runtimes, so a string element is REJECTED outright rather
+# than coerced. Non-conforming elements are DROPPED, never defaulted.
+_PROJ_ID_RE = re.compile(r"[A-Z0-9_]{1,32}")
+
+# 9-digit ceiling, so the persisted number's string form is length-bounded.
+PROJECT_ID_MAX = 999_999_999
+
+# Array length cap. Sampled data carries 1; 8 mirrors MAX_SEEN_PER_SPECIES.
+MAX_PROJECT_IDS = 8
+
+
+def _norm_project_fields(proj_id, project_ids) -> tuple[str, list[int]]:
+    """Normalize eBird's `projId` / `projectIds` to the shape both transports
+    return. Rejected `projId` -> ""; bad `projectIds` elements are dropped and
+    the array is capped at MAX_PROJECT_IDS."""
+    proj = proj_id if isinstance(proj_id, str) and _PROJ_ID_RE.fullmatch(proj_id) else ""
+    ids: list[int] = []
+    if isinstance(project_ids, list):
+        for v in project_ids:
+            if len(ids) >= MAX_PROJECT_IDS:
+                break
+            # `isinstance(True, int)` is True — exclude bool EXPLICITLY.
+            if not isinstance(v, int) or isinstance(v, bool):
+                continue
+            if v < 0 or v > PROJECT_ID_MAX:
+                continue
+            ids.append(v)
+    return proj, ids
+
+
+def checklist_field_flags(fields: str | None) -> tuple[bool, bool]:
+    """(skip_loc_name, skip_species) for a `fields=` query value.
+
+    SINGLE-VALUED WHOLE-STRING EQUALITY, deliberately: both transports match
+    the whole string today and there is no comma-splitting precedent anywhere in
+    this seam, so introducing one would put the byte-identical guarantee for the
+    shipped `provenance` caller at risk for no caller that wants it. The shared
+    fixture's `fieldFlagRows` pin this table on both runtimes. Its JS twin is
+    `checklistFieldFlags` in lib/checklistFields.ts."""
+    if fields == "provenance":
+        return True, False
+    if fields == "projects":
+        return True, True
+    return False, False
+
+
+async def fetch_checklist_species(
+    checklist_id: str, skip_loc_name: bool = False, skip_species: bool = False,
+) -> dict:
     """Fetch a checklist's species observations (eBird speciesCode + count string)
     plus a short header (location + date). eBird returns obs in taxonomic order;
     that order is preserved. Common names are resolved separately via the taxonomy.
@@ -195,7 +261,12 @@ async def fetch_checklist_species(checklist_id: str, skip_loc_name: bool = False
     that resolves a readable location name from the locId. The exotic-provenance
     pass does not need one and is capped at one request per checklist, so with
     the flag set `locName` falls back to the locId exactly as it already does
-    when resolution fails. The response shape is unchanged either way."""
+    when resolution fails. The response shape is unchanged either way.
+
+    `skip_species` additionally suppresses the per-observation projection, so
+    the route can skip its own species resolution and return `species: []`
+    (FR-25). Under `fields=projects` both flags are set, which is what makes a
+    projects sweep cost exactly ONE outbound eBird request per checklist."""
     api_key = os.getenv("EBIRD_API_KEY")
     if not api_key:
         raise ValueError("EBIRD_API_KEY not configured")
@@ -230,7 +301,7 @@ async def fetch_checklist_species(checklist_id: str, skip_loc_name: bool = False
             pass  # Location name is a nicety; fall through to the locId.
 
     species = []
-    for o in (data.get("obs") or []):
+    for o in ([] if skip_species else (data.get("obs") or [])):
         code = o.get("speciesCode")
         if not code:
             continue
@@ -261,6 +332,8 @@ async def fetch_checklist_species(checklist_id: str, skip_loc_name: bool = False
             },
         })
 
+    proj_id, project_ids = _norm_project_fields(data.get("projId"), data.get("projectIds"))
+
     return {
         "locName": loc_name or loc_id,
         "obsDt": data.get("obsDt", ""),
@@ -275,5 +348,10 @@ async def fetch_checklist_species(checklist_id: str, skip_loc_name: bool = False
         "submissionMethod": data.get("submissionMethodCode", ""),
         "submissionVersion": data.get("submissionMethodVersionDisp", ""),
         "comments": data.get("comments") or "",   # checklist-level note (HTML-entity encoded)
+        # Purely additive (FR-23): every existing caller ignores both fields and
+        # renders identically. Values are normalized against explicit ASCII
+        # classes above; a project identifier NEVER becomes a URL (FR-29).
+        "projId": proj_id,
+        "projectIds": project_ids,
         "species": species,
     }

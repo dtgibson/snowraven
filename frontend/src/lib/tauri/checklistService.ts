@@ -2,6 +2,8 @@ import { tauriFetch } from './http'
 import { storage } from '../storage'
 import { resolveSpecies } from './taxonomyService'
 import { getRegionInfo } from './regionInfo'
+import { ebirdRateLimitError } from './ebirdErrors'
+import { checklistFieldFlags } from '../checklistFields'
 
 const EBIRD_BASE = 'https://api.ebird.org/v2'
 
@@ -50,13 +52,59 @@ export function normalizeProvenancePair(
   }
 }
 
-export interface ChecklistOptions {
-  /** Skip the second outbound eBird call that resolves a readable location name
-   *  from the locId. The provenance pass does not need one and FR-13 caps a
-   *  pass at one request per checklist; `locName` then falls back to the locId
-   *  exactly as it already does when resolution fails. */
-  skipLocName?: boolean
+// The projects seam (county-shading-and-project-stats, FR-24, NFR-09). Same
+// posture as the provenance pair above: the eBird response is untrusted input,
+// normalized here at the seam against EXPLICIT ASCII CLASSES, with the Python
+// twin (`services.ebird._norm_project_fields`) written identically and both
+// driven by ONE shared fixture (checklistProjects.fixture.json).
+//
+// TWO PARITY TRAPS LIVE HERE, and both are fixture ROWS rather than comments:
+//
+//  1. ANCHORS. Python's `$` matches before a trailing newline, so
+//     `re.match(r'^[A-Z0-9_]{1,32}$', 'EBIRD\n')` succeeds where this
+//     `.test()` fails. The Python half uses `re.fullmatch` for that reason.
+//  2. `isinstance(True, int)` is True in Python, so `projectIds: [true]` would
+//     normalize to 1 there; `typeof v === 'number'` rejects a boolean here for
+//     free, and the Python guard excludes bool explicitly. A STRING element is
+//     rejected outright rather than coerced, because `int('١٠٥٠')` parses as
+//     1050 under BOTH runtimes.
+const PROJ_ID_RE = /^[A-Z0-9_]{1,32}$/
+
+/** 9-digit ceiling, so the persisted number's string form is length-bounded. */
+export const PROJECT_ID_MAX = 999_999_999
+
+/** Array length cap. Sampled data carries 1; 8 mirrors MAX_SEEN_PER_SPECIES and
+ *  keeps a hostile response from growing the persisted entry without bound. */
+export const MAX_PROJECT_IDS = 8
+
+/** The projects normalization, exported so the dual-transport parity test
+ *  exercises the SHIPPED code rather than a retyped copy of the pattern.
+ *  Rejected `projId` becomes ''; non-conforming `projectIds` ELEMENTS are
+ *  dropped (never coerced, never defaulted) and the array is capped. */
+export function normalizeProjectFields(
+  projId: unknown, projectIds: unknown,
+): { projId: string; projectIds: number[] } {
+  const proj = typeof projId === 'string' && PROJ_ID_RE.test(projId) ? projId : ''
+  const ids: number[] = []
+  if (Array.isArray(projectIds)) {
+    for (const v of projectIds) {
+      if (ids.length >= MAX_PROJECT_IDS) break
+      if (typeof v !== 'number' || !Number.isInteger(v)) continue
+      if (v < 0 || v > PROJECT_ID_MAX) continue
+      ids.push(v)
+    }
+  }
+  return { projId: proj, projectIds: ids }
 }
+
+// The `fields=` flag table lives in `lib/checklistFields.ts` and is resolved
+// HERE rather than at the transport chokepoint. THAT IS AN ENTRY-CHUNK
+// DECISION, not a taste one: `transport.ts` rides the first-paint set, so a
+// static import of the table there put the whole module on the entry chunk for
+// a mapping only this dynamically-imported service ever needs (NFR-04, QA-23).
+// Taking the raw `fields` STRING also makes the transport's wiring executable —
+// the desktop `fields=projects` test now drives the same string the caller
+// sends, rather than hand-built flags that could disagree with the table.
 
 export interface ChecklistResult {
   locName: string
@@ -70,12 +118,20 @@ export interface ChecklistResult {
   submissionVersion: string
   comments: string
   species: ChecklistSpecies[]
+  /** Normalized eBird `projId` — the submission/project PORTAL a checklist came
+   *  in through ('EBIRD', 'EBIRD_MERLIN', 'EBIRD_ATL_CA'), '' when absent or
+   *  rejected. Additive: every existing caller ignores it (FR-23). */
+  projId: string
+  /** Normalized eBird `projectIds` — the project MEMBERSHIP array ([1050] for
+   *  the California atlas), [] when absent or rejected. */
+  projectIds: number[]
 }
 
 // Desktop counterpart of the backend /checklists/{id} endpoint: fetch a checklist's
 // observations directly from eBird, then resolve species codes → common names via the
 // cached taxonomy. eBird returns obs in taxonomic order, which we preserve.
-export async function getChecklist(checklistId: string, opts?: ChecklistOptions): Promise<ChecklistResult> {
+export async function getChecklist(checklistId: string, fields?: string | null): Promise<ChecklistResult> {
+  const opts = checklistFieldFlags(fields)
   const key = await storage.getApiKey('ebird')
   if (!key) {
     throw Object.assign(new Error('eBird API key not configured. Add it in Settings.'), { status: 401 })
@@ -95,6 +151,17 @@ export async function getChecklist(checklistId: string, opts?: ChecklistOptions)
   if (res.status === 404) {
     throw Object.assign(new Error('Checklist not found. Check the ID and try again.'), { status: 404 })
   }
+  // A 429 keeps the shared rate-limit shape (status 429, the shared detail, a
+  // validated bounded retryAfterSec) so the key-global gate lib/ebirdGate.ts can
+  // pace and retry this path — without it, `retryAfterMsFrom` returns null here
+  // and the pacing contract the projects sweep depends on is unenforceable
+  // (FR-31). ONLY the 429 branch is shared: the generic `!res.ok` below keeps
+  // its `{ status: res.status }` shape and its exact detail string, which the
+  // List Comparer displays (FR-32).
+  if (res.status === 429) {
+    const limited = ebirdRateLimitError(res)
+    if (limited) throw limited
+  }
   if (!res.ok) {
     throw Object.assign(new Error(`Could not fetch checklist (HTTP ${res.status}).`), { status: res.status })
   }
@@ -111,6 +178,8 @@ export async function getChecklist(checklistId: string, opts?: ChecklistOptions)
     submissionMethodCode?: string
     submissionMethodVersionDisp?: string
     comments?: string
+    projId?: unknown
+    projectIds?: unknown
     obs?: Array<{
       speciesCode?: string
       howManyStr?: string
@@ -121,8 +190,13 @@ export async function getChecklist(checklistId: string, opts?: ChecklistOptions)
       mediaCounts?: { P?: number; A?: number; V?: number }
     }>
   }
-  const obs = (data.obs ?? []).filter(o => o.speciesCode)
-  const resolved = await resolveSpecies(obs.map(o => o.speciesCode!))
+  // Under `fields=projects` the caller wants neither the resolved species list
+  // nor the location name, so BOTH outbound follow-ups are skipped and the
+  // checklist costs exactly one request (FR-25). `species: []` is the stated
+  // shape; every other response field keeps its current one.
+  const obs = opts.skipSpecies ? [] : (data.obs ?? []).filter(o => o.speciesCode)
+  const resolved: Record<string, { speciesCode: string; commonName: string }> =
+    opts.skipSpecies ? {} : await resolveSpecies(obs.map(o => o.speciesCode!))
   const species: ChecklistSpecies[] = obs.map(o => {
     // Breeding code (internal API code; the UI translates to a display code).
     const aux = (o.obsAux ?? []).find(a => a.fieldName === 'breeding_code')
@@ -147,7 +221,7 @@ export async function getChecklist(checklistId: string, opts?: ChecklistOptions)
   // checklist/view carries only locId, not a readable name. Resolve it so the two
   // checklists are easy to tell apart (mirrors the backend /checklists/{id} flow).
   const locName = data.locName
-    || (data.locId && !opts?.skipLocName ? await resolveLocName(key, data.locId) : '')
+    || (data.locId && !opts.skipLocName ? await resolveLocName(key, data.locId) : '')
   return {
     locName: locName || data.locId || '',
     obsDt: data.obsDt ?? '',
@@ -160,6 +234,7 @@ export async function getChecklist(checklistId: string, opts?: ChecklistOptions)
     submissionVersion: data.submissionMethodVersionDisp ?? '',
     comments: data.comments ?? '',
     species,
+    ...normalizeProjectFields(data.projId, data.projectIds),
   }
 }
 

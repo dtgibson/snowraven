@@ -35,6 +35,25 @@ import { smoothScrollIntoView } from '../lib/scroll'
 import { SnowMap } from './SnowMap'
 import { SightingsMap } from './SightingsMap'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
+// STATIC imports, deliberately (FR-21). entryChunk.test.ts's walker follows
+// STATIC edges only, so its guard-the-guard — "this host's subtree really does
+// reach CountyLayer" — is satisfiable only this way, and the intuitive dynamic
+// import would make a correct implementation fail. It is safe because this whole
+// component is already off App.tsx's static closure (it mounts SnowMap, and the
+// entry-chunk guard asserts maplibre is absent from the App externals). The
+// GEOMETRY is the thing that must stay lazy, and it is: `loadCountyGeometry` is
+// reached by `await import()` in the toggle handler below.
+import { CountyLayer } from './map/CountyLayer'
+import { BasemapDesaturation } from './map/BasemapDesaturation'
+import { CountyShadingPanel } from './map/CountyShadingPanel'
+import {
+  buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_CLASS_COUNT,
+} from '../lib/countyShading'
+import { computeChecklists } from '../lib/birdingStats'
+import {
+  SHADED_PIN_OPACITY, SPECIES_SHADING_HINT, speciesEmptyNote, speciesLegendTitle,
+} from '../lib/countyShadingUi'
+import type { CountyFC } from '../lib/countyBoundaries'
 import { extractUserId, mlCatalogLink, resolveMediaLinkTaxonCode } from '../lib/mlCatalog'
 import { RecentMediaEmbed } from './RecentMediaEmbed'
 import { SectionCard, SectionHead, StatLabel, StatValueLink } from './speciesDetail/ui'
@@ -78,6 +97,16 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   const [showAllLocations, setShowAllLocations] = useState(false)
   const [mapMode, setMapMode] = useState<'pins' | 'heatmap'>('pins')
   const [heatIntensity, setHeatIntensity] = useState(HEAT_INTENSITY_DEFAULT)
+  // Counties overlay (FR-06): off on mount, session-scoped (plain useState, no
+  // storage seam). A tab stays mounted once opened, so this survives leaving and
+  // returning to Species Detail and resets only on relaunch. Deliberately NOT
+  // reset by selectSpecies, along with the Pins/Heatmap mode: switching species
+  // must keep the shading on and keep the map mode (FR-11). The map does still
+  // re-fit its BOUNDS to the new species' coordinates — see `selectSpecies`.
+  const [countiesOn, setCountiesOn] = useState(false)
+  const [countyUseTextures, setCountyUseTextures] = useState(false)
+  const [countyData, setCountyData] = useState<CountyFC | null>(null)
+  const [countyLoading, setCountyLoading] = useState(false)
   const [graphInterval, setGraphInterval] = useState<'weekly' | 'monthly' | 'yearly'>('monthly')
   const [viewMode, setViewMode] = useState<'per-period' | 'cumulative'>('per-period')
   const [showAllCoOccurrence, setShowAllCoOccurrence] = useState(false)
@@ -92,7 +121,19 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
     setCommentSort('newest')
     setShowAllComments(false)
     setShowAllLocations(false)
-    setMapMode('pins')
+    // NO `setMapMode('pins')` HERE. FR-11 forbids a species switch resetting the
+    // Pins/Heatmap mode, and the comment on `countiesOn` above claimed it did
+    // not while this line did exactly that — a pre-existing behavior the county
+    // work inherited and had to decide about, because county shading now rides
+    // on that mode and a silent snap back to Pins takes the user's heatmap and
+    // its shading with it. The PRD is the tie-breaker and it is unambiguous, so
+    // the CODE moved: the mode is now sticky across a species switch.
+    //
+    // The heat intensity IS still re-defaulted, deliberately and narrowly. It is
+    // a per-species density tuning, not a mode: the slider that reads well for
+    // 12,000 crow records is unreadable for 9 records of a rarity. FR-11 names
+    // the viewport, the mode and the Counties control, and says nothing about
+    // it.
     setHeatIntensity(HEAT_INTENSITY_DEFAULT)
     setGraphInterval('monthly')
     setViewMode('per-period')
@@ -359,6 +400,63 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   // Map markers: one per unique lat/lng, with all sightings at that coordinate.
   // Shared with the Named Birds card map via buildSightingMarkers.
   const coordMarkers = useMemo(() => buildSightingMarkers(speciesObs), [speciesObs])
+
+  // ── Per-species county aggregates (FR-09, FR-10) ──────────────────────────
+  // THE ONE PLACE THIS HALF CAN BE SILENTLY, PLAUSIBLY WRONG.
+  // `buildCountyAggregates(observations, checklists)` derives `records` from its
+  // SECOND argument. FR-09 names only `speciesObs`, and the obvious reading —
+  // passing the tab's or the backup's full checklist array — shades EVERY county
+  // the user has ever birded, at its TOTAL checklist count, regardless of
+  // species: a map that looks right and is wrong everywhere.
+  //
+  // `computeChecklists(speciesObs)` yields one ChecklistEntry per distinct
+  // submission IN THE SPECIES SLICE, which makes `records` the user's checklists
+  // in that county that reported this bird, and `topLocations` the top locations
+  // by those same checklists (FR-10). It is the shipped MapExplorer pattern
+  // applied to the species slice, so both maps and the Map Explorer answer from
+  // one implementation.
+  //
+  // GATED ON THE TOGGLE: a user who never turns Counties on never runs this at
+  // all, so "a feature I do not use costs me nothing" is structural rather than
+  // measured. `speciesObs` is the only data input, so switching species reshades
+  // and nothing else re-runs (FR-11).
+  const countyAggregates = useMemo(
+    () => (countiesOn ? buildCountyAggregates(speciesObs, computeChecklists(speciesObs)) : null),
+    [countiesOn, speciesObs],
+  )
+  const countyTiers = useMemo(
+    () => computeCountyTiers(
+      countyAggregates ? nonZeroMetricValues(countyAggregates, 'records') : [],
+      COUNTY_CLASS_COUNT,
+    ),
+    [countyAggregates],
+  )
+  const speciesContext = useMemo(
+    () => (selectedSpecies ? { commonName: selectedSpecies } : null),
+    [selectedSpecies],
+  )
+
+  // Lazy-load the boundary geometry on FIRST enable, so it stays off the entry
+  // chunk (FR-21) and off any session that never turns Counties on (FR-20).
+  // Through the shared module loader, so a second mount site in the same session
+  // parses no geometry a second time (FR-01). Clock- and network-free otherwise:
+  // the shading itself issues zero requests and needs no API key.
+  const handleToggleCounties = useCallback(async () => {
+    const next = !countiesOn
+    setCountiesOn(next)
+    if (!next || countyData || countyLoading) return
+    setCountyLoading(true)
+    try {
+      const { loadCountyGeometry } = await import('../lib/countyGeometry')
+      setCountyData(await loadCountyGeometry())
+    } catch {
+      // Asset failed to load — leave data null; the overlay simply won't draw.
+    } finally {
+      setCountyLoading(false)
+    }
+  }, [countiesOn, countyData, countyLoading])
+
+  const countyShadeOn = countiesOn && !!countyData && !!countyAggregates
 
   const uniqueCoords = useMemo(
     (): [number, number][] => coordMarkers.map(m => [m.lat, m.lng] as [number, number]),
@@ -1136,6 +1234,18 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     </button>
                   ))}
                 </div>
+                {/* Counties: the shipped boxed ToggleSwitch, off on mount and
+                    session-scoped. It sits to the RIGHT of the Pins/Heatmap
+                    group, which is the same rule Statistics follows: the
+                    Counties switch lives in its section's header row. The
+                    cluster keeps flex-wrap, so at 320px it drops to its own
+                    line beneath the title rather than squeezing the group. */}
+                <ToggleSwitch
+                  label="Counties"
+                  checked={countiesOn}
+                  onChange={() => { void handleToggleCounties() }}
+                  busy={countyLoading}
+                />
               </div>
               {mapMode === 'heatmap' && (
                 <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--sr-border-subtle)' }}>
@@ -1174,7 +1284,19 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     branches, two fixes, and a test for each — a single combined
                     test would pass on a half-fix. */}
                 {mapMode === 'pins' ? (
-                  <SightingsMap markers={coordMarkers} switcher compact={false} sharePinResetKey={selectedSpecies} />
+                  <SightingsMap
+                    markers={coordMarkers}
+                    switcher
+                    compact={false}
+                    sharePinResetKey={selectedSpecies}
+                    countyData={countyData}
+                    countyShade={countiesOn}
+                    countyAggregates={countyAggregates}
+                    countyTiers={countyTiers}
+                    countyUseTextures={countyUseTextures}
+                    speciesContext={speciesContext}
+                    isPublicHotspot={isHotspot}
+                  />
                 ) : (
                   <SnowMap
                     initialViewState={{ longitude: uniqueCoords[0]?.[1] ?? 0, latitude: uniqueCoords[0]?.[0] ?? 0, zoom: 5 }}
@@ -1186,11 +1308,53 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
                     // two-finger pan on touch so a thumb-scroll moves the page.
                     cooperativeGestures
                   >
-                    <HeatmapLayer points={heatPoints} intensity={heatIntensity} />
+                    {/* Two mounts, two wirings (FR-07). The heat layer is
+                        re-ordered UNDER the county fill and dimmed while shading
+                        is on, so the tier colors read on top; with Counties off
+                        both props are absent and the layer is byte-identical. */}
+                    <HeatmapLayer
+                      points={heatPoints}
+                      intensity={heatIntensity}
+                      belowFillId={countyShadeOn ? 'sr-county-fill' : undefined}
+                      opacity={countyShadeOn ? SHADED_PIN_OPACITY : undefined}
+                    />
+                    {countyData && (
+                      <>
+                        <CountyLayer
+                          data={countyData}
+                          shade={countiesOn}
+                          aggregates={countyAggregates}
+                          tiers={countyTiers}
+                          metric="records"
+                          useTextures={countyUseTextures}
+                          speciesContext={speciesContext}
+                          isPublicHotspot={isHotspot}
+                        />
+                        <BasemapDesaturation active={countyShadeOn} />
+                      </>
+                    )}
                     <MapBoundsFitter coordinates={uniqueCoords} />
                     <SharePin key={selectedSpecies} compact={false} buttonHost="corner" />
                   </SnowMap>
                 )}
+              </div>
+
+              {/* The shading panel, beneath the map. Everything that changes how
+                  the shading paints lives here, in the Map Explorer's order
+                  (metric, textures, legend) — minus the metric, which per
+                  species would offer one useful option and one meaningless one
+                  (OQ-04). */}
+              <div style={{ padding: '0 18px 14px' }}>
+                <CountyShadingPanel
+                  open={countiesOn}
+                  metric="records"
+                  useTextures={countyUseTextures}
+                  onToggleTextures={() => setCountyUseTextures(v => !v)}
+                  tiers={countyTiers}
+                  legendTitle={selectedSpecies ? speciesLegendTitle(selectedSpecies) : undefined}
+                  hint={SPECIES_SHADING_HINT}
+                  emptyNote={selectedSpecies ? speciesEmptyNote(selectedSpecies) : ''}
+                />
               </div>
             </SectionCard>
           )}

@@ -2,6 +2,16 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.5] - 2026-08-27
+
+### Added
+- **County shading on the Species Detail and Statistics maps.** The county overlay that the Map Explorer has had since 0.5.46 now works in two more places. On a bird's own page it shades only the counties where you have recorded that bird, so "where have I found this one" is answered by the map rather than by reading a list of pins, and a county's popup tells you how many times you recorded it there and at which spots. On Statistics, the Geographic Stats map shades every county you have birded, by species or by checklists, using the same colours and patterns as the Map Explorer. Both maps behave exactly as before until you turn the overlay on, and neither loads the county boundaries until you do. County shading needs no network and no API key: it works offline, straight from your export.
+- **Projects on the Statistics tab.** eBird lets your checklists feed shared surveys such as a breeding bird atlas, but it never shows you how much you have contributed. SnowRaven now can. Your backup file does not record it, so this is a check the app runs against eBird using your own key, one request per checklist, and it says up front what that will cost before you press anything. It is stoppable at any point, every answer it gets is kept, and it picks up where it left off. Because a checklist's project never changes after you submit it, the check only needs to happen once: load a newer backup later and it asks only about the checklists you have added since. Every count is shown with the number of checklists it is based on, so a partial answer reads as a floor rather than a finished total, and a check that has never been run shows no number at all rather than a zero. How you submitted a checklist, through the eBird website, the app, or Merlin, is reported separately, because that is not a project.
+
+### Fixed
+- **County popups no longer run off the edge of a narrow map.** On a small phone at the largest text size the county popup could open well past the edge of its map and take its close button with it, leaving no way to dismiss it. The popup is now sized to what its map can actually hold, and on a map too narrow to hold a readable one it sits against the map instead of being anchored to the spot you tapped. This was not new: the same overflow was reachable on the Species Detail and Map Explorer maps at ordinary text sizes, and all three are fixed. Nothing changes on a map wider than about 380 pixels, which covers every desktop window.
+- **A checklist recorded only as a form no longer disappears from a count of checklists.** With "Count all forms" off, a checklist whose only entry was something like "hawk sp." dropped out of the total, so the number of checklists disagreed with the file by one.
+
 ## [1.0.4] - 2026-08-27
 
 ### Fixed

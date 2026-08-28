@@ -41,6 +41,7 @@ import {
   EMPTY_SNAPSHOT, seenToken,
   type ProvenanceSnapshot, type SpeciesProvenanceRecord,
 } from './exoticProvenance'
+import { SUBMISSION_KEY_RE } from './checklistId'
 
 /** OQ-04: 30 days, matching COMPLETENESS_TTL_MS. Governs RE-CONSULTATION, not
  *  display: a stale record still counts and still excludes (schema.md §9). */
@@ -124,9 +125,12 @@ const SPECIES_CODE_KEY_RE = /^[a-z0-9-]{2,16}$/
 // constant's `{1,15}` — closing the window where an id passed every guard yet
 // failed here, silently discarding the record (the v0.5.87 shape). A persisted
 // KEY must be structurally bounded either way, so this stays the reference:
-// do not loosen it, re-point the app-wide constants at it, or introduce
-// another copy of it.
-const SUBMISSION_KEY_RE = /^S[0-9]{1,15}$/
+// do not loosen it.
+//
+// HOISTED (county-shading-and-project-stats): the literal now lives in
+// `lib/checklistId.ts`, which has no imports of its own, so the projects store
+// shares it rather than becoming the third copy this comment forbade. The
+// re-export keeps this module's own reads reading the same name.
 
 // "<category>|<doNotCount>", both raw, both bounded ASCII uppercase.
 const SEEN_TOKEN_RE = /^[A-Z]{0,4}\|[A-Z]{0,8}$/

@@ -1,8 +1,8 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import {
   BarChart2, Trophy, Clock, MapPin, ShieldCheck, Dna,
   AlertCircle, Loader2, ChevronDown, ChevronUp, Calendar, Video,
-  ListOrdered, Award, Sparkles,
+  ListOrdered, Award, Sparkles, ClipboardList,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -11,6 +11,22 @@ import {
 import { Marker, Popup } from 'react-map-gl/maplibre'
 import { SnowMap } from './SnowMap'
 import { SharePin } from './map/SharePin'
+// STATIC imports, deliberately (FR-21): entryChunk.test.ts's walker follows
+// STATIC edges only, so its guard-the-guard ("this host's subtree reaches
+// CountyLayer") is satisfiable only this way. Safe because this component is
+// already off App.tsx's static closure — it mounts SnowMap. The GEOMETRY stays
+// lazy: `loadCountyGeometry` is reached by `await import()` in the toggle
+// handler below.
+import { CountyLayer } from './map/CountyLayer'
+import { BasemapDesaturation } from './map/BasemapDesaturation'
+import { CountyShadingPanel } from './map/CountyShadingPanel'
+import { ToggleSwitch } from './ui/ToggleSwitch'
+import {
+  buildCountyAggregates, computeCountyTiers, nonZeroMetricValues, COUNTY_CLASS_COUNT,
+  type CountyMetric,
+} from '../lib/countyShading'
+import { SHADED_PIN_OPACITY, STATS_SHADING_HINT, STATS_EMPTY_NOTE } from '../lib/countyShadingUi'
+import type { CountyFC } from '../lib/countyBoundaries'
 import { ChartViewTip } from './ChartViewTip'
 import { buildMediaGraphData } from '../lib/sightingsGraph'
 import type { MediaGraphInterval } from '../lib/sightingsGraph'
@@ -31,6 +47,8 @@ import {
 import { buildCoverIndex, EMPTY_LOOKUP } from '../lib/exoticProvenance'
 import { useExoticProvenance } from '../lib/useExoticProvenance'
 import { ExoticProvenanceAccount } from './ExoticProvenanceAccount'
+import { ProjectsSection } from './ProjectsSection'
+import { useChecklistProjects } from '../lib/useChecklistProjects'
 import { ESCAPEE_TOGGLE_LABEL } from '../lib/exoticCopy'
 import { useOnline } from '../lib/useOnline'
 import type { Granularity, PeriodGranularity } from '../lib/birdingStats'
@@ -80,9 +98,28 @@ const PROTOCOL_COLORS = [
 // the page.
 const NAV_SECTIONS = [
   'Life List Totals', 'Top Species', 'Firsts & Milestones', 'Temporal Stats',
-  'Geographic Stats', 'Effort & Outings', 'Data Quality', 'Highlights & Records',
-  'Breeding Stats',
+  'Geographic Stats', 'Effort & Outings', 'Projects', 'Data Quality',
+  'Highlights & Records', 'Breeding Stats',
 ]
+
+/**
+ * Dims a rank pin beneath an active county fill so the tier colors read on top
+ * (FR-05). With shading OFF it renders NOTHING of its own — not a wrapper with
+ * `opacity: 1`, which would be new DOM on a surface FR-19 requires to be
+ * identical to the pre-change build. The wrapper exists only while it is doing
+ * something.
+ */
+function DimmablePin({ dim, children }: { dim: boolean; children: React.ReactNode }) {
+  if (!dim) return <>{children}</>
+  return (
+    <span style={{
+      display: 'block', opacity: SHADED_PIN_OPACITY,
+      transition: 'opacity 200ms cubic-bezier(0.16, 1, 0.3, 1)',
+    }}>
+      {children}
+    </span>
+  )
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -101,6 +138,16 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const [mlTaxonMap, setMlTaxonMap] = useState<Record<string, string>>({})
   const [mlTaxonOrders, setMlTaxonOrders] = useState<Record<string, number>>({})
   const [geoPopup, setGeoPopup] = useState<{ lng: number; lat: number; title: string; sub: string } | null>(null)
+  // Geographic Stats county shading (FR-13): both off/default on mount and
+  // session-scoped (plain useState, no storage seam). A tab stays mounted once
+  // opened, so they survive leaving and returning to Statistics and reset only
+  // on relaunch. NO Completeness option: this surface offers exactly two
+  // metrics and reaches no completeness controller (FR-16).
+  const [countiesOn, setCountiesOn] = useState(false)
+  const [countyMetric, setCountyMetric] = useState<CountyMetric>('species')
+  const [countyUseTextures, setCountyUseTextures] = useState(false)
+  const [countyData, setCountyData] = useState<CountyFC | null>(null)
+  const [countyLoading, setCountyLoading] = useState(false)
   const { isHotspot } = useHotspotSet()
   const [mediaInterval, setMediaInterval] = useState<MediaGraphInterval>('monthly')
   const [mediaViewMode, setMediaViewMode] = useState<'per-period' | 'cumulative'>('per-period')
@@ -326,11 +373,56 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
   const excludedNames = provenance.lookup.excludedNames
   const appliedExcluded = includeEscapees ? EMPTY_LOOKUP.excludedNames : excludedNames
 
+  // Lazy-load the boundary geometry on FIRST enable, through the shared module
+  // loader (FR-01/FR-21): if Species Detail already enabled Counties this
+  // session, nothing is imported or parsed a second time. Zero network, no API
+  // key: the shading is computed entirely from the loaded export (FR-20).
+  const handleToggleCounties = useCallback(async () => {
+    const next = !countiesOn
+    setCountiesOn(next)
+    if (!next || countyData || countyLoading) return
+    setCountyLoading(true)
+    try {
+      const { loadCountyGeometry } = await import('../lib/countyGeometry')
+      setCountyData(await loadCountyGeometry())
+    } catch {
+      // Asset failed to load — leave data null; the overlay simply won't draw.
+    } finally {
+      setCountyLoading(false)
+    }
+  }, [countiesOn, countyData, countyLoading])
+
   // ── useMemos (all declared before any conditional return) ─────────────────
 
   const filteredObs = useMemo(() => filterObservations(effectiveObs, deferredIncludeSpuh), [effectiveObs, deferredIncludeSpuh])
 
   const checklists = useMemo(() => computeChecklists(filteredObs), [filteredObs])
+
+  // The projects sweep's checklist set — deliberately NOT the `checklists` memo
+  // above, and this is a correctness fix rather than a preference.
+  //
+  // `checklists` is derived from `filteredObs`, so it carries the "Count all
+  // forms" DISPLAY toggle. Two things followed from that, both wrong. The
+  // section's denominator moved with a taxonomy checkbox: on the reference
+  // export `S290076558`'s only row is a `hawk sp.`, so the "exact number of
+  // requests" FR-49 requires the never-run state to name read 3,251 with the
+  // toggle off and 3,252 with it on — for a figure that is a count of
+  // CHECKLISTS, about which the toggle has nothing to say. And because the
+  // identity changed with the toggle, flipping it mid-sweep tripped FR-46's
+  // export-swap cancellation and silently killed a running eight-minute pass.
+  //
+  // A checklist is a checklist whichever taxa you have chosen to display, so
+  // this depends on `effectiveObs` alone — the same reasoning, and the same
+  // shape, as `countableBackboneNames` above. A genuinely different export
+  // still changes this identity and still cancels the pass, which is what
+  // FR-46 actually asks for.
+  const projectChecklists = useMemo(() => computeChecklists(effectiveObs), [effectiveObs])
+
+  // The projects sweep. Mounted HERE and nowhere else, so "no other surface can
+  // initiate a projects request" is an import-graph fact rather than a
+  // convention. It mounts IDLE: there is no auto-start effect anywhere in the
+  // controller, so opening this tab issues zero requests (FR-39, FR-40).
+  const projects = useChecklistProjects({ checklists: projectChecklists, hasEbirdKey, online })
 
   const lifeList = useMemo(() => computeLifeList(filteredObs), [filteredObs])
 
@@ -373,6 +465,31 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
   // Geographic stats
   const geo = useMemo(() => computeGeo(checklists, filteredObs), [checklists, filteredObs])
+
+  // ── County shading for the Geographic Stats map (FR-14, FR-15) ────────────
+  // Built from the EXACT `filteredObs` / `checklists` memos that feed
+  // `computeGeo` above, so the map and the ranked county tables beside it cannot
+  // disagree by construction rather than by discipline.
+  //
+  // Cross-surface agreement with the Map Explorer (FR-15) holds at the default
+  // setting because both sides then compute `filterObservations(allObs, false)`
+  // over the same parsed export: MapExplorer hardcodes includeSpuh = false and
+  // this tab's `includeSpuh` defaults false. The escapee toggle does not enter
+  // `filteredObs` at all, so it cannot make the two disagree.
+  //
+  // GATED ON THE TOGGLE, so a user who never turns Counties on never runs it.
+  const countyAggregates = useMemo(
+    () => (countiesOn ? buildCountyAggregates(filteredObs, checklists) : null),
+    [countiesOn, filteredObs, checklists],
+  )
+  const countyTiers = useMemo(
+    () => computeCountyTiers(
+      countyAggregates ? nonZeroMetricValues(countyAggregates, countyMetric) : [],
+      COUNTY_CLASS_COUNT,
+    ),
+    [countyAggregates, countyMetric],
+  )
+  const countyShadeOn = countiesOn && !!countyData && !!countyAggregates
 
   // Effort stats
   const effort = useMemo(() => computeEffort(checklists), [checklists])
@@ -972,7 +1089,20 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
       </SectionCard>
 
       {/* ── Section 4: Geographic Stats ────────────────────────────────────── */}
-      <SectionCard title="Geographic Stats" icon={<MapPin size={16} />}>
+      <SectionCard
+        title="Geographic Stats"
+        icon={<MapPin size={16} />}
+        action={
+          // One rule across both surfaces: the Counties switch lives in its
+          // section's header row. Off on mount, session-scoped.
+          <ToggleSwitch
+            label="Counties"
+            checked={countiesOn}
+            onChange={() => { void handleToggleCounties() }}
+            busy={countyLoading}
+          />
+        }
+      >
         {(() => {
           const clPins = geo.topLocations
             .map((loc, i) => loc.lat !== null ? { name: loc.name, checklists: loc.checklists, lat: loc.lat, lng: loc.lng!, rank: i + 1 } : null)
@@ -997,13 +1127,17 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                     {clPins.map(pin => (
                       <Marker key={`cl-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
                         onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.checklists)} checklists` }) }}>
-                        <RankIcon rank={pin.rank} shape="circle" label={`#${pin.rank} by checklists: ${pin.name}, ${fmt(pin.checklists)} checklists`} />
+                        <DimmablePin dim={countyShadeOn}>
+                          <RankIcon rank={pin.rank} shape="circle" label={`#${pin.rank} by checklists: ${pin.name}, ${fmt(pin.checklists)} checklists`} />
+                        </DimmablePin>
                       </Marker>
                     ))}
                     {spPins.map(pin => (
                       <Marker key={`sp-${pin.rank}`} longitude={pin.lng} latitude={pin.lat} anchor="center"
                         onClick={e => { e.originalEvent.stopPropagation(); setGeoPopup({ lng: pin.lng, lat: pin.lat, title: pin.name, sub: `${fmt(pin.species)} species` }) }}>
-                        <RankIcon rank={pin.rank} shape="square" label={`#${pin.rank} by species: ${pin.name}, ${fmt(pin.species)} species`} />
+                        <DimmablePin dim={countyShadeOn}>
+                          <RankIcon rank={pin.rank} shape="square" label={`#${pin.rank} by species: ${pin.name}, ${fmt(pin.species)} species`} />
+                        </DimmablePin>
                       </Marker>
                     ))}
                     {/* closeButton enabled so the popup is keyboard-dismissable —
@@ -1013,6 +1147,27 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                       <Popup longitude={geoPopup.lng} latitude={geoPopup.lat} anchor="bottom" offset={16} onClose={() => setGeoPopup(null)} closeButton>
                         <span style={{ fontSize: '0.8125rem' }}>{geoPopup.title}</span><br /><span style={{ color: 'var(--sr-text-muted)', fontSize: '0.75rem' }}>{geoPopup.sub}</span>
                       </Popup>
+                    )}
+                    {/* Counties (FR-13). Rendered only once the geometry has
+                        loaded, so with the control off this subtree does not
+                        exist: no layer, no source, no basemap effect, no new
+                        DOM. The ranked pins, their popups, the share pin,
+                        fitToPins and the mapReady deferral are untouched. */}
+                    {countyData && (
+                      <>
+                        <CountyLayer
+                          data={countyData}
+                          shade={countiesOn}
+                          aggregates={countyAggregates}
+                          tiers={countyTiers}
+                          metric={countyMetric}
+                          useTextures={countyUseTextures}
+                          isPublicHotspot={isHotspot}
+                          onOpenSpecies={onOpenSpecies}
+                          taxonCodeFor={codeFor}
+                        />
+                        <BasemapDesaturation active={countyShadeOn} />
+                      </>
                     )}
                     {/* Pin Share, surface E. No reset key needed: this map has no
                         entity behind it that can change under a mounted map. */}
@@ -1034,6 +1189,19 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
                   <span style={{ fontSize: '0.6875rem', color: 'var(--sr-text-muted)' }}>Top by species</span>
                 </div>
               </div>
+              {/* The shading panel, beneath the rank-pin legend row. Exactly two
+                  metric options; no Completeness, and no code path from this
+                  surface that could reach one (FR-16). */}
+              <CountyShadingPanel
+                open={countiesOn}
+                metric={countyMetric}
+                onMetricChange={setCountyMetric}
+                useTextures={countyUseTextures}
+                onToggleTextures={() => setCountyUseTextures(v => !v)}
+                tiers={countyTiers}
+                hint={STATS_SHADING_HINT}
+                emptyNote={STATS_EMPTY_NOTE}
+              />
             </div>
           )
         })()}
@@ -1486,7 +1654,20 @@ export function BirdingStats({ onGoToSettings, onOpenSpecies }: { onGoToSettings
 
       </SectionCard>
 
-      {/* ── Section 6: Data Quality ────────────────────────────────────────── */}
+      {/* ── Section 6: Projects ────────────────────────────────────────────── */}
+      {/* Immediately after Effort & Outings (OQ-03's default). It is a
+          contribution reading, which sits naturally with effort, and it is this
+          tab's only user-initiated network section, so it is low enough not to
+          be pressed by reflex. The jump-nav chip and the docs/HELP.md heading
+          sit in the same position.
+
+          ClipboardList reads as a survey you fill in and is legible at 16px
+          (Handshake was built first and rejected: five paths turn to mush). */}
+      <SectionCard title="Projects" icon={<ClipboardList size={16} />}>
+        <ProjectsSection controller={projects} onGoToSettings={onGoToSettings} />
+      </SectionCard>
+
+      {/* ── Section 7: Data Quality ────────────────────────────────────────── */}
       <SectionCard title="Data Quality" icon={<ShieldCheck size={16} />}>
 
         {quality.numericRatio !== null && quality.xRatio !== null && (() => {

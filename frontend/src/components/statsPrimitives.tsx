@@ -3,8 +3,15 @@
 import { fmt, sectionSlug } from '../lib/statsFormat'
 import { OutboundLink } from './OutboundLink'
 
-export function SectionCard({ children, title, icon }: {
+export function SectionCard({ children, title, icon, action }: {
   children: React.ReactNode; title: string; icon: React.ReactNode
+  /** OPTIONAL trailing action slot in the head row
+   *  (county-shading-and-project-stats). It exists so the Counties switch can
+   *  live in its section's header row on Statistics exactly as it does on
+   *  Species Detail — one placement rule across both surfaces. Additive: every
+   *  existing caller passes nothing and renders byte-identically, because the
+   *  slot is not rendered at all when absent. */
+  action?: React.ReactNode
 }) {
   return (
     // tabIndex={-1} so the jump-nav (BirdingStats) can move keyboard focus here
@@ -20,13 +27,14 @@ export function SectionCard({ children, title, icon }: {
       padding: 'clamp(14px, 4vw, 24px)',
       boxShadow: 'var(--sr-card-shadow)',
     }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
+      <div className="sr-wrap-flex" style={{
+        alignItems: 'center', ['--sr-wrap-gap' as string]: '8px',
         marginBottom: 20, paddingBottom: 16,
         borderBottom: '1px solid var(--sr-border-subtle)',
       }}>
         <span style={{ color: 'var(--sr-accent)' }}>{icon}</span>
         <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0 }}>{title}</h3>
+        {action && <div className="sr-cardhead-action">{action}</div>}
       </div>
       {children}
     </div>

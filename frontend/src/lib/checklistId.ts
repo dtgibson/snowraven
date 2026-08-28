@@ -42,3 +42,21 @@ export function isValidChecklistId(id: string): boolean {
   // carve-out rather than fixing a live defect here.
   return /^S\d{1,15}$/.test(id)
 }
+
+/**
+ * The persisted-KEY guard for an eBird submission id, hoisted here from
+ * `lib/exoticProvenanceCache.ts` (county-shading-and-project-stats) so a second
+ * durable store can share it rather than carry a third copy — that module's own
+ * comment carried an explicit instruction against another copy.
+ *
+ * It is deliberately the same bounded literal as `isValidChecklistId` above and
+ * as the backend's `CHECKLIST_ID_RE`, written with an explicit ASCII `[0-9]`
+ * rather than `\d`: the ceiling exists to ALIGN every guard so an id can never
+ * pass a request/link guard and then fail a store's own key guard (the v0.5.87
+ * silent-discard shape). `checklistId.fixture.json` carries the at-ceiling and
+ * over-ceiling rows that hold both transports to it.
+ *
+ * This file has NO imports, so hoisting it here adds a pure leaf to the
+ * store modules' graphs and keeps `exoticProvenanceGraph.test.ts` green.
+ */
+export const SUBMISSION_KEY_RE = /^S[0-9]{1,15}$/

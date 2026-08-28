@@ -1,6 +1,5 @@
 import asyncio
 import os
-import re
 import time
 from urllib.parse import quote
 
@@ -9,59 +8,27 @@ from fastapi import APIRouter, HTTPException, Query
 
 from http_client import get_client
 from routers.taxonomy import collapse_to_species_list
+from services.ebird_errors import (
+    parse_retry_after_seconds,
+    raise_ebird_http_error,
+)
 
 router = APIRouter()
 
 _EBIRD_BASE = "https://api.ebird.org/v2"
 
-# ── The hotspot-activity 429 contract (the pre-deploy pacing revision) ────────
-# Identical on both transports (fixture-locked: hotspotActivity.fixture.json
-# rateLimit — the Tauri twin throws the same detail string).
-_RATE_LIMIT_DETAIL = "eBird is limiting requests right now. Try again in a moment."
-
-_RETRY_AFTER_CAP_SEC = 60
-# Seconds form only, 1-3 digits (length-bounded). Explicit [0-9], never \d
-# (Python's \d matches Unicode digits — the v0.5.54 twinned-guard rule), and
-# fullmatch, the house form for a hand-called guard (a trailing newline must
-# not pass — the pydantic pattern= carve-out does NOT apply here, this is
-# stdlib re, not a Rust-regex constraint).
-_RETRY_AFTER_RE = re.compile(r"[0-9]{1,3}")
-
-
-def _parse_retry_after_seconds(value) -> int | None:
-    """Twin of frontend lib/rateLimit.ts parseRetryAfterSeconds — the shared
-    fixture's rateLimit.retryAfterRows pin both member by member. Returns
-    bounded whole seconds, or None for absent/malformed/zero (an HTTP-date
-    form parses as None; the client's default backoff covers it). Values over
-    the cap are capped, not rejected."""
-    if not isinstance(value, str) or _RETRY_AFTER_RE.fullmatch(value) is None:
-        return None
-    n = int(value)
-    if n < 1:
-        return None
-    return min(n, _RETRY_AFTER_CAP_SEC)
-
-
-def _raise_ebird_http_error(exc: httpx.HTTPStatusError):
-    """The one non-2xx mapping for every eBird call in this router (v0.5.93,
-    extending the hotspot-activity route's 429 contract to all of them): an
-    upstream 429 is re-surfaced AS a 429 with the shared fixture detail and a
-    re-serialized bounded Retry-After (the upstream header is never reflected
-    raw), so the client's shared gate (lib/ebirdGate.ts) can pace and retry;
-    anything else maps to the generic 502 shape. Twin: lib/tauri/mapService.ts
-    throwEbirdHttpError — keep both in lockstep (each route also keeps its own
-    429 test, the v0.5.88 per-consumer rule)."""
-    if exc.response.status_code == 429:
-        retry_after = _parse_retry_after_seconds(exc.response.headers.get("Retry-After"))
-        raise HTTPException(
-            status_code=429,
-            detail=_RATE_LIMIT_DETAIL,
-            headers={"Retry-After": str(retry_after)} if retry_after is not None else None,
-        )
-    raise HTTPException(
-        status_code=502,
-        detail=f"eBird API error: {exc.response.status_code}",
-    )
+# ── The eBird 429 contract, single-sourced (county-shading-and-project-stats) ─
+# The mapper and its Retry-After parser moved to services/ebird_errors.py so
+# routers/checklists.py can surface a 429 through the SAME code rather than a
+# copy (FR-30). These module-level aliases are kept deliberately: this router's
+# five call sites and test_map_router.py's existing patch targets both resolve
+# through them, so the extraction changes no behavior and no test plumbing.
+#
+# Only the 429 half is shareable — the checklist route keeps its own non-429
+# fallback, whose detail the Life List Comparer displays (see the ebird_errors
+# module docstring).
+_parse_retry_after_seconds = parse_retry_after_seconds
+_raise_ebird_http_error = raise_ebird_http_error
 
 
 def _api_key() -> str:
