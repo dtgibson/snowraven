@@ -4,6 +4,32 @@ Project-level decisions, bug post-mortems, and meaningful reversals recorded her
 
 ---
 
+## "Subspecies and forms" is the countable set that folds to a parent -- and the label pays for the breadth -- 2026-08-29 (v1.0.6)
+
+**Decision:** the Subspecies Explorer's unit is a raw observation name that folds to a different parent species AND is countable under eBird's own rule: ISSF subspecies groups, intergrades and domestic types are in; hybrids, spuhs, slashes and undescribed forms are out. Every surface of the feature says "Subspecies and forms", never plain "Subspecies".
+
+**Rationale:** a pure-subspecies-only definition would need classification the app's utilities do not hold, while the broader set is exactly what the trusted v0.5.89 machinery already computes (`normalizeSpeciesName` for the fold, `isNonCountableForm` on the raw name for countability), so the feature inherits tested classification instead of inventing a second one. The honest label is the cost of the breadth, paid in copy rather than in a new classifier.
+
+**Implications:** a future per-form surface (Statistics, Life List and Multimedia were scoped out for v1) reuses the same definition and the same two utilities; a run that wants true subspecies-only must first build that classification, not narrow the label.
+
+## Two figures on one page disagree by RULE, so the difference ships as a published ledger, never a forced equality -- 2026-08-29 (v1.0.6)
+
+**Decision:** the breakdown's countable-only total and the merged Sightings "Checklists" figure disagree whenever a non-countable variant (a hybrid, a slash) folds to the selected species, because the merged memo includes those rows and the breakdown by definition excludes them. The resolution is a `nonCountableCount` ledger carrying the tested identity breakdown total + ledger = Sightings figure, plus a user-visible footnote naming both numbers whenever the ledger is nonzero. The merged view itself is byte-unchanged.
+
+**Rationale:** the PRD's parity requirement (FR-13) rested on the assumption that the merged aggregate was already countable-only; The Architect verified that assumption against `SpeciesDetail.tsx` at Stage 3 and it does not hold. Forcing raw equality would mean either changing the shipped merged view (barred by the same PRD) or silently mis-stating the breakdown, and FR-13's own surface-the-conflict clause pre-authorized exactly this repair, so it landed as a targeted restatement rather than a rebuild.
+
+**Implications:** when two figures on one surface derive from different inclusion rules, publish the difference -- an identity the tests pin plus a footnote the user sees -- rather than bending either number or hiding the gap. And the run-over-run lesson holds in its good direction for once: v1.0.4 and v1.0.5 each recorded records agreeing with each other and not with the code; here the premise WAS checked against the implementation before building, which is why the finding cost a restated criterion instead of a mid-build cascade.
+
+## The App Store hold at 1.0.6 is the standing rule operating, with nothing to decide -- 2026-08-29 (v1.0.6)
+
+**Decision:** 1.0.6 shipped to macOS, Windows, the website and TestFlight, and was not submitted to the App Store; the in-review 1.0.4 submission (`b52fdc55`) stays queued, and the then-current version goes out as an ordinary store update once it clears.
+
+**Rationale:** unlike 1.0.5, which cleared the replacement bar and whose replacement the user declined anyway, 1.0.6 fixes nothing the in-review build gets wrong, so no replacement question arose. This is the rule recorded at 1.0.2 and made standing at 1.0.3, operating as written.
+
+**Implications:** none new. Recorded so every release's store-leg disposition stays on one audit trail and a missing leg is never read as an oversight.
+
+---
+
 ## Completeness stays on the Map Explorer, against a roadmap entry that assumed all three metrics -- 2026-08-27 (v1.0.5)
 
 **Decision: the two new county-shading mounts carry Species and Records only.** The roadmap had carried "County shading on the Species Detail and Statistics maps" since v0.5.46 with an explicit note that the extension "would now carry all three metrics, including v0.5.54's Completeness." That note is overruled, deliberately and at scoping time rather than by omission during the build.

@@ -255,6 +255,24 @@ italic at 0.71875rem `--sr-text-gray`.
   the container instead. The sheet is the form that makes a phone-width map usable;
   the anchored form is unchanged on any map wide enough to hold it, which is every
   desktop window. The county popup is the exemplar.
+- **Share breakdown (one whole split into rows that sum to 100%):** a SectionCard
+  opening with a headline stat pair — micro-caps `StatLabel` over a 1.25rem/700
+  figure, the accent-colored figure being the share the section exists to answer —
+  then one row per part: the name (through `BirdName` when it is a bird; display
+  copy in `--sr-text-muted` when it is not), a right-aligned count with its unit
+  and a weight-700 percentage in tabular numerals, and a 3px share bar under the
+  line (track `--sr-border`, fill `--sr-accent`). The residual "none of the above"
+  row is pinned last with a `--sr-gray-400` fill so it reads as a different kind
+  of row without relying on color alone, and is absent when its count is zero.
+  Percentages come from the shared shaping contract (`lib/subspeciesExplorer.ts`):
+  integer tenths, a 0.1% floor for nonzero rows, residue absorbed by the largest
+  row so the display sums to exactly 100.0, a flat "100%" for a single row. Where
+  the section's total deliberately disagrees with a sibling figure, publish the
+  difference as a muted footnote naming both numbers, never a silent discrepancy.
+  Bars animate width from zero via a CSS mount animation keyed by a deterministic
+  resetKey, so the animation replays exactly when the data changed (reduced-motion
+  renders final width instantly); bars are reinforcement only — every value is
+  present as text. The Species Detail Subspecies and Forms section is the exemplar.
 
 ## Accessibility commitments
 Every `<button>` gets explicit `tabIndex={0}` (WKWebView Tab behavior); toggles
