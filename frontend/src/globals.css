@@ -3738,3 +3738,119 @@ select:focus-visible {
   /* Calendar big months: one column on the small-phone tier. */
   .sr-cal-months { grid-template-columns: 1fr; }
 }
+
+/* ── Subspecies Explorer (Species Detail, subspecies-explorer) ───────────────
+   The "Subspecies and forms" disclosure below the species selector, its
+   full-backup list panel, and the breakdown section's share-bar fill. Hover,
+   open-state, and motion live here (inline styles cannot carry pseudo-classes
+   or keyframes); colours are --sr-* tokens only, both themes, no new tokens.
+   All motion is ease-out and under 300ms; the global prefers-reduced-motion
+   rule above collapses every one of these to ~instant. */
+.sr-ssx-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 0 12px 0 8px; border-radius: 8px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  color: var(--sr-text); cursor: pointer;
+  transition: background 140ms ease-out, border-color 140ms ease-out, color 140ms ease-out;
+}
+.sr-ssx-toggle:hover { background: var(--sr-surface-subtle); }
+/* Open state mirrors the county select's active-filter treatment: accent only
+   while active (design-spec.md). */
+.sr-ssx-toggle[aria-expanded="true"] {
+  background: var(--sr-accent-bg);
+  border-color: var(--sr-accent-border-strong);
+  color: var(--sr-accent);
+}
+.sr-ssx-tile {
+  width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.sr-ssx-toggle[aria-expanded="true"] .sr-ssx-tile { background: var(--sr-surface); }
+[data-theme="dark"] .sr-ssx-toggle[aria-expanded="true"] .sr-ssx-tile { background: var(--sr-surface-subtle); }
+/* No font-size on the count span: it inherits the button's, so the phone-tier
+   .sr-ctl-row raise keeps label and count at one size (v0.5.81 rule). */
+.sr-ssx-count { color: var(--sr-text-muted); font-weight: 500; }
+.sr-ssx-toggle[aria-expanded="true"] .sr-ssx-count { color: var(--sr-accent); }
+.sr-ssx-caret { color: var(--sr-text-muted); transition: transform 200ms ease-out; }
+.sr-ssx-toggle[aria-expanded="true"] .sr-ssx-caret { transform: rotate(180deg); color: var(--sr-accent); }
+
+/* The panel is conditionally RENDERED by React, never CSS-collapsed, so no
+   `inert` is owed while closed (there is no closed subtree). Origin-aware
+   pop-in from the control above: transform-origin top left. */
+.sr-ssx-panel {
+  margin-top: 8px;
+  border: 1px solid var(--sr-border); border-radius: 10px;
+  background: var(--sr-surface-faint);
+  overflow: hidden;
+  transform-origin: top left;
+  animation: sr-ssx-pop-in 200ms ease-out;
+}
+@keyframes sr-ssx-pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.sr-ssx-panel-head {
+  padding: 10px 14px;
+  font-size: 0.71875rem; color: var(--sr-text-muted); line-height: 1.5;
+}
+.sr-ssx-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--sr-border-subtle); }
+.sr-ssx-list li + li { border-top: 1px solid var(--sr-border-subtle); }
+.sr-ssx-row {
+  display: block; width: 100%; text-align: left;
+  border: none; background: none; cursor: pointer;
+  font-family: inherit; padding: 10px 14px;
+  transition: background 120ms ease-out;
+}
+.sr-ssx-row:hover { background: var(--sr-surface-subtle); }
+.sr-ssx-row[aria-current="true"] { background: var(--sr-accent-bg); }
+.sr-ssx-row-top { display: flex; align-items: baseline; gap: 10px; }
+.sr-ssx-row-name { min-width: 0; overflow-wrap: anywhere; }
+/* BirdName renders these names in its non-link form; the explorer's own
+   weight/size overrides ride on wrappers so the shared component stays shared. */
+.sr-ssx-row-name .sr-birdname-text { font-weight: 600; }
+.sr-ssx-row[aria-current="true"] .sr-ssx-row-name .sr-birdname-text { color: var(--sr-accent); }
+.sr-ssx-row-count {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sr-ssx-row-forms {
+  display: block; margin-top: 3px;
+  font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.sr-ssx-row-forms .sr-birdname-text { font-size: 0.75rem; font-weight: 400; color: var(--sr-text-muted); }
+.sr-ssx-pct { font-weight: 600; font-variant-numeric: tabular-nums; }
+.sr-ssx-dot { padding: 0 5px; color: var(--sr-text-disabled); }
+
+/* Breakdown share bars: width 0 to the row's share on mount; the row list is
+   keyed per species/filter change, so the fill replays exactly when the data
+   changed and never on an unrelated re-render (Motion Spec: 240ms ease-out,
+   left origin by construction; reduced motion renders at final width). */
+@keyframes sr-ssx-bar-in { from { width: 0; } }
+.sr-ssx-bar-fill { animation: sr-ssx-bar-in 240ms ease-out; }
+
+/* Phone-tier containment for the entry control (QA-27 fix). At 320px/200% the
+   .sr-ctl-row guard takes the button's text to max(16px, 0.75rem) = 24px, and
+   the single unwrappable flex line's min-content — tile + the label's longest
+   word + the count's longest word + caret + gaps + padding — measured 286.5px
+   inside the app's 272px content column (14.5px past the content box, both
+   themes; grows with the count text). Letting the CONTENT wrap makes the
+   button's min-content the largest single item (~127px), so it fits at any
+   realistic count; max-width is the v0.5.82 "a responsive class needs a width
+   cap to bind" belt. The small vertical padding only breathes when a second
+   line actually exists (single-line keeps the 34px min-height geometry), and
+   wrap engages only when space runs out, so ordinary sizes keep the approved
+   single-line chip. Same defect class and same repair shape as the Breeding
+   Codes filter pills above (327.11px min-content inside a 272px panel). */
+@media (max-width: 640px) {
+  .sr-ssx-toggle {
+    flex-wrap: wrap;
+    max-width: 100%;
+    row-gap: 2px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+}

@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.6] - 2026-08-29
+
+### Added
+- **A Subspecies Explorer on Species Detail.** If you note subspecies in your checklists, the app can now reflect that effort back. A "Subspecies and forms" control directly below the species selector opens a list of every species in your loaded data with at least one subspecies or form noted, each with its forms and their share of your reports; picking one selects that species, exactly as the selector would. On any selected species, a new "Subspecies and Forms" section then shows how your reports divide: one row per reported form with its count and percentage, a "No form noted" row for reports made at plain species level, and shares that always sum to exactly 100%. The section follows the same county and date filters as the rest of the page, while the list always reflects your whole backup and says so. Only countable forms appear: subspecies groups, intergrades, and domestic types count as their parent species, while hybrids, spuhs, slashes, and undescribed forms are left out, following the same eBird rule the app uses everywhere; when a species' merged total includes such names, a footnote accounts for the difference instead of leaving two figures that quietly disagree. Everything is computed from your already-loaded export: no network, no API key, nothing stored. With "Show subspecies" on, the exact-name view already lists forms individually, so the explorer steps aside until you switch back.
+
 ## [1.0.5] - 2026-08-27
 
 ### Added

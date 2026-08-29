@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subspecies Explorer design</title>
+<style>
+/* ── SnowRaven tokens, copied verbatim from frontend/src/globals.css ── */
+:root {
+  --font-sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-disabled: #A1A1AA;
+  --sr-text-gray: #6B7280;
+
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-accent-bg-hover: #F0FAF4;
+  --sr-accent-border: rgba(39,116,72,0.25);
+  --sr-accent-border-strong: rgba(39,116,72,0.7);
+  --sr-on-accent: #FFFFFF;
+
+  --sr-gray-400: #8E8E96;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --sr-switch-thumb: #FFFFFF;
+  --sr-switch-thumb-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-disabled: #52525B;
+  --sr-text-gray: #8A8A92;
+
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-accent-bg-hover: #064E3B;
+  --sr-accent-border: rgba(52,211,153,0.2);
+  --sr-accent-border-strong: rgba(52,211,153,0.5);
+  --sr-on-accent: #052E16;
+
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* ── Base ── */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  color: var(--sr-text);
+  background:
+    radial-gradient(900px 420px at 50% -160px, var(--sr-accent-bg), transparent 70%),
+    var(--sr-bg);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+button { font-family: inherit; }
+button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--sr-accent);
+  outline-offset: 2px;
+}
+svg { flex-shrink: 0; }
+
+/* ── Preview chrome (not part of the app) ── */
+.preview-bar {
+  max-width: 1080px; margin: 0 auto;
+  padding: 16px 20px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px 16px;
+}
+.preview-label {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.preview-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.seg {
+  display: inline-flex; border: 1.5px solid var(--sr-border);
+  border-radius: 6px; overflow: hidden; background: var(--sr-surface);
+}
+.seg button {
+  border: none; background: none; cursor: pointer;
+  padding: 5px 11px; font-size: 0.71875rem; font-weight: 500;
+  color: var(--sr-text-muted);
+  transition: background 120ms ease-out, color 120ms ease-out;
+}
+.seg button + button { border-left: 1px solid var(--sr-border); }
+.seg button[aria-pressed="true"] {
+  background: var(--sr-accent-bg); color: var(--sr-accent); font-weight: 600;
+}
+.stage { padding: 4px 20px 56px; display: flex; justify-content: center; }
+.app-frame {
+  width: 100%; max-width: 1020px;
+  background: var(--sr-bg);
+  border: 1px solid var(--sr-border);
+  border-radius: 14px;
+  box-shadow: var(--sr-card-shadow);
+  padding: 32px 24px 28px;
+  transition: max-width 200ms ease-out;
+}
+.stage.phone-w .app-frame { max-width: 320px; }
+
+/* ── App slice: toolbar ── */
+.ctl-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px; flex-wrap: wrap;
+}
+.toggle-chip {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 10px 0 8px; border-radius: 6px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  font-size: 0.75rem; font-weight: 500; color: var(--sr-text-muted);
+  white-space: nowrap;
+}
+.toggle-track {
+  width: 28px; height: 16px; border-radius: 8px; position: relative;
+  background: var(--sr-gray-400);
+}
+.toggle-knob {
+  width: 12px; height: 12px; border-radius: 50%; position: absolute;
+  top: 2px; left: 2px; background: var(--sr-switch-thumb);
+  box-shadow: var(--sr-switch-thumb-shadow);
+}
+.species-count { margin-left: auto; font-size: 0.75rem; color: var(--sr-text-muted); }
+
+/* ── Species combobox replica ── */
+.combo { position: relative; margin-bottom: 10px; }
+.combo-btn {
+  width: 100%; display: flex; align-items: center; gap: 9px;
+  min-height: 40px; padding: 0 12px; border-radius: 8px;
+  border: 1.5px solid var(--sr-border-input); background: var(--sr-surface);
+  font-size: 0.875rem; font-weight: 500; color: var(--sr-text);
+  cursor: pointer; text-align: left;
+}
+.combo-btn .combo-caret { margin-left: auto; color: var(--sr-text-muted); }
+.combo-pop {
+  position: absolute; z-index: 20; top: calc(100% + 5px); left: 0; right: 0;
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 8px; box-shadow: var(--sr-card-shadow); overflow: hidden;
+  transform-origin: top center;
+  animation: pop-in 160ms ease-out;
+}
+.combo-pop ul { list-style: none; margin: 0; padding: 4px; }
+.combo-opt {
+  display: block; width: 100%; text-align: left; border: none; background: none;
+  padding: 8px 10px; border-radius: 6px; cursor: pointer;
+  font-size: 0.84375rem; font-weight: 500; color: var(--sr-text);
+  transition: background 120ms ease-out;
+}
+.combo-opt:hover { background: var(--sr-surface-subtle); }
+.combo-opt[aria-selected="true"] { background: var(--sr-accent-bg); color: var(--sr-accent); }
+.combo-more {
+  padding: 7px 12px 8px; font-size: 0.71875rem; color: var(--sr-text-muted);
+  border-top: 1px solid var(--sr-border-subtle);
+}
+
+/* ── NEW: Subspecies and forms control + explorer list ── */
+.ssx-wrap { margin-bottom: 16px; }
+.ssx-toggle {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 34px; padding: 0 12px 0 8px; border-radius: 8px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  font-size: 0.75rem; font-weight: 500; color: var(--sr-text);
+  cursor: pointer;
+  transition: background 140ms ease-out, border-color 140ms ease-out;
+}
+.ssx-toggle:hover { background: var(--sr-surface-subtle); }
+.ssx-toggle[aria-expanded="true"] {
+  background: var(--sr-accent-bg);
+  border-color: var(--sr-accent-border-strong);
+  color: var(--sr-accent);
+}
+.ssx-toggle .ssx-tile {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.ssx-toggle[aria-expanded="true"] .ssx-tile { background: var(--sr-surface); }
+[data-theme="dark"] .ssx-toggle[aria-expanded="true"] .ssx-tile { background: var(--sr-surface-subtle); }
+.ssx-toggle .ssx-n { color: var(--sr-text-muted); font-weight: 500; }
+.ssx-toggle[aria-expanded="true"] .ssx-n { color: var(--sr-accent); }
+.ssx-toggle .ssx-caret { color: var(--sr-text-muted); transition: transform 200ms ease-out; }
+.ssx-toggle[aria-expanded="true"] .ssx-caret { transform: rotate(180deg); color: var(--sr-accent); }
+
+.ssx-panel {
+  margin-top: 8px;
+  border: 1px solid var(--sr-border); border-radius: 10px;
+  background: var(--sr-surface-faint);
+  overflow: hidden;
+  transform-origin: top left;
+  animation: pop-in 200ms ease-out;
+}
+.ssx-panel[hidden] { display: none; }
+.ssx-panel-head {
+  padding: 10px 14px;
+  font-size: 0.71875rem; color: var(--sr-text-muted);
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.ssx-panel ul { list-style: none; margin: 0; padding: 0; }
+.ssx-panel li + li { border-top: 1px solid var(--sr-border-subtle); }
+.ssx-row {
+  display: block; width: 100%; text-align: left;
+  border: none; background: none; cursor: pointer;
+  padding: 10px 14px;
+  transition: background 120ms ease-out;
+}
+.ssx-row:hover { background: var(--sr-surface-subtle); }
+.ssx-row[aria-current="true"] { background: var(--sr-accent-bg); }
+.ssx-row-top { display: flex; align-items: baseline; gap: 10px; }
+.ssx-row-name {
+  font-size: 0.84375rem; font-weight: 600; color: var(--sr-text);
+  min-width: 0; overflow-wrap: anywhere;
+}
+.ssx-row[aria-current="true"] .ssx-row-name { color: var(--sr-accent); }
+.ssx-row-count {
+  margin-left: auto; flex-shrink: 0;
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ssx-row-forms {
+  margin-top: 3px;
+  font-size: 0.75rem; color: var(--sr-text-muted); line-height: 1.6;
+}
+.ssx-row-forms .pct { font-weight: 600; font-variant-numeric: tabular-nums; }
+.ssx-row-forms .dot { padding: 0 5px; color: var(--sr-text-disabled); }
+
+/* ── Filter row replicas ── */
+.filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-select {
+  position: relative; display: inline-flex; align-items: center;
+}
+.filter-select .f-icon { position: absolute; left: 7px; color: var(--sr-text-muted); pointer-events: none; }
+.filter-select select {
+  min-height: 1.625rem; padding: 3px 22px 3px 24px; border-radius: 5px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  color: var(--sr-text-muted); font-size: 0.75rem; font-weight: 500;
+  font-family: inherit; cursor: pointer; appearance: none; -webkit-appearance: none;
+}
+.filter-select .f-caret {
+  position: absolute; right: 6px; pointer-events: none;
+  color: var(--sr-text-muted); font-size: 0.5625rem;
+}
+.date-wrap { position: relative; display: inline-flex; align-items: center; }
+.date-wrap .f-icon { position: absolute; left: 7px; color: var(--sr-text-muted); pointer-events: none; }
+.date-wrap input {
+  min-height: 1.625rem; padding: 3px 6px 3px 24px; border-radius: 5px;
+  border: 1.5px solid var(--sr-border); background: var(--sr-surface);
+  color: var(--sr-text-muted); font-size: 0.75rem; font-family: inherit;
+  width: 8.4rem; max-width: 100%;
+}
+.date-sep { font-size: 0.6875rem; color: var(--sr-text-muted); }
+
+/* ── Cards ── */
+.section-card {
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--sr-card-shadow);
+}
+.section-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.section-head .head-tile {
+  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+  background: var(--sr-accent-bg); color: var(--sr-accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.section-head .head-title { font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); }
+.card-body { padding: 16px 18px; }
+.detail-stack { display: flex; flex-direction: column; gap: 14px; }
+
+/* Summary card */
+.summary-pad { padding: 20px 22px 18px; }
+.species-title {
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2;
+  color: var(--sr-text); overflow-wrap: anywhere;
+}
+.species-sci {
+  font-size: 0.875rem; font-style: italic; color: var(--sr-text-muted);
+  margin-top: 3px; overflow-wrap: anywhere;
+}
+.pill-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.media-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 28px; padding: 0 10px; border-radius: 6px;
+  font-size: 0.75rem; font-weight: 500;
+  border: 1.5px solid var(--sr-border);
+  background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+}
+.media-pill.has {
+  background: var(--sr-accent-bg);
+  border-color: var(--sr-accent-border);
+  color: var(--sr-accent);
+}
+
+/* Two-column grid + stats */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.stat-label {
+  font-size: 0.6875rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--sr-text-muted); margin-bottom: 4px;
+}
+.stat-value {
+  font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1;
+  color: var(--sr-text); font-variant-numeric: tabular-nums;
+}
+.stat-value.accent { color: var(--sr-accent); }
+.stat-sub { font-size: 0.6875rem; color: var(--sr-text-muted); margin-top: 2px; }
+.stat-link {
+  font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1;
+  color: var(--sr-accent); text-decoration: none; cursor: pointer;
+  background: none; border: none; padding: 0;
+  display: inline-flex; align-items: center; gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.stat-link.small { font-size: 0.875rem; letter-spacing: -0.01em; }
+.stat-link:hover { text-decoration: underline; }
+.freq-cell { border-left: 1.5px solid var(--sr-border-subtle); padding-left: 12px; }
+.freq-bar { height: 3px; border-radius: 2px; margin-top: 6px; background: var(--sr-border); overflow: hidden; }
+.freq-bar > div { height: 100%; border-radius: 2px; background: var(--sr-accent); }
+.span-2 { grid-column: 1 / -1; }
+.media-row { display: flex; align-items: center; gap: 10px; }
+.media-row + .media-row { margin-top: 10px; }
+.media-row .m-tile {
+  width: 22px; height: 22px; border-radius: 5px; flex-shrink: 0;
+  background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.media-row .m-name { font-size: 0.8125rem; font-weight: 500; color: var(--sr-text); flex: 1; }
+.media-row .m-count { font-size: 0.84375rem; font-weight: 600; color: var(--sr-accent); display: inline-flex; align-items: center; gap: 3px; }
+.media-row .m-zero { font-size: 0.84375rem; font-weight: 500; color: var(--sr-text-muted); }
+
+/* ── NEW: breakdown section ── */
+.brk-stats { display: flex; gap: 28px; flex-wrap: wrap; }
+.brk-list { list-style: none; margin: 14px 0 0; padding: 0; }
+.brk-row { padding: 9px 0 10px; }
+.brk-row + .brk-row { border-top: 1px solid var(--sr-border-subtle); }
+.brk-line { display: flex; align-items: baseline; gap: 10px; }
+.brk-name {
+  flex: 1; min-width: 0;
+  font-size: 0.84375rem; font-weight: 500; color: var(--sr-text);
+  overflow-wrap: anywhere;
+}
+.brk-row.plain .brk-name { color: var(--sr-text-muted); }
+.brk-count {
+  font-size: 0.78125rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.brk-pct {
+  font-size: 0.84375rem; font-weight: 700; color: var(--sr-text);
+  font-variant-numeric: tabular-nums; flex-shrink: 0;
+  min-width: 3.2rem; text-align: right;
+}
+.brk-bar { height: 3px; border-radius: 2px; margin-top: 6px; background: var(--sr-border); overflow: hidden; }
+.brk-bar > div {
+  height: 100%; border-radius: 2px; background: var(--sr-accent);
+  width: 0; transition: width 240ms ease-out;
+}
+.brk-row.plain .brk-bar > div { background: var(--sr-gray-400); }
+.brk-note {
+  margin-top: 12px; font-size: 0.71875rem; color: var(--sr-text-muted);
+  line-height: 1.55; max-width: 62ch;
+}
+.brk-empty { font-size: 0.8125rem; color: var(--sr-text-muted); }
+
+/* ── Motion ── */
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  html { scroll-behavior: auto; }
+}
+
+/* ── Narrow layout (mirrors the app's ≤640 tier; applied by toggle or viewport) ── */
+.narrow .two-col { grid-template-columns: 1fr; }
+.narrow .grid-2 { grid-template-columns: 1fr; }
+.narrow .app-frame { padding: 20px 12px 24px; }
+.narrow .card-body { padding-left: 16px; padding-right: 16px; }
+.narrow .summary-pad { padding-left: 16px; padding-right: 16px; }
+.narrow .section-head { padding-left: 16px; padding-right: 16px; }
+.narrow .species-count { margin-left: 0; width: 100%; }
+.narrow .freq-cell { border-left: none; padding-left: 0; }
+.narrow .date-wrap input { width: 7.6rem; }
+</style>
+</head>
+<body>
+
+<!-- ══ Preview chrome (design review scaffolding, not part of the app) ══ -->
+<div class="preview-bar">
+  <span class="preview-label">Design preview · Subspecies Explorer</span>
+  <div class="preview-controls">
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" id="themeLight" aria-pressed="true">Light</button>
+      <button type="button" id="themeDark" aria-pressed="false">Dark</button>
+    </div>
+    <div class="seg" role="group" aria-label="Preview width">
+      <button type="button" id="widthWide" aria-pressed="true">Desktop</button>
+      <button type="button" id="widthPhone" aria-pressed="false">Phone 320</button>
+    </div>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="app-frame">
+
+    <!-- Existing toolbar (static context in this mockup) -->
+    <div class="ctl-row" aria-label="Existing page controls, static in this mockup">
+      <span class="toggle-chip"><span class="toggle-track"><span class="toggle-knob"></span></span>Show subspecies</span>
+      <span class="toggle-chip"><span class="toggle-track"><span class="toggle-knob"></span></span>Show all forms</span>
+      <span class="species-count">312 species</span>
+    </div>
+
+    <!-- Species selector (working replica; swaps every section below) -->
+    <div class="combo">
+      <button type="button" class="combo-btn" id="comboBtn" aria-haspopup="listbox" aria-expanded="false">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--sr-text-muted)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <span id="comboValue">Dark-eyed Junco</span>
+        <svg class="combo-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="combo-pop" id="comboPop" hidden>
+        <ul role="listbox" aria-label="Species" id="comboList"></ul>
+        <div class="combo-more">Plus 306 more in your full list (shortened for this mockup)</div>
+      </div>
+    </div>
+
+    <!-- ══ NEW · Subspecies and forms control, directly below the selector ══ -->
+    <div class="ssx-wrap">
+      <button type="button" class="ssx-toggle" id="ssxToggle" aria-expanded="false" aria-controls="ssxPanel">
+        <span class="ssx-tile">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/></svg>
+        </span>
+        Subspecies and forms
+        <span class="ssx-n" id="ssxCount">5 species</span>
+        <svg class="ssx-caret" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="ssx-panel" id="ssxPanel" hidden>
+        <div class="ssx-panel-head">
+          Every species in your loaded data with at least one subspecies or form noted.
+          Shares reflect your whole backup, not the current filter.
+        </div>
+        <ul id="ssxList"></ul>
+      </div>
+    </div>
+
+    <!-- Existing filter row (static context in this mockup) -->
+    <div class="filter-row" aria-label="Existing filters, static in this mockup">
+      <div class="filter-select">
+        <svg class="f-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        <select aria-label="County">
+          <option>All Counties</option>
+          <option>King</option>
+          <option>Kittitas</option>
+          <option>Skagit</option>
+          <option>Snohomish</option>
+          <option>Whatcom</option>
+        </select>
+        <span class="f-caret">▾</span>
+      </div>
+      <div class="date-wrap">
+        <svg class="f-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+        <input type="date" aria-label="From date">
+      </div>
+      <span class="date-sep">→</span>
+      <div class="date-wrap">
+        <input type="date" aria-label="To date" style="padding-left: 8px;">
+      </div>
+    </div>
+
+    <div class="detail-stack">
+
+      <!-- Summary card -->
+      <div class="section-card">
+        <div class="summary-pad">
+          <div class="species-title" id="sumName">Dark-eyed Junco</div>
+          <div class="species-sci" id="sumSci">Junco hyemalis</div>
+          <div class="pill-row" id="mediaPills"></div>
+        </div>
+      </div>
+
+      <!-- Sightings + Media -->
+      <div class="two-col">
+        <div class="section-card">
+          <div class="section-head">
+            <span class="head-tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></span>
+            <span class="head-title">Sightings</span>
+          </div>
+          <div class="card-body">
+            <div class="grid-2">
+              <div>
+                <div class="stat-label">Checklists</div>
+                <div class="stat-value" id="sgTotal">425</div>
+              </div>
+              <div>
+                <div class="stat-label">Individuals</div>
+                <div class="stat-value" id="sgInd">1,847</div>
+              </div>
+              <div class="freq-cell span-2">
+                <div class="stat-label">Frequency</div>
+                <div class="stat-value accent" id="sgFreq">12%</div>
+                <div class="stat-sub">of your checklists</div>
+                <div class="freq-bar"><div id="sgFreqBar" style="width: 12.5%"></div></div>
+              </div>
+              <div class="span-2">
+                <div class="stat-label">Personal best</div>
+                <button type="button" class="stat-link" id="sgBest" tabindex="0">45
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+                </button>
+              </div>
+              <div>
+                <div class="stat-label">First seen</div>
+                <button type="button" class="stat-link small" id="sgFirst" tabindex="0">Nov 3, 2014</button>
+              </div>
+              <div>
+                <div class="stat-label">Last seen</div>
+                <button type="button" class="stat-link small" id="sgLast" tabindex="0">Aug 21, 2026</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-head">
+            <span class="head-tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span>
+            <span class="head-title">Media</span>
+          </div>
+          <div class="card-body" id="mediaBody"></div>
+        </div>
+      </div>
+
+      <!-- ══ NEW · Subspecies and Forms breakdown, immediately after Sightings ══ -->
+      <div class="section-card" id="brkCard" tabindex="-1">
+        <div class="section-head">
+          <span class="head-tile"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12h-8"/><path d="M21 6H8"/><path d="M21 18h-8"/><path d="M3 6v4c0 1.1.9 2 2 2h3"/><path d="M3 10v6c0 1.1.9 2 2 2h3"/></svg></span>
+          <span class="head-title">Subspecies and Forms</span>
+        </div>
+        <div class="card-body" id="brkBody"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Demo data: a Washington birder's real-feeling backup.
+     Percentages are precomputed from exact counts; displayed values sum to
+     exactly 100.0 (residue absorbed by the largest row, min 0.1 per row). ── */
+  var DATA = {
+    'Red-tailed Hawk': {
+      sci: 'Buteo jamaicensis',
+      media: { Photo: 29, Audio: 0, Video: 2 },
+      sightings: { checklists: '253', individuals: '301', freq: '7%', freqW: 7.4, best: '5', first: 'Nov 9, 2014', last: 'Aug 27, 2026' },
+      breakdown: {
+        total: '253', formPct: '13.4%',
+        rows: [ { name: 'Red-tailed Hawk (calurus/alascensis)', count: '34', pct: '13.4%', w: 13.4 } ],
+        plain: { count: '219', pct: '86.6%', w: 86.6 },
+        nonCountable: 0
+      }
+    },
+    'Varied Thrush': {
+      sci: 'Ixoreus naevius',
+      media: { Photo: 12, Audio: 1, Video: 0 },
+      sightings: { checklists: '67', individuals: '112', freq: '2%', freqW: 2, best: '8', first: 'Dec 26, 2015', last: 'Mar 14, 2026' },
+      breakdown: null
+    },
+    'Fox Sparrow': {
+      sci: 'Passerella iliaca',
+      media: { Photo: 18, Audio: 3, Video: 0 },
+      sightings: { checklists: '111', individuals: '154', freq: '3%', freqW: 3.3, best: '6', first: 'Oct 12, 2015', last: 'Apr 6, 2026' },
+      breakdown: {
+        total: '111', formPct: '100%',
+        rows: [ { name: 'Fox Sparrow (Sooty)', count: '111', pct: '100%', w: 100 } ],
+        plain: null,
+        nonCountable: 0
+      }
+    },
+    'Dark-eyed Junco': {
+      sci: 'Junco hyemalis',
+      media: { Photo: 61, Audio: 7, Video: 0 },
+      sightings: { checklists: '425', individuals: '1,847', freq: '12%', freqW: 12.5, best: '45', first: 'Nov 3, 2014', last: 'Aug 21, 2026' },
+      breakdown: {
+        total: '422', formPct: '66.6%',
+        rows: [
+          { name: 'Dark-eyed Junco (Oregon)', count: '214', pct: '50.8%', w: 50.8 },
+          { name: 'Dark-eyed Junco (Slate-colored)', count: '58', pct: '13.7%', w: 13.7 },
+          { name: 'Dark-eyed Junco (Oregon x Slate-colored intergrade)', count: '9', pct: '2.1%', w: 2.1 }
+        ],
+        plain: { count: '141', pct: '33.4%', w: 33.4 },
+        nonCountable: 3
+      }
+    },
+    'White-crowned Sparrow': {
+      sci: 'Zonotrichia leucophrys',
+      media: { Photo: 23, Audio: 1, Video: 0 },
+      sightings: { checklists: '146', individuals: '388', freq: '4%', freqW: 4.3, best: '14', first: 'Sep 30, 2016', last: 'May 2, 2026' },
+      breakdown: {
+        total: '146', formPct: '8.2%',
+        rows: [ { name: 'White-crowned Sparrow (Gambel’s)', count: '12', pct: '8.2%', w: 8.2 } ],
+        plain: { count: '134', pct: '91.8%', w: 91.8 },
+        nonCountable: 0
+      }
+    },
+    'Yellow-rumped Warbler': {
+      sci: 'Setophaga coronata',
+      media: { Photo: 44, Audio: 2, Video: 1 },
+      sightings: { checklists: '324', individuals: '1,215', freq: '9%', freqW: 9.5, best: '38', first: 'Apr 18, 2015', last: 'Aug 24, 2026' },
+      breakdown: {
+        total: '324', formPct: '42.3%',
+        rows: [
+          { name: 'Yellow-rumped Warbler (Myrtle)', count: '96', pct: '29.6%', w: 29.6 },
+          { name: 'Yellow-rumped Warbler (Audubon’s)', count: '41', pct: '12.7%', w: 12.7 }
+        ],
+        plain: { count: '187', pct: '57.7%', w: 57.7 },
+        nonCountable: 0
+      }
+    }
+  };
+
+  /* Selector order = taxonomic (the app's selector order). */
+  var SELECTOR_ORDER = ['Red-tailed Hawk', 'Varied Thrush', 'Fox Sparrow', 'Dark-eyed Junco', 'White-crowned Sparrow', 'Yellow-rumped Warbler'];
+  /* Explorer order = the same, restricted to qualifying species (FR-05). */
+  var EXPLORER_ORDER = SELECTOR_ORDER.filter(function (n) { return !!DATA[n].breakdown; });
+
+  var selected = 'Dark-eyed Junco';
+  var motionOk = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function el(id) { return document.getElementById(id); }
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  var MEDIA_ICONS = {
+    Photo: '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    Audio: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/>',
+    Video: '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>'
+  };
+  function iconSvg(paths, size, sw) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + sw + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  }
+  var EXT_ICON = '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>';
+
+  /* ── Renders ── */
+  function renderSummary() {
+    var d = DATA[selected];
+    el('sumName').textContent = selected;
+    el('sumSci').textContent = d.sci;
+    var pills = ['Photo', 'Audio', 'Video'].map(function (t) {
+      var has = d.media[t] > 0;
+      return '<span class="media-pill' + (has ? ' has' : '') + '">' + iconSvg(MEDIA_ICONS[t], 12, 2.2) + t + '</span>';
+    });
+    el('mediaPills').innerHTML = pills.join('');
+  }
+
+  function renderSightings() {
+    var s = DATA[selected].sightings;
+    el('sgTotal').textContent = s.checklists;
+    el('sgInd').textContent = s.individuals;
+    el('sgFreq').textContent = s.freq;
+    el('sgFreqBar').style.width = s.freqW + '%';
+    el('sgBest').innerHTML = esc(s.best) + iconSvg(EXT_ICON, 10, 2.5);
+    el('sgFirst').textContent = s.first;
+    el('sgLast').textContent = s.last;
+  }
+
+  function renderMedia() {
+    var d = DATA[selected];
+    var html = ['Photo', 'Audio', 'Video'].map(function (t) {
+      var n = d.media[t];
+      var count = n > 0
+        ? '<span class="m-count">' + n + iconSvg(EXT_ICON, 10, 2.5) + '</span>'
+        : '<span class="m-zero">0</span>';
+      return '<div class="media-row"><span class="m-tile">' + iconSvg(MEDIA_ICONS[t], 11, 2.2) + '</span>' +
+        '<span class="m-name">' + t + 's</span>' + count + '</div>';
+    });
+    el('mediaBody').innerHTML = html.join('');
+  }
+
+  function renderBreakdown() {
+    var b = DATA[selected].breakdown;
+    var body = el('brkBody');
+
+    if (!b) {
+      /* FR-15: honest empty state; the section is present, never silently absent. */
+      body.innerHTML = '<div class="brk-empty">No subspecies or form detail is recorded for this species.</div>';
+      return;
+    }
+
+    var html = '<div class="brk-stats">' +
+      '<div><div class="stat-label">Reports</div><div class="stat-value">' + b.total + '</div></div>' +
+      '<div><div class="stat-label">Form noted</div><div class="stat-value accent">' + b.formPct + '</div>' +
+      '<div class="stat-sub">of your reports</div></div>' +
+      '</div>';
+
+    html += '<ul class="brk-list">';
+    b.rows.forEach(function (r) {
+      html += '<li class="brk-row"><div class="brk-line">' +
+        '<span class="brk-name">' + esc(r.name) + '</span>' +
+        '<span class="brk-count">' + r.count + ' report' + (r.count === '1' ? '' : 's') + '</span>' +
+        '<span class="brk-pct">' + r.pct + '</span>' +
+        '</div><div class="brk-bar"><div data-w="' + r.w + '"></div></div></li>';
+    });
+    if (b.plain) {
+      /* FR-10: species-level reports, pinned last. Display copy, not a bird name. */
+      html += '<li class="brk-row plain"><div class="brk-line">' +
+        '<span class="brk-name">No form noted</span>' +
+        '<span class="brk-count">' + b.plain.count + ' reports</span>' +
+        '<span class="brk-pct">' + b.plain.pct + '</span>' +
+        '</div><div class="brk-bar"><div data-w="' + b.plain.w + '"></div></div></li>';
+    }
+    html += '</ul>';
+
+    if (b.nonCountable > 0) {
+      /* FR-13 ledger: the honest delta against the Sightings figure. */
+      var s = DATA[selected].sightings;
+      html += '<div class="brk-note">' + b.nonCountable +
+        ' reports use names that are not countable subspecies or forms, such as hybrids or slashes. ' +
+        'The Sightings total of ' + s.checklists + ' includes them; this breakdown does not.</div>';
+    }
+
+    body.innerHTML = html;
+
+    /* Bars animate to their share (ease-out, 240ms; reduced motion snaps). */
+    var fills = body.querySelectorAll('.brk-bar > div');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        fills.forEach(function (f) { f.style.width = f.getAttribute('data-w') + '%'; });
+      });
+    });
+  }
+
+  function renderExplorerList() {
+    var html = '';
+    EXPLORER_ORDER.forEach(function (name) {
+      var b = DATA[name].breakdown;
+      var forms = b.rows.map(function (r) {
+        return '<span>' + esc(r.name) + ' <span class="pct">' + r.pct + '</span></span>';
+      }).join('<span class="dot" aria-hidden="true">·</span>');
+      var nForms = b.rows.length + ' form' + (b.rows.length === 1 ? '' : 's');
+      html += '<li><button type="button" class="ssx-row" data-species="' + esc(name) + '"' +
+        (name === selected ? ' aria-current="true"' : '') + '>' +
+        '<div class="ssx-row-top"><span class="ssx-row-name">' + esc(name) + '</span>' +
+        '<span class="ssx-row-count">' + nForms + '</span></div>' +
+        '<div class="ssx-row-forms">' + forms + '</div>' +
+        '</button></li>';
+    });
+    el('ssxList').innerHTML = html;
+    el('ssxCount').textContent = EXPLORER_ORDER.length + ' species';
+
+    el('ssxList').querySelectorAll('.ssx-row').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectSpecies(btn.getAttribute('data-species'));
+        setExplorerOpen(false);
+        /* FR-06: selecting closes the list and brings the breakdown into view. */
+        var card = el('brkCard');
+        card.focus({ preventScroll: true });
+        card.scrollIntoView({ behavior: motionOk ? 'smooth' : 'auto', block: 'nearest' });
+      });
+    });
+  }
+
+  function selectSpecies(name) {
+    selected = name;
+    el('comboValue').textContent = name;
+    renderSummary();
+    renderSightings();
+    renderMedia();
+    renderBreakdown();
+    renderExplorerList();
+    renderComboList();
+  }
+
+  /* ── Explorer open/close ── */
+  var ssxOpen = false;
+  function setExplorerOpen(open) {
+    ssxOpen = open;
+    el('ssxToggle').setAttribute('aria-expanded', String(open));
+    el('ssxPanel').hidden = !open;
+  }
+  el('ssxToggle').addEventListener('click', function () { setExplorerOpen(!ssxOpen); });
+
+  /* ── Combobox replica ── */
+  var comboOpen = false;
+  function renderComboList() {
+    var html = '';
+    SELECTOR_ORDER.forEach(function (name) {
+      html += '<li role="option" aria-selected="' + (name === selected) + '">' +
+        '<button type="button" class="combo-opt" data-species="' + esc(name) + '"' +
+        (name === selected ? ' aria-selected="true"' : '') + '>' + esc(name) + '</button></li>';
+    });
+    el('comboList').innerHTML = html;
+    el('comboList').querySelectorAll('.combo-opt').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        selectSpecies(btn.getAttribute('data-species'));
+        setComboOpen(false);
+        el('comboBtn').focus();
+      });
+    });
+  }
+  function setComboOpen(open) {
+    comboOpen = open;
+    el('comboBtn').setAttribute('aria-expanded', String(open));
+    el('comboPop').hidden = !open;
+  }
+  el('comboBtn').addEventListener('click', function () { setComboOpen(!comboOpen); });
+  document.addEventListener('click', function (e) {
+    if (comboOpen && !e.target.closest('.combo')) setComboOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (comboOpen) { setComboOpen(false); el('comboBtn').focus(); }
+      else if (ssxOpen) { setExplorerOpen(false); el('ssxToggle').focus(); }
+    }
+  });
+
+  /* ── Preview chrome: theme + width ── */
+  function setTheme(dark) {
+    if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    el('themeLight').setAttribute('aria-pressed', String(!dark));
+    el('themeDark').setAttribute('aria-pressed', String(dark));
+  }
+  el('themeLight').addEventListener('click', function () { setTheme(false); });
+  el('themeDark').addEventListener('click', function () { setTheme(true); });
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme(true);
+
+  var stage = el('stage');
+  function setPhone(on) {
+    stage.classList.toggle('phone-w', on);
+    applyNarrow();
+    el('widthWide').setAttribute('aria-pressed', String(!on));
+    el('widthPhone').setAttribute('aria-pressed', String(on));
+  }
+  function applyNarrow() {
+    var narrow = stage.classList.contains('phone-w') || window.innerWidth <= 640;
+    stage.classList.toggle('narrow', narrow);
+  }
+  el('widthWide').addEventListener('click', function () { setPhone(false); });
+  el('widthPhone').addEventListener('click', function () { setPhone(true); });
+  window.addEventListener('resize', applyNarrow);
+
+  /* ── First paint ── */
+  applyNarrow();
+  renderComboList();
+  renderExplorerList();
+  renderSummary();
+  renderSightings();
+  renderMedia();
+  renderBreakdown();
+})();
+</script>
+</body>
+</html>

@@ -31,7 +31,9 @@ import { transport } from '../lib/transport'
 import { storage } from '../lib/storage'
 import { formatDate } from '../lib/formatDate'
 import { HEAT_INTENSITY_DEFAULT, heatWeight } from '../lib/heat'
-import { smoothScrollIntoView } from '../lib/scroll'
+import { jumpTo, smoothScrollIntoView } from '../lib/scroll'
+import { buildSubspeciesIndex, computeSpeciesBreakdown, explorerEntries } from '../lib/subspeciesExplorer'
+import { SubspeciesExplorerControl, SubspeciesBreakdownSection } from './speciesDetail/SubspeciesExplorer'
 import { SnowMap } from './SnowMap'
 import { SightingsMap } from './SightingsMap'
 import { buildSightingMarkers } from '../lib/sightingMarkers'
@@ -342,6 +344,43 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
   // Sightings stats
   const sightingsStats = useMemo(() => computeSightingsStats(speciesObs), [speciesObs])
 
+  // ── Subspecies Explorer (subspecies-explorer) ──────────────────────────
+  // Contract A: the full-backup tally, ONCE per loaded backup. `phase` is a
+  // fresh object per load (the auto-load effect), so keying on it is keying on
+  // the observations array reference: FR-22's recompute-on-reload and NFR-02's
+  // once-per-load both fall out of reference identity. The county/date filters
+  // and both toggles are structurally not inputs (FR-08, FR-20).
+  const subspeciesIndex = useMemo(
+    () => (phase.tag === 'ready' ? buildSubspeciesIndex(phase.observations) : null),
+    [phase],
+  )
+
+  // The explorer list: qualifying species in the selector's order (FR-05).
+  // `sortedSpeciesList` holds merged-mode keys exactly when the explorer
+  // renders (mergeSubspecies gates it below); re-derives only when the
+  // taxonomy order arrives or the mode flips — the tally above never re-runs.
+  const ssxEntries = useMemo(
+    () => (subspeciesIndex ? explorerEntries(subspeciesIndex, sortedSpeciesList) : []),
+    [subspeciesIndex, sortedSpeciesList],
+  )
+
+  // Contract B: the filtered breakdown, once per species/filter change —
+  // inherited from the existing `speciesObs` memo chain, the SAME rows the
+  // Sightings section aggregates, so FR-14's filter parity holds by
+  // construction and the FR-13 identity is exact:
+  //   breakdown.total + breakdown.nonCountableCount === speciesObs.length
+  const speciesBreakdown = useMemo(() => computeSpeciesBreakdown(speciesObs), [speciesObs])
+
+  // Picking from the explorer selects through the page's own path (FR-06),
+  // then brings the breakdown into view and moves focus there (jumpTo honors
+  // prefers-reduced-motion and focuses the tabindex="-1" container). Deferred
+  // a frame so the selection render has committed and the section exists.
+  const breakdownRef = useRef<HTMLDivElement>(null)
+  const pickExplorerSpecies = useCallback((name: string) => {
+    selectSpecies(name)
+    requestAnimationFrame(() => jumpTo(breakdownRef.current, { block: 'nearest' }))
+  }, [])
+
   // Media counts
   const mediaCounts = useMemo(
     () => computeMediaCounts(speciesObs, phase.tag === 'ready' ? phase.mediaMap : new Map<string, string>()),
@@ -602,6 +641,17 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           className="sr-input-16"
         />
       </div>
+
+      {/* Subspecies Explorer entry control, directly below the selector and
+          above the filter row (FR-04). Merged mode only (FR-19); ready state
+          only by position in this branch (FR-23). */}
+      {mergeSubspecies && (
+        <SubspeciesExplorerControl
+          entries={ssxEntries}
+          selectedSpecies={selectedSpecies}
+          onPick={pickExplorerSpecies}
+        />
+      )}
 
       {/* Filter controls row. .sr-ctl-row keeps the Clear filter button at the same
           phone-tier size as the .sr-input-16 county select and date inputs. */}
@@ -951,6 +1001,23 @@ export function SpeciesDetail({ onGoToSettings, filesVersion, requestedSpecies, 
           </div>
 
           </>)}
+
+          {/* Subspecies and Forms breakdown, immediately after the Sightings/
+              Media row and before Graph Options (FR-18; full width because
+              Sightings shares its grid row with Media). Merged mode only
+              (FR-19), and NEVER silently absent for a selected species in that
+              mode (FR-15): it renders in every body state, including a filter
+              that leaves zero rows, where the Summary/Sightings cards above
+              vanish (their own pre-existing behavior). */}
+          {mergeSubspecies && (
+            <SubspeciesBreakdownSection
+              ref={breakdownRef}
+              breakdown={speciesBreakdown}
+              qualifies={(subspeciesIndex?.get(selectedSpecies)?.formCounts.size ?? 0) > 0}
+              sightingsTotal={speciesObs.length}
+              resetKey={`${selectedSpecies}|${countyFilter ?? ''}|${dateRange.from}|${dateRange.to}`}
+            />
+          )}
 
           {/* Graph Options */}
           {hasGraphData && (() => {
