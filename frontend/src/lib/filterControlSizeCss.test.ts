@@ -402,7 +402,20 @@ describe('the Map Explorer Date Range pair adapts to the guard (fix: map-explore
     // `[^>]*` cannot cross a `>`, so this only matches a class inside the SAME
     // opening tag as the control -- a class on a wrapper is not counted.
     const onControls = [...src.matchAll(/<(?:input|select)\b[^>]*className="sr-input-16"/g)]
-    expect(onControls.length).toBe(9)
+    // Eight native controls; the ninth (Species) is the shared SpeciesCombobox
+    // (improve: searchable-species-pickers), whose className prop rides onto its
+    // <input> element. The tag-level match keeps THIS guard rejecting a dropped
+    // prop; MapExplorerInputZoom.test.tsx asserts the RENDERED placement (the
+    // class on the input element itself), which a prop the component ignored
+    // would fail.
+    expect(onControls.length).toBe(8)
+    // `[^>]*` cannot be used here: the tag's arrow-function props contain `>`.
+    // Match the whole self-closing tag lazily instead; it is bounded to this one
+    // element by its own `/>`.
+    const comboboxTags = [...src.matchAll(/<SpeciesCombobox\b[\s\S]*?\/>/g)]
+    const onCombobox = comboboxTags.filter(m => m[0].includes('className="sr-input-16"'))
+    expect(comboboxTags.length).toBe(1)
+    expect(onCombobox.length).toBe(1)
   })
 })
 

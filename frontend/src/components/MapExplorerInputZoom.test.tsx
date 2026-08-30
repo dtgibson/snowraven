@@ -124,9 +124,11 @@ afterEach(() => { cleanup(); vi.clearAllMocks() })
 describe('map-explorer-input-zoom — .sr-input-16 lands on the control element', () => {
   it('guards the five My Sightings filter controls (species, both dates, county, media)', async () => {
     renderMap()
-    // Species only exists once the backup has loaded into phase 'ready'.
+    // Species only exists once the backup has loaded into phase 'ready'. It is
+    // the shared SpeciesCombobox (improve: searchable-species-pickers), so the
+    // guarded element is its <input>, not a <select>.
     const species = await screen.findByLabelText('Species')
-    expectGuarded(species, 'select')
+    expectGuarded(species, 'input')
     expectGuarded(screen.getByLabelText('From date'), 'input')
     expectGuarded(screen.getByLabelText('To date'), 'input')
     // County mounts only when the observations resolve a county (fixture has one).

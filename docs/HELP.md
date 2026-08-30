@@ -383,7 +383,7 @@ If the clipboard write is refused (this can happen in some browsers), the popup 
 
 ### My Sightings
 
-Shows all your personal observations on a map. Narrow what's shown with the panel filters: Species (a specific species), Breeding Code, Date Range, County (when your backup contains county data), and Media. The Radius control sets the map's starting zoom and the distance within which your saved personal locations appear.
+Shows all your personal observations on a map. Narrow what's shown with the panel filters: Species, Breeding Code, Date Range, County (when your backup contains county data), and Media. The Species filter is the same type-to-find picker as Species Detail and the Calendar: start typing to narrow the list by common or scientific name, then click or press Enter, and pick **All species** (the first row) to clear it back to every bird. The Radius control sets the map's starting zoom and the distance within which your saved personal locations appear.
 
 Switch between Pins and Heatmap with the Map View toggle. In Heatmap mode, a Heatmap Intensity slider lets you dial the coverage from tighter to broader and hotter. Higher settings spread each sighting farther and make even sparse, low-count areas stand out, which also helps when reading density at different zoom levels.
 

@@ -27,7 +27,7 @@ interface SpeciesComboboxProps {
   allLabel?: string                         // e.g. "All species" — renders a clearing row at top
   placeholder?: string
   ariaLabel: string
-  size?: 'sm' | 'md'                        // Calendar ~30px controls; SpeciesDetail 40px
+  size?: 'sm' | 'md' | 'panel'              // Calendar ~30px; SpeciesDetail 40px; Map Explorer filter panel 34px (the SELECT_STYLE register)
   className?: string                        // lands on the <input> (carries .sr-input-16 — the iOS-zoom guard must sit on the input, not the wrapper)
 }
 
@@ -100,11 +100,17 @@ export function SpeciesCombobox({
     setActiveIdx(-1)
   }
 
-  const height = size === 'sm' ? 30 : 40
-  const fontSize = size === 'sm' ? '0.75rem' : '0.875rem'
-  const iconLeft = size === 'sm' ? 8 : 11
-  const iconSize = size === 'sm' ? 13 : 15
-  const padLeft = size === 'sm' ? 28 : 38
+  // Sizing registers. `panel` maps EXACTLY onto the Map Explorer sidebar's
+  // SELECT_STYLE numbers (34px box, 0.8125rem text, radius 6, full panel width)
+  // so the picker sits at the register of its neighbouring selects. The `sm`
+  // and `md` values are deliberately untouched, so Species Detail and the
+  // Calendar render exactly as before this variant existed.
+  const height = size === 'panel' ? 34 : size === 'sm' ? 30 : 40
+  const fontSize = size === 'panel' ? '0.8125rem' : size === 'sm' ? '0.75rem' : '0.875rem'
+  const iconLeft = size === 'panel' ? 9 : size === 'sm' ? 8 : 11
+  const iconSize = size === 'panel' ? 14 : size === 'sm' ? 13 : 15
+  const padLeft = size === 'panel' ? 30 : size === 'sm' ? 28 : 38
+  const radius = size === 'panel' ? 6 : 8
 
   return (
     <div ref={rootRef} style={{ position: 'relative', minWidth: 0, maxWidth: size === 'sm' ? 220 : undefined, zIndex: 20 }}>
@@ -129,7 +135,18 @@ export function SpeciesCombobox({
             e.currentTarget.select()
           }}
           onKeyDown={e => {
-            if (e.key === 'Escape') { setOpen(false); setActiveIdx(-1) }
+            if (e.key === 'Escape') {
+              // Consume the press ONLY while the listbox is open, so an outer
+              // Escape layer (the Map Explorer filter sheet / fullscreen exit,
+              // both bubble-phase document listeners) is not dismissed by the
+              // same press — innermost layer first (.claude/rules/ui.md). With
+              // the listbox CLOSED the event must keep bubbling: Escape still
+              // closes the sheet / exits fullscreen, which is shipped intent.
+              // Species Detail and the Calendar have no outer Escape layers,
+              // so their behavior is unchanged either way.
+              if (open) e.stopPropagation()
+              setOpen(false); setActiveIdx(-1)
+            }
             if (e.key === 'Tab') { setOpen(false); setActiveIdx(-1) }
             if (e.key === 'ArrowDown') {
               e.preventDefault()
@@ -163,7 +180,7 @@ export function SpeciesCombobox({
           style={{
             width: '100%', height, padding: `0 34px 0 ${padLeft}px`,
             border: `1.5px solid ${open ? 'var(--sr-accent)' : 'var(--sr-border-input)'}`,
-            borderRadius: open ? '8px 8px 0 0' : 8,
+            borderRadius: open ? `${radius}px ${radius}px 0 0` : radius,
             borderBottomColor: open ? 'transparent' : undefined,
             fontSize, fontWeight: !isNone && !open ? 500 : 400,
             fontFamily: 'inherit', color: 'var(--sr-text)', background: 'var(--sr-surface)',
@@ -188,7 +205,12 @@ export function SpeciesCombobox({
       </div>
 
       {open && (
+        /* sr-combobox-list carries the shared 140ms ease-out entrance motion
+           (globals.css), deliberately on ALL sizes so the three pickers cannot
+           drift; the global reduced-motion rule makes it an instant appear.
+           Close stays instant removal, no exit animation. */
         <div
+          className="sr-combobox-list"
           role="listbox"
           id={listboxId}
           aria-label={ariaLabel}
@@ -196,7 +218,7 @@ export function SpeciesCombobox({
             position: 'absolute', top: '100%', left: 0, right: 0,
             background: 'var(--sr-surface)',
             border: '1.5px solid var(--sr-accent)',
-            borderTop: 'none', borderRadius: '0 0 8px 8px',
+            borderTop: 'none', borderRadius: `0 0 ${radius}px ${radius}px`,
             boxShadow: '0 8px 24px rgba(0,0,0,0.1)',
             maxHeight: 260, overflowY: 'auto', zIndex: 1200,
           }}
@@ -242,7 +264,19 @@ export function SpeciesCombobox({
                     {row.kind === 'all' ? row.label : row.name}
                   </span>
                   {row.kind === 'species' && row.sciName && (
-                    <span className="sr-truncate" style={{ fontSize: '0.6875rem', fontStyle: 'italic', color: 'var(--sr-text-muted)', flex: '0 1 auto', textAlign: 'right' }}>
+                    /* maxWidth caps the SECONDARY text's claim on the row. The
+                       common name's flex-basis is 0, so without the cap flex
+                       serves this span its full intrinsic width FIRST and the
+                       primary name gets only the leftover — in a narrow listbox
+                       (the Map Explorer panel, any picker at phone width) the
+                       scientific name then crushes the common name toward a
+                       zero-width box (measured 0px at 200% text scale). The
+                       percentage resolves against the row, so the guarantee
+                       (name keeps the majority) holds at every width and text
+                       scale; both spans keep .sr-truncate, whose overflow
+                       clipping is what makes crowding truncate rather than
+                       paint one text over the other. */
+                    <span className="sr-truncate" style={{ fontSize: '0.6875rem', fontStyle: 'italic', color: 'var(--sr-text-muted)', flex: '0 1 auto', maxWidth: '40%', textAlign: 'right' }}>
                       {row.sciName}
                     </span>
                   )}

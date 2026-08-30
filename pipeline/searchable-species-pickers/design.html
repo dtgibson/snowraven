@@ -1,0 +1,793 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Searchable Species Filter - Map Explorer design direction</title>
+<!--
+  Design mockup for the searchable-species-pickers Improve run (design pass).
+  Page chrome uses Fraunces as the display face (mockup annotation layer only).
+  Everything INSIDE the app frames deliberately renders the app's own resolved
+  font stack and real --sr-* token values copied from globals.css:
+  the design system wins on specifics, per the Weft doctrine.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── Real SnowRaven tokens, inlined from frontend/src/globals.css ─────── */
+  :root {
+    --sr-bg: #F9FAFB;
+    --sr-surface: #FFFFFF;
+    --sr-surface-subtle: #F4F4F5;
+    --sr-surface-faint: #FAFAFA;
+    --sr-text: #0F1117;
+    --sr-text-muted: #6B6B74;
+    --sr-text-gray: #6B7280;
+    --sr-border: #E4E4E7;
+    --sr-border-medium: #C4C4CE;
+    --sr-border-input: #8A8A91;
+    --sr-accent: #277448;
+    --sr-accent-strong: #1A5C38;
+    --sr-accent-bg: #E8F5EE;
+    --sr-accent-bg-hover: #F0FAF4;
+    --sr-on-accent: #FFFFFF;
+    /* Mockup-page atmosphere (annotation layer, not app tokens) */
+    --page-glow: rgba(39,116,72,0.07);
+    --page-ink-shadow: rgba(15,17,23,0.12);
+    --tsc: 1; /* in-frame text-scale multiplier; the 200% preview sets 2 */
+  }
+  [data-theme="dark"] {
+    --sr-bg: #09090B;
+    --sr-surface: #18181B;
+    --sr-surface-subtle: #27272A;
+    --sr-surface-faint: #1C1C1F;
+    --sr-text: #F4F4F5;
+    --sr-text-muted: #A1A1AA;
+    --sr-text-gray: #8A8A92;
+    --sr-border: #27272A;
+    --sr-border-medium: #3F3F46;
+    --sr-border-input: #707078;
+    --sr-accent: #34D399;
+    --sr-accent-strong: #34D399;
+    --sr-accent-bg: #052E16;
+    --sr-accent-bg-hover: #064E3B;
+    --sr-on-accent: #052E16;
+    --page-glow: rgba(52,211,153,0.06);
+    --page-ink-shadow: rgba(4,8,14,0.55);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: "IBM Plex Sans", -apple-system, "Segoe UI", sans-serif;
+    color: var(--sr-text);
+    background:
+      radial-gradient(1100px 520px at 85% -8%, var(--page-glow), transparent 70%),
+      var(--sr-bg);
+    line-height: 1.55;
+    padding: 40px 24px 72px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  /* ── Mockup page chrome ──────────────────────────────────────────────── */
+  .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 10px; }
+  h1 {
+    font-family: Fraunces, Georgia, serif;
+    font-size: clamp(1.7rem, 3.2vw, 2.35rem);
+    font-weight: 700; letter-spacing: -0.015em; line-height: 1.12;
+  }
+  .kicker { font-size: 0.71875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--sr-accent); margin-bottom: 8px; }
+  .lede { color: var(--sr-text-muted); font-size: 0.9375rem; max-width: 62ch; margin-top: 10px; }
+  .theme-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 34px; padding: 0 14px; border-radius: 17px;
+    border: 1px solid var(--sr-border-medium);
+    background: var(--sr-surface); color: var(--sr-text);
+    font: 600 0.75rem "IBM Plex Sans", sans-serif; cursor: pointer;
+    box-shadow: 0 1px 3px var(--page-ink-shadow);
+  }
+  .theme-btn:hover { background: var(--sr-surface-subtle); }
+
+  .decisions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 14px; margin: 26px 0 44px; }
+  .decision {
+    background: var(--sr-surface);
+    border: 1px solid var(--sr-border);
+    border-left: 3px solid var(--sr-accent);
+    border-radius: 10px; padding: 16px 18px;
+    box-shadow: 0 1px 3px var(--page-ink-shadow);
+  }
+  .decision h3 { font-family: Fraunces, Georgia, serif; font-size: 1.02rem; font-weight: 700; margin-bottom: 6px; }
+  .decision p { font-size: 0.8125rem; color: var(--sr-text-muted); }
+  .decision strong { color: var(--sr-text); font-weight: 600; }
+
+  section { margin-bottom: 56px; }
+  h2 { font-family: Fraunces, Georgia, serif; font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
+  .sec-sub { font-size: 0.84375rem; color: var(--sr-text-muted); margin-bottom: 20px; max-width: 68ch; }
+  .frames { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+  .frame-col { display: flex; flex-direction: column; gap: 10px; }
+  .frame-tag { font-size: 0.71875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--sr-text-muted); }
+  .frame-tag .accent { color: var(--sr-accent); }
+  .frame-note { font-size: 0.75rem; color: var(--sr-text-muted); max-width: 300px; }
+
+  /* ── App frames (SnowRaven's own register, real tokens) ──────────────── */
+  .sidebar-frame {
+    width: 300px;
+    background: var(--sr-surface);
+    border: 1px solid var(--sr-border);
+    border-radius: 12px;
+    box-shadow: 0 6px 22px var(--page-ink-shadow);
+    overflow: hidden;
+    /* The app's --font-sans resolves to the platform face (Inter is never
+       bundled), so the frames render that resolved stack directly. */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .filters-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--sr-border);
+  }
+  .filters-head span, .side-label {
+    font-size: calc(0.6875rem * var(--tsc));
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--sr-text-muted);
+  }
+  .side-label { display: block; margin-bottom: 6px; }
+  .panel-body { padding: 10px 16px 14px; position: relative; }
+  .fblock { margin-bottom: 12px; }
+  .fblock:last-child { margin-bottom: 0; }
+
+  /* SELECT_STYLE replica (mapExplorerFormat.ts) */
+  .ctl-select {
+    width: 100%; height: 34px; padding: 0 28px 0 10px;
+    border: 1.5px solid var(--sr-border-input); border-radius: 6px;
+    font-size: var(--ctl-fs, 0.8125rem); font-family: inherit;
+    color: var(--sr-text);
+    background: var(--sr-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717A' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center;
+    appearance: none; -webkit-appearance: none; cursor: pointer;
+    display: flex; align-items: center;
+    line-height: 31px; overflow: hidden; white-space: nowrap;
+  }
+  .ctl-date {
+    flex: 1; height: 34px; padding: 0 8px;
+    border: 1.5px solid var(--sr-border); border-radius: 6px;
+    font-size: calc(0.75rem * var(--tsc)); font-family: inherit;
+    color: var(--sr-text); background: var(--sr-surface); min-width: 0;
+    line-height: 31px; white-space: nowrap; overflow: hidden;
+  }
+  .field-row { display: flex; gap: 8px; }
+  .seg { display: flex; flex-wrap: wrap; gap: 2px; background: var(--sr-surface-subtle); border-radius: 6px; padding: 2px; }
+  .seg button {
+    flex: 1 1 auto; padding: 0.35rem 4px; border-radius: 5px;
+    font-size: calc(0.71875rem * var(--tsc)); font-family: inherit;
+    background: transparent; border: 1px solid transparent;
+    color: var(--sr-text-muted); cursor: pointer; white-space: nowrap;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--sr-surface); border-color: var(--sr-border);
+    color: var(--sr-text); font-weight: 600;
+  }
+  .below-panel { padding: 12px 16px; border-top: 1px solid var(--sr-border); }
+  .stats-line { font-size: calc(0.6875rem * var(--tsc)); color: var(--sr-text-muted); padding: 10px 16px; border-top: 1px solid var(--sr-border); background: var(--sr-surface-faint); }
+
+  /* ── The combobox (SpeciesCombobox, new size="panel": 34px register) ── */
+  .cb-root { position: relative; min-width: 0; }
+  .cb-inputwrap { position: relative; }
+  .cb-icon {
+    position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+    color: var(--sr-text-muted); pointer-events: none; display: flex;
+  }
+  .cb-input {
+    width: 100%; height: 34px; padding: 0 34px 0 30px;
+    border: 1.5px solid var(--sr-border-input); border-radius: 6px;
+    font-size: var(--ctl-fs, 0.8125rem); font-family: inherit;
+    color: var(--sr-text); background: var(--sr-surface);
+    transition: border-color 0.15s; min-width: 0;
+  }
+  .cb-input::placeholder { color: var(--sr-text-muted); opacity: 1; }
+  .cb-root.open .cb-input {
+    border-color: var(--sr-accent);
+    border-radius: 6px 6px 0 0; border-bottom-color: transparent;
+  }
+  .cb-root.has-value:not(.open) .cb-input { font-weight: 500; }
+  .cb-toggle {
+    position: absolute; right: 7px; top: 50%;
+    transform: translateY(-50%) rotate(0deg);
+    transition: transform 0.15s; cursor: pointer;
+    color: var(--sr-text-muted); display: flex;
+    background: transparent; border: none; padding: 4px;
+  }
+  .cb-root.open .cb-toggle { transform: translateY(-50%) rotate(180deg); }
+
+  .cb-list {
+    position: absolute; top: 100%; left: 0; right: 0;
+    background: var(--sr-surface);
+    border: 1.5px solid var(--sr-accent);
+    border-top: none; border-radius: 0 0 6px 6px;
+    box-shadow: 0 8px 24px var(--page-ink-shadow);
+    max-height: 260px; overflow-y: auto; z-index: 50;
+    transform-origin: top center;
+    animation: lb-in 140ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  @keyframes lb-in {
+    from { opacity: 0; transform: scaleY(0.96); }
+    to   { opacity: 1; transform: scaleY(1); }
+  }
+  .cb-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; cursor: pointer;
+  }
+  .cb-row:hover { background: var(--sr-surface-subtle); }
+  .cb-row.selected { background: var(--sr-accent-bg); }
+  .cb-row.active { background: var(--sr-accent-bg-hover); outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+  .cb-check { width: 16px; flex-shrink: 0; color: var(--sr-accent); display: flex; }
+  .cb-name {
+    font-size: calc(0.84375rem * var(--tsc)); font-weight: 500;
+    color: var(--sr-text); flex: 1;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cb-row.selected .cb-name { color: var(--sr-accent); }
+  .cb-row.allrow .cb-name { font-style: italic; }
+  .cb-sci {
+    font-size: calc(0.6875rem * var(--tsc)); font-style: italic;
+    color: var(--sr-text-muted); flex: 0 1 auto; text-align: right;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cb-empty { padding: 12px 14px; font-size: calc(0.8125rem * var(--tsc)); color: var(--sr-text-muted); }
+
+  /* Faux-native open menu for the "today" frame */
+  .native-menu {
+    margin-top: 2px; border: 1px solid var(--sr-border-medium); border-radius: 4px;
+    background: var(--sr-surface); box-shadow: 0 8px 24px var(--page-ink-shadow);
+    max-height: 208px; overflow: hidden; position: relative;
+  }
+  .native-menu div { padding: 5px 12px; font-size: 0.8125rem; color: var(--sr-text); white-space: nowrap; }
+  .native-menu div.sel { background: var(--sr-accent); color: var(--sr-on-accent); }
+  .native-fade {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 44px;
+    background: linear-gradient(to bottom, transparent, var(--sr-surface));
+    display: flex; align-items: flex-end; justify-content: center;
+    font-size: 0.6875rem; color: var(--sr-text-muted); padding-bottom: 4px;
+  }
+  .native-scroll {
+    position: absolute; right: 2px; top: 6px; width: 5px; height: 34px;
+    border-radius: 3px; background: var(--sr-border-medium);
+  }
+
+  /* Clip-boundary annotation (mockup layer) */
+  .clip-mark {
+    position: absolute; left: 0; right: 0; z-index: 60; pointer-events: none;
+    border-top: 2px dashed var(--sr-border-medium);
+  }
+  .clip-mark em {
+    position: absolute; right: 6px; top: -11px;
+    font: 600 0.625rem "IBM Plex Sans", sans-serif; font-style: normal;
+    background: var(--sr-surface-subtle); color: var(--sr-text-muted);
+    border: 1px solid var(--sr-border-medium); border-radius: 9px;
+    padding: 2px 8px; white-space: nowrap;
+  }
+
+  /* ── Phone frame (320px viewport, 282px sheet over the map) ──────────── */
+  .phone-frame {
+    width: 320px; height: 600px; position: relative;
+    border: 1px solid var(--sr-border-medium); border-radius: 18px;
+    overflow: hidden; box-shadow: 0 10px 30px var(--page-ink-shadow);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .phone-frame.tsc2 { --tsc: 2; --ctl-fs: max(16px, calc(0.8125rem * 2)); }
+  .phone-frame { --ctl-fs: max(16px, 0.8125rem); } /* .sr-input-16 behavior on phone */
+  /* The map canvas is ALWAYS light (Positron), matching the shipped app. */
+  .mini-map {
+    position: absolute; inset: 0; background: #EBE7E2;
+  }
+  .mini-map .water { position: absolute; left: -40px; top: -30px; width: 190px; height: 260px; background: #D2E3EA; border-radius: 0 0 160px 30px; }
+  .mini-map .park { position: absolute; right: -20px; bottom: 90px; width: 150px; height: 120px; background: #DEE8D8; border-radius: 40px 10px 60px 20px; }
+  .mini-map .road-a { position: absolute; left: 0; right: 0; top: 200px; height: 5px; background: #FFFFFF; transform: rotate(-7deg); }
+  .mini-map .road-b { position: absolute; top: 0; bottom: 0; left: 218px; width: 5px; background: #FFFFFF; transform: rotate(9deg); }
+  .mini-map .pin { position: absolute; width: 14px; height: 14px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #277448; border: 1.5px solid #FFFFFF; }
+  .backdrop { position: absolute; inset: 0; background: rgba(15,17,23,0.35); }
+  .sheet {
+    position: absolute; top: 0; left: 0; height: 100%;
+    width: min(282px, 90%);
+    background: var(--sr-surface);
+    border-right: 1px solid var(--sr-border);
+    overflow-y: auto; z-index: 5;
+  }
+  .sheet .field-row { flex-direction: column; } /* phone tier stacks date pair */
+  .sheet-close {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px; border: none;
+    background: transparent; color: var(--sr-text-muted); cursor: pointer;
+  }
+  .sheet-close:hover { background: var(--sr-surface-subtle); }
+  .scale-btn {
+    align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 12px; border-radius: 15px;
+    border: 1px solid var(--sr-border-medium);
+    background: var(--sr-surface); color: var(--sr-text);
+    font: 600 0.71875rem "IBM Plex Sans", sans-serif; cursor: pointer;
+  }
+  .scale-btn[aria-pressed="true"] { background: var(--sr-accent-bg); border-color: var(--sr-accent); color: var(--sr-accent); }
+
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+  .cb-input:focus-visible { outline: none; } /* the accent border carries focus, as in the app */
+
+  footer { border-top: 1px solid var(--sr-border); padding-top: 18px; font-size: 0.75rem; color: var(--sr-text-muted); max-width: 72ch; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cb-list { animation: none; }
+    .cb-toggle, .cb-input { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="page-head">
+    <div>
+      <div class="kicker">SnowRaven &middot; Map Explorer &middot; design pass</div>
+      <h1>Find a bird by typing,<br>not by scrolling</h1>
+      <p class="lede">
+        The My Sightings filter panel's Species control is the app's last scroll-only
+        species dropdown. It becomes the same type-to-find picker Species Detail and
+        the Calendar already use. What it filters and how results render do not change.
+      </p>
+    </div>
+    <button class="theme-btn" id="themeBtn" type="button" aria-pressed="false">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+      <span id="themeLabel">Dark theme</span>
+    </button>
+  </div>
+
+  <div class="decisions">
+    <div class="decision">
+      <h3>Fit: one new size, <span style="font-family: ui-monospace, Menlo, monospace; font-size: 0.9em;">panel</span></h3>
+      <p><strong>SpeciesCombobox gains a third size that IS the panel register:</strong>
+      34px tall, 0.8125rem text, 6px radius, full panel width - the exact
+      SELECT_STYLE numbers every neighbouring control uses. The existing
+      <strong>sm</strong> (Calendar) and <strong>md</strong> (Species Detail) code paths
+      are untouched, so both stay regression-free by construction.</p>
+    </div>
+    <div class="decision">
+      <h3>The open list never clips</h3>
+      <p><strong>The filter panel's collapse wrapper releases its clip while the panel
+      is open</strong> (overflow: hidden only while collapsed or animating). The open
+      list paints over the filters below it, and the sidebar or sheet scrollport keeps
+      every row reachable - at 320px width and 200% text scale. Internal scroll caps
+      the list at its existing 260px.</p>
+    </div>
+  </div>
+
+  <section>
+    <h2>Today, next to the refinement</h2>
+    <p class="sec-sub">
+      Desktop sidebar, closed state. Same 34px register, same label, same width. The
+      only visible change is the search icon, the type-in affordance, and the chevron.
+    </p>
+    <div class="frames">
+      <div class="frame-col">
+        <span class="frame-tag">Today - native select, 214 species, no search</span>
+        <div class="sidebar-frame">
+          <div class="filters-head"><span>Filters</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--sr-text-muted)" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="panel-body">
+            <div class="fblock">
+              <span class="side-label">Species</span>
+              <div class="ctl-select">All species</div>
+              <div class="native-menu" aria-hidden="true">
+                <div class="sel">All species</div>
+                <div>Acorn Woodpecker</div>
+                <div>Allen's Hummingbird</div>
+                <div>American Avocet</div>
+                <div>American Bittern</div>
+                <div>American Coot</div>
+                <div>American Crow</div>
+                <div>American Dipper</div>
+                <div class="native-scroll"></div>
+                <div class="native-fade">... 206 more, in one alphabetical list</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="frame-note">Golden-crowned Sparrow is about 90 rows down. The only way there is scrolling.</p>
+      </div>
+      <div class="frame-col">
+        <span class="frame-tag"><span class="accent">Refined</span> - the shared type-to-find picker</span>
+        <div class="sidebar-frame">
+          <div class="filters-head"><span>Filters</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--sr-text-muted)" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="panel-body">
+            <div class="fblock">
+              <span class="side-label">Species</span>
+              <div class="cb-root">
+                <div class="cb-inputwrap">
+                  <span class="cb-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+                  <input class="cb-input" type="text" placeholder="All species" aria-label="Species (static preview)" readonly>
+                  <span class="cb-toggle" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+                </div>
+              </div>
+            </div>
+            <div class="fblock">
+              <span class="side-label">Date Range</span>
+              <div class="field-row">
+                <div class="ctl-date">08/01/2026</div>
+                <div class="ctl-date">08/29/2026</div>
+              </div>
+            </div>
+            <div class="fblock">
+              <span class="side-label">County</span>
+              <div class="ctl-select">All counties</div>
+            </div>
+            <div class="fblock">
+              <span class="side-label">Breeding Code</span>
+              <div class="seg">
+                <button type="button" aria-pressed="true" tabindex="-1">All</button>
+                <button type="button" aria-pressed="false" tabindex="-1">Possible</button>
+                <button type="button" aria-pressed="false" tabindex="-1">Probable</button>
+                <button type="button" aria-pressed="false" tabindex="-1">Confirmed</button>
+              </div>
+            </div>
+            <div class="fblock">
+              <span class="side-label">Media</span>
+              <div class="ctl-select">Any</div>
+            </div>
+          </div>
+        </div>
+        <p class="frame-note">34px tall like every neighbour; the muted "All species" placeholder keeps the panel readable as a column of current values.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The open list, in the desktop sidebar</h2>
+    <p class="sec-sub">
+      Live: the full list is open, capped at its 260px internal scroll, and it paints
+      past the dashed line marking where the panel's old clip edge sat - released while
+      the panel is open, so nothing is cut off and the sidebar scrolls to keep every row
+      reachable. Type "sparrow" and 214 rows become 4. Arrow keys move, Enter selects,
+      Escape closes, and the italic "All species" row always clears the filter.
+    </p>
+    <div class="frames">
+      <div class="frame-col">
+        <span class="frame-tag"><span class="accent">Interactive</span> - type to narrow the list</span>
+        <div class="sidebar-frame" style="overflow: visible;">
+          <div class="filters-head"><span>Filters</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--sr-text-muted)" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="panel-body" id="desktopPanel">
+            <div class="fblock">
+              <span class="side-label">Species</span>
+              <div class="cb-root" id="cbDesktop"></div>
+            </div>
+            <div class="fblock">
+              <span class="side-label">Date Range</span>
+              <div class="field-row">
+                <div class="ctl-date">08/01/2026</div>
+                <div class="ctl-date">08/29/2026</div>
+              </div>
+            </div>
+            <div class="fblock">
+              <span class="side-label">County</span>
+              <div class="ctl-select">All counties</div>
+            </div>
+            <div class="fblock">
+              <span class="side-label">Breeding Code</span>
+              <div class="seg">
+                <button type="button" aria-pressed="true" tabindex="-1">All</button>
+                <button type="button" aria-pressed="false" tabindex="-1">Possible</button>
+                <button type="button" aria-pressed="false" tabindex="-1">Probable</button>
+                <button type="button" aria-pressed="false" tabindex="-1">Confirmed</button>
+              </div>
+            </div>
+            <div class="clip-mark" style="bottom: 0;"><em>old clip edge - released while open</em></div>
+          </div>
+          <div class="below-panel">
+            <span class="side-label">Map View</span>
+            <div class="seg" style="max-width: 160px;">
+              <button type="button" aria-pressed="true" tabindex="-1">Pins</button>
+              <button type="button" aria-pressed="false" tabindex="-1">Heatmap</button>
+            </div>
+          </div>
+          <div class="stats-line">1,284 sightings &middot; 214 species in view</div>
+        </div>
+        <p class="frame-note">This frame has no ML export loaded, so no Media filter; the release works identically with one.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The phone sheet, 320px</h2>
+    <p class="sec-sub">
+      Live: the fullscreen filter sheet is its own scrollport, so the open list stays
+      reachable on the narrowest phone. The 200% preview raises every text size the way
+      the in-app Text Size control does; control boxes hold their height, the rows grow,
+      and the list scrolls internally. The map behind stays light in both themes, as it
+      does in the shipped app.
+    </p>
+    <div class="frames">
+      <div class="frame-col">
+        <span class="frame-tag"><span class="accent">Interactive</span> - query "thrush", Varied Thrush selected</span>
+        <div class="phone-frame" id="phoneFrame">
+          <div class="mini-map" aria-hidden="true">
+            <div class="water"></div><div class="park"></div>
+            <div class="road-a"></div><div class="road-b"></div>
+            <div class="pin" style="left: 236px; top: 130px;"></div>
+            <div class="pin" style="left: 262px; top: 300px;"></div>
+            <div class="pin" style="left: 226px; top: 430px;"></div>
+          </div>
+          <div class="backdrop" aria-hidden="true"></div>
+          <div class="sheet">
+            <div class="filters-head">
+              <span>Filters</span>
+              <button class="sheet-close" type="button" aria-label="Close filters" tabindex="-1">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <div class="panel-body">
+              <div class="fblock">
+                <span class="side-label">Species</span>
+                <div class="cb-root" id="cbPhone"></div>
+              </div>
+              <div class="fblock">
+                <span class="side-label">Date Range</span>
+                <div class="field-row">
+                  <div class="ctl-date">08/01/2026</div>
+                  <div class="ctl-date">08/29/2026</div>
+                </div>
+              </div>
+              <div class="fblock">
+                <span class="side-label">County</span>
+                <div class="ctl-select">All counties</div>
+              </div>
+              <div class="fblock">
+                <span class="side-label">Breeding Code</span>
+                <div class="seg">
+                  <button type="button" aria-pressed="true" tabindex="-1">All</button>
+                  <button type="button" aria-pressed="false" tabindex="-1">Possible</button>
+                  <button type="button" aria-pressed="false" tabindex="-1">Probable</button>
+                  <button type="button" aria-pressed="false" tabindex="-1">Confirmed</button>
+                </div>
+              </div>
+              <div class="fblock">
+                <span class="side-label">Media</span>
+                <div class="ctl-select">Any</div>
+              </div>
+            </div>
+            <div class="below-panel">
+              <span class="side-label">Map View</span>
+              <div class="seg" style="max-width: 160px;">
+                <button type="button" aria-pressed="true" tabindex="-1">Pins</button>
+                <button type="button" aria-pressed="false" tabindex="-1">Heatmap</button>
+              </div>
+            </div>
+            <div class="stats-line">1,284 sightings &middot; 214 species in view</div>
+          </div>
+        </div>
+        <button class="scale-btn" id="scaleBtn" type="button" aria-pressed="false">Preview at 200% text scale</button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Rows are plain text on purpose: species names inside form controls never render
+    through the BirdName link component (the ratified pattern from the v1.0.4
+    combobox extraction). Motion is one 140ms ease-out entrance on the list, scaling
+    from the input above it; with reduced motion set, the list simply appears.
+    Tokens shown are the real values from globals.css in both themes.
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SPECIES = [
+    ["Acorn Woodpecker", "Melanerpes formicivorus"],
+    ["Allen's Hummingbird", "Selasphorus sasin"],
+    ["Anna's Hummingbird", "Calypte anna"],
+    ["Bewick's Wren", "Thryomanes bewickii"],
+    ["Black Turnstone", "Arenaria melanocephala"],
+    ["Brewer's Blackbird", "Euphagus cyanocephalus"],
+    ["Brown Creeper", "Certhia americana"],
+    ["California Quail", "Callipepla californica"],
+    ["California Scrub-Jay", "Aphelocoma californica"],
+    ["California Towhee", "Melozone crissalis"],
+    ["Cedar Waxwing", "Bombycilla cedrorum"],
+    ["Chestnut-backed Chickadee", "Poecile rufescens"],
+    ["Dark-eyed Junco", "Junco hyemalis"],
+    ["Fox Sparrow", "Passerella iliaca"],
+    ["Golden-crowned Kinglet", "Regulus satrapa"],
+    ["Golden-crowned Sparrow", "Zonotrichia atricapilla"],
+    ["Hermit Thrush", "Catharus guttatus"],
+    ["Nuttall's Woodpecker", "Dryobates nuttallii"],
+    ["Oak Titmouse", "Baeolophus inornatus"],
+    ["Pacific Wren", "Troglodytes pacificus"],
+    ["Pygmy Nuthatch", "Sitta pygmaea"],
+    ["Ruby-crowned Kinglet", "Corthylio calendula"],
+    ["Ruddy Turnstone", "Arenaria interpres"],
+    ["Savannah Sparrow", "Passerculus sandwichensis"],
+    ["Snowy Plover", "Anarhynchus nivosus"],
+    ["Spotted Towhee", "Pipilo maculatus"],
+    ["Surfbird", "Calidris virgata"],
+    ["Swainson's Thrush", "Catharus ustulatus"],
+    ["Townsend's Warbler", "Setophaga townsendi"],
+    ["Varied Thrush", "Ixoreus naevius"],
+    ["Western Meadowlark", "Sturnella neglecta"],
+    ["White-crowned Sparrow", "Zonotrichia leucophrys"],
+    ["Wrentit", "Chamaea fasciata"],
+    ["Yellow-rumped Warbler", "Setophaga coronata"]
+  ];
+
+  var SEARCH_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>';
+  var CHEV_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+  var CHECK_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+
+  // A working replica of SpeciesCombobox at size="panel": type-to-filter over
+  // common + scientific name, an "All species" clearing row, arrow keys, Enter,
+  // Escape, outside click. Selection state and open state mirror the component.
+  function initCombobox(rootId, opts) {
+    var root = document.getElementById(rootId);
+    root.className = 'cb-root';
+
+    var wrap = document.createElement('div');
+    wrap.className = 'cb-inputwrap';
+    wrap.innerHTML =
+      '<span class="cb-icon">' + SEARCH_SVG + '</span>' +
+      '<input class="cb-input" type="text" role="combobox" aria-expanded="false" ' +
+      'aria-autocomplete="list" aria-haspopup="listbox" placeholder="All species" aria-label="Species">' +
+      '<button class="cb-toggle" type="button" tabindex="-1" aria-label="Toggle species list">' + CHEV_SVG + '</button>';
+    root.appendChild(wrap);
+
+    var input = wrap.querySelector('.cb-input');
+    var toggle = wrap.querySelector('.cb-toggle');
+    var state = { open: false, query: opts.query || '', value: opts.value || null, active: -1 };
+    var list = null;
+
+    function rows() {
+      var q = state.query.trim().toLowerCase();
+      var filtered = SPECIES.filter(function (s) {
+        return !q || s[0].toLowerCase().indexOf(q) >= 0 || s[1].toLowerCase().indexOf(q) >= 0;
+      });
+      var all = [{ kind: 'all', label: 'All species' }];
+      return all.concat(filtered.map(function (s) { return { kind: 'species', name: s[0], sci: s[1] }; }));
+    }
+
+    function render() {
+      root.classList.toggle('open', state.open);
+      root.classList.toggle('has-value', !!state.value);
+      input.setAttribute('aria-expanded', state.open ? 'true' : 'false');
+      input.value = state.open ? state.query : (state.value || '');
+      if (list) { list.remove(); list = null; }
+      if (!state.open) return;
+
+      list = document.createElement('div');
+      list.className = 'cb-list';
+      list.setAttribute('role', 'listbox');
+      list.setAttribute('aria-label', 'Species');
+      var rs = rows();
+      if (rs.length === 1 && state.query.trim() !== '' ) {
+        // Only the clearing row matched nothing: show the honest empty state too.
+        var probe = SPECIES.some(function (s) {
+          var q = state.query.trim().toLowerCase();
+          return s[0].toLowerCase().indexOf(q) >= 0 || s[1].toLowerCase().indexOf(q) >= 0;
+        });
+        if (!probe) {
+          var allRow = buildRow(rs[0], 0);
+          list.appendChild(allRow);
+          var empty = document.createElement('div');
+          empty.className = 'cb-empty';
+          empty.textContent = 'No species match this search.';
+          list.appendChild(empty);
+          root.appendChild(list);
+          return;
+        }
+      }
+      rs.forEach(function (r, i) { list.appendChild(buildRow(r, i)); });
+      root.appendChild(list);
+      var act = list.querySelector('.cb-row.active');
+      if (act && act.scrollIntoView) act.scrollIntoView({ block: 'nearest' });
+    }
+
+    function buildRow(r, i) {
+      var el = document.createElement('div');
+      var isSel = r.kind === 'all' ? !state.value : r.name === state.value;
+      el.className = 'cb-row' + (r.kind === 'all' ? ' allrow' : '') +
+        (isSel ? ' selected' : '') + (i === state.active ? ' active' : '');
+      el.setAttribute('role', 'option');
+      el.setAttribute('aria-selected', isSel ? 'true' : 'false');
+      var check = document.createElement('span');
+      check.className = 'cb-check';
+      if (isSel) check.innerHTML = CHECK_SVG;
+      var name = document.createElement('span');
+      name.className = 'cb-name';
+      name.textContent = r.kind === 'all' ? r.label : r.name;
+      el.appendChild(check);
+      el.appendChild(name);
+      if (r.kind === 'species') {
+        var sci = document.createElement('span');
+        sci.className = 'cb-sci';
+        sci.textContent = r.sci;
+        el.appendChild(sci);
+      }
+      el.addEventListener('click', function () { choose(r); });
+      return el;
+    }
+
+    function choose(r) {
+      state.value = r.kind === 'all' ? null : r.name;
+      state.query = '';
+      state.open = false;
+      state.active = -1;
+      render();
+    }
+
+    input.addEventListener('focus', function () {
+      state.open = true; state.active = -1;
+      input.select();
+      render();
+      input.value = state.query; // render resets it; keep the live query visible
+    });
+    input.addEventListener('input', function () {
+      state.query = input.value; state.active = -1;
+      if (!state.open) state.open = true;
+      var v = input.value; render(); input.value = v;
+    });
+    input.addEventListener('keydown', function (e) {
+      var rs = rows();
+      if (e.key === 'Escape' || e.key === 'Tab') { state.open = false; state.active = -1; render(); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); state.open = true; state.active = Math.min(state.active + 1, rs.length - 1); render(); input.value = state.query; }
+      if (e.key === 'ArrowUp') { e.preventDefault(); state.active = Math.max(state.active - 1, -1); render(); input.value = state.query; }
+      if (e.key === 'Enter' && state.open) {
+        e.preventDefault();
+        var fallback = state.query.trim() === '' ? rs[0] : rs.filter(function (r) { return r.kind === 'species'; })[0];
+        var target = state.active >= 0 ? rs[state.active] : fallback;
+        if (target) choose(target);
+      }
+    });
+    toggle.addEventListener('click', function () {
+      state.open = !state.open; state.active = -1; render();
+      if (state.open) input.focus();
+    });
+    document.addEventListener('mousedown', function (e) {
+      if (!root.contains(e.target)) {
+        if (state.open) { state.open = false; state.active = -1; render(); }
+      }
+    });
+
+    state.open = !!opts.startOpen;
+    render();
+    if (state.open) input.value = state.query;
+  }
+
+  initCombobox('cbDesktop', { query: '', startOpen: true, value: null });
+  initCombobox('cbPhone', { query: 'thrush', startOpen: true, value: 'Varied Thrush' });
+
+  // Theme toggle (default follows the OS, like the app's anti-flash script).
+  var themeBtn = document.getElementById('themeBtn');
+  var themeLabel = document.getElementById('themeLabel');
+  function applyTheme(dark) {
+    if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    themeLabel.textContent = dark ? 'Light theme' : 'Dark theme';
+    themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+  }
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(prefersDark);
+  themeBtn.addEventListener('click', function () {
+    applyTheme(!document.documentElement.hasAttribute('data-theme'));
+  });
+
+  // 200% text-scale preview on the phone frame.
+  var scaleBtn = document.getElementById('scaleBtn');
+  var phone = document.getElementById('phoneFrame');
+  scaleBtn.addEventListener('click', function () {
+    var on = phone.classList.toggle('tsc2');
+    scaleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    scaleBtn.textContent = on ? 'Back to 100% text scale' : 'Preview at 200% text scale';
+  });
+})();
+</script>
+</body>
+</html>

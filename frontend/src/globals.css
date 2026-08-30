@@ -3854,3 +3854,24 @@ select:focus-visible {
     padding-bottom: 4px;
   }
 }
+
+/* ── SpeciesCombobox listbox entrance ──────────────────────────────────────────
+   (improve: searchable-species-pickers)
+
+   One 140ms ease-out entrance on the shared species picker's listbox, scaling
+   from the input above it (origin-aware: transform-origin top center). It lives
+   on the shared component so all three pickers (Species Detail, Calendar, Map
+   Explorer filter panel) carry the identical motion and cannot drift. Close is
+   instant removal (conditional render), deliberately unanimated. The global
+   prefers-reduced-motion rule above collapses the entrance to ~1 microsecond;
+   the animation's end state IS its resting state, so nothing is lost and no
+   per-component reduced-motion query is needed (the standing note at the Pin
+   Share block). Top-level on purpose: it applies at every width. */
+.sr-combobox-list {
+  transform-origin: top center;
+  animation: sr-combobox-list-in 140ms cubic-bezier(0.2, 0, 0, 1);
+}
+@keyframes sr-combobox-list-in {
+  from { opacity: 0; transform: scaleY(0.96); }
+  to   { opacity: 1; transform: scaleY(1); }
+}

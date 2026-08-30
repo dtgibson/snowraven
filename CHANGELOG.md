@@ -2,6 +2,14 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.7] - 2026-08-29
+
+### Changed
+- **The Map Explorer's Species filter is now searchable.** The My Sightings filter panel's Species control was the app's last scroll-only species dropdown: hundreds of birds in one alphabetical list. It is now the same type-to-find picker Species Detail and the Calendar already use. Start typing to narrow the list by common or scientific name, click or press Enter to choose, and pick "All species" (always the first row) to clear the filter. What it filters and how the map draws it do not change. The picker sits at exactly the size of its neighbouring panel controls, and its open list is never cut off by the filter panel, on the desktop sidebar or the phone filter sheet, at any text size. All three species pickers now share one subtle 140ms opening animation for the list; with reduced motion set, the list simply appears.
+
+### Fixed
+- **A long scientific name no longer squeezes the common name out of a picker row.** In a species picker's open list, the smaller scientific name on the right could claim most of a narrow row and leave the common name cut down to a few letters, or at the largest text size to nothing at all. The common name now always keeps the larger share of the row, and it is the scientific name that shortens. This was already possible in the Species Detail picker on a phone; the new Map Explorer filter's narrow panel made it easy to hit, and both are fixed in the shared picker.
+
 ## [1.0.6] - 2026-08-29
 
 ### Added

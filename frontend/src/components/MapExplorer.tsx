@@ -74,6 +74,7 @@ import {
 } from '../lib/mapExplorerFormat'
 import { MAP_VIEW_MODE_ORDER } from '../lib/mapViewModes'
 import { SegControl, SidebarLabel, InViewMarkerList, KeyNotice, TierHatchSwatch, CountyDensitySwatch, CountyCompletenessLegend, HotspotModeMiniPin, HotspotModeDot, HotspotTierBadge, type HotspotModeMiniVariant } from './map/MapSidebarUI'
+import { SpeciesCombobox, type SpeciesComboboxOption } from './SpeciesCombobox'
 import { MapEffects, BoundsTracker, DetectedLocationPin, CenterPinDropper, CenterPin } from './map/MapControls'
 import { SharePin } from './map/SharePin'
 import { SharePopup } from './map/SharePopup'
@@ -297,6 +298,13 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
 
   // My Sightings filters
   const [filterOpen, setFilterOpen]         = useState(true)
+  // True once the filter panel's grid-rows OPEN transition has finished. While
+  // true (and the panel is open) the panel's clip wrapper releases overflow so
+  // the Species picker's listbox can paint past the panel's bottom edge; it
+  // clears on EVERY toggle so a closing panel re-clips instantly and an opening
+  // one stays clipped until its transitionend. Starts true because the panel
+  // mounts open with no transition to wait for.
+  const [panelSettled, setPanelSettled]     = useState(true)
   // Per-panel collapsed state for the "… in view" lists (session-only, like
   // filterOpen and the Counties-in-view disclosure). Absent key = expanded.
   const [inviewCollapsed, setInviewCollapsed] = useState<Record<string, boolean>>({})
@@ -775,6 +783,18 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
     if (phase.tag !== 'ready') return []
     return [...new Set(phase.observations.map(o => o.commonName))].sort()
   }, [phase])
+
+  // Options for the Species filter picker: each distinct species with the
+  // scientific name from its first observation, so typing narrows by common OR
+  // scientific name (the shared combobox's contract).
+  const speciesOptions = useMemo((): SpeciesComboboxOption[] => {
+    if (phase.tag !== 'ready') return []
+    const sci = new Map<string, string>()
+    for (const o of phase.observations) {
+      if (!sci.has(o.commonName)) sci.set(o.commonName, o.scientificName)
+    }
+    return allSpecies.map(name => ({ name, sciName: sci.get(name) }))
+  }, [phase, allSpecies])
 
   // Normalized names the user has recorded (⇒ they have a Species Detail entry).
   const recordedNames = useMemo(
@@ -1853,7 +1873,7 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
         {/* Collapsible filter panel */}
         <div>
           <button tabIndex={0}
-            onClick={() => setFilterOpen(o => !o)}
+            onClick={() => { setFilterOpen(o => !o); setPanelSettled(false) }}
             aria-expanded={filterOpen}
             aria-controls="sr-map-filter-panel"
             style={{
@@ -1870,17 +1890,50 @@ export function MapExplorer({ onGoToSettings, onNavigateToMediaList, keysVersion
           {/* Animated with grid-template-rows 0fr/1fr (no hard max-height cap), so
               added filters can never overflow a clamp and become unreachable. The
               collapsed content is `inert` — clipped-to-zero controls would
-              otherwise remain invisible tab stops. */}
-          <div id="sr-map-filter-panel" style={{ display: 'grid', gridTemplateRows: filterOpen ? '1fr' : '0fr', transition: 'grid-template-rows 0.25s ease', borderBottom: filterOpen ? '1px solid var(--sr-border)' : 'none' }}>
-            <div inert={!filterOpen} style={{ overflow: 'hidden', minHeight: 0 }}>
+              otherwise remain invisible tab stops.
+
+              The inner clip exists ONLY for that open/close animation, so it
+              applies only then (improve: searchable-species-pickers): once the
+              grid-rows transition finishes with the panel open, the wrapper
+              releases to overflow visible so the Species picker's absolutely
+              positioned listbox paints past the panel's bottom edge and stays
+              reachable in the sidebar / phone-sheet scrollport. transitionend is
+              gated to this element AND the grid-template-rows property, because
+              the event bubbles: the combobox's own border-color / chevron
+              transitions inside the panel must never release the clip early.
+              Closing re-clips instantly (panelSettled clears on every toggle) so
+              the collapse animation still clips. The listbox can only open while
+              the panel is open (collapsed content is inert), so the release
+              window covers every reachable case; under reduced motion the
+              transition still runs (the global rule shortens durations, it does
+              not remove transitions), so transitionend still fires. */}
+          <div
+            id="sr-map-filter-panel"
+            onTransitionEnd={e => {
+              if (e.target === e.currentTarget && e.propertyName === 'grid-template-rows' && filterOpen) setPanelSettled(true)
+            }}
+            style={{ display: 'grid', gridTemplateRows: filterOpen ? '1fr' : '0fr', transition: 'grid-template-rows 0.25s ease', borderBottom: filterOpen ? '1px solid var(--sr-border)' : 'none' }}
+          >
+            <div inert={!filterOpen} style={{ overflow: filterOpen && panelSettled ? 'visible' : 'hidden', minHeight: 0 }}>
             <div style={{ padding: '10px 16px 14px' }}>
-              {/* Species */}
+              {/* Species — the shared type-to-find picker at the panel register
+                  (size="panel" maps onto SELECT_STYLE's 34px numbers), replacing
+                  the scroll-only native select. The "All species" clearing row
+                  keeps the filter clearable, and .sr-input-16 rides the
+                  className prop onto the <input> itself (the iOS no-zoom guard
+                  is inert anywhere else). */}
               <div style={{ marginBottom: 12 }}>
                 <SidebarLabel>Species</SidebarLabel>
-                <select className="sr-input-16" aria-label="Species" value={speciesFilter} onChange={e => setSpeciesFilter(e.target.value)} style={SELECT_STYLE}>
-                  <option value="">All species</option>
-                  {allSpecies.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+                <SpeciesCombobox
+                  options={speciesOptions}
+                  value={speciesFilter || null}
+                  onChange={n => setSpeciesFilter(n ?? '')}
+                  allLabel="All species"
+                  placeholder="All species"
+                  ariaLabel="Species"
+                  size="panel"
+                  className="sr-input-16"
+                />
               </div>
               {/* Date range */}
               <div style={{ marginBottom: 12 }}>
