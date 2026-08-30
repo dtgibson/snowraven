@@ -168,65 +168,117 @@ const REPLAY_PATH = `${DATA_DIR}/replay.json`;
 const styleFilePath = (variant: string) => `${STYLE_DIR}/${variant}.json`;
 
 class TauriStorage implements StorageAdapter {
+  // The fs plugin is dynamically imported ONCE per adapter and every method
+  // awaits the same promise. Besides skipping a resolver round-trip per call,
+  // this keeps concurrent operations on one module instance — vitest's
+  // per-call dynamic-import interception is not reentrant, so the
+  // settings-write-clobber tests need a single import to mock reliably.
+  private fsModule: Promise<typeof import('@tauri-apps/plugin-fs')> | null = null;
+
+  private fs(): Promise<typeof import('@tauri-apps/plugin-fs')> {
+    this.fsModule ??= import('@tauri-apps/plugin-fs');
+    return this.fsModule;
+  }
+
+  // ── settings-write-clobber fix (v1.0.9): per-document serialization ──
+  // Every save rewrites its whole JSON document from a base read, so two
+  // overlapping read-modify-write cycles silently drop each other's keys
+  // (last writer wins with a stale base — how the projects ledger was lost
+  // in 1.0.8). Every method touching a shared JSON document (api-keys.json,
+  // settings.json, metadata.json) therefore runs as one link on that
+  // document's promise chain: each cycle starts from the previous write's
+  // result. Reads are chained too — these are tiny local files, and it buys
+  // read-your-writes ordering for free.
+  // Two structural rules keep the chain safe:
+  //   1. a link NEVER awaits another chained op (deadlock by construction) —
+  //      inside a link, use only the readJson/writeJson/readMeta primitives;
+  //   2. a failed link rejects its own caller only — the stored tail
+  //      swallows the rejection, so one failed write never poisons the chain.
+  // Not a cache (cacheInventory.test.ts): keys are the three internal path
+  // constants, values are tail promises — nothing is retained or evicted.
+  private docChains: Record<string, Promise<void>> = {};
+
+  private chain<T>(path: string, op: () => Promise<T>): Promise<T> {
+    const prev = this.docChains[path] ?? Promise.resolve();
+    const link = prev.then(op);
+    this.docChains[path] = link.then(() => undefined, () => undefined);
+    return link;
+  }
+
   // Reads a JSON file from AppLocalData. Returns {} if the file doesn't exist.
   private async readJson<T extends Record<string, unknown>>(path: string): Promise<T> {
-    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const { readTextFile, exists, BaseDirectory } = await this.fs();
     if (!await exists(path, { baseDir: BaseDirectory.AppLocalData })) return {} as T;
     return JSON.parse(await readTextFile(path, { baseDir: BaseDirectory.AppLocalData })) as T;
   }
 
   // Writes a JSON file to AppLocalData, creating the data/ directory if needed.
   private async writeJson(path: string, data: Record<string, unknown>): Promise<void> {
-    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const { mkdir, writeTextFile, BaseDirectory } = await this.fs();
     await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
     await writeTextFile(path, JSON.stringify(data), { baseDir: BaseDirectory.AppLocalData });
   }
 
   async getApiKey(service: 'ebird' | 'openweather'): Promise<string | null> {
-    try {
-      const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH);
-      const value = keys[service];
-      return value && value.length > 0 ? value : null;
-    } catch {
-      return null;
-    }
+    return this.chain(API_KEYS_PATH, async () => {
+      try {
+        const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH);
+        const value = keys[service];
+        return value && value.length > 0 ? value : null;
+      } catch {
+        return null;
+      }
+    });
   }
 
   async setApiKey(service: 'ebird' | 'openweather', value: string): Promise<void> {
-    const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH).catch(() => ({} as Record<string, string>));
-    keys[service] = value;
-    await this.writeJson(API_KEYS_PATH, keys);
+    return this.chain(API_KEYS_PATH, async () => {
+      const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH).catch(() => ({} as Record<string, string>));
+      keys[service] = value;
+      await this.writeJson(API_KEYS_PATH, keys);
+    });
   }
 
   async deleteApiKey(service: 'ebird' | 'openweather'): Promise<void> {
-    const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH).catch(() => ({} as Record<string, string>));
-    delete keys[service];
-    await this.writeJson(API_KEYS_PATH, keys);
+    return this.chain(API_KEYS_PATH, async () => {
+      const keys = await this.readJson<Record<string, string>>(API_KEYS_PATH).catch(() => ({} as Record<string, string>));
+      delete keys[service];
+      await this.writeJson(API_KEYS_PATH, keys);
+    });
   }
 
   async getSetting<T>(key: string): Promise<T | null> {
-    try {
-      const settings = await this.readJson(SETTINGS_PATH);
-      const value = settings[key];
-      return value !== undefined ? value as T : null;
-    } catch {
-      return null;
-    }
+    return this.chain(SETTINGS_PATH, async () => {
+      try {
+        const settings = await this.readJson(SETTINGS_PATH);
+        const value = settings[key];
+        return value !== undefined ? value as T : null;
+      } catch {
+        return null;
+      }
+    });
   }
 
   async setSetting<T>(key: string, value: T): Promise<void> {
-    const settings = await this.readJson(SETTINGS_PATH).catch(() => ({} as Record<string, unknown>));
-    settings[key] = value as unknown;
-    await this.writeJson(SETTINGS_PATH, settings);
+    return this.chain(SETTINGS_PATH, async () => {
+      const settings = await this.readJson(SETTINGS_PATH).catch(() => ({} as Record<string, unknown>));
+      settings[key] = value as unknown;
+      await this.writeJson(SETTINGS_PATH, settings);
+    });
   }
 
   async deleteSetting(key: string): Promise<void> {
-    const settings = await this.readJson(SETTINGS_PATH).catch(() => ({} as Record<string, unknown>));
-    delete settings[key];
-    await this.writeJson(SETTINGS_PATH, settings);
+    return this.chain(SETTINGS_PATH, async () => {
+      const settings = await this.readJson(SETTINGS_PATH).catch(() => ({} as Record<string, unknown>));
+      delete settings[key];
+      await this.writeJson(SETTINGS_PATH, settings);
+    });
   }
 
-  async getFilesStatus(): Promise<FilesStatus> {
+  // Unchained metadata read — the primitive that chained metadata links call
+  // (getFilesStatus itself is chained; calling IT from inside a link would
+  // deadlock on the chain, rule 1 above).
+  private async readMeta(): Promise<FilesStatus> {
     try {
       const meta = await this.readJson<{ ebird?: FileMetadata | null; ml?: FileMetadata | null }>(META_PATH);
       return { ebird: meta.ebird ?? null, ml: meta.ml ?? null };
@@ -235,8 +287,12 @@ class TauriStorage implements StorageAdapter {
     }
   }
 
+  async getFilesStatus(): Promise<FilesStatus> {
+    return this.chain(META_PATH, () => this.readMeta());
+  }
+
   async readFile(name: 'ebird' | 'ml'): Promise<string | null> {
-    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const { readTextFile, exists, BaseDirectory } = await this.fs();
     const path = FILE_PATHS[name];
     try {
       if (!await exists(path, { baseDir: BaseDirectory.AppLocalData })) return null;
@@ -247,31 +303,37 @@ class TauriStorage implements StorageAdapter {
   }
 
   async writeFile(name: 'ebird' | 'ml', content: string, filename: string): Promise<void> {
-    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
-    await writeTextFile(FILE_PATHS[name], content, { baseDir: BaseDirectory.AppLocalData });
-    const meta = await this.getFilesStatus();
-    meta[name] = { filename, uploadedAt: new Date().toISOString() };
-    await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
+    // The CSV write rides the metadata link so the content and its metadata
+    // entry stay consistent with each other under overlapping calls.
+    return this.chain(META_PATH, async () => {
+      const { mkdir, writeTextFile, BaseDirectory } = await this.fs();
+      await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
+      await writeTextFile(FILE_PATHS[name], content, { baseDir: BaseDirectory.AppLocalData });
+      const meta = await this.readMeta();
+      meta[name] = { filename, uploadedAt: new Date().toISOString() };
+      await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
+    });
   }
 
   async deleteFile(name: 'ebird' | 'ml'): Promise<void> {
-    const { remove, exists, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-    const path = FILE_PATHS[name];
-    try {
-      if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
-        await remove(path, { baseDir: BaseDirectory.AppLocalData });
-      }
-    } catch { /* best-effort */ }
-    const meta = await this.getFilesStatus();
-    meta[name] = null;
-    await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
+    return this.chain(META_PATH, async () => {
+      const { remove, exists, writeTextFile, BaseDirectory } = await this.fs();
+      const path = FILE_PATHS[name];
+      try {
+        if (await exists(path, { baseDir: BaseDirectory.AppLocalData })) {
+          await remove(path, { baseDir: BaseDirectory.AppLocalData });
+        }
+      } catch { /* best-effort */ }
+      const meta = await this.readMeta();
+      meta[name] = null;
+      await writeTextFile(META_PATH, JSON.stringify(meta), { baseDir: BaseDirectory.AppLocalData });
+    });
   }
 
   // ── Offline support — persisted style (FR-01/02/05/06/42) ──
   // OWN file data/map-style/<variant>.json. Never touches settings.json.
   async getStyleBlob(variant: string): Promise<PersistedStyle | null> {
-    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const { readTextFile, exists, BaseDirectory } = await this.fs();
     const path = styleFilePath(variant);
     try {
       if (!await exists(path, { baseDir: BaseDirectory.AppLocalData })) return null;
@@ -282,7 +344,7 @@ class TauriStorage implements StorageAdapter {
   }
 
   async setStyleBlob(variant: string, blob: PersistedStyle): Promise<void> {
-    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const { mkdir, writeTextFile, BaseDirectory } = await this.fs();
     await mkdir(STYLE_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
     await writeTextFile(styleFilePath(variant), JSON.stringify(blob), { baseDir: BaseDirectory.AppLocalData });
   }
@@ -290,7 +352,7 @@ class TauriStorage implements StorageAdapter {
   // ── Offline support — replay store (FR-32/33/34) ──
   // OWN file data/replay.json.
   async getReplayStore(): Promise<ReplayStore | null> {
-    const { readTextFile, exists, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const { readTextFile, exists, BaseDirectory } = await this.fs();
     try {
       if (!await exists(REPLAY_PATH, { baseDir: BaseDirectory.AppLocalData })) return null;
       return JSON.parse(await readTextFile(REPLAY_PATH, { baseDir: BaseDirectory.AppLocalData })) as ReplayStore;
@@ -300,7 +362,7 @@ class TauriStorage implements StorageAdapter {
   }
 
   async setReplayStore(store: ReplayStore): Promise<void> {
-    const { mkdir, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+    const { mkdir, writeTextFile, BaseDirectory } = await this.fs();
     await mkdir(DATA_DIR, { baseDir: BaseDirectory.AppLocalData, recursive: true });
     await writeTextFile(REPLAY_PATH, JSON.stringify(store), { baseDir: BaseDirectory.AppLocalData });
   }

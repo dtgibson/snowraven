@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.9] - 2026-08-30
+
+### Fixed
+- **Desktop saves can no longer overwrite each other.** On the desktop app, everything remembered between launches (theme, map position, tab layout, and the saved answers from the projects check, among others) lives together in one settings file, and each save rewrote that whole file from the version it had read a moment earlier. Two saves landing at the same time could therefore silently drop each other's changes; this is how the projects check's saved answers were lost during a long run, leaving 1.0.8 installs to re-check thousands of checklists that had already been answered. Saves now take turns, so each one starts from the result of the save before it and nothing is dropped. The same protection covers the stored API keys and the record of which data files are loaded. Answers that were already lost cannot be recovered; the next projects check re-earns them, and from this version they stay put.
+
 ## [1.0.8] - 2026-08-30
 
 ### Changed
