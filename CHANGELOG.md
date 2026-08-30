@@ -2,6 +2,11 @@
 
 All notable changes to SnowRaven are documented here.
 
+## [1.0.8] - 2026-08-30
+
+### Changed
+- **The Statistics tab's Projects card is denser and gains a participation chart.** The card used to spread each project across mostly empty full-width lines; each project now reads as one line (name, count, then its share and date span at the right edge), and with two or more projects a small bar chart beside the list compares checklists per project, each row linked to its bar by a colored dot. The chart is decoration: every figure it shows is still in the rows as text, with its denominator, exactly as before. With one project there is nothing to compare, so no chart appears; the "How you submitted" rows take the same one-line tightening and stay chartless while any project is listed. What is checked, when, at what cost, and every state's wording are unchanged, and nothing new is stored. Both themes, small phones, and large text sizes are covered, and with reduced motion set the chart simply appears.
+
 ## [1.0.7] - 2026-08-29
 
 ### Changed

@@ -3119,17 +3119,19 @@ select:focus-visible {
 }
 .sr-proj-portalnote { margin-bottom: 0.375rem; }
 
-/* Project rows. Name and count share the first line; the meta line takes its own
-   row and can still shrink, so a 320px phone stacks without a truncated tally.
+/* Project rows, densified (projects-stats-card): one line at desktop —
+   [dot + name] [count] then the meta clause pushed to the right edge. The row
+   keeps flex-wrap, so a long name or 200% text scale wraps the meta to its own
+   line instead of clipping (row-gap is what spaces the wrapped line).
    No rank numbers: these are contributions, not a ranking. */
 .sr-proj-rows { margin-top: 0.25rem; }
 .sr-proj-row {
-  display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap;
-  min-width: 0; padding: 0.625rem 0; border-top: 1px solid var(--sr-border-subtle);
+  display: flex; align-items: baseline; gap: 0.25rem 0.75rem; flex-wrap: wrap;
+  min-width: 0; padding: 0.5rem 0; border-top: 1px solid var(--sr-border-subtle);
 }
 .sr-proj-rows > .sr-proj-row:last-child { border-bottom: 1px solid var(--sr-border-subtle); }
 .sr-proj-name {
-  flex: 1 1 12rem; min-width: 0; font-size: 0.8125rem; font-weight: 600;
+  flex: 0 1 auto; min-width: 0; font-size: 0.8125rem; font-weight: 600;
   color: var(--sr-text); overflow-wrap: break-word;
 }
 /* An unresolved identifier renders in mono so it reads as an identifier rather
@@ -3137,14 +3139,23 @@ select:focus-visible {
 .sr-proj-name .raw {
   font-family: var(--font-mono); font-size: 0.78125rem; font-weight: 600;
 }
+/* The row's link to its bar in the participation chart. It renders INSIDE
+   .sr-proj-name — never as a direct row child, or the ≤640 stacking rule
+   (`.sr-proj-row > *:not(.sr-only)` → width: 100%) would seize it. Decorative:
+   aria-hidden, background set inline from the fixed categorical token order in
+   ProjectsSection.tsx, and only on rows that actually have a bar. */
+.sr-proj-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 0.5rem; vertical-align: 0;
+}
 .sr-proj-n {
   flex: 0 0 auto; font-size: 0.75rem; font-weight: 600; color: var(--sr-text);
   font-variant-numeric: tabular-nums;
 }
 .sr-proj-meta {
-  flex: 1 1 100%; font-size: 0.6875rem; color: var(--sr-text-muted);
+  flex: 0 1 auto; margin-left: auto; text-align: right;
+  font-size: 0.6875rem; color: var(--sr-text-muted);
   font-variant-numeric: tabular-nums; overflow-wrap: break-word; min-width: 0;
-  margin-top: 0.125rem;
 }
 .sr-proj-meta .sep { opacity: 0.55; padding: 0 0.15em; }
 .sr-proj-unnamed {
@@ -3152,16 +3163,37 @@ select:focus-visible {
   line-height: 1.5; margin-top: 0.125rem; max-width: 62ch; overflow-wrap: break-word;
 }
 
+/* The decorative participation chart in the .sr-grid-chart-aside column beside
+   the rows (projects-stats-card). aria-hidden + inert in the component: every
+   figure it shows is already in the rows as accessible text. The entrance rides
+   the class itself and REPLAYS via a key on the wrapper equal to the charted
+   row count, so it fires exactly when the chartable shape changes (a new bar
+   mid-sweep), never per progress tick; the global prefers-reduced-motion block
+   collapses it to ~1 microsecond and loses nothing. */
+.sr-proj-viz {
+  display: flex; flex-direction: column; gap: 8px; padding-top: 0.25rem;
+  animation: sr-proj-viz-in 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes sr-proj-viz-in {
+  from { opacity: 0; transform: translateY(0.1875rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.sr-proj-viz-cap {
+  font-size: 0.625rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+
 /* The portal breakdown, visually and semantically subordinate to the projects
-   list above it. */
+   list above it: same one-line densification, quieter type, and — while the
+   projects block renders — no dots and no chart. */
 .sr-proj-portals { margin-top: 0.25rem; }
 .sr-proj-portalrow {
-  display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap;
-  padding: 0.4375rem 0; border-top: 1px solid var(--sr-border-subtle); min-width: 0;
+  display: flex; align-items: baseline; gap: 0.25rem 0.75rem; flex-wrap: wrap;
+  padding: 0.375rem 0; border-top: 1px solid var(--sr-border-subtle); min-width: 0;
 }
 .sr-proj-portals > .sr-proj-portalrow:last-child { border-bottom: 1px solid var(--sr-border-subtle); }
 .sr-proj-portalrow .nm {
-  flex: 1 1 10rem; min-width: 0; font-size: 0.75rem; color: var(--sr-text);
+  flex: 0 1 auto; min-width: 0; font-size: 0.75rem; color: var(--sr-text);
   overflow-wrap: break-word;
 }
 .sr-proj-portalrow .nm code {
@@ -3173,9 +3205,9 @@ select:focus-visible {
   overflow-wrap: break-word;
 }
 .sr-proj-portalrow .sh {
-  flex: 1 1 100%; min-width: 0; font-size: 0.6875rem; color: var(--sr-text-muted);
+  flex: 0 1 auto; margin-left: auto; text-align: right;
+  min-width: 0; font-size: 0.6875rem; color: var(--sr-text-muted);
   font-variant-numeric: tabular-nums; overflow-wrap: break-word;
-  margin-top: 0.125rem;
 }
 
 
@@ -3192,6 +3224,15 @@ select:focus-visible {
   .sr-proj-row, .sr-proj-portalrow { flex-direction: column; align-items: flex-start; gap: 0.125rem; }
   .sr-proj-row > *:not(.sr-only),
   .sr-proj-portalrow > *:not(.sr-only) { align-self: stretch; width: 100%; min-width: 0; }
+  /* The desktop right-alignment of the meta clause (and the portal share) would
+     misalign the stacked one-column form, so both revert here. Each selector
+     ties its own base rule's specificity exactly, so SOURCE ORDER decides and
+     this block is later in the file. */
+  .sr-proj-meta, .sr-proj-portalrow .sh { margin-left: 0; text-align: left; }
+  /* The chart-aside grid stacks (shared .sr-grid-chart-aside rule below), so
+     the chart sits under the rows at full width; its optical padding against
+     the side-by-side rows is no longer needed. */
+  .sr-proj-viz { padding-top: 0; }
   /* Phone-tier touch posture for the section's own controls. */
   .sr-proj-act { min-height: 2.75rem; }
   /* Escapee count rule: the checkbox rows take the touch-target posture on a

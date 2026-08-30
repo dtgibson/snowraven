@@ -11,6 +11,7 @@ import {
   checkedClause, tally, estimateMinutes, estimateClause, noneCheckedClause,
   projectsCopy, skippedNote, shareClause,
   UNNAMED_PROJECT_NOTE, PORTALS_NOTE, PROJECTS_SUBLABEL, PORTALS_SUBLABEL,
+  PROJECTS_CHART_CAPTION, PORTALS_CHART_CAPTION,
 } from './projectsCopy'
 import {
   SPECIES_SHADING_HINT, STATS_SHADING_HINT, STATS_EMPTY_NOTE,
@@ -480,6 +481,7 @@ describe('the no-em-dash sweep (FR-61, QA-77)', () => {
   function everyUserFacingString(): string[] {
     const all: string[] = [
       UNNAMED_PROJECT_NOTE, PORTALS_NOTE, PROJECTS_SUBLABEL, PORTALS_SUBLABEL,
+      PROJECTS_CHART_CAPTION, PORTALS_CHART_CAPTION,
       SPECIES_SHADING_HINT, STATS_SHADING_HINT, STATS_EMPTY_NOTE, TEXTURES_HINT,
       speciesLegendTitle('Common Raven'), speciesEmptyNote('Common Raven'),
       skippedNote(1, 10), skippedNote(4, 10),

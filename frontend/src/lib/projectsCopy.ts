@@ -272,5 +272,15 @@ export const UNNAMED_PROJECT_NOTE =
 
 export const PROJECTS_SUBLABEL = 'Projects you have contributed to'
 export const PORTALS_SUBLABEL = 'How you submitted'
+
+/** Micro-caption above the decorative participation chart. Constant, no
+ *  counts — it labels a decoration whose accessible equivalent is the rows, and
+ *  it lives here so the copy-corpus sweep sees every user-visible string. */
+export const PROJECTS_CHART_CAPTION = 'Checklists per project'
+/** The chart-ownership fallback (no projects block rendered, so the chart
+ *  charts portals). A portal is NEVER called a project anywhere in this
+ *  section — the portals note says so in as many words — so the fallback
+ *  caption must not either. */
+export const PORTALS_CHART_CAPTION = 'Checklists per portal'
 export const PORTALS_NOTE =
   'The app or portal a checklist came in through, not a project. A project with its own portal appears in both places.'

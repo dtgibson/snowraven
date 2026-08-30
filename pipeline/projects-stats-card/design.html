@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Projects Card Refinement</title>
+<style>
+/* ════════════════════════════════════════════════════════════════════════
+   SnowRaven — Projects stats card refinement (Improve lane, design pass)
+   Mockup only. Every color is a real token from frontend/src/globals.css,
+   declared in BOTH themes. The app applies the ≤640 tier via media queries;
+   this mockup replicates that tier with a .phone modifier so the 320px
+   artboard can sit beside the desktop one on a single page.
+   ════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Structural */
+  --sr-bg: #F9FAFB;
+  --sr-surface: #FFFFFF;
+  --sr-surface-subtle: #F4F4F5;
+  --sr-surface-faint: #FAFAFA;
+  /* Text */
+  --sr-text: #0F1117;
+  --sr-text-muted: #6B6B74;
+  --sr-text-gray: #6B7280;
+  /* Border */
+  --sr-border: #E4E4E7;
+  --sr-border-subtle: #F4F4F5;
+  --sr-border-medium: #C4C4CE;
+  --sr-border-input: #8A8A91;
+  /* Accent */
+  --sr-accent: #277448;
+  --sr-accent-strong: #1A5C38;
+  --sr-accent-bg: #E8F5EE;
+  --sr-on-accent: #FFFFFF;
+  /* Status */
+  --sr-warning: #92400E;
+  --sr-error: #D31F1F;
+  /* Chart / graph family (the categorical set this card links rows to bars with) */
+  --sr-graph-photo: #3B82F6;
+  --sr-graph-audio: #B45309;
+  --sr-graph-video: #8B5CF6;
+  --sr-chart-slate: #94A3B8;
+  /* Shadow */
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --sr-bg: #09090B;
+  --sr-surface: #18181B;
+  --sr-surface-subtle: #27272A;
+  --sr-surface-faint: #1C1C1F;
+  --sr-text: #F4F4F5;
+  --sr-text-muted: #A1A1AA;
+  --sr-text-gray: #8A8A92;
+  --sr-border: #27272A;
+  --sr-border-subtle: #1F1F23;
+  --sr-border-medium: #3F3F46;
+  --sr-border-input: #707078;
+  --sr-accent: #34D399;
+  --sr-accent-strong: #34D399;
+  --sr-accent-bg: #052E16;
+  --sr-on-accent: #052E16;
+  --sr-warning: #FDE68A;
+  --sr-error: #F87171;
+  --sr-graph-photo: #60A5FA;
+  --sr-graph-audio: #FCD34D;
+  --sr-graph-video: #A78BFA;
+  --sr-chart-slate: #94A3B8;
+  --sr-card-shadow: 0 1px 4px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--sr-bg);
+  color: var(--sr-text);
+  font-family: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 2rem 1.25rem 4rem;
+}
+
+/* ── Mockup gallery chrome (not app UI) ────────────────────────────────── */
+.gallery { max-width: 1060px; margin: 0 auto; display: flex; flex-direction: column; gap: 2.5rem; }
+.gallery-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem;
+}
+.gallery-head h1 { font-size: 1.125rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 0.25rem; }
+.gallery-head p { font-size: 0.8125rem; color: var(--sr-text-muted); margin: 0; max-width: 58ch; }
+.theme-seg { display: inline-flex; border: 1px solid var(--sr-border-input); border-radius: 15px; overflow: hidden; flex-shrink: 0; }
+.theme-seg button {
+  font-family: inherit; font-size: 0.75rem; font-weight: 500; cursor: pointer;
+  border: none; background: var(--sr-surface); color: var(--sr-text-muted);
+  padding: 0.375rem 0.875rem; min-height: 30px;
+}
+.theme-seg button[aria-pressed="true"] { background: var(--sr-accent); color: var(--sr-on-accent); font-weight: 600; }
+.theme-seg button:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: -2px; }
+.board { display: flex; flex-direction: column; gap: 0.625rem; }
+.board-cap {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.board-note { font-size: 0.75rem; color: var(--sr-text-muted); margin: 0; max-width: 72ch; }
+.board-row { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; }
+.replay {
+  font-family: inherit; font-size: 0.71875rem; cursor: pointer; align-self: flex-start;
+  background: none; border: 1px solid var(--sr-border-input); border-radius: 6px;
+  color: var(--sr-text-muted); padding: 0.25rem 0.625rem;
+}
+.replay:hover { border-color: var(--sr-accent); color: var(--sr-accent); }
+.replay:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.phone-frame {
+  width: 320px; flex-shrink: 0; border: 1px dashed var(--sr-border-medium);
+  border-radius: 14px; padding: 6px; background: var(--sr-bg);
+}
+
+/* ── SectionCard (shipped chrome, unchanged) ───────────────────────────── */
+.card {
+  background: var(--sr-surface); border: 1px solid var(--sr-border);
+  border-radius: 12px; padding: clamp(14px, 4vw, 24px);
+  box-shadow: var(--sr-card-shadow); width: 100%;
+}
+.phone-frame .card { padding: 14px; }
+.card-head {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 20px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--sr-border-subtle);
+}
+.card-head .ic { color: var(--sr-accent); display: inline-flex; }
+.card-head h3 { font-size: 0.9375rem; font-weight: 600; margin: 0; }
+
+/* ── Zone A: status block — structure shipped and UNCHANGED ────────────── */
+.sr-proj { display: flex; flex-direction: column; gap: 0.5rem; }
+.sr-proj-statusrow { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.sr-proj-status {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.8125rem; line-height: 1.5; color: var(--sr-text);
+  min-height: 1.25rem; flex: 1 1 20rem; min-width: 0; overflow-wrap: break-word;
+}
+.sr-proj-icon { flex-shrink: 0; margin-top: 0.1875rem; }
+.sr-proj-msg { animation: sr-proj-msg-in 160ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes sr-proj-msg-in {
+  from { opacity: 0; transform: translateY(0.1875rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.sr-proj-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; flex-shrink: 0; max-width: 100%; }
+.sr-proj-act {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  font-family: inherit; font-size: 0.75rem; font-weight: 500;
+  background: var(--sr-surface-subtle); color: var(--sr-text);
+  border: 1px solid var(--sr-border-input); border-radius: 6px;
+  padding: 0.3125rem 0.625rem; cursor: pointer;
+  transition: background 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sr-proj-act:hover { background: var(--sr-surface); border-color: var(--sr-accent); color: var(--sr-accent); }
+.sr-proj-act:focus-visible { outline: 2px solid var(--sr-accent); outline-offset: 2px; }
+.sr-proj-act--primary { background: var(--sr-accent); color: var(--sr-on-accent); border-color: var(--sr-accent); font-weight: 600; }
+.sr-proj-act--primary:hover { background: var(--sr-accent-strong); color: var(--sr-on-accent); border-color: var(--sr-accent-strong); }
+.phone .sr-proj-act { min-height: 2.75rem; }
+.sr-proj-progress { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.375rem; max-width: 26rem; flex-wrap: wrap; }
+.sr-proj-track { flex: 1 1 8rem; min-width: 0; height: 0.375rem; border-radius: 0.1875rem; background: var(--sr-surface-subtle); overflow: hidden; }
+.sr-proj-fill { height: 100%; background: var(--sr-accent); border-radius: 0.1875rem; transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1); }
+.sr-proj-count { font-size: 0.6875rem; color: var(--sr-text-muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.sr-proj-rule { font-size: 0.6875rem; line-height: 1.6; color: var(--sr-text-muted); margin: 0; max-width: 62ch; }
+.sr-proj-portalnote { margin-bottom: 0.375rem; }
+.divider { height: 1px; background: var(--sr-border-subtle); margin: 16px 0; }
+.sublabel {
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted); margin: 0 0 10px;
+}
+
+/* ── Zone B refinement: chart-aside grid (the shipped .sr-grid-chart-aside
+      shape, --sr-aside: 200px, align-items start; stacks to one column in
+      the ≤640 tier) ──────────────────────────────────────────────────────── */
+.sr-proj-vizgrid {
+  display: grid; grid-template-columns: 1fr minmax(140px, 200px);
+  gap: 16px 28px; align-items: start;
+}
+.phone .sr-proj-vizgrid { grid-template-columns: 1fr; }
+
+/* ── Densified project rows: one line at desktop — [dot+name] [count] then
+      the meta clause pushed right; the row still wraps instead of clipping.
+      The dot lives INSIDE the name span (never a direct row child, so the
+      ≤640 stacking rule cannot hand it width:100%). ───────────────────────── */
+.sr-proj-rows { margin-top: 0.25rem; }
+.sr-proj-row {
+  display: flex; align-items: baseline; gap: 0.25rem 0.75rem; flex-wrap: wrap;
+  min-width: 0; padding: 0.5rem 0; border-top: 1px solid var(--sr-border-subtle);
+}
+.sr-proj-rows > .sr-proj-row:last-child { border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-proj-name { flex: 0 1 auto; min-width: 0; font-size: 0.8125rem; font-weight: 600; color: var(--sr-text); overflow-wrap: break-word; }
+.sr-proj-name .raw { font-family: var(--font-mono); font-size: 0.78125rem; font-weight: 600; }
+.sr-proj-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 0.5rem; vertical-align: 0; flex-shrink: 0;
+}
+.sr-proj-n { flex: 0 0 auto; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-proj-meta {
+  flex: 0 1 auto; margin-left: auto; text-align: right;
+  font-size: 0.6875rem; color: var(--sr-text-muted);
+  font-variant-numeric: tabular-nums; overflow-wrap: break-word; min-width: 0;
+}
+.sr-proj-meta .sep { opacity: 0.55; padding: 0 0.15em; }
+.sr-proj-unnamed {
+  flex: 1 1 100%; min-width: 0; font-size: 0.6875rem; color: var(--sr-text-muted);
+  line-height: 1.5; max-width: 62ch; overflow-wrap: break-word;
+}
+.phone .sr-proj-row { flex-direction: column; align-items: flex-start; gap: 0.125rem; }
+.phone .sr-proj-row > * { align-self: stretch; width: 100%; min-width: 0; }
+.phone .sr-proj-meta { margin-left: 0; text-align: left; }
+
+/* ── The participation chart (aside). DECORATIVE: aria-hidden + inert; the
+      rows beside it carry every figure as text. In the app this is recharts
+      (BarChart layout="vertical", hidden axes, Bar background track,
+      isAnimationActive false); here the same geometry in divs. ───────────── */
+.sr-proj-viz { display: flex; flex-direction: column; gap: 8px; padding-top: 0.25rem; }
+.phone .sr-proj-viz { padding-top: 0; }
+.sr-proj-viz-cap {
+  font-size: 0.625rem; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--sr-text-muted);
+}
+.sr-proj-bars { display: flex; flex-direction: column; gap: 8px; }
+.sr-proj-bar { height: 12px; border-radius: 3px; background: var(--sr-surface-subtle); overflow: hidden; }
+.sr-proj-bar > i { display: block; height: 100%; border-radius: 3px; min-width: 2px; }
+/* Entrance: 140ms ease-out rise, keyed in the app by projects.length so it
+   replays exactly when the chartable shape changes. */
+.viz-in { animation: sr-proj-viz-in 140ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes sr-proj-viz-in {
+  from { opacity: 0; transform: translateY(0.1875rem); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Densified portal rows: same one-line shape, quieter register, no dots,
+      no chart — deliberately subordinate to the projects block. ──────────── */
+.sr-proj-portals { margin-top: 0.25rem; }
+.sr-proj-portalrow {
+  display: flex; align-items: baseline; gap: 0.25rem 0.75rem; flex-wrap: wrap;
+  padding: 0.375rem 0; border-top: 1px solid var(--sr-border-subtle); min-width: 0;
+}
+.sr-proj-portals > .sr-proj-portalrow:last-child { border-bottom: 1px solid var(--sr-border-subtle); }
+.sr-proj-portalrow .nm { flex: 0 1 auto; min-width: 0; font-size: 0.75rem; color: var(--sr-text); overflow-wrap: break-word; }
+.sr-proj-portalrow .nm code { font-family: var(--font-mono); font-size: 0.9em; color: var(--sr-text-muted); }
+.sr-proj-portalrow .vl { flex: 0 1 auto; min-width: 0; font-size: 0.75rem; font-weight: 600; color: var(--sr-text); font-variant-numeric: tabular-nums; }
+.sr-proj-portalrow .sh {
+  flex: 0 1 auto; margin-left: auto; text-align: right; min-width: 0;
+  font-size: 0.6875rem; color: var(--sr-text-muted); font-variant-numeric: tabular-nums; overflow-wrap: break-word;
+}
+.phone .sr-proj-portalrow { flex-direction: column; align-items: flex-start; gap: 0.125rem; }
+.phone .sr-proj-portalrow > * { align-self: stretch; width: 100%; min-width: 0; }
+.phone .sr-proj-portalrow .sh { margin-left: 0; text-align: left; }
+
+/* Reduced motion: the app's global rule shortens rather than removes, so
+   transitionend still fires where logic depends on it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="gallery">
+
+  <div class="gallery-head">
+    <div>
+      <h1>Projects stats card refinement</h1>
+      <p>Statistics tab, Projects SectionCard. Same facts, denser rows, and a decorative
+         participation chart in the card's previously empty right half. Every color is a
+         shipped token; toggle the theme to verify both.</p>
+    </div>
+    <div class="theme-seg" role="group" aria-label="Theme">
+      <button type="button" id="btn-light" aria-pressed="true">Light</button>
+      <button type="button" id="btn-dark" aria-pressed="false">Dark</button>
+    </div>
+  </div>
+
+  <!-- ══ A. Complete state, desktop ══════════════════════════════════════ -->
+  <section class="board">
+    <span class="board-cap">A · Complete state, desktop (≥641px)</span>
+    <p class="board-note">Zone A (status, note, actions) is structurally untouched. Zone B's
+       projects block becomes a chart-aside grid: rows tighten to one line each, and the
+       participation chart fills the dead right half. Bars compare checklists per project
+       (scaled to the largest project, not to the denominator); each row's dot links it to
+       its bar. Portals keep no dots and no chart: subordinate by design.</p>
+    <button type="button" class="replay" id="replay-a">Replay data-change entrance (140ms)</button>
+    <div class="card" style="max-width: 920px;">
+      <div class="card-head">
+        <span class="ic">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+        </span>
+        <h3>Projects</h3>
+      </div>
+      <div class="sr-proj">
+        <div class="sr-proj-statusrow">
+          <div class="sr-proj-status" role="status" aria-live="polite">
+            <svg class="sr-proj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+            <span>4 projects across all 3,300 of your checklists. Nothing is left to ask about.</span>
+          </div>
+          <div class="sr-proj-actions">
+            <button type="button" class="sr-proj-act">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+              <span>Check again</span>
+            </button>
+          </div>
+        </div>
+        <p class="sr-proj-rule">Every checklist in this backup has been checked, so these counts are
+          complete for it. Checking again asks eBird about all 3,300 a second time, about 8 minutes.
+          A checklist keeps the project it was submitted to, so that is only worth doing if you think
+          an answer is wrong.</p>
+
+        <div class="divider"></div>
+        <p class="sublabel">Projects you have contributed to</p>
+        <div class="sr-proj-vizgrid">
+          <div class="sr-proj-rows">
+            <div class="sr-proj-row">
+              <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-accent);" aria-hidden="true"></span>Great Backyard Bird Count</span>
+              <span class="sr-proj-n">96 checklists</span>
+              <span class="sr-proj-meta">3% of the 3,300 checked<span class="sep">&middot;</span>Feb 12, 2021 &ndash; Feb 16, 2026</span>
+            </div>
+            <div class="sr-proj-row">
+              <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-graph-photo);" aria-hidden="true"></span>Maine Bird Atlas</span>
+              <span class="sr-proj-n">58 checklists</span>
+              <span class="sr-proj-meta">2% of the 3,300 checked<span class="sep">&middot;</span>May 3, 2024 &ndash; Jul 19, 2026</span>
+            </div>
+            <div class="sr-proj-row">
+              <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-graph-audio);" aria-hidden="true"></span>Global Big Day</span>
+              <span class="sr-proj-n">12 checklists</span>
+              <span class="sr-proj-meta">&lt;1% of the 3,300 checked<span class="sep">&middot;</span>May 10, 2025 &ndash; May 9, 2026</span>
+            </div>
+            <div class="sr-proj-row">
+              <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-graph-video);" aria-hidden="true"></span><span class="raw">1050</span></span>
+              <span class="sr-proj-n">4 checklists</span>
+              <span class="sr-proj-meta">&lt;1% of the 3,300 checked<span class="sep">&middot;</span>Jun 2 &ndash; Jun 28, 2026</span>
+              <span class="sr-proj-unnamed">No public eBird endpoint gives this project a name, so its identifier is shown exactly as eBird reports it.</span>
+            </div>
+          </div>
+          <div class="sr-proj-viz viz-in" id="viz-a" aria-hidden="true" inert>
+            <span class="sr-proj-viz-cap">Checklists per project</span>
+            <div class="sr-proj-bars">
+              <div class="sr-proj-bar"><i style="width: 100%; background: var(--sr-accent);"></i></div>
+              <div class="sr-proj-bar"><i style="width: 60%; background: var(--sr-graph-photo);"></i></div>
+              <div class="sr-proj-bar"><i style="width: 13%; background: var(--sr-graph-audio);"></i></div>
+              <div class="sr-proj-bar"><i style="width: 4%; background: var(--sr-graph-video);"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <p class="sublabel">How you submitted</p>
+        <p class="sr-proj-rule sr-proj-portalnote">The app or portal a checklist came in through, not a project. A project with its own portal appears in both places.</p>
+        <div class="sr-proj-portals">
+          <div class="sr-proj-portalrow">
+            <span class="nm">eBird</span>
+            <span class="vl">3,144 checklists</span>
+            <span class="sh">95% of the 3,300 checked</span>
+          </div>
+          <div class="sr-proj-portalrow">
+            <span class="nm">Great Backyard Bird Count</span>
+            <span class="vl">96 checklists</span>
+            <span class="sh">3% of the 3,300 checked</span>
+          </div>
+          <div class="sr-proj-portalrow">
+            <span class="nm">eBird Canada</span>
+            <span class="vl">42 checklists</span>
+            <span class="sh">1% of the 3,300 checked</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ B. Complete state at 320px + C. Running, side by side ═══════════ -->
+  <section class="board">
+    <span class="board-cap">B · Complete at 320px&nbsp;&nbsp;/&nbsp;&nbsp;C · Running (mid-sweep)</span>
+    <p class="board-note">At ≤640px the chart-aside grid stacks to one column (chart below the rows,
+       full width) and each row stacks name / count / meta, per the shipped tier. The running state
+       keeps the live region, progress bar and N / M readout exactly as shipped; the chart appears
+       as soon as two projects exist and its bars simply re-render as counts land.</p>
+    <div class="board-row">
+
+      <div class="phone-frame">
+        <div class="card phone">
+          <div class="card-head">
+            <span class="ic">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+            </span>
+            <h3>Projects</h3>
+          </div>
+          <div class="sr-proj">
+            <div class="sr-proj-statusrow">
+              <div class="sr-proj-status" role="status" aria-live="polite">
+                <svg class="sr-proj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>4 projects across all 3,300 of your checklists. Nothing is left to ask about.</span>
+              </div>
+              <div class="sr-proj-actions">
+                <button type="button" class="sr-proj-act">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                  <span>Check again</span>
+                </button>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <p class="sublabel">Projects you have contributed to</p>
+            <div class="sr-proj-vizgrid">
+              <div class="sr-proj-rows">
+                <div class="sr-proj-row">
+                  <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-accent);" aria-hidden="true"></span>Great Backyard Bird Count</span>
+                  <span class="sr-proj-n">96 checklists</span>
+                  <span class="sr-proj-meta">3% of the 3,300 checked<span class="sep">&middot;</span>Feb 12, 2021 &ndash; Feb 16, 2026</span>
+                </div>
+                <div class="sr-proj-row">
+                  <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-graph-photo);" aria-hidden="true"></span>Maine Bird Atlas</span>
+                  <span class="sr-proj-n">58 checklists</span>
+                  <span class="sr-proj-meta">2% of the 3,300 checked<span class="sep">&middot;</span>May 3, 2024 &ndash; Jul 19, 2026</span>
+                </div>
+                <div class="sr-proj-row">
+                  <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-graph-audio);" aria-hidden="true"></span>Global Big Day</span>
+                  <span class="sr-proj-n">12 checklists</span>
+                  <span class="sr-proj-meta">&lt;1% of the 3,300 checked<span class="sep">&middot;</span>May 10, 2025 &ndash; May 9, 2026</span>
+                </div>
+                <div class="sr-proj-row">
+                  <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-graph-video);" aria-hidden="true"></span><span class="raw">1050</span></span>
+                  <span class="sr-proj-n">4 checklists</span>
+                  <span class="sr-proj-meta">&lt;1% of the 3,300 checked<span class="sep">&middot;</span>Jun 2 &ndash; Jun 28, 2026</span>
+                  <span class="sr-proj-unnamed">No public eBird endpoint gives this project a name, so its identifier is shown exactly as eBird reports it.</span>
+                </div>
+              </div>
+              <div class="sr-proj-viz" aria-hidden="true" inert>
+                <span class="sr-proj-viz-cap">Checklists per project</span>
+                <div class="sr-proj-bars">
+                  <div class="sr-proj-bar"><i style="width: 100%; background: var(--sr-accent);"></i></div>
+                  <div class="sr-proj-bar"><i style="width: 60%; background: var(--sr-graph-photo);"></i></div>
+                  <div class="sr-proj-bar"><i style="width: 13%; background: var(--sr-graph-audio);"></i></div>
+                  <div class="sr-proj-bar"><i style="width: 4%; background: var(--sr-graph-video);"></i></div>
+                </div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <p class="sublabel">How you submitted</p>
+            <p class="sr-proj-rule sr-proj-portalnote">The app or portal a checklist came in through, not a project. A project with its own portal appears in both places.</p>
+            <div class="sr-proj-portals">
+              <div class="sr-proj-portalrow">
+                <span class="nm">eBird</span>
+                <span class="vl">3,144 checklists</span>
+                <span class="sh">95% of the 3,300 checked</span>
+              </div>
+              <div class="sr-proj-portalrow">
+                <span class="nm">Great Backyard Bird Count</span>
+                <span class="vl">96 checklists</span>
+                <span class="sh">3% of the 3,300 checked</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="max-width: 560px; flex: 1 1 380px;">
+        <div class="card-head">
+          <span class="ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+          </span>
+          <h3>Projects</h3>
+        </div>
+        <div class="sr-proj">
+          <div class="sr-proj-statusrow">
+            <div class="sr-proj-status" role="status" aria-live="polite">
+              <svg class="sr-proj-icon spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              <span>Checking projects: 1,204 of 3,300 checklists. 2 projects so far.</span>
+            </div>
+            <div class="sr-proj-actions">
+              <button type="button" class="sr-proj-act">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg>
+                <span>Stop</span>
+              </button>
+            </div>
+          </div>
+          <div class="sr-proj-progress">
+            <div class="sr-proj-track" role="progressbar" aria-label="Project check progress" aria-valuenow="1204" aria-valuemin="0" aria-valuemax="3300">
+              <div class="sr-proj-fill" id="run-fill" style="width: 36%;"></div>
+            </div>
+            <span class="sr-proj-count">1,204 / 3,300</span>
+          </div>
+          <p class="sr-proj-rule">Counts below cover only the checklists checked so far, so they can only go up.</p>
+
+          <div class="divider"></div>
+          <p class="sublabel">Projects you have contributed to</p>
+          <div class="sr-proj-vizgrid">
+            <div class="sr-proj-rows">
+              <div class="sr-proj-row">
+                <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-accent);" aria-hidden="true"></span>Great Backyard Bird Count</span>
+                <span class="sr-proj-n">41 checklists</span>
+                <span class="sr-proj-meta">3% of the 1,204 checked<span class="sep">&middot;</span>Feb 12, 2021 &ndash; Feb 16, 2026</span>
+              </div>
+              <div class="sr-proj-row">
+                <span class="sr-proj-name"><span class="sr-proj-dot" style="background: var(--sr-graph-photo);" aria-hidden="true"></span>Maine Bird Atlas</span>
+                <span class="sr-proj-n">17 checklists</span>
+                <span class="sr-proj-meta">1% of the 1,204 checked<span class="sep">&middot;</span>May 3, 2024 &ndash; Jun 30, 2025</span>
+              </div>
+            </div>
+            <div class="sr-proj-viz" aria-hidden="true" inert>
+              <span class="sr-proj-viz-cap">Checklists per project</span>
+              <div class="sr-proj-bars">
+                <div class="sr-proj-bar"><i style="width: 100%; background: var(--sr-accent);"></i></div>
+                <div class="sr-proj-bar"><i style="width: 41%; background: var(--sr-graph-photo);"></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <p class="sublabel">How you submitted</p>
+          <p class="sr-proj-rule sr-proj-portalnote">The app or portal a checklist came in through, not a project. A project with its own portal appears in both places.</p>
+          <div class="sr-proj-portals">
+            <div class="sr-proj-portalrow">
+              <span class="nm">eBird</span>
+              <span class="vl">1,146 checklists</span>
+              <span class="sh">95% of the 1,204 checked</span>
+            </div>
+            <div class="sr-proj-portalrow">
+              <span class="nm">Great Backyard Bird Count</span>
+              <span class="vl">41 checklists</span>
+              <span class="sh">3% of the 1,204 checked</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══ D. Never-run + E. Single project, side by side ══════════════════ -->
+  <section class="board">
+    <span class="board-cap">D · Never run (idle)&nbsp;&nbsp;/&nbsp;&nbsp;E · One project (chart withheld)</span>
+    <p class="board-note">Idle, error, offline and no-key states are visually unchanged: Zone A is
+       already honest and compact, and a never-run section shows no number at all. With a single
+       project there is nothing to compare, so the chart and the dots are withheld (a bar chart of
+       one is chrome around a single fact); the row states it and the block stays flat.</p>
+    <div class="board-row">
+
+      <div class="card" style="max-width: 560px; flex: 1 1 380px;">
+        <div class="card-head">
+          <span class="ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+          </span>
+          <h3>Projects</h3>
+        </div>
+        <div class="sr-proj">
+          <div class="sr-proj-statusrow">
+            <div class="sr-proj-status" role="status" aria-live="polite">
+              <svg class="sr-proj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sr-text-muted)" stroke-width="2.2" stroke-dasharray="3 3" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>
+              <span>Projects have not been checked yet.</span>
+            </div>
+            <div class="sr-proj-actions">
+              <button type="button" class="sr-proj-act sr-proj-act--primary">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                <span>Check projects</span>
+              </button>
+            </div>
+          </div>
+          <p class="sr-proj-rule">Your eBird backup does not record them, so each checklist has to be
+            asked about on its own: 3,300 requests, about 8 minutes at the fastest pace the app
+            allows. That is a floor, and it takes longer if eBird asks the app to slow down. Nothing
+            is sent until you press Check projects.</p>
+        </div>
+      </div>
+
+      <div class="card" style="max-width: 560px; flex: 1 1 380px;">
+        <div class="card-head">
+          <span class="ic">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg>
+          </span>
+          <h3>Projects</h3>
+        </div>
+        <div class="sr-proj">
+          <div class="sr-proj-statusrow">
+            <div class="sr-proj-status" role="status" aria-live="polite">
+              <svg class="sr-proj-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--sr-accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              <span>1 project across all 214 of your checklists. Nothing is left to ask about.</span>
+            </div>
+            <div class="sr-proj-actions">
+              <button type="button" class="sr-proj-act">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                <span>Check again</span>
+              </button>
+            </div>
+          </div>
+          <p class="sr-proj-rule">Every checklist in this backup has been checked, so these counts are
+            complete for it. Checking again asks eBird about all 214 a second time, about 1 minute.
+            A checklist keeps the project it was submitted to, so that is only worth doing if you
+            think an answer is wrong.</p>
+          <div class="divider"></div>
+          <p class="sublabel">Projects you have contributed to</p>
+          <div class="sr-proj-rows">
+            <div class="sr-proj-row">
+              <span class="sr-proj-name">Global Big Day</span>
+              <span class="sr-proj-n">3 checklists</span>
+              <span class="sr-proj-meta">1% of the 214 checked<span class="sep">&middot;</span>May 10 &ndash; May 11, 2025</span>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <p class="sublabel">How you submitted</p>
+          <p class="sr-proj-rule sr-proj-portalnote">The app or portal a checklist came in through, not a project. A project with its own portal appears in both places.</p>
+          <div class="sr-proj-portals">
+            <div class="sr-proj-portalrow">
+              <span class="nm">eBird</span>
+              <span class="vl">209 checklists</span>
+              <span class="sh">98% of the 214 checked</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Theme toggle. Default follows the system, exactly as the app's third state.
+  var btnLight = document.getElementById('btn-light');
+  var btnDark = document.getElementById('btn-dark');
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    btnLight.setAttribute('aria-pressed', String(t === 'light'));
+    btnDark.setAttribute('aria-pressed', String(t === 'dark'));
+  }
+  btnLight.addEventListener('click', function () { setTheme('light'); });
+  btnDark.addEventListener('click', function () { setTheme('dark'); });
+  setTheme(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+  // Replay the chart entrance (in the app this is keyed by projects.length,
+  // so it fires exactly when the chartable shape changes, never per tick).
+  document.getElementById('replay-a').addEventListener('click', function () {
+    var viz = document.getElementById('viz-a');
+    viz.classList.remove('viz-in');
+    void viz.offsetWidth;
+    viz.classList.add('viz-in');
+  });
+
+  // The running state's progress fill eases to its figure on load, showing the
+  // shipped 300ms width transition.
+  window.addEventListener('load', function () {
+    var fill = document.getElementById('run-fill');
+    fill.style.width = '20%';
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { fill.style.width = '36%'; });
+    });
+  });
+</script>
+</body>
+</html>
