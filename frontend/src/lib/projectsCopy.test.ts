@@ -205,16 +205,19 @@ function shippedStrings(): Sample[] {
     for (const checked of checkeds) {
       const view = { checked, total, skipped: 0 }
       const statuses: ProjectsStatus[] = []
-      // The nine resting states, through the shipped precedence.
+      // The ten resting states, through the shipped precedence (`paused`
+      // joined the cross product with project-checker-rate-limiting).
       for (const hasEbirdKey of [true, false]) {
         for (const online of [true, false]) {
           for (const atCapacity of [true, false]) {
-            for (const failed of [0, 1, 2, checked]) {
-              for (const stopped of [true, false]) {
-                statuses.push(restingStatus(
-                  view as never,
-                  { hasEbirdKey, online, atCapacity, failed, stopped },
-                ))
+            for (const paused of [true, false]) {
+              for (const failed of [0, 1, 2, checked]) {
+                for (const stopped of [true, false]) {
+                  statuses.push(restingStatus(
+                    view as never,
+                    { hasEbirdKey, online, atCapacity, paused, failed, stopped },
+                  ))
+                }
               }
             }
           }
@@ -285,14 +288,14 @@ function pluralVerbAfterOne(text: string): string | null {
 describe('number agreement holds in every state at every count (QA-52, QA-54)', () => {
   const corpus = shippedStrings()
 
-  it('the grid reaches all eleven states, and reaches the singular', () => {
+  it('the grid reaches all twelve states, and reaches the singular', () => {
     // Non-vacuity for the sweep itself. A grid that quietly stopped producing
     // `partial`, or stopped producing it at remaining = 1, would make every
     // assertion below pass by not looking.
     const kinds = new Set(corpus.map(s => s.where.split(' ')[0]))
     for (const kind of [
-      'never-run', 'running', 'cooldown', 'stopped', 'partial', 'complete',
-      'unanswered', 'at-capacity', 'no-key', 'offline', 'error',
+      'never-run', 'running', 'cooldown', 'stopped', 'paused', 'partial',
+      'complete', 'unanswered', 'at-capacity', 'no-key', 'offline', 'error',
     ]) expect(kinds, kind).toContain(kind)
     // The two counts the two shipped defects needed: a total of one, and a
     // remaining of one at the tail of a real sweep.
@@ -393,6 +396,7 @@ describe('every state composes the shared clauses (FR-51)', () => {
     { kind: 'running', checked: 412, total: 3252 },
     { kind: 'cooldown', checked: 412, total: 3252, seconds: 7 },
     { kind: 'stopped', checked: 412, total: 3252 },
+    { kind: 'paused', checked: 412, total: 3252 },
     { kind: 'partial', checked: 412, total: 3252, remaining: 2840 },
     { kind: 'complete', checked: 3252, total: 3252 },
     { kind: 'unanswered', checked: 3200, total: 3252, failed: 52 },
@@ -402,8 +406,8 @@ describe('every state composes the shared clauses (FR-51)', () => {
     { kind: 'error', checked: 412, total: 3252 },
   ]
 
-  it('returns a sentence, a note and an icon for all eleven', () => {
-    expect(STATES).toHaveLength(11)
+  it('returns a sentence, a note and an icon for all twelve', () => {
+    expect(STATES).toHaveLength(12)
     for (const s of STATES) {
       const c = projectsCopy(s, 3)
       expect(c.msg.length, s.kind).toBeGreaterThan(10)
@@ -422,6 +426,10 @@ describe('every state composes the shared clauses (FR-51)', () => {
     expect(byKind['no-key'].actions).toEqual([])
     expect(byKind['no-key'].link).toBe('Add a key in Settings')
     expect(byKind['never-run'].actions[0].primary).toBe(true)
+    // The paused state can still act — the hour is guidance, not a lockout —
+    // and its control is the SHIPPED resume id, so the component's action
+    // mapping needed no new arm.
+    expect(byKind['paused'].actions.map(a => a.id)).toEqual(['resume'])
   })
 
   it('only ONE control on the whole card is the accent-filled primary', () => {
@@ -456,6 +464,66 @@ describe('every state composes the shared clauses (FR-51)', () => {
   })
 })
 
+// ── The paused row (project-checker-rate-limiting) ───────────────────────────
+//
+// One row of copy, exactly as the file's header promises. The row composes the
+// same shared clauses as its neighbours, so the denominator, the agreement
+// helpers and the corpus sweep all cover it for free; what is pinned here is
+// what is DISTINCT about it — the hour suggestion, the kept answers, and the
+// shipped resume control.
+describe('the paused row', () => {
+  it('suggests about an hour, keeps the tally, and offers the shipped Resume control', () => {
+    const c = projectsCopy({ kind: 'paused', checked: 412, total: 3252 }, 2)
+    expect(c.icon).toBe('clock')
+    expect(c.tone).toBe('warning')
+    expect(c.msg).toContain('412 of 3,252 checklists checked')
+    expect(c.msg).toContain('every answer so far is kept')
+    expect(c.msg).toContain('paused itself')
+    expect(c.note).toContain('about an hour')
+    expect(c.actions).toEqual([{ id: 'resume', label: 'Resume' }])
+    expect(c.progress).toBeUndefined()
+  })
+
+  it('the resume clause quotes what is LEFT, derived, with its unit', () => {
+    const { note } = projectsCopy({ kind: 'paused', checked: 412, total: 3252 }, 2)
+    expect(note).toContain('the other 2,840')
+    expect(note).toContain(estimateClause(2840))
+  })
+
+  it('at nothing checked it states the denominator and claims no count of any kind', () => {
+    const c = projectsCopy({ kind: 'paused', checked: 0, total: 3252 }, 0)
+    expect(c.msg).toContain(noneCheckedClause(3252))
+    expect(c.msg).not.toMatch(/\b0 /)
+    expect(c.note).toContain('3,252 requests')
+    expect(c.note).toContain('about an hour')
+  })
+
+  it('singularizes one remaining checklist, exactly as stopped does', () => {
+    const { note } = projectsCopy({ kind: 'paused', checked: 3299, total: 3300 }, 1)
+    expect(note).toContain('the other one, about 1 minute')
+  })
+
+  it('a paused re-check (nothing left unanswered) never renders "the other 0"', () => {
+    // Reachable through Check again: the store is complete, so checked equals
+    // total while targets remain. Unlike stopped, paused outranks the
+    // complete branch, so this pair reaches the row.
+    const { msg, note } = projectsCopy({ kind: 'paused', checked: 3300, total: 3300 }, 1)
+    expect(msg).toContain('3,300 of 3,300 checklists checked')
+    expect(note).not.toContain('other 0')
+    expect(note).toContain('about an hour')
+    expect(note).toContain('already has a stored answer')
+  })
+
+  it('reads differently from cooldown and from stopped — three states, three sentences', () => {
+    const paused = projectsCopy({ kind: 'paused', checked: 412, total: 3252 }, 2).msg
+    const cooldown = projectsCopy({ kind: 'cooldown', checked: 412, total: 3252, seconds: 7 }, 2).msg
+    const stopped = projectsCopy({ kind: 'stopped', checked: 412, total: 3252 }, 2).msg
+    expect(new Set([paused, cooldown, stopped]).size).toBe(3)
+    // Cooldown promises to carry on by itself; paused must NOT (it will not).
+    expect(paused).not.toContain('carries on by itself')
+  })
+})
+
 // ── FR-61 / QA-77: no em dashes in any new user-facing copy ──────────────────
 // The sweep is over the STRINGS THE USER SEES, not over the source files. Code
 // comments are explicitly out of the rule's scope, and a file scan would both
@@ -467,6 +535,9 @@ describe('the no-em-dash sweep (FR-61, QA-77)', () => {
     { kind: 'running', checked: 1, total: 10 },
     { kind: 'cooldown', checked: 1, total: 10, seconds: 7 },
     { kind: 'stopped', checked: 1, total: 10 },
+    { kind: 'paused', checked: 0, total: 10 },
+    { kind: 'paused', checked: 1, total: 10 },
+    { kind: 'paused', checked: 10, total: 10 },
     { kind: 'partial', checked: 1, total: 10, remaining: 9 },
     { kind: 'complete', checked: 10, total: 10 },
     { kind: 'unanswered', checked: 9, total: 10, failed: 1 },

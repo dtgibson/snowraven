@@ -95,6 +95,43 @@ export function retryAfterMsFrom(err: unknown): number | null {
   return Math.min(Math.floor(v), RETRY_AFTER_CAP_SEC) * 1000
 }
 
+// ── The sweep's progressive per-pass layer (project-checker-rate-limiting) ───
+//
+// The projects sweep is its own enforcement point over the shared gate state
+// (the repo rule: a lookup joins EBIRD_GATED_PATHS or owns its enforcement,
+// never neither, never both). The gate's ladder deliberately resets on a
+// single post-cooldown success — right for single-shot lookups, and not
+// enough on its own for a thousand-request sweep: at sustained volume the
+// pass re-trips eBird's limiter roughly every minute, forever, with no
+// escalation and no bound (live-use finding, v1.0.8). These two pure values
+// add the sweep's OWN layer on top of the gate: a schedule that widens per
+// observed wave, and a bound after which the pass stops asking. Going slower
+// than the gate's floor is always contract-compliant; the gate's key-global
+// semantics are untouched.
+
+/** 429 waves observed within ONE sweep pass before the sweep pauses itself
+ *  through its existing stop machinery. Session-only by design: nothing about
+ *  the pause is persisted (the v1.0.5 raw-fields rule), and the "about an
+ *  hour" the paused state suggests is guidance copy, not an enforced lockout. */
+export const SWEEP_PAUSE_WAVES = 3
+
+/** Per-wave widening factor for the sweep's own inter-request spacing. */
+export const SWEEP_SPACING_BACKOFF_FACTOR = 4
+
+/**
+ * The sweep's inter-request spacing after `waves` 429 waves observed during
+ * this pass: BASE * FACTOR^waves — strictly monotonic in `waves` (spacing
+ * after wave k is wider than after wave k-1) up to SWEEP_PAUSE_WAVES, where
+ * the pass pauses instead of issuing anything. Pure and clock-free; the base
+ * is a parameter so the shipped caller reads the LIVE
+ * ACTIVITY_START_SPACING_MS binding and the zero-spacing test seam keeps
+ * every full-speed suite at full speed (0 * anything is 0).
+ */
+export function sweepSpacingMs(waves: number, baseMs: number): number {
+  const w = Math.min(Math.max(0, Math.floor(waves)), SWEEP_PAUSE_WAVES)
+  return baseMs * SWEEP_SPACING_BACKOFF_FACTOR ** w
+}
+
 /**
  * The cooldown to apply for a 429, pure and deterministic: a server-sent
  * Retry-After is honored exactly (capped, no jitter); otherwise the bounded

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 //
-// The Projects section's eleven display states, its live region and its progress
+// The Projects section's twelve display states, its live region and its progress
 // bar (county-shading-and-project-stats, FR-49 through FR-56; QA-52, QA-53,
-// QA-54, QA-55, QA-56, QA-58, QA-59, QA-63, QA-64).
+// QA-54, QA-55, QA-56, QA-58, QA-59, QA-63, QA-64; `paused` added by
+// project-checker-rate-limiting).
 //
 // The controller is supplied directly here, because the question is what each
 // STATE renders — its sentence, its supporting note and exactly the controls it
@@ -52,13 +53,14 @@ const show = (status: ProjectsStatus, view: Partial<ProjectsView> = {}) => {
   return { ...r, c }
 }
 
-// ── The eleven states: distinct copy and exactly their own controls ──────────
+// ── The twelve states: distinct copy and exactly their own controls ──────────
 
 const STATES: Array<[string, ProjectsStatus, Partial<ProjectsView>, string[]]> = [
   ['never-run', { kind: 'never-run', total: 3252, skipped: 0 }, {}, ['Check projects']],
   ['running', { kind: 'running', checked: 412, total: 3252 }, { checked: 412 }, ['Stop']],
   ['cooldown', { kind: 'cooldown', checked: 412, total: 3252, seconds: 7 }, { checked: 412 }, ['Stop']],
   ['stopped', { kind: 'stopped', checked: 412, total: 3252 }, { checked: 412 }, ['Resume']],
+  ['paused', { kind: 'paused', checked: 412, total: 3252 }, { checked: 412 }, ['Resume']],
   ['partial', { kind: 'partial', checked: 412, total: 3252, remaining: 2840 }, { checked: 412 }, ['Check the rest']],
   ['complete', { kind: 'complete', checked: 3252, total: 3252 }, { checked: 3252 }, ['Check again']],
   ['unanswered', { kind: 'unanswered', checked: 3200, total: 3252, failed: 52 }, { checked: 3200 }, ['Try again']],
@@ -68,7 +70,7 @@ const STATES: Array<[string, ProjectsStatus, Partial<ProjectsView>, string[]]> =
   ['error', { kind: 'error', checked: 412, total: 3252 }, { checked: 412 }, ['Try again']],
 ]
 
-describe('the eleven display states (FR-51, QA-54)', () => {
+describe('the twelve display states (FR-51, QA-54)', () => {
   it.each(STATES)('%s renders its own copy and exactly its own controls', (_name, status, view, controls) => {
     const { container } = show(status, view)
     const buttons = [...container.querySelectorAll('.sr-proj-act')].map(b => b.textContent?.trim())
@@ -86,8 +88,8 @@ describe('the eleven display states (FR-51, QA-54)', () => {
       r.unmount()
       return text
     })
-    // offline and error each have two shapes; these eleven rows are the ones
-    // FR-51 names, all distinct.
+    // offline and error each have two shapes; these twelve rows are the ones
+    // FR-51 names (plus the paused row), all distinct.
     expect(new Set(sentences).size).toBe(STATES.length)
   })
 
