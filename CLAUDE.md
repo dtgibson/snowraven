@@ -104,6 +104,8 @@ Permanent architectural seams route all platform-sensitive operations. Use them 
 
 Every write calls `mkdir(DATA_DIR, { recursive: true })` before writing to ensure the directory exists.
 
+**Shared-document writes serialize on a per-document promise chain (v1.0.9).** Every read-modify-write on a shared JSON document above (settings, api-keys, metadata) runs as a link on that document's chain in `TauriStorage` (`docChains`, keyed by the closed set of path constants) — a new writer joins the chain, never bypasses it; a link never awaits another chained op, and a failed link rejects only its own caller. Unserialized read-modify-write is the lost-update clobber that silently erased the projects ledger (post-mortem in DECISIONS.md v1.0.9); a future store that rewrites a whole shared document from a base read owes the same mechanism and an interleaving test shaped like `storageWriteSerialization.test.ts`.
+
 **Do not use `localStorage`** — it is ephemeral in Tauri's WKWebView and cleared on every relaunch.  
 **Do not use the system Keychain** (`keyring` crate / `invoke('get_api_key', ...)`) — it requires entitlements not configured in this app and fails silently.
 
